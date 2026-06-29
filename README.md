@@ -30,11 +30,11 @@ bun run dev
 Serves the application with hot reloading.
 
 ### Production Build & Serve
-The site is hosted on the team platform and managed via `publish.sh`.
+The site is hosted on the team platform and managed via `publish.ts`.
 ```bash
 bun run publish
 ```
-This command kills any existing process on port 3000, builds the production assets using `vite build`, and starts the server.
+This command builds the production assets, kills any existing process on port 3000, starts the server, and polls for readiness.
 
 *Note: Vercel deployment currently has adapter compatibility issues with TanStack Start.*
 
@@ -72,5 +72,5 @@ Use the `team-db` CLI for internal SQL queries against the shared Turso instance
 
 - **500 Errors**: Often caused by `getEvent()` context issues when server functions are called outside of a request context. Fixed with a try-catch wrapper in `getUserInternal`.
 - **Vercel Issues**: Vercel may incorrectly detect the project as a static site. TanStack Start requires a Nitro-based serverless environment.
-- **Port 3000 Conflicts**: If the server fails to start, ensure port 3000 is free. `publish.sh` handles this automatically.
+- **Port 3000 Conflicts**: If the server fails to start, ensure port 3000 is free. `publish.ts` handles this automatically.
 - **Terminal Issues**: If you see unusual characters or output in the sandbox terminal, try refreshing the session.
