@@ -8,6 +8,7 @@
 // member's `bun run publish` runs as their own user), so publish never collides
 // with an already-running server. Every sandbox user has passwordless sudo, so
 // the takeover works across user boundaries.
+// @ts-expect-error this is a build artifact that might not exist yet
 import handler from "./dist/server/server.js";
 
 // Pinned, NOT read from the environment. The published preview URL

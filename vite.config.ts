@@ -19,6 +19,7 @@ export default defineConfig({
       projects: ["./tsconfig.json"],
     }),
     tanstackStart({
+      // @ts-expect-error Nitro config is valid but might not be in the types for this version
       nitro: {
         preset: "vercel",
       },

@@ -1,14 +1,10 @@
 import { createClient } from "@libsql/client";
-import { users, audits } from "./src/db/schema";
-import { drizzle } from "drizzle-orm/libsql";
 
 async function main() {
   const client = createClient({
     url: process.env.TEAM_DB_URL!,
     authToken: process.env.TEAM_DB_AUTH_TOKEN!,
   });
-
-  const db = drizzle(client);
 
   console.log("Creating tables...");
 

@@ -10,7 +10,9 @@ const getPageData = createServerFn({ method: "GET" }).handler(async () => {
       businessName?: string;
     };
     businessName = cfg.businessName?.trim() ?? "Simpler Life 100";
-  } catch {}
+  } catch (_err) {
+    // Ignore error
+  }
 
   const user = await getUser();
   return { businessName, user };
@@ -45,7 +47,7 @@ const verticals = [
   { name: "Government", slug: "government", multiplier: "1.4x", icon: "🏛️", color: "#475569" },
   { name: "Hospitality", slug: "hospitality", multiplier: "1.4x", icon: "🏨", color: "#e11d48" },
   { name: "Restaurants", slug: "restaurants", multiplier: "1.4x", icon: "🍽️", color: "#f97316" },
-  { name: "Human Resources", slug: "human-resources", multiplier: "1.4x", icon: "👥", color: "#65a30d" },
+  { name: "Human Resources", multiplier: "1.4x", icon: "👥", slug: "human-resources", color: "#65a30d" },
   { name: "Education", slug: "education", multiplier: "1.3x", icon: "📚", color: "#9333ea" },
   { name: "Nonprofits", slug: "nonprofits", multiplier: "1.3x", icon: "🤝", color: "#78716c" },
 ];
@@ -154,7 +156,7 @@ function Home() {
             </span>
             <h2 className="text-3xl lg:text-5xl font-bold mb-4">Pre-Modeled ROI by Vertical</h2>
             <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-              We've already modeled the automation ROI for 26 industries. Click any vertical to see the specific agent blueprint.
+              We&apos;ve already modeled the automation ROI for 26 industries. Click any vertical to see the specific agent blueprint.
             </p>
           </div>
 
@@ -167,7 +169,7 @@ function Home() {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
               {verticals.filter(v => v.top).map((v) => (
-                <Link key={v.name} to={v.demo || `/industries/${v.slug}`}
+                <Link key={v.name} to={(v.demo || `/industries/${v.slug}`) as any}
                   className="group relative overflow-hidden rounded-2xl border-2 p-5 flex flex-col transition-all duration-300 hover:shadow-xl hover:-translate-y-1 bg-white"
                   style={{ borderColor: v.color + '30' }}
                 >
@@ -189,7 +191,7 @@ function Home() {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
               {verticals.filter(v => !v.top && parseFloat(v.multiplier) >= 1.5).map((v) => (
-                <Link key={v.name} to={`/industries/${v.slug}`}
+                <Link key={v.name} to={`/industries/${v.slug}` as any}
                   className="group relative overflow-hidden rounded-xl border p-4 flex flex-col transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 bg-white hover:border-gray-300"
                 >
                   <span className="text-2xl mb-2">{v.icon}</span>
@@ -208,7 +210,7 @@ function Home() {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
               {verticals.filter(v => parseFloat(v.multiplier) < 1.5).map((v) => (
-                <Link key={v.name} to={`/industries/${v.slug}`}
+                <Link key={v.name} to={`/industries/${v.slug}` as any}
                   className="group flex items-center gap-3 rounded-xl border border-gray-100 p-3.5 transition-all duration-300 hover:shadow-md hover:border-gray-200 bg-white"
                 >
                   <span className="text-lg shrink-0">{v.icon}</span>
@@ -258,7 +260,7 @@ function Home() {
           <div className="max-w-4xl mx-auto bg-indigo-600 rounded-3xl p-8 lg:p-16 text-center text-white">
             <h2 className="text-3xl lg:text-5xl font-bold mb-6">Live a simpler life today.</h2>
             <p className="text-xl text-indigo-100 mb-10">
-              Join leading operations teams using {businessName} to automate manual work and reclaim your team's time.
+              Join leading operations teams using {businessName} to automate manual work and reclaim your team&apos;s time.
             </p>
             <a href="https://buy.stripe.com/dRm6oHeUUfdh8K27cU08g09" className="inline-block bg-white text-indigo-600 px-10 py-4 rounded-xl font-bold text-lg hover:bg-indigo-50 transition-colors shadow-xl">
               Get Your ROI Audit

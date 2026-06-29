@@ -59,7 +59,7 @@ function Portal() {
               You haven't purchased any audits yet or they haven't been linked to your account.
             </p>
             <Link
-              to="/#services"
+              to={"/#services" as any}
               className="inline-block bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold"
             >
               Browse Services

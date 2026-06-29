@@ -60,7 +60,7 @@ async function main() {
   for (let i = 1; i <= MAX_POLLS; i++) {
     try {
       const isReady = await new Promise<boolean>((resolve) => {
-        const req = http.get(`http://localhost:${PORT}`, (res) => {
+        const req = http.get(`http://localhost:${PORT}`, (_res) => {
           // Any response (even 404) means the server is up
           resolve(true);
         });
