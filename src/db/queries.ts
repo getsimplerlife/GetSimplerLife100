@@ -121,3 +121,19 @@ export const getAudit = createServerFn()
 
     return audit;
   });
+
+export const submitLead = createServerFn()
+  .validator((data: any) => data)
+  .handler(async ({ data }) => {
+    const fs = await import("node:fs/promises");
+    const leadData = JSON.stringify(
+      {
+        timestamp: new Date().toISOString(),
+        ...data,
+      },
+      null,
+      2
+    );
+    await fs.appendFile("/home/team/shared/leads.json", leadData + ",\n");
+    return { success: true };
+  });

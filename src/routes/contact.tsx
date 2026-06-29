@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, createFileRoute } from '@tanstack/react-router';
-import { getUser } from '~/db/queries';
+import { getUser, submitLead } from '~/db/queries';
 
 export const Route = createFileRoute('/contact')({
   loader: async () => {
@@ -68,17 +68,7 @@ function Contact() {
     e.preventDefault();
     setLoading(true);
     try {
-      // Save the lead to a shared file for now
-      const leadData = JSON.stringify({
-        timestamp: new Date().toISOString(),
-        ...formData,
-      }, null, 2);
-
-      // In production, this would POST to an API or send an email
-      // For now, save locally and simulate success
-      const fs = await import('node:fs/promises');
-      await fs.appendFile('/home/team/shared/leads.json', leadData + ',\n');
-
+      await submitLead({ data: formData });
       setStatus('success');
     } catch (err) {
       console.error(err);
