@@ -7,7 +7,7 @@
     "dev": "vite dev",
     "build": "vite build",
     "start": "bun run serve.ts",
-    "publish": "bash ./publish.sh",
+    "publish": "bun run publish.ts",
     "format": "prettier --write ."
   },
   "dependencies": {
