@@ -1,4 +1,11 @@
 {
-  "buildCommand": "NITRO_PRESET=vercel bun run build",
-  "outputDirectory": ".vercel/output"
+  "buildCommand": "NITRO_PRESET=vercel npx vite build",
+  "outputDirectory": ".vercel/output",
+  "framework": null,
+  "functions": {
+    "api/**/*": {
+      "memory": 512,
+      "maxDuration": 30
+    }
+  }
 }
