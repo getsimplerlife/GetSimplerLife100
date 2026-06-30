@@ -16,7 +16,11 @@ export const Route = createRootRoute({
       { title: "Simpler Life 100 | High-ROI Vertical AI" },
       { name: "description", content: "Simpler Life 100 automates high-friction workflows unique to your industry. Work less, live more with our vertical AI agents." },
     ],
-    links: [{ rel: "stylesheet", href: appCss }],
+    links: [
+      { rel: "stylesheet", href: appCss },
+      { rel: "dns-prefetch", href: "https://js.stripe.com" },
+      { rel: "preconnect", href: "https://js.stripe.com" },
+    ],
   }),
   notFoundComponent: () => <div>Page not found</div>,
   component: RootComponent,
