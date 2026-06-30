@@ -44,7 +44,16 @@ for (let attempt = 1; ; attempt++) {
         const { pathname } = new URL(req.url);
         if (pathname !== "/") {
           const file = Bun.file(CLIENT_DIR + pathname);
-          if (await file.exists()) return new Response(file);
+          if (await file.exists()) {
+            // Cache static assets: JS/CSS for 1 year, images for 1 month
+            const ext = pathname.split(".").pop()?.toLowerCase();
+            const maxAge = ["js","css","woff","woff2","ttf"].includes(ext||"") ? 31536000
+                       : ["png","jpg","jpeg","gif","svg","webp","ico"].includes(ext||"") ? 2592000
+                       : 0;
+            return new Response(file, {
+              headers: maxAge ? { "Cache-Control": `public, max-age=${maxAge}, immutable` } : {},
+            });
+          }
         }
         return (
           handler as { fetch: (r: Request) => Response | Promise<Response> }
