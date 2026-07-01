@@ -175,3 +175,22 @@ export const createAuditForEmail = createServerFn()
 
     return { success: true, auditId };
   });
+
+export const updateAuditResults = createServerFn()
+  .validator((data: { auditId: string; results: string; status: string }) => data)
+  .handler(async ({ data }) => {
+    const { auditId, results, status } = data;
+    const user = await getUserInternal();
+    if (!user) throw new Error("Unauthorized");
+
+    await db
+      .update(audits)
+      .set({
+        results,
+        status,
+        updatedAt: new Date(),
+      })
+      .where(eq(audits.id, auditId));
+
+    return { success: true };
+  });
