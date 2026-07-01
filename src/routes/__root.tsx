@@ -13,8 +13,8 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Simpler Life 100 | High-ROI Vertical AI" },
-      { name: "description", content: "Simpler Life 100 automates high-friction workflows unique to your industry. Work less, live more with our vertical AI agents." },
+      { title: "Simpler Life 100 | AI Coworkers for Operations Teams" },
+      { name: "description", content: "Replace hours of manual work with industry-specific AI agents that integrate into your existing workflows. Real results, no buzzwords." },
     ],
     links: [
       { rel: "stylesheet", href: appCss },

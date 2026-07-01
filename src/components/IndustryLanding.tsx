@@ -40,10 +40,10 @@ export default function IndustryLanding({ config }: { config: IndustryConfig }) 
           <div className="max-w-5xl mx-auto text-center">
             <span className="inline-block text-5xl mb-6">{c.icon}</span>
             <div className="inline-block px-3 py-1 mb-4 text-sm font-semibold rounded-full bg-white/80 dark:bg-slate-800 shadow-sm">
-              Simpler Life 100 &mdash; {c.name} Vertical
+              Simpler Life 100 &mdash; {c.name} Solutions
             </div>
             <h1 className="text-4xl lg:text-6xl font-extrabold tracking-tight mb-6" style={{ color: c.accent }}>
-              {c.name} Automation
+              {c.name} AI Coworkers
             </h1>
             <p className="text-xl text-gray-600 dark:text-gray-400 max-w-3xl mx-auto mb-4">
               {c.tagline}
@@ -94,9 +94,9 @@ export default function IndustryLanding({ config }: { config: IndustryConfig }) 
 
         {/* Audit Tiers */}
         <section className="px-6 py-16 max-w-5xl mx-auto">
-          <h2 className="text-3xl font-bold mb-4 text-center">Start With an Audit</h2>
+          <h2 className="text-3xl font-bold mb-4 text-center">Where is your team losing time?</h2>
           <p className="text-center text-gray-500 dark:text-gray-400 mb-12 max-w-2xl mx-auto">
-            Pick the diagnostic that fits your needs, then we&#39;ll build your custom automation roadmap.
+            Choose how you want to start. We'll identify your best opportunities for AI and build a roadmap to automate them.
           </p>
           <div className="grid md:grid-cols-2 gap-8">
             {/* Efficiency Audit */}
@@ -136,7 +136,7 @@ export default function IndustryLanding({ config }: { config: IndustryConfig }) 
               <h3 className="text-xl font-bold mb-2">Deep-Dive AI Audit</h3>
               <div className="text-3xl font-extrabold mb-4" style={{ color: c.accent }}>$2,500</div>
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-                Full diagnostic. Custom automation roadmap with ROI projections.
+                A technical roadmap for your business. We map your workflows and show exactly how AI coworkers will save you time.
               </p>
               <ul className="space-y-2 mb-8 flex-1">
                 {c.deepAuditFeatures.map((f, i) => (
@@ -186,20 +186,20 @@ export default function IndustryLanding({ config }: { config: IndustryConfig }) 
 
         {/* CTA */}
         <section className="px-6 py-20 bg-slate-900 text-white text-center">
-          <h2 className="text-3xl font-bold mb-6">Ready to simplify your {c.name} operations?</h2>
+          <h2 className="text-3xl font-bold mb-6">Stop managing manual work. Start scaling.</h2>
           <p className="text-xl text-slate-400 mb-10 max-w-2xl mx-auto">
-            {c.tagline}
+            Your team shouldn't spend hours on work that software should already be doing. Let's identify where AI can save you the most time.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link to="/" className="px-8 py-3 border border-slate-700 rounded-lg font-bold hover:bg-slate-800 transition-colors">
               Explore All Verticals
             </Link>
-            <a
-              href="https://buy.stripe.com/aFa5kD4ggghlbWe2WE08g0h"
+            <Link
+              to="/#contact"
               className="bg-indigo-600 px-8 py-3 rounded-lg font-bold hover:bg-indigo-700 transition-colors"
             >
-              Book Your Deep-Dive Audit
-            </a>
+              Book Your Free Assessment
+            </Link>
           </div>
         </section>
       </main>
