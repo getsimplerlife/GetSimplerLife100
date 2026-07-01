@@ -10,36 +10,12 @@ export const Route = createFileRoute('/contact')({
   component: Contact,
 });
 
-function ClockIcon() { return <svg className="h-5 w-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>; }
-function CheckIcon() { return <svg className="h-5 w-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>; }
-function SparkleIcon() { return <svg className="h-5 w-5 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>; }
-function MailIcon() { return <svg className="h-5 w-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>; }
-function SendIcon() { return <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>; }
-
-const AUDIT_OPTIONS = [
-  { id: 1, icon: '👥', name: 'Human Resources' },
-  { id: 2, icon: '💻', name: 'Technical Support' },
-  { id: 3, icon: '🤝', name: 'Customer Service' },
-  { id: 4, icon: '🔍', name: 'Online Research' },
-  { id: 5, icon: '📊', name: 'Program Management' },
-  { id: 6, icon: '📁', name: 'Executive Assistance' },
-  { id: 7, icon: '🗺️', name: 'Strategic Planning' },
-  { id: 8, icon: '🗄️', name: 'File Management' },
-  { id: 9, icon: '🌐', name: 'Outsourcing' },
-  { id: 10, icon: '📝', name: 'Data Entry' },
-  { id: 11, icon: '🎤', name: 'Typing & Transcription' },
-  { id: 12, icon: '📈', name: 'Data Reporting' },
-  { id: 13, icon: '💸', name: 'Invoice Processing' },
-  { id: 14, icon: '🤖', name: 'Virtual Assistance' },
-  { id: 15, icon: '📅', name: 'Appointment Scheduling' },
-  { id: 16, icon: '🏦', name: 'Payroll Services' },
-  { id: 17, icon: '🧱', name: 'Project Management' },
-  { id: 18, icon: '⚙️', name: 'AI & Automation Infra' },
-  { id: 19, icon: '💰', name: 'Sales Operations' },
-  { id: 20, icon: '📣', name: 'Marketing Systems' },
-  { id: 21, icon: '💳', name: 'Finance Operations' },
-  { id: 22, icon: '🛡️', name: 'Cybersecurity & Access' },
-  { id: 23, icon: '🤖', name: 'AI Governance' },
+const industries = [
+  "Energy", "Manufacturing", "Automotive", "Financial Services", "Logistics",
+  "Healthcare", "Legal", "Accounting", "Insurance", "Retail",
+  "Ecommerce", "Construction", "Real Estate", "Hospitality", "Education",
+  "Nonprofits", "Government", "Technology", "Telecom", "Marketing",
+  "HR", "Agriculture", "Other"
 ];
 
 function Contact() {
@@ -47,32 +23,77 @@ function Contact() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    phone: '',
     company: '',
-    needs: [] as string[],
-    message: '',
+    industry: '',
+    problem: '',
   });
   const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
-
-  const toggleNeed = (need: string) => {
-    setFormData(prev => ({
-      ...prev,
-      needs: prev.needs.includes(need)
-        ? prev.needs.filter(n => n !== need)
-        : [...prev.needs, need],
-    }));
-  };
+  const [error, setError] = useState<string | null>(null);
+  const [assessment, setAssessment] = useState<{
+    tier: string;
+    title: string;
+    price: string;
+    explanation: string;
+    cta: string;
+    link: string;
+  } | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError(null);
+
     try {
       await submitLead({ data: formData });
-      setStatus('success');
+
+      // Generate assessment recommendation based on input
+      const problem = formData.problem.toLowerCase();
+      const industry = formData.industry.toLowerCase();
+
+      let recommendation;
+
+      if (problem.includes('existing') || problem.includes('already') || problem.includes('maintain') || problem.includes('current')) {
+        recommendation = {
+          tier: 'Support',
+          title: 'Managed Operations',
+          price: 'From $750/mo',
+          explanation: `You already have systems in motion. Rather than rebuilding, we can deploy AI agents that monitor and maintain your ${industry} workflows, handling volume spikes and freeing your team to focus on exceptions.`,
+          cta: 'Explore Support Plans',
+          link: '#pricing'
+        };
+      } else if (problem.length > 60 && (problem.includes('every') || problem.includes('daily') || problem.includes('each') || problem.includes('repeat') || problem.includes('process') || problem.includes('approve') || problem.includes('review') || problem.includes('enter') || problem.includes('copy'))) {
+        recommendation = {
+          tier: 'Build',
+          title: 'Implementation',
+          price: 'From $7,500',
+          explanation: `This is exactly the kind of repeatable workflow AI handles best. For a ${industry} company, we'd build a custom agent to automate this process end-to-end — integrating with your existing tools and cutting the time spent to near zero.`,
+          cta: 'View Implementation Packages',
+          link: '#pricing'
+        };
+      } else if (problem.length > 30) {
+        recommendation = {
+          tier: 'Design',
+          title: 'Automation Blueprint',
+          price: '$2,500',
+          explanation: `You've identified a real opportunity in ${industry}. Before we build, we recommend a Deep-Dive Blueprint — a full analysis of your workflow, a technical roadmap, and projected ROI. This fee is credited toward implementation.`,
+          cta: 'Get Your Blueprint',
+          link: '/audit'
+        };
+      } else {
+        recommendation = {
+          tier: 'Discover',
+          title: 'Free 30-Minute Assessment',
+          price: 'Free',
+          explanation: `Based on what you've shared, the best first step is a quick conversation. In 30 minutes we can pinpoint where AI would save you the most time in your ${industry} operations and map out the next steps.`,
+          cta: 'Start Your Free Assessment',
+          link: '#contact'
+        };
+      }
+
+      setAssessment(recommendation);
     } catch (err) {
       console.error(err);
-      setStatus('error');
+      setError('Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -80,209 +101,160 @@ function Contact() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      {/* Nav */}
-      <header className="px-6 py-4 border-b bg-white dark:bg-slate-900">
+      <header className="px-6 py-4 border-b bg-white">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <Link to="/" className="text-2xl font-bold text-indigo-600 tracking-tight">
+          <Link to="/" className="text-2xl font-black text-indigo-600 tracking-tight">
             Simpler Life 100
           </Link>
           <div className="flex items-center gap-6">
-            <Link to="/" className="text-sm font-medium hover:text-indigo-600 transition-colors">
+            <Link to="/" className="text-sm font-bold text-slate-600 hover:text-indigo-600 transition-colors">
               Home
             </Link>
             {user ? (
               <Link to="/portal" className="text-sm font-bold text-indigo-600 border border-indigo-600 px-4 py-1.5 rounded-lg hover:bg-indigo-50 transition-colors">Dashboard</Link>
             ) : (
-              <Link to="/login" className="text-sm font-medium hover:text-indigo-600 transition-colors">Login</Link>
+              <Link to="/login" className="text-sm font-bold text-indigo-600 hover:text-indigo-700">Login</Link>
             )}
           </div>
         </div>
       </header>
 
-      <main className="flex-1 bg-gray-50 py-16 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-12">
-            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900 mb-4">
-              24/7 Asynchronous Automation Diagnostic
-            </h1>
-            <p className="text-gray-600 max-w-2xl mx-auto text-lg">
-              Our expert system is active 24/7/365. Request your custom diagnostic below and receive your tailored Automation Roadmap &amp; ROI Analysis in under 24 hours—no phone calls or scheduling required.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-12 gap-8 items-start">
-            {/* Quick Info Sidebar */}
-            <div className="md:col-span-4 space-y-6">
-              <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                <h3 className="font-bold text-gray-900 mb-4 text-lg">Diagnostic Availability</h3>
-                <div className="space-y-4 text-sm text-gray-600">
-                  <div className="flex items-center space-x-3">
-                    <ClockIcon />
-                    <span className="font-semibold text-indigo-600">Instant 24/7/365</span>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <CheckIcon />
-                    <span>No Scheduling Required</span>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <SparkleIcon />
-                    <span>24-Hour Delivery Promise</span>
-                  </div>
-                </div>
+      <main className="flex-1 bg-slate-50 py-20 px-6">
+        <div className="max-w-3xl mx-auto">
+          {assessment ? (
+            /* Assessment Result */
+            <div className="bg-white rounded-[2.5rem] p-12 lg:p-16 shadow-xl border border-slate-100 text-center">
+              <div className="inline-block px-4 py-1.5 rounded-full bg-indigo-100 text-indigo-700 font-bold text-sm uppercase tracking-wider mb-6">
+                Recommended: {assessment.tier}
               </div>
-
-              <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 p-6 rounded-2xl text-white shadow-lg">
-                <h3 className="font-bold mb-2 text-lg">Skip the Queue</h3>
-                <p className="text-sm text-indigo-100 mb-4">
-                  Secure your priority 24-hour QuickScan&trade; for just $997 (100% credited back to any build).
-                </p>
-                <a
-                  href="https://buy.stripe.com/14AeVdaEE2qv5xQbta08g0b"
-                  className="block text-center py-2.5 bg-white text-indigo-600 font-bold rounded-xl hover:bg-indigo-50 transition shadow-sm"
+              <h2 className="text-4xl lg:text-5xl font-black text-slate-900 mb-6 leading-tight">
+                {assessment.title}
+              </h2>
+              <div className="text-2xl font-black text-indigo-600 mb-8">
+                {assessment.price}
+              </div>
+              <p className="text-xl text-slate-600 leading-relaxed mb-10 max-w-2xl mx-auto">
+                {assessment.explanation}
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                <Link
+                  to={assessment.link as any}
+                  className="bg-indigo-600 text-white px-10 py-4 rounded-xl font-bold text-lg hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
                 >
-                  Secure Priority Audit
-                </a>
-              </div>
-
-              <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                <h3 className="font-bold text-gray-900 mb-4 text-lg">Contact Us Directly</h3>
-                <div className="space-y-4 text-sm text-gray-600">
-                  <div className="flex items-center space-x-3">
-                    <MailIcon />
-                    <span>contact@simplerlife100.com</span>
-                  </div>
-                </div>
+                  {assessment.cta}
+                </Link>
+                <button
+                  onClick={() => setAssessment(null)}
+                  className="text-slate-500 font-bold hover:text-slate-700 transition-colors"
+                >
+                  Start Over
+                </button>
               </div>
             </div>
+          ) : (
+            /* Assessment Form */
+            <>
+              <div className="text-center mb-12">
+                <h1 className="text-4xl lg:text-5xl font-black text-slate-900 mb-4 tracking-tight">
+                  Free AI Workflow Assessment
+                </h1>
+                <p className="text-xl text-slate-500 max-w-2xl mx-auto leading-relaxed">
+                  Tell us what's slowing your team down. We'll analyze your workflow and recommend the best next step — no commitment, no call required.
+                </p>
+              </div>
 
-            {/* Form */}
-            <div className="md:col-span-8 bg-white border border-gray-100 rounded-2xl shadow-sm p-8">
-              {status === 'success' ? (
-                <div className="text-center py-8">
-                  <CheckIcon />
-                  <div className="h-16 w-16 mx-auto mb-4 rounded-full bg-emerald-100 flex items-center justify-center">
-                    <svg className="h-8 w-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                    </svg>
-                  </div>
-                  <h3 className="text-2xl font-bold text-gray-900 mb-2">Request Queued Successfully!</h3>
-                  <p className="text-gray-600 mb-6">
-                    Thanks for reaching out! Our AI Expert System has received your operational data. Your customized Automation Roadmap is being compiled and will be delivered to your inbox in under 24 hours.
-                  </p>
-                  <button
-                    onClick={() => setStatus('idle')}
-                    className="px-6 py-2 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition"
-                  >
-                    Submit Another Request
-                  </button>
-                </div>
-              ) : (
-                <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="bg-white rounded-[2.5rem] p-10 lg:p-14 shadow-xl border border-slate-100">
+                <form onSubmit={handleSubmit} className="space-y-8">
                   <div className="grid sm:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                      <label className="block text-sm font-bold text-slate-700 mb-2">Your Name</label>
                       <input
                         type="text"
                         required
-                        className="w-full rounded-lg border border-gray-300 px-4 py-2 text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition"
+                        placeholder="Jane Smith"
+                        className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-lg"
                         value={formData.name}
                         onChange={e => setFormData({ ...formData, name: e.target.value })}
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Work Email</label>
+                      <label className="block text-sm font-bold text-slate-700 mb-2">Work Email</label>
                       <input
                         type="email"
                         required
-                        className="w-full rounded-lg border border-gray-300 px-4 py-2 text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition"
+                        placeholder="jane@company.com"
+                        className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-lg"
                         value={formData.email}
                         onChange={e => setFormData({ ...formData, email: e.target.value })}
                       />
                     </div>
                   </div>
 
-                  <div className="grid sm:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-                      <input
-                        type="tel"
-                        required
-                        placeholder="+1 (555) 000-0000"
-                        className="w-full rounded-lg border border-gray-300 px-4 py-2 text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition"
-                        value={formData.phone}
-                        onChange={e => setFormData({ ...formData, phone: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
-                      <input
-                        type="text"
-                        className="w-full rounded-lg border border-gray-300 px-4 py-2 text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition"
-                        value={formData.company}
-                        onChange={e => setFormData({ ...formData, company: e.target.value })}
-                      />
-                    </div>
-                  </div>
-
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Which audits do you need? (Select all that apply)</label>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-80 overflow-y-auto p-1">
-                      {AUDIT_OPTIONS.map(audit => (
-                        <button
-                          key={audit.id}
-                          type="button"
-                          onClick={() => toggleNeed(audit.name)}
-                          className={`flex items-center gap-2 p-2.5 border rounded-lg text-sm text-left transition ${
-                            formData.needs.includes(audit.name)
-                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm font-medium'
-                              : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
-                          }`}
-                        >
-                          <span className="text-base">{audit.icon}</span>
-                          <span className="truncate">{audit.name}</span>
-                        </button>
-                      ))}
-                    </div>
-                    <p className="text-xs text-gray-400 mt-2">
-                      {formData.needs.length} selected{formData.needs.length > 0 ? ` — ${formData.needs.join(', ')}` : ''}
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Tell us about your biggest administrative time-waster</label>
-                    <textarea
-                      rows={4}
-                      className="w-full rounded-lg border border-gray-300 px-4 py-2 text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition resize-none"
-                      placeholder="E.g., copying leads into our CRM daily, booking client calls manually..."
-                      value={formData.message}
-                      onChange={e => setFormData({ ...formData, message: e.target.value })}
+                    <label className="block text-sm font-bold text-slate-700 mb-2">Company</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Company name"
+                      className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-lg"
+                      value={formData.company}
+                      onChange={e => setFormData({ ...formData, company: e.target.value })}
                     />
                   </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-2">Industry</label>
+                    <select
+                      required
+                      className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-lg bg-white"
+                      value={formData.industry}
+                      onChange={e => setFormData({ ...formData, industry: e.target.value })}
+                    >
+                      <option value="" disabled>Select your industry</option>
+                      {industries.map(ind => (
+                        <option key={ind} value={ind}>{ind}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-2">What manual work is eating your team's time?</label>
+                    <textarea
+                      rows={5}
+                      required
+                      placeholder="Describe the repetitive task or workflow that's slowing your team down. The more detail you share, the better our recommendation."
+                      className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-lg resize-none"
+                      value={formData.problem}
+                      onChange={e => setFormData({ ...formData, problem: e.target.value })}
+                    />
+                  </div>
+
+                  {error && (
+                    <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm font-medium">
+                      {error}
+                    </div>
+                  )}
 
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full inline-flex items-center justify-center px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition disabled:bg-indigo-300 shadow-md"
+                    className="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold text-xl hover:bg-indigo-700 transition-all disabled:opacity-50 shadow-lg shadow-indigo-100"
                   >
-                    {loading ? 'Processing...' : (
-                      <>
-                        <SendIcon />
-                        Submit Automation Request
-                      </>
-                    )}
+                    {loading ? 'Analyzing...' : 'Get My Recommendation →'}
                   </button>
-                  {status === 'error' && (
-                    <p className="text-red-500 text-sm text-center">Submission error. Please try again or contact support.</p>
-                  )}
+
+                  <p className="text-center text-sm text-slate-400 font-medium">
+                    No spam. No sales calls. Just a clear recommendation based on your input.
+                  </p>
                 </form>
-              )}
-            </div>
-          </div>
+              </div>
+            </>
+          )}
         </div>
       </main>
 
-      <footer className="px-6 py-12 border-t text-center text-sm text-gray-500">
-        &copy; {new Date().getFullYear()} Simpler Life 100. All rights reserved.
+      <footer className="px-6 py-12 border-t text-center text-sm text-slate-400 bg-white">
+        <p>&copy; {new Date().getFullYear()} Simpler Life 100. All rights reserved.</p>
       </footer>
     </div>
   );

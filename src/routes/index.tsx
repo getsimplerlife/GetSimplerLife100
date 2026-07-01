@@ -55,10 +55,10 @@ const journeySteps = [
     step: "01",
     name: "Discover",
     benefit: "Audit",
-    description: "We learn where your team loses time and identify the manual work that can be handled by AI coworkers.",
+    description: "In 30 minutes, we'll identify your top automation opportunities, estimate the time and cost savings, and recommend the best next step. If we don't find a meaningful opportunity, we'll tell you.",
     price: "FREE",
     cta: "Book Your Free AI Workflow Assessment",
-    link: "#contact"
+    link: "/contact"
   },
   {
     step: "02",
@@ -111,7 +111,7 @@ function Home() {
             ) : (
               <>
                 <Link to="/login" className="text-sm font-bold text-indigo-600 hover:text-indigo-700">Login</Link>
-                <a href="#contact" className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100">Book Free AI Workflow Assessment</a>
+                <Link to="/contact" className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100">Book Free AI Workflow Assessment</Link>
               </>
             )}
           </nav>
@@ -132,9 +132,9 @@ function Home() {
               We build AI employees that take repetitive operations work off your team's plate.
             </p>
             <div className="flex flex-col sm:flex-row gap-6 justify-center">
-              <a href="#contact" className="bg-indigo-600 text-white px-10 py-5 rounded-2xl font-bold text-xl hover:bg-indigo-700 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-xl shadow-indigo-200">
+              <Link to="/contact" className="bg-indigo-600 text-white px-10 py-5 rounded-2xl font-bold text-xl hover:bg-indigo-700 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-xl shadow-indigo-200">
                 Book Your Free AI Workflow Assessment
-              </a>
+              </Link>
               <a href="#examples" className="bg-white text-slate-900 border-2 border-slate-100 px-10 py-5 rounded-2xl font-bold text-xl hover:bg-slate-50 transition-all hover:border-slate-200">
                 See Example Automations
               </a>
@@ -506,9 +506,9 @@ function Home() {
             </div>
 
             <div className="mt-20 text-center">
-              <a href="#contact" className="inline-block bg-indigo-600 text-white px-12 py-5 rounded-2xl font-bold text-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">
+              <Link to="/contact" className="inline-block bg-indigo-600 text-white px-12 py-5 rounded-2xl font-bold text-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">
                 Book Your Free AI Workflow Assessment
-              </a>
+              </Link>
               <p className="mt-4 text-slate-500 font-medium">Identify your best opportunities before you commit to a build.</p>
             </div>
           </div>
@@ -553,10 +553,10 @@ function Home() {
               <div className="bg-white/5 backdrop-blur-lg p-12 rounded-[3rem] border border-white/10 text-center">
                 <div className="text-indigo-400 font-bold uppercase tracking-widest text-xs mb-6">Start Today</div>
                 <h3 className="text-4xl font-black mb-8">Identify where AI can save you the most time.</h3>
-                <a href="#contact" className="block w-full bg-white text-slate-950 py-5 rounded-2xl font-bold text-xl hover:bg-slate-100 transition-all">
+                <Link to="/contact" className="block w-full bg-white text-slate-950 py-5 rounded-2xl font-bold text-xl hover:bg-slate-100 transition-all">
                   Book Your Free AI Workflow Assessment
-                </a>
-                <p className="mt-6 text-slate-500 text-sm font-medium">No credit card required. One-on-one assessment call.</p>
+                </Link>
+                <p className="mt-6 text-slate-500 text-sm font-medium">No credit card required. 30-minute assessment.</p>
               </div>
             </div>
           </div>
@@ -569,13 +569,13 @@ function Home() {
               Every week your team spends hours on work that software should already be doing.
             </h2>
             <p className="text-2xl text-slate-500 mb-12 leading-relaxed">
-              Let's identify where AI agents can save you the most time—with a free AI Workflow Assessment.
+              In 30 minutes, we'll identify your top automation opportunities, estimate the time and cost savings, and recommend the best next step.
             </p>
             <div className="flex flex-col items-center">
-              <a href="mailto:contact@simplerlife100.com" className="inline-block bg-indigo-600 text-white px-12 py-5 rounded-2xl font-bold text-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 hover:scale-105 active:scale-95">
-                Email contact@simplerlife100.com
-              </a>
-              <p className="mt-8 text-slate-400 font-medium italic">"The most productive assessment your operations team will have this quarter."</p>
+              <Link to="/contact" className="inline-block bg-indigo-600 text-white px-12 py-5 rounded-2xl font-bold text-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 hover:scale-105 active:scale-95">
+                Start Your Free Assessment
+              </Link>
+              <p className="mt-8 text-slate-400 font-medium italic">"The most productive 30 minutes your operations team will spend this quarter."</p>
             </div>
           </div>
         </section>
