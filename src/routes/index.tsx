@@ -57,7 +57,7 @@ const journeySteps = [
     benefit: "Audit",
     description: "We learn where your team loses time and identify the manual work that can be handled by AI coworkers.",
     price: "FREE",
-    cta: "Book Free Assessment",
+    cta: "Book Your Free AI Workflow Assessment",
     link: "#contact"
   },
   {
@@ -71,7 +71,7 @@ const journeySteps = [
   },
   {
     step: "03",
-    name: "Deploy",
+    name: "Build",
     benefit: "Implementation",
     description: "Our engineers build and integrate the agents into your existing systems (CRM, ERP, Slack, Email).",
     price: "From $7,500",
@@ -80,11 +80,11 @@ const journeySteps = [
   },
   {
     step: "04",
-    name: "Optimize",
+    name: "Support",
     benefit: "Managed Ops",
-    description: "We continuously monitor and improve performance, ensuring your automations never rot and always deliver.",
+    description: "We keep every automation running, improving, and adapting as your business changes.",
     price: "From $750/mo",
-    cta: "See Ops Tiers",
+    cta: "See Support Tiers",
     link: "#services"
   }
 ];
@@ -111,7 +111,7 @@ function Home() {
             ) : (
               <>
                 <Link to="/login" className="text-sm font-bold text-indigo-600 hover:text-indigo-700">Login</Link>
-                <a href="#contact" className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100">Book Assessment</a>
+                <a href="#contact" className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100">Book Free AI Workflow Assessment</a>
               </>
             )}
           </nav>
@@ -129,11 +129,11 @@ function Home() {
               Cut repetitive operations by <span className="text-indigo-600">80%</span> with AI agents.
             </h1>
             <p className="text-2xl text-slate-500 mb-12 max-w-4xl mx-auto leading-relaxed">
-              We design, deploy, and manage AI coworkers for operations teams in healthcare, logistics, manufacturing, finance, and energy—without adding another piece of software your team has to learn.
+              We build AI employees that take repetitive operations work off your team's plate.
             </p>
             <div className="flex flex-col sm:flex-row gap-6 justify-center">
               <a href="#contact" className="bg-indigo-600 text-white px-10 py-5 rounded-2xl font-bold text-xl hover:bg-indigo-700 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-xl shadow-indigo-200">
-                Book Your Free AI Assessment
+                Book Your Free AI Workflow Assessment
               </a>
               <a href="#examples" className="bg-white text-slate-900 border-2 border-slate-100 px-10 py-5 rounded-2xl font-bold text-xl hover:bg-slate-50 transition-all hover:border-slate-200">
                 See Example Automations
@@ -142,10 +142,13 @@ function Home() {
             
             {/* Ecosystem Logos */}
             <div className="mt-24">
-              <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-8">Works with your existing stack</p>
-              <div className="flex flex-wrap items-center justify-center gap-x-12 gap-y-8 grayscale opacity-50">
+              <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-8 text-center">We work inside the software your team already uses</p>
+              <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-6">
                 {ecosystemLogos.map(logo => (
-                  <span key={logo} className="font-black text-xl tracking-tighter text-slate-900">{logo}</span>
+                  <div key={logo} className="flex items-center gap-2">
+                    <svg className="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
+                    <span className="font-bold text-slate-600">{logo}</span>
+                  </div>
                 ))}
               </div>
             </div>
@@ -159,6 +162,78 @@ function Home() {
             <p className="text-xl text-slate-600 leading-relaxed">
               Most operations teams are buried in manual work that software should already be doing: quoting, scheduling, CRM updates, invoicing, and document processing. We build AI coworkers that handle the repetitive parts so your people can focus on work that actually requires a human.
             </p>
+          </div>
+        </section>
+
+        {/* ROI Calculator CTA */}
+        <section className="px-6 py-20 bg-indigo-600">
+          <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-10">
+            <div className="text-white text-center md:text-left">
+              <h2 className="text-3xl lg:text-4xl font-black mb-4">Calculate Your Potential Savings</h2>
+              <p className="text-indigo-100 text-lg font-medium">Use our simple ROI tool to see how many hours your team could reclaim.</p>
+            </div>
+            <Link to="/roi-calculator" className="bg-white text-indigo-600 px-10 py-5 rounded-2xl font-black text-xl hover:bg-indigo-50 transition-all shadow-xl whitespace-nowrap">
+              Open ROI Calculator →
+            </Link>
+          </div>
+        </section>
+
+        {/* Industry Examples Section */}
+        <section id="examples" className="px-6 py-32 bg-slate-50 border-y border-slate-100">
+          <div className="max-w-7xl mx-auto">
+            <div className="mb-20 text-center">
+              <h2 className="text-4xl lg:text-6xl font-black mb-6 text-slate-900 tracking-tight">Real Automations. Real Results.</h2>
+              <p className="text-xl text-slate-500 max-w-2xl mx-auto mb-16">
+                We don't build generic bots. We build industry-specific agents for your highest-friction workflows.
+              </p>
+              
+              {/* Workflow Visual */}
+              <div className="max-w-5xl mx-auto mb-20 bg-white p-8 lg:p-12 rounded-[3rem] shadow-xl border border-slate-100">
+                <h3 className="text-2xl font-black text-slate-900 mb-10">How an AI Coworker handles an inquiry</h3>
+                <div className="flex flex-col lg:flex-row items-center justify-between gap-4">
+                  {[
+                    { label: "Customer Email", icon: "📧", color: "bg-blue-50 text-blue-600" },
+                    { label: "AI reads & extracts", icon: "🧠", color: "bg-indigo-50 text-indigo-600" },
+                    { label: "Updates CRM", icon: "📊", color: "bg-emerald-50 text-emerald-600" },
+                    { label: "Creates Invoice", icon: "🧾", color: "bg-amber-50 text-amber-600" },
+                    { label: "Sends Confirmation", icon: "✅", color: "bg-violet-50 text-violet-600" },
+                    { label: "Slack Notification", icon: "💬", color: "bg-rose-50 text-rose-600" }
+                  ].map((step, i, arr) => (
+                    <div key={step.label} className="flex flex-col lg:flex-row items-center gap-4 flex-1">
+                      <div className="flex flex-col items-center text-center group">
+                        <div className={`w-16 h-16 rounded-2xl ${step.color} flex items-center justify-center text-3xl mb-3 shadow-sm group-hover:scale-110 transition-transform`}>
+                          {step.icon}
+                        </div>
+                        <div className="text-xs font-black uppercase tracking-tighter text-slate-500 max-w-[80px] leading-tight">
+                          {step.label}
+                        </div>
+                      </div>
+                      {i < arr.length - 1 && (
+                        <div className="rotate-90 lg:rotate-0 text-slate-200">
+                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {industryExamples.map((item) => (
+                <div key={item.industry} className="bg-white p-10 rounded-[2.5rem] shadow-sm border border-slate-100">
+                  <h3 className="text-2xl font-black text-slate-900 mb-6">{item.industry}</h3>
+                  <ul className="space-y-4">
+                    {item.examples.map(ex => (
+                      <li key={ex} className="flex items-start gap-3 text-slate-600">
+                        <div className="w-1.5 h-1.5 rounded-full bg-indigo-600 mt-2.5 shrink-0" />
+                        <span className="font-medium">{ex}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 
@@ -195,33 +270,6 @@ function Home() {
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Industry Examples Section */}
-        <section id="examples" className="px-6 py-32 bg-slate-50 border-y border-slate-100">
-          <div className="max-w-7xl mx-auto">
-            <div className="mb-20 text-center">
-              <h2 className="text-4xl lg:text-6xl font-black mb-6 text-slate-900 tracking-tight">Real Automations. Real Results.</h2>
-              <p className="text-xl text-slate-500 max-w-2xl mx-auto">
-                We don't build generic bots. We build industry-specific agents for your highest-friction workflows.
-              </p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {industryExamples.map((item) => (
-                <div key={item.industry} className="bg-white p-10 rounded-[2.5rem] shadow-sm border border-slate-100">
-                  <h3 className="text-2xl font-black text-slate-900 mb-6">{item.industry}</h3>
-                  <ul className="space-y-4">
-                    {item.examples.map(ex => (
-                      <li key={ex} className="flex items-start gap-3 text-slate-600">
-                        <div className="w-1.5 h-1.5 rounded-full bg-indigo-600 mt-2.5 shrink-0" />
-                        <span className="font-medium">{ex}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
             </div>
           </div>
         </section>
@@ -308,16 +356,66 @@ function Home() {
           </div>
         </section>
 
-        {/* ROI Calculator CTA */}
-        <section className="px-6 py-20 bg-indigo-600">
-          <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-10">
-            <div className="text-white text-center md:text-left">
-              <h2 className="text-3xl lg:text-4xl font-black mb-4">Calculate Your Potential Savings</h2>
-              <p className="text-indigo-100 text-lg font-medium">Use our simple ROI tool to see how many hours your team could reclaim.</p>
+        {/* Founder / Personality Section */}
+        <section className="px-6 py-32 bg-slate-50">
+          <div className="max-w-4xl mx-auto">
+            <div className="bg-white p-12 lg:p-20 rounded-[3rem] shadow-xl border border-slate-100 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50 rounded-full -mr-32 -mt-32 opacity-50" />
+              <div className="relative z-10">
+                <div className="text-indigo-600 font-bold mb-6 flex items-center gap-2">
+                  <div className="w-8 h-1 bg-indigo-600 rounded-full" />
+                  Our Mission
+                </div>
+                <h2 className="text-4xl lg:text-5xl font-black text-slate-900 mb-8 leading-tight">
+                  Software was supposed to make work easier. <span className="text-indigo-600">AI actually does.</span>
+                </h2>
+                <div className="text-xl text-slate-600 space-y-6 leading-relaxed">
+                  <p>
+                    We started Simpler Life 100 because we saw operations teams buried in manual work that software should have solved a decade ago. Copying data between tabs, manually reviewing documents, and chasing status updates isn't "work"—it's waste.
+                  </p>
+                  <p className="font-bold text-slate-900">
+                    We don't sell software. We build AI employees that work inside the systems you already own.
+                  </p>
+                  <p>
+                    Our goal is to give your team their time back, so they can focus on growth, strategy, and the human parts of your business that no computer could ever replicate.
+                  </p>
+                </div>
+                <div className="mt-12 pt-12 border-t border-slate-100 flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-full bg-indigo-600 flex items-center justify-center text-white text-2xl font-black shadow-lg">
+                    SL
+                  </div>
+                  <div>
+                    <div className="font-black text-slate-900 text-lg">Simpler Life 100</div>
+                    <div className="text-slate-500 font-bold text-sm">The Operations AI Team</div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <Link to="/roi-calculator" className="bg-white text-indigo-600 px-10 py-5 rounded-2xl font-black text-xl hover:bg-indigo-50 transition-all shadow-xl whitespace-nowrap">
-              Open ROI Calculator →
-            </Link>
+          </div>
+        </section>
+
+        {/* FAQ / Objections Section */}
+        <section className="px-6 py-32 bg-white">
+          <div className="max-w-4xl mx-auto">
+            <div className="text-center mb-20">
+              <h2 className="text-4xl lg:text-5xl font-black text-slate-900 tracking-tight">Common Questions</h2>
+              <p className="text-xl text-slate-500 mt-4">Everything you need to know before we build.</p>
+            </div>
+            <div className="grid gap-6">
+              {[
+                { q: "Will this replace our employees?", a: "No. Our agents are designed to take over the repetitive, high-volume tasks that burn people out. This frees your team to focus on higher-value work that requires judgment, creativity, and human connection." },
+                { q: "Is our business data secure?", a: "Absolutely. We use enterprise-grade security protocols. Your data stays within your existing systems (Salesforce, Google, etc.), and we follow strict data privacy standards." },
+                { q: "How long does it take to deploy?", a: "Most AI agents are fully operational within 2 to 4 weeks. We handle the heavy lifting, from design to technical integration." },
+                { q: "Will it work with our existing software?", a: "Yes. Our agents integrate directly with Salesforce, HubSpot, Microsoft 365, Google Workspace, Slack, QuickBooks, SAP, and most modern APIs." },
+                { q: "How much work is required from my team?", a: "Minimal. Beyond the initial 60-minute assessment and a few workflow reviews, we handle the technical build, deployment, and ongoing management." },
+                { q: "What happens if the AI makes a mistake?", a: "Reliability is our priority. Every agent includes 'Human-in-the-Loop' review workflows for high-stakes decisions, ensuring your team has final oversight where it matters most." }
+              ].map((item, i) => (
+                <div key={i} className="p-8 bg-slate-50 rounded-3xl border border-slate-100 hover:border-indigo-200 transition-colors">
+                  <h4 className="text-xl font-black text-slate-900 mb-3">{item.q}</h4>
+                  <p className="text-slate-600 leading-relaxed">{item.a}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 
@@ -338,7 +436,7 @@ function Home() {
                 <div className="space-y-4">
                   <div className="p-6 bg-white rounded-2xl border border-slate-100 flex justify-between items-center">
                     <div>
-                      <div className="font-black text-slate-900 text-xl">Starter Deployment</div>
+                      <div className="font-black text-slate-900 text-xl">Small Team</div>
                       <div className="text-sm text-slate-500 font-bold">2 AI Agents • 3 workflows</div>
                     </div>
                     <div className="text-right">
@@ -348,7 +446,7 @@ function Home() {
                   </div>
                   <div className="p-6 bg-white rounded-2xl border border-slate-100 flex justify-between items-center">
                     <div>
-                      <div className="font-black text-slate-900 text-xl">Growth Deployment</div>
+                      <div className="font-black text-slate-900 text-xl">Growing Business</div>
                       <div className="text-sm text-slate-500 font-bold">5 AI Agents • Cross-department</div>
                     </div>
                     <div className="text-right">
@@ -358,7 +456,7 @@ function Home() {
                   </div>
                   <div className="p-6 bg-indigo-600 rounded-2xl flex justify-between items-center text-white shadow-xl shadow-indigo-100">
                     <div>
-                      <div className="font-black text-xl">Scale Deployment</div>
+                      <div className="font-black text-xl">Enterprise</div>
                       <div className="text-sm text-indigo-100 font-bold">Custom workflows • Unlimited scale</div>
                     </div>
                     <div className="text-right">
@@ -409,7 +507,7 @@ function Home() {
 
             <div className="mt-20 text-center">
               <a href="#contact" className="inline-block bg-indigo-600 text-white px-12 py-5 rounded-2xl font-bold text-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">
-                Book Your Free AI Assessment
+                Book Your Free AI Workflow Assessment
               </a>
               <p className="mt-4 text-slate-500 font-medium">Identify your best opportunities before you commit to a build.</p>
             </div>
@@ -456,9 +554,9 @@ function Home() {
                 <div className="text-indigo-400 font-bold uppercase tracking-widest text-xs mb-6">Start Today</div>
                 <h3 className="text-4xl font-black mb-8">Identify where AI can save you the most time.</h3>
                 <a href="#contact" className="block w-full bg-white text-slate-950 py-5 rounded-2xl font-bold text-xl hover:bg-slate-100 transition-all">
-                  Book Your Free 60-Min Session
+                  Book Your Free AI Workflow Assessment
                 </a>
-                <p className="mt-6 text-slate-500 text-sm font-medium">No credit card required. One-on-one strategy call.</p>
+                <p className="mt-6 text-slate-500 text-sm font-medium">No credit card required. One-on-one assessment call.</p>
               </div>
             </div>
           </div>
@@ -471,13 +569,13 @@ function Home() {
               Every week your team spends hours on work that software should already be doing.
             </h2>
             <p className="text-2xl text-slate-500 mb-12 leading-relaxed">
-              Let's identify where AI agents can save you the most time—in a free 60-minute strategy session.
+              Let's identify where AI agents can save you the most time—with a free AI Workflow Assessment.
             </p>
             <div className="flex flex-col items-center">
               <a href="mailto:contact@simplerlife100.com" className="inline-block bg-indigo-600 text-white px-12 py-5 rounded-2xl font-bold text-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 hover:scale-105 active:scale-95">
                 Email contact@simplerlife100.com
               </a>
-              <p className="mt-8 text-slate-400 font-medium italic">"The most productive 60 minutes your operations team will spend this quarter."</p>
+              <p className="mt-8 text-slate-400 font-medium italic">"The most productive assessment your operations team will have this quarter."</p>
             </div>
           </div>
         </section>
