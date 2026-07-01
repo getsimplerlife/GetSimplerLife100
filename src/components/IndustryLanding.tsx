@@ -99,12 +99,12 @@ export default function IndustryLanding({ config }: { config: IndustryConfig }) 
             Pick the diagnostic that fits your needs, then we&#39;ll build your custom automation roadmap.
           </p>
           <div className="grid md:grid-cols-2 gap-8">
-            {/* QuickScan */}
+            {/* Efficiency Audit */}
             <div className="flex flex-col p-8 bg-white dark:bg-slate-800 border rounded-2xl shadow-sm">
-              <h3 className="text-xl font-bold mb-2">QuickScan&trade; Audit</h3>
-              <div className="text-3xl font-extrabold mb-4" style={{ color: c.accent }}>$997</div>
+              <h3 className="text-xl font-bold mb-2">Efficiency Audit</h3>
+              <div className="text-3xl font-extrabold mb-4" style={{ color: c.accent }}>FREE</div>
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-                24-hour turnaround. Executive summary with risk score.
+                60-minute strategy call to find your best AI opportunities.
               </p>
               <ul className="space-y-2 mb-8 flex-1">
                 {c.quickScanFeatures.map((f, i) => (
@@ -116,16 +116,16 @@ export default function IndustryLanding({ config }: { config: IndustryConfig }) 
                   </li>
                 ))}
               </ul>
-              <a
-                href="https://buy.stripe.com/14AeVdaEE2qv5xQbta08g0b"
+              <Link
+                to="/#contact"
                 className="w-full text-center text-white py-3 rounded-lg font-bold hover:opacity-90 transition-opacity"
                 style={{ backgroundColor: c.accent }}
               >
-                Buy Now — $997
-              </a>
+                Schedule Free Audit
+              </Link>
             </div>
 
-            {/* Deep Audit */}
+            {/* Deep-Dive Audit */}
             <div className="flex flex-col p-8 bg-white dark:bg-slate-800 border-2 rounded-2xl shadow-md relative">
               <div
                 className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 text-white text-xs font-bold rounded-full"
@@ -133,8 +133,8 @@ export default function IndustryLanding({ config }: { config: IndustryConfig }) 
               >
                 Most Popular
               </div>
-              <h3 className="text-xl font-bold mb-2">Deep Audit&trade;</h3>
-              <div className="text-3xl font-extrabold mb-4" style={{ color: c.accent }}>$4,997</div>
+              <h3 className="text-xl font-bold mb-2">Deep-Dive AI Audit</h3>
+              <div className="text-3xl font-extrabold mb-4" style={{ color: c.accent }}>$2,500</div>
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
                 Full diagnostic. Custom automation roadmap with ROI projections.
               </p>
@@ -149,11 +149,11 @@ export default function IndustryLanding({ config }: { config: IndustryConfig }) 
                 ))}
               </ul>
               <a
-                href="https://buy.stripe.com/7sYcN52880in0dwdBi08g0c"
+                href="https://buy.stripe.com/aFa5kD4ggghlbWe2WE08g0h"
                 className="w-full text-center text-white py-3 rounded-lg font-bold hover:opacity-90 transition-opacity"
                 style={{ backgroundColor: c.accent }}
               >
-                Buy Now — $4,997
+                Buy Now — $2,500
               </a>
             </div>
           </div>
@@ -195,10 +195,10 @@ export default function IndustryLanding({ config }: { config: IndustryConfig }) 
               Explore All Verticals
             </Link>
             <a
-              href="https://buy.stripe.com/7sYcN52880in0dwdBi08g0c"
+              href="https://buy.stripe.com/aFa5kD4ggghlbWe2WE08g0h"
               className="bg-indigo-600 px-8 py-3 rounded-lg font-bold hover:bg-indigo-700 transition-colors"
             >
-              Book Your Deep Audit
+              Book Your Deep-Dive Audit
             </a>
           </div>
         </section>

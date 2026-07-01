@@ -590,10 +590,10 @@ function AuditChecklist() {
                             View Industry Page <ArrowRightIcon />
                           </Link>
                           <a
-                            href="https://buy.stripe.com/14AeVdaEE2qv5xQbta08g0b"
+                            href="https://buy.stripe.com/aFa5kD4ggghlbWe2WE08g0h"
                             className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-800 transition bg-indigo-50/60 hover:bg-indigo-100 px-3 py-1.5 rounded-lg border border-indigo-100"
                           >
-                            Get 24-Hour Audit <ArrowRightIcon />
+                            Get Deep-Dive Audit <ArrowRightIcon />
                           </a>
                         </div>
                       </div>
@@ -609,26 +609,26 @@ function AuditChecklist() {
             <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px]"></div>
             <div className="relative z-10 max-w-2xl">
               <span className="bg-indigo-500 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider mb-4 inline-block">
-                24/7 Instant Intake Active
+                Deep Diagnostics Active
               </span>
               <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight mb-4">
                 Inspect your business using this 26-Vertical Audit framework
               </h2>
               <p className="text-indigo-100 mb-6 leading-relaxed">
-                Book our <strong>QuickScan&trade; Diagnostic</strong>. For just $997.00, our senior integration architects analyze your entire operational footprint against all 26 verticals and compile a comprehensive strategic roadmap.
+                Book our <strong>Deep-Dive AI Opportunity Audit</strong>. For $2,500.00, our senior integration architects analyze your entire operational footprint against all 26 verticals and compile a comprehensive strategic roadmap.
               </p>
               <div className="bg-indigo-950/40 p-4 rounded-xl border border-indigo-700/50 mb-6 flex items-start gap-3">
                 <BadgeCheckIcon />
                 <p className="text-sm text-indigo-100">
-                  <strong>100% Risk-Free:</strong> The $997 audit fee is credited back entirely toward any implementation package if you decide to build with us.
+                  <strong>100% Risk-Free:</strong> The $2,500 audit fee is credited back entirely toward any implementation package if you decide to build with us.
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row gap-4">
                 <a
-                  href="https://buy.stripe.com/14AeVdaEE2qv5xQbta08g0b"
+                  href="https://buy.stripe.com/aFa5kD4ggghlbWe2WE08g0h"
                   className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-bold rounded-xl text-indigo-900 bg-white hover:bg-indigo-50 transition shadow-lg shrink-0"
                 >
-                  Secure Your 24-Hour Audit <ArrowRightIcon />
+                  Secure Your Deep-Dive Audit <ArrowRightIcon />
                 </a>
                 <Link
                   to="/contact"

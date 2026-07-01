@@ -52,55 +52,124 @@ const verticals = [
   { name: "Nonprofits", slug: "nonprofits", multiplier: "1.3x", icon: "🤝", color: "#78716c" },
 ];
 
-const tiers = [
+const auditTiers = [
   {
-    name: "QuickScan™ Audit",
-    price: "$997",
-    description: "Quick diagnostic of your biggest automation opportunities across one workflow. 24-hour turnaround.",
-    features: ["1 industry package diagnostic", "Executive summary", "Risk score", "24-hour turnaround"],
-    link: "https://buy.stripe.com/14AeVdaEE2qv5xQbta08g0b",
-    cta: "Buy Now — $997",
+    name: "60-minute Efficiency Audit",
+    price: "FREE",
+    description: "Discover exactly where AI will have the biggest impact on your team's workload.",
+    features: ["1-on-1 strategy call", "Immediate 'Quick Wins' identification", "Automation feasibility check", "Live demo of relevant agents"],
+    link: "#contact",
+    cta: "Schedule Free Audit",
   },
   {
-    name: "Deep Audit™",
-    price: "$4,997",
-    description: "Full vertical-specific waste audit: map waste points, quantify automation ROI, deliver a custom roadmap.",
-    features: ["Full industry diagnostic", "Cost savings analysis", "Custom automation roadmap", "Compliance review"],
-    link: "https://buy.stripe.com/7sYcN52880in0dwdBi08g0c",
-    cta: "Buy Now — $4,997",
+    name: "Deep-Dive AI Opportunity Audit",
+    price: "$2,500",
+    description: "A comprehensive diagnostic of your entire operational workflow to quantify ROI.",
+    features: ["Full vertical-specific waste audit", "Cost savings analysis report", "Custom automation roadmap", "Credit toward implementation"],
+    link: "https://buy.stripe.com/aFa5kD4ggghlbWe2WE08g0h",
+    cta: "Buy Now — $2,500",
   },
   {
-    name: "Starter Package",
-    price: "$1,500",
-    description: "Up to 3 custom workflow automations. Perfect for testing automation in one department.",
-    features: ["Up to 3 workflow automations", "Lead capture & response", "Calendar sync", "Email support"],
-    link: "https://buy.stripe.com/28E9AT6oofdhaSaeFm08g0d",
-    cta: "Buy Now — $1,500",
+    name: "Enterprise Multi-Dept Audit",
+    price: "$5,000+",
+    description: "Deep diagnostic for multi-department organizations with complex cross-functional workflows.",
+    features: ["Multi-department mapping", "Security & compliance review", "Custom business case for execs", "Dedicated project lead"],
+    link: "#contact",
+    cta: "Contact for Quote",
+  },
+];
+
+const implementationPackages = [
+  {
+    name: "Starter Implementation",
+    price: "$7,500",
+    description: "Rapid deployment of your first 2 AI agents to solve your highest-friction workflows.",
+    features: ["2 AI agents", "3 custom workflows", "CRM & Email integration", "30 days priority support"],
+    link: "https://buy.stripe.com/fZudR98ww4yD0dw0Ow08g0i",
+    cta: "Get Started — $7,500",
   },
   {
-    name: "Growth Package",
-    price: "$3,000",
-    description: "Up to 8 workflow automations with CRM integration and priority support.",
-    features: ["Up to 8 workflow automations", "CRM integration & data sync", "Client onboarding automation", "Monthly optimization review"],
-    link: "https://buy.stripe.com/cNi28r9AA1mr4tMbta08g0e",
-    cta: "Buy Now — $3,000",
+    name: "Growth Implementation",
+    price: "$15,000",
+    description: "Transform an entire department with a suite of 5 AI agents and cross-functional automation.",
+    features: ["5 AI agents", "Full dept. cross-workflows", "CRM + ERP integrations", "Employee training sessions"],
+    link: "https://buy.stripe.com/eVq9AT0004yD6BU54M08g0j",
+    cta: "Scale Up — $15,000",
   },
   {
-    name: "Scale Package",
-    price: "$5,000",
-    description: "Unlimited workflow automations with multi-app integration and dedicated support.",
-    features: ["Unlimited custom workflows", "Multi-app integration", "Custom AI agent training", "Weekly performance reports"],
-    link: "https://buy.stripe.com/5kQbJ14ggc150dwgNu08g0f",
-    cta: "Buy Now — $5,000",
+    name: "Scale Implementation",
+    price: "$30,000",
+    description: "Comprehensive AI transformation for organizations looking for maximum efficiency gains.",
+    features: ["Unlimited workflows", "Custom trained agents", "Advanced data integrations", "Full project management"],
+    link: "https://buy.stripe.com/cNi28r7ss7KP7FYeFm08g0k",
+    cta: "Go Unlimited — $30,000",
   },
   {
-    name: "Managed Automation™",
-    price: "$997/mo",
-    description: "Ongoing automation management with monitoring, governance, and continuous improvement.",
-    features: ["Continuous monitoring", "Monthly performance reports", "AI governance", "Ongoing maintenance"],
-    link: "https://buy.stripe.com/5kQeVd1443uz1hAcxe08g0g",
-    cta: "Subscribe — $997/mo",
+    name: "Enterprise Implementation",
+    price: "$50,000+",
+    description: "Company-wide AI deployment with custom development, security, and enterprise SLA.",
+    features: ["Custom security protocols", "Compliance-ready agents", "Dedicated engineering team", "White-glove deployment"],
+    link: "#contact",
+    cta: "Contact for Enterprise",
   },
+];
+
+const monthlyOps = [
+  {
+    name: "Essential Monthly Ops",
+    price: "$750/mo",
+    description: "Continuous monitoring and maintenance to ensure your AI agents stay 100% operational.",
+    features: ["24/7 uptime monitoring", "Prompt & model updates", "Monthly performance report", "Standard support response"],
+    link: "https://buy.stripe.com/6oU28r5kk0in0dwgNu08g0l",
+    cta: "Subscribe — $750/mo",
+  },
+  {
+    name: "Professional Monthly Ops",
+    price: "$2,000/mo",
+    description: "For growing teams that need ongoing optimization and new automation builds.",
+    features: ["Priority bug fixes", "New minor automations", "Monthly strategy call", "Advanced model tuning"],
+    link: "https://buy.stripe.com/28E3cv0000in2lE7cU08g0m",
+    cta: "Subscribe — $2,000/mo",
+  },
+  {
+    name: "Enterprise Monthly Ops",
+    price: "$5,000/mo+",
+    description: "Dedicated AI operations team for large-scale deployments with high volume requirements.",
+    features: ["Unlimited optimization", "Dedicated AI engineer", "Quarterly strategic roadmap", "Instant priority support"],
+    link: "#contact",
+    cta: "Contact for Enterprise",
+  },
+];
+
+const optionalAddOns = [
+  { name: "Additional AI Agent", price: "$1,500" },
+  { name: "CRM Integration", price: "$2,000" },
+  { name: "ERP Integration", price: "$3,500" },
+  { name: "Voice AI Receptionist", price: "$3,000" },
+  { name: "AI Sales Assistant", price: "$4,000" },
+  { name: "AI Customer Support Agent", price: "$4,000" },
+  { name: "Custom Dashboard", price: "$2,500" },
+  { name: "Document AI System", price: "$3,500" },
+  { name: "Internal Knowledge Assistant", price: "$3,000" },
+  { name: "Employee Training", price: "$1,500" },
+  { name: "Additional Department Automation", price: "$5,000+" },
+];
+
+const verticalPricing = [
+  { vertical: "Healthcare", startingPrice: "$20,000" },
+  { vertical: "Manufacturing", startingPrice: "$25,000" },
+  { vertical: "Financial Services", startingPrice: "$25,000" },
+  { vertical: "Legal", startingPrice: "$15,000" },
+  { vertical: "Logistics", startingPrice: "$20,000" },
+  { vertical: "Construction", startingPrice: "$15,000" },
+  { vertical: "Real Estate", startingPrice: "$12,000" },
+  { vertical: "Retail & Ecommerce", startingPrice: "$12,000" },
+  { vertical: "SaaS & Technology", startingPrice: "$15,000" },
+  { vertical: "Insurance", startingPrice: "$20,000" },
+  { vertical: "Government", startingPrice: "Custom Quote" },
+  { vertical: "Hospitality & Restaurants", startingPrice: "$10,000" },
+  { vertical: "Education", startingPrice: "$10,000" },
+  { vertical: "Nonprofits", startingPrice: "$8,000" },
 ];
 
 function Home() {
@@ -138,8 +207,8 @@ function Home() {
               {businessName} automates the high-friction workflows unique to your industry. 100% focused on a simpler life for your team.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <a href="https://buy.stripe.com/dRm6oHeUUfdh8K27cU08g09" className="bg-indigo-600 text-white px-8 py-4 rounded-lg font-bold hover:bg-indigo-700 transition-colors">
-                Book an Efficiency Audit
+              <a href="#contact" className="bg-indigo-600 text-white px-8 py-4 rounded-lg font-bold hover:bg-indigo-700 transition-colors">
+                Schedule Your Free Audit
               </a>
               <a href="#verticals" className="bg-white text-gray-900 border border-gray-200 px-8 py-4 rounded-lg font-bold hover:bg-gray-50 transition-colors">
                 Explore Verticals
@@ -225,32 +294,140 @@ function Home() {
         <section id="services" className="px-6 py-20 lg:py-32 bg-slate-50 dark:bg-slate-900/50">
           <div className="max-w-7xl mx-auto">
             <div className="mb-16 text-center">
-              <h2 className="text-3xl lg:text-5xl font-bold mb-4">Service Models</h2>
+              <h2 className="text-3xl lg:text-5xl font-bold mb-4">Pricing & Service Models</h2>
               <p className="text-lg text-gray-600 dark:text-gray-400">
-                Flexible engagement options to suit your automation maturity.
+                Transparent pricing to suit every stage of your automation journey.
               </p>
             </div>
-            <div className="grid md:grid-cols-3 gap-8">
-              {tiers.map((t) => (
-                <div key={t.name} className="flex flex-col p-8 bg-white dark:bg-slate-800 border rounded-2xl shadow-sm">
-                  <h3 className="text-xl font-bold mb-2">{t.name}</h3>
-                  <div className="text-3xl font-extrabold text-indigo-600 mb-4">{t.price}</div>
-                  <p className="text-gray-600 dark:text-gray-400 mb-6 flex-1">{t.description}</p>
-                  <ul className="space-y-3 mb-8">
-                    {t.features.map((f) => (
-                      <li key={f} className="flex items-center gap-2 text-sm">
-                        <svg className="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                        </svg>
-                        {f}
-                      </li>
-                    ))}
-                  </ul>
-                  <a href={t.link} className="w-full text-center bg-gray-900 dark:bg-slate-700 text-white py-3 rounded-lg font-bold hover:opacity-90 transition-opacity">
-                    {t.cta}
-                  </a>
+
+            {/* Audit Section */}
+            <div className="mb-20">
+              <h3 className="text-2xl font-bold mb-8 text-indigo-600 border-b-2 border-indigo-100 pb-2 inline-block">1. Efficiency Audits</h3>
+              <div className="grid md:grid-cols-3 gap-8">
+                {auditTiers.map((t) => (
+                  <div key={t.name} className="flex flex-col p-8 bg-white dark:bg-slate-800 border rounded-2xl shadow-sm">
+                    <h4 className="text-xl font-bold mb-2">{t.name}</h4>
+                    <div className="text-3xl font-extrabold text-indigo-600 mb-4">{t.price}</div>
+                    <p className="text-gray-600 dark:text-gray-400 mb-6 flex-1">{t.description}</p>
+                    <ul className="space-y-3 mb-8">
+                      {t.features.map((f) => (
+                        <li key={f} className="flex items-center gap-2 text-sm">
+                          <svg className="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                          </svg>
+                          {f}
+                        </li>
+                      ))}
+                    </ul>
+                    <a href={t.link} className="w-full text-center bg-gray-900 dark:bg-slate-700 text-white py-3 rounded-lg font-bold hover:opacity-90 transition-opacity">
+                      {t.cta}
+                    </a>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Implementation Section */}
+            <div className="mb-20">
+              <h3 className="text-2xl font-bold mb-8 text-indigo-600 border-b-2 border-indigo-100 pb-2 inline-block">2. Implementation Packages</h3>
+              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {implementationPackages.map((t) => (
+                  <div key={t.name} className="flex flex-col p-6 bg-white dark:bg-slate-800 border rounded-2xl shadow-sm">
+                    <h4 className="text-lg font-bold mb-1">{t.name}</h4>
+                    <div className="text-2xl font-extrabold text-indigo-600 mb-3">{t.price}</div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 flex-1">{t.description}</p>
+                    <ul className="space-y-2 mb-6">
+                      {t.features.map((f) => (
+                        <li key={f} className="flex items-start gap-2 text-xs">
+                          <svg className="w-4 h-4 text-indigo-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                          </svg>
+                          {f}
+                        </li>
+                      ))}
+                    </ul>
+                    <a href={t.link} className="w-full text-center bg-gray-900 dark:bg-slate-700 text-white py-2 rounded-lg text-sm font-bold hover:opacity-90 transition-opacity">
+                      {t.cta}
+                    </a>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Monthly Ops Section */}
+            <div className="mb-20">
+              <h3 className="text-2xl font-bold mb-8 text-indigo-600 border-b-2 border-indigo-100 pb-2 inline-block">3. Monthly AI Operations</h3>
+              <div className="grid md:grid-cols-3 gap-8">
+                {monthlyOps.map((t) => (
+                  <div key={t.name} className="flex flex-col p-8 bg-white dark:bg-slate-800 border rounded-2xl shadow-sm">
+                    <h4 className="text-xl font-bold mb-2">{t.name}</h4>
+                    <div className="text-3xl font-extrabold text-indigo-600 mb-4">{t.price}</div>
+                    <p className="text-gray-600 dark:text-gray-400 mb-6 flex-1">{t.description}</p>
+                    <ul className="space-y-3 mb-8">
+                      {t.features.map((f) => (
+                        <li key={f} className="flex items-center gap-2 text-sm">
+                          <svg className="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                          </svg>
+                          {f}
+                        </li>
+                      ))}
+                    </ul>
+                    <a href={t.link} className="w-full text-center bg-gray-900 dark:bg-slate-700 text-white py-3 rounded-lg font-bold hover:opacity-90 transition-opacity">
+                      {t.cta}
+                    </a>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Tables Section */}
+            <div className="grid lg:grid-cols-2 gap-12">
+              {/* Add-ons Table */}
+              <div>
+                <h3 className="text-2xl font-bold mb-6 text-indigo-600 border-b-2 border-indigo-100 pb-2 inline-block">4. Optional Add-ons</h3>
+                <div className="bg-white dark:bg-slate-800 border rounded-2xl overflow-hidden shadow-sm">
+                  <table className="w-full text-left border-collapse">
+                    <thead className="bg-slate-100 dark:bg-slate-700">
+                      <tr>
+                        <th className="px-6 py-4 font-bold text-sm">Add-on</th>
+                        <th className="px-6 py-4 font-bold text-sm text-right">Price</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {optionalAddOns.map((item, i) => (
+                        <tr key={item.name} className={i % 2 === 0 ? "bg-white dark:bg-slate-800" : "bg-slate-50/50 dark:bg-slate-700/50"}>
+                          <td className="px-6 py-3 text-sm">{item.name}</td>
+                          <td className="px-6 py-3 text-sm font-bold text-indigo-600 text-right">{item.price}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              ))}
+              </div>
+
+              {/* Vertical Pricing Table */}
+              <div>
+                <h3 className="text-2xl font-bold mb-6 text-indigo-600 border-b-2 border-indigo-100 pb-2 inline-block">5. Vertical-Specific Pricing</h3>
+                <div className="bg-white dark:bg-slate-800 border rounded-2xl overflow-hidden shadow-sm">
+                  <table className="w-full text-left border-collapse">
+                    <thead className="bg-slate-100 dark:bg-slate-700">
+                      <tr>
+                        <th className="px-6 py-4 font-bold text-sm">Vertical</th>
+                        <th className="px-6 py-4 font-bold text-sm text-right">Starting Price</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {verticalPricing.map((item, i) => (
+                        <tr key={item.vertical} className={i % 2 === 0 ? "bg-white dark:bg-slate-800" : "bg-slate-50/50 dark:bg-slate-700/50"}>
+                          <td className="px-6 py-3 text-sm">{item.vertical}</td>
+                          <td className="px-6 py-3 text-sm font-bold text-indigo-600 text-right">{item.startingPrice}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           </div>
         </section>
@@ -262,8 +439,8 @@ function Home() {
             <p className="text-xl text-indigo-100 mb-10">
               Join leading operations teams using {businessName} to automate manual work and reclaim your team&apos;s time.
             </p>
-            <a href="https://buy.stripe.com/dRm6oHeUUfdh8K27cU08g09" className="inline-block bg-white text-indigo-600 px-10 py-4 rounded-xl font-bold text-lg hover:bg-indigo-50 transition-colors shadow-xl">
-              Get Your ROI Audit
+            <a href="#contact" className="inline-block bg-white text-indigo-600 px-10 py-4 rounded-xl font-bold text-lg hover:bg-indigo-50 transition-colors shadow-xl">
+              Schedule Your Free Audit
             </a>
           </div>
         </section>
