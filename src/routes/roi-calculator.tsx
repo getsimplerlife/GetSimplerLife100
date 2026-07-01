@@ -6,172 +6,265 @@ export const Route = createFileRoute("/roi-calculator")({
 });
 
 const industries = [
-  { name: "Energy", multiplier: 2.2, icon: "⚡" },
-  { name: "Manufacturing", multiplier: 2.1, icon: "🏭" },
-  { name: "Automotive", multiplier: 2.1, icon: "🚗" },
-  { name: "Financial Services", multiplier: 2.0, icon: "💰" },
-  { name: "Logistics", multiplier: 2.0, icon: "🚚" },
+  { name: "Energy", multiplier: 2.2, icon: "⚡", core: true },
+  { name: "Manufacturing", multiplier: 2.1, icon: "🏭", core: true },
+  { name: "Automotive", multiplier: 2.1, icon: "🚗", core: true },
+  { name: "Financial Services", multiplier: 2.0, icon: "💰", core: true },
+  { name: "Logistics", multiplier: 2.0, icon: "🚚", core: true },
   { name: "Healthcare", multiplier: 1.9, icon: "🏥" },
+  { name: "Agriculture", multiplier: 1.9, icon: "🌾" },
+  { name: "Insurance", multiplier: 1.8, icon: "🛡️" },
   { name: "Legal", multiplier: 1.8, icon: "⚖️" },
   { name: "Accounting", multiplier: 1.8, icon: "📊" },
-  { name: "SaaS & Technology", multiplier: 1.7, icon: "💻" },
-  { name: "Retail & Ecommerce", multiplier: 1.6, icon: "🛒" },
+  { name: "SaaS", multiplier: 1.7, icon: "☁️" },
+  { name: "Technology", multiplier: 1.7, icon: "💻" },
+  { name: "Finance", multiplier: 1.7, icon: "💳" },
+  { name: "Telecommunications", multiplier: 1.7, icon: "📡" },
+  { name: "Agency", multiplier: 1.6, icon: "🎯" },
+  { name: "Retail", multiplier: 1.6, icon: "🏬" },
+  { name: "Ecommerce", multiplier: 1.6, icon: "🛒" },
+  { name: "Marketing", multiplier: 1.5, icon: "📣" },
+  { name: "Construction", multiplier: 1.5, icon: "🏗️" },
+  { name: "Real Estate", multiplier: 1.5, icon: "🏠" },
+  { name: "Government", multiplier: 1.4, icon: "🏛️" },
+  { name: "Hospitality", multiplier: 1.4, icon: "🏨" },
+  { name: "Restaurants", multiplier: 1.4, icon: "🍽️" },
+  { name: "Human Resources", multiplier: 1.3, icon: "👥" },
+  { name: "Education", multiplier: 1.3, icon: "📚" },
+  { name: "Nonprofits", multiplier: 1.3, icon: "🤝" },
+];
+
+const painPointsList = [
+  { id: "data-entry", label: "Manual data entry across systems", impact: "High efficiency drain" },
+  { id: "bottlenecks", label: "Missed deadlines / bottlenecks", impact: "Project delay risk" },
+  { id: "compliance", label: "Compliance reporting burden", impact: "Regulatory liability" },
+  { id: "follow-up", label: "Customer follow-up gaps", impact: "Revenue leakage" },
+  { id: "inventory", label: "Inventory / supply chain issues", impact: "Capital tie-up" },
+  { id: "reconciliation", label: "Invoice / payment reconciliation", impact: "Cash flow friction" },
 ];
 
 function ROICalculator() {
   const [step, setStep] = useState(1);
   const [industry, setIndustry] = useState(industries[0]);
-  const [employees, setStep2Data] = useState(50);
-  const [avgSalary, setAvgSalary] = useState(75000);
-  const [manualHoursPct, setManualHours] = useState(30);
+  const [employees, setEmployees] = useState(50);
+  const [revenue, setRevenue] = useState("<$10M");
+  const [selectedPainPoints, setPainPoints] = useState<string[]>([]);
+  const [showAllIndustries, setShowAll] = useState(false);
 
   const calculateSavings = () => {
-    const totalPayroll = employees * avgSalary;
-    const manualWasteValue = totalPayroll * (manualHoursPct / 100);
-    const estimatedSavings = manualWasteValue * (industry.multiplier - 1);
-    return estimatedSavings;
+    // Formula: (employees × avg operational waste hours/week × hourly rate × 52 weeks) × industry multiplier
+    // Assuming 10 hours/week waste and $45/hr average rate
+    const wasteHoursPerWeek = 10;
+    const hourlyRate = 45;
+    const annualWastePerEmployee = wasteHoursPerWeek * hourlyRate * 52;
+    const totalWaste = employees * annualWastePerEmployee;
+    
+    // Add weight for pain points
+    const painPointMultiplier = 1 + (selectedPainPoints.length * 0.05);
+    
+    return totalWaste * (industry.multiplier - 1) * painPointMultiplier;
   };
 
+  const savings = calculateSavings();
+  const employeeEquivalent = Math.round(savings / 65000); // $65k/year avg salary
+
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col">
-      <header className="px-6 py-4 border-b bg-white dark:bg-slate-800">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col">
+      <header className="px-6 py-6 border-b bg-white dark:bg-slate-900 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <Link to="/" className="text-2xl font-bold text-indigo-600 tracking-tight">
+          <Link to="/" className="text-2xl font-black text-indigo-600 tracking-tight">
             Simpler Life 100
           </Link>
-          <Link to="/" className="text-sm font-medium text-gray-600 hover:text-indigo-600">
-            Back to Home
+          <Link to="/" className="text-sm font-bold text-slate-500 hover:text-indigo-600">
+            Exit Calculator
           </Link>
         </div>
       </header>
 
-      <main className="flex-1 flex items-center justify-center p-6">
-        <div className="max-w-2xl w-full bg-white dark:bg-slate-800 rounded-3xl shadow-xl overflow-hidden border border-slate-200 dark:border-slate-700">
-          <div className="p-8 lg:p-12">
+      <main className="flex-1 flex items-center justify-center p-6 lg:p-12">
+        <div className="max-w-4xl w-full bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100 dark:border-slate-800">
+          <div className="p-8 lg:p-16">
             {step === 1 && (
-              <div className="space-y-8">
+              <div className="space-y-10">
                 <div className="text-center">
-                  <h1 className="text-3xl font-extrabold mb-2">Select Your Industry</h1>
-                  <p className="text-slate-500">We use vertical-specific multipliers to estimate your potential ROI.</p>
+                  <span className="text-indigo-600 font-bold uppercase tracking-widest text-xs">Step 1 of 4</span>
+                  <h1 className="text-4xl font-black mt-2 tracking-tight">Select Your Industry</h1>
+                  <p className="text-slate-500 mt-4">We apply vertical-specific multipliers to quantify your waste.</p>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-                  {industries.map((ind) => (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 max-h-[400px] overflow-y-auto p-2">
+                  {industries.filter(i => showAllIndustries || i.core).map((ind) => (
                     <button
                       key={ind.name}
                       onClick={() => setIndustry(ind)}
-                      className={`p-4 rounded-2xl border-2 transition-all text-center group ${
+                      className={`p-6 rounded-3xl border-2 transition-all text-center group ${
                         industry.name === ind.name
                           ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20"
-                          : "border-slate-100 dark:border-slate-700 hover:border-indigo-300"
+                          : "border-slate-50 dark:border-slate-800 hover:border-indigo-200"
                       }`}
                     >
-                      <span className="text-3xl mb-2 block">{ind.icon}</span>
-                      <span className="text-xs font-bold block">{ind.name}</span>
+                      <span className="text-4xl mb-3 block transform group-hover:scale-110 transition-transform">{ind.icon}</span>
+                      <span className="text-xs font-black uppercase tracking-tight block leading-tight">{ind.name}</span>
                     </button>
                   ))}
+                  {!showAllIndustries && (
+                    <button
+                      onClick={() => setShowAll(true)}
+                      className="p-6 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-700 text-slate-400 font-bold text-xs uppercase hover:border-indigo-300 hover:text-indigo-400 transition-all"
+                    >
+                      Other Industries
+                    </button>
+                  )}
                 </div>
                 <button
                   onClick={() => setStep(2)}
-                  className="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200 dark:shadow-none"
+                  className="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black text-xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 dark:shadow-none"
                 >
-                  Continue to Step 2
+                  Continue
                 </button>
               </div>
             )}
 
             {step === 2 && (
-              <div className="space-y-8">
+              <div className="space-y-10">
                 <div className="text-center">
-                  <h1 className="text-3xl font-extrabold mb-2">Company Details</h1>
-                  <p className="text-slate-500">Tell us about your team size and overhead.</p>
+                  <span className="text-indigo-600 font-bold uppercase tracking-widest text-xs">Step 2 of 4</span>
+                  <h1 className="text-4xl font-black mt-2 tracking-tight">Company Size</h1>
+                  <p className="text-slate-500 mt-4">Tell us about your scale and revenue.</p>
                 </div>
-                <div className="space-y-6">
+                <div className="space-y-10">
                   <div>
-                    <label className="block text-sm font-bold mb-2 uppercase tracking-wide text-slate-400">Number of Employees</label>
-                    <input
-                      type="range"
-                      min="5"
-                      max="500"
-                      step="5"
-                      value={employees}
-                      onChange={(e) => setStep2Data(parseInt(e.target.value))}
-                      className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                    />
-                    <div className="text-2xl font-bold mt-2">{employees} Employees</div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold mb-2 uppercase tracking-wide text-slate-400">Avg. Annual Salary ($)</label>
-                    <input
-                      type="number"
-                      value={avgSalary}
-                      onChange={(e) => setAvgSalary(parseInt(e.target.value))}
-                      className="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 font-bold"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold mb-2 uppercase tracking-wide text-slate-400">% of Time Spent on Manual Tasks</label>
+                    <div className="flex justify-between items-end mb-4">
+                      <label className="text-sm font-black uppercase tracking-widest text-slate-400">Total Employees</label>
+                      <span className="text-3xl font-black text-indigo-600">{employees}</span>
+                    </div>
                     <input
                       type="range"
                       min="10"
-                      max="80"
-                      step="5"
-                      value={manualHoursPct}
-                      onChange={(e) => setManualHours(parseInt(e.target.value))}
-                      className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                      max="1000"
+                      step="10"
+                      value={employees}
+                      onChange={(e) => setEmployees(parseInt(e.target.value))}
+                      className="w-full h-3 bg-slate-100 dark:bg-slate-800 rounded-full appearance-none cursor-pointer accent-indigo-600"
                     />
-                    <div className="text-2xl font-bold mt-2">{manualHoursPct}%</div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-black uppercase tracking-widest text-slate-400 mb-4">Annual Revenue</label>
+                    <select
+                      value={revenue}
+                      onChange={(e) => setRevenue(e.target.value)}
+                      className="w-full p-5 rounded-2xl border-2 border-slate-50 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 font-black text-lg focus:border-indigo-600 outline-none transition-all"
+                    >
+                      <option value="<$10M">&lt;$10M</option>
+                      <option value="$10M-$50M">$10M - $50M</option>
+                      <option value="$50M-$250M">$50M - $250M</option>
+                      <option value="$250M-$1B">$250M - $1B</option>
+                      <option value="$1B+">$1B+</option>
+                    </select>
                   </div>
                 </div>
                 <div className="flex gap-4">
-                  <button
-                    onClick={() => setStep(1)}
-                    className="flex-1 border border-slate-200 dark:border-slate-700 py-4 rounded-xl font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 transition-colors"
-                  >
-                    Back
-                  </button>
+                  <button onClick={() => setStep(1)} className="flex-1 bg-slate-50 dark:bg-slate-800 py-5 rounded-2xl font-bold text-slate-500">Back</button>
                   <button
                     onClick={() => setStep(3)}
-                    className="flex-[2] bg-indigo-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200 dark:shadow-none"
+                    className="flex-[2] bg-indigo-600 text-white py-5 rounded-2xl font-black text-xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 dark:shadow-none"
                   >
-                    Calculate Results
+                    Next Step
                   </button>
                 </div>
               </div>
             )}
 
             {step === 3 && (
-              <div className="space-y-8 text-center animate-in fade-in zoom-in duration-300">
-                <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 text-sm font-bold uppercase tracking-wide mb-4">
-                  💰 Projected Annual Savings
+              <div className="space-y-10">
+                <div className="text-center">
+                  <span className="text-indigo-600 font-bold uppercase tracking-widest text-xs">Step 3 of 4</span>
+                  <h1 className="text-4xl font-black mt-2 tracking-tight">Identify Pain Points</h1>
+                  <p className="text-slate-500 mt-4">Select the operational friction points you want to eliminate.</p>
                 </div>
-                <h1 className="text-6xl lg:text-7xl font-black text-slate-900 dark:text-white">
-                  ${Math.round(calculateSavings()).toLocaleString()}
-                </h1>
-                <p className="text-xl text-slate-500 max-w-md mx-auto">
-                  By automating your high-friction {industry.name} workflows, you can reclaim up to {manualHoursPct}% of your team's productive capacity.
-                </p>
-                <div className="grid grid-cols-2 gap-4 text-left mt-8">
-                  <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800">
-                    <div className="text-xs font-bold text-slate-400 uppercase mb-1">ROI Multiplier</div>
-                    <div className="text-2xl font-bold text-indigo-600">{industry.multiplier}x</div>
+                <div className="grid gap-3">
+                  {painPointsList.map((pp) => (
+                    <button
+                      key={pp.id}
+                      onClick={() => setPainPoints(prev => prev.includes(pp.label) ? prev.filter(x => x !== pp.label) : [...prev, pp.label])}
+                      className={`w-full text-left p-5 rounded-2xl border-2 transition-all flex items-center gap-4 ${
+                        selectedPainPoints.includes(pp.label)
+                          ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20"
+                          : "border-slate-50 dark:border-slate-800 hover:border-indigo-100"
+                      }`}
+                    >
+                      <div className={`w-6 h-6 rounded-md border-2 shrink-0 flex items-center justify-center ${selectedPainPoints.includes(pp.label) ? "bg-indigo-600 border-indigo-600" : "border-slate-200"}`}>
+                        {selectedPainPoints.includes(pp.label) && <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" /></svg>}
+                      </div>
+                      <div className="flex-1">
+                        <span className={`font-bold block ${selectedPainPoints.includes(pp.label) ? "text-indigo-900 dark:text-indigo-200" : "text-slate-900 dark:text-slate-200"}`}>{pp.label}</span>
+                        <span className="text-xs text-slate-400 uppercase font-black tracking-widest">{pp.impact}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-4">
+                  <button onClick={() => setStep(2)} className="flex-1 bg-slate-50 dark:bg-slate-800 py-5 rounded-2xl font-bold text-slate-500">Back</button>
+                  <button
+                    onClick={() => setStep(4)}
+                    className="flex-[2] bg-indigo-600 text-white py-5 rounded-2xl font-black text-xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 dark:shadow-none"
+                  >
+                    Calculate Savings
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {step === 4 && (
+              <div className="space-y-12 text-center animate-in fade-in zoom-in duration-500">
+                <div>
+                  <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 text-xs font-black uppercase tracking-widest mb-6">
+                    💰 Annual Waste Identification
                   </div>
-                  <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800">
-                    <div className="text-xs font-bold text-slate-400 uppercase mb-1">Industry</div>
-                    <div className="text-2xl font-bold text-slate-900 dark:text-white">{industry.name}</div>
+                  <h1 className="text-6xl lg:text-8xl font-black text-slate-900 dark:text-white tracking-tighter">
+                    ${Math.round(savings).toLocaleString()}
+                  </h1>
+                  <p className="text-xl text-slate-500 mt-6 max-w-lg mx-auto font-medium leading-relaxed">
+                    Based on your {industry.name} operations, Simpler Life 100 can save you approximately <span className="text-indigo-600 font-bold">${Math.round(savings).toLocaleString()}/year</span>.
+                  </p>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="bg-slate-50 dark:bg-slate-800/50 p-8 rounded-[2rem] border border-slate-100 dark:border-slate-800 text-center">
+                    <div className="text-4xl font-black text-indigo-600 mb-2">{employeeEquivalent}</div>
+                    <div className="text-xs font-black uppercase tracking-widest text-slate-400">Employee Capacity Equivalent</div>
+                    <p className="text-slate-500 mt-4 text-xs font-medium">That's the equivalent of hiring {employeeEquivalent} full-time operations professionals to manage manual tasks.</p>
+                  </div>
+                  <div className="bg-slate-50 dark:bg-slate-800/50 p-8 rounded-[2rem] border border-slate-100 dark:border-slate-800 text-left">
+                    <div className="text-xs font-black uppercase tracking-widest text-indigo-500 mb-4">Savings Breakdown</div>
+                    <ul className="space-y-3">
+                      {selectedPainPoints.length > 0 ? (
+                        selectedPainPoints.slice(0, 3).map((pp, i) => (
+                          <li key={i} className="flex gap-3 text-xs font-bold text-slate-600 dark:text-slate-300">
+                            <span className="text-indigo-500">✔</span> {pp.replace("Manual ", "").replace("issues", "optimization")}
+                          </li>
+                        ))
+                      ) : (
+                        <li className="text-xs text-slate-400 italic">No specific pain points selected, calculating based on industry baseline.</li>
+                      )}
+                      <li className="flex gap-3 text-xs font-bold text-slate-600 dark:text-slate-300">
+                        <span className="text-indigo-500">✔</span> Vertical-specific {industry.multiplier}x multiplier
+                      </li>
+                    </ul>
                   </div>
                 </div>
-                <div className="pt-8 space-y-4">
+
+                <div className="space-y-4">
                   <a
                     href="/#contact"
-                    className="block w-full bg-indigo-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200 dark:shadow-none"
+                    className="block w-full bg-indigo-600 text-white py-6 rounded-2xl font-black text-2xl hover:bg-indigo-700 transition-all shadow-2xl shadow-indigo-200 dark:shadow-none"
                   >
-                    Get Your Detailed Audit Report
+                    Book My Free Efficiency Audit
                   </a>
                   <button
                     onClick={() => setStep(1)}
-                    className="text-sm font-bold text-slate-400 hover:text-indigo-600 transition-colors"
+                    className="text-sm font-bold text-slate-400 hover:text-indigo-600 transition-colors uppercase tracking-widest"
                   >
-                    Start Over
+                    Recalculate
                   </button>
                 </div>
               </div>
