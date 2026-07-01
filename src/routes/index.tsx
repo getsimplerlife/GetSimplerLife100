@@ -76,7 +76,7 @@ const journeySteps = [
     description: "Our engineers build and integrate the agents into your existing systems (CRM, ERP, Slack, Email).",
     price: "From $7,500",
     cta: "View Implementation",
-    link: "#services"
+    link: "/build"
   },
   {
     step: "04",
@@ -85,7 +85,7 @@ const journeySteps = [
     description: "We keep every automation running, improving, and adapting as your business changes.",
     price: "From $750/mo",
     cta: "See Support Tiers",
-    link: "#services"
+    link: "/support"
   }
 ];
 
@@ -102,6 +102,8 @@ function Home() {
           <nav className="hidden md:flex gap-10 items-center">
             <a href="#examples" className="text-sm font-bold text-slate-600 hover:text-indigo-600 transition-colors">Solutions</a>
             <a href="#industries" className="text-sm font-bold text-slate-600 hover:text-indigo-600 transition-colors">Industries</a>
+            <Link to="/build" className="text-sm font-bold text-slate-600 hover:text-indigo-600 transition-colors">Builder</Link>
+            <Link to="/support" className="text-sm font-bold text-slate-600 hover:text-indigo-600 transition-colors">Support</Link>
             <a href="#pricing" className="text-sm font-bold text-slate-600 hover:text-indigo-600 transition-colors">Pricing</a>
             <a href="#" className="text-sm font-bold text-slate-600 hover:text-indigo-600 transition-colors">Case Studies</a>
             <a href="#" className="text-sm font-bold text-slate-600 hover:text-indigo-600 transition-colors">About</a>
@@ -589,6 +591,8 @@ function Home() {
           </div>
           <div className="flex flex-col items-center md:items-end gap-6">
             <div className="flex gap-8 font-bold text-slate-600">
+              <Link to="/build" className="hover:text-indigo-600">Builder</Link>
+              <Link to="/support" className="hover:text-indigo-600">Support</Link>
               <a href="#" className="hover:text-indigo-600">Twitter</a>
               <a href="#" className="hover:text-indigo-600">LinkedIn</a>
               <Link to="/demos/audit-portal" className="hover:text-indigo-600 underline underline-offset-4">Audit Workflow Demo</Link>
