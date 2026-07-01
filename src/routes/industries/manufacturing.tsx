@@ -13,7 +13,7 @@ const config: IndustryConfig = {
   accent: '#0891b2',
   bgLight: 'bg-cyan-50',
   tagline: 'Precision automation. Lean operations.',
-  hook: 'Manual document review and inventory reconciliation are massive overhead costs for modern manufacturers. Simpler Life 100 deploys AI agents that eliminate these friction points, delivering a consistent 2.1x ROI multiplier.',
+  hook: 'Manual document review and inventory reconciliation are massive overhead costs for modern manufacturers. Simpler Life 100 deploys AI agents that eliminate these bottlenecks, delivering real-world efficiency gains.',
   painPoints: [
     'Manual document review for quality assurance is slow and prone to oversight',
     'Inventory reconciliation across multiple systems requires constant manual intervention',
@@ -33,9 +33,9 @@ const config: IndustryConfig = {
     'Supply chain automation analysis',
     'Production scheduling optimization plan',
     'Lean AI deployment roadmap',
-    'Custom ROI projections for vertical agents',
+    'Custom ROI projections for AI coworkers',
   ],
-  kpiOne: { value: '2.1x', label: 'Measured ROI multiplier' },
+  kpiOne: { value: '2.1x', label: 'Measured efficiency gain' },
   kpiTwo: { value: '50%', label: 'Reduction in QC overhead' },
   kpiThree: { value: '99.9%', label: 'Inventory data accuracy' },
 };

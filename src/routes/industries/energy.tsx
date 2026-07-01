@@ -13,7 +13,7 @@ const config: IndustryConfig = {
   accent: '#059669',
   bgLight: 'bg-emerald-50',
   tagline: 'Grid-scale efficiency. Automated asset management.',
-  hook: 'Operational friction in the energy sector eats into margins through manual intake and asset inspections. Simpler Life 100 deploys vertical-specific AI agents that eliminate these waste points, achieving a predictable 2.2x ROI multiplier.',
+  hook: 'Manual overhead in the energy sector eats into margins through manual intake and asset inspections. Simpler Life 100 deploys industry-specific AI coworkers that eliminate these waste points, delivering predictable results.',
   painPoints: [
     'Manual intake workflows for complex asset data are slow and error-prone',
     'Asset inspection reports require hundreds of hours of manual compilation',
@@ -35,7 +35,7 @@ const config: IndustryConfig = {
     'Real-time data integration assessment',
     'Custom ROI model for AI agent deployment',
   ],
-  kpiOne: { value: '2.2x', label: 'Average ROI multiplier' },
+  kpiOne: { value: '2.2x', label: 'Average efficiency gain' },
   kpiTwo: { value: '65%', label: 'Reduction in reporting time' },
   kpiThree: { value: '24/7', label: 'Automated monitoring availability' },
 };
