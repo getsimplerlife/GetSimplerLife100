@@ -103,7 +103,8 @@ function Home() {
             <a href="#examples" className="text-sm font-bold text-slate-600 hover:text-indigo-600 transition-colors">Solutions</a>
             <a href="#industries" className="text-sm font-bold text-slate-600 hover:text-indigo-600 transition-colors">Industries</a>
             <a href="#pricing" className="text-sm font-bold text-slate-600 hover:text-indigo-600 transition-colors">Pricing</a>
-            <Link to="/roi-calculator" className="text-sm font-bold text-slate-600 hover:text-indigo-600 transition-colors">Calculator</Link>
+            <a href="#" className="text-sm font-bold text-slate-600 hover:text-indigo-600 transition-colors">Case Studies</a>
+            <a href="#" className="text-sm font-bold text-slate-600 hover:text-indigo-600 transition-colors">About</a>
             <a href="#contact" className="text-sm font-bold text-slate-600 hover:text-indigo-600 transition-colors">Contact</a>
             {user ? (
               <Link to="/portal" className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100">Dashboard</Link>
@@ -248,7 +249,7 @@ function Home() {
           </div>
         </section>
 
-        {/* ROI Table by Vertical */}
+        {/* ROI Table by Industry */}
         <section id="industries" className="px-6 py-32 bg-slate-950 text-white">
           <div className="max-w-7xl mx-auto">
             <div className="mb-20">
@@ -341,7 +342,7 @@ function Home() {
                       <div className="text-sm text-slate-500 font-bold">2 AI Agents • 3 workflows</div>
                     </div>
                     <div className="text-right">
-                      <div className="font-black text-indigo-600 text-2xl">$7,500</div>
+                      <div className="font-black text-indigo-600 text-2xl">Starting at $7,500</div>
                       <div className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">One-Time</div>
                     </div>
                   </div>
@@ -404,6 +405,13 @@ function Home() {
                   </div>
                 </div>
               </div>
+            </div>
+
+            <div className="mt-20 text-center">
+              <a href="#contact" className="inline-block bg-indigo-600 text-white px-12 py-5 rounded-2xl font-bold text-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">
+                Book Your Free AI Assessment
+              </a>
+              <p className="mt-4 text-slate-500 font-medium">Identify your best opportunities before you commit to a build.</p>
             </div>
           </div>
         </section>

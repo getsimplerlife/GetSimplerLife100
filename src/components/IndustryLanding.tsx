@@ -163,7 +163,7 @@ export default function IndustryLanding({ config }: { config: IndustryConfig }) 
         {c.services && c.services.length > 0 && (
           <section className="px-6 py-16 bg-white">
             <div className="max-w-5xl mx-auto">
-              <h2 className="text-3xl font-bold mb-4 text-center">Available Agent Blueprints for {c.name}</h2>
+              <h2 className="text-3xl font-bold mb-4 text-center">Available AI Coworker Blueprints for {c.name}</h2>
               <p className="text-center text-gray-500 dark:text-gray-400 mb-12 max-w-2xl mx-auto">
                 Pre-built automation agents purpose-built for {c.name} workflows.
               </p>
@@ -192,7 +192,7 @@ export default function IndustryLanding({ config }: { config: IndustryConfig }) 
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link to="/" className="px-8 py-3 border border-slate-700 rounded-lg font-bold hover:bg-slate-800 transition-colors">
-              Explore All Verticals
+              Explore All Industries
             </Link>
             <Link
               to="/#contact"

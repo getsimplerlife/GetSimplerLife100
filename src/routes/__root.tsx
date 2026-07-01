@@ -14,7 +14,7 @@ export const Route = createRootRoute({
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Simpler Life 100 | AI Coworkers for Operations Teams" },
-      { name: "description", content: "Replace hours of manual work with industry-specific AI agents that integrate into your existing workflows. Real results, no buzzwords." },
+      { name: "description", content: "Replace hours of manual work with AI coworkers that integrate into your existing tools. Real results, no complexity." },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
