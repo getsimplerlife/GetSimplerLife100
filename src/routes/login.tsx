@@ -95,6 +95,27 @@ function Login() {
               {loading ? "Signing in..." : "Sign in"}
             </button>
           </div>
+
+          <div className="space-y-2 text-center">
+            <p className="text-sm text-gray-600">
+              First time here?{" "}
+              <Link
+                to="/set-password"
+                className="font-medium text-indigo-600 hover:text-indigo-500"
+              >
+                Set your password →
+              </Link>
+            </p>
+            <p className="text-sm text-gray-600">
+              Forgot your password?{" "}
+              <Link
+                to="/set-password"
+                className="font-medium text-indigo-600 hover:text-indigo-500"
+              >
+                Set a new one →
+              </Link>
+            </p>
+          </div>
         </form>
       </div>
     </div>

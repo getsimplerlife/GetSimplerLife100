@@ -93,6 +93,48 @@ export const logout = createServerFn().handler(async () => {
   return { success: true };
 });
 
+export const checkUserExists = createServerFn()
+  .validator((email: string) => email)
+  .handler(async ({ data: email }) => {
+    const user = await db.query.users.findFirst({
+      where: eq(users.email, email),
+    });
+
+    return {
+      exists: !!user,
+      needsPasswordReset: user?.needsPasswordReset || false,
+    };
+  });
+
+export const setPassword = createServerFn()
+  .validator((data: any) => data)
+  .handler(async ({ data }) => {
+    const { email, password } = data;
+    const user = await db.query.users.findFirst({
+      where: eq(users.email, email),
+    });
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    if (!user.needsPasswordReset) {
+      throw new Error("Password already set. Use login or forgot password flow.");
+    }
+
+    const hashedPassword = await hashPassword(password);
+
+    await db
+      .update(users)
+      .set({
+        password: hashedPassword,
+        needsPasswordReset: false,
+      })
+      .where(eq(users.email, email));
+
+    return { success: true };
+  });
+
 export const getUser = createServerFn().handler(async () => {
   return getUserInternal();
 });
@@ -138,42 +180,45 @@ export const submitLead = createServerFn()
     return { success: true };
   });
 
+export async function createAuditForEmailInternal(email: string, type: string) {
+  let user = await db.query.users.findFirst({
+    where: eq(users.email, email),
+  });
+
+  if (!user) {
+    const userId = crypto.randomUUID();
+    // Generate a random password hash that won't match anything
+    const randomPassword = crypto.randomUUID();
+    const hashedPassword = await hashPassword(randomPassword);
+
+    await db.insert(users).values({
+      id: userId,
+      email,
+      password: hashedPassword,
+      createdAt: new Date(),
+      needsPasswordReset: true,
+    });
+
+    user = { id: userId, email } as any;
+  }
+
+  const auditId = crypto.randomUUID();
+  await db.insert(audits).values({
+    id: auditId,
+    userId: user!.id,
+    type,
+    status: "pending",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+
+  return { success: true, auditId };
+}
+
 export const createAuditForEmail = createServerFn()
   .validator((data: { email: string; type: string }) => data)
   .handler(async ({ data }) => {
-    const { email, type } = data;
-    let user = await db.query.users.findFirst({
-      where: eq(users.email, email),
-    });
-
-    if (!user) {
-      const userId = crypto.randomUUID();
-      // Generate a random password hash that won't match anything
-      const randomPassword = crypto.randomUUID();
-      const hashedPassword = await hashPassword(randomPassword);
-
-      await db.insert(users).values({
-        id: userId,
-        email,
-        password: hashedPassword,
-        createdAt: new Date(),
-        needsPasswordReset: true,
-      });
-
-      user = { id: userId, email } as any;
-    }
-
-    const auditId = crypto.randomUUID();
-    await db.insert(audits).values({
-      id: auditId,
-      userId: user!.id,
-      type,
-      status: "pending",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-
-    return { success: true, auditId };
+    return createAuditForEmailInternal(data.email, data.type);
   });
 
 export const updateAuditResults = createServerFn()

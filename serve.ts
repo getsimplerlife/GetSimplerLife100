@@ -10,6 +10,7 @@
 // the takeover works across user boundaries.
 // @ts-expect-error this is a build artifact that might not exist yet
 import handler from "./dist/server/server.js";
+import { createAuditForEmailInternal } from "./src/db/queries";
 
 // Pinned, NOT read from the environment. The published preview URL
 // (<label>.<PUBLIC_SITE_DOMAIN>) is reverse-proxied to 0.0.0.0:3000 inside the
@@ -42,6 +43,49 @@ for (let attempt = 1; ; attempt++) {
       hostname: HOST,
       async fetch(req) {
         const { pathname } = new URL(req.url);
+        console.log(`[serve.ts] FETCH: ${req.method} ${pathname}`);
+
+        // Handle Stripe Webhook
+        if (pathname === "/api/stripe-webhook") {
+          console.log(`[serve.ts] Stripe webhook path matched. Method: ${req.method}`);
+          if (req.method === "POST") {
+            try {
+              const body = await req.json();
+              console.log('[serve.ts] Received Stripe event type:', body.type);
+
+              if (body.type === 'checkout.session.completed') {
+                const session = body.data.object;
+                const email = session.customer_details?.email || session.customer_email;
+                const amount = session.amount_total / 100;
+
+                let auditType = "Custom Audit";
+                if (amount === 2500) auditType = "Deep-Dive AI Opportunity Audit";
+                else if (amount === 7500) auditType = "Starter Implementation";
+                else if (amount === 15000) auditType = "Growth Implementation";
+                else if (amount === 30000) auditType = "Scale Implementation";
+                else if (amount === 750 || amount === 2000) auditType = "Monthly Operations";
+
+                if (email) {
+                  console.log(`[serve.ts] Processing purchase for ${email}: ${auditType}`);
+                  await createAuditForEmailInternal(email, auditType);
+                  console.log(`[serve.ts] Successfully created audit for ${email}`);
+                }
+              }
+              return new Response(JSON.stringify({ received: true }), {
+                headers: { "Content-Type": "application/json" },
+              });
+            } catch (err) {
+              console.error('[serve.ts] Error in Stripe webhook:', err);
+              return new Response(JSON.stringify({ error: "Internal Server Error" }), {
+                status: 500,
+                headers: { "Content-Type": "application/json" },
+              });
+            }
+          } else {
+             return new Response("Method Not Allowed", { status: 405 });
+          }
+        }
+
         if (pathname !== "/") {
           const file = Bun.file(CLIENT_DIR + pathname);
           if (await file.exists()) {
