@@ -39,7 +39,7 @@ export const register = createServerFn()
     });
 
     if (existingUser) {
-      throw new Error("User already exists");
+      throw new Error("Account already exists, please login");
     }
 
     const hashedPassword = await hashPassword(password);
@@ -136,4 +136,42 @@ export const submitLead = createServerFn()
     );
     await fs.appendFile("/home/team/shared/leads.json", leadData + ",\n");
     return { success: true };
+  });
+
+export const createAuditForEmail = createServerFn()
+  .validator((data: { email: string; type: string }) => data)
+  .handler(async ({ data }) => {
+    const { email, type } = data;
+    let user = await db.query.users.findFirst({
+      where: eq(users.email, email),
+    });
+
+    if (!user) {
+      const userId = crypto.randomUUID();
+      // Generate a random password hash that won't match anything
+      const randomPassword = crypto.randomUUID();
+      const hashedPassword = await hashPassword(randomPassword);
+
+      await db.insert(users).values({
+        id: userId,
+        email,
+        password: hashedPassword,
+        createdAt: new Date(),
+        needsPasswordReset: true,
+      });
+
+      user = { id: userId, email } as any;
+    }
+
+    const auditId = crypto.randomUUID();
+    await db.insert(audits).values({
+      id: auditId,
+      userId: user!.id,
+      type,
+      status: "pending",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    return { success: true, auditId };
   });

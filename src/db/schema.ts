@@ -5,6 +5,7 @@ export const users = sqliteTable("users", {
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  needsPasswordReset: integer("needs_password_reset", { mode: "boolean" }).notNull().default(false),
 });
 
 export const audits = sqliteTable("audits", {
