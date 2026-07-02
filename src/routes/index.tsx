@@ -67,7 +67,7 @@ const journeySteps = [
     description: "We build a technical roadmap and workflow that fits your business, showing exactly how the agents will work.",
     price: "$2,500",
     cta: "Get Your Blueprint",
-    link: "/audit"
+    link: "https://buy.stripe.com/14A3cw2EKfRqcF0gEJ3Ru00"
   },
   {
     step: "03",
@@ -100,13 +100,11 @@ function Home() {
             {businessName}
           </Link>
           <nav className="hidden md:flex gap-10 items-center">
-            <a href="#examples" className="text-sm font-bold text-slate-600 hover:text-indigo-600 transition-colors">Solutions</a>
+            <a href="#solutions" className="text-sm font-bold text-slate-600 hover:text-indigo-600 transition-colors">Solutions</a>
             <a href="#industries" className="text-sm font-bold text-slate-600 hover:text-indigo-600 transition-colors">Industries</a>
             <Link to="/build" className="text-sm font-bold text-slate-600 hover:text-indigo-600 transition-colors">Builder</Link>
             <Link to="/support" className="text-sm font-bold text-slate-600 hover:text-indigo-600 transition-colors">Support</Link>
             <a href="#pricing" className="text-sm font-bold text-slate-600 hover:text-indigo-600 transition-colors">Pricing</a>
-            <a href="#" className="text-sm font-bold text-slate-600 hover:text-indigo-600 transition-colors">Case Studies</a>
-            <a href="#" className="text-sm font-bold text-slate-600 hover:text-indigo-600 transition-colors">About</a>
             <a href="#contact" className="text-sm font-bold text-slate-600 hover:text-indigo-600 transition-colors">Contact</a>
             {user ? (
               <Link to="/portal" className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100">Dashboard</Link>

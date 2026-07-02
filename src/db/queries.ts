@@ -34,58 +34,68 @@ export const register = createServerFn()
   .validator((data: any) => data)
   .handler(async ({ data }) => {
     const { email, password } = data;
-    const existingUser = await db.query.users.findFirst({
-      where: eq(users.email, email),
-    });
+    try {
+      const existingUser = await db.query.users.findFirst({
+        where: eq(users.email, email),
+      });
 
-    if (existingUser) {
-      throw new Error("Account already exists, please login");
+      if (existingUser) {
+        throw new Error("Account already exists, please login");
+      }
+
+      const hashedPassword = await hashPassword(password);
+      const userId = crypto.randomUUID();
+
+      await db.insert(users).values({
+        id: userId,
+        email,
+        password: hashedPassword,
+        createdAt: new Date(),
+      });
+
+      const token = await createSessionToken(userId);
+      setCookie(getEvent(), "session", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 60 * 60 * 2, // 2 hours
+        path: "/",
+      });
+
+      return { success: true };
+    } catch (err: any) {
+      console.error("[queries.ts] Registration error:", err);
+      throw err;
     }
-
-    const hashedPassword = await hashPassword(password);
-    const userId = crypto.randomUUID();
-
-    await db.insert(users).values({
-      id: userId,
-      email,
-      password: hashedPassword,
-      createdAt: new Date(),
-    });
-
-    const token = await createSessionToken(userId);
-    setCookie(getEvent(), "session", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 60 * 60 * 2, // 2 hours
-      path: "/",
-    });
-
-    return { success: true };
   });
 
 export const login = createServerFn()
   .validator((data: any) => data)
   .handler(async ({ data }) => {
     const { email, password } = data;
-    const user = await db.query.users.findFirst({
-      where: eq(users.email, email),
-    });
+    try {
+      const user = await db.query.users.findFirst({
+        where: eq(users.email, email),
+      });
 
-    if (!user || !(await verifyPassword(password, user.password))) {
-      throw new Error("Invalid email or password");
+      if (!user || !(await verifyPassword(password, user.password))) {
+        throw new Error("Invalid email or password");
+      }
+
+      const token = await createSessionToken(user.id);
+      setCookie(getEvent(), "session", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 60 * 60 * 2, // 2 hours
+        path: "/",
+      });
+
+      return { success: true };
+    } catch (err: any) {
+      console.error("[queries.ts] Login error:", err);
+      throw err;
     }
-
-    const token = await createSessionToken(user.id);
-    setCookie(getEvent(), "session", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 60 * 60 * 2, // 2 hours
-      path: "/",
-    });
-
-    return { success: true };
   });
 
 export const logout = createServerFn().handler(async () => {
@@ -116,10 +126,6 @@ export const setPassword = createServerFn()
 
     if (!user) {
       throw new Error("User not found");
-    }
-
-    if (!user.needsPasswordReset) {
-      throw new Error("Password already set. Use login or forgot password flow.");
     }
 
     const hashedPassword = await hashPassword(password);
@@ -236,6 +242,26 @@ export const updateAuditResults = createServerFn()
         updatedAt: new Date(),
       })
       .where(eq(audits.id, auditId));
+
+    return { success: true };
+  });
+
+export const submitFeedback = createServerFn()
+  .validator((data: { auditId: string; requestText: string }) => data)
+  .handler(async ({ data }) => {
+    const user = await getUserInternal();
+    if (!user) throw new Error("Unauthorized");
+
+    const fs = await import("node:fs/promises");
+    const feedbackEntry = JSON.stringify({
+      auditId: data.auditId,
+      userId: user.id,
+      email: user.email,
+      requestText: data.requestText,
+      status: "pending",
+      timestamp: new Date().toISOString(),
+    });
+    await fs.appendFile("/home/team/shared/feedback.json", feedbackEntry + ",\n");
 
     return { success: true };
   });

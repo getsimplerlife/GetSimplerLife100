@@ -189,7 +189,7 @@ function ManufacturingDemo() {
 
                       <div className="flex justify-center pt-4">
                         <a 
-                          href="https://buy.stripe.com/dRm6oHeUUfdh8K27cU08g09" 
+                          href="https://buy.stripe.com/14A3cw2EKfRqcF0gEJ3Ru00" 
                           className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-colors shadow-lg"
                         >
                           Book Your Efficiency Audit — $5,000
@@ -265,7 +265,7 @@ function ManufacturingDemo() {
                 View All ROI Benchmarks
               </Link>
               <a 
-                href="https://buy.stripe.com/dRm6oHeUUfdh8K27cU08g09" 
+                href="https://buy.stripe.com/14A3cw2EKfRqcF0gEJ3Ru00" 
                 className="bg-indigo-600 px-8 py-3 rounded-lg font-bold hover:bg-indigo-700 transition-colors"
               >
                 Schedule Your Audit

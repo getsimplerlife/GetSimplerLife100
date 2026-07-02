@@ -11,6 +11,15 @@
 // @ts-expect-error this is a build artifact that might not exist yet
 import handler from "./dist/server/server.js";
 import { createAuditForEmailInternal } from "./src/db/queries";
+import { eq } from "drizzle-orm";
+import { db } from "./src/db/index";
+import { users } from "./src/db/schema";
+import {
+  hashPassword,
+  verifyPassword,
+  createSessionToken,
+  verifySessionToken,
+} from "./src/db/auth";
 
 // Pinned, NOT read from the environment. The published preview URL
 // (<label>.<PUBLIC_SITE_DOMAIN>) is reverse-proxied to 0.0.0.0:3000 inside the
@@ -20,6 +29,35 @@ import { createAuditForEmailInternal } from "./src/db/queries";
 const PORT = 3000;
 const HOST = "0.0.0.0";
 const CLIENT_DIR = `${import.meta.dir}/dist/client`;
+
+// Helper: read a cookie value from the Cookie header
+function getCookie(req: Request, name: string): string | null {
+  const cookieHeader = req.headers.get("Cookie");
+  if (!cookieHeader) return null;
+  for (const part of cookieHeader.split(";")) {
+    const [key, ...rest] = part.trim().split("=");
+    if (key === name) return rest.join("=");
+  }
+  return null;
+}
+
+// Helper: build a Set-Cookie header value
+function setCookieHeader(name: string, value: string, maxAge: number): string {
+  return `${name}=${value}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${maxAge}`;
+}
+
+function clearCookieHeader(name: string): string {
+  return `${name}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0`;
+}
+
+// Helper: parse JSON body, returning null on failure
+async function parseJSON(req: Request): Promise<any | null> {
+  try {
+    return await req.json();
+  } catch {
+    return null;
+  }
+}
 
 // Free PORT regardless of which user owns the current listener. lsof runs under
 // sudo so it can see (and the kill can signal) a process owned by another user;
@@ -44,6 +82,185 @@ for (let attempt = 1; ; attempt++) {
       async fetch(req) {
         const { pathname } = new URL(req.url);
         console.log(`[serve.ts] FETCH: ${req.method} ${pathname}`);
+
+        // ─── Auth API Routes ───────────────────────────────────────────────
+
+        // POST /api/register — create account and set session
+        if (pathname === "/api/register" && req.method === "POST") {
+          const body = await parseJSON(req);
+          if (!body || !body.email || !body.password) {
+            return new Response(JSON.stringify({ error: "Email and password required" }), {
+              status: 400, headers: { "Content-Type": "application/json" },
+            });
+          }
+          try {
+            const existingUser = await db.query.users.findFirst({
+              where: eq(users.email, body.email),
+            });
+            if (existingUser) {
+              return new Response(JSON.stringify({ error: "Account already exists, please login" }), {
+                status: 409, headers: { "Content-Type": "application/json" },
+              });
+            }
+            const hashedPassword = await hashPassword(body.password);
+            const userId = crypto.randomUUID();
+            await db.insert(users).values({
+              id: userId,
+              email: body.email,
+              password: hashedPassword,
+              createdAt: new Date(),
+            });
+            const token = await createSessionToken(userId);
+            return new Response(JSON.stringify({ success: true }), {
+              status: 200,
+              headers: {
+                "Content-Type": "application/json",
+                "Set-Cookie": setCookieHeader("session", token, 7200),
+              },
+            });
+          } catch (err: any) {
+            console.error("[serve.ts] Register error:", err);
+            return new Response(JSON.stringify({ error: "Registration failed" }), {
+              status: 500, headers: { "Content-Type": "application/json" },
+            });
+          }
+        }
+
+        // POST /api/login — verify credentials and set session
+        if (pathname === "/api/login" && req.method === "POST") {
+          const body = await parseJSON(req);
+          if (!body || !body.email || !body.password) {
+            return new Response(JSON.stringify({ error: "Email and password required" }), {
+              status: 400, headers: { "Content-Type": "application/json" },
+            });
+          }
+          try {
+            const user = await db.query.users.findFirst({
+              where: eq(users.email, body.email),
+            });
+            if (!user || !(await verifyPassword(body.password, user.password))) {
+              return new Response(JSON.stringify({ error: "Invalid email or password" }), {
+                status: 401, headers: { "Content-Type": "application/json" },
+              });
+            }
+            const token = await createSessionToken(user.id);
+            return new Response(JSON.stringify({ success: true }), {
+              status: 200,
+              headers: {
+                "Content-Type": "application/json",
+                "Set-Cookie": setCookieHeader("session", token, 7200),
+              },
+            });
+          } catch (err: any) {
+            console.error("[serve.ts] Login error:", err);
+            return new Response(JSON.stringify({ error: "Login failed" }), {
+              status: 500, headers: { "Content-Type": "application/json" },
+            });
+          }
+        }
+
+        // POST /api/logout — clear session
+        if (pathname === "/api/logout" && req.method === "POST") {
+          return new Response(JSON.stringify({ success: true }), {
+            status: 200,
+            headers: {
+              "Content-Type": "application/json",
+              "Set-Cookie": clearCookieHeader("session"),
+            },
+          });
+        }
+
+        // GET /api/me — check if logged in
+        if (pathname === "/api/me" && req.method === "GET") {
+          const token = getCookie(req, "session");
+          if (!token) {
+            return new Response(JSON.stringify({ error: "Not logged in" }), {
+              status: 401, headers: { "Content-Type": "application/json" },
+            });
+          }
+          const userId = await verifySessionToken(token);
+          if (!userId) {
+            return new Response(JSON.stringify({ error: "Invalid session" }), {
+              status: 401, headers: { "Content-Type": "application/json" },
+            });
+          }
+          const user = await db.query.users.findFirst({
+            where: eq(users.id, userId),
+          });
+          if (!user) {
+            return new Response(JSON.stringify({ error: "User not found" }), {
+              status: 401, headers: { "Content-Type": "application/json" },
+            });
+          }
+          return new Response(JSON.stringify({ id: user.id, email: user.email }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        // POST /api/check-user-exists — check if a user exists
+        if (pathname === "/api/check-user-exists" && req.method === "POST") {
+          const body = await parseJSON(req);
+          if (!body || !body.email) {
+            return new Response(JSON.stringify({ error: "Email required" }), {
+              status: 400, headers: { "Content-Type": "application/json" },
+            });
+          }
+          const user = await db.query.users.findFirst({
+            where: eq(users.email, body.email),
+          });
+          return new Response(JSON.stringify({
+            exists: !!user,
+            needsPasswordReset: user?.needsPasswordReset || false,
+          }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        // POST /api/set-password — set or reset password
+        if (pathname === "/api/set-password" && req.method === "POST") {
+          const body = await parseJSON(req);
+          if (!body || !body.email || !body.password) {
+            return new Response(JSON.stringify({ error: "Email and password required" }), {
+              status: 400, headers: { "Content-Type": "application/json" },
+            });
+          }
+          if (body.password.length < 8) {
+            return new Response(JSON.stringify({ error: "Password must be at least 8 characters" }), {
+              status: 400, headers: { "Content-Type": "application/json" },
+            });
+          }
+          try {
+            const user = await db.query.users.findFirst({
+              where: eq(users.email, body.email),
+            });
+            if (!user) {
+              return new Response(JSON.stringify({ error: "No account found with this email" }), {
+                status: 404, headers: { "Content-Type": "application/json" },
+              });
+            }
+            const hashedPassword = await hashPassword(body.password);
+            await db
+              .update(users)
+              .set({
+                password: hashedPassword,
+                needsPasswordReset: false,
+              })
+              .where(eq(users.email, body.email));
+            return new Response(JSON.stringify({ success: true }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            });
+          } catch (err: any) {
+            console.error("[serve.ts] Set password error:", err);
+            return new Response(JSON.stringify({ error: "Failed to set password" }), {
+              status: 500, headers: { "Content-Type": "application/json" },
+            });
+          }
+        }
+
+        // ─── Stripe Webhook ────────────────────────────────────────────────
 
         // Handle Stripe Webhook
         if (pathname === "/api/stripe-webhook") {
@@ -85,6 +302,8 @@ for (let attempt = 1; ; attempt++) {
              return new Response("Method Not Allowed", { status: 405 });
           }
         }
+
+        // ─── Static Files & SSR Fallback ──────────────────────────────────
 
         if (pathname !== "/") {
           const file = Bun.file(CLIENT_DIR + pathname);

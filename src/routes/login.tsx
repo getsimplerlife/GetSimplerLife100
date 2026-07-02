@@ -1,6 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { login } from "~/db/queries";
 
 export const Route = createFileRoute("/login")({
   component: Login,
@@ -19,7 +18,15 @@ function Login() {
     setLoading(true);
 
     try {
-      await login({ data: { email, password } });
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Login failed");
+      }
       navigate({ to: "/portal" });
     } catch (err: any) {
       setError(err.message || "Login failed");
