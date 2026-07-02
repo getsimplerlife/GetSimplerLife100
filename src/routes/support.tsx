@@ -37,7 +37,7 @@ const supportTiers = [
       '12-hour response time',
     ],
     cta: 'Buy Essential Ops',
-    link: 'https://buy.stripe.com/test_essential', // Placeholder
+    link: 'https://buy.stripe.com/28E4gAens20AfRcbkp3Ru04',
     popular: false,
   },
   {
@@ -54,7 +54,7 @@ const supportTiers = [
       '4-hour response time',
     ],
     cta: 'Buy Professional Ops',
-    link: 'https://buy.stripe.com/test_professional', // Placeholder
+    link: 'https://buy.stripe.com/cNieVe7Z4ax6fRc0FL3Ru05',
     popular: true,
   },
   {

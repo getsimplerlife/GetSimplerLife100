@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "build": "NITRO_PRESET=vercel vite build",
+    "build": "NITRO_PRESET=bun vite build",
     "start": "bun run serve.ts",
     "publish": "bun run publish.ts",
     "format": "prettier --write .",
@@ -14,7 +14,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "vercel-build": "NITRO_PRESET=vercel vite build",
+    "vercel-build": "NITRO_PRESET=bun vite build",
     "clean": "rm -rf dist .tanstack .run .vercel/output node_modules/.cache",
     "check": "bun run lint && bun run typecheck && bun run test"
   },

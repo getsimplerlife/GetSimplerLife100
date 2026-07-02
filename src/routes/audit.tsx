@@ -590,7 +590,7 @@ function AuditChecklist() {
                             View Industry Page <ArrowRightIcon />
                           </Link>
                           <a
-                            href="https://buy.stripe.com/aFa5kD4ggghlbWe2WE08g0h"
+                            href="https://buy.stripe.com/14A3cw2EKfRqcF0gEJ3Ru00"
                             className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-800 transition bg-indigo-50/60 hover:bg-indigo-100 px-3 py-1.5 rounded-lg border border-indigo-100"
                           >
                             Get Deep-Dive Audit <ArrowRightIcon />
@@ -625,7 +625,7 @@ function AuditChecklist() {
               </div>
               <div className="flex flex-col sm:flex-row gap-4">
                 <a
-                  href="https://buy.stripe.com/aFa5kD4ggghlbWe2WE08g0h"
+                  href="https://buy.stripe.com/14A3cw2EKfRqcF0gEJ3Ru00"
                   className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-bold rounded-xl text-indigo-900 bg-white hover:bg-indigo-50 transition shadow-lg shrink-0"
                 >
                   Secure Your Deep-Dive Audit <ArrowRightIcon />

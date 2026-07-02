@@ -1,6 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { setPassword, checkUserExists } from "~/db/queries";
 
 export const Route = createFileRoute("/set-password")({
   component: SetPassword,
@@ -30,17 +29,26 @@ function SetPassword() {
     setLoading(true);
 
     try {
-      const { exists, needsPasswordReset } = await checkUserExists({ data: email });
-      if (!exists) {
-          setError("No account found with this email");
-          return;
-      }
-      if (!needsPasswordReset) {
-          setError("Password already set. Please use login or forgot password.");
-          return;
+      const checkRes = await fetch("/api/check-user-exists", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const checkData = await checkRes.json();
+      if (!checkData.exists) {
+        setError("No account found with this email");
+        return;
       }
 
-      await setPassword({ data: { email, password } });
+      const setRes = await fetch("/api/set-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const setData = await setRes.json();
+      if (!setRes.ok) {
+        throw new Error(setData.error || "Failed to set password");
+      }
       setSuccess(true);
     } catch (err: any) {
       setError(err.message || "Failed to set password");
@@ -55,7 +63,7 @@ function SetPassword() {
           <div className="max-w-md w-full space-y-8 bg-white p-10 rounded-2xl shadow-sm border text-center">
             <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
               <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="5 13l4 4L19 7" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
               </svg>
             </div>
             <h2 className="mt-3 text-2xl font-bold text-gray-900">Password Set!</h2>
@@ -75,11 +83,11 @@ function SetPassword() {
       <div className="max-w-md w-full space-y-8 bg-white p-10 rounded-2xl shadow-sm border">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Set Your Password
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Enter your email and choose a new password to access your account.
-          </p>
+                        Set Your Password
+                      </h2>
+                      <p className="mt-2 text-center text-sm text-gray-600">
+                        Enter your email and choose a new password. Works for first-time logins and password resets.
+                      </p>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           {error && (

@@ -1,6 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { register } from "~/db/queries";
 
 export const Route = createFileRoute("/register")({
   component: Register,
@@ -19,11 +18,23 @@ function Register() {
     setLoading(true);
 
     try {
-      await register({ data: { email, password } });
+      const res = await fetch("/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Registration failed");
+      }
       navigate({ to: "/portal" });
     } catch (err: any) {
-      setError(err.message || "Registration failed");
-    } finally {
+      const msg = err.message || "Registration failed";
+      if (msg.includes("already exists")) {
+        setError("Account already exists. If you purchased an audit, go to Set Password instead.");
+      } else {
+        setError(msg);
+      }
       setLoading(false);
     }
   };
@@ -95,6 +106,14 @@ function Register() {
               {loading ? "Registering..." : "Register"}
             </button>
           </div>
+            <div className="mt-4 text-center">
+              <Link
+                to="/set-password"
+                className="text-sm font-medium text-indigo-600 hover:text-indigo-500"
+              >
+                Already purchased? Set your password here →
+              </Link>
+            </div>
         </form>
       </div>
     </div>
