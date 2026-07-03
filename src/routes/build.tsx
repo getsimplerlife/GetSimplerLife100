@@ -2,16 +2,7 @@ import { useState } from 'react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 
 async function getPageData() {
-  let businessName = 'Simpler Life 100';
-  try {
-    const cfg = JSON.parse(await readFile('site.json', 'utf8')) as {
-      businessName?: string;
-    };
-    businessName = cfg.businessName?.trim() ?? 'Simpler Life 100';
-  } catch (_err) {
-    // Ignore error
-  }
-
+  const businessName = 'Simpler Life 100';
   let user = null;
   try {
     const res = await fetch("/api/me");
