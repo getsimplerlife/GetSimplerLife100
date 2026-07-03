@@ -1,22 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { createServerFn } from "@tanstack/react-start";
-import { readFile } from "node:fs/promises";
-import { getUser } from "~/db/queries";
 
-const getPageData = createServerFn({ method: "GET" }).handler(async () => {
-  let businessName = "Simpler Life 100";
+async function getPageData() {
+  const businessName = "Simpler Life 100";
+  let user = null;
   try {
-    const cfg = JSON.parse(await readFile("site.json", "utf8")) as {
-      businessName?: string;
-    };
-    businessName = cfg.businessName?.trim() ?? "Simpler Life 100";
-  } catch (_err) {
-    // Ignore error
-  }
-
-  const user = await getUser();
+    const res = await fetch("/api/me");
+    if (res.ok) user = await res.json();
+  } catch {}
   return { businessName, user };
-});
+}
 
 export const Route = createFileRoute("/")({
   loader: () => getPageData(),
@@ -67,7 +59,7 @@ const journeySteps = [
     description: "We build a technical roadmap and workflow that fits your business, showing exactly how the agents will work.",
     price: "$2,500",
     cta: "Get Your Blueprint",
-    link: "https://buy.stripe.com/14A3cw2EKfRqcF0gEJ3Ru00"
+    link: "/purchase-complete?product=deep-audit"
   },
   {
     step: "03",
@@ -347,9 +339,24 @@ function Home() {
                     {s.description}
                   </p>
                   <div className="text-lg font-black text-slate-900 mb-6">{s.price}</div>
-                  <a href={s.link} className="inline-block bg-slate-900 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-slate-800 transition-all">
+                  <Link
+                    to={s.link.startsWith("/") ? s.link.split("?")[0] : s.link}
+                    search={s.link.includes("?") ? Object.fromEntries(new URLSearchParams(s.link.split("?")[1])) : undefined}
+                    className="inline-block bg-slate-900 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-slate-800 transition-all"
+                  >
                     {s.cta}
-                  </a>
+                  </Link>
+                  {s.link.includes("purchase-complete") && (
+                    <div className="mt-4">
+                      <Link
+                        to="/purchase-complete"
+                        search={{ product: "Deep-Dive AI Opportunity Audit" } as any}
+                        className="text-[10px] text-slate-400 font-bold uppercase tracking-tight hover:text-indigo-600 transition-colors"
+                      >
+                        Already purchased? Claim it here →
+                      </Link>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

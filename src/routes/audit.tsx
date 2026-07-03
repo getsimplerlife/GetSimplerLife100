@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { Link, createFileRoute } from '@tanstack/react-router';
-import { getUser } from '~/db/queries';
 
 export const Route = createFileRoute('/audit')({
   loader: async () => {
-    const user = await getUser();
+    let user = null;
+    try {
+      const res = await fetch("/api/me");
+      if (res.ok) user = await res.json();
+    } catch {}
     return { user };
   },
   component: AuditChecklist,
@@ -589,12 +592,15 @@ function AuditChecklist() {
                           >
                             View Industry Page <ArrowRightIcon />
                           </Link>
-                          <a
-                            href="https://buy.stripe.com/14A3cw2EKfRqcF0gEJ3Ru00"
-                            className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-800 transition bg-indigo-50/60 hover:bg-indigo-100 px-3 py-1.5 rounded-lg border border-indigo-100"
-                          >
-                            Get Deep-Dive Audit <ArrowRightIcon />
-                          </a>
+                          <div className="flex flex-col items-center">
+                            <Link
+                              to="/purchase-complete"
+                              search={{ product: "deep-audit" } as any}
+                              className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-800 transition bg-indigo-50/60 hover:bg-indigo-100 px-3 py-1.5 rounded-lg border border-indigo-100"
+                            >
+                              Get Deep-Dive Audit <ArrowRightIcon />
+                            </Link>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -624,12 +630,13 @@ function AuditChecklist() {
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row gap-4">
-                <a
-                  href="https://buy.stripe.com/14A3cw2EKfRqcF0gEJ3Ru00"
+                <Link
+                  to="/purchase-complete"
+                  search={{ product: "deep-audit" } as any}
                   className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-bold rounded-xl text-indigo-900 bg-white hover:bg-indigo-50 transition shadow-lg shrink-0"
                 >
                   Secure Your Deep-Dive Audit <ArrowRightIcon />
-                </a>
+                </Link>
                 <Link
                   to="/contact"
                   className="inline-flex items-center justify-center px-6 py-3 border border-indigo-400 text-base font-semibold rounded-xl text-white hover:bg-indigo-800 transition"

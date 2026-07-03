@@ -1,0 +1,1109 @@
+// Production server for the built site. The TanStack Start build emits a portable
+// fetch handler (dist/server/server.js) plus static client assets (dist/client);
+// this wraps them in a Bun server on port 3000 — static files first, SSR for the
+// rest. Run `bun run build` before starting. Restart it with `bun run publish`.
+//
+// Starting a new instance supersedes the old one: it frees the port no matter
+// which user owns the current server (provisioning starts it as `engine`; a team
+// member's `bun run publish` runs as their own user), so publish never collides
+// with an already-running server. Every sandbox user has passwordless sudo, so
+// the takeover works across user boundaries.
+// @ts-expect-error this is a build artifact that might not exist yet
+import handler from "./dist/server/server.js";
+import { createAuditForEmailInternal } from "./src/db/queries";
+import { eq, and } from "drizzle-orm";
+import { db } from "./src/db/index";
+import { users, audits } from "./src/db/schema";
+import {
+  hashPassword,
+  verifyPassword,
+  createSessionToken,
+  verifySessionToken,
+} from "./src/db/auth";
+
+// Pinned, NOT read from the environment. The published preview URL
+// (<label>.<PUBLIC_SITE_DOMAIN>) is reverse-proxied to 0.0.0.0:3000 inside the
+// sandbox, so the default site MUST bind there. Bun auto-loads .env files, so
+// honouring process.env.PORT/HOST would let a stray env var or a .env in the site
+// dir silently move the site off :3000 (or onto loopback) and break the public URL.
+const PORT = 3000;
+const HOST = "0.0.0.0";
+const CLIENT_DIR = `${import.meta.dir}/dist/client`;
+
+// Helper: read a cookie value from the Cookie header
+function getCookie(req: Request, name: string): string | null {
+  const cookieHeader = req.headers.get("Cookie");
+  if (!cookieHeader) return null;
+  for (const part of cookieHeader.split(";")) {
+    const [key, ...rest] = part.trim().split("=");
+    if (key === name) return rest.join("=");
+  }
+  return null;
+}
+
+// Helper: build a Set-Cookie header value
+function setCookieHeader(name: string, value: string, maxAge: number): string {
+  return `${name}=${value}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${maxAge}`;
+}
+
+function clearCookieHeader(name: string): string {
+  return `${name}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0`;
+}
+
+// Helper: parse JSON body, returning null on failure
+async function parseJSON(req: Request): Promise<any | null> {
+  try {
+    return await req.json();
+  } catch {
+    return null;
+  }
+}
+
+// Free PORT regardless of which user owns the current listener. lsof runs under
+// sudo so it can see (and the kill can signal) a process owned by another user;
+// the loop waits for the socket to actually release before we bind.
+const freePort =
+  `for _ in $(seq 1 25); do ` +
+  `pids=$(lsof -t -iTCP:${String(PORT)} -sTCP:LISTEN 2>/dev/null || true); ` +
+  `if [ -z "$pids" ]; then exit 0; fi; ` +
+  `kill $pids 2>/dev/null || true; sleep 0.2; ` +
+  `done`;
+
+// Take over the port, re-freeing and retrying if another publish grabbed it in the
+// gap between freeing and binding (last publish wins). Bun.serve throws EADDRINUSE
+// synchronously, so without this a raced publish would die while the shell already
+// reported success.
+for (let attempt = 1; ; attempt++) {
+  await Bun.$`sudo sh -c ${freePort}`.quiet().nothrow();
+  try {
+    Bun.serve({
+      port: PORT,
+      hostname: HOST,
+      async fetch(req) {
+        const { pathname } = new URL(req.url);
+        console.log(`[serve.ts] FETCH: ${req.method} ${pathname}`);
+
+        // ─── Auth API Routes ───────────────────────────────────────────────
+
+        // POST /api/register — create account and set session
+        if (pathname === "/api/register" && req.method === "POST") {
+          const body = await parseJSON(req);
+          if (!body || !body.email || !body.password) {
+            return new Response(JSON.stringify({ error: "Email and password required" }), {
+              status: 400, headers: { "Content-Type": "application/json" },
+            });
+          }
+          try {
+            const existingUser = await db.query.users.findFirst({
+              where: eq(users.email, body.email),
+            });
+            if (existingUser) {
+              return new Response(JSON.stringify({ error: "Account already exists, please login" }), {
+                status: 409, headers: { "Content-Type": "application/json" },
+              });
+            }
+            const hashedPassword = await hashPassword(body.password);
+            const userId = crypto.randomUUID();
+            await db.insert(users).values({
+              id: userId,
+              email: body.email,
+              password: hashedPassword,
+              createdAt: new Date(),
+            });
+            const token = await createSessionToken(userId);
+            return new Response(JSON.stringify({ success: true }), {
+              status: 200,
+              headers: {
+                "Content-Type": "application/json",
+                "Set-Cookie": setCookieHeader("session", token, 7200),
+              },
+            });
+          } catch (err: any) {
+            console.error("[serve.ts] Register error:", err);
+            return new Response(JSON.stringify({ error: "Registration failed" }), {
+              status: 500, headers: { "Content-Type": "application/json" },
+            });
+          }
+        }
+
+        // POST /api/login — verify credentials and set session
+        if (pathname === "/api/login" && req.method === "POST") {
+          const body = await parseJSON(req);
+          if (!body || !body.email || !body.password) {
+            return new Response(JSON.stringify({ error: "Email and password required" }), {
+              status: 400, headers: { "Content-Type": "application/json" },
+            });
+          }
+          try {
+            const user = await db.query.users.findFirst({
+              where: eq(users.email, body.email),
+            });
+            if (!user || !(await verifyPassword(body.password, user.password))) {
+              return new Response(JSON.stringify({ error: "Invalid email or password" }), {
+                status: 401, headers: { "Content-Type": "application/json" },
+              });
+            }
+            const token = await createSessionToken(user.id);
+            return new Response(JSON.stringify({ success: true }), {
+              status: 200,
+              headers: {
+                "Content-Type": "application/json",
+                "Set-Cookie": setCookieHeader("session", token, 7200),
+              },
+            });
+          } catch (err: any) {
+            console.error("[serve.ts] Login error:", err);
+            return new Response(JSON.stringify({ error: "Login failed" }), {
+              status: 500, headers: { "Content-Type": "application/json" },
+            });
+          }
+        }
+
+        // POST /api/logout — clear session
+        if (pathname === "/api/logout" && req.method === "POST") {
+          return new Response(JSON.stringify({ success: true }), {
+            status: 200,
+            headers: {
+              "Content-Type": "application/json",
+              "Set-Cookie": clearCookieHeader("session"),
+            },
+          });
+        }
+
+        // GET /api/me — check if logged in
+        if (pathname === "/api/me" && req.method === "GET") {
+          const token = getCookie(req, "session");
+          if (!token) {
+            return new Response(JSON.stringify({ error: "Not logged in" }), {
+              status: 401, headers: { "Content-Type": "application/json" },
+            });
+          }
+          const userId = await verifySessionToken(token);
+          if (!userId) {
+            return new Response(JSON.stringify({ error: "Invalid session" }), {
+              status: 401, headers: { "Content-Type": "application/json" },
+            });
+          }
+          const user = await db.query.users.findFirst({
+            where: eq(users.id, userId),
+          });
+          if (!user) {
+            return new Response(JSON.stringify({ error: "User not found" }), {
+              status: 401, headers: { "Content-Type": "application/json" },
+            });
+          }
+          return new Response(JSON.stringify({ id: user.id, email: user.email }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        // GET /api/audits — get all audits for the logged-in user
+        if (pathname === "/api/audits" && req.method === "GET") {
+          const token = getCookie(req, "session");
+          if (!token) {
+            return new Response(JSON.stringify({ error: "Not logged in" }), {
+              status: 401, headers: { "Content-Type": "application/json" },
+            });
+          }
+          const userId = await verifySessionToken(token);
+          if (!userId) {
+            return new Response(JSON.stringify({ error: "Invalid session" }), {
+              status: 401, headers: { "Content-Type": "application/json" },
+            });
+          }
+          const userAudits = await db.query.audits.findMany({
+            where: eq(audits.userId, userId),
+            orderBy: (audits, { desc }) => [desc(audits.createdAt)],
+          });
+          return new Response(JSON.stringify(userAudits), {
+            status: 200, headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        // GET /api/audits/:id — get a single audit by ID
+        if (pathname.startsWith("/api/audits/") && pathname !== "/api/audits" && req.method === "GET") {
+          const auditId = pathname.replace("/api/audits/", "");
+          const token = getCookie(req, "session");
+          if (!token) {
+            return new Response(JSON.stringify({ error: "Not logged in" }), {
+              status: 401, headers: { "Content-Type": "application/json" },
+            });
+          }
+          const userId = await verifySessionToken(token);
+          if (!userId) {
+            return new Response(JSON.stringify({ error: "Invalid session" }), {
+              status: 401, headers: { "Content-Type": "application/json" },
+            });
+          }
+          const audit = await db.query.audits.findFirst({
+            where: and(eq(audits.id, auditId), eq(audits.userId, userId)),
+          });
+          if (!audit) {
+            return new Response(JSON.stringify({ error: "Audit not found" }), {
+              status: 404, headers: { "Content-Type": "application/json" },
+            });
+          }
+          return new Response(JSON.stringify(audit), {
+            status: 200, headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        // POST /api/submit-feedback — submit feedback on an audit
+        if (pathname === "/api/submit-feedback" && req.method === "POST") {
+          const body = await parseJSON(req);
+          if (!body || !body.auditId || !body.requestText) {
+            return new Response(JSON.stringify({ error: "Audit ID and request text required" }), {
+              status: 400, headers: { "Content-Type": "application/json" },
+            });
+          }
+          const token = getCookie(req, "session");
+          if (!token) {
+            return new Response(JSON.stringify({ error: "Not logged in" }), {
+              status: 401, headers: { "Content-Type": "application/json" },
+            });
+          }
+          const userId = await verifySessionToken(token);
+          if (!userId) {
+            return new Response(JSON.stringify({ error: "Invalid session" }), {
+              status: 401, headers: { "Content-Type": "application/json" },
+            });
+          }
+          const user = await db.query.users.findFirst({
+            where: eq(users.id, userId),
+          });
+          const fs = await import("node:fs/promises");
+          const feedbackEntry = JSON.stringify({
+            auditId: body.auditId,
+            userId,
+            email: user?.email,
+            requestText: body.requestText,
+            status: "pending",
+            timestamp: new Date().toISOString(),
+          });
+          await fs.appendFile("/home/team/shared/feedback.json", feedbackEntry + ",\n");
+          return new Response(JSON.stringify({ success: true }), {
+            status: 200, headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        // POST /api/submit-lead — store a lead submission
+        if (pathname === "/api/submit-lead" && req.method === "POST") {
+          const body = await parseJSON(req);
+          if (!body) {
+            return new Response(JSON.stringify({ error: "Invalid body" }), {
+              status: 400, headers: { "Content-Type": "application/json" },
+            });
+          }
+          const fs = await import("node:fs/promises");
+          const leadData = JSON.stringify({ timestamp: new Date().toISOString(), ...body }, null, 2);
+          await fs.appendFile("/home/team/shared/leads.json", leadData + ",\n");
+          return new Response(JSON.stringify({ success: true }), {
+            status: 200, headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        // POST /api/check-user-exists — check if a user exists
+        if (pathname === "/api/check-user-exists" && req.method === "POST") {
+          const body = await parseJSON(req);
+          if (!body || !body.email) {
+            return new Response(JSON.stringify({ error: "Email required" }), {
+              status: 400, headers: { "Content-Type": "application/json" },
+            });
+          }
+          const user = await db.query.users.findFirst({
+            where: eq(users.email, body.email),
+          });
+          return new Response(JSON.stringify({
+            exists: !!user,
+            needsPasswordReset: user?.needsPasswordReset || false,
+          }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        // POST /api/set-password — set or reset password
+        if (pathname === "/api/set-password" && req.method === "POST") {
+          const body = await parseJSON(req);
+          if (!body || !body.email || !body.password) {
+            return new Response(JSON.stringify({ error: "Email and password required" }), {
+              status: 400, headers: { "Content-Type": "application/json" },
+            });
+          }
+          if (body.password.length < 8) {
+            return new Response(JSON.stringify({ error: "Password must be at least 8 characters" }), {
+              status: 400, headers: { "Content-Type": "application/json" },
+            });
+          }
+          try {
+            const user = await db.query.users.findFirst({
+              where: eq(users.email, body.email),
+            });
+            if (!user) {
+              return new Response(JSON.stringify({ error: "No account found with this email" }), {
+                status: 404, headers: { "Content-Type": "application/json" },
+              });
+            }
+            const hashedPassword = await hashPassword(body.password);
+            await db
+              .update(users)
+              .set({
+                password: hashedPassword,
+                needsPasswordReset: false,
+              })
+              .where(eq(users.email, body.email));
+            return new Response(JSON.stringify({ success: true }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            });
+          } catch (err: any) {
+            console.error("[serve.ts] Set password error:", err);
+            return new Response(JSON.stringify({ error: "Failed to set password" }), {
+              status: 500, headers: { "Content-Type": "application/json" },
+            });
+          }
+        }
+
+        // POST /api/claim-purchase — claim an audit after purchase
+        if (pathname === "/api/claim-purchase" && req.method === "POST") {
+          const body = await parseJSON(req);
+          if (!body || !body.email || !body.product) {
+            return new Response(JSON.stringify({ error: "Email and product required" }), {
+              status: 400, headers: { "Content-Type": "application/json" },
+            });
+          }
+          try {
+            // Check if user exists and has this audit type already
+            const user = await db.query.users.findFirst({
+              where: eq(users.email, body.email),
+            });
+
+            if (user) {
+              const existingAudit = await db.query.audits.findFirst({
+                where: and(eq(audits.userId, user.id), eq(audits.type, body.product)),
+              });
+
+              if (existingAudit) {
+                return new Response(JSON.stringify({ 
+                  error: "You already have an audit of this type linked to your account. Please login to view it.",
+                  email: body.email 
+                }), {
+                  status: 409, headers: { "Content-Type": "application/json" },
+                });
+              }
+            }
+
+            const result = await createAuditForEmailInternal(body.email, body.product);
+            return new Response(JSON.stringify({ 
+              success: true, 
+              email: body.email, 
+              product: body.product,
+              auditId: result.auditId 
+            }), {
+              status: 200, headers: { "Content-Type": "application/json" },
+            });
+          } catch (err: any) {
+            console.error("[serve.ts] Claim purchase error:", err);
+            return new Response(JSON.stringify({ error: "Failed to claim purchase" }), {
+              status: 500, headers: { "Content-Type": "application/json" },
+            });
+          }
+        }
+
+        // ─── Stripe Webhook ────────────────────────────────────────────────
+
+        // Handle Stripe Webhook
+        if (pathname === "/api/stripe-webhook") {
+          console.log(`[serve.ts] Stripe webhook path matched. Method: ${req.method}`);
+          if (req.method === "POST") {
+            try {
+              const body = await req.json();
+              console.log('[serve.ts] Received Stripe event type:', body.type);
+
+              if (body.type === 'checkout.session.completed') {
+                const session = body.data.object;
+                const email = session.customer_details?.email || session.customer_email;
+                const amount = session.amount_total / 100;
+
+                let auditType = "Custom Audit";
+                if (amount === 2500) auditType = "Deep-Dive AI Opportunity Audit";
+                else if (amount === 7500) auditType = "Starter Implementation";
+                else if (amount === 15000) auditType = "Growth Implementation";
+                else if (amount === 30000) auditType = "Scale Implementation";
+                else if (amount === 750 || amount === 2000) auditType = "Monthly Operations";
+
+                if (email) {
+                  console.log(`[serve.ts] Processing purchase for ${email}: ${auditType}`);
+                  await createAuditForEmailInternal(email, auditType);
+                  console.log(`[serve.ts] Successfully created audit for ${email}`);
+                }
+              }
+              return new Response(JSON.stringify({ received: true }), {
+                headers: { "Content-Type": "application/json" },
+              });
+            } catch (err) {
+              console.error('[serve.ts] Error in Stripe webhook:', err);
+              return new Response(JSON.stringify({ error: "Internal Server Error" }), {
+                status: 500,
+                headers: { "Content-Type": "application/json" },
+              });
+            }
+          } else {
+             return new Response("Method Not Allowed", { status: 405 });
+          }
+        }
+
+        // ─── Agent Implementation API ─────────────────────────────────────
+
+        // GET /api/agents — list deployed agents for the logged-in user
+        if (pathname === "/api/agents" && req.method === "GET") {
+          const token = getCookie(req, "session");
+          if (!token) { return new Response(JSON.stringify({ error: "Not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } }); }
+          const userId = await verifySessionToken(token);
+          if (!userId) { return new Response(JSON.stringify({ error: "Invalid session" }), { status: 401, headers: { "Content-Type": "application/json" } }); }
+
+          // Fetch audits that are "implemented" (agents deployed)
+          const implementedAudits = await db.query.audits.findMany({
+            where: and(eq(audits.userId, userId), eq(audits.status, "implemented")),
+          });
+
+          // Build agent list from the implemented audit
+          const agents: Array<Record<string, unknown>> = [];
+          for (const audit of implementedAudits) {
+            let parsed: any = {};
+            try { parsed = JSON.parse(audit.results || "{}"); } catch {}
+            const implAgents = parsed?.implementation?.agents || [];
+
+            for (const ag of implAgents) {
+              // Get latest run for this agent
+              const latestRun = await db.query.agentRuns.findFirst({
+                where: and(
+                  eq(agentRuns.userId, userId),
+                  eq(agentRuns.agentName, ag.name),
+                ),
+                orderBy: (runs, { desc }) => [desc(runs.createdAt)],
+              });
+
+              agents.push({
+                id: `${audit.id}-${ag.name?.toLowerCase().replace(/\s+/g, "-")}`,
+                name: ag.name,
+                workflows: ag.workflows || [],
+                savings: ag.savings || 0,
+                status: "active",
+                auditId: audit.id,
+                lastRun: latestRun ? {
+                  status: latestRun.status,
+                  message: latestRun.message,
+                  timestamp: latestRun.createdAt,
+                } : null,
+                runCount: await countAgentRuns(userId, ag.name),
+              });
+            }
+          }
+
+          return new Response(JSON.stringify(agents), {
+            status: 200, headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        // POST /api/agents/run — run a specific agent workflow
+        if (pathname === "/api/agents/run" && req.method === "POST") {
+          const token = getCookie(req, "session");
+          if (!token) { return new Response(JSON.stringify({ error: "Not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } }); }
+          const userId = await verifySessionToken(token);
+          if (!userId) { return new Response(JSON.stringify({ error: "Invalid session" }), { status: 401, headers: { "Content-Type": "application/json" } }); }
+
+          const body = await parseJSON(req);
+          if (!body || !body.agentName || !body.workflowKey) {
+            return new Response(JSON.stringify({ error: "agentName and workflowKey required" }), { status: 400, headers: { "Content-Type": "application/json" } });
+          }
+
+          try {
+            const runId = crypto.randomUUID();
+            const now = Date.now();
+
+            // Call the Python agent framework
+            const inputJson = JSON.stringify(body.inputData || {});
+            const pythonScript = `
+        import sys, json
+        sys.path.insert(0, '/home/team/shared/agents')
+        from agent import SimplerLife100Agent
+        agent = SimplerLife100Agent()
+        result = agent.run_industry_workflow("${body.workflowKey}", ${inputJson})
+        print(json.dumps({
+        "success": result.success,
+        "message": result.message,
+        "data": result.data,
+        "requires_human_review": result.requires_human_review
+        }))
+        `;
+
+            const { stdout, stderr } = await Bun.// Production server for the built site. The TanStack Start build emits a portable
+// fetch handler (dist/server/server.js) plus static client assets (dist/client);
+// this wraps them in a Bun server on port 3000 — static files first, SSR for the
+// rest. Run `bun run build` before starting. Restart it with `bun run publish`.
+//
+// Starting a new instance supersedes the old one: it frees the port no matter
+// which user owns the current server (provisioning starts it as `engine`; a team
+// member's `bun run publish` runs as their own user), so publish never collides
+// with an already-running server. Every sandbox user has passwordless sudo, so
+// the takeover works across user boundaries.
+// @ts-expect-error this is a build artifact that might not exist yet
+import handler from "./dist/server/server.js";
+import { createAuditForEmailInternal } from "./src/db/queries";
+import { eq, and } from "drizzle-orm";
+import { db } from "./src/db/index";
+import { users, audits } from "./src/db/schema";
+import {
+  hashPassword,
+  verifyPassword,
+  createSessionToken,
+  verifySessionToken,
+} from "./src/db/auth";
+
+// Pinned, NOT read from the environment. The published preview URL
+// (<label>.<PUBLIC_SITE_DOMAIN>) is reverse-proxied to 0.0.0.0:3000 inside the
+// sandbox, so the default site MUST bind there. Bun auto-loads .env files, so
+// honouring process.env.PORT/HOST would let a stray env var or a .env in the site
+// dir silently move the site off :3000 (or onto loopback) and break the public URL.
+const PORT = 3000;
+const HOST = "0.0.0.0";
+const CLIENT_DIR = `${import.meta.dir}/dist/client`;
+
+// Helper: read a cookie value from the Cookie header
+function getCookie(req: Request, name: string): string | null {
+  const cookieHeader = req.headers.get("Cookie");
+  if (!cookieHeader) return null;
+  for (const part of cookieHeader.split(";")) {
+    const [key, ...rest] = part.trim().split("=");
+    if (key === name) return rest.join("=");
+  }
+  return null;
+}
+
+// Helper: build a Set-Cookie header value
+function setCookieHeader(name: string, value: string, maxAge: number): string {
+  return `${name}=${value}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${maxAge}`;
+}
+
+function clearCookieHeader(name: string): string {
+  return `${name}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0`;
+}
+
+// Helper: parse JSON body, returning null on failure
+async function parseJSON(req: Request): Promise<any | null> {
+  try {
+    return await req.json();
+  } catch {
+    return null;
+  }
+}
+
+// Free PORT regardless of which user owns the current listener. lsof runs under
+// sudo so it can see (and the kill can signal) a process owned by another user;
+// the loop waits for the socket to actually release before we bind.
+const freePort =
+  `for _ in $(seq 1 25); do ` +
+  `pids=$(lsof -t -iTCP:${String(PORT)} -sTCP:LISTEN 2>/dev/null || true); ` +
+  `if [ -z "$pids" ]; then exit 0; fi; ` +
+  `kill $pids 2>/dev/null || true; sleep 0.2; ` +
+  `done`;
+
+// Take over the port, re-freeing and retrying if another publish grabbed it in the
+// gap between freeing and binding (last publish wins). Bun.serve throws EADDRINUSE
+// synchronously, so without this a raced publish would die while the shell already
+// reported success.
+for (let attempt = 1; ; attempt++) {
+  await Bun.$`sudo sh -c ${freePort}`.quiet().nothrow();
+  try {
+    Bun.serve({
+      port: PORT,
+      hostname: HOST,
+      async fetch(req) {
+        const { pathname } = new URL(req.url);
+        console.log(`[serve.ts] FETCH: ${req.method} ${pathname}`);
+
+        // ─── Auth API Routes ───────────────────────────────────────────────
+
+        // POST /api/register — create account and set session
+        if (pathname === "/api/register" && req.method === "POST") {
+          const body = await parseJSON(req);
+          if (!body || !body.email || !body.password) {
+            return new Response(JSON.stringify({ error: "Email and password required" }), {
+              status: 400, headers: { "Content-Type": "application/json" },
+            });
+          }
+          try {
+            const existingUser = await db.query.users.findFirst({
+              where: eq(users.email, body.email),
+            });
+            if (existingUser) {
+              return new Response(JSON.stringify({ error: "Account already exists, please login" }), {
+                status: 409, headers: { "Content-Type": "application/json" },
+              });
+            }
+            const hashedPassword = await hashPassword(body.password);
+            const userId = crypto.randomUUID();
+            await db.insert(users).values({
+              id: userId,
+              email: body.email,
+              password: hashedPassword,
+              createdAt: new Date(),
+            });
+            const token = await createSessionToken(userId);
+            return new Response(JSON.stringify({ success: true }), {
+              status: 200,
+              headers: {
+                "Content-Type": "application/json",
+                "Set-Cookie": setCookieHeader("session", token, 7200),
+              },
+            });
+          } catch (err: any) {
+            console.error("[serve.ts] Register error:", err);
+            return new Response(JSON.stringify({ error: "Registration failed" }), {
+              status: 500, headers: { "Content-Type": "application/json" },
+            });
+          }
+        }
+
+        // POST /api/login — verify credentials and set session
+        if (pathname === "/api/login" && req.method === "POST") {
+          const body = await parseJSON(req);
+          if (!body || !body.email || !body.password) {
+            return new Response(JSON.stringify({ error: "Email and password required" }), {
+              status: 400, headers: { "Content-Type": "application/json" },
+            });
+          }
+          try {
+            const user = await db.query.users.findFirst({
+              where: eq(users.email, body.email),
+            });
+            if (!user || !(await verifyPassword(body.password, user.password))) {
+              return new Response(JSON.stringify({ error: "Invalid email or password" }), {
+                status: 401, headers: { "Content-Type": "application/json" },
+              });
+            }
+            const token = await createSessionToken(user.id);
+            return new Response(JSON.stringify({ success: true }), {
+              status: 200,
+              headers: {
+                "Content-Type": "application/json",
+                "Set-Cookie": setCookieHeader("session", token, 7200),
+              },
+            });
+          } catch (err: any) {
+            console.error("[serve.ts] Login error:", err);
+            return new Response(JSON.stringify({ error: "Login failed" }), {
+              status: 500, headers: { "Content-Type": "application/json" },
+            });
+          }
+        }
+
+        // POST /api/logout — clear session
+        if (pathname === "/api/logout" && req.method === "POST") {
+          return new Response(JSON.stringify({ success: true }), {
+            status: 200,
+            headers: {
+              "Content-Type": "application/json",
+              "Set-Cookie": clearCookieHeader("session"),
+            },
+          });
+        }
+
+        // GET /api/me — check if logged in
+        if (pathname === "/api/me" && req.method === "GET") {
+          const token = getCookie(req, "session");
+          if (!token) {
+            return new Response(JSON.stringify({ error: "Not logged in" }), {
+              status: 401, headers: { "Content-Type": "application/json" },
+            });
+          }
+          const userId = await verifySessionToken(token);
+          if (!userId) {
+            return new Response(JSON.stringify({ error: "Invalid session" }), {
+              status: 401, headers: { "Content-Type": "application/json" },
+            });
+          }
+          const user = await db.query.users.findFirst({
+            where: eq(users.id, userId),
+          });
+          if (!user) {
+            return new Response(JSON.stringify({ error: "User not found" }), {
+              status: 401, headers: { "Content-Type": "application/json" },
+            });
+          }
+          return new Response(JSON.stringify({ id: user.id, email: user.email }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        // GET /api/audits — get all audits for the logged-in user
+        if (pathname === "/api/audits" && req.method === "GET") {
+          const token = getCookie(req, "session");
+          if (!token) {
+            return new Response(JSON.stringify({ error: "Not logged in" }), {
+              status: 401, headers: { "Content-Type": "application/json" },
+            });
+          }
+          const userId = await verifySessionToken(token);
+          if (!userId) {
+            return new Response(JSON.stringify({ error: "Invalid session" }), {
+              status: 401, headers: { "Content-Type": "application/json" },
+            });
+          }
+          const userAudits = await db.query.audits.findMany({
+            where: eq(audits.userId, userId),
+            orderBy: (audits, { desc }) => [desc(audits.createdAt)],
+          });
+          return new Response(JSON.stringify(userAudits), {
+            status: 200, headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        // GET /api/audits/:id — get a single audit by ID
+        if (pathname.startsWith("/api/audits/") && pathname !== "/api/audits" && req.method === "GET") {
+          const auditId = pathname.replace("/api/audits/", "");
+          const token = getCookie(req, "session");
+          if (!token) {
+            return new Response(JSON.stringify({ error: "Not logged in" }), {
+              status: 401, headers: { "Content-Type": "application/json" },
+            });
+          }
+          const userId = await verifySessionToken(token);
+          if (!userId) {
+            return new Response(JSON.stringify({ error: "Invalid session" }), {
+              status: 401, headers: { "Content-Type": "application/json" },
+            });
+          }
+          const audit = await db.query.audits.findFirst({
+            where: and(eq(audits.id, auditId), eq(audits.userId, userId)),
+          });
+          if (!audit) {
+            return new Response(JSON.stringify({ error: "Audit not found" }), {
+              status: 404, headers: { "Content-Type": "application/json" },
+            });
+          }
+          return new Response(JSON.stringify(audit), {
+            status: 200, headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        // POST /api/submit-feedback — submit feedback on an audit
+        if (pathname === "/api/submit-feedback" && req.method === "POST") {
+          const body = await parseJSON(req);
+          if (!body || !body.auditId || !body.requestText) {
+            return new Response(JSON.stringify({ error: "Audit ID and request text required" }), {
+              status: 400, headers: { "Content-Type": "application/json" },
+            });
+          }
+          const token = getCookie(req, "session");
+          if (!token) {
+            return new Response(JSON.stringify({ error: "Not logged in" }), {
+              status: 401, headers: { "Content-Type": "application/json" },
+            });
+          }
+          const userId = await verifySessionToken(token);
+          if (!userId) {
+            return new Response(JSON.stringify({ error: "Invalid session" }), {
+              status: 401, headers: { "Content-Type": "application/json" },
+            });
+          }
+          const user = await db.query.users.findFirst({
+            where: eq(users.id, userId),
+          });
+          const fs = await import("node:fs/promises");
+          const feedbackEntry = JSON.stringify({
+            auditId: body.auditId,
+            userId,
+            email: user?.email,
+            requestText: body.requestText,
+            status: "pending",
+            timestamp: new Date().toISOString(),
+          });
+          await fs.appendFile("/home/team/shared/feedback.json", feedbackEntry + ",\n");
+          return new Response(JSON.stringify({ success: true }), {
+            status: 200, headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        // POST /api/submit-lead — store a lead submission
+        if (pathname === "/api/submit-lead" && req.method === "POST") {
+          const body = await parseJSON(req);
+          if (!body) {
+            return new Response(JSON.stringify({ error: "Invalid body" }), {
+              status: 400, headers: { "Content-Type": "application/json" },
+            });
+          }
+          const fs = await import("node:fs/promises");
+          const leadData = JSON.stringify({ timestamp: new Date().toISOString(), ...body }, null, 2);
+          await fs.appendFile("/home/team/shared/leads.json", leadData + ",\n");
+          return new Response(JSON.stringify({ success: true }), {
+            status: 200, headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        // POST /api/check-user-exists — check if a user exists
+        if (pathname === "/api/check-user-exists" && req.method === "POST") {
+          const body = await parseJSON(req);
+          if (!body || !body.email) {
+            return new Response(JSON.stringify({ error: "Email required" }), {
+              status: 400, headers: { "Content-Type": "application/json" },
+            });
+          }
+          const user = await db.query.users.findFirst({
+            where: eq(users.email, body.email),
+          });
+          return new Response(JSON.stringify({
+            exists: !!user,
+            needsPasswordReset: user?.needsPasswordReset || false,
+          }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        // POST /api/set-password — set or reset password
+        if (pathname === "/api/set-password" && req.method === "POST") {
+          const body = await parseJSON(req);
+          if (!body || !body.email || !body.password) {
+            return new Response(JSON.stringify({ error: "Email and password required" }), {
+              status: 400, headers: { "Content-Type": "application/json" },
+            });
+          }
+          if (body.password.length < 8) {
+            return new Response(JSON.stringify({ error: "Password must be at least 8 characters" }), {
+              status: 400, headers: { "Content-Type": "application/json" },
+            });
+          }
+          try {
+            const user = await db.query.users.findFirst({
+              where: eq(users.email, body.email),
+            });
+            if (!user) {
+              return new Response(JSON.stringify({ error: "No account found with this email" }), {
+                status: 404, headers: { "Content-Type": "application/json" },
+              });
+            }
+            const hashedPassword = await hashPassword(body.password);
+            await db
+              .update(users)
+              .set({
+                password: hashedPassword,
+                needsPasswordReset: false,
+              })
+              .where(eq(users.email, body.email));
+            return new Response(JSON.stringify({ success: true }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            });
+          } catch (err: any) {
+            console.error("[serve.ts] Set password error:", err);
+            return new Response(JSON.stringify({ error: "Failed to set password" }), {
+              status: 500, headers: { "Content-Type": "application/json" },
+            });
+          }
+        }
+
+        // POST /api/claim-purchase — claim an audit after purchase
+        if (pathname === "/api/claim-purchase" && req.method === "POST") {
+          const body = await parseJSON(req);
+          if (!body || !body.email || !body.product) {
+            return new Response(JSON.stringify({ error: "Email and product required" }), {
+              status: 400, headers: { "Content-Type": "application/json" },
+            });
+          }
+          try {
+            // Check if user exists and has this audit type already
+            const user = await db.query.users.findFirst({
+              where: eq(users.email, body.email),
+            });
+
+            if (user) {
+              const existingAudit = await db.query.audits.findFirst({
+                where: and(eq(audits.userId, user.id), eq(audits.type, body.product)),
+              });
+
+              if (existingAudit) {
+                return new Response(JSON.stringify({ 
+                  error: "You already have an audit of this type linked to your account. Please login to view it.",
+                  email: body.email 
+                }), {
+                  status: 409, headers: { "Content-Type": "application/json" },
+                });
+              }
+            }
+
+            const result = await createAuditForEmailInternal(body.email, body.product);
+            return new Response(JSON.stringify({ 
+              success: true, 
+              email: body.email, 
+              product: body.product,
+              auditId: result.auditId 
+            }), {
+              status: 200, headers: { "Content-Type": "application/json" },
+            });
+          } catch (err: any) {
+            console.error("[serve.ts] Claim purchase error:", err);
+            return new Response(JSON.stringify({ error: "Failed to claim purchase" }), {
+              status: 500, headers: { "Content-Type": "application/json" },
+            });
+          }
+        }
+
+        // ─── Stripe Webhook ────────────────────────────────────────────────
+
+        // Handle Stripe Webhook
+        if (pathname === "/api/stripe-webhook") {
+          console.log(`[serve.ts] Stripe webhook path matched. Method: ${req.method}`);
+          if (req.method === "POST") {
+            try {
+              const body = await req.json();
+              console.log('[serve.ts] Received Stripe event type:', body.type);
+
+              if (body.type === 'checkout.session.completed') {
+                const session = body.data.object;
+                const email = session.customer_details?.email || session.customer_email;
+                const amount = session.amount_total / 100;
+
+                let auditType = "Custom Audit";
+                if (amount === 2500) auditType = "Deep-Dive AI Opportunity Audit";
+                else if (amount === 7500) auditType = "Starter Implementation";
+                else if (amount === 15000) auditType = "Growth Implementation";
+                else if (amount === 30000) auditType = "Scale Implementation";
+                else if (amount === 750 || amount === 2000) auditType = "Monthly Operations";
+
+                if (email) {
+                  console.log(`[serve.ts] Processing purchase for ${email}: ${auditType}`);
+                  await createAuditForEmailInternal(email, auditType);
+                  console.log(`[serve.ts] Successfully created audit for ${email}`);
+                }
+              }
+              return new Response(JSON.stringify({ received: true }), {
+                headers: { "Content-Type": "application/json" },
+              });
+            } catch (err) {
+              console.error('[serve.ts] Error in Stripe webhook:', err);
+              return new Response(JSON.stringify({ error: "Internal Server Error" }), {
+                status: 500,
+                headers: { "Content-Type": "application/json" },
+              });
+            }
+          } else {
+             return new Response("Method Not Allowed", { status: 405 });
+          }
+        }
+
+python3 -c ${pythonScript}`.quiet().nothrow();
+            let resultData: any = {};
+            let runStatus = "success";
+            let runMessage = "";
+
+            try {
+              resultData = JSON.parse(stdout.toString().trim());
+              runStatus = resultData.requires_human_review ? "human_review" : (resultData.success ? "success" : "failed");
+              runMessage = resultData.message || "";
+            } catch {
+              runStatus = "failed";
+              runMessage = stderr.toString() || "Failed to parse agent output";
+            }
+
+            // Store the run
+            await db.insert(agentRuns).values({
+              id: runId,
+              userId,
+              auditId: body.auditId || null,
+              agentName: body.agentName,
+              workflowKey: body.workflowKey,
+              inputData: JSON.stringify(body.inputData || {}),
+              resultData: JSON.stringify(resultData),
+              status: runStatus,
+              message: runMessage,
+              createdAt: new Date(now),
+              updatedAt: new Date(now),
+            });
+
+            return new Response(JSON.stringify({
+              id: runId,
+              status: runStatus,
+              message: runMessage,
+              data: resultData,
+            }), {
+              status: 200, headers: { "Content-Type": "application/json" },
+            });
+          } catch (err: any) {
+            console.error("[serve.ts] Agent run error:", err);
+            return new Response(JSON.stringify({ error: "Failed to run agent" }), {
+              status: 500, headers: { "Content-Type": "application/json" },
+            });
+          }
+        }
+
+        // GET /api/agents/history — get run history for the logged-in user
+        if (pathname === "/api/agents/history" && req.method === "GET") {
+          const token = getCookie(req, "session");
+          if (!token) { return new Response(JSON.stringify({ error: "Not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } }); }
+          const userId = await verifySessionToken(token);
+          if (!userId) { return new Response(JSON.stringify({ error: "Invalid session" }), { status: 401, headers: { "Content-Type": "application/json" } }); }
+
+          const runs = await db.query.agentRuns.findMany({
+            where: eq(agentRuns.userId, userId),
+            orderBy: (runs, { desc }) => [desc(runs.createdAt)],
+            limit: 50,
+          });
+
+          return new Response(JSON.stringify(runs), {
+            status: 200, headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        // POST /api/agents/feedback — submit feedback on an agent run
+        if (pathname === "/api/agents/feedback" && req.method === "POST") {
+          const token = getCookie(req, "session");
+          if (!token) { return new Response(JSON.stringify({ error: "Not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } }); }
+          const userId = await verifySessionToken(token);
+          if (!userId) { return new Response(JSON.stringify({ error: "Invalid session" }), { status: 401, headers: { "Content-Type": "application/json" } }); }
+
+          const body = await parseJSON(req);
+          if (!body || !body.runId || !body.feedback) {
+            return new Response(JSON.stringify({ error: "runId and feedback required" }), { status: 400, headers: { "Content-Type": "application/json" } });
+          }
+
+          await db.update(agentRuns)
+            .set({ feedback: body.feedback, updatedAt: new Date() })
+            .where(and(eq(agentRuns.id, body.runId), eq(agentRuns.userId, userId)));
+
+          return new Response(JSON.stringify({ success: true }), {
+            status: 200, headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        // ─── Static Files & SSR Fallback ──────────────────────────────────
+
+        if (pathname !== "/") {
+          const file = Bun.file(CLIENT_DIR + pathname);
+          if (await file.exists()) {
+            // Cache static assets: JS/CSS for 1 year, images for 1 month
+            const ext = pathname.split(".").pop()?.toLowerCase();
+            const maxAge = ["js","css","woff","woff2","ttf"].includes(ext||"") ? 31536000
+                       : ["png","jpg","jpeg","gif","svg","webp","ico"].includes(ext||"") ? 2592000
+                       : 0;
+            return new Response(file, {
+              headers: maxAge ? { "Cache-Control": `public, max-age=${maxAge}, immutable` } : {},
+            });
+          }
+        }
+        return (
+          handler as { fetch: (r: Request) => Response | Promise<Response> }
+        ).fetch(req);
+      },
+    });
+    break;
+  } catch (err) {
+    if (attempt >= 10) throw err;
+    await Bun.sleep(200);
+  }
+}
+
+console.log(`team-site serving on http://${HOST}:${String(PORT)}`);

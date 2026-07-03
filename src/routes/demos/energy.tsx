@@ -190,13 +190,14 @@ function EnergyDemo() {
                         </div>
                       </div>
 
-                      <div className="flex justify-center pt-4">
-                        <a 
-                          href="https://buy.stripe.com/14A3cw2EKfRqcF0gEJ3Ru00" 
+                      <div className="flex flex-col items-center pt-4">
+                        <Link
+                          to="/purchase-complete"
+                          search={{ product: "deep-audit" } as any}
                           className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-colors shadow-lg"
                         >
                           Book Your Efficiency Audit — $5,000
-                        </a>
+                        </Link>
                       </div>
                     </div>
                   )}
@@ -263,16 +264,19 @@ function EnergyDemo() {
             <p className="text-xl text-slate-400 mb-10">
               Energy is our highest ROI vertical, but we have pre-mapped agents for 22 other industries.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <Link to="/" className="px-8 py-3 border border-slate-700 rounded-lg font-bold hover:bg-slate-800 transition-colors">
                 View All ROI Benchmarks
               </Link>
-              <a 
-                href="https://buy.stripe.com/14A3cw2EKfRqcF0gEJ3Ru00" 
-                className="bg-indigo-600 px-8 py-3 rounded-lg font-bold hover:bg-indigo-700 transition-colors"
-              >
-                Schedule Your Audit
-              </a>
+              <div className="flex flex-col items-center">
+                <Link
+                  to="/purchase-complete"
+                  search={{ product: "deep-audit" } as any}
+                  className="bg-indigo-600 px-8 py-3 rounded-lg font-bold hover:bg-indigo-700 transition-colors"
+                >
+                  Schedule Your Audit
+                </Link>
+              </div>
             </div>
           </div>
         </section>

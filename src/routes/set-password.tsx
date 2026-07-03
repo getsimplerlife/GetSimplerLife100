@@ -1,17 +1,27 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
 
 export const Route = createFileRoute("/set-password")({
   component: SetPassword,
 });
 
 function SetPassword() {
-  const [email, setEmail] = useState("");
+  const search = useSearch({ from: "/set-password" }) as any;
+  const initialEmail = search.email || "";
+
+  const [email, setEmail] = useState(initialEmail);
   const [password, setPasswordState] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Update email if search param changes
+  useEffect(() => {
+    if (initialEmail && !email) {
+      setEmail(initialEmail);
+    }
+  }, [initialEmail]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

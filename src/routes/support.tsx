@@ -1,22 +1,14 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { createServerFn } from '@tanstack/react-start';
-import { readFile } from 'node:fs/promises';
-import { getUser } from '~/db/queries';
 
-const getPageData = createServerFn({ method: 'GET' }).handler(async () => {
-  let businessName = 'Simpler Life 100';
+async function getPageData() {
+  const businessName = 'Simpler Life 100';
+  let user = null;
   try {
-    const cfg = JSON.parse(await readFile('site.json', 'utf8')) as {
-      businessName?: string;
-    };
-    businessName = cfg.businessName?.trim() ?? 'Simpler Life 100';
-  } catch (_err) {
-    // Ignore error
-  }
-
-  const user = await getUser();
+    const res = await fetch("/api/me");
+    if (res.ok) user = await res.json();
+  } catch {}
   return { businessName, user };
-});
+}
 
 export const Route = createFileRoute('/support')({
   loader: () => getPageData(),
@@ -37,7 +29,8 @@ const supportTiers = [
       '12-hour response time',
     ],
     cta: 'Buy Essential Ops',
-    link: 'https://buy.stripe.com/28E4gAens20AfRcbkp3Ru04',
+    link: '/purchase-complete',
+    productSlug: 'essential-ops',
     popular: false,
   },
   {
@@ -54,7 +47,8 @@ const supportTiers = [
       '4-hour response time',
     ],
     cta: 'Buy Professional Ops',
-    link: 'https://buy.stripe.com/cNieVe7Z4ax6fRc0FL3Ru05',
+    link: '/purchase-complete',
+    productSlug: 'professional-ops',
     popular: true,
   },
   {
@@ -136,8 +130,9 @@ function SupportPage() {
                     </li>
                   ))}
                 </ul>
-                <a
-                  href={tier.link}
+                <Link
+                  to={tier.link as any}
+                  search={tier.productSlug ? { product: tier.productSlug } as any : undefined}
                   className={`block w-full text-center py-5 rounded-2xl font-black text-xl transition-all shadow-lg ${
                     tier.popular
                       ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-100 hover:scale-[1.02]'
@@ -145,7 +140,7 @@ function SupportPage() {
                   }`}
                 >
                   {tier.cta}
-                </a>
+                </Link>
               </div>
             ))}
           </div>

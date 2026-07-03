@@ -1,10 +1,7 @@
 import { useState } from 'react';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { createServerFn } from '@tanstack/react-start';
-import { readFile } from 'node:fs/promises';
-import { getUser, submitLead } from '~/db/queries';
 
-const getPageData = createServerFn({ method: 'GET' }).handler(async () => {
+async function getPageData() {
   let businessName = 'Simpler Life 100';
   try {
     const cfg = JSON.parse(await readFile('site.json', 'utf8')) as {
@@ -15,9 +12,13 @@ const getPageData = createServerFn({ method: 'GET' }).handler(async () => {
     // Ignore error
   }
 
-  const user = await getUser();
+  let user = null;
+  try {
+    const res = await fetch("/api/me");
+    if (res.ok) user = await res.json();
+  } catch {}
   return { businessName, user };
-});
+}
 
 export const Route = createFileRoute('/build')({
   loader: () => getPageData(),
@@ -98,7 +99,11 @@ function BuildBuilder() {
     };
 
     try {
-      await submitLead({ data: config });
+      await fetch('/api/submit-lead', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config),
+      });
       setSubmitted(true);
     } catch (err) {
       console.error('Failed to submit build:', err);

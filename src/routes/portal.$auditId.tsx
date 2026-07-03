@@ -1,17 +1,19 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useState } from "react";
-import { getUser, getAudit, submitFeedback } from "~/db/queries";
 
 export const Route = createFileRoute("/portal/$auditId")({
   beforeLoad: async () => {
-    const user = await getUser();
-    if (!user) {
+    const res = await fetch("/api/me");
+    if (!res.ok) {
       throw redirect({ to: "/login" });
     }
+    const user = await res.json();
     return { user };
   },
   loader: async ({ params }) => {
-    const audit = await getAudit({ data: params.auditId });
+    const res = await fetch(`/api/audits/${params.auditId}`);
+    if (!res.ok) throw new Error("Audit not found");
+    const audit = await res.json();
     return { audit };
   },
   component: AuditDetail,
@@ -31,8 +33,12 @@ function AuditDetail() {
     if (!feedbackText.trim()) return;
     setSending(true);
     try {
-      await submitFeedback({ data: { auditId: audit.id, requestText: feedbackText } });
-      setFeedbackSent(true);
+      const res = await fetch("/api/submit-feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ auditId: audit.id, requestText: feedbackText }),
+      });
+      if (res.ok) setFeedbackSent(true);
     } catch (err) {
       console.error("Feedback failed:", err);
     } finally {
@@ -42,26 +48,19 @@ function AuditDetail() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <style>{`
-        @media print {
-          no-print { display: none !important; }
-          body { background: white !important; }
-          .print-only { display: block !important; }
-        }
-        .print-only { display: none; }
-      `}</style>
-
-      <header className="bg-white border-b px-6 py-4 no-print">
+      <header className="bg-white border-b px-6 py-4">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <Link to="/" className="text-2xl font-bold text-indigo-600">
             Simpler Life 100
           </Link>
-          <Link to="/portal" className="text-sm font-medium text-gray-600 hover:text-indigo-600">
-            ← Back to Dashboard
+          <Link
+            to="/portal"
+            className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+          >
+            ← Back to Audits
           </Link>
         </div>
       </header>
-
       <main className="max-w-4xl mx-auto px-6 py-12">
         <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
           <div className="p-8 border-b bg-slate-50/50">
@@ -89,10 +88,8 @@ function AuditDetail() {
               </div>
             </div>
           </div>
-
           <div className="p-8">
             <h2 className="text-xl font-bold mb-4">Results & Deliverables</h2>
-
             {audit.status === "completed" ? (
               <div className="space-y-6">
                 {audit.results && (
@@ -121,8 +118,6 @@ function AuditDetail() {
                 </p>
               </div>
             )}
-
-            {/* Feedback Section */}
             <div className="mt-12 pt-12 border-t no-print">
               <h2 className="text-xl font-bold mb-4">Request Adjustments</h2>
               <p className="text-gray-600 mb-4 text-sm">

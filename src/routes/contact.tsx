@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { Link, createFileRoute } from '@tanstack/react-router';
-import { getUser, submitLead } from '~/db/queries';
 
 export const Route = createFileRoute('/contact')({
   loader: async () => {
-    const user = await getUser();
+    let user = null;
+    try {
+      const res = await fetch("/api/me");
+      if (res.ok) user = await res.json();
+    } catch {}
     return { user };
   },
   component: Contact,
@@ -44,7 +47,11 @@ function Contact() {
     setError(null);
 
     try {
-      await submitLead({ data: formData });
+      await fetch('/api/submit-lead', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
 
       // Generate assessment recommendation based on input
       const problem = formData.problem.toLowerCase();

@@ -148,13 +148,14 @@ export default function IndustryLanding({ config }: { config: IndustryConfig }) 
                   </li>
                 ))}
               </ul>
-              <a
-                href="https://buy.stripe.com/14A3cw2EKfRqcF0gEJ3Ru00"
+              <Link
+                to="/purchase-complete"
+                search={{ product: "deep-audit" } as any}
                 className="w-full text-center text-white py-3 rounded-lg font-bold hover:opacity-90 transition-opacity"
                 style={{ backgroundColor: c.accent }}
               >
                 Buy Now — $2,500
-              </a>
+              </Link>
             </div>
           </div>
         </section>
