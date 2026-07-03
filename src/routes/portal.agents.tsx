@@ -41,7 +41,6 @@ function AgentsDashboard() {
   const [feedbackText, setFeedbackText] = useState("");
   const [feedbackTarget, setFeedbackTarget] = useState<string | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
-  const [liveStatus, setLiveStatus] = useState<any>({ status: "idle", step: "No activity", agent_name: "system" });
   const [liveFeed, setLiveFeed] = useState<any[]>([]);
   const [integrationsData, setIntegrationsData] = useState<any>({ categories: [], total_agents: 0, total_integrations: 0 });
 
@@ -76,27 +75,26 @@ function AgentsDashboard() {
     })();
   }, []);
 
-  // Poll live status every 3 seconds
+  // Load live feed from recent run history
   useEffect(() => {
-    const interval = setInterval(async () => {
+    (async () => {
       try {
-        const res = await fetch("/api/agents/live-status");
+        const res = await fetch("/api/agents/history");
         if (res.ok) {
-          const data = await res.json();
-          setLiveStatus(data);
-          if (data.status === "processing") {
-            setLiveFeed(prev => [{
-              agent: data.agent_name,
-              step: data.step,
-              file: data.file_processing,
-              time: new Date().toLocaleTimeString(),
-            }, ...prev].slice(0, 50));
-          }
+          const history = await res.json();
+          const recent = history.slice(0, 20).map((run: any) => ({
+            agent: run.agentName,
+            step: run.workflowKey.replace(/_/g, " → "),
+            result: run.status,
+            message: run.message,
+            time: new Date(run.createdAt).toLocaleString(),
+            hasFile: false,
+          }));
+          setLiveFeed(recent);
         }
       } catch {}
-    }, 3000);
-    return () => clearInterval(interval);
-  }, []);
+    })();
+  }, [runs]); // Refresh when runs change
 
   // Run an agent
   const runAgent = async (agent: Agent, workflowKey: string) => {
@@ -304,7 +302,7 @@ function AgentsDashboard() {
               activeTab === "live" ? "text-indigo-600 border-b-2 border-indigo-600" : "text-gray-500 hover:text-gray-700"
             }`}
           >
-            🔴 Live {(liveStatus.status === "processing") ? "●" : "○"} {liveStatus.agent_name}
+            📋 Activity Log {liveFeed.length > 0 ? `(${liveFeed.length})` : ""}
           </button>
           <button
             onClick={() => setActiveTab("integrations")}
@@ -552,71 +550,59 @@ function AgentsDashboard() {
 
         {activeTab === "live" && (
           <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
-            {/* Live Status Header */}
             <div className="p-6 border-b bg-gradient-to-r from-indigo-50 to-blue-50">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                  <span className={`w-3 h-3 rounded-full ${liveStatus.status === "processing" ? "bg-red-500 animate-pulse" : "bg-green-500"}`}></span>
-                  24/7 Agent Monitor
+                  📋 Agent Activity Log
                 </h3>
-                <span className="text-xs text-gray-500">Auto-refreshes every 3s</span>
-              </div>
-              <div className="flex items-center gap-4 text-sm">
-                <span className="font-medium text-gray-700">Status: <span className={liveStatus.status === "processing" ? "text-red-600" : "text-green-600"}>{liveStatus.status}</span></span>
-                <span className="text-gray-400">|</span>
-                <span className="text-gray-700">Agent: <span className="font-medium">{liveStatus.agent_name}</span></span>
-                {liveStatus.file_processing && (
-                  <>
-                    <span className="text-gray-400">|</span>
-                    <span className="text-gray-700">File: <span className="font-medium text-indigo-600">{liveStatus.file_processing}</span></span>
-                  </>
+                {runs.length > 0 && (
+                  <span className="text-xs text-gray-500">{runs.length} total runs</span>
                 )}
               </div>
+              <p className="text-sm text-gray-600">Shows actual workflow runs and their results. Activity appears here when you run an agent or the scheduler triggers a workflow.</p>
             </div>
 
-            {/* Current Activity */}
-            <div className="p-6 border-b bg-slate-50/50">
-              <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Currently Processing</h4>
-              {liveStatus.status === "processing" ? (
-                <div className="flex items-center gap-3 p-4 bg-indigo-50 rounded-xl border border-indigo-200 animate-pulse">
-                  <div className="w-10 h-10 bg-indigo-200 rounded-full flex items-center justify-center">
-                    <span className="text-lg animate-spin">⚙️</span>
-                  </div>
-                  <div>
-                    <div className="font-bold text-indigo-800">{liveStatus.step || "Processing..."}</div>
-                    {liveStatus.file_processing && <div className="text-sm text-indigo-600">📄 {liveStatus.file_processing}</div>}
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center gap-3 p-4 bg-green-50 rounded-xl border border-green-200">
-                  <div className="w-10 h-10 bg-green-200 rounded-full flex items-center justify-center">
-                    <span className="text-lg">✅</span>
-                  </div>
-                  <div>
-                    <div className="font-bold text-green-800">All agents idle</div>
-                    <div className="text-sm text-green-600">Waiting for new files or scheduled tasks...</div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Activity Feed */}
             <div className="p-6">
-              <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">
-                Activity Feed ({liveFeed.length} events)
-              </h4>
               {liveFeed.length === 0 ? (
-                <div className="text-center py-8 text-gray-500 text-sm">
-                  No activity yet. Upload files to your agents to see them work.
+                <div className="text-center py-12">
+                  <div className="text-5xl mb-4">⏳</div>
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">No activity yet</h3>
+                  <p className="text-gray-500 text-sm max-w-md mx-auto">
+                    Activity will appear here when you run one of your AI agents or when the 24/7 scheduler processes a workflow. Run an agent from the Agents tab to see results.
+                  </p>
                 </div>
               ) : (
-                <div className="space-y-2 max-h-96 overflow-y-auto">
+                <div className="space-y-3">
                   {liveFeed.map((event, i) => (
-                    <div key={i} className="flex items-start gap-3 p-3 bg-slate-50 rounded-xl text-sm hover:bg-slate-100 transition-colors">
-                      <span className="text-xs text-gray-400 font-mono w-16 flex-shrink-0">{event.time}</span>
-                      <span className="font-medium text-gray-700 w-32 flex-shrink-0">{event.agent}</span>
-                      <span className="text-gray-600 flex-1">{event.step}</span>
-                      {event.file && <span className="text-indigo-600 text-xs flex-shrink-0">📄 {event.file}</span>}
+                    <div key={i} className="flex items-start gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100 hover:border-indigo-200 transition-all">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-lg ${
+                        event.result === "success" ? "bg-green-100" :
+                        event.result === "failed" ? "bg-red-100" :
+                        event.result === "human_review" ? "bg-yellow-100" :
+                        "bg-blue-100"
+                      }`}>
+                        {event.result === "success" ? "✅" :
+                         event.result === "failed" ? "❌" :
+                         event.result === "human_review" ? "👤" : "⚙️"}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-bold text-gray-900 text-sm">{event.agent}</span>
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${
+                            event.result === "success" ? "bg-green-100 text-green-700" :
+                            event.result === "failed" ? "bg-red-100 text-red-700" :
+                            event.result === "human_review" ? "bg-yellow-100 text-yellow-700" :
+                            "bg-blue-100 text-blue-700"
+                          }`}>
+                            {event.result}
+                          </span>
+                        </div>
+                        <div className="text-sm text-gray-700 font-medium">{event.step}</div>
+                        {event.message && (
+                          <div className="text-xs text-gray-500 mt-1 bg-white rounded-lg p-2 border border-slate-100">{event.message}</div>
+                        )}
+                        <div className="text-xs text-gray-400 mt-1">{event.time}</div>
+                      </div>
                     </div>
                   ))}
                 </div>

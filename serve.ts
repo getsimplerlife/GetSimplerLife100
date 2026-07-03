@@ -411,14 +411,30 @@ print(json.dumps({
           }
         }
 
-        // GET /api/agents/live-status — current agent activity from scheduler
+        // GET /api/agents/live-status — recent agent activity from runs
         if (pathname === "/api/agents/live-status" && req.method === "GET") {
-          const fs = await import("node:fs/promises");
+          const token = parseAuthCookie(req);
+          if (!token) return unauthorized();
+          const userId = await getUserIdFromToken(token);
+          if (!userId) return unauthorized();
+          
           try {
-            const data = await fs.readFile("/home/team/shared/agent_live_status.json", "utf-8");
-            return jsonResponse(JSON.parse(data));
+            const recentRuns = await db.query.agentRuns.findMany({
+              where: eq(agentRuns.userId, userId),
+              orderBy: (runs: any) => runs.createdAt,
+              limit: 20,
+            });
+            const events = (recentRuns || []).map((run: any) => ({
+              id: run.id,
+              agent: run.agentName,
+              workflow: run.workflowKey,
+              status: run.status,
+              message: run.message,
+              timestamp: run.createdAt,
+            }));
+            return jsonResponse({ events, hasActivity: events.length > 0, total: events.length });
           } catch {
-            return jsonResponse({ status: "idle", step: "No activity", agent_name: "system", last_updated: new Date().toISOString() });
+            return jsonResponse({ events: [], hasActivity: false, total: 0 });
           }
         }
 
@@ -704,9 +720,8 @@ print(resolve_workflow_key("${ag.name.replace(/"/g, '\\"')}", "${wf.replace(/"/g
           }));
         } catch {}
 
-        const runId = crypto.randomUUID();
-        const now = new Date();
-        const inputData = {
+        // Log scheduled run with file context
+        const inputData: any = {
           test: true,
           scheduled: true,
           timestamp: now.toISOString(),
