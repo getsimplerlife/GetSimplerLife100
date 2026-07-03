@@ -40,6 +40,7 @@ function AdminLayout() {
     { name: "👥 User Management", path: "/portal/admin/users" },
     { name: "⚙️ AI & Prompt Settings", path: "/portal/admin/ai-config" },
     { name: "⚡ Visual Workflows", path: "/portal/admin/workflows" },
+    { name: "🛠️ Workflow Builder", path: "/portal/admin/workflow-builder" },
     { name: "🔑 API Management", path: "/portal/admin/api" },
     { name: "🔌 Connected Integrations", path: "/portal/admin/integrations" },
     { name: "💰 Billing & Revenue", path: "/portal/admin/billing" },
