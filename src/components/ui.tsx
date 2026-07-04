@@ -23,10 +23,10 @@ export const Button: React.FC<ButtonProps> = ({
   const baseStyle = "inline-flex items-center justify-center font-bold rounded-xl transition-all duration-200 active:scale-95 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none disabled:scale-100";
   
   const variants = {
-    primary: "bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-100 focus:ring-indigo-500",
-    secondary: "bg-slate-100 hover:bg-slate-200 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-100 focus:ring-slate-400",
-    outline: "bg-transparent border-2 border-slate-200 hover:border-slate-300 text-slate-700 dark:border-slate-700 dark:hover:border-slate-600 dark:text-slate-200 focus:ring-slate-400",
-    ghost: "bg-transparent hover:bg-slate-100 text-slate-600 dark:hover:bg-slate-800 dark:text-slate-300 focus:ring-slate-400",
+    primary: "bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-100 focus:ring-emerald-500",
+    secondary: "bg-stone-100 hover:bg-stone-200 text-stone-800 dark:bg-stone-800 dark:hover:bg-stone-700 dark:text-stone-100 focus:ring-stone-400",
+    outline: "bg-transparent border-2 border-stone-200 hover:border-stone-300 text-stone-700 dark:border-stone-700 dark:hover:border-stone-600 dark:text-stone-200 focus:ring-stone-400",
+    ghost: "bg-transparent hover:bg-stone-100 text-stone-600 dark:hover:bg-stone-800 dark:text-stone-300 focus:ring-stone-400",
     danger: "bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-100 focus:ring-rose-500",
     success: "bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-100 focus:ring-emerald-500",
   };
@@ -67,7 +67,7 @@ export const Card: React.FC<CardProps> = ({ children, className = "", onClick })
   return (
     <div 
       onClick={onClick}
-      className={`bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl shadow-sm hover:shadow-md transition-all duration-300 ${onClick ? "cursor-pointer active:scale-[0.99]" : ""} ${className}`}
+      className={`bg-white dark:bg-stone-900 border border-stone-100 dark:border-stone-800 rounded-3xl shadow-sm hover:shadow-md transition-all duration-300 ${onClick ? "cursor-pointer active:scale-[0.99]" : ""} ${className}`}
     >
       {children}
     </div>
@@ -75,7 +75,7 @@ export const Card: React.FC<CardProps> = ({ children, className = "", onClick })
 };
 
 export const CardHeader: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = "" }) => (
-  <div className={`p-6 border-b border-slate-50 dark:border-slate-800 ${className}`}>{children}</div>
+  <div className={`p-6 border-b border-stone-50 dark:border-stone-800 ${className}`}>{children}</div>
 );
 
 export const CardBody: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = "" }) => (
@@ -83,25 +83,25 @@ export const CardBody: React.FC<{ children: React.ReactNode; className?: string 
 );
 
 export const CardFooter: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = "" }) => (
-  <div className={`p-6 border-t border-slate-50 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 rounded-b-3xl ${className}`}>{children}</div>
+  <div className={`p-6 border-t border-stone-50 dark:border-stone-800 bg-stone-50/50 dark:bg-stone-900/50 rounded-b-3xl ${className}`}>{children}</div>
 );
 
 // ==========================================
 // BADGE COMPONENT
 // ==========================================
 interface BadgeProps {
-  variant?: "indigo" | "success" | "warning" | "danger" | "slate" | "blue" | "violet";
+  variant?: "emerald" | "success" | "warning" | "danger" | "stone" | "blue" | "violet";
   children: React.ReactNode;
   className?: string;
 }
 
-export const Badge: React.FC<BadgeProps> = ({ variant = "indigo", children, className = "" }) => {
+export const Badge: React.FC<BadgeProps> = ({ variant = "emerald", children, className = "" }) => {
   const styles = {
-    indigo: "bg-indigo-50 text-indigo-700 border border-indigo-100 dark:bg-indigo-900/20 dark:text-indigo-300 dark:border-indigo-800/30",
+    emerald: "bg-emerald-50 text-emerald-700 border border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-300 dark:border-emerald-800/30",
     success: "bg-emerald-50 text-emerald-700 border border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-300 dark:border-emerald-800/30",
     warning: "bg-amber-50 text-amber-700 border border-amber-100 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800/30",
     danger: "bg-rose-50 text-rose-700 border border-rose-100 dark:bg-rose-900/20 dark:text-rose-300 dark:border-rose-800/30",
-    slate: "bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
+    slate: "bg-stone-100 text-stone-700 border border-stone-200 dark:bg-stone-800 dark:text-stone-300 dark:border-stone-700",
     blue: "bg-blue-50 text-blue-700 border border-blue-100 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800/30",
     violet: "bg-violet-50 text-violet-700 border border-violet-100 dark:bg-violet-900/20 dark:text-violet-300 dark:border-violet-800/30",
   };
@@ -133,20 +133,20 @@ export const Input: React.FC<InputProps> = ({
   return (
     <div className="w-full">
       {label && (
-        <label htmlFor={id} className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+        <label htmlFor={id} className="block text-sm font-bold text-stone-700 dark:text-stone-300 mb-1.5">
           {label}
         </label>
       )}
       <input
         id={id}
-        className={`w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm shadow-sm ${error ? "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20" : ""} ${className}`}
+        className={`w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950 text-stone-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm shadow-sm ${error ? "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20" : ""} ${className}`}
         {...props}
       />
       {error && (
         <p className="mt-1 text-xs text-rose-600 font-bold">{error}</p>
       )}
       {helperText && !error && (
-        <p className="mt-1 text-xs text-slate-400 font-medium">{helperText}</p>
+        <p className="mt-1 text-xs text-stone-400 font-medium">{helperText}</p>
       )}
     </div>
   );
@@ -169,20 +169,20 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }
     <div className="fixed inset-0 z-50 overflow-y-auto no-print">
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity" 
+        className="fixed inset-0 bg-stone-900/50 backdrop-blur-sm transition-opacity" 
         onClick={onClose}
       />
 
       <div className="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
-        <div className="relative transform overflow-hidden rounded-3xl bg-white dark:bg-slate-900 text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-lg border border-slate-100 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-200">
+        <div className="relative transform overflow-hidden rounded-3xl bg-white dark:bg-stone-900 text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-lg border border-stone-100 dark:border-stone-800 animate-in fade-in zoom-in-95 duration-200">
           {/* Modal Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-50 dark:border-slate-800">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-stone-50 dark:border-stone-800">
             {title ? (
-              <h3 className="text-lg font-black text-slate-900 dark:text-white">{title}</h3>
+              <h3 className="text-lg font-black text-stone-900 dark:text-white">{title}</h3>
             ) : <div />}
             <button
               onClick={onClose}
-              className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-500 focus:outline-none transition-colors"
+              className="rounded-lg p-1 text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800 hover:text-stone-500 focus:outline-none transition-colors"
             >
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -215,15 +215,15 @@ interface TabsProps {
 
 export const Tabs: React.FC<TabsProps> = ({ tabs, activeTab, onChange }) => {
   return (
-    <div className="flex gap-1 bg-slate-100/80 dark:bg-slate-800/50 p-1.5 rounded-2xl border border-slate-100 dark:border-slate-800/30 w-fit">
+    <div className="flex gap-1 bg-stone-100/80 dark:bg-stone-800/50 p-1.5 rounded-2xl border border-stone-100 dark:border-stone-800/30 w-fit">
       {tabs.map((tab) => (
         <button
           key={tab.id}
           onClick={() => onChange(tab.id)}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
             activeTab === tab.id
-              ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm"
-              : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+              ? "bg-white dark:bg-stone-900 text-emerald-600 dark:text-emerald-400 shadow-sm"
+              : "text-stone-500 hover:text-stone-800 dark:hover:text-stone-200"
           }`}
         >
           {tab.icon && <span>{tab.icon}</span>}
@@ -250,8 +250,8 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({ to, icon, label, activ
       to={to as any}
       className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-150 ${
         active
-          ? "bg-indigo-600 text-white shadow-md shadow-indigo-100 dark:shadow-none"
-          : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-indigo-600"
+          ? "bg-emerald-600 text-white shadow-md shadow-emerald-100 dark:shadow-none"
+          : "text-stone-600 dark:text-stone-400 hover:bg-stone-50 dark:hover:bg-stone-800/50 hover:text-emerald-600"
       }`}
     >
       <span className="text-lg">{icon}</span>
@@ -274,10 +274,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   children,
 }) => {
   return (
-    <aside className="w-64 bg-white dark:bg-slate-900 border-r border-slate-100 dark:border-slate-800 flex flex-col h-screen fixed top-0 left-0 z-40">
+    <aside className="w-64 bg-white dark:bg-stone-900 border-r border-stone-100 dark:border-stone-800 flex flex-col h-screen fixed top-0 left-0 z-40">
       {/* Brand Logo */}
-      <div className="p-6 border-b border-slate-100 dark:border-slate-800">
-        <Link to="/" className="text-2xl font-black text-indigo-600 tracking-tight block">
+      <div className="p-6 border-b border-stone-100 dark:border-stone-800">
+        <Link to="/" className="text-2xl font-black text-emerald-600 tracking-tight block">
           {brandName}
         </Link>
       </div>
@@ -288,11 +288,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </nav>
 
       {/* User Session Info / Logout */}
-      <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+      <div className="p-4 border-t border-stone-100 dark:border-stone-800 bg-stone-50/50 dark:bg-stone-900/50">
         {userEmail && (
           <div className="px-4 py-2 mb-2">
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Logged In As</p>
-            <p className="text-xs font-bold text-slate-700 dark:text-slate-300 truncate">{userEmail}</p>
+            <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Logged In As</p>
+            <p className="text-xs font-bold text-stone-700 dark:text-stone-300 truncate">{userEmail}</p>
           </div>
         )}
         <button

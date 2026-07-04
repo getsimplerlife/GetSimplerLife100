@@ -69,27 +69,27 @@ function ROICalculator() {
   const employeeEquivalent = Math.round(savings / 65000); // $65k/year avg salary
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col">
-      <header className="px-6 py-6 border-b bg-white dark:bg-slate-900 sticky top-0 z-50">
+    <div className="min-h-screen bg-stone-50 dark:bg-stone-950 flex flex-col">
+      <header className="px-6 py-6 border-b bg-white dark:bg-stone-900 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <Link to="/" className="text-2xl font-black text-indigo-600 tracking-tight">
+          <Link to="/" className="text-2xl font-black text-emerald-600 tracking-tight">
             Simpler Life 100
           </Link>
-          <Link to="/" className="text-sm font-bold text-slate-500 hover:text-indigo-600">
+          <Link to="/" className="text-sm font-bold text-stone-500 hover:text-emerald-600">
             Exit Calculator
           </Link>
         </div>
       </header>
 
       <main className="flex-1 flex items-center justify-center p-6 lg:p-12">
-        <div className="max-w-4xl w-full bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100 dark:border-slate-800">
+        <div className="max-w-4xl w-full bg-white dark:bg-stone-900 rounded-[2.5rem] shadow-2xl overflow-hidden border border-stone-100 dark:border-stone-800">
           <div className="p-8 lg:p-16">
             {step === 1 && (
               <div className="space-y-10">
                 <div className="text-center">
-                  <span className="text-indigo-600 font-bold uppercase tracking-widest text-xs">Step 1 of 4</span>
+                  <span className="text-emerald-600 font-bold uppercase tracking-widest text-xs">Step 1 of 4</span>
                   <h1 className="text-4xl font-black mt-2 tracking-tight">Select Your Industry</h1>
-                  <p className="text-slate-500 mt-4">We apply vertical-specific multipliers to quantify your waste.</p>
+                  <p className="text-stone-500 mt-4">We apply vertical-specific multipliers to quantify your waste.</p>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 max-h-[400px] overflow-y-auto p-2">
                   {industries.filter(i => showAllIndustries || i.core).map((ind) => (
@@ -98,8 +98,8 @@ function ROICalculator() {
                       onClick={() => setIndustry(ind)}
                       className={`p-6 rounded-3xl border-2 transition-all text-center group ${
                         industry.name === ind.name
-                          ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20"
-                          : "border-slate-50 dark:border-slate-800 hover:border-indigo-200"
+                          ? "border-emerald-600 bg-emerald-50 dark:bg-emerald-900/20"
+                          : "border-stone-50 dark:border-stone-800 hover:border-emerald-200"
                       }`}
                     >
                       <span className="text-4xl mb-3 block transform group-hover:scale-110 transition-transform">{ind.icon}</span>
@@ -109,7 +109,7 @@ function ROICalculator() {
                   {!showAllIndustries && (
                     <button
                       onClick={() => setShowAll(true)}
-                      className="p-6 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-700 text-slate-400 font-bold text-xs uppercase hover:border-indigo-300 hover:text-indigo-400 transition-all"
+                      className="p-6 rounded-3xl border-2 border-dashed border-stone-200 dark:border-stone-700 text-stone-400 font-bold text-xs uppercase hover:border-emerald-300 hover:text-emerald-400 transition-all"
                     >
                       Other Industries
                     </button>
@@ -117,7 +117,7 @@ function ROICalculator() {
                 </div>
                 <button
                   onClick={() => setStep(2)}
-                  className="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black text-xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 dark:shadow-none"
+                  className="w-full bg-emerald-600 text-white py-5 rounded-2xl font-black text-xl hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-100 dark:shadow-none"
                 >
                   Continue
                 </button>
@@ -127,15 +127,15 @@ function ROICalculator() {
             {step === 2 && (
               <div className="space-y-10">
                 <div className="text-center">
-                  <span className="text-indigo-600 font-bold uppercase tracking-widest text-xs">Step 2 of 4</span>
+                  <span className="text-emerald-600 font-bold uppercase tracking-widest text-xs">Step 2 of 4</span>
                   <h1 className="text-4xl font-black mt-2 tracking-tight">Company Size</h1>
-                  <p className="text-slate-500 mt-4">Tell us about your scale and revenue.</p>
+                  <p className="text-stone-500 mt-4">Tell us about your scale and revenue.</p>
                 </div>
                 <div className="space-y-10">
                   <div>
                     <div className="flex justify-between items-end mb-4">
-                      <label className="text-sm font-black uppercase tracking-widest text-slate-400">Total Employees</label>
-                      <span className="text-3xl font-black text-indigo-600">{employees}</span>
+                      <label className="text-sm font-black uppercase tracking-widest text-stone-400">Total Employees</label>
+                      <span className="text-3xl font-black text-emerald-600">{employees}</span>
                     </div>
                     <input
                       type="range"
@@ -144,15 +144,15 @@ function ROICalculator() {
                       step="10"
                       value={employees}
                       onChange={(e) => setEmployees(parseInt(e.target.value))}
-                      className="w-full h-3 bg-slate-100 dark:bg-slate-800 rounded-full appearance-none cursor-pointer accent-indigo-600"
+                      className="w-full h-3 bg-stone-100 dark:bg-stone-800 rounded-full appearance-none cursor-pointer accent-emerald-600"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-black uppercase tracking-widest text-slate-400 mb-4">Annual Revenue</label>
+                    <label className="block text-sm font-black uppercase tracking-widest text-stone-400 mb-4">Annual Revenue</label>
                     <select
                       value={revenue}
                       onChange={(e) => setRevenue(e.target.value)}
-                      className="w-full p-5 rounded-2xl border-2 border-slate-50 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 font-black text-lg focus:border-indigo-600 outline-none transition-all"
+                      className="w-full p-5 rounded-2xl border-2 border-stone-50 dark:border-stone-800 bg-stone-50 dark:bg-stone-800 font-black text-lg focus:border-emerald-600 outline-none transition-all"
                     >
                       <option value="<$10M">&lt;$10M</option>
                       <option value="$10M-$50M">$10M - $50M</option>
@@ -163,10 +163,10 @@ function ROICalculator() {
                   </div>
                 </div>
                 <div className="flex gap-4">
-                  <button onClick={() => setStep(1)} className="flex-1 bg-slate-50 dark:bg-slate-800 py-5 rounded-2xl font-bold text-slate-500">Back</button>
+                  <button onClick={() => setStep(1)} className="flex-1 bg-stone-50 dark:bg-stone-800 py-5 rounded-2xl font-bold text-stone-500">Back</button>
                   <button
                     onClick={() => setStep(3)}
-                    className="flex-[2] bg-indigo-600 text-white py-5 rounded-2xl font-black text-xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 dark:shadow-none"
+                    className="flex-[2] bg-emerald-600 text-white py-5 rounded-2xl font-black text-xl hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-100 dark:shadow-none"
                   >
                     Next Step
                   </button>
@@ -177,9 +177,9 @@ function ROICalculator() {
             {step === 3 && (
               <div className="space-y-10">
                 <div className="text-center">
-                  <span className="text-indigo-600 font-bold uppercase tracking-widest text-xs">Step 3 of 4</span>
+                  <span className="text-emerald-600 font-bold uppercase tracking-widest text-xs">Step 3 of 4</span>
                   <h1 className="text-4xl font-black mt-2 tracking-tight">Identify Pain Points</h1>
-                  <p className="text-slate-500 mt-4">Select the operational friction points you want to eliminate.</p>
+                  <p className="text-stone-500 mt-4">Select the operational friction points you want to eliminate.</p>
                 </div>
                 <div className="grid gap-3">
                   {painPointsList.map((pp) => (
@@ -188,25 +188,25 @@ function ROICalculator() {
                       onClick={() => setPainPoints(prev => prev.includes(pp.label) ? prev.filter(x => x !== pp.label) : [...prev, pp.label])}
                       className={`w-full text-left p-5 rounded-2xl border-2 transition-all flex items-center gap-4 ${
                         selectedPainPoints.includes(pp.label)
-                          ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20"
-                          : "border-slate-50 dark:border-slate-800 hover:border-indigo-100"
+                          ? "border-emerald-600 bg-emerald-50 dark:bg-emerald-900/20"
+                          : "border-stone-50 dark:border-stone-800 hover:border-emerald-100"
                       }`}
                     >
-                      <div className={`w-6 h-6 rounded-md border-2 shrink-0 flex items-center justify-center ${selectedPainPoints.includes(pp.label) ? "bg-indigo-600 border-indigo-600" : "border-slate-200"}`}>
+                      <div className={`w-6 h-6 rounded-md border-2 shrink-0 flex items-center justify-center ${selectedPainPoints.includes(pp.label) ? "bg-emerald-600 border-emerald-600" : "border-stone-200"}`}>
                         {selectedPainPoints.includes(pp.label) && <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" /></svg>}
                       </div>
                       <div className="flex-1">
-                        <span className={`font-bold block ${selectedPainPoints.includes(pp.label) ? "text-indigo-900 dark:text-indigo-200" : "text-slate-900 dark:text-slate-200"}`}>{pp.label}</span>
-                        <span className="text-xs text-slate-400 uppercase font-black tracking-widest">{pp.impact}</span>
+                        <span className={`font-bold block ${selectedPainPoints.includes(pp.label) ? "text-emerald-900 dark:text-emerald-200" : "text-stone-900 dark:text-stone-200"}`}>{pp.label}</span>
+                        <span className="text-xs text-stone-400 uppercase font-black tracking-widest">{pp.impact}</span>
                       </div>
                     </button>
                   ))}
                 </div>
                 <div className="flex gap-4">
-                  <button onClick={() => setStep(2)} className="flex-1 bg-slate-50 dark:bg-slate-800 py-5 rounded-2xl font-bold text-slate-500">Back</button>
+                  <button onClick={() => setStep(2)} className="flex-1 bg-stone-50 dark:bg-stone-800 py-5 rounded-2xl font-bold text-stone-500">Back</button>
                   <button
                     onClick={() => setStep(4)}
-                    className="flex-[2] bg-indigo-600 text-white py-5 rounded-2xl font-black text-xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 dark:shadow-none"
+                    className="flex-[2] bg-emerald-600 text-white py-5 rounded-2xl font-black text-xl hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-100 dark:shadow-none"
                   >
                     Calculate Savings
                   </button>
@@ -220,34 +220,34 @@ function ROICalculator() {
                   <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 text-xs font-black uppercase tracking-widest mb-6">
                     💰 Annual Waste Identification
                   </div>
-                  <h1 className="text-6xl lg:text-8xl font-black text-slate-900 dark:text-white tracking-tighter">
+                  <h1 className="text-6xl lg:text-8xl font-black text-stone-900 dark:text-white tracking-tighter">
                     ${Math.round(savings).toLocaleString()}
                   </h1>
-                  <p className="text-xl text-slate-500 mt-6 max-w-lg mx-auto font-medium leading-relaxed">
-                    Based on your {industry.name} operations, Simpler Life 100 can save you approximately <span className="text-indigo-600 font-bold">${Math.round(savings).toLocaleString()}/year</span>.
+                  <p className="text-xl text-stone-500 mt-6 max-w-lg mx-auto font-medium leading-relaxed">
+                    Based on your {industry.name} operations, Simpler Life 100 can save you approximately <span className="text-emerald-600 font-bold">${Math.round(savings).toLocaleString()}/year</span>.
                   </p>
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-6">
-                  <div className="bg-slate-50 dark:bg-slate-800/50 p-8 rounded-[2rem] border border-slate-100 dark:border-slate-800 text-center">
-                    <div className="text-4xl font-black text-indigo-600 mb-2">{employeeEquivalent}</div>
-                    <div className="text-xs font-black uppercase tracking-widest text-slate-400">Employee Capacity Equivalent</div>
-                    <p className="text-slate-500 mt-4 text-xs font-medium">That's the equivalent of hiring {employeeEquivalent} full-time operations professionals to manage manual tasks.</p>
+                  <div className="bg-stone-50 dark:bg-stone-800/50 p-8 rounded-[2rem] border border-stone-100 dark:border-stone-800 text-center">
+                    <div className="text-4xl font-black text-emerald-600 mb-2">{employeeEquivalent}</div>
+                    <div className="text-xs font-black uppercase tracking-widest text-stone-400">Employee Capacity Equivalent</div>
+                    <p className="text-stone-500 mt-4 text-xs font-medium">That's the equivalent of hiring {employeeEquivalent} full-time operations professionals to manage manual tasks.</p>
                   </div>
-                  <div className="bg-slate-50 dark:bg-slate-800/50 p-8 rounded-[2rem] border border-slate-100 dark:border-slate-800 text-left">
-                    <div className="text-xs font-black uppercase tracking-widest text-indigo-500 mb-4">Savings Breakdown</div>
+                  <div className="bg-stone-50 dark:bg-stone-800/50 p-8 rounded-[2rem] border border-stone-100 dark:border-stone-800 text-left">
+                    <div className="text-xs font-black uppercase tracking-widest text-emerald-500 mb-4">Savings Breakdown</div>
                     <ul className="space-y-3">
                       {selectedPainPoints.length > 0 ? (
                         selectedPainPoints.slice(0, 3).map((pp, i) => (
-                          <li key={i} className="flex gap-3 text-xs font-bold text-slate-600 dark:text-slate-300">
-                            <span className="text-indigo-500">✔</span> {pp.replace("Manual ", "").replace("issues", "optimization")}
+                          <li key={i} className="flex gap-3 text-xs font-bold text-stone-600 dark:text-stone-300">
+                            <span className="text-emerald-500">✔</span> {pp.replace("Manual ", "").replace("issues", "optimization")}
                           </li>
                         ))
                       ) : (
-                        <li className="text-xs text-slate-400 italic">No specific pain points selected, calculating based on industry baseline.</li>
+                        <li className="text-xs text-stone-400 italic">No specific pain points selected, calculating based on industry baseline.</li>
                       )}
-                      <li className="flex gap-3 text-xs font-bold text-slate-600 dark:text-slate-300">
-                        <span className="text-indigo-500">✔</span> Vertical-specific {industry.multiplier}x multiplier
+                      <li className="flex gap-3 text-xs font-bold text-stone-600 dark:text-stone-300">
+                        <span className="text-emerald-500">✔</span> Vertical-specific {industry.multiplier}x multiplier
                       </li>
                     </ul>
                   </div>
@@ -256,13 +256,13 @@ function ROICalculator() {
                 <div className="space-y-4">
                   <a
                     href="/#contact"
-                    className="block w-full bg-indigo-600 text-white py-6 rounded-2xl font-black text-2xl hover:bg-indigo-700 transition-all shadow-2xl shadow-indigo-200 dark:shadow-none"
+                    className="block w-full bg-emerald-600 text-white py-6 rounded-2xl font-black text-2xl hover:bg-emerald-700 transition-all shadow-2xl shadow-emerald-200 dark:shadow-none"
                   >
                     Book My Free Efficiency Audit
                   </a>
                   <button
                     onClick={() => setStep(1)}
-                    className="text-sm font-bold text-slate-400 hover:text-indigo-600 transition-colors uppercase tracking-widest"
+                    className="text-sm font-bold text-stone-400 hover:text-emerald-600 transition-colors uppercase tracking-widest"
                   >
                     Recalculate
                   </button>

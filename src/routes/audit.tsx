@@ -151,7 +151,7 @@ const VERTICALS = [
     title: "SaaS Audit",
     slug: "saas",
     icon: "☁️",
-    color: "bg-indigo-50 text-indigo-700 border-indigo-100",
+    color: "bg-emerald-50 text-emerald-700 border-emerald-100",
     description: "Evaluates churn prediction models, automated user onboarding, and SaaS seat utilization.",
     points: [
       "Churn risk scoring based on user activity levels and support ticket frequency.",
@@ -316,7 +316,7 @@ const VERTICALS = [
     title: "Government Audit",
     slug: "government",
     icon: "🏛️",
-    color: "bg-slate-50 text-slate-700 border-slate-100",
+    color: "bg-stone-50 text-stone-700 border-stone-100",
     description: "Audits public record accessibility, grant management workflows, and procurement compliance.",
     points: [
       "Automated indexing and searchability of public records and documents.",
@@ -462,19 +462,19 @@ function AuditChecklist() {
   return (
     <div className="flex flex-col min-h-screen bg-white">
       {/* Nav */}
-      <header className="px-6 py-4 border-b bg-white dark:bg-slate-900">
+      <header className="px-6 py-4 border-b bg-white dark:bg-stone-900">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <Link to="/" className="text-2xl font-bold text-indigo-600 tracking-tight">
+          <Link to="/" className="text-2xl font-bold text-emerald-600 tracking-tight">
             Simpler Life 100
           </Link>
           <div className="flex items-center gap-6">
-            <Link to="/" className="text-sm font-medium hover:text-indigo-600 transition-colors">
+            <Link to="/" className="text-sm font-medium hover:text-emerald-600 transition-colors">
               Home
             </Link>
             {user ? (
-              <Link to="/portal" className="text-sm font-bold text-indigo-600 border border-indigo-600 px-4 py-1.5 rounded-lg hover:bg-indigo-50 transition-colors">Dashboard</Link>
+              <Link to="/portal" className="text-sm font-bold text-emerald-600 border border-emerald-600 px-4 py-1.5 rounded-lg hover:bg-emerald-50 transition-colors">Dashboard</Link>
             ) : (
-              <Link to="/login" className="text-sm font-medium hover:text-indigo-600 transition-colors">Login</Link>
+              <Link to="/login" className="text-sm font-medium hover:text-emerald-600 transition-colors">Login</Link>
             )}
           </div>
         </div>
@@ -485,7 +485,7 @@ function AuditChecklist() {
 
           {/* Header Section */}
           <div className="text-center mb-12">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100 mb-4 uppercase tracking-wider">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100 mb-4 uppercase tracking-wider">
               Our Diagnostic Standard
             </span>
             <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight sm:text-4xl">
@@ -498,7 +498,7 @@ function AuditChecklist() {
             <div className="mt-6 flex justify-center gap-4">
               <button
                 onClick={() => toggleAll(true)}
-                className="text-sm font-medium text-indigo-600 hover:text-indigo-800 transition border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50"
+                className="text-sm font-medium text-emerald-600 hover:text-emerald-800 transition border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50"
               >
                 Expand All
               </button>
@@ -585,13 +585,13 @@ function AuditChecklist() {
                         <div className="flex items-center gap-2">
                           <Link
                             to={`/industries/${vertical.slug}` as any}
-                            className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-indigo-600 transition bg-white hover:bg-indigo-50/60 px-3 py-1.5 rounded-lg border border-gray-200"
+                            className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-emerald-600 transition bg-white hover:bg-emerald-50/60 px-3 py-1.5 rounded-lg border border-gray-200"
                           >
                             View Industry Page <ArrowRightIcon />
                           </Link>
                           <a
                             href="https://buy.stripe.com/14A3cw2EKfRqcF0gEJ3Ru00"
-                            className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-800 transition bg-indigo-50/60 hover:bg-indigo-100 px-3 py-1.5 rounded-lg border border-indigo-100"
+                            className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 hover:text-emerald-800 transition bg-emerald-50/60 hover:bg-emerald-100 px-3 py-1.5 rounded-lg border border-emerald-100"
                           >
                             Get Deep-Dive Audit <ArrowRightIcon />
                           </a>
@@ -605,34 +605,34 @@ function AuditChecklist() {
           </div>
 
           {/* Call to Action Banner */}
-          <div className="bg-gradient-to-r from-indigo-900 to-indigo-800 rounded-2xl p-8 md:p-12 text-white shadow-xl relative overflow-hidden">
+          <div className="bg-gradient-to-r from-emerald-900 to-emerald-800 rounded-2xl p-8 md:p-12 text-white shadow-xl relative overflow-hidden">
             <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px]"></div>
             <div className="relative z-10 max-w-2xl">
-              <span className="bg-indigo-500 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider mb-4 inline-block">
+              <span className="bg-emerald-500 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider mb-4 inline-block">
                 Deep Diagnostics Active
               </span>
               <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight mb-4">
                 Inspect your business using this 26-Vertical Audit framework
               </h2>
-              <p className="text-indigo-100 mb-6 leading-relaxed">
+              <p className="text-emerald-100 mb-6 leading-relaxed">
                 Book our <strong>Deep-Dive AI Opportunity Audit</strong>. For $2,500.00, our senior integration architects analyze your entire operational footprint against all 26 verticals and compile a comprehensive strategic roadmap.
               </p>
-              <div className="bg-indigo-950/40 p-4 rounded-xl border border-indigo-700/50 mb-6 flex items-start gap-3">
+              <div className="bg-emerald-950/40 p-4 rounded-xl border border-emerald-700/50 mb-6 flex items-start gap-3">
                 <BadgeCheckIcon />
-                <p className="text-sm text-indigo-100">
+                <p className="text-sm text-emerald-100">
                   <strong>100% Risk-Free:</strong> The $2,500 audit fee is credited back entirely toward any implementation package if you decide to build with us.
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row gap-4">
                 <a
                   href="https://buy.stripe.com/14A3cw2EKfRqcF0gEJ3Ru00"
-                  className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-bold rounded-xl text-indigo-900 bg-white hover:bg-indigo-50 transition shadow-lg shrink-0"
+                  className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-bold rounded-xl text-emerald-900 bg-white hover:bg-emerald-50 transition shadow-lg shrink-0"
                 >
                   Secure Your Deep-Dive Audit <ArrowRightIcon />
                 </a>
                 <Link
                   to="/contact"
-                  className="inline-flex items-center justify-center px-6 py-3 border border-indigo-400 text-base font-semibold rounded-xl text-white hover:bg-indigo-800 transition"
+                  className="inline-flex items-center justify-center px-6 py-3 border border-emerald-400 text-base font-semibold rounded-xl text-white hover:bg-emerald-800 transition"
                 >
                   Submit an Inquiry
                 </Link>

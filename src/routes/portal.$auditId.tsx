@@ -41,7 +41,7 @@ function AuditDetail() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-stone-50">
       <style>{`
         @media print {
           no-print { display: none !important; }
@@ -53,10 +53,10 @@ function AuditDetail() {
 
       <header className="bg-white border-b px-6 py-4 no-print">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <Link to="/" className="text-2xl font-bold text-indigo-600">
+          <Link to="/" className="text-2xl font-bold text-emerald-600">
             Simpler Life 100
           </Link>
-          <Link to="/portal" className="text-sm font-medium text-gray-600 hover:text-indigo-600">
+          <Link to="/portal" className="text-sm font-medium text-gray-600 hover:text-emerald-600">
             ← Back to Dashboard
           </Link>
         </div>
@@ -64,7 +64,7 @@ function AuditDetail() {
 
       <main className="max-w-4xl mx-auto px-6 py-12">
         <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
-          <div className="p-8 border-b bg-slate-50/50">
+          <div className="p-8 border-b bg-stone-50/50">
             <div className="flex justify-between items-start mb-4">
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">{audit.type}</h1>
@@ -103,7 +103,7 @@ function AuditDetail() {
                 <div className="flex gap-4 no-print">
                   <button
                     onClick={handlePrint}
-                    className="flex items-center justify-center gap-2 flex-1 bg-indigo-600 text-white py-4 rounded-xl font-bold hover:bg-indigo-700 transition-colors"
+                    className="flex items-center justify-center gap-2 flex-1 bg-emerald-600 text-white py-4 rounded-xl font-bold hover:bg-emerald-700 transition-colors"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -136,7 +136,7 @@ function AuditDetail() {
                 <div className="space-y-4">
                   <textarea
                     rows={4}
-                    className="w-full rounded-xl border border-slate-200 px-4 py-3 text-gray-900 focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
+                    className="w-full rounded-xl border border-stone-200 px-4 py-3 text-gray-900 focus:ring-2 focus:ring-emerald-500 outline-none resize-none"
                     placeholder="Describe what you'd like us to adjust or add to your audit..."
                     value={feedbackText}
                     onChange={(e) => setFeedbackText(e.target.value)}
@@ -144,7 +144,7 @@ function AuditDetail() {
                   <button
                     onClick={handleFeedback}
                     disabled={sending || !feedbackText.trim()}
-                    className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                    className="bg-emerald-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-emerald-700 transition-colors disabled:opacity-50"
                   >
                     {sending ? "Sending..." : "Submit Adjustment Request"}
                   </button>

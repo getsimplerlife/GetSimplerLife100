@@ -27,11 +27,11 @@ function EnergyDemo() {
     <div className="flex flex-col min-h-screen">
       <header className="px-6 py-4 border-b">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <Link to="/" className="text-2xl font-bold text-indigo-600 tracking-tight">
+          <Link to="/" className="text-2xl font-bold text-emerald-600 tracking-tight">
             Simpler Life 100
           </Link>
           <nav className="flex gap-4">
-            <Link to="/" className="text-sm font-medium hover:text-indigo-600 transition-colors">
+            <Link to="/" className="text-sm font-medium hover:text-emerald-600 transition-colors">
               Back to Home
             </Link>
           </nav>
@@ -40,13 +40,13 @@ function EnergyDemo() {
 
       <main className="flex-1">
         {/* Hero Section */}
-        <section className="px-6 py-12 bg-slate-50 dark:bg-slate-900/50 border-b border-gray-100 dark:border-gray-800">
+        <section className="px-6 py-12 bg-stone-50 dark:bg-stone-900/50 border-b border-gray-100 dark:border-gray-800">
           <div className="max-w-5xl mx-auto">
-            <div className="inline-block px-3 py-1 mb-4 text-sm font-semibold text-indigo-600 bg-indigo-100 rounded-full dark:bg-indigo-900/30 dark:text-indigo-400">
+            <div className="inline-block px-3 py-1 mb-4 text-sm font-semibold text-emerald-600 bg-emerald-100 rounded-full dark:bg-emerald-900/30 dark:text-emerald-400">
               Interactive Demo: Energy Vertical
             </div>
             <h1 className="text-4xl lg:text-6xl font-extrabold tracking-tight mb-6">
-              AI Asset Inspection <span className="text-indigo-600">& Scheduling Agent</span>
+              AI Asset Inspection <span className="text-emerald-600">& Scheduling Agent</span>
             </h1>
             <p className="text-xl text-gray-600 dark:text-gray-400 max-w-3xl">
               Eliminate manual review bottlenecks and automate maintenance scheduling for energy infrastructure with 2.2x ROI.
@@ -59,21 +59,21 @@ function EnergyDemo() {
             
             {/* Left: The Interactive Demo Shell */}
             <div className="lg:col-span-2 space-y-8">
-              <div className="bg-white dark:bg-slate-900 border rounded-2xl shadow-xl overflow-hidden border-indigo-100 dark:border-indigo-900/50">
-                <div className="bg-slate-900 px-6 py-3 flex items-center justify-between">
+              <div className="bg-white dark:bg-stone-900 border rounded-2xl shadow-xl overflow-hidden border-emerald-100 dark:border-emerald-900/50">
+                <div className="bg-stone-900 px-6 py-3 flex items-center justify-between">
                   <div className="flex gap-2">
                     <div className="w-3 h-3 rounded-full bg-red-500"></div>
                     <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
                     <div className="w-3 h-3 rounded-full bg-green-500"></div>
                   </div>
-                  <div className="text-xs font-mono text-slate-400 uppercase tracking-widest">Inspection_Agent_v2.1</div>
+                  <div className="text-xs font-mono text-stone-400 uppercase tracking-widest">Inspection_Agent_v2.1</div>
                 </div>
 
                 <div className="p-8 min-h-[500px] flex flex-col">
                   {step === "input" && (
                     <div className="space-y-6 flex-1 animate-in fade-in duration-500">
                       <div className="flex items-center gap-3 mb-2">
-                        <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-sm">1</div>
+                        <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-sm">1</div>
                         <h2 className="text-xl font-bold">Input Inspection Data</h2>
                       </div>
                       
@@ -83,7 +83,7 @@ function EnergyDemo() {
                           <select 
                             value={assetId}
                             onChange={(e) => setAssetId(e.target.value)}
-                            className="w-full p-3 bg-slate-50 dark:bg-slate-800 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                            className="w-full p-3 bg-stone-50 dark:bg-stone-800 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
                           >
                             <option>WTG-882-NORTH</option>
                             <option>WTG-883-NORTH</option>
@@ -93,7 +93,7 @@ function EnergyDemo() {
                         </div>
                         <div className="space-y-2">
                           <label className="text-sm font-bold text-gray-500 uppercase">Input Source</label>
-                          <div className="p-3 bg-slate-100 dark:bg-slate-800 border-2 border-dashed rounded-lg text-center text-xs text-gray-500">
+                          <div className="p-3 bg-stone-100 dark:bg-stone-800 border-2 border-dashed rounded-lg text-center text-xs text-gray-500">
                             Drone_Payload_882.zip (1.4GB)
                           </div>
                         </div>
@@ -102,7 +102,7 @@ function EnergyDemo() {
                       <div className="space-y-2">
                         <label className="text-sm font-bold text-gray-500 uppercase">Technician Notes (Field App)</label>
                         <textarea 
-                          className="w-full p-4 h-32 bg-slate-50 dark:bg-slate-800 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
+                          className="w-full p-4 h-32 bg-stone-50 dark:bg-stone-800 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none resize-none"
                           value={observations}
                           onChange={(e) => setObservations(e.target.value)}
                         />
@@ -110,7 +110,7 @@ function EnergyDemo() {
 
                       <button 
                         onClick={runAnalysis}
-                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl transition-all shadow-lg hover:shadow-indigo-500/25 flex items-center justify-center gap-2"
+                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-xl transition-all shadow-lg hover:shadow-emerald-500/25 flex items-center justify-center gap-2"
                       >
                         Start AI Analysis
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -123,8 +123,8 @@ function EnergyDemo() {
                   {step === "processing" && (
                     <div className="flex-1 flex flex-col items-center justify-center space-y-8 animate-in fade-in duration-500">
                       <div className="relative w-24 h-24">
-                        <div className="absolute inset-0 border-4 border-indigo-200 rounded-full"></div>
-                        <div className="absolute inset-0 border-4 border-indigo-600 rounded-full border-t-transparent animate-spin"></div>
+                        <div className="absolute inset-0 border-4 border-emerald-200 rounded-full"></div>
+                        <div className="absolute inset-0 border-4 border-emerald-600 rounded-full border-t-transparent animate-spin"></div>
                       </div>
                       <div className="text-center space-y-2">
                         <h3 className="text-lg font-bold">Agent Processing...</h3>
@@ -144,7 +144,7 @@ function EnergyDemo() {
                           <div className="w-8 h-8 rounded-full bg-green-600 text-white flex items-center justify-center font-bold text-sm">✓</div>
                           <h2 className="text-xl font-bold">Analysis Complete</h2>
                         </div>
-                        <button onClick={reset} className="text-sm font-bold text-indigo-600 hover:underline">New Inspection</button>
+                        <button onClick={reset} className="text-sm font-bold text-emerald-600 hover:underline">New Inspection</button>
                       </div>
 
                       <div className="grid md:grid-cols-2 gap-4">
@@ -164,23 +164,23 @@ function EnergyDemo() {
                         </div>
                       </div>
 
-                      <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-6 border">
+                      <div className="bg-stone-50 dark:bg-stone-800 rounded-xl p-6 border">
                         <h4 className="text-xs font-bold text-gray-400 uppercase mb-4">Agent Process Log</h4>
                         <div className="space-y-3 font-mono text-[10px] text-gray-500">
                           <div className="flex gap-2">
-                            <span className="text-indigo-400">[14:02:11]</span>
+                            <span className="text-emerald-400">[14:02:11]</span>
                             <span>Parsing technician note: "discoloration... blade 2"</span>
                           </div>
                           <div className="flex gap-2">
-                            <span className="text-indigo-400">[14:02:12]</span>
+                            <span className="text-emerald-400">[14:02:12]</span>
                             <span>Targeting CV analysis on Blade 2 sectors 4-9...</span>
                           </div>
                           <div className="flex gap-2">
-                            <span className="text-indigo-400">[14:02:14]</span>
+                            <span className="text-emerald-400">[14:02:14]</span>
                             <span>MATCH FOUND: sector 6, image IMG_042.jpg. Confidence 98.2%.</span>
                           </div>
                           <div className="flex gap-2">
-                            <span className="text-indigo-400">[14:02:15]</span>
+                            <span className="text-emerald-400">[14:02:15]</span>
                             <span>Updating maintenance ERP via API. Syncing with team availability.</span>
                           </div>
                           <div className="flex gap-2">
@@ -193,7 +193,7 @@ function EnergyDemo() {
                       <div className="flex justify-center pt-4">
                         <a 
                           href="https://buy.stripe.com/14A3cw2EKfRqcF0gEJ3Ru00" 
-                          className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-colors shadow-lg"
+                          className="bg-emerald-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-emerald-700 transition-colors shadow-lg"
                         >
                           Book Your Efficiency Audit — $5,000
                         </a>
@@ -233,20 +233,20 @@ function EnergyDemo() {
                 </div>
               </div>
 
-              <div className="p-8 bg-indigo-600 rounded-2xl text-white shadow-xl">
-                <div className="text-sm font-medium text-indigo-100 mb-2">Energy Vertical Performance</div>
+              <div className="p-8 bg-emerald-600 rounded-2xl text-white shadow-xl">
+                <div className="text-sm font-medium text-emerald-100 mb-2">Energy Vertical Performance</div>
                 <div className="text-5xl font-black mb-2">2.2x</div>
                 <div className="text-lg font-bold mb-4">Projected ROI</div>
-                <p className="text-indigo-100 text-xs mb-6 leading-relaxed">
+                <p className="text-emerald-100 text-xs mb-6 leading-relaxed">
                   Based on modeled deployments for utility-scale solar and wind farms. Typical payback period is less than 5 months.
                 </p>
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 text-xs">
-                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-300"></div>
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-300"></div>
                     100% data coverage
                   </div>
                   <div className="flex items-center gap-2 text-xs">
-                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-300"></div>
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-300"></div>
                     Zero manual triage
                   </div>
                 </div>
@@ -257,19 +257,19 @@ function EnergyDemo() {
         </section>
 
         {/* Vertical Selector CTA */}
-        <section className="px-6 py-20 bg-slate-900 text-white">
+        <section className="px-6 py-20 bg-stone-900 text-white">
           <div className="max-w-4xl mx-auto text-center">
             <h2 className="text-3xl font-bold mb-6">Built for Every Vertical</h2>
-            <p className="text-xl text-slate-400 mb-10">
+            <p className="text-xl text-stone-400 mb-10">
               Energy is our highest ROI vertical, but we have pre-mapped agents for 22 other industries.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link to="/" className="px-8 py-3 border border-slate-700 rounded-lg font-bold hover:bg-slate-800 transition-colors">
+              <Link to="/" className="px-8 py-3 border border-stone-700 rounded-lg font-bold hover:bg-stone-800 transition-colors">
                 View All ROI Benchmarks
               </Link>
               <a 
                 href="https://buy.stripe.com/14A3cw2EKfRqcF0gEJ3Ru00" 
-                className="bg-indigo-600 px-8 py-3 rounded-lg font-bold hover:bg-indigo-700 transition-colors"
+                className="bg-emerald-600 px-8 py-3 rounded-lg font-bold hover:bg-emerald-700 transition-colors"
               >
                 Schedule Your Audit
               </a>
