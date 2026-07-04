@@ -27,6 +27,8 @@ import {
   getRequestIP,
   getUserFromRequest,
 } from "./src/api/auditLogs";
+import { processChatMessage, listSessions, deleteSession } from "./src/api/chatEngine";
+import { generateWorkflow, listTemplates } from "./src/api/workflowGenerator";
 
 // Pinned, NOT read from the environment. The published preview URL
 // (<label>.<PUBLIC_SITE_DOMAIN>) is reverse-proxied to 0.0.0.0:3000 inside the
@@ -316,44 +318,83 @@ for (let attempt = 1; ; attempt++) {
           }
         }
 
-        // POST /api/chat — send a chat message
+        // POST /api/chat — send a chat message (AI-powered)
         if (pathname === "/api/chat" && req.method === "POST") {
           try {
             const body = await parseJSON(req);
             if (!body || !body.message) {
               return new Response(JSON.stringify({ error: "Message required" }), { status: 400, headers: { "Content-Type": "application/json" } });
             }
-            // Log the chat
-            const user = await import("./src/api/auditLogs").then(m => m.getUserFromRequest(req));
-            await import("./src/api/auditLogs").then(m => m.logAuditEvent({
-              userId: user?.userId, userEmail: user?.userEmail,
-              action: "chat_message", resource: "ai_assistant",
-              details: { message: body.message },
-              status: "success", severity: "info",
-            }));
-            // Generate a mock AI response
-            const responses: Record<string, string> = {
-              "show failed workflows": "📋 Here are your failed workflows:\n1. Invoice Reconciliation (failed at step 3/5)\n2. Customer Onboarding (timeout at step 7)\n3. Document Scan Pipeline (OCR failure)",
-              "generate monthly report": "📊 Generating monthly report... Done! Check the Reports section for your PDF download.",
-              "find invoice": "🔍 Found invoice matching your query. Invoice #1032 - $2,500.00 - Deep-Dive AI Audit - Status: Paid",
-              "search customer records": "👥 Search results: Found 3 matching customers. View them in Customer Management.",
-              "explain workflow": "⚙️ Workflow 'Invoice Processing':\n1. Receive invoice (email/webhook)\n2. OCR extraction\n3. Line-item matching\n4. Approval routing\n5. Payment trigger",
-              "why did this fail": "🔍 Failure Analysis: Workflow 'Invoice Reconciliation' failed at step 3 (Line-item matching). Cause: Vendor format mismatch. Suggestion: Update the template mapper.",
-              "build workflow": "🛠️ Opening Workflow Builder... You can drag-and-drop to create a new automation pipeline.",
-              "forecast savings": "📈 Based on current automation metrics:\n- Monthly savings: $12,400\n- Projected annual savings: $148,800\n- ROI estimate: 3.2x in first year",
-            };
-            let reply = "I understand your request. Let me look into that for you.";
-            const lower = body.message.toLowerCase();
-            for (const [key, val] of Object.entries(responses)) {
-              if (lower.includes(key)) { reply = val; break; }
+            const user = await getUserFromRequest(req);
+            if (!user || !user.userId) {
+              return new Response(JSON.stringify({ error: "Not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
             }
-            return new Response(JSON.stringify({ reply }), {
+
+            // Process the message through the AI Chat Engine
+            const response = await processChatMessage(
+              user.userId,
+              user.userEmail || "unknown",
+              body.message,
+              body.sessionId
+            );
+
+            // Log the chat interaction
+            await logAuditEvent({
+              userId: user.userId, userEmail: user.userEmail,
+              action: "chat_message", resource: "ai_assistant",
+              details: {
+                message: body.message.slice(0, 200),
+                intent: body.message.length > 5 ? "ai_processed" : "short",
+                sessionId: response.sessionId,
+              },
+              status: "success", severity: "info",
+              ipAddress: getRequestIP(req),
+            });
+
+            return new Response(JSON.stringify(response), {
               status: 200,
               headers: { "Content-Type": "application/json" },
             });
           } catch (err: any) {
             console.error("[serve.ts] Chat error:", err);
-            return new Response(JSON.stringify({ error: "Chat failed" }), { status: 500, headers: { "Content-Type": "application/json" } });
+            return new Response(JSON.stringify({ error: "Chat failed: " + err.message }), { status: 500, headers: { "Content-Type": "application/json" } });
+          }
+        }
+
+        // GET /api/chat/sessions — list chat sessions
+        if (pathname === "/api/chat/sessions" && req.method === "GET") {
+          try {
+            const user = await getUserFromRequest(req);
+            if (!user || !user.userId) {
+              return new Response(JSON.stringify({ error: "Not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
+            }
+            const sessions = await listSessions(user.userId);
+            return new Response(JSON.stringify({ sessions }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            });
+          } catch (err: any) {
+            console.error("[serve.ts] Chat sessions error:", err);
+            return new Response(JSON.stringify({ error: "Failed to list sessions" }), { status: 500, headers: { "Content-Type": "application/json" } });
+          }
+        }
+
+        // DELETE /api/chat/sessions/:id — delete a chat session
+        const deleteSessionMatch = pathname.match(/^\/api\/chat\/sessions\/([a-f0-9-]+)$/);
+        if (deleteSessionMatch && req.method === "DELETE") {
+          try {
+            const user = await getUserFromRequest(req);
+            if (!user || !user.userId) {
+              return new Response(JSON.stringify({ error: "Not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
+            }
+            await deleteSession(user.userId, deleteSessionMatch[1]);
+            return new Response(JSON.stringify({ success: true }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            });
+          } catch (err: any) {
+            console.error("[serve.ts] Delete session error:", err);
+            return new Response(JSON.stringify({ error: "Failed to delete session" }), { status: 500, headers: { "Content-Type": "application/json" } });
           }
         }
 
@@ -378,6 +419,60 @@ for (let attempt = 1; ; attempt++) {
           } catch (err: any) {
             console.error("[serve.ts] Settings error:", err);
             return new Response(JSON.stringify({ error: "Failed to save settings" }), { status: 500, headers: { "Content-Type": "application/json" } });
+          }
+        }
+
+        // POST /api/workflows/generate — generate workflow from natural language
+        if (pathname === "/api/workflows/generate" && req.method === "POST") {
+          try {
+            const body = await parseJSON(req);
+            if (!body || !body.description) {
+              return new Response(JSON.stringify({ error: "Workflow description required" }), { status: 400, headers: { "Content-Type": "application/json" } });
+            }
+            const user = await getUserFromRequest(req);
+            if (!user || !user.userId) {
+              return new Response(JSON.stringify({ error: "Not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
+            }
+
+            const result = await generateWorkflow({
+              description: body.description,
+              userId: user.userId,
+            });
+
+            await logAuditEvent({
+              userId: user.userId, userEmail: user.userEmail,
+              action: "workflow_generated", resource: "workflow_generator",
+              details: {
+                description: body.description.slice(0, 150),
+                success: result.success,
+                workflowName: result.workflow?.name,
+              },
+              status: result.success ? "success" : "failure",
+              severity: result.success ? "info" : "warning",
+              ipAddress: getRequestIP(req),
+            });
+
+            return new Response(JSON.stringify(result), {
+              status: result.success ? 200 : 400,
+              headers: { "Content-Type": "application/json" },
+            });
+          } catch (err: any) {
+            console.error("[serve.ts] Workflow generate error:", err);
+            return new Response(JSON.stringify({ error: "Failed to generate workflow: " + err.message }), { status: 500, headers: { "Content-Type": "application/json" } });
+          }
+        }
+
+        // GET /api/workflows/templates — list available workflow templates
+        if (pathname === "/api/workflows/templates" && req.method === "GET") {
+          try {
+            const templates = await listTemplates();
+            return new Response(JSON.stringify({ templates }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            });
+          } catch (err: any) {
+            console.error("[serve.ts] Workflow templates error:", err);
+            return new Response(JSON.stringify({ error: "Failed to list templates" }), { status: 500, headers: { "Content-Type": "application/json" } });
           }
         }
 
