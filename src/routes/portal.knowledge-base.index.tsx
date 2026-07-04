@@ -27,10 +27,16 @@ function KnowledgeBase() {
     (async () => {
       try {
         const res = await fetch("/api/data/knowledge-base", { credentials: "include" });
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         const d = await res.json();
         
         if (d.data && d.data.length > 0) {
-          setArticles(d.data);
+          const firstRow = d.data[0];
+          if (firstRow && Array.isArray(firstRow.data)) {
+            setArticles(firstRow.data);
+          } else {
+            setArticles(d.data);
+          }
         } else {
           // Seed high fidelity premium resources
           const seedItems: KnowledgeItem[] = [

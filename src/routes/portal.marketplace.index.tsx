@@ -30,10 +30,16 @@ function MarketplaceHub() {
     (async () => {
       try {
         const res = await fetch("/api/data/marketplace", { credentials: "include" });
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         const d = await res.json();
         
         if (d.data && d.data.length > 0) {
-          setItems(d.data);
+          const firstRow = d.data[0];
+          if (firstRow && Array.isArray(firstRow.data)) {
+            setItems(firstRow.data);
+          } else {
+            setItems(d.data);
+          }
         } else {
           // Seed standard default app store items
           const defaultApps: MarketplaceItem[] = [

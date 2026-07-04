@@ -487,7 +487,7 @@ for (let attempt = 1; ; attempt++) {
         // ─── Portal Data API (generic JSON store per user per section) ──────────
 
         // GET /api/data/:section — get all data for a section for the current user
-        const dataMatch = pathname.match(/^\/api\/data\/([a-z-]+)$/);
+        const dataMatch = pathname.match(/^\/api\/data\/([a-z_-]+)$/);
         if (dataMatch && req.method === "GET") {
           try {
             const token = getCookie(req, "session");
@@ -531,7 +531,7 @@ for (let attempt = 1; ; attempt++) {
         }
 
         // DELETE /api/data/:section/:id — delete a data entry
-        const deleteMatch = pathname.match(/^\/api\/data\/([a-z-]+)\/([a-f0-9-]+)$/);
+        const deleteMatch = pathname.match(/^\/api\/data\/([a-z_-]+)\/([a-f0-9-]+)$/);
         if (deleteMatch && req.method === "DELETE") {
           try {
             const token = getCookie(req, "session");
