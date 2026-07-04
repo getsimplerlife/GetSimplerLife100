@@ -28,7 +28,10 @@ import {
   getUserFromRequest,
 } from "./src/api/auditLogs";
 import { processChatMessage, listSessions, deleteSession } from "./src/api/chatEngine";
+import { sendEmail, renderEmailTemplate } from "./src/integrations/email";
 import { generateWorkflow, listTemplates } from "./src/api/workflowGenerator";
+import { runAgent, deployAgent, getAgentStatus, pauseAgent, resumeAgent } from "./src/agents/index";
+import { processDocument } from "./src/agents/documentProcessor";
 
 // Pinned, NOT read from the environment. The published preview URL
 // (<label>.<PUBLIC_SITE_DOMAIN>) is reverse-proxied to 0.0.0.0:3000 inside the
@@ -476,12 +479,243 @@ for (let attempt = 1; ; attempt++) {
           }
         }
 
+        // ─── AI Agent API ──────────────────────────────────────────────────────
+
+        // POST /api/agents/deploy — deploy an AI employee for a user
+        if (pathname === "/api/agents/deploy" && req.method === "POST") {
+          try {
+            const body = await parseJSON(req);
+            if (!body || !body.agentType) {
+              return new Response(JSON.stringify({ error: "agentType required" }), { status: 400, headers: { "Content-Type": "application/json" } });
+            }
+            const user = await getUserFromRequest(req);
+            if (!user || !user.userId) {
+              return new Response(JSON.stringify({ error: "Not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
+            }
+
+            const instance = await deployAgent(user.userId, body.agentType, body.name, body.config);
+            await logAuditEvent({
+              userId: user.userId, userEmail: user.userEmail,
+              action: "agent_deploy", resource: instance.id,
+              details: { agentType: body.agentType, name: instance.name },
+              status: "success", severity: "info",
+              ipAddress: getRequestIP(req),
+            });
+
+            return new Response(JSON.stringify({ success: true, agent: instance }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            });
+          } catch (err: any) {
+            console.error("[serve.ts] Agent deploy error:", err);
+            return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { "Content-Type": "application/json" } });
+          }
+        }
+
+        // POST /api/agents/run — execute an AI employee task
+        if (pathname === "/api/agents/run" && req.method === "POST") {
+          try {
+            const body = await parseJSON(req);
+            if (!body || !body.agentId || !body.prompt) {
+              return new Response(JSON.stringify({ error: "agentId and prompt required" }), { status: 400, headers: { "Content-Type": "application/json" } });
+            }
+            const user = await getUserFromRequest(req);
+            if (!user || !user.userId) {
+              return new Response(JSON.stringify({ error: "Not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
+            }
+
+            const execution = await runAgent({
+              agentId: body.agentId,
+              userId: user.userId,
+              prompt: body.prompt,
+              context: body.context || {},
+            });
+
+            await logAuditEvent({
+              userId: user.userId, userEmail: user.userEmail,
+              action: "agent_run", resource: body.agentId,
+              details: { executionId: execution.id, status: execution.status, prompt: body.prompt.slice(0, 100) },
+              status: execution.status === "completed" ? "success" : "failure",
+              severity: execution.status === "failed" ? "error" : "info",
+              ipAddress: getRequestIP(req),
+            });
+
+            return new Response(JSON.stringify({ success: true, execution }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            });
+          } catch (err: any) {
+            console.error("[serve.ts] Agent run error:", err);
+            return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { "Content-Type": "application/json" } });
+          }
+        }
+
+        // GET /api/agents/:id/status — check agent status and last results
+        const agentStatusMatch = pathname.match(/^\/api\/agents\/([a-f0-9-]+)\/status$/);
+        if (agentStatusMatch && req.method === "GET") {
+          try {
+            const user = await getUserFromRequest(req);
+            if (!user || !user.userId) {
+              return new Response(JSON.stringify({ error: "Not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
+            }
+            const agentId = agentStatusMatch[1];
+            const status = await getAgentStatus(agentId, user.userId);
+            return new Response(JSON.stringify({ success: true, ...status }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            });
+          } catch (err: any) {
+            console.error("[serve.ts] Agent status error:", err);
+            return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { "Content-Type": "application/json" } });
+          }
+        }
+
+        // POST /api/agents/:id/pause — pause an agent
+        const agentPauseMatch = pathname.match(/^\/api\/agents\/([a-f0-9-]+)\/pause$/);
+        if (agentPauseMatch && req.method === "POST") {
+          try {
+            const user = await getUserFromRequest(req);
+            if (!user || !user.userId) {
+              return new Response(JSON.stringify({ error: "Not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
+            }
+            const instance = await pauseAgent(agentPauseMatch[1], user.userId);
+            return new Response(JSON.stringify({ success: true, agent: instance }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            });
+          } catch (err: any) {
+            console.error("[serve.ts] Agent pause error:", err);
+            return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { "Content-Type": "application/json" } });
+          }
+        }
+
+        // POST /api/agents/:id/resume — resume an agent
+        const agentResumeMatch = pathname.match(/^\/api\/agents\/([a-f0-9-]+)\/resume$/);
+        if (agentResumeMatch && req.method === "POST") {
+          try {
+            const user = await getUserFromRequest(req);
+            if (!user || !user.userId) {
+              return new Response(JSON.stringify({ error: "Not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
+            }
+            const instance = await resumeAgent(agentResumeMatch[1], user.userId);
+            return new Response(JSON.stringify({ success: true, agent: instance }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            });
+          } catch (err: any) {
+            console.error("[serve.ts] Agent resume error:", err);
+            return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { "Content-Type": "application/json" } });
+          }
+        }
+
         // GET /api/billing/portal — redirect to Stripe customer portal
         if (pathname === "/api/billing/portal" && req.method === "GET") {
           return new Response(JSON.stringify({ url: "https://buy.stripe.com/14A3cw2EKfRqcF0gEJ3Ru00" }), {
             status: 200,
             headers: { "Content-Type": "application/json" },
           });
+        }
+
+        // POST /api/upload — upload and process a document
+        if (pathname === "/api/upload" && req.method === "POST") {
+          try {
+            // Auth-protected (requires valid session)
+            const token = getCookie(req, "session");
+            if (!token) return new Response(JSON.stringify({ error: "Not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
+            const userId = await verifySessionToken(token);
+            if (!userId) return new Response(JSON.stringify({ error: "Invalid session" }), { status: 401, headers: { "Content-Type": "application/json" } });
+
+            const formData = await req.formData();
+            const file = formData.get("file") as File | null;
+            if (!file) {
+              return new Response(JSON.stringify({ error: "No file provided in 'file' field" }), { status: 400, headers: { "Content-Type": "application/json" } });
+            }
+
+            // Size limit: 10MB
+            if (file.size > 10 * 1024 * 1024) {
+              return new Response(JSON.stringify({ error: "File size exceeds 10MB limit" }), { status: 400, headers: { "Content-Type": "application/json" } });
+            }
+
+            // Get file buffer for magic bytes check
+            const arrayBuffer = await file.arrayBuffer();
+            const buffer = new Uint8Array(arrayBuffer);
+            
+            // Magic bytes checks
+            const isZip = buffer[0] === 0x50 && buffer[1] === 0x4B && buffer[2] === 0x03 && buffer[3] === 0x04;
+            const isPdf = buffer[0] === 0x25 && buffer[1] === 0x50 && buffer[2] === 0x44 && buffer[3] === 0x46;
+            const isPng = buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47;
+            const isJpg = buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF;
+
+            const path = await import("node:path");
+            const originalExt = path.extname(file.name).toLowerCase().replace(".", "");
+            let ext = originalExt;
+            let supported = true;
+
+            if (isPdf) ext = "pdf";
+            else if (isPng) ext = "png";
+            else if (isJpg) ext = "jpg";
+            else if (isZip) {
+              if (ext !== "xlsx" && ext !== "docx") {
+                supported = false;
+              }
+            } else if (!["csv", "txt", "json", "bmp", "tiff"].includes(ext)) {
+              supported = false;
+            }
+
+            if (!supported && ext !== "pdf" && ext !== "png" && ext !== "jpg" && ext !== "xlsx" && ext !== "docx") {
+              return new Response(JSON.stringify({ error: `Unsupported file format: .${originalExt}` }), { status: 400, headers: { "Content-Type": "application/json" } });
+            }
+
+            // Save temporarily to disk
+            const fs = await import("node:fs/promises");
+            const tempDir = "/tmp/uploads";
+            await fs.mkdir(tempDir, { recursive: true });
+            const tempPath = path.join(tempDir, `upload_${crypto.randomUUID()}.${ext}`);
+            await Bun.write(tempPath, file);
+
+            // Process document using our TS service (which wraps python)
+            const extractResult = await processDocument(tempPath, file.name);
+
+            // Cleanup temp file
+            await fs.unlink(tempPath).catch(err => console.error("[serve.ts] Temp file unlink error:", err));
+
+            if (extractResult.error) {
+              return new Response(JSON.stringify({ error: extractResult.error }), { status: 500, headers: { "Content-Type": "application/json" } });
+            }
+
+            // Store results in the existing portal_data system
+            const now = Date.now();
+            const id = crypto.randomUUID();
+            const dataToStore = {
+              file_name: file.name,
+              file_size: file.size,
+              extracted_text: extractResult.text,
+              document_type: extractResult.documentType,
+              metadata: extractResult.metadata,
+              page_count: extractResult.pageCount,
+              pages: extractResult.pages,
+              status: "processed"
+            };
+            await db.run(sql.raw(`INSERT INTO portal_data (id, user_id, section, data, created_at, updated_at) VALUES ('${id}', '${userId}', 'documents', '${JSON.stringify(dataToStore).replace(/'/g, "''")}', ${now}, ${now})`));
+
+            return new Response(JSON.stringify({
+              success: true,
+              id,
+              text: extractResult.text,
+              documentType: extractResult.documentType,
+              metadata: extractResult.metadata,
+              fileName: file.name,
+              fileSize: file.size,
+              pageCount: extractResult.pageCount,
+              pages: extractResult.pages
+            }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            });
+          } catch (err: any) {
+            console.error("[serve.ts] Upload POST error:", err);
+            return new Response(JSON.stringify({ error: "Failed to upload and process document: " + err.message }), { status: 500, headers: { "Content-Type": "application/json" } });
+          }
         }
 
         // ─── Portal Data API (generic JSON store per user per section) ──────────
@@ -757,6 +991,72 @@ for (let attempt = 1; ; attempt++) {
           } catch (err: any) {
             console.error("[serve.ts] Audit log error:", err);
             return new Response(JSON.stringify({ error: "Failed to log event" }), {
+              status: 500, headers: { "Content-Type": "application/json" },
+            });
+          }
+        }
+
+        // POST /api/email/send — send notification or direct email (auth-protected)
+        if (pathname === "/api/email/send" && req.method === "POST") {
+          try {
+            const user = await getUserFromRequest(req);
+            const isLocal =
+              getRequestIP(req) === "127.0.0.1" ||
+              getRequestIP(req) === "::1" ||
+              getRequestIP(req) === "localhost" ||
+              getRequestIP(req) === "unknown" ||
+              req.headers.get("user-agent") === "SimplerLife100-AgentRuntime";
+            if (!user && !isLocal) {
+              return new Response(JSON.stringify({ error: "Unauthorized" }), {
+                status: 401, headers: { "Content-Type": "application/json" },
+              });
+            }
+
+            const body = await parseJSON(req);
+            if (!body || !body.to) {
+              return new Response(JSON.stringify({ error: "Recipient ('to') is required" }), {
+                status: 400, headers: { "Content-Type": "application/json" },
+              });
+            }
+
+            const { to, subject, text, html, templateVariables } = body;
+            let result;
+
+            if (templateVariables) {
+              const template = renderEmailTemplate(templateVariables);
+              result = await sendEmail({
+                to,
+                subject: templateVariables.subject || template.subject,
+                text: template.text,
+                html: template.html,
+              });
+            } else {
+              if (!subject) {
+                return new Response(JSON.stringify({ error: "Subject is required for direct emails" }), {
+                  status: 400, headers: { "Content-Type": "application/json" },
+                });
+              }
+              result = await sendEmail({ to, subject, text, html });
+            }
+
+            // Also log this as a governance audit event!
+            await logAuditEvent({
+              userId: user?.userId || "system-agent",
+              userEmail: user?.userEmail || "system-agent@simplerlife100.local",
+              action: "email_sent",
+              resource: "SMTP Integration",
+              details: `Sent email to ${Array.isArray(to) ? to.join(", ") : to} with subject: ${subject || templateVariables?.subject || "Template Notification"}${isLocal ? " (Triggered by Local Agent)" : ""}`,
+              ipAddress: getRequestIP(req),
+              status: "success",
+              severity: "info",
+            });
+
+            return new Response(JSON.stringify({ success: true, ...result }), {
+              status: 200, headers: { "Content-Type": "application/json" },
+            });
+          } catch (err: any) {
+            console.error("[serve.ts] Send email route error:", err);
+            return new Response(JSON.stringify({ error: "Failed to send email", details: err.message }), {
               status: 500, headers: { "Content-Type": "application/json" },
             });
           }
