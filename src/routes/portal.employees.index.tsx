@@ -275,7 +275,8 @@ function EmployeesManager() {
             {/* Node 1: Sales AI */}
             {employees.find(e => e.id === "sales-ai") && (
               <Link 
-                to={`/portal/employees/sales-ai`}
+                to="/portal/employees/$id"
+                params={{ id: "sales-ai" }}
                 className="flex flex-col items-center space-y-2.5 z-10 w-40 shrink-0 group transition-all"
               >
                 <div className="h-12 w-12 rounded-xl bg-stone-950 border-2 border-emerald-900 group-hover:border-emerald-500 flex items-center justify-center relative shadow-xl transition-all duration-300">
@@ -292,7 +293,8 @@ function EmployeesManager() {
             {/* Node 2: CRM AI */}
             {employees.find(e => e.id === "crm-ai") && (
               <Link 
-                to={`/portal/employees/crm-ai`}
+                to="/portal/employees/$id"
+                params={{ id: "crm-ai" }}
                 className="flex flex-col items-center space-y-2.5 z-10 w-40 shrink-0 group transition-all"
               >
                 <div className="h-12 w-12 rounded-xl bg-stone-950 border-2 border-emerald-900 group-hover:border-emerald-500 flex items-center justify-center relative shadow-xl transition-all duration-300">
@@ -309,7 +311,8 @@ function EmployeesManager() {
             {/* Node 3: Quote AI */}
             {employees.find(e => e.id === "quote-ai") && (
               <Link 
-                to={`/portal/employees/quote-ai`}
+                to="/portal/employees/$id"
+                params={{ id: "quote-ai" }}
                 className="flex flex-col items-center space-y-2.5 z-10 w-40 shrink-0 group transition-all"
               >
                 <div className="h-12 w-12 rounded-xl bg-stone-950 border-2 border-stone-800 group-hover:border-stone-500 flex items-center justify-center relative shadow-xl transition-all duration-300">
@@ -326,7 +329,8 @@ function EmployeesManager() {
             {/* Node 4: Invoice AI */}
             {employees.find(e => e.id === "invoice-ai") && (
               <Link 
-                to={`/portal/employees/invoice-ai`}
+                to="/portal/employees/$id"
+                params={{ id: "invoice-ai" }}
                 className="flex flex-col items-center space-y-2.5 z-10 w-40 shrink-0 group transition-all"
               >
                 <div className="h-12 w-12 rounded-xl bg-stone-950 border-2 border-emerald-900 group-hover:border-emerald-500 flex items-center justify-center relative shadow-xl transition-all duration-300">
@@ -343,7 +347,8 @@ function EmployeesManager() {
             {/* Node 5: Collections AI */}
             {employees.find(e => e.id === "collections-ai") && (
               <Link 
-                to={`/portal/employees/collections-ai`}
+                to="/portal/employees/$id"
+                params={{ id: "collections-ai" }}
                 className="flex flex-col items-center space-y-2.5 z-10 w-40 shrink-0 group transition-all"
               >
                 <div className="h-12 w-12 rounded-xl bg-stone-950 border-2 border-emerald-900 group-hover:border-emerald-500 flex items-center justify-center relative shadow-xl transition-all duration-300">
@@ -412,7 +417,7 @@ function EmployeesManager() {
                 <tr key={idx} className="hover:bg-stone-900/10 transition-colors">
                   {/* Name & Owner */}
                   <td className="p-4 pl-6">
-                    <Link to={`/portal/employees/${getEmpId(emp)}`} className="font-bold text-white hover:text-blue-400 block transition-colors">
+                    <Link to="/portal/employees/$id" params={{ id: getEmpId(emp) }} className="font-bold text-white hover:text-blue-400 block transition-colors">
                       {emp.name.split(" (")[0]}
                     </Link>
                     <span className="text-[10px] text-stone-500 font-mono">Owner ID: {emp.owner}</span>
@@ -459,7 +464,8 @@ function EmployeesManager() {
                         {emp.status === "Active" ? "Pause" : "Resume"}
                       </button>
                       <Link
-                        to={`/portal/employees/${getEmpId(emp)}`}
+                        to="/portal/employees/$id"
+                        params={{ id: getEmpId(emp) }}
                         className="bg-white hover:bg-stone-100 text-black font-bold px-2.5 py-1.5 rounded-lg transition-all"
                       >
                         Profile

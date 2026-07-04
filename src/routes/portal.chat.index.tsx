@@ -66,12 +66,9 @@ function ChatAssistant() {
     scrollToBottom();
   }, [activeSessionMessagesLength(activeSession())]);
 
-  function activeSessionMessages() {
-    return employeeMessages();
-  }
-
   // Safely get active messages
-  const currentMessages = employee() ? employee().messages : [];
+  const currentEmp = employee();
+  const currentMessages = currentEmp ? currentEmp.messages : [];
 
   function employee() {
     return sessions.find(s => s.id === activeSessionId) || null;
@@ -83,11 +80,6 @@ function ChatAssistant() {
 
   function activeSession() {
     return sessions.find(s => s.id === activeSessionId) || null;
-  }
-
-  function employeeMessages() {
-    const session = activeSession();
-    return session ? session.messages : [];
   }
 
   const handleSend = async (text: string) => {

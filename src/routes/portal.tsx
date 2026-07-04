@@ -35,6 +35,7 @@ export const Route = createFileRoute("/portal")({
 });
 
 function PortalLayout() {
+  const TypedOutlet = Outlet as any;
   const navigate = useNavigate();
   const location = useLocation();
   const [user, setUser] = useState<{ email: string } | null>(null);
@@ -499,7 +500,7 @@ function PortalLayout() {
 
         {/* Content Viewport */}
         <div className="flex-1 p-6 lg:p-10 overflow-y-auto max-w-6xl w-full mx-auto animate-fadeIn select-text">
-          <Outlet context={{ notifications, unreadCount, markAsRead, markAllAsRead, addNotification } as PortalContextType} />
+          <TypedOutlet context={{ notifications, unreadCount, markAsRead, markAllAsRead, addNotification } as PortalContextType} />
         </div>
       </main>
 

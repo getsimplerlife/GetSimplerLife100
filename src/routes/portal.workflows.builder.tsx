@@ -32,7 +32,11 @@ function WorkflowBuilderPage() {
 
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
 
-  const mockGeneratedPipeline = {
+  const mockGeneratedPipeline: {
+    name: string;
+    description: string;
+    steps: WorkflowStep[];
+  } = {
     name: "Automated Invoice & CRM Escalation Pipeline",
     description: "Multi-layered cognitive workflow handling automated receipt parsing, Stripe verification, HubSpot CRM deal updates, and Slack triggers with conditional human escalation gates.",
     steps: [

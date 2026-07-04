@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { usePortalContext, SystemNotification } from "~/routes/portal";
+import { usePortalContext } from "~/routes/portal";
+import type { SystemNotification } from "~/routes/portal";
 
 export const Route = createFileRoute("/portal/notifications/")({
   component: UnifiedNotificationCenter,

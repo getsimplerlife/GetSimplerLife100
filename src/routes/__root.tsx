@@ -4,7 +4,8 @@ import {
   Scripts,
   createRootRoute,
 } from "@tanstack/react-router";
-import { ReactNode, useEffect } from "react";
+import { useEffect } from "react";
+import type { ReactNode } from "react";
 
 import appCss from "~/styles/app.css?url";
 

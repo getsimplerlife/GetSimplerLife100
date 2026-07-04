@@ -9,7 +9,7 @@ function SystemAuditLogs() {
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
 
-  const [logs, setLogs] = useState([
+  const [logs] = useState([
     { id: "AUD-9012", time: "2026-07-04 11:58", user: "AI Intake Specialist", category: "AI Decisions", action: "Extracted Invoice Fields", resource: "invoice_9812.pdf", details: "PII parsed correctly. Confidence rating: 99.4%", ip: "Internal Sandbox API", status: "Success" },
     { id: "AUD-9011", time: "2026-07-04 11:50", user: "John Connor", category: "User Activity", action: "Triggered Manual Hot-Restart", resource: "AI Reconciliation Analyst", details: "Manual process override executed via active console settings.", ip: "192.168.1.12", status: "Success" },
     { id: "AUD-9010", time: "2026-07-04 11:42", user: "AI Reconciliation Analyst", category: "Workflow Runs", action: "Matched Bank Ledger Account", resource: "Stripe Bank Feeds Hub", details: "Matched bank ledger #8401 with invoice general ledger.", ip: "Internal Sandbox API", status: "Success" },

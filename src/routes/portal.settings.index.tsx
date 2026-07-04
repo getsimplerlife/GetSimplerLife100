@@ -50,7 +50,6 @@ function WorkspaceSettings() {
             if (item.key === "notifySMS") setNotifySMS(item.value === "true" || item.value === true);
             if (item.key === "notifySlack") setNotifySlack(item.value === "true" || item.value === true);
                           });
-      setSettings(d.data || []);
       setLoading(false);
       })
       .catch(() => setLoading(false));

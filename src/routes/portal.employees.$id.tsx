@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useParams } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 
 export const Route = createFileRoute("/portal/employees/$id")({
@@ -8,7 +8,7 @@ export const Route = createFileRoute("/portal/employees/$id")({
 function EmployeeProfile() {
   const { id } = Route.useParams();
   const [employee, setEmployee] = useState<any>(null);
-  const [employees, setEmployees] = useState<any[]>([]);
+  
   const [loading, setLoading] = useState(true);
   const [actionFeedback, setActionFeedback] = useState("");
   const [isSyncing, setIsSyncing] = useState(false);
@@ -18,7 +18,7 @@ function EmployeeProfile() {
       const res = await fetch("/api/data/employees", { credentials: "include" });
       const d = await res.json();
       const list = d.data || [];
-      setEmployees(list);
+      
 
       // Find by our custom id field or fallback to database _id
       const found = list.find((emp: any) => emp.id === id || emp._id === id);
@@ -107,7 +107,7 @@ function EmployeeProfile() {
     <div className="space-y-8 text-stone-100 max-w-5xl mx-auto">
       {/* Breadcrumbs */}
       <div className="flex items-center gap-2 text-xs font-mono text-stone-500">
-        <Link to="/portal/" className="hover:text-stone-300">Portal</Link>
+        <Link to="/portal" className="hover:text-stone-300">Portal</Link>
         <span>/</span>
         <Link to="/portal/employees" className="hover:text-stone-300">Workforce</Link>
         <span>/</span>
