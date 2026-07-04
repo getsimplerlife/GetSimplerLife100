@@ -306,3 +306,75 @@ export const Sidebar: React.FC<SidebarProps> = ({
     </aside>
   );
 };
+
+// ==========================================
+// ANIMATED NUMBER COMPONENT
+// ==========================================
+interface AnimatedNumberProps {
+  value: string | number;
+  duration?: number;
+}
+
+export const AnimatedNumber: React.FC<AnimatedNumberProps> = ({ value, duration = 1200 }) => {
+  const [displayValue, setDisplayValue] = React.useState<string | number>(value);
+
+  React.useEffect(() => {
+    const valueStr = String(value);
+    // Parse numeric parts out
+    const numMatch = valueStr.match(/[\d.]+/g);
+    if (!numMatch) {
+      setDisplayValue(value);
+      return;
+    }
+
+    const numericPart = numMatch[0];
+    const rawNum = parseFloat(numericPart.replace(/,/g, ""));
+    if (isNaN(rawNum)) {
+      setDisplayValue(value);
+      return;
+    }
+
+    // Capture prefix and suffix
+    const splitParts = valueStr.split(numericPart);
+    const prefix = splitParts[0] || "";
+    const suffix = splitParts[1] || "";
+
+    const startTime = performance.now();
+
+    let animFrameId: number;
+
+    const updateNumber = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      
+      // Easing function: easeOutExpo
+      const easeProgress = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+      const currentVal = rawNum * easeProgress;
+
+      // Format based on decimal presence or comma presence
+      let formattedNum = "";
+      if (numericPart.includes(".")) {
+        formattedNum = currentVal.toFixed(1);
+      } else {
+        formattedNum = Math.floor(currentVal).toString();
+      }
+
+      if (valueStr.includes(",")) {
+        // Add thousands separators
+        formattedNum = formattedNum.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+      }
+
+      setDisplayValue(`${prefix}${formattedNum}${suffix}`);
+
+      if (progress < 1) {
+        animFrameId = requestAnimationFrame(updateNumber);
+      }
+    };
+
+    animFrameId = requestAnimationFrame(updateNumber);
+
+    return () => cancelAnimationFrame(animFrameId);
+  }, [value, duration]);
+
+  return <span>{displayValue}</span>;
+};
