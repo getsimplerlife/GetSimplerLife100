@@ -1,5 +1,34 @@
 import { createFileRoute, Link, Outlet, useNavigate, useLocation } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, createContext, useContext } from "react";
+
+export interface SystemNotification {
+  _id?: string;
+  id: string;
+  type: "approval" | "complete" | "error" | "info";
+  title: string;
+  message: string;
+  link: string;
+  read: boolean;
+  createdAt: string;
+}
+
+export interface PortalContextType {
+  notifications: SystemNotification[];
+  unreadCount: number;
+  markAsRead: (id: string) => Promise<void>;
+  markAllAsRead: () => Promise<void>;
+  addNotification: (notification: Omit<SystemNotification, "id" | "createdAt" | "read">) => Promise<void>;
+}
+
+export const PortalContext = createContext<PortalContextType | null>(null);
+
+export function usePortalContext() {
+  const context = useContext(PortalContext);
+  if (!context) {
+    throw new Error("usePortalContext must be used within a PortalLayout");
+  }
+  return context;
+}
 
 export const Route = createFileRoute("/portal")({
   component: PortalLayout,
@@ -11,6 +40,80 @@ function PortalLayout() {
   const [user, setUser] = useState<{ email: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [bellOpen, setBellOpen] = useState(false);
+  const [notifications, setNotifications] = useState<SystemNotification[]>([]);
+  const [pwaPrompt, setPwaPrompt] = useState<any>(null);
+
+  const bellRef = useRef<HTMLDivElement>(null);
+
+  // Load and seed notifications
+  const loadNotifications = async () => {
+    try {
+      const res = await fetch("/api/data/system_notifications", { credentials: "include" });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.data && json.data.length > 0) {
+          // Sort newest first
+          const sorted = [...json.data].sort(
+            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+          setNotifications(sorted);
+        } else {
+          // Seed initial notifications
+          const defaultNotifications: SystemNotification[] = [
+            {
+              id: "n-1",
+              type: "approval",
+              title: "Invoice AI needs your approval",
+              message: "Invoice #1094 from Acme Corp requires payment approval.",
+              link: "/portal/inbox",
+              read: false,
+              createdAt: new Date(Date.now() - 5 * 60 * 1000).toISOString()
+            },
+            {
+              id: "n-2",
+              type: "complete",
+              title: "SOP Document Processed",
+              message: "Corporate Compliance Guide SOP has been digested and indexed.",
+              link: "/portal/knowledge-base",
+              read: false,
+              createdAt: new Date(Date.now() - 25 * 60 * 1000).toISOString()
+            },
+            {
+              id: "n-3",
+              type: "error",
+              title: "HubSpot API Authentication Alert",
+              message: "Re-authorization required for CRM integration synchronization.",
+              link: "/portal/integrations",
+              read: true,
+              createdAt: new Date(Date.now() - 3 * 3650 * 1000).toISOString()
+            },
+            {
+              id: "n-4",
+              type: "info",
+              title: "Customer Lead Ingested",
+              message: "New inbound demo request received from Enterprise Retail Partner.",
+              link: "/portal/customers",
+              read: true,
+              createdAt: new Date(Date.now() - 5 * 3650 * 1000).toISOString()
+            }
+          ];
+          setNotifications(defaultNotifications);
+          // Post them to the backend API to store them
+          for (const item of defaultNotifications) {
+            await fetch("/api/data/system_notifications", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify(item),
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load/seed system notifications:", err);
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -22,6 +125,7 @@ function PortalLayout() {
         }
         const data = await res.json();
         setUser(data);
+        await loadNotifications();
       } catch (err) {
         console.error("Auth check failed:", err);
         navigate({ to: "/login" as any });
@@ -29,11 +133,124 @@ function PortalLayout() {
         setLoading(false);
       }
     })();
+
+    // Listen to PWA custom install prompt event
+    const onPwaAvailable = () => {
+      if (typeof window !== "undefined") {
+        setPwaPrompt((window as any).deferredPrompt);
+      }
+    };
+    window.addEventListener("pwa-install-available", onPwaAvailable);
+
+    // Initial check in case it fired earlier
+    if (typeof window !== "undefined" && (window as any).deferredPrompt) {
+      setPwaPrompt((window as any).deferredPrompt);
+    }
+
+    // Setup polling every 30 seconds
+    const interval = setInterval(loadNotifications, 30000);
+
+    // Handle clicks outside notification dropdown
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (bellRef.current && !bellRef.current.contains(e.target as Node)) {
+        setBellOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+
+    return () => {
+      window.removeEventListener("pwa-install-available", onPwaAvailable);
+      document.removeEventListener("mousedown", handleOutsideClick);
+      clearInterval(interval);
+    };
   }, [navigate]);
 
   const handleLogout = async () => {
     await fetch("/api/logout", { method: "POST" });
     navigate({ to: "/" });
+  };
+
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  const markAsRead = async (id: string) => {
+    try {
+      const updated = notifications.map(n => {
+        if (n.id === id || n._id === id) {
+          return { ...n, read: true };
+        }
+        return n;
+      });
+      setNotifications(updated);
+
+      const target = notifications.find(n => n.id === id || n._id === id);
+      if (target) {
+        const { _id, ...cleanObj } = target;
+        await fetch(`/api/data/system_notifications`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ ...cleanObj, _id, read: true }),
+        });
+      }
+    } catch (err) {
+      console.error("Failed to mark notification as read:", err);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    try {
+      const updated = notifications.map(n => ({ ...n, read: true }));
+      setNotifications(updated);
+      
+      for (const item of notifications) {
+        if (!item.read) {
+          const { _id, ...cleanObj } = item;
+          await fetch(`/api/data/system_notifications`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ ...cleanObj, _id, read: true }),
+          });
+        }
+      }
+    } catch (err) {
+      console.error("Failed to mark all as read:", err);
+    }
+  };
+
+  const addNotification = async (notif: Omit<SystemNotification, "id" | "createdAt" | "read">) => {
+    try {
+      const newNotif: SystemNotification = {
+        ...notif,
+        id: "n-" + Math.random().toString(36).substr(2, 9),
+        read: false,
+        createdAt: new Date().toISOString(),
+      };
+      setNotifications([newNotif, ...notifications]);
+      await fetch("/api/data/system_notifications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(newNotif),
+      });
+    } catch (err) {
+      console.error("Failed to add system notification:", err);
+    }
+  };
+
+  const handleInstallPwa = () => {
+    if (pwaPrompt) {
+      pwaPrompt.prompt();
+      pwaPrompt.userChoice.then((choiceResult: any) => {
+        if (choiceResult.outcome === "accepted") {
+          console.log("PWA install accepted");
+        } else {
+          console.log("PWA install dismissed");
+        }
+        setPwaPrompt(null);
+        (window as any).deferredPrompt = null;
+      });
+    }
   };
 
   const navLinks = [
@@ -49,6 +266,14 @@ function PortalLayout() {
     { name: "Integrations", path: "/portal/integrations", icon: "🔌" },
     { name: "Marketplace", path: "/portal/marketplace", icon: "🛒" },
     { name: "Settings", path: "/portal/settings", icon: "⚙️" },
+  ];
+
+  const mobileLinks = [
+    { name: "Dashboard", path: "/portal", icon: "🏠" },
+    { name: "Employees", path: "/portal/employees", icon: "🤖" },
+    { name: "AI Chat", path: "/portal/chat", icon: "💬" },
+    { name: "Inbox", path: "/portal/inbox", icon: "📥" },
+    { name: "Alerts", path: "/portal/notifications", icon: "🔔", badge: unreadCount },
   ];
 
   const currentPath = location.pathname;
@@ -67,20 +292,33 @@ function PortalLayout() {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-black text-stone-100 font-sans antialiased selection:bg-stone-800 selection:text-white">
-      {/* Mobile Top Bar */}
+    <PortalContext.Provider value={{ notifications, unreadCount, markAsRead, markAllAsRead, addNotification }}>
+      <div className="min-h-screen bg-black text-stone-100 font-sans antialiased selection:bg-stone-800 selection:text-white pb-16 lg:pb-0">
+      
+      {/* Mobile Top Header */}
       <header className="lg:hidden w-full bg-stone-950 border-b border-stone-900 h-14 fixed top-0 left-0 z-50 flex items-center justify-between px-6">
         <Link to="/" className="text-md font-black tracking-widest text-white uppercase">
           Simpler Life 100
         </Link>
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="text-stone-400 hover:text-white focus:outline-none"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={sidebarOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} />
-          </svg>
-        </button>
+        <div className="flex items-center gap-4">
+          {/* Mobile Bell Button */}
+          <Link to="/portal/notifications" className="relative p-1 text-stone-400 hover:text-white transition-colors">
+            <span>🔔</span>
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[8px] font-bold text-white ring-2 ring-stone-950">
+                {unreadCount}
+              </span>
+            )}
+          </Link>
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="text-stone-400 hover:text-white focus:outline-none"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={sidebarOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} />
+            </svg>
+          </button>
+        </div>
       </header>
 
       {/* Sidebar Navigation */}
@@ -94,7 +332,7 @@ function PortalLayout() {
           <Link to="/" className="text-xs font-black tracking-widest text-white uppercase hover:opacity-85 transition-opacity">
             Simpler Life 100
           </Link>
-          <span className="text-[9px] text-stone-500 font-mono tracking-wider">v3.4</span>
+          <span className="text-[9px] text-stone-500 font-mono tracking-wider">v3.5</span>
         </div>
 
         {/* Navigation list */}
@@ -115,6 +353,9 @@ function PortalLayout() {
               >
                 <span className="text-sm shrink-0">{link.icon}</span>
                 <span>{link.name}</span>
+                {link.name === "Inbox" && (
+                  <span className="ml-auto bg-stone-850 border border-stone-800 text-stone-400 text-[9px] px-1.5 py-0.5 rounded-md">3</span>
+                )}
               </Link>
             );
           })}
@@ -139,7 +380,7 @@ function PortalLayout() {
         </nav>
 
         {/* User Footer */}
-        <div className="p-4 border-t border-stone-900 bg-stone-950 shrink-0">
+        <div className="p-4 border-t border-stone-900 bg-stone-950 shrink-0 mb-16 lg:mb-0">
           <div className="px-3 py-1.5 mb-2 rounded-lg bg-stone-900/30">
             <p className="text-[8px] text-stone-600 font-bold uppercase tracking-wider">Identity</p>
             <p className="text-xs font-bold text-stone-400 truncate">{user.email}</p>
@@ -156,10 +397,139 @@ function PortalLayout() {
 
       {/* Main Content Pane */}
       <main className="flex-1 min-h-screen lg:ml-60 flex flex-col pt-14 lg:pt-0 bg-black">
-        <div className="flex-1 p-6 lg:p-10 overflow-y-auto max-w-6xl w-full mx-auto animate-fadeIn">
-          <Outlet />
+        
+        {/* Desktop Header bar */}
+        <header className="hidden lg:flex w-full h-14 bg-stone-950 border-b border-stone-900 items-center justify-between px-10 sticky top-0 z-30 select-none">
+          <div className="flex items-center gap-3">
+            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-[10px] font-mono tracking-widest text-stone-400 uppercase font-bold">WORKSPACE RUNNING UNDER SECURITY LAYER</span>
+          </div>
+
+          <div className="flex items-center gap-6">
+            {/* PWA Install Button */}
+            {pwaPrompt && (
+              <button
+                onClick={handleInstallPwa}
+                className="inline-flex items-center gap-2 px-3 py-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-[10px] tracking-widest uppercase rounded-lg shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all"
+              >
+                <span>📥</span>
+                <span>Install Web App</span>
+              </button>
+            )}
+
+            {/* Notification Bell Dropdown Button */}
+            <div className="relative" ref={bellRef}>
+              <button
+                onClick={() => setBellOpen(!bellOpen)}
+                className="relative p-1.5 rounded-lg bg-stone-900 border border-stone-850 hover:bg-stone-800 hover:border-stone-700 hover:text-white text-stone-300 transition-all focus:outline-none"
+              >
+                <span className="text-xs">🔔</span>
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[8px] font-bold text-white ring-2 ring-stone-950">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Notification Dropdown Menu */}
+              {bellOpen && (
+                <div className="absolute right-0 mt-3 w-80 rounded-2xl bg-stone-950 border border-stone-850 shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                  <div className="p-4 border-b border-stone-900 flex justify-between items-center bg-stone-900/40">
+                    <span className="text-xs font-black text-white">System Notifications</span>
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={markAllAsRead}
+                        className="text-[10px] text-blue-400 hover:text-blue-300 font-mono font-bold"
+                      >
+                        Mark all read
+                      </button>
+                    )}
+                  </div>
+                  <div className="divide-y divide-stone-900 max-h-64 overflow-y-auto font-mono text-[11px] text-stone-400 scrollbar-none">
+                    {notifications.length === 0 ? (
+                      <div className="p-6 text-center text-stone-600">No active system alerts.</div>
+                    ) : (
+                      notifications.map((item) => {
+                        const iconMap = {
+                          approval: "⏳",
+                          complete: "✅",
+                          error: "⚠️",
+                          info: "💡",
+                        };
+                        return (
+                          <div
+                            key={item.id}
+                            onClick={() => {
+                              markAsRead(item.id);
+                              setBellOpen(false);
+                              navigate({ to: item.link as any });
+                            }}
+                            className={`p-3.5 hover:bg-stone-900/40 transition-all cursor-pointer flex gap-3 ${
+                              !item.read ? "bg-blue-500/5 border-l-2 border-blue-500" : ""
+                            }`}
+                          >
+                            <span className="text-sm shrink-0">{iconMap[item.type]}</span>
+                            <div className="space-y-0.5 min-w-0">
+                              <p className={`text-xs font-bold leading-tight truncate ${!item.read ? "text-white" : "text-stone-300"}`}>
+                                {item.title}
+                              </p>
+                              <p className="text-[10px] text-stone-500 leading-normal line-clamp-2">
+                                {item.message}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                  <div className="p-3 border-t border-stone-900 bg-stone-900/20 text-center">
+                    <Link
+                      to="/portal/notifications"
+                      onClick={() => setBellOpen(false)}
+                      className="text-[10px] text-stone-400 hover:text-white font-bold tracking-wider uppercase"
+                    >
+                      See All Alerts & Channels →
+                    </Link>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </header>
+
+        {/* Content Viewport */}
+        <div className="flex-1 p-6 lg:p-10 overflow-y-auto max-w-6xl w-full mx-auto animate-fadeIn select-text">
+          <Outlet context={{ notifications, unreadCount, markAsRead, markAllAsRead, addNotification } as PortalContextType} />
         </div>
       </main>
+
+      {/* Mobile Bottom Navigation Bar */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-stone-950/95 backdrop-blur-md border-t border-stone-900 z-50 flex items-center justify-around px-2 pb-safe select-none">
+        {mobileLinks.map((link) => {
+          const isActive = currentPath === link.path || (link.path === "/portal" && currentPath === "/portal/");
+          return (
+            <Link
+              key={link.path}
+              to={link.path as any}
+              className={`flex flex-col items-center justify-center flex-1 py-1 text-center transition-all ${
+                isActive ? "text-blue-500 font-black" : "text-stone-500 font-medium hover:text-stone-300"
+              }`}
+            >
+              <div className="relative text-lg">
+                {link.icon}
+                {link.badge !== undefined && link.badge > 0 && (
+                  <span className="absolute -top-1 -right-2 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[8px] font-bold text-white ring-2 ring-stone-950">
+                    {link.badge}
+                  </span>
+                )}
+              </div>
+              <span className="text-[9px] mt-0.5 tracking-tight font-bold">{link.name}</span>
+            </Link>
+          );
+        })}
+      </div>
+
     </div>
+    </PortalContext.Provider>
   );
 }

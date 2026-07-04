@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
+import { AnimatedNumber } from "~/components/ui";
 
 export const Route = createFileRoute("/portal/")({
   component: ExecutiveDashboard,
@@ -147,7 +148,7 @@ function ExecutiveDashboard() {
           <div key={idx} className="bg-stone-950 border border-stone-900 rounded-xl p-6 flex flex-col justify-between hover:border-stone-800 transition-all select-none">
             <div className="space-y-1">
               <span className="text-[10px] font-mono tracking-widest text-stone-500 uppercase">{s.name}</span>
-              <p className="text-2xl font-black text-white">{s.value}</p>
+              <p className="text-2xl font-black text-white"><AnimatedNumber value={s.value} /></p>
             </div>
             <div className="mt-4 pt-4 border-t border-stone-900 space-y-1">
               <span className="text-[10px] text-emerald-400 font-bold block">{s.change}</span>
