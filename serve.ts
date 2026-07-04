@@ -674,13 +674,18 @@ for (let attempt = 1; ; attempt++) {
             await Bun.write(tempPath, file);
 
             // Process document using our TS service (which wraps python)
-            const extractResult = await processDocument(tempPath, file.name);
+            const extractResult = await processDocument({
+              filePath: tempPath,
+              mimeType: file.type || "application/octet-stream",
+              filename: file.name,
+              userId,
+            });
 
             // Cleanup temp file
             await fs.unlink(tempPath).catch(err => console.error("[serve.ts] Temp file unlink error:", err));
 
-            if (extractResult.error) {
-              return new Response(JSON.stringify({ error: extractResult.error }), { status: 500, headers: { "Content-Type": "application/json" } });
+            if (!extractResult.success || extractResult.error) {
+              return new Response(JSON.stringify({ error: extractResult.error || "Processing failed" }), { status: 500, headers: { "Content-Type": "application/json" } });
             }
 
             // Store results in the existing portal_data system
@@ -689,11 +694,9 @@ for (let attempt = 1; ; attempt++) {
             const dataToStore = {
               file_name: file.name,
               file_size: file.size,
-              extracted_text: extractResult.text,
+              extracted_text: extractResult.extractedText,
               document_type: extractResult.documentType,
-              metadata: extractResult.metadata,
-              page_count: extractResult.pageCount,
-              pages: extractResult.pages,
+              key_info: extractResult.keyInfo,
               status: "processed"
             };
             await db.run(sql.raw(`INSERT INTO portal_data (id, user_id, section, data, created_at, updated_at) VALUES ('${id}', '${userId}', 'documents', '${JSON.stringify(dataToStore).replace(/'/g, "''")}', ${now}, ${now})`));
@@ -701,13 +704,11 @@ for (let attempt = 1; ; attempt++) {
             return new Response(JSON.stringify({
               success: true,
               id,
-              text: extractResult.text,
+              text: extractResult.extractedText,
               documentType: extractResult.documentType,
-              metadata: extractResult.metadata,
+              keyInfo: extractResult.keyInfo,
               fileName: file.name,
               fileSize: file.size,
-              pageCount: extractResult.pageCount,
-              pages: extractResult.pages
             }), {
               status: 200,
               headers: { "Content-Type": "application/json" },
@@ -1045,13 +1046,13 @@ for (let attempt = 1; ; attempt++) {
               userEmail: user?.userEmail || "system-agent@simplerlife100.local",
               action: "email_sent",
               resource: "SMTP Integration",
-              details: `Sent email to ${Array.isArray(to) ? to.join(", ") : to} with subject: ${subject || templateVariables?.subject || "Template Notification"}${isLocal ? " (Triggered by Local Agent)" : ""}`,
+              details: { message: `Sent email to ${Array.isArray(to) ? to.join(", ") : to} with subject: ${subject || templateVariables?.subject || "Template Notification"}${isLocal ? " (Triggered by Local Agent)" : ""}` },
               ipAddress: getRequestIP(req),
               status: "success",
               severity: "info",
             });
 
-            return new Response(JSON.stringify({ success: true, ...result }), {
+            return new Response(JSON.stringify(result), {
               status: 200, headers: { "Content-Type": "application/json" },
             });
           } catch (err: any) {

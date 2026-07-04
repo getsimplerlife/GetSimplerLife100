@@ -16,7 +16,6 @@ import {
   getAgentInstance,
   saveAgentInstance,
   saveAgentExecution,
-  getAgentExecution,
   listAgentExecutions,
 } from "./schema";
 import { db } from "../db/index";
@@ -148,12 +147,13 @@ export async function runAgent(input: RunAgentInput): Promise<ExecutionResult> {
 
 async function executeDocumentPath(
   execution: ExecutionResult,
-  prompt: string,
+  _prompt: string,
   instance: AgentInstance,
-  config: AgentConfig,
+  _config: AgentConfig,
   toolCtx: ToolContext,
   context?: Record<string, any>,
 ): Promise<void> {
+  const { userId, agentId } = toolCtx;
   // Step: Find the document
   const contextData = context || {};
   const filePath = contextData.filePath as string;
@@ -289,7 +289,7 @@ async function executeGeneralPath(
   execution: ExecutionResult,
   prompt: string,
   toolCtx: ToolContext,
-  context?: Record<string, any>,
+  _context?: Record<string, any>,
 ): Promise<void> {
   // Try reading relevant data based on prompt keywords
   const sections = ["workflows", "employees", "documents", "activity", "analytics", "approvals"];
@@ -329,10 +329,10 @@ async function executeGeneralPath(
 // ── Step Execution ──────────────────────────────────────────────────────────
 
 async function executeReasoningStep(
-  executionId: string,
-  userId: string,
-  agentId: string,
-  toolCtx: ToolContext,
+  _executionId: string,
+  _userId: string,
+  _agentId: string,
+  _toolCtx: ToolContext,
   description: string,
   tool: string,
   params: Record<string, any>,
@@ -363,7 +363,7 @@ async function executeReasoningStep(
 }
 
 async function performReasoning(params: Record<string, any>): Promise<any> {
-  const { prompt, agentName, systemPrompt, context } = params;
+  const { prompt, agentName } = params;
   const lower = prompt.toLowerCase();
 
   // Extract intent categories
@@ -383,9 +383,9 @@ async function performReasoning(params: Record<string, any>): Promise<any> {
 }
 
 async function executeToolStep(
-  executionId: string,
-  userId: string,
-  agentId: string,
+  _executionId: string,
+  _userId: string,
+  _agentId: string,
   toolCtx: ToolContext,
   description: string,
   tool: string,
@@ -418,7 +418,7 @@ async function executeToolStep(
 
 // ── Summary Generation ──────────────────────────────────────────────────────
 
-function generateSummary(steps: ExecutionStep[], prompt: string): string {
+function generateSummary(steps: ExecutionStep[], _prompt: string): string {
   const completed = steps.filter((s) => s.status === "completed").length;
   const failed = steps.filter((s) => s.status === "failed").length;
   const skipped = steps.filter((s) => s.status === "skipped").length;
