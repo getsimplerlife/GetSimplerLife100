@@ -847,8 +847,9 @@ for (let attempt = 1; ; attempt++) {
             const sig = sigParts["v1"];
             if (!timestamp || !sig) return false;
             const signedPayload = `${timestamp}.${payload}`;
+            const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || STRIPE_WEBHOOK_SECRET;
             const key = await crypto.subtle.importKey(
-              "raw", new TextEncoder().encode(STRIPE_WEBHOOK_SECRET),
+              "raw", new TextEncoder().encode(webhookSecret),
               { name: "HMAC", hash: "SHA-256" }, false, ["verify"]
             );
             const sigBytes = new Uint8Array(sig.match(/.{1,2}/g)!.map(b => parseInt(b, 16)));
@@ -857,65 +858,71 @@ for (let attempt = 1; ; attempt++) {
         }
 
         // Handle Stripe Webhook
-        if (pathname === "/api/stripe-webhook") {
-          console.log(`[serve.ts] Stripe webhook. Method: ${req.method}`);
-          if (req.method === "POST") {
-            try {
-              const rawBody = await req.text();
-              const sigHeader = req.headers.get("stripe-signature") || "";
-              const isValid = verifyStripeSignature(rawBody, sigHeader);
-              if (!isValid) {
-                console.error("[serve.ts] Invalid Stripe webhook signature");
-                return new Response(JSON.stringify({ error: "Invalid signature" }), { status: 401, headers: { "Content-Type": "application/json" } });
-              }
-              const body = JSON.parse(rawBody);
-              console.log('[serve.ts] Verified Stripe event:', body.type);
-
-              if (body.type === 'checkout.session.completed') {
-                const session = body.data.object;
-                const email = session.customer_details?.email || session.customer_email;
-                const amount = session.amount_total / 100;
-
-                let auditType = "Custom Audit";
-                if (amount === 2500) auditType = "Deep-Dive AI Opportunity Audit";
-                else if (amount === 7500) auditType = "Starter Implementation";
-                else if (amount === 15000) auditType = "Growth Implementation";
-                else if (amount === 30000) auditType = "Scale Implementation";
-                else if (amount === 750 || amount === 2000) auditType = "Monthly Operations";
-
-                if (email) {
-                  console.log(`[serve.ts] Purchase: ${email} → ${auditType}`);
-                  await createAuditForEmailInternal(email, auditType);
-                }
-              }
-
-              if (body.type === 'customer.subscription.updated' || body.type === 'customer.subscription.deleted') {
-                const sub = body.data.object;
-                const email = sub.customer_details?.email || sub.customer_email || sub.customer?.email;
-                if (email) {
-                  const status = body.type === 'customer.subscription.deleted' ? 'cancelled' : sub.status;
-                  await import("./src/api/auditLogs").then(m => m.logAuditEvent({
-                    userEmail: email, action: `subscription_${status}`,
-                    resource: "billing", status: "success", severity: "info",
-                    details: { subscriptionId: sub.id, plan: sub.items?.data?.[0]?.price?.product },
-                  }));
-                }
-              }
-
-              return new Response(JSON.stringify({ received: true }), {
-                headers: { "Content-Type": "application/json" },
-              });
-            } catch (err) {
-              console.error('[serve.ts] Stripe webhook error:', err);
-              return new Response(JSON.stringify({ error: "Internal Server Error" }), {
-                status: 500,
-                headers: { "Content-Type": "application/json" },
-              });
+        if ((pathname === "/api/stripe-webhook" || pathname === "/api/stripe/webhook") && req.method === "POST") {
+          console.log(`[serve.ts] Stripe webhook triggered. Path: ${pathname}`);
+          try {
+            const rawBody = await req.text();
+            const sigHeader = req.headers.get("stripe-signature") || "";
+            const isValid = await verifyStripeSignature(rawBody, sigHeader);
+            if (!isValid) {
+              console.error("[serve.ts] Invalid Stripe webhook signature");
+              return new Response(JSON.stringify({ error: "Invalid signature" }), { status: 401, headers: { "Content-Type": "application/json" } });
             }
-          } else {
-             return new Response("Method Not Allowed", { status: 405 });
+            const body = JSON.parse(rawBody);
+            console.log('[serve.ts] Verified Stripe event:', body.type);
+
+            if (body.type === 'checkout.session.completed') {
+              const session = body.data.object;
+              const email = session.customer_details?.email || session.customer_email;
+              const amount = session.amount_total / 100;
+              const productName = session.line_items?.[0]?.description || "Document AI System";
+
+              let auditType = "Custom Audit";
+              if (amount === 2500) auditType = "Deep-Dive AI Opportunity Audit";
+              else if (amount === 7500) auditType = "Starter Implementation";
+              else if (amount === 15000) auditType = "Growth Implementation";
+              else if (amount === 30000) auditType = "Scale Implementation";
+              else if (amount === 750 || amount === 2000) auditType = "Monthly Operations";
+
+              if (email) {
+                console.log(`[serve.ts] Purchase webhook: ${email} → ${productName} (${amount})`);
+                await createAuditForEmailInternal(email, auditType);
+
+                // Run our robust purchase provisioner flow
+                const { provisionPurchase } = await import("./src/api/purchaseProvisioner");
+                await provisionPurchase({
+                  email,
+                  productName,
+                  amount,
+                });
+              }
+            }
+
+            if (body.type === 'customer.subscription.updated' || body.type === 'customer.subscription.deleted') {
+              const sub = body.data.object;
+              const email = sub.customer_details?.email || sub.customer_email || sub.customer?.email;
+              if (email) {
+                const status = body.type === 'customer.subscription.deleted' ? 'cancelled' : sub.status;
+                await import("./src/api/auditLogs").then(m => m.logAuditEvent({
+                  userEmail: email, action: `subscription_${status}`,
+                  resource: "billing", status: "success", severity: "info",
+                  details: { subscriptionId: sub.id, plan: sub.items?.data?.[0]?.price?.product },
+                }));
+              }
+            }
+
+            return new Response(JSON.stringify({ received: true }), {
+              headers: { "Content-Type": "application/json" },
+            });
+          } catch (err: any) {
+            console.error('[serve.ts] Stripe webhook error:', err);
+            return new Response(JSON.stringify({ error: "Internal Server Error", details: err.message }), {
+              status: 500,
+              headers: { "Content-Type": "application/json" },
+            });
           }
         }
+
 
         // ─── Audit Logs API ─────────────────────────────────────────────────
 
@@ -1179,3 +1186,13 @@ for (let attempt = 1; ; attempt++) {
 }
 
 console.log(`team-site serving on http://${HOST}:${String(PORT)}`);
+
+// Background purchase email monitoring: Poll the inbox wastezero-d4a2cd2e@ctomail.io every 15 seconds
+setInterval(async () => {
+  try {
+    const { pollInboxAndProvision } = await import("./src/api/purchaseMonitor");
+    await pollInboxAndProvision();
+  } catch (err) {
+    console.error("[serve.ts] Background email polling error:", err);
+  }
+}, 15000);
