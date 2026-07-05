@@ -1,0 +1,67 @@
+[1mdiff --git a/src/routes/index.tsx b/src/routes/index.tsx[m
+[1mindex 3dafe03..9a719b2 100644[m
+[1m--- a/src/routes/index.tsx[m
+[1m+++ b/src/routes/index.tsx[m
+[36m@@ -53,39 +53,39 @@[m [mconst ecosystemLogos = [[m
+ const journeySteps = [[m
+   {[m
+     step: "01",[m
+[31m-    name: "Discover",[m
+[31m-    benefit: "Audit",[m
+[31m-    description: "In 30 minutes, we'll identify your top automation opportunities, estimate the time and cost savings, and recommend the best next step. If we don't find a meaningful opportunity, we'll tell you.",[m
+[32m+[m[32m    name: "Audit",[m
+[32m+[m[32m    benefit: "Free Assessment",[m
+[32m+[m[32m    description: "Get a 30-minute AI Workforce Assessment. We'll identify your top automation opportunities and estimate savings. No commitment.",[m
+     price: "FREE",[m
+[31m-    cta: "Book Your Free AI Workflow Assessment",[m
+[31m-    link: "/contact"[m
+[32m+[m[32m    cta: "Start Free Assessment",[m
+[32m+[m[32m    link: "/register"[m
+   },[m
+   {[m
+     step: "02",[m
+[31m-    name: "Design",[m
+[32m+[m[32m    name: "Deep-Dive Audit",[m
+     benefit: "Blueprint",[m
+[31m-    description: "We build a technical roadmap and workflow that fits your business, showing exactly how the agents will work.",[m
+[32m+[m[32m    description: "Comprehensive 1-week audit of your operations. Produces a prioritized Blueprint with ROI projections. Credited toward implementation.",[m
+     price: "$2,500",[m
+[31m-    cta: "Get Your Blueprint",[m
+[32m+[m[32m    cta: "Buy Now →",[m
+     link: "https://buy.stripe.com/14A3cw2EKfRqcF0gEJ3Ru00"[m
+   },[m
+   {[m
+     step: "03",[m
+     name: "Build",[m
+     benefit: "Implementation",[m
+[31m-    description: "Our engineers build and integrate the agents into your existing systems (CRM, ERP, Slack, Email).",[m
+[32m+[m[32m    description: "We deploy AI employees into your operations. Starts with 2 AI employees and 3 workflows. Includes 30 days of support.",[m
+     price: "From $7,500",[m
+[31m-    cta: "View Implementation",[m
+[31m-    link: "/build"[m
+[32m+[m[32m    cta: "Buy Now →",[m
+[32m+[m[32m    link: "https://buy.stripe.com/9B6eVe0wCcFe48ucot3Ru01"[m
+   },[m
+   {[m
+     step: "04",[m
+     name: "Support",[m
+     benefit: "Managed Ops",[m
+[31m-    description: "We keep every automation running, improving, and adapting as your business changes.",[m
+[32m+[m[32m    description: "We keep every AI employee running, improving, and adapting as your business changes. Includes monitoring, bug fixes, and optimization.",[m
+     price: "From $750/mo",[m
+[31m-    cta: "See Support Tiers",[m
+[31m-    link: "/support"[m
+[32m+[m[32m    cta: "Subscribe →",[m
+[32m+[m[32m    link: "https://buy.stripe.com/28E4gAens20AfRcbkp3Ru04"[m
+   }[m
+ ];[m
+ [m
+[36m@@ -347,7 +347,7 @@[m [mfunction Home() {[m
+                     {s.description}[m
+                   </p>[m
+                   <div className="text-lg font-black text-stone-900 mb-6">{s.price}</div>[m
+[31m-                  <a href={s.link} className="inline-block bg-stone-900 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-stone-800 transition-all">[m
+[32m+[m[32m                  <a href={s.link} target="_blank" rel="noopener noreferrer" className="inline-block bg-stone-900 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-stone-800 transition-all">[m
+                     {s.cta}[m
+                   </a>[m
+                 </div>[m
