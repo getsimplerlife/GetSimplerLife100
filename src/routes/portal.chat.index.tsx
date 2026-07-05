@@ -18,45 +18,37 @@ interface ChatSession {
 }
 
 function ChatAssistant() {
-  const [sessions, setSessions] = useState<ChatSession[]>([
-    {
-      id: "session-1",
-      title: "Invoice AI Reconciliation Error",
-      messages: [
-        {
-          sender: "user",
-          time: "10:14 AM",
-          text: "Why did Invoice AI fail on GlobalCorp invoice reconciliation yesterday?"
-        },
-        {
-          sender: "ai",
-          time: "10:15 AM",
-          text: "Let me trace that specific run. On July 03 at 04:12 PM, Invoice AI attempted reconciliation for GlobalCorp Invoice #I-9102.\n\nReconciliation was halted because the Stripe metadata payload lacked the matching purchase order reference 'PO-2026-X'.\n\nI have created a human approval exception card for you on the Dashboard to either manually map the reference or override the mismatch."
-        }
-      ]
-    },
-    {
-      id: "session-2",
-      title: "Workflow Cost Savings Audit",
-      messages: [
-        {
-          sender: "user",
-          time: "09:30 AM",
-          text: "Show me a brief summary of how much we've saved this month."
-        },
-        {
-          sender: "ai",
-          time: "09:31 AM",
-          text: "Across all 5 deployed AI coworkers (Sarah, Charlie, Quentin, Ivy, and Caleb), you saved an estimated **47.2 labor hours** this week, translating to approximately **$2,124 in operational savings**.\n\nThe highest performing agent is **Ivy Invoice (Billing Coordinator)**, who auto-reconciled 420 Stripe receipts with 100% accuracy."
-        }
-      ]
-    }
-  ]);
-
-  const [activeSessionId, setActiveSessionId] = useState<string>("session-1");
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string>("");
   const [inputText, setInputText] = useState("");
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Load real chat sessions from the API on mount
+  useEffect(() => {
+    const loadSessions = async () => {
+      try {
+        const res = await fetch("/api/chat/sessions", {
+          credentials: "include",
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const loadedSessions: ChatSession[] = (data.sessions || []).map((s: any) => ({
+            id: s.id,
+            title: s.title || "AI Chat",
+            messages: s.messages || [],
+          }));
+          setSessions(loadedSessions);
+          if (loadedSessions.length > 0) {
+            setActiveSessionId(loadedSessions[0].id);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load sessions:", err);
+      }
+    };
+    loadSessions();
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -92,17 +84,31 @@ function ChatAssistant() {
       text: text,
     };
 
-    // Append user message to active session
-    const updatedSessions = sessions.map((s) => {
-      if (s.id === activeSessionId) {
-        return {
-          ...s,
-          messages: [...s.messages, userMsg],
-        };
-      }
-      return s;
-    });
-    setSessions(updatedSessions);
+    // Determine the active session ID for this send
+    const currentSessionId = activeSessionId || "";
+
+    // Append user message to active session (or create temp session for new chats)
+    let tempSessionId = currentSessionId;
+    if (!tempSessionId) {
+      tempSessionId = `temp-${Date.now()}`;
+      const newSession: ChatSession = {
+        id: tempSessionId,
+        title: text.slice(0, 60),
+        messages: [userMsg],
+      };
+      setSessions(prev => [newSession, ...prev]);
+      setActiveSessionId(tempSessionId);
+    } else {
+      setSessions((prev) =>
+        prev.map((s) => {
+          if (s.id === currentSessionId) {
+            return { ...s, messages: [...s.messages, userMsg] };
+          }
+          return s;
+        })
+      );
+    }
+
     setInputText("");
     setLoading(true);
 
@@ -111,7 +117,10 @@ function ChatAssistant() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ message: text }),
+        body: JSON.stringify({
+          message: text,
+          sessionId: currentSessionId || undefined,
+        }),
       });
       const data = await res.json();
       
@@ -121,17 +130,31 @@ function ChatAssistant() {
         text: data.reply || "Request processed successfully.",
       };
 
+      // If backend returned a new sessionId, update the local session id
+      const backendSessionId = data.sessionId || currentSessionId || tempSessionId;
+
       setSessions((prevSessions) =>
         prevSessions.map((s) => {
-          if (s.id === activeSessionId) {
+          if (s.id === tempSessionId || s.id === currentSessionId || s.id === backendSessionId) {
+            // Get existing messages minus any duplicate user message
+            const existingMsgs = s.messages.filter(
+              m => !(m.sender === "user" && m.text === text && m.time === timeString)
+            );
             return {
               ...s,
-              messages: [...s.messages, aiMsg],
+              id: backendSessionId,
+              title: s.title || (text.length > 50 ? text.slice(0, 50) + "..." : text),
+              messages: [...existingMsgs, aiMsg],
             };
           }
           return s;
         })
       );
+
+      // Update active session id to the real backend id
+      if (backendSessionId !== activeSessionId) {
+        setActiveSessionId(backendSessionId);
+      }
     } catch (err) {
       console.error(err);
       const errMsg: ChatMessage = {
@@ -139,9 +162,11 @@ function ChatAssistant() {
         time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         text: "Sorry, I encountered an error communicating with the orchestrator engine.",
       };
+
+      const sessionIdToUpdate = currentSessionId || tempSessionId;
       setSessions((prevSessions) =>
         prevSessions.map((s) => {
-          if (s.id === activeSessionId) {
+          if (s.id === sessionIdToUpdate) {
             return { ...s, messages: [...s.messages, errMsg] };
           }
           return s;
@@ -153,14 +178,8 @@ function ChatAssistant() {
   };
 
   const handleNewChat = () => {
-    const newId = `session-${Date.now()}`;
-    const newSession: ChatSession = {
-      id: newId,
-      title: `New Operations Inquiry`,
-      messages: [],
-    };
-    setSessions([newSession, ...sessions]);
-    setActiveSessionId(newId);
+    // Just clear active session — first message will create one via API
+    setActiveSessionId("");
   };
 
   const suggestedPrompts = [
