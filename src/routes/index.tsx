@@ -420,96 +420,271 @@ function Home() {
         </section>
 
         {/* Pricing / Services Section */}
-        <section id="pricing" className="px-6 py-32 bg-white">
+        <section id="pricing" className="px-6 py-32 bg-white dark:bg-stone-900 border-t border-stone-100 dark:border-stone-800">
           <div className="max-w-7xl mx-auto">
             <div className="text-center mb-20">
-              <h2 className="text-4xl lg:text-6xl font-black mb-6 text-stone-900 tracking-tight">Simple, Transparent Pricing.</h2>
-              <p className="text-xl text-stone-500 max-w-2xl mx-auto leading-relaxed">
-                No hidden fees or open-ended hourly billing. You pay for working, deployed agents that handle specific business results.
+              <span className="text-emerald-600 dark:text-emerald-400 font-black tracking-widest text-xs uppercase bg-emerald-50 dark:bg-emerald-900/30 px-3 py-1 rounded-full border border-emerald-100 dark:border-emerald-800/50">Pricing Plans</span>
+              <h2 className="text-4xl lg:text-6xl font-black mb-6 text-stone-900 dark:text-white tracking-tight mt-4">Simple, Transparent Pricing.</h2>
+              <p className="text-xl text-stone-500 dark:text-stone-400 max-w-2xl mx-auto leading-relaxed">
+                No hidden fees or open-ended hourly billing. Select a blueprint, package, or add-on to deploy real AI employees that achieve specific business results.
               </p>
             </div>
-            
-            <div className="grid lg:grid-cols-2 gap-12">
-              {/* Implementations */}
-              <div className="bg-stone-50 rounded-[3rem] p-12 border border-stone-100">
-                <h3 className="text-xl font-bold text-emerald-600 mb-8 uppercase tracking-widest">Implementations</h3>
-                <div className="space-y-4">
-                  <div className="p-6 bg-white rounded-2xl border border-stone-100 flex justify-between items-center">
-                    <div>
-                      <div className="font-black text-stone-900 text-xl">Small Team</div>
-                      <div className="text-sm text-stone-500 font-bold">2 AI Agents • 3 workflows</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-black text-emerald-600 text-2xl">Starting at $7,500</div>
-                      <div className="text-[10px] text-stone-400 font-bold uppercase tracking-tighter">One-Time</div>
-                    </div>
-                  </div>
-                  <div className="p-6 bg-white rounded-2xl border border-stone-100 flex justify-between items-center">
-                    <div>
-                      <div className="font-black text-stone-900 text-xl">Growing Business</div>
-                      <div className="text-sm text-stone-500 font-bold">5 AI Agents • Cross-department</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-black text-emerald-600 text-2xl">$15,000</div>
-                      <div className="text-[10px] text-stone-400 font-bold uppercase tracking-tighter">One-Time</div>
-                    </div>
-                  </div>
-                  <div className="p-6 bg-emerald-600 rounded-2xl flex justify-between items-center text-white shadow-xl shadow-emerald-100">
-                    <div>
-                      <div className="font-black text-xl">Enterprise</div>
-                      <div className="text-sm text-emerald-100 font-bold">Custom workflows • Unlimited scale</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-black text-2xl">$30k+</div>
-                      <div className="text-[10px] text-emerald-200 font-bold uppercase tracking-tighter">Custom</div>
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-8">
-                  <p className="text-sm text-stone-500 font-medium italic">*The $2,500 blueprint fee is credited toward any implementation.</p>
-                </div>
-              </div>
 
-              {/* Monthly Ops */}
-              <div className="bg-stone-50 rounded-[3rem] p-12 border border-stone-100">
-                <h3 className="text-xl font-bold text-emerald-600 mb-8 uppercase tracking-widest">Managed Operations</h3>
-                <div className="space-y-4">
-                  <div className="p-6 bg-white rounded-2xl border border-stone-100 flex justify-between items-center">
-                    <div>
-                      <div className="font-black text-stone-900 text-xl">Essential Ops</div>
-                      <div className="text-sm text-stone-500 font-bold">Monitoring • Bug fixes</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-black text-emerald-600 text-2xl">$750/mo</div>
-                    </div>
+            {/* Step 1: AI Opportunity Audit */}
+            <div className="mb-20">
+              <div className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-stone-800/50 dark:to-stone-900/50 p-8 lg:p-12 rounded-[2.5rem] border border-emerald-100/50 dark:border-stone-800 shadow-xl relative overflow-hidden flex flex-col lg:flex-row items-center justify-between gap-8">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-100/20 dark:bg-emerald-500/5 rounded-full -mr-32 -mt-32 pointer-events-none" />
+                <div className="max-w-2xl space-y-4">
+                  <span className="text-xs font-black text-emerald-800 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950 px-3 py-1 rounded-full border border-emerald-200 dark:border-emerald-900">Step 1: AI Strategy</span>
+                  <h3 className="text-3xl font-black text-stone-900 dark:text-white">Deep-Dive AI Opportunity Audit & Blueprint</h3>
+                  <p className="text-stone-600 dark:text-stone-400 font-medium">
+                    We map your operational waste and design a complete technical blueprint of your digital workforce. Credited 100% toward any implementation package below.
+                  </p>
+                  <ul className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-stone-600 dark:text-stone-400 font-bold">
+                    <li className="flex items-center gap-2"><svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg> Full 3-Department Workflow Mapping</li>
+                    <li className="flex items-center gap-2"><svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg> Technical Implementation Roadmap</li>
+                    <li className="flex items-center gap-2"><svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg> Definite Cost & ROI Calculation</li>
+                    <li className="flex items-center gap-2"><svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg> $2,500 Applied to Build Package</li>
+                  </ul>
+                </div>
+                <div className="w-full lg:w-auto shrink-0 flex flex-col items-center justify-center p-6 bg-white dark:bg-stone-950 rounded-2xl border border-stone-100 dark:border-stone-800/80 shadow-md">
+                  <div className="text-center mb-4">
+                    <div className="text-stone-400 dark:text-stone-500 font-black text-xs uppercase tracking-widest">Blueprint Fee</div>
+                    <div className="text-4xl font-black text-stone-900 dark:text-white">$2,500</div>
+                    <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase mt-1">100% Credited to Build</div>
                   </div>
-                  <div className="p-6 bg-white rounded-2xl border border-stone-100 flex justify-between items-center">
-                    <div>
-                      <div className="font-black text-stone-900 text-xl">Professional Ops</div>
-                      <div className="text-sm text-stone-500 font-bold">New automations • Strategy call</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-black text-emerald-600 text-2xl">$2,000/mo</div>
-                    </div>
-                  </div>
-                  <div className="p-6 bg-white rounded-2xl border border-stone-100 flex justify-between items-center">
-                    <div>
-                      <div className="font-black text-stone-900 text-xl">Enterprise Ops</div>
-                      <div className="text-sm text-stone-500 font-bold">Dedicated engineer • Priority</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-black text-emerald-600 text-2xl">$5,000/mo+</div>
-                    </div>
-                  </div>
+                  <a
+                    href="https://buy.stripe.com/14A3cw2EKfRqcF0gEJ3Ru00"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full text-center bg-stone-950 dark:bg-stone-100 text-white dark:text-stone-950 hover:bg-stone-800 dark:hover:bg-white hover:shadow-[0_0_15px_rgba(59,130,246,0.25)] transition-all duration-300 font-black px-8 py-4 rounded-xl text-sm whitespace-nowrap"
+                  >
+                    Get Your AI Blueprint →
+                  </a>
                 </div>
               </div>
             </div>
 
-            <div className="mt-20 text-center">
-              <Link to="/contact" className="inline-block bg-emerald-600 text-white px-12 py-5 rounded-2xl font-bold text-2xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100">
-                Book Your Free AI Workflow Assessment
-              </Link>
-              <p className="mt-4 text-stone-500 font-medium">Identify your best opportunities before you commit to a build.</p>
+            {/* Step 2: Implementations */}
+            <div className="mb-20">
+              <h3 className="text-2xl font-black text-stone-900 dark:text-white mb-8 border-b border-stone-100 dark:border-stone-800 pb-4 flex items-center gap-2">
+                <span className="w-8 h-8 rounded-lg bg-emerald-500 text-white flex items-center justify-center text-sm font-black">2</span>
+                One-Time AI Employee Implementation Packages
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                {/* Starter */}
+                <div className="bg-stone-50 dark:bg-stone-800/30 p-8 rounded-[2rem] border border-stone-100 dark:border-stone-800 flex flex-col justify-between gap-8 hover:border-emerald-500/30 dark:hover:border-emerald-500/30 transition-all">
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-black text-emerald-800 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950 px-2.5 py-0.5 rounded-full uppercase tracking-wider">Starter</span>
+                      <span className="text-stone-400 dark:text-stone-500 font-bold text-xs">One-Time</span>
+                    </div>
+                    <h4 className="text-xl font-black text-stone-900 dark:text-white">Starter Build</h4>
+                    <p className="text-stone-500 dark:text-stone-400 text-sm">Deploy your first AI coworker to eliminate manual data entry and email triage.</p>
+                    <div className="text-3xl font-black text-stone-900 dark:text-white">$7,500</div>
+                    <ul className="space-y-2.5 text-xs text-stone-600 dark:text-stone-400 font-semibold pt-4 border-t border-stone-100 dark:border-stone-800">
+                      <li className="flex items-center gap-2"><svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg> 2 AI Employees</li>
+                      <li className="flex items-center gap-2"><svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg> 3 Operational Workflows</li>
+                      <li className="flex items-center gap-2"><svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg> Standard SMTP/API Integrations</li>
+                      <li className="flex items-center gap-2"><svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg> 30 Days Operations Support</li>
+                    </ul>
+                  </div>
+                  <a
+                    href="https://buy.stripe.com/9B6eVe0wCcFe48ucot3Ru01"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full text-center border border-stone-200 dark:border-stone-850 hover:border-blue-500 dark:hover:border-blue-500 hover:shadow-[0_0_15px_rgba(59,130,246,0.15)] text-stone-900 dark:text-stone-100 bg-white dark:bg-stone-900 transition-all duration-300 font-bold px-5 py-3.5 rounded-xl text-sm"
+                  >
+                    Buy Starter Build
+                  </a>
+                </div>
+
+                {/* Growth */}
+                <div className="bg-stone-50 dark:bg-stone-800/30 p-8 rounded-[2rem] border-2 border-emerald-500/50 dark:border-emerald-500/30 flex flex-col justify-between gap-8 shadow-lg shadow-emerald-500/5 hover:border-emerald-500 transition-all relative">
+                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-emerald-500 text-white font-black uppercase text-[10px] tracking-widest px-4 py-1 rounded-full shadow-md">Most Popular</div>
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-black text-emerald-800 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950 px-2.5 py-0.5 rounded-full uppercase tracking-wider">Growth</span>
+                      <span className="text-stone-400 dark:text-stone-500 font-bold text-xs">One-Time</span>
+                    </div>
+                    <h4 className="text-xl font-black text-stone-900 dark:text-white">Growth Build</h4>
+                    <p className="text-stone-500 dark:text-stone-400 text-sm">Automate full operational loops across accounting, customer service, and CRM.</p>
+                    <div className="text-3xl font-black text-stone-900 dark:text-white">$15,000</div>
+                    <ul className="space-y-2.5 text-xs text-stone-600 dark:text-stone-400 font-semibold pt-4 border-t border-stone-100 dark:border-stone-800">
+                      <li className="flex items-center gap-2"><svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg> 5 AI Employees</li>
+                      <li className="flex items-center gap-2"><svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg> Cross-Department Workflows</li>
+                      <li className="flex items-center gap-2"><svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg> Multi-system CRM/ERP integrations</li>
+                      <li className="flex items-center gap-2"><svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg> 60 Days Operations Support</li>
+                    </ul>
+                  </div>
+                  <a
+                    href="https://buy.stripe.com/8x25kE5QW7kUdJ44W13Ru02"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full text-center bg-stone-950 dark:bg-stone-100 text-white dark:text-stone-950 hover:bg-stone-800 dark:hover:bg-white hover:shadow-[0_0_15px_rgba(59,130,246,0.25)] transition-all duration-300 font-bold px-5 py-3.5 rounded-xl text-sm"
+                  >
+                    Buy Growth Build
+                  </a>
+                </div>
+
+                {/* Scale */}
+                <div className="bg-stone-50 dark:bg-stone-800/30 p-8 rounded-[2rem] border border-stone-100 dark:border-stone-800 flex flex-col justify-between gap-8 hover:border-emerald-500/30 dark:hover:border-emerald-500/30 transition-all">
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-black text-emerald-800 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950 px-2.5 py-0.5 rounded-full uppercase tracking-wider">Scale</span>
+                      <span className="text-stone-400 dark:text-stone-500 font-bold text-xs">One-Time</span>
+                    </div>
+                    <h4 className="text-xl font-black text-stone-900 dark:text-white">Scale Build</h4>
+                    <p className="text-stone-500 dark:text-stone-400 text-sm">Company-wide operational optimization with deep customized modeling.</p>
+                    <div className="text-3xl font-black text-stone-900 dark:text-white">$30,000</div>
+                    <ul className="space-y-2.5 text-xs text-stone-600 dark:text-stone-400 font-semibold pt-4 border-t border-stone-100 dark:border-stone-800">
+                      <li className="flex items-center gap-2"><svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg> Unlimited AI Employees</li>
+                      <li className="flex items-center gap-2"><svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg> Company-wide custom loops</li>
+                      <li className="flex items-center gap-2"><svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg> Bespoke database automation</li>
+                      <li className="flex items-center gap-2"><svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg> 90 Days Premium Tech Support</li>
+                    </ul>
+                  </div>
+                  <a
+                    href="https://buy.stripe.com/7sY4gAenscFefRccot3Ru03"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full text-center border border-stone-200 dark:border-stone-850 hover:border-blue-500 dark:hover:border-blue-500 hover:shadow-[0_0_15px_rgba(59,130,246,0.15)] text-stone-900 dark:text-stone-100 bg-white dark:bg-stone-900 transition-all duration-300 font-bold px-5 py-3.5 rounded-xl text-sm"
+                  >
+                    Buy Scale Build
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            {/* Step 3: Monthly Operations */}
+            <div className="mb-20">
+              <h3 className="text-2xl font-black text-stone-900 dark:text-white mb-8 border-b border-stone-100 dark:border-stone-800 pb-4 flex items-center gap-2">
+                <span className="w-8 h-8 rounded-lg bg-emerald-500 text-white flex items-center justify-center text-sm font-black">3</span>
+                Continuous Managed Operations Support Plans
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                {/* Essential Ops */}
+                <div className="bg-stone-50 dark:bg-stone-800/30 p-8 rounded-[2rem] border border-stone-100 dark:border-stone-800 flex flex-col justify-between gap-8 hover:border-emerald-500/30 dark:hover:border-emerald-500/30 transition-all">
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-black text-emerald-800 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950 px-2.5 py-0.5 rounded-full uppercase tracking-wider">Essential</span>
+                      <span className="text-stone-400 dark:text-stone-500 font-bold text-xs">Monthly</span>
+                    </div>
+                    <h4 className="text-xl font-black text-stone-900 dark:text-white">Essential Ops</h4>
+                    <p className="text-stone-500 dark:text-stone-400 text-sm">Routine system maintenance, minor prompt adjustments, API updates and health monitoring.</p>
+                    <div className="text-3xl font-black text-stone-900 dark:text-white">$750<span className="text-sm font-medium text-stone-400">/mo</span></div>
+                    <ul className="space-y-2.5 text-xs text-stone-600 dark:text-stone-400 font-semibold pt-4 border-t border-stone-100 dark:border-stone-800">
+                      <li className="flex items-center gap-2"><svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg> 24/7 Runtime Monitoring</li>
+                      <li className="flex items-center gap-2"><svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg> Regular Prompt Optimizations</li>
+                      <li className="flex items-center gap-2"><svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg> Bug Fixes & API Maintenance</li>
+                    </ul>
+                  </div>
+                  <a
+                    href="https://buy.stripe.com/28E4gAens20AfRcbkp3Ru04"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full text-center border border-stone-200 dark:border-stone-850 hover:border-blue-500 dark:hover:border-blue-500 hover:shadow-[0_0_15px_rgba(59,130,246,0.15)] text-stone-900 dark:text-stone-100 bg-white dark:bg-stone-900 transition-all duration-300 font-bold px-5 py-3.5 rounded-xl text-sm"
+                  >
+                    Subscribe to Essential
+                  </a>
+                </div>
+
+                {/* Professional Ops */}
+                <div className="bg-stone-50 dark:bg-stone-800/30 p-8 rounded-[2rem] border border-stone-100 dark:border-stone-800 flex flex-col justify-between gap-8 hover:border-emerald-500/30 dark:hover:border-emerald-500/30 transition-all">
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-black text-emerald-800 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950 px-2.5 py-0.5 rounded-full uppercase tracking-wider">Professional</span>
+                      <span className="text-stone-400 dark:text-stone-500 font-bold text-xs">Monthly</span>
+                    </div>
+                    <h4 className="text-xl font-black text-stone-900 dark:text-white">Professional Ops</h4>
+                    <p className="text-stone-500 dark:text-stone-400 text-sm">Ongoing agent performance optimization, new agent deployment, and monthly strategy calls.</p>
+                    <div className="text-3xl font-black text-stone-900 dark:text-white">$2,000<span className="text-sm font-medium text-stone-400">/mo</span></div>
+                    <ul className="space-y-2.5 text-xs text-stone-600 dark:text-stone-400 font-semibold pt-4 border-t border-stone-100 dark:border-stone-800">
+                      <li className="flex items-center gap-2"><svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg> Deployment of new agent flows</li>
+                      <li className="flex items-center gap-2"><svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg> Monthly AI Strategy Alignment</li>
+                      <li className="flex items-center gap-2"><svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg> Detailed Analytics & Audit Logs</li>
+                    </ul>
+                  </div>
+                  <a
+                    href="https://buy.stripe.com/cNieVe7Z4ax6fRc0FL3Ru05"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full text-center border border-stone-200 dark:border-stone-850 hover:border-blue-500 dark:hover:border-blue-500 hover:shadow-[0_0_15px_rgba(59,130,246,0.15)] text-stone-900 dark:text-stone-100 bg-white dark:bg-stone-900 transition-all duration-300 font-bold px-5 py-3.5 rounded-xl text-sm"
+                  >
+                    Subscribe to Professional
+                  </a>
+                </div>
+
+                {/* Enterprise Ops */}
+                <div className="bg-stone-50 dark:bg-stone-800/30 p-8 rounded-[2rem] border border-stone-100 dark:border-stone-800 flex flex-col justify-between gap-8 hover:border-emerald-500/30 dark:hover:border-emerald-500/30 transition-all">
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-black text-emerald-800 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950 px-2.5 py-0.5 rounded-full uppercase tracking-wider">Enterprise</span>
+                      <span className="text-stone-400 dark:text-stone-500 font-bold text-xs">Monthly</span>
+                    </div>
+                    <h4 className="text-xl font-black text-stone-900 dark:text-white">Enterprise Ops</h4>
+                    <p className="text-stone-500 dark:text-stone-400 text-sm">Full operational monitoring, sub-hour SLA response support, and dedicated operational engineer.</p>
+                    <div className="text-3xl font-black text-stone-900 dark:text-white">$5,000<span className="text-sm font-medium text-stone-400">/mo+</span></div>
+                    <ul className="space-y-2.5 text-xs text-stone-600 dark:text-stone-400 font-semibold pt-4 border-t border-stone-100 dark:border-stone-800">
+                      <li className="flex items-center gap-2"><svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg> Dedicated Systems AI Architect</li>
+                      <li className="flex items-center gap-2"><svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg> Sub-hour Priority SLA Response</li>
+                      <li className="flex items-center gap-2"><svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg> Continuously Tuned Proprietary Models</li>
+                    </ul>
+                  </div>
+                  <a
+                    href="https://buy.stripe.com/fZubJ2a7cax67kG9ch3Ru06"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full text-center border border-stone-200 dark:border-stone-850 hover:border-blue-500 dark:hover:border-blue-500 hover:shadow-[0_0_15px_rgba(59,130,246,0.15)] text-stone-900 dark:text-stone-100 bg-white dark:bg-stone-900 transition-all duration-300 font-bold px-5 py-3.5 rounded-xl text-sm"
+                  >
+                    Subscribe to Enterprise
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            {/* Step 4: AI Coworker Add-On Modules */}
+            <div>
+              <h3 className="text-2xl font-black text-stone-900 dark:text-white mb-8 border-b border-stone-100 dark:border-stone-800 pb-4 flex items-center gap-2">
+                <span className="w-8 h-8 rounded-lg bg-emerald-500 text-white flex items-center justify-center text-sm font-black">4</span>
+                AI Employee Add-On Modules
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[
+                  { name: "Additional AI Agent", desc: "Deploy an extra dedicated agent loop tailored for unique operational tasks.", price: "$1,500", link: "https://buy.stripe.com/8x26oIensbBa0Wi4W13Ru07", icon: "🤖" },
+                  { name: "CRM Integration", desc: "Sync your digital coworkers directly into Salesforce, HubSpot, or Zoho.", price: "$2,000", link: "https://buy.stripe.com/8x2dRaa7cax66gC0FL3Ru08", icon: "🔌" },
+                  { name: "ERP Integration", desc: "Wire advanced inventory and resource data into SAP, NetSuite, or Oracle.", price: "$3,500", link: "https://buy.stripe.com/aFa9AUa7c7kUawSdsx3Ru09", icon: "🏭" },
+                  { name: "Voice AI Receptionist", desc: "Deploy high-fidelity, autonomous voice lines handling inbound call reception.", price: "$2,500", link: "https://buy.stripe.com/dRmeVedjo5cM34qewB3Ru0a", icon: "📞" },
+                  { name: "AI Sales Assistant", desc: "Automatically draft outreach, sync pipelines, and follow up warm leads.", price: "$2,000", link: "https://buy.stripe.com/28EcN61AGax6bAW3RX3Ru0b", icon: "📈" },
+                  { name: "AI Customer Support Agent", desc: "Provide real-time email, ticket, and chat resolutions under 5 minutes.", price: "$1,800", link: "https://buy.stripe.com/fZu3cw3IO20AeN8ewB3Ru0c", icon: "🤝" },
+                  { name: "Custom Dashboard", desc: "Gain real-time executive analytics, ROI calculators, and system health status.", price: "$1,500", link: "https://buy.stripe.com/5kQ7sM3IO20AgVgewB3Ru0d", icon: "📊" },
+                  { name: "Document AI System", desc: "Extract unstructured invoice, fax, or contract data with 100% precision.", price: "$2,500", link: "https://buy.stripe.com/7sY5kEa7cdJi7kG9ch3Ru0e", icon: "📄" },
+                  { name: "Internal Knowledge Assistant", desc: "Empower your workforce with immediate search across full internal company wiki.", price: "$1,500", link: "https://buy.stripe.com/00w28s3IO8oYbAW9ch3Ru0f", icon: "🧠" },
+                  { name: "Employee Training", desc: "Custom training workflows mapping company compliance and handbook details.", price: "$1,200", link: "https://buy.stripe.com/3cI00k0wC0Ww8oKbkp3Ru0g", icon: "🏫" },
+                  { name: "Additional Dept Automation", desc: "Extend automations across other vertical department operational tasks.", price: "$2,500", link: "https://buy.stripe.com/cNi00ka7ceNmdJ49ch3Ru0h", icon: "🏢" }
+                ].map((item) => (
+                  <div key={item.name} className="bg-stone-50 dark:bg-stone-800/20 p-6 rounded-2xl border border-stone-100 dark:border-stone-800/80 flex flex-col justify-between gap-4 hover:border-emerald-500/20 transition-all">
+                    <div>
+                      <div className="flex justify-between items-start gap-2 mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xl">{item.icon}</span>
+                          <h4 className="font-bold text-stone-900 dark:text-white text-sm leading-tight">{item.name}</h4>
+                        </div>
+                        <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 shrink-0">{item.price}</span>
+                      </div>
+                      <p className="text-stone-500 dark:text-stone-400 text-xs leading-relaxed">{item.desc}</p>
+                    </div>
+                    <a
+                      href={item.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full text-center border border-stone-200 dark:border-stone-850 hover:border-blue-500 dark:hover:border-blue-500 hover:shadow-[0_0_12px_rgba(59,130,246,0.15)] text-stone-900 dark:text-stone-100 bg-white dark:bg-stone-900/50 transition-all duration-300 font-bold py-2 rounded-lg text-xs"
+                    >
+                      Purchase Add-On
+                    </a>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </section>
