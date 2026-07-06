@@ -72,32 +72,56 @@ function DocumentManagement() {
         />
       </div>
 
-      <div className="bg-white rounded-3xl border border-stone-200 overflow-hidden">
-        <table className="w-full text-left text-xs">
-          <thead>
-            <tr className="bg-stone-50 text-stone-500 border-b border-stone-150 uppercase tracking-wider">
-              <th className="p-4 font-bold">File Name</th>
-              <th className="p-4 font-bold">Type</th>
-              <th className="p-4 font-bold">Size</th>
-              <th className="p-4 font-bold">Status</th>
-              <th className="p-4 text-right font-bold">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-stone-100 font-semibold text-stone-700">
-            {filteredDocs.map((doc, idx) => (
-              <tr key={idx} className="hover:bg-stone-50/40">
-                <td className="p-4 font-black text-stone-900">{doc.name}</td>
-                <td className="p-4">{doc.type}</td>
-                <td className="p-4">{doc.size}</td>
-                <td className="p-4">{doc.status}</td>
-                <td className="p-4 text-right">
-                  <button onClick={() => handleAction(doc.name, "analyze")} className="text-emerald-600">Re-Analyze</button>
-                </td>
+      {docs.length === 0 ? (
+        <div className="flex flex-col items-center justify-center text-center p-8 py-16 bg-white border border-stone-200 rounded-3xl max-w-xl mx-auto my-8">
+          <div className="text-4xl mb-4">📂</div>
+          <h3 className="text-lg font-extrabold text-stone-950 mb-2">No documents uploaded yet</h3>
+          <p className="text-sm text-stone-500 mb-6 max-w-sm leading-relaxed">
+            Your uploaded documents, OCR logs, and extracted data files will appear here. Upload W2/W9 forms, invoices, or utility bills to start.
+          </p>
+          <button
+            onClick={() => handleAction("new_upload.pdf", "upload")}
+            className="inline-flex items-center justify-center bg-stone-950 hover:bg-stone-900 text-white font-extrabold px-6 py-3 rounded-2xl transition-all font-mono text-xs shadow-lg shadow-black/5 active:scale-95"
+          >
+            📤 Upload First Document
+          </button>
+        </div>
+      ) : filteredDocs.length === 0 ? (
+        <div className="flex flex-col items-center justify-center text-center p-8 py-12 bg-white border border-stone-200 rounded-3xl max-w-xl mx-auto my-8">
+          <div className="text-2xl mb-2">🔍</div>
+          <h4 className="text-sm font-bold text-stone-900 mb-1">No matching documents</h4>
+          <p className="text-xs text-stone-500 max-w-xs">
+            We couldn't find any documents matching "{searchTerm}". Try clearing your search filter.
+          </p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-3xl border border-stone-200 overflow-hidden">
+          <table className="w-full text-left text-xs">
+            <thead>
+              <tr className="bg-stone-50 text-stone-500 border-b border-stone-150 uppercase tracking-wider">
+                <th className="p-4 font-bold">File Name</th>
+                <th className="p-4 font-bold">Type</th>
+                <th className="p-4 font-bold">Size</th>
+                <th className="p-4 font-bold">Status</th>
+                <th className="p-4 text-right font-bold">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody className="divide-y divide-stone-100 font-semibold text-stone-700">
+              {filteredDocs.map((doc, idx) => (
+                <tr key={idx} className="hover:bg-stone-50/40">
+                  <td className="p-4 font-black text-stone-900">{doc.name}</td>
+                  <td className="p-4">{doc.type}</td>
+                  <td className="p-4">{doc.size}</td>
+                  <td className="p-4">{doc.status}</td>
+                  <td className="p-4 text-right">
+                    <button onClick={() => handleAction(doc.name, "analyze")} className="text-emerald-600">Re-Analyze</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {feedback && (
         <div className="fixed bottom-6 right-6 bg-stone-900 border border-emerald-500 text-white px-5 py-3 rounded-2xl shadow-xl z-50 flex items-center gap-3 animate-slideUp">

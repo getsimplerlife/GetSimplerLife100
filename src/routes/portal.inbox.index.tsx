@@ -30,9 +30,8 @@ function UnifiedInbox() {
   const [replyText, setReplyText] = useState("");
   const [isSendingReply, setIsSendingReply] = useState(false);
 
-  // Initial Seeding / Loading
+  // Initial Loading
   useEffect(() => {
-    // Check if the backend database has any unified inbox data or seed standard items
     (async () => {
       try {
         const res = await fetch("/api/data/inbox", { credentials: "include" });
@@ -47,108 +46,11 @@ function UnifiedInbox() {
             setItems(d.data);
           }
         } else {
-          // Seed standard default items to the database
-          const defaultItems: InboxItem[] = [
-            {
-              id: "item-1",
-              source: "email",
-              title: "Discrepancy: Invoice #INV-2026-901",
-              sender: "finance@globalcorp.com",
-              time: "10 mins ago",
-              content: "Hi team, we received your invoice for the quarterly audit, but the billing entity listed is 'Simpler Life Corporate' instead of our local entity 'Simpler Life Operations'. Can you please update and re-send?",
-              aiCategory: "Exception Needed",
-              aiReasoning: "Billing entity name mismatch found during automated matching routine. The vendor is requesting an override on our billing registry.",
-              confidenceScore: 98,
-              status: "Unresolved",
-              details: {
-                "Sent To": "billing@simplerlife100.com",
-                "Vendor Code": "GLOBAL_CORP_99",
-                "Stripe Transaction": "ch_3Mv89xLkd"
-              }
-            },
-            {
-              id: "item-2",
-              source: "document",
-              title: "W9_Tax_Form_Jenkins.pdf",
-              sender: "Sarah Jenkins (Portal Upload)",
-              time: "1 hour ago",
-              content: "[Scanned PDF File Upload] Tax ID: XX-XXX4912, Entity: Sarah Jenkins Consulting LLC. Document has been verified by OCR extraction.",
-              aiCategory: "Auto-Processed",
-              aiReasoning: "RAG & OCR analysis confirmed Tax ID format matches regulatory schema. Verified without operational exception.",
-              confidenceScore: 100,
-              status: "Resolved",
-              details: {
-                "Parsed Fields": "TaxID: 12-3454912, Signature: Verified",
-                "Store Status": "Turso Cloud DB",
-                "Integrations": "QuickBooks Sync Completed"
-              }
-            },
-            {
-              id: "item-3",
-              source: "sms",
-              title: "SMS: Shipment Delayed for PO-391",
-              sender: "+1 (555) 902-1823",
-              time: "2 hours ago",
-              content: "Alert: Carrier dispatch reports PO-391 container is delayed at port entry. Delayed arrival expected July 08 instead of July 05.",
-              aiCategory: "Action Required",
-              aiReasoning: "Logistical schedule delta exceeds 48-hour tolerance limit. Automatic notification sent to Charlie CRM to update client portal.",
-              confidenceScore: 94,
-              status: "Unresolved",
-              details: {
-                "Carrier Link": "Apex Logistix Terminal 2",
-                "Affected Clients": "Simpler Life Retail Group",
-                "Tracking ID": "APX_90218_CN"
-              }
-            },
-            {
-              id: "item-4",
-              source: "chat",
-              title: "Live Chat: Plan Upgrade Quote",
-              sender: "Guest User #4029 (Live Website)",
-              time: "4 hours ago",
-              content: "Hey, we are currently evaluating your Starter Implementation plan but need 6 custom AI employees instead of 2. Can we get a customized enterprise quote?",
-              aiCategory: "Information",
-              aiReasoning: "Out-of-scope package query. Pre-compiled enterprise blueprint options routed to Quentin Quote for manual negotiation.",
-              confidenceScore: 89,
-              status: "Resolved",
-              details: {
-                "Client IP": "108.162.193.5",
-                "Estimated Deal Value": "$15,000.00 / yr",
-                "Assigned Representative": "Quentin Quote (Logistics Agent)"
-              }
-            },
-            {
-              id: "item-5",
-              source: "task",
-              title: "Task Trace: Failed Bank Wire",
-              sender: "Caleb Collections (Accounts Rep)",
-              time: "1 day ago",
-              content: "Bank wire rejection notice received for $2,500.00 audit retainer from client 'Omega Services'. Rejection Code: NSF_501.",
-              aiCategory: "Exception Needed",
-              aiReasoning: "Non-sufficient funds (NSF) triggers retry cooldown. Manual collection workflow initiated.",
-              confidenceScore: 97,
-              status: "Unresolved",
-              details: {
-                "Transaction Reference": "TX_901283_WIRE",
-                "Last Active Attempt": "July 03, 11:20 AM",
-                "Client Account": "Omega Holding Corp"
-              }
-            }
-          ];
-
-          // Save default seed values to database
-          await fetch("/api/data/inbox", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({ data: defaultItems }),
-          });
-
-          setItems(defaultItems);
+          setItems([]);
         }
         setLoading(false);
       } catch (err) {
-        console.error("Unified Inbox loading / seeding error:", err);
+        console.error("Unified Inbox loading error:", err);
         setLoading(false);
       }
     })();

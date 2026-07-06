@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 
 export const Route = createFileRoute("/portal/analytics/")({
@@ -45,76 +45,12 @@ function PerformanceAnalytics() {
         if (d.data && d.data.length > 0) {
           setMetrics(d.data);
         } else {
-          // Seed standard high fidelity executive data
-          const seedMetrics: AnalyticsMetric[] = [
-            {
-              id: "m-1",
-              name: "Return on Investment (ROI)",
-              value: "3.4x",
-              subtext: "Against custom starter implementation costs",
-              trend: "+0.4x this month",
-              trendType: "up",
-              category: "executive"
-            },
-            {
-              id: "m-2",
-              name: "Labor Hours Saved",
-              value: "472.5 Hrs",
-              subtext: "Across all 5 active AI Employee runtimes",
-              trend: "MoM +48.2%",
-              trendType: "up",
-              category: "executive"
-            },
-            {
-              id: "m-3",
-              name: "Yearly Predicted Savings",
-              value: "$24,800.00",
-              subtext: "Based on current task-volume trajectories",
-              trend: "+12.4% Forecast delta",
-              trendType: "up",
-              category: "executive"
-            },
-            {
-              id: "m-4",
-              name: "Top Performing Employee",
-              value: "Ivy Invoice",
-              subtext: "Auto-reconciled 420 items with 99.8% accuracy",
-              trend: "99.8% Confidence score",
-              trendType: "neutral",
-              category: "coworker"
-            },
-            {
-              id: "m-5",
-              name: "Slowest Process Node",
-              value: "W9 OCR Layout Ingestion",
-              subtext: "Takes ~4.2s due to handwriting pre-processing",
-              trend: "-0.8s optimization progress",
-              trendType: "up",
-              category: "bottleneck"
-            },
-            {
-              id: "m-6",
-              name: "Biggest Operational Bottleneck",
-              value: "Stripe PO Mismatches",
-              subtext: "12% of runs trigger manual human review cards",
-              trend: "+2% escalation rate",
-              trendType: "down",
-              category: "bottleneck"
-            }
-          ];
-
-          await fetch("/api/data/analytics", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({ data: seedMetrics }),
-          });
-
-          setMetrics(seedMetrics);
+          setMetrics([]);
         }
         setLoading(false);
       } catch (err) {
         console.error("Analytics fetch error:", err);
+        setMetrics([]);
         setLoading(false);
       }
     })();
@@ -166,8 +102,24 @@ function PerformanceAnalytics() {
         </button>
       </div>
 
-      {/* ─── Tabs Filter bar ─── */}
-      <div className="flex gap-2">
+      {metrics.length === 0 ? (
+        <div className="flex flex-col items-center justify-center text-center p-8 py-16 bg-stone-950 border border-stone-900 rounded-2xl max-w-xl mx-auto my-8">
+          <div className="text-4xl mb-4">📈</div>
+          <h3 className="text-lg font-bold text-white mb-2">No analytics telemetry yet</h3>
+          <p className="text-sm text-stone-400 mb-6 max-w-sm leading-relaxed">
+            Labor audits, predicted savings, ROI charts, and model execution telemetry will populate automatically once your first AI employee is deployed.
+          </p>
+          <Link
+            to="/portal/billing"
+            className="inline-flex items-center justify-center bg-white hover:bg-stone-100 text-black font-extrabold px-6 py-3 rounded-xl transition-all font-mono text-xs shadow-lg shadow-white/5 active:scale-95"
+          >
+            Deploy an AI Employee
+          </Link>
+        </div>
+      ) : (
+        <>
+          {/* ─── Tabs Filter bar ─── */}
+          <div className="flex gap-2">
         {(["all", "executive", "coworker", "bottleneck"] as const).map((tab) => (
           <button
             key={tab}
@@ -249,6 +201,8 @@ function PerformanceAnalytics() {
           ))}
         </div>
       </div>
+    </>
+  )}
 
       {/* ─── Feedback Toast Confirmation ─── */}
       {feedback && (

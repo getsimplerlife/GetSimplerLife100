@@ -280,7 +280,7 @@ function ChatAssistant() {
                       : "bg-stone-900/50 border-stone-800 text-white"
                   }`}>
                     <div className="flex justify-between items-center text-[9px] font-mono text-stone-500">
-                      <span className="font-bold uppercase tracking-wider">{msg.sender === "ai" ? "Orchestrator AI" : "You (John)"}</span>
+                      <span className="font-bold uppercase tracking-wider">{msg.sender === "ai" ? "Orchestrator AI" : "You"}</span>
                       <span>{msg.time}</span>
                     </div>
                     <div className="text-xs font-medium whitespace-pre-line leading-relaxed">

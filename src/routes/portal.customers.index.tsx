@@ -112,32 +112,56 @@ function CustomerManagement() {
         </select>
       </div>
 
-      <div className="bg-white rounded-3xl border border-stone-200 shadow-sm overflow-hidden">
-        <table className="w-full text-left text-xs">
-          <thead>
-            <tr className="bg-stone-50 text-stone-500 border-b border-stone-150 uppercase tracking-wider">
-              <th className="p-4 font-bold">Contact Name</th>
-              <th className="p-4 font-bold">Type</th>
-              <th className="p-4 font-bold">Email</th>
-              <th className="p-4 font-bold">AI Insights</th>
-              <th className="p-4 font-bold text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-stone-100 font-semibold text-stone-700">
-            {filteredContacts.map((c, i) => (
-              <tr key={i} className="hover:bg-stone-50/40">
-                <td className="p-4 font-black text-stone-900">{c.name}</td>
-                <td className="p-4">{c.type}</td>
-                <td className="p-4">{c.email}</td>
-                <td className="p-4 italic text-stone-500">"{c.aiInsights}"</td>
-                <td className="p-4 text-right">
-                  <button onClick={() => handleAction(c.name, "edit")} className="text-emerald-600 hover:underline">Edit</button>
-                </td>
+      {contacts.length === 0 ? (
+        <div className="flex flex-col items-center justify-center text-center p-8 py-16 bg-white border border-stone-200 rounded-3xl max-w-xl mx-auto my-8">
+          <div className="text-4xl mb-4">👥</div>
+          <h3 className="text-lg font-extrabold text-stone-950 mb-2">No CRM records yet</h3>
+          <p className="text-sm text-stone-500 mb-6 max-w-sm leading-relaxed">
+            Your clients, vendors, and partners directory with automated relationship insights will populate here automatically.
+          </p>
+          <button
+            onClick={() => handleAction("New Contact", "add_contact")}
+            className="inline-flex items-center justify-center bg-stone-950 hover:bg-stone-900 text-white font-extrabold px-6 py-3 rounded-2xl transition-all font-mono text-xs shadow-lg shadow-black/5 active:scale-95"
+          >
+            👤 Add Your First Contact
+          </button>
+        </div>
+      ) : filteredContacts.length === 0 ? (
+        <div className="flex flex-col items-center justify-center text-center p-8 py-12 bg-white border border-stone-200 rounded-3xl max-w-xl mx-auto my-8">
+          <div className="text-2xl mb-2">🔍</div>
+          <h4 className="text-sm font-bold text-stone-900 mb-1">No matching contacts</h4>
+          <p className="text-xs text-stone-500 max-w-xs">
+            We couldn't find any CRM records matching your search or filters. Try adjusting them.
+          </p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-3xl border border-stone-200 shadow-sm overflow-hidden">
+          <table className="w-full text-left text-xs">
+            <thead>
+              <tr className="bg-stone-50 text-stone-500 border-b border-stone-150 uppercase tracking-wider">
+                <th className="p-4 font-bold">Contact Name</th>
+                <th className="p-4 font-bold">Type</th>
+                <th className="p-4 font-bold">Email</th>
+                <th className="p-4 font-bold">AI Insights</th>
+                <th className="p-4 font-bold text-right">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody className="divide-y divide-stone-100 font-semibold text-stone-700">
+              {filteredContacts.map((c, i) => (
+                <tr key={i} className="hover:bg-stone-50/40">
+                  <td className="p-4 font-black text-stone-900">{c.name}</td>
+                  <td className="p-4">{c.type}</td>
+                  <td className="p-4">{c.email}</td>
+                  <td className="p-4 italic text-stone-500">"{c.aiInsights}"</td>
+                  <td className="p-4 text-right">
+                    <button onClick={() => handleAction(c.name, "edit")} className="text-emerald-600 hover:underline">Edit</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {feedback && (
         <div className="fixed bottom-6 right-6 bg-stone-900 border border-emerald-500 text-white px-5 py-3 rounded-2xl shadow-xl z-50 flex items-center gap-3 animate-slideUp">

@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 
 export const Route = createFileRoute("/portal/marketplace/")({
@@ -41,88 +41,12 @@ function MarketplaceHub() {
             setItems(d.data);
           }
         } else {
-          // Seed standard default app store items
-          const defaultApps: MarketplaceItem[] = [
-            {
-              id: "app-1",
-              name: "Healthcare Intake AI",
-              description: "Automates patient registrations, insurance eligibility verification, and OCR intake form ingestion. Directly connects with standard EHR systems.",
-              category: "Healthcare",
-              price: "$1,500/mo",
-              installed: false,
-              rating: 4.9,
-              runsMonth: "14.2k",
-              icon: "🏥"
-            },
-            {
-              id: "app-2",
-              name: "Invoice & Ledger AI",
-              description: "Orchestrates multi-currency receipt ingestion, calculates financial discrepancies, maps ledger line-items, and auto-notifies Stripe webhooks.",
-              category: "Finance",
-              price: "$950/mo",
-              installed: true,
-              rating: 4.8,
-              runsMonth: "42.8k",
-              icon: "💸"
-            },
-            {
-              id: "app-3",
-              name: "Sales Outreach Coordinator AI",
-              description: "Autonomous lead generation, email outbound scheduling, pre-qualification mapping, and real-time HubSpot deal creation and updating.",
-              category: "Sales",
-              price: "$1,200/mo",
-              installed: false,
-              rating: 4.7,
-              runsMonth: "8.9k",
-              icon: "🚀"
-            },
-            {
-              id: "app-4",
-              name: "Automated HR Intake & Compliance AI",
-              description: "Validates onboarding document logs, processes background checks, cross-references W9 tax templates, and schedules general corporate compliance runs.",
-              category: "HR",
-              price: "$850/mo",
-              installed: false,
-              rating: 4.6,
-              runsMonth: "5.1k",
-              icon: "👤"
-            },
-            {
-              id: "app-5",
-              name: "Dispatch Logistics Optimization AI",
-              description: "Compares port congestion indexes, optimizes delivery schedules, dispatches container ETA deltas directly to Slack, and triggers CRM notification alerts.",
-              category: "Logistics",
-              price: "$1,800/mo",
-              installed: false,
-              rating: 4.9,
-              runsMonth: "25.4k",
-              icon: "📦"
-            },
-            {
-              id: "app-6",
-              name: "Operations Audit Logger AI",
-              description: "Aggregates background logs, calculates labor savings indicators, generates executive-facing analytics summaries, and maps operational anomalies.",
-              category: "Operations",
-              price: "$750/mo",
-              installed: true,
-              rating: 4.8,
-              runsMonth: "19.3k",
-              icon: "⚙️"
-            }
-          ];
-
-          await fetch("/api/data/marketplace", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({ data: defaultApps }),
-          });
-
-          setItems(defaultApps);
+          setItems([]);
         }
         setLoading(false);
       } catch (err) {
         console.error("Marketplace fetch error:", err);
+        setItems([]);
         setLoading(false);
       }
     })();
@@ -200,7 +124,23 @@ function MarketplaceHub() {
         </p>
       </div>
 
-      {/* ─── App Store Search & Controls ─── */}
+      {items.length === 0 ? (
+        <div className="flex flex-col items-center justify-center text-center p-8 py-16 bg-stone-950 border border-stone-900 rounded-2xl max-w-xl mx-auto my-8">
+          <div className="text-4xl mb-4">🛍️</div>
+          <h3 className="text-lg font-bold text-white mb-2">Marketplace currently offline</h3>
+          <p className="text-sm text-stone-400 mb-6 max-w-sm leading-relaxed">
+            All custom pre-trained AI employee bundles will appear here once ready. In the meantime, you can explore scaling options on the billing page.
+          </p>
+          <Link
+            to="/portal/billing"
+            className="inline-flex items-center justify-center bg-white hover:bg-stone-100 text-black font-extrabold px-6 py-3 rounded-xl transition-all font-mono text-xs shadow-lg shadow-white/5 active:scale-95"
+          >
+            Review Upgrade Plans
+          </Link>
+        </div>
+      ) : (
+        <>
+          {/* ─── App Store Search & Controls ─── */}
       <div className="space-y-4">
         <div className="bg-stone-950 p-3.5 border border-stone-900 rounded-xl flex items-center">
           <span className="text-stone-600 text-sm mr-3 font-mono">🔍</span>
@@ -293,6 +233,8 @@ function MarketplaceHub() {
           ))
         )}
       </div>
+    </>
+  )}
 
       {/* ─── Feedback Toast Confirmation ─── */}
       {feedback && (

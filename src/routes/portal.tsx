@@ -22,7 +22,7 @@ function PortalLayout() {
 
   const bellRef = useRef<HTMLDivElement>(null);
 
-  // Load and seed notifications
+  // Load notifications
   const loadNotifications = async () => {
     try {
       const res = await fetch("/api/data/system_notifications", { credentials: "include" });
@@ -35,59 +35,11 @@ function PortalLayout() {
           );
           setNotifications(sorted);
         } else {
-          // Seed initial notifications
-          const defaultNotifications: SystemNotification[] = [
-            {
-              id: "n-1",
-              type: "approval",
-              title: "Invoice AI needs your approval",
-              message: "Invoice #1094 from Acme Corp requires payment approval.",
-              link: "/portal/inbox",
-              read: false,
-              createdAt: new Date(Date.now() - 5 * 60 * 1000).toISOString()
-            },
-            {
-              id: "n-2",
-              type: "complete",
-              title: "SOP Document Processed",
-              message: "Corporate Compliance Guide SOP has been digested and indexed.",
-              link: "/portal/knowledge-base",
-              read: false,
-              createdAt: new Date(Date.now() - 25 * 60 * 1000).toISOString()
-            },
-            {
-              id: "n-3",
-              type: "error",
-              title: "HubSpot API Authentication Alert",
-              message: "Re-authorization required for CRM integration synchronization.",
-              link: "/portal/integrations",
-              read: true,
-              createdAt: new Date(Date.now() - 3 * 3650 * 1000).toISOString()
-            },
-            {
-              id: "n-4",
-              type: "info",
-              title: "Customer Lead Ingested",
-              message: "New inbound demo request received from Enterprise Retail Partner.",
-              link: "/portal/customers",
-              read: true,
-              createdAt: new Date(Date.now() - 5 * 3650 * 1000).toISOString()
-            }
-          ];
-          setNotifications(defaultNotifications);
-          // Post them to the backend API to store them
-          for (const item of defaultNotifications) {
-            await fetch("/api/data/system_notifications", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              credentials: "include",
-              body: JSON.stringify(item),
-            });
-          }
+          setNotifications([]);
         }
       }
     } catch (err) {
-      console.error("Failed to load/seed system notifications:", err);
+      console.error("Failed to load system notifications:", err);
     }
   };
 

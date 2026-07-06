@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 
 export const Route = createFileRoute("/portal/knowledge-base/")({
@@ -38,76 +38,12 @@ function KnowledgeBase() {
             setArticles(d.data);
           }
         } else {
-          // Seed high fidelity premium resources
-          const seedItems: KnowledgeItem[] = [
-            {
-              id: "kb-1",
-              title: "Standard Operating Procedure: Financial Reconciliation",
-              category: "SOP",
-              content: "This document outlines the standard operation for auto-reconciling Stripe collections. All AI operators must query transaction endpoints on a 5-minute cooldown. If mismatches occur, route directly to Caleb Collections for human authorization overlays. Do not push ledger entries to QuickBooks unless confidence coefficients are >= 98%.",
-              lastUpdated: "June 28, 2026",
-              status: "Active",
-              author: "Sarah Jenkins (Ops Manager)"
-            },
-            {
-              id: "kb-2",
-              title: "Corporate Security Compliance Policy v3.2",
-              category: "Policy",
-              content: "Data security requirements for vertical LLM execution. All customer documents containing Personally Identifiable Information (PII), such as Tax IDs or SSNs, must undergo local client-side hashing or horizontal OCR redact preprocessing. Cognitive trace logs stored in Turso DB must never record unencrypted password permutations.",
-              lastUpdated: "July 01, 2026",
-              status: "Active",
-              author: "Compliance Officer"
-            },
-            {
-              id: "kb-3",
-              title: "AI Employee Onboarding & RAG Training Guide",
-              category: "Training",
-              content: "This training blueprint details how to inject proprietary domain matrices into an AI coworker's cognitive RAG state. Upload PDF guidelines, spreadsheets, and pricing frameworks directly to the /portal/documents directory. Once indexed, instruct the orchestrator to sync vector embeddings via the System Settings interface.",
-              lastUpdated: "May 15, 2026",
-              status: "Active",
-              author: "Senior AI Engineer"
-            },
-            {
-              id: "kb-4",
-              title: "FAQ: Handling Rate Limit Exceptions on HubSpot API",
-              category: "FAQ",
-              content: "Q: What happens when Charlie CRM encounters HubSpot rate limiting?\nA: The system automatically invokes an exponential backoff cooling algorithm. Up to 3 attempts will be triggered over a 15-minute window. If HubSpot remains unresponsive, the deal card shifts to Needs Attention on the portal approvals page.",
-              lastUpdated: "June 12, 2026",
-              status: "Active",
-              author: "Charlie CRM (Sales Operator)"
-            },
-            {
-              id: "kb-5",
-              title: "System Document: API Key Scoping Rules",
-              category: "Document",
-              content: "Reference matrix for assigning API scopes to automated workflow keys. Write permission keys must reside strictly on secure background endpoints (serve.ts). Portal frontend components are scoped to read-only actions to safeguard Stripe and QuickBooks webhooks from cross-origin interference.",
-              lastUpdated: "July 03, 2026",
-              status: "Active",
-              author: "Systems Integ Eng"
-            },
-            {
-              id: "kb-6",
-              title: "Cognitive Prompt Blueprint: Dispatch Logistics Optimization",
-              category: "Prompt Library",
-              content: "System prompt matrix for Quentin Quote:\n'You are an autonomous logistics dispatch agent. Evaluate shipment routes by comparing terminal congestion scores, fuel surcharges, and historical ETA standard deviations. Draft optimal dispatch routes matching these constraints...'",
-              lastUpdated: "July 02, 2026",
-              status: "Active",
-              author: "Quentin Quote (Logistics Agent)"
-            }
-          ];
-
-          await fetch("/api/data/knowledge-base", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({ data: seedItems }),
-          });
-
-          setArticles(seedItems);
+          setArticles([]);
         }
         setLoading(false);
       } catch (err) {
         console.error("Knowledge base load error:", err);
+        setArticles([]);
         setLoading(false);
       }
     })();
@@ -154,8 +90,24 @@ function KnowledgeBase() {
         </p>
       </div>
 
-      {/* ─── Search & Category Pill Controls ─── */}
-      <div className="space-y-4">
+      {articles.length === 0 ? (
+        <div className="flex flex-col items-center justify-center text-center p-8 py-16 bg-stone-950 border border-stone-900 rounded-2xl max-w-xl mx-auto my-8">
+          <div className="text-4xl mb-4">🧠</div>
+          <h3 className="text-lg font-bold text-white mb-2">No knowledge base articles yet</h3>
+          <p className="text-sm text-stone-400 mb-6 max-w-sm leading-relaxed">
+            Proprietary SOPs, prompt blueprints, policy logs, and training guidelines will appear here once you upload reference materials.
+          </p>
+          <Link
+            to="/portal/documents"
+            className="inline-flex items-center justify-center bg-white hover:bg-stone-100 text-black font-extrabold px-6 py-3 rounded-xl transition-all font-mono text-xs shadow-lg shadow-white/5 active:scale-95"
+          >
+            Upload Training Documents
+          </Link>
+        </div>
+      ) : (
+        <>
+          {/* ─── Search & Category Pill Controls ─── */}
+          <div className="space-y-4">
         {/* Search Input */}
         <div className="bg-stone-950 p-3.5 border border-stone-900 rounded-xl flex items-center">
           <span className="text-stone-600 text-sm mr-3 font-mono">🔍</span>
@@ -239,6 +191,8 @@ function KnowledgeBase() {
           ))
         )}
       </div>
+    </>
+  )}
 
       {/* ─── Notion-Style Document Viewer (Drawer Overlay) ─── */}
       {selectedItem && (
