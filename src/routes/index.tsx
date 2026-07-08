@@ -58,7 +58,7 @@ const journeySteps = [
     description: "In 30 minutes, we'll identify your top automation opportunities, estimate the time and cost savings, and recommend the best next step. If we don't find a meaningful opportunity, we'll tell you.",
     price: "FREE",
     cta: "Book Your Free AI Workflow Assessment",
-    link: "/contact"
+    link: "/audit-upload"
   },
   {
     step: "02",
@@ -111,7 +111,7 @@ function Home() {
             ) : (
               <>
                 <Link to="/login" className="text-sm font-bold text-emerald-600 hover:text-emerald-700">Login</Link>
-                <Link to="/contact" className="bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-emerald-700 transition-all shadow-md shadow-emerald-100">Book Free AI Workflow Assessment</Link>
+                <Link to="/audit-upload" className="bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-emerald-700 transition-all shadow-md shadow-emerald-100">Book Free AI Workflow Assessment</Link>
               </>
             )}
           </nav>
@@ -132,7 +132,7 @@ function Home() {
               We build AI employees that take repetitive operations work off your team's plate.
             </p>
             <div className="flex flex-col sm:flex-row gap-6 justify-center">
-              <Link to="/contact" className="bg-emerald-600 text-white px-10 py-5 rounded-2xl font-bold text-xl hover:bg-emerald-700 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-xl shadow-emerald-200">
+              <Link to="/audit-upload" className="bg-emerald-600 text-white px-10 py-5 rounded-2xl font-bold text-xl hover:bg-emerald-700 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-xl shadow-emerald-200">
                 Book Your Free AI Workflow Assessment
               </Link>
               <a href="#examples" className="bg-white text-stone-900 border-2 border-stone-100 px-10 py-5 rounded-2xl font-bold text-xl hover:bg-stone-50 transition-all hover:border-stone-200">

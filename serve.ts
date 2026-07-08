@@ -616,6 +616,204 @@ for (let attempt = 1; ; attempt++) {
           });
         }
 
+        // POST /api/audit-upload — upload pre-audit files and prospective customer details
+        if (pathname === "/api/audit-upload" && req.method === "POST") {
+          try {
+            const formData = await req.formData();
+            const name = formData.get("name")?.toString() || "";
+            const email = formData.get("email")?.toString() || "";
+            const company = formData.get("company")?.toString() || "";
+            const description = formData.get("description")?.toString() || "";
+
+            if (!name || !email || !company) {
+              return new Response(JSON.stringify({ error: "Name, email, and company are required" }), {
+                status: 400, headers: { "Content-Type": "application/json" },
+              });
+            }
+
+            // Get all files from the formData: check for "files" or "files[]" fields, or any File field
+            const files: any[] = [];
+            const formFiles = formData.getAll("files");
+            for (const val of formFiles) {
+              if (typeof val === "object" && val !== null && "size" in val && "name" in val) {
+                files.push(val);
+              }
+            }
+            if (files.length === 0) {
+              const arrayFiles = formData.getAll("files[]");
+              for (const val of arrayFiles) {
+                if (typeof val === "object" && val !== null && "size" in val && "name" in val) {
+                  files.push(val);
+                }
+              }
+            }
+            if (files.length === 0) {
+              for (const [, value] of formData.entries()) {
+                if (typeof value === "object" && value !== null && "size" in value && "name" in value) {
+                  files.push(value);
+                }
+              }
+            }
+
+            const path = await import("node:path");
+            const fs = await import("node:fs/promises");
+            
+            const timestamp = Date.now();
+            const sanitizedName = name.replace(/[^a-zA-Z0-9_-]/g, "_");
+            const uploadSubdir = `/home/team/shared/audit-uploads/${timestamp}_${sanitizedName}`;
+            await fs.mkdir(uploadSubdir, { recursive: true });
+
+            const savedFiles = [];
+            for (const file of files) {
+              if (file.size === 0 && file.name === "") continue; // skip empty file placeholders
+              
+              // Size limit: 20MB per file
+              if (file.size > 20 * 1024 * 1024) {
+                return new Response(JSON.stringify({ error: `File ${file.name} exceeds the 20MB size limit` }), {
+                  status: 400, headers: { "Content-Type": "application/json" },
+                });
+              }
+
+              const savedPath = path.join(uploadSubdir, file.name);
+              
+              // Save file to disk
+              await Bun.write(savedPath, file);
+              savedFiles.push({
+                originalName: file.name,
+                savedPath,
+                size: file.size,
+                type: file.type,
+              });
+            }
+
+            // Create lead entry
+            const leadEntry = {
+              timestamp: new Date().toISOString(),
+              source: "pre-audit-upload",
+              name,
+              email,
+              company,
+              description,
+              files: savedFiles,
+            };
+
+            // Save lead details to leads.json (keep this to be perfectly safe & backward-compatible!)
+            const leadData = JSON.stringify(leadEntry, null, 2);
+            await fs.appendFile("/home/team/shared/leads.json", leadData + ",\n").catch(() => {});
+
+            // Auto-provision user/pending audit
+            let auditId = null;
+            let finalUserId = "system-provisioned";
+            try {
+              const res = await createAuditForEmailInternal(email, "Pre-Audit File Submission");
+              auditId = res.auditId;
+              
+              // Query auto-provisioned user ID to link portal_data properly
+              const user = await db.query.users.findFirst({ where: eq(users.email, email) });
+              if (user) {
+                finalUserId = user.id;
+              }
+            } catch (auditErr) {
+              console.error("[serve.ts] Failed to auto-provision audit during pre-audit upload:", auditErr);
+            }
+
+            // Store the submission metadata in the database (section: audit_submissions)
+            const submissionMetadata = {
+              name,
+              email,
+              company,
+              description,
+              file_paths: savedFiles.map(f => f.savedPath),
+              files: savedFiles,
+              timestamp: new Date().toISOString(),
+              auditId,
+            };
+            const now = Date.now();
+            const portalDataId = crypto.randomUUID();
+            await db.run(sql.raw(`INSERT INTO portal_data (id, user_id, section, data, created_at, updated_at) VALUES ('${portalDataId}', '${finalUserId}', 'audit_submissions', '${JSON.stringify(submissionMetadata).replace(/'/g, "''")}', ${now}, ${now})`));
+
+            // Log this action in audit log
+            await logAuditEvent({
+              userEmail: email,
+              action: "pre_audit_upload",
+              resource: "Pre-Audit Upload Form",
+              details: {
+                name,
+                company,
+                description,
+                auditId,
+                files: savedFiles.map(f => f.originalName),
+              },
+              ipAddress: getRequestIP(req),
+              status: "success",
+              severity: "info",
+            }).catch(e => console.error("[serve.ts] Failed to log audit event:", e));
+
+            // Send email notification to the team inbox (wastezero-d4a2cd2e@ctomail.io)
+            const fileListText = savedFiles.map(f => `- ${f.originalName} (${(f.size / (1024 * 1024)).toFixed(2)} MB)`).join("\n");
+            const fileListHtml = savedFiles.map(f => `<li><strong>${f.originalName}</strong> (${(f.size / (1024 * 1024)).toFixed(2)} MB)</li>`).join("");
+
+            const emailSubject = `[Pre-Audit Submission] New file upload from ${name} (${company})`;
+            const emailText = `
+New pre-audit file submission received!
+
+Submitter Details:
+- Name: ${name}
+- Email: ${email}
+- Company: ${company}
+- Description: ${description}
+
+Files Uploaded:
+${fileListText}
+
+An audit has been auto-provisioned:
+- Audit ID: ${auditId}
+- Associated Email: ${email}
+
+Please review this submission in the Admin Dashboard.
+`;
+
+            const emailHtml = `
+<h3>New pre-audit file submission received!</h3>
+<p><strong>Submitter Details:</strong></p>
+<ul>
+  <li><strong>Name:</strong> ${name}</li>
+  <li><strong>Email:</strong> ${email}</li>
+  <li><strong>Company:</strong> ${company}</li>
+  <li><strong>Description:</strong> ${description}</li>
+</ul>
+<p><strong>Files Uploaded:</strong></p>
+<ul>
+  ${fileListHtml}
+</ul>
+<p><strong>Auto-provisioned Audit:</strong></p>
+<ul>
+  <li><strong>Audit ID:</strong> ${auditId}</li>
+  <li><strong>Associated Email:</strong> ${email}</li>
+</ul>
+<p>Please review this submission in the Admin Dashboard.</p>
+`;
+
+            await sendEmail({
+              to: "wastezero-d4a2cd2e@ctomail.io",
+              subject: emailSubject,
+              text: emailText,
+              html: emailHtml,
+            }).catch(e => console.error("[serve.ts] Failed to send pre-audit upload email notification:", e));
+
+            return new Response(JSON.stringify({ success: true, message: "Upload completed successfully", auditId }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            });
+          } catch (err: any) {
+            console.error("[serve.ts] Pre-audit upload POST error:", err);
+            return new Response(JSON.stringify({ error: "Failed to process pre-audit upload: " + err.message }), {
+              status: 500,
+              headers: { "Content-Type": "application/json" },
+            });
+          }
+        }
+
         // POST /api/upload — upload and process a document
         if (pathname === "/api/upload" && req.method === "POST") {
           try {
@@ -828,6 +1026,45 @@ for (let attempt = 1; ; attempt++) {
           } catch (err: any) {
             console.error("[serve.ts] Admin users error:", err);
             return new Response(JSON.stringify({ error: "Failed to get users" }), { status: 500, headers: { "Content-Type": "application/json" } });
+          }
+        }
+
+        // GET /api/admin/audit-submissions — list all pre-audit submissions (admin only)
+        if (pathname === "/api/admin/audit-submissions" && req.method === "GET") {
+          try {
+            const token = getCookie(req, "session");
+            if (!token) {
+              return new Response(JSON.stringify({ error: "Not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
+            }
+            const userId = await verifySessionToken(token);
+            if (!userId) {
+              return new Response(JSON.stringify({ error: "Invalid session" }), { status: 401, headers: { "Content-Type": "application/json" } });
+            }
+            const currentUser = await db.query.users.findFirst({ where: eq(users.id, userId) });
+            if (!currentUser || currentUser.email !== 'mathewortiz97@gmail.com') {
+              return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 403, headers: { "Content-Type": "application/json" } });
+            }
+
+            // Retrieve all entries from portal_data where section is 'audit_submissions'
+            const rows = await db.all(sql.raw(`SELECT id, user_id, data, created_at, updated_at FROM portal_data WHERE section = 'audit_submissions' ORDER BY created_at DESC`));
+            
+            const submissions = rows.map((r: any) => ({
+              _id: r.id,
+              userId: r.user_id,
+              _created_at: r.created_at,
+              _updated_at: r.updated_at,
+              ...JSON.parse(r.data)
+            }));
+
+            return new Response(JSON.stringify({ success: true, submissions }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            });
+          } catch (err: any) {
+            console.error("[serve.ts] Admin submissions error:", err);
+            return new Response(JSON.stringify({ error: "Failed to list submissions: " + err.message }), {
+              status: 500, headers: { "Content-Type": "application/json" },
+            });
           }
         }
 
