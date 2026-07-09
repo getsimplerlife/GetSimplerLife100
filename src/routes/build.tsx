@@ -30,82 +30,66 @@ const basePackages = [
     name: 'Starter',
     price: 7500,
     features: ['2 AI agents', '3 workflows', 'CRM integration', '30 days support'],
+    stripeLink: 'https://buy.stripe.com/9B6eVe0wCcFe48ucot3Ru01',
   },
   {
     id: 'growth',
     name: 'Growth',
     price: 15000,
     features: ['5 AI agents', 'Cross-dept workflows', 'CRM+ERP', 'Dashboards', '60 days support'],
+    stripeLink: 'https://buy.stripe.com/8x25kE5QW7kUdJ44W13Ru02',
   },
   {
     id: 'scale',
     name: 'Scale',
     price: 30000,
     features: ['Unlimited workflows', 'Custom agents', 'Advanced integrations', '90 days support'],
+    stripeLink: 'https://buy.stripe.com/7sY4gAenscFefRccot3Ru03',
   },
 ];
 
 const addOns = [
-  { id: 'extra-agent', name: 'Additional AI Agent', price: 1500 },
-  { id: 'crm', name: 'CRM Integration', price: 2000 },
-  { id: 'erp', name: 'ERP Integration', price: 3500 },
-  { id: 'voice', name: 'Voice AI Receptionist', price: 3000 },
-  { id: 'sales', name: 'AI Sales Assistant', price: 4000 },
-  { id: 'support', name: 'AI Customer Support Agent', price: 4000 },
-  { id: 'dashboard', name: 'Custom Dashboard', price: 2500 },
-  { id: 'doc-ai', name: 'Document AI System', price: 3500 },
-  { id: 'knowledge', name: 'Internal Knowledge Assistant', price: 3000 },
-  { id: 'training', name: 'Employee Training', price: 1500 },
-  { id: 'dept-auto', name: 'Additional Department Automation', price: 5000 },
+  { id: 'extra-agent', name: 'Additional AI Agent', price: 1500, stripeLink: 'https://buy.stripe.com/8x26oIensbBa0Wi4W13Ru07' },
+  { id: 'crm', name: 'CRM Integration', price: 2000, stripeLink: 'https://buy.stripe.com/8x2dRaa7cax66gC0FL3Ru08' },
+  { id: 'erp', name: 'ERP Integration', price: 3500, stripeLink: 'https://buy.stripe.com/aFa9AUa7c7kUawSdsx3Ru09' },
+  { id: 'voice', name: 'Voice AI Receptionist', price: 3000, stripeLink: 'https://buy.stripe.com/dRmeVedjo5cM34qewB3Ru0a' },
+  { id: 'sales', name: 'AI Sales Assistant', price: 4000, stripeLink: 'https://buy.stripe.com/28EcN61AGax6bAW3RX3Ru0b' },
+  { id: 'support', name: 'AI Customer Support Agent', price: 4000, stripeLink: 'https://buy.stripe.com/fZu3cw3IO20AeN8ewB3Ru0c' },
+  { id: 'dashboard', name: 'Custom Dashboard', price: 2500, stripeLink: 'https://buy.stripe.com/5kQ7sM3IO20AgVgewB3Ru0d' },
+  { id: 'doc-ai', name: 'Document AI System', price: 3500, stripeLink: 'https://buy.stripe.com/7sY5kEa7cdJi7kG9ch3Ru0e' },
+  { id: 'knowledge', name: 'Internal Knowledge Assistant', price: 3000, stripeLink: 'https://buy.stripe.com/00w28s3IO8oYbAW9ch3Ru0f' },
+  { id: 'training', name: 'Employee Training', price: 1500, stripeLink: 'https://buy.stripe.com/3cI00k0wC0Ww8oKbkp3Ru0g' },
+  { id: 'dept-auto', name: 'Additional Department Automation', price: 5000, stripeLink: 'https://buy.stripe.com/cNi00ka7ceNmdJ49ch3Ru0h' },
 ];
 
 function BuildBuilder() {
   const { businessName } = Route.useLoaderData();
   const [selectedBase, setSelectedBase] = useState(basePackages[0]);
-  const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     company: '',
   });
   const [submitted, setSubmitted] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
 
-  const toggleAddOn = (id: string) => {
-    setSelectedAddOns((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-    );
-  };
-
-  const totalAddOnsPrice = selectedAddOns.reduce((acc, id) => {
-    const addOn = addOns.find((a) => a.id === id);
-    return acc + (addOn?.price || 0);
-  }, 0);
-
-  const total = selectedBase.price + totalAddOnsPrice;
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitting(true);
-    
-    const config = {
-      ...formData,
-      selectedBase: selectedBase.name,
-      basePrice: selectedBase.price,
-      selectedAddOns: selectedAddOns.map(id => addOns.find(a => a.id === id)?.name),
-      addOnsTotal: totalAddOnsPrice,
-      total,
-    };
-
+  const handleCheckout = async () => {
+    // Capture lead info first
     try {
-      await submitLead({ data: config });
-      setSubmitted(true);
-    } catch (err) {
-      console.error('Failed to submit build:', err);
-      alert('Something went wrong. Please try again.');
-    } finally {
-      setSubmitting(false);
+      await submitLead({
+        data: {
+          name: formData.name,
+          email: formData.email,
+          company: formData.company,
+          selectedBase: selectedBase.name,
+          basePrice: selectedBase.price,
+        }
+      });
+    } catch (_err) {
+      // Lead capture is optional — proceed to checkout either way
     }
+    // Open Stripe checkout in a new tab
+    window.open(selectedBase.stripeLink, '_blank', 'noopener,noreferrer');
+    setSubmitted(true);
   };
 
   if (submitted) {
@@ -123,9 +107,12 @@ function BuildBuilder() {
             <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-4xl mx-auto mb-8">
               ✅
             </div>
-            <h1 className="text-4xl font-black text-stone-900 mb-6">Build Received!</h1>
+            <h1 className="text-4xl font-black text-stone-900 mb-6">Checkout Started!</h1>
             <p className="text-xl text-stone-600 leading-relaxed mb-10">
-              Thanks {formData.name}! We've received your build configuration. Our team will review it and send you a custom payment link within 24 hours.
+              Thanks {formData.name || 'there'}! Your <strong>{selectedBase.name}</strong> package checkout has opened in a new tab. Complete your purchase to get started immediately.
+            </p>
+            <p className="text-stone-500 mb-10">
+              You can add individual add-ons below anytime after purchase from your portal billing page.
             </p>
             <Link to="/" className="inline-block bg-emerald-600 text-white px-10 py-4 rounded-2xl font-bold text-lg hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100">
               Back to Homepage
@@ -160,7 +147,7 @@ function BuildBuilder() {
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-16">
+          <form onSubmit={(e) => { e.preventDefault(); handleCheckout(); }} className="space-y-16">
             {/* Step 1: Company Info */}
             <section>
               <div className="flex items-center gap-4 mb-8">
@@ -254,26 +241,20 @@ function BuildBuilder() {
                 {addOns.map((addon) => (
                   <div
                     key={addon.id}
-                    onClick={() => toggleAddOn(addon.id)}
-                    className={`cursor-pointer p-6 rounded-2xl border-2 transition-all flex justify-between items-center ${
-                      selectedAddOns.includes(addon.id)
-                        ? 'border-emerald-600 bg-emerald-50/30 shadow-md'
-                        : 'border-stone-100 bg-white hover:border-stone-200'
-                    }`}
+                    className="p-6 rounded-2xl border-2 border-stone-100 bg-white hover:border-stone-200 transition-all flex flex-col justify-between items-start gap-4"
                   >
                     <div>
                       <div className="font-bold text-stone-900">{addon.name}</div>
-                      <div className="text-emerald-600 font-black">+${addon.price.toLocaleString()}</div>
+                      <div className="text-emerald-600 font-black mt-1">+${addon.price.toLocaleString()}</div>
                     </div>
-                    <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center ${
-                      selectedAddOns.includes(addon.id) ? 'border-emerald-600 bg-emerald-600' : 'border-stone-200'
-                    }`}>
-                      {selectedAddOns.includes(addon.id) && (
-                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" />
-                        </svg>
-                      )}
-                    </div>
+                    <a
+                      href={addon.stripeLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-block bg-stone-900 text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-stone-800 transition-all"
+                    >
+                      Buy Now →
+                    </a>
                   </div>
                 ))}
               </div>
@@ -282,19 +263,23 @@ function BuildBuilder() {
             {/* Sticky Total Bar */}
             <div className="sticky bottom-8 z-40 bg-stone-900 text-white p-6 lg:p-8 rounded-[2.5rem] shadow-2xl flex flex-col md:flex-row items-center justify-between gap-6 border border-white/10 backdrop-blur-lg">
               <div>
-                <div className="text-stone-400 font-bold uppercase tracking-widest text-xs mb-1">Your Total Build Price</div>
+                <div className="text-stone-400 font-bold uppercase tracking-widest text-xs mb-1">Your Package</div>
                 <div className="text-4xl font-black">
-                  ${total.toLocaleString()}
+                  ${selectedBase.price.toLocaleString()}
                   <span className="text-lg text-stone-400 font-normal ml-3">One-time payment</span>
                 </div>
               </div>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="w-full md:w-auto bg-emerald-600 text-white px-12 py-5 rounded-2xl font-black text-xl hover:bg-emerald-700 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
-              >
-                {submitting ? 'Submitting...' : 'Submit My Build →'}
-              </button>
+              <div className="flex gap-4 items-center">
+                <span className="text-stone-400 text-sm">{selectedBase.name}</span>
+                <a
+                  href={selectedBase.stripeLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full md:w-auto bg-emerald-600 text-white px-12 py-5 rounded-2xl font-black text-xl hover:bg-emerald-700 transition-all hover:scale-[1.02] active:scale-[0.98] inline-block text-center"
+                >
+                  Buy ${selectedBase.price.toLocaleString()} →
+                </a>
+              </div>
             </div>
           </form>
         </div>

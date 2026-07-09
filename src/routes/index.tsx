@@ -24,25 +24,25 @@ export const Route = createFileRoute("/")({
 });
 
 const topVerticals = [
-  { name: "Energy", slug: "energy", result: "25–40 hours saved per analyst/mo", icon: "⚡", color: "#059669", demo: "/demos/energy" },
-  { name: "Manufacturing", slug: "manufacturing", result: "Reduced order processing time by 85%", icon: "🏭", color: "#0891b2", demo: "/demos/manufacturing" },
-  { name: "Automotive", slug: "automotive", result: "3-month implementation payback", icon: "🚗", color: "#ca8a04" },
-  { name: "Financial Services", slug: "financial-services", result: "100% data extraction accuracy", icon: "💰", color: "#15803d" },
-  { name: "Logistics", slug: "logistics", result: "Saved 140 labor hours every month", icon: "🚚", color: "#d97706" },
+  { name: "Manufacturing", slug: "manufacturing", result: "Eliminate manual purchase order processing", icon: "🏭", color: "#0891b2" },
+  { name: "Logistics", slug: "logistics", result: "Reduce dispatcher email overload by 80%", icon: "🚚", color: "#d97706" },
+  { name: "Back Office", slug: "back-office", result: "Automate AP/AR and data reconciliation", icon: "💼", color: "#15803d" },
+  { name: "Energy", slug: "energy", result: "Automate compliance and billing calculations", icon: "⚡", color: "#059669", demo: "/demos/energy" },
+  { name: "Healthcare", slug: "healthcare", result: "Automate patient intake and insurance verification", icon: "🏥", color: "#e11d48" },
 ];
 
 const industryExamples = [
   {
-    industry: "Healthcare",
-    examples: ["Patient intake automation", "Prior authorization review", "Insurance verification", "Appointment reminders"]
+    industry: "AI Operations Team for Manufacturing",
+    examples: ["Invoice Automation", "Purchase Orders", "Inventory Management", "Supplier Communications", "Production Reporting", "Quality Assurance", "ERP Updates"]
   },
   {
-    industry: "Logistics",
-    examples: ["Carrier dispatching", "Status communication", "POD collection & matching", "Invoice reconciliation"]
+    industry: "AI Dispatch Team for Logistics",
+    examples: ["Dispatcher email overload", "Route optimization & scheduling", "Carrier coordination", "POD collection & matching", "Freight auditing"]
   },
   {
-    industry: "Finance",
-    examples: ["AP automation", "Document data extraction", "Compliance reporting", "Client onboarding"]
+    industry: "AI Back Office Team",
+    examples: ["AP/AR automation", "Manual data entry", "Compliance reporting", "Document processing", "Invoice reconciliation"]
   }
 ];
 
@@ -75,8 +75,8 @@ const journeySteps = [
     benefit: "Implementation",
     description: "Our engineers build and integrate the agents into your existing systems (CRM, ERP, Slack, Email).",
     price: "From $7,500",
-    cta: "View Implementation",
-    link: "/build"
+    cta: "Buy Now →",
+    link: "https://buy.stripe.com/9B6eVe0wCcFe48ucot3Ru01"
   },
   {
     step: "04",
@@ -84,8 +84,8 @@ const journeySteps = [
     benefit: "Managed Ops",
     description: "We keep every automation running, improving, and adapting as your business changes.",
     price: "From $750/mo",
-    cta: "See Support Tiers",
-    link: "/support"
+    cta: "Subscribe →",
+    link: "https://buy.stripe.com/28E4gAens20AfRcbkp3Ru04"
   }
 ];
 
@@ -100,8 +100,9 @@ function Home() {
             {businessName}
           </Link>
           <nav className="hidden md:flex gap-10 items-center">
-            <a href="#solutions" className="text-sm font-bold text-stone-600 hover:text-emerald-600 transition-colors">Solutions</a>
-            <a href="#industries" className="text-sm font-bold text-stone-600 hover:text-emerald-600 transition-colors">Industries</a>
+            <Link to="/manufacturing" className="text-sm font-bold text-stone-600 hover:text-emerald-600 transition-colors">Manufacturing</Link>
+            <Link to="/logistics" className="text-sm font-bold text-stone-600 hover:text-emerald-600 transition-colors">Logistics</Link>
+            <Link to="/back-office" className="text-sm font-bold text-stone-600 hover:text-emerald-600 transition-colors">Back Office</Link>
             <Link to="/build" className="text-sm font-bold text-stone-600 hover:text-emerald-600 transition-colors">Builder</Link>
             <Link to="/support" className="text-sm font-bold text-stone-600 hover:text-emerald-600 transition-colors">Support</Link>
             <a href="#pricing" className="text-sm font-bold text-stone-600 hover:text-emerald-600 transition-colors">Pricing</a>
@@ -126,10 +127,10 @@ function Home() {
           </div>
           <div className="max-w-5xl mx-auto text-center relative z-10">
             <h1 className="text-6xl lg:text-8xl font-black tracking-tight mb-10 text-stone-900 leading-[1.1]">
-              Cut repetitive operations by <span className="text-emerald-600">80%</span> with AI agents.
+              An <span className="text-emerald-600">AI Operations Team</span> for Every Industry.
             </h1>
             <p className="text-2xl text-stone-500 mb-12 max-w-4xl mx-auto leading-relaxed">
-              We build AI employees that take repetitive operations work off your team's plate.
+              Stop doing work software should handle. Deploy an AI team built specifically for your industry.
             </p>
             <div className="flex flex-col sm:flex-row gap-6 justify-center">
               <Link to="/audit-upload" className="bg-emerald-600 text-white px-10 py-5 rounded-2xl font-bold text-xl hover:bg-emerald-700 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-xl shadow-emerald-200">
@@ -308,7 +309,7 @@ function Home() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
               {topVerticals.map((v) => (
-                <Link key={v.name} to={(v.demo || `/industries/${v.slug}`) as any}
+                <Link key={v.name} to={(v.slug === "manufacturing" || v.slug === "logistics" || v.slug === "back-office" ? `/${v.slug}` : (v.demo || `/industries/${v.slug}`)) as any}
                   className="group bg-white/5 p-8 rounded-3xl border border-white/10 hover:bg-white/10 transition-all"
                 >
                   <span className="text-4xl mb-6 block">{v.icon}</span>
