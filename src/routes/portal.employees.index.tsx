@@ -11,7 +11,6 @@ function EmployeesManager() {
   const [feedback, setFeedback] = useState("");
   const [employees, setEmployees] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [seeding, _setSeeding] = useState(false);
 
   const fetchEmployees = async () => {
     try {
@@ -82,12 +81,12 @@ function EmployeesManager() {
   // Help find a local employee database entry safely
   const getEmpId = (emp: any) => emp.id || emp._id;
 
-  if (loading || seeding) {
+  if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
         <div className="w-8 h-8 border-2 border-stone-800 border-t-white rounded-full animate-spin" />
         <p className="text-xs font-mono text-stone-500">
-          {seeding ? "Reconciling autonomous coworker registry..." : "Loading active workforce context..."}
+          Loading active workforce context...
         </p>
       </div>
     );
