@@ -23,12 +23,12 @@ export default function IndustryLanding({ config }: { config: IndustryConfig }) 
   return (
     <div className="flex flex-col min-h-screen">
       {/* Nav */}
-      <header className="px-6 py-4 border-b bg-white dark:bg-slate-900">
+      <header className="px-6 py-4 border-b bg-white dark:bg-stone-900">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <Link to="/" className="text-2xl font-bold text-indigo-600 tracking-tight">
+          <Link to="/" className="text-2xl font-bold text-emerald-600 tracking-tight">
             Simpler Life 100
           </Link>
-          <Link to="/" className="text-sm font-medium hover:text-indigo-600 transition-colors underline decoration-2 underline-offset-4">
+          <Link to="/" className="text-sm font-medium hover:text-emerald-600 transition-colors underline decoration-2 underline-offset-4">
             Back to Home
           </Link>
         </div>
@@ -36,10 +36,10 @@ export default function IndustryLanding({ config }: { config: IndustryConfig }) 
 
       <main className="flex-1">
         {/* Hero */}
-        <section className={`px-6 py-20 lg:py-28 ${c.bgLight} dark:bg-slate-900/50`}>
+        <section className={`px-6 py-20 lg:py-28 ${c.bgLight} dark:bg-stone-900/50`}>
           <div className="max-w-5xl mx-auto text-center">
             <span className="inline-block text-5xl mb-6">{c.icon}</span>
-            <div className="inline-block px-3 py-1 mb-4 text-sm font-semibold rounded-full bg-white/80 dark:bg-slate-800 shadow-sm">
+            <div className="inline-block px-3 py-1 mb-4 text-sm font-semibold rounded-full bg-white/80 dark:bg-stone-800 shadow-sm">
               Simpler Life 100 &mdash; {c.name} Solutions
             </div>
             <h1 className="text-4xl lg:text-6xl font-extrabold tracking-tight mb-6" style={{ color: c.accent }}>
@@ -57,15 +57,15 @@ export default function IndustryLanding({ config }: { config: IndustryConfig }) 
         {/* KPIs */}
         <section className="px-6 py-16 max-w-5xl mx-auto">
           <div className="grid md:grid-cols-3 gap-8">
-            <div className="text-center p-8 bg-white dark:bg-slate-800 border rounded-2xl shadow-sm">
+            <div className="text-center p-8 bg-white dark:bg-stone-800 border rounded-2xl shadow-sm">
               <div className="text-4xl font-black mb-2" style={{ color: c.accent }}>{c.kpiOne.value}</div>
               <div className="text-sm text-gray-500 dark:text-gray-400">{c.kpiOne.label}</div>
             </div>
-            <div className="text-center p-8 bg-white dark:bg-slate-800 border rounded-2xl shadow-sm">
+            <div className="text-center p-8 bg-white dark:bg-stone-800 border rounded-2xl shadow-sm">
               <div className="text-4xl font-black mb-2" style={{ color: c.accent }}>{c.kpiTwo.value}</div>
               <div className="text-sm text-gray-500 dark:text-gray-400">{c.kpiTwo.label}</div>
             </div>
-            <div className="text-center p-8 bg-white dark:bg-slate-800 border rounded-2xl shadow-sm">
+            <div className="text-center p-8 bg-white dark:bg-stone-800 border rounded-2xl shadow-sm">
               <div className="text-4xl font-black mb-2" style={{ color: c.accent }}>{c.kpiThree.value}</div>
               <div className="text-sm text-gray-500 dark:text-gray-400">{c.kpiThree.label}</div>
             </div>
@@ -73,12 +73,12 @@ export default function IndustryLanding({ config }: { config: IndustryConfig }) 
         </section>
 
         {/* Pain Points */}
-        <section className="px-6 py-16 bg-slate-50 dark:bg-slate-900/30">
+        <section className="px-6 py-16 bg-stone-50 dark:bg-stone-900/30">
           <div className="max-w-5xl mx-auto">
             <h2 className="text-3xl font-bold mb-8 text-center">Pain Points We Eliminate</h2>
             <div className="grid md:grid-cols-2 gap-4">
               {c.painPoints.map((pp, i) => (
-                <div key={i} className="flex gap-3 p-4 bg-white dark:bg-slate-800 border rounded-xl">
+                <div key={i} className="flex gap-3 p-4 bg-white dark:bg-stone-800 border rounded-xl">
                   <span
                     className="flex-shrink-0 w-6 h-6 rounded-full text-white flex items-center justify-center text-xs font-bold mt-0.5"
                     style={{ backgroundColor: c.accent }}
@@ -100,7 +100,7 @@ export default function IndustryLanding({ config }: { config: IndustryConfig }) 
           </p>
           <div className="grid md:grid-cols-2 gap-8">
             {/* Efficiency Audit */}
-            <div className="flex flex-col p-8 bg-white dark:bg-slate-800 border rounded-2xl shadow-sm">
+            <div className="flex flex-col p-8 bg-white dark:bg-stone-800 border rounded-2xl shadow-sm">
               <h3 className="text-xl font-bold mb-2">Efficiency Audit</h3>
               <div className="text-3xl font-extrabold mb-4" style={{ color: c.accent }}>FREE</div>
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
@@ -117,7 +117,8 @@ export default function IndustryLanding({ config }: { config: IndustryConfig }) 
                 ))}
               </ul>
               <Link
-                to="/#contact"
+                to="/"
+                hash="contact"
                 className="w-full text-center text-white py-3 rounded-lg font-bold hover:opacity-90 transition-opacity"
                 style={{ backgroundColor: c.accent }}
               >
@@ -126,9 +127,9 @@ export default function IndustryLanding({ config }: { config: IndustryConfig }) 
             </div>
 
             {/* Deep-Dive Audit */}
-            <div className="flex flex-col p-8 bg-white dark:bg-slate-800 border-2 rounded-2xl shadow-md relative">
+            <div className="flex flex-col p-8 bg-white dark:bg-stone-800 border-2 rounded-2xl shadow-md relative">
               <div
-                className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 text-white text-xs font-bold rounded-full"
+                className="absolute -top-3 left-1/2 -transtone-x-1/2 px-4 py-1 text-white text-xs font-bold rounded-full"
                 style={{ backgroundColor: c.accent }}
               >
                 Most Popular
@@ -185,18 +186,19 @@ export default function IndustryLanding({ config }: { config: IndustryConfig }) 
         )}
 
         {/* CTA */}
-        <section className="px-6 py-20 bg-slate-900 text-white text-center">
+        <section className="px-6 py-20 bg-stone-900 text-white text-center">
           <h2 className="text-3xl font-bold mb-6">Stop managing manual work. Start scaling.</h2>
-          <p className="text-xl text-slate-400 mb-10 max-w-2xl mx-auto">
+          <p className="text-xl text-stone-400 mb-10 max-w-2xl mx-auto">
             Your team shouldn't spend hours on work that software should already be doing. Let's identify where AI can save you the most time.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/" className="px-8 py-3 border border-slate-700 rounded-lg font-bold hover:bg-slate-800 transition-colors">
+            <Link to="/" className="px-8 py-3 border border-stone-700 rounded-lg font-bold hover:bg-stone-800 transition-colors">
               Explore All Industries
             </Link>
             <Link
-              to="/#contact"
-              className="bg-indigo-600 px-8 py-3 rounded-lg font-bold hover:bg-indigo-700 transition-colors"
+              to="/"
+              hash="contact"
+              className="bg-emerald-600 px-8 py-3 rounded-lg font-bold hover:bg-emerald-700 transition-colors"
             >
               Book Your Free Assessment
             </Link>

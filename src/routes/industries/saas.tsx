@@ -11,7 +11,7 @@ const config: IndustryConfig = {
   name: 'SaaS',
   icon: '☁️',
   accent: '#4f46e5',
-  bgLight: 'bg-indigo-50',
+  bgLight: 'bg-emerald-50',
   tagline: 'Convert trials, reduce churn, scale smarter',
   hook: 'SaaS growth depends on trial-to-paid conversion and churn reduction. Automate onboarding, nurture sequences, and AI risk detection — and watch your MRR compound.',
   painPoints: [

@@ -11,7 +11,7 @@ const config: IndustryConfig = {
   name: 'Government',
   icon: '🏛️',
   accent: '#475569',
-  bgLight: 'bg-slate-50',
+  bgLight: 'bg-stone-50',
   tagline: 'Serve citizens faster. Process permits smarter.',
   hook: 'Government efficiency is measured in wait times and backlog size. Automate permit processing, citizen requests, and records management — and deliver services in days, not months.',
   painPoints: [

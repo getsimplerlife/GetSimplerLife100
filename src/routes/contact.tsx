@@ -103,49 +103,49 @@ function Contact() {
     <div className="flex flex-col min-h-screen">
       <header className="px-6 py-4 border-b bg-white">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <Link to="/" className="text-2xl font-black text-indigo-600 tracking-tight">
+          <Link to="/" className="text-2xl font-black text-emerald-600 tracking-tight">
             Simpler Life 100
           </Link>
           <div className="flex items-center gap-6">
-            <Link to="/" className="text-sm font-bold text-slate-600 hover:text-indigo-600 transition-colors">
+            <Link to="/" className="text-sm font-bold text-stone-600 hover:text-emerald-600 transition-colors">
               Home
             </Link>
             {user ? (
-              <Link to="/portal" className="text-sm font-bold text-indigo-600 border border-indigo-600 px-4 py-1.5 rounded-lg hover:bg-indigo-50 transition-colors">Dashboard</Link>
+              <Link to="/portal" className="text-sm font-bold text-emerald-600 border border-emerald-600 px-4 py-1.5 rounded-lg hover:bg-emerald-50 transition-colors">Dashboard</Link>
             ) : (
-              <Link to="/login" className="text-sm font-bold text-indigo-600 hover:text-indigo-700">Login</Link>
+              <Link to="/login" className="text-sm font-bold text-emerald-600 hover:text-emerald-700">Login</Link>
             )}
           </div>
         </div>
       </header>
 
-      <main className="flex-1 bg-slate-50 py-20 px-6">
+      <main className="flex-1 bg-stone-50 py-20 px-6">
         <div className="max-w-3xl mx-auto">
           {assessment ? (
             /* Assessment Result */
-            <div className="bg-white rounded-[2.5rem] p-12 lg:p-16 shadow-xl border border-slate-100 text-center">
-              <div className="inline-block px-4 py-1.5 rounded-full bg-indigo-100 text-indigo-700 font-bold text-sm uppercase tracking-wider mb-6">
+            <div className="bg-white rounded-[2.5rem] p-12 lg:p-16 shadow-xl border border-stone-100 text-center">
+              <div className="inline-block px-4 py-1.5 rounded-full bg-emerald-100 text-emerald-700 font-bold text-sm uppercase tracking-wider mb-6">
                 Recommended: {assessment.tier}
               </div>
-              <h2 className="text-4xl lg:text-5xl font-black text-slate-900 mb-6 leading-tight">
+              <h2 className="text-4xl lg:text-5xl font-black text-stone-900 mb-6 leading-tight">
                 {assessment.title}
               </h2>
-              <div className="text-2xl font-black text-indigo-600 mb-8">
+              <div className="text-2xl font-black text-emerald-600 mb-8">
                 {assessment.price}
               </div>
-              <p className="text-xl text-slate-600 leading-relaxed mb-10 max-w-2xl mx-auto">
+              <p className="text-xl text-stone-600 leading-relaxed mb-10 max-w-2xl mx-auto">
                 {assessment.explanation}
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
                 <Link
                   to={assessment.link as any}
-                  className="bg-indigo-600 text-white px-10 py-4 rounded-xl font-bold text-lg hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
+                  className="bg-emerald-600 text-white px-10 py-4 rounded-xl font-bold text-lg hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100"
                 >
                   {assessment.cta}
                 </Link>
                 <button
                   onClick={() => setAssessment(null)}
-                  className="text-slate-500 font-bold hover:text-slate-700 transition-colors"
+                  className="text-stone-500 font-bold hover:text-stone-700 transition-colors"
                 >
                   Start Over
                 </button>
@@ -155,35 +155,35 @@ function Contact() {
             /* Assessment Form */
             <>
               <div className="text-center mb-12">
-                <h1 className="text-4xl lg:text-5xl font-black text-slate-900 mb-4 tracking-tight">
+                <h1 className="text-4xl lg:text-5xl font-black text-stone-900 mb-4 tracking-tight">
                   Free AI Workflow Assessment
                 </h1>
-                <p className="text-xl text-slate-500 max-w-2xl mx-auto leading-relaxed">
+                <p className="text-xl text-stone-500 max-w-2xl mx-auto leading-relaxed">
                   Tell us what's slowing your team down. We'll analyze your workflow and recommend the best next step — no commitment, no call required.
                 </p>
               </div>
 
-              <div className="bg-white rounded-[2.5rem] p-10 lg:p-14 shadow-xl border border-slate-100">
+              <div className="bg-white rounded-[2.5rem] p-10 lg:p-14 shadow-xl border border-stone-100">
                 <form onSubmit={handleSubmit} className="space-y-8">
                   <div className="grid sm:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Your Name</label>
+                      <label className="block text-sm font-bold text-stone-700 mb-2">Your Name</label>
                       <input
                         type="text"
                         required
                         placeholder="Jane Smith"
-                        className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-lg"
+                        className="w-full rounded-xl border border-stone-200 px-4 py-3 text-stone-900 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition text-lg"
                         value={formData.name}
                         onChange={e => setFormData({ ...formData, name: e.target.value })}
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Work Email</label>
+                      <label className="block text-sm font-bold text-stone-700 mb-2">Work Email</label>
                       <input
                         type="email"
                         required
                         placeholder="jane@company.com"
-                        className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-lg"
+                        className="w-full rounded-xl border border-stone-200 px-4 py-3 text-stone-900 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition text-lg"
                         value={formData.email}
                         onChange={e => setFormData({ ...formData, email: e.target.value })}
                       />
@@ -191,22 +191,22 @@ function Contact() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-2">Company</label>
+                    <label className="block text-sm font-bold text-stone-700 mb-2">Company</label>
                     <input
                       type="text"
                       required
                       placeholder="Company name"
-                      className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-lg"
+                      className="w-full rounded-xl border border-stone-200 px-4 py-3 text-stone-900 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition text-lg"
                       value={formData.company}
                       onChange={e => setFormData({ ...formData, company: e.target.value })}
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-2">Industry</label>
+                    <label className="block text-sm font-bold text-stone-700 mb-2">Industry</label>
                     <select
                       required
-                      className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-lg bg-white"
+                      className="w-full rounded-xl border border-stone-200 px-4 py-3 text-stone-900 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition text-lg bg-white"
                       value={formData.industry}
                       onChange={e => setFormData({ ...formData, industry: e.target.value })}
                     >
@@ -218,12 +218,12 @@ function Contact() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-2">What manual work is eating your team's time?</label>
+                    <label className="block text-sm font-bold text-stone-700 mb-2">What manual work is eating your team's time?</label>
                     <textarea
                       rows={5}
                       required
                       placeholder="Describe the repetitive task or workflow that's slowing your team down. The more detail you share, the better our recommendation."
-                      className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-lg resize-none"
+                      className="w-full rounded-xl border border-stone-200 px-4 py-3 text-stone-900 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition text-lg resize-none"
                       value={formData.problem}
                       onChange={e => setFormData({ ...formData, problem: e.target.value })}
                     />
@@ -238,12 +238,12 @@ function Contact() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold text-xl hover:bg-indigo-700 transition-all disabled:opacity-50 shadow-lg shadow-indigo-100"
+                    className="w-full bg-emerald-600 text-white py-4 rounded-xl font-bold text-xl hover:bg-emerald-700 transition-all disabled:opacity-50 shadow-lg shadow-emerald-100"
                   >
                     {loading ? 'Analyzing...' : 'Get My Recommendation →'}
                   </button>
 
-                  <p className="text-center text-sm text-slate-400 font-medium">
+                  <p className="text-center text-sm text-stone-400 font-medium">
                     No spam. No sales calls. Just a clear recommendation based on your input.
                   </p>
                 </form>
@@ -253,7 +253,7 @@ function Contact() {
         </div>
       </main>
 
-      <footer className="px-6 py-12 border-t text-center text-sm text-slate-400 bg-white">
+      <footer className="px-6 py-12 border-t text-center text-sm text-stone-400 bg-white">
         <p>&copy; {new Date().getFullYear()} Simpler Life 100. All rights reserved.</p>
       </footer>
     </div>

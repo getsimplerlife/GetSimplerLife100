@@ -1,5 +1,5 @@
 import { eventHandler, readRawBody, createError } from 'vinxi/http'
-import { createAuditForEmail } from '../../db/queries'
+import { createAuditForEmail } from '../db/queries'
 
 export default eventHandler(async (event) => {
   if (event.method !== 'POST') {
