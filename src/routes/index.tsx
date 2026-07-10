@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { readFile } from "node:fs/promises";
 import { getUser } from "~/db/queries";
+import { workflows } from "~/content/workflows";
 
 const getPageData = createServerFn({ method: "GET" }).handler(async () => {
   let businessName = "Simpler Life 100";
@@ -308,7 +309,7 @@ function Home() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
               {topVerticals.map((v) => (
-                <Link key={v.name} to={(v.demo || `/industries/${v.slug}`) as any}
+                <Link key={v.name} to={`/industries/${v.slug}` as any}
                   className="group bg-white/5 p-8 rounded-3xl border border-white/10 hover:bg-white/10 transition-all"
                 >
                   <span className="text-4xl mb-6 block">{v.icon}</span>
@@ -321,6 +322,42 @@ function Home() {
               <Link to="/audit" className="inline-flex items-center gap-2 font-bold text-emerald-400 hover:text-emerald-300 transition-colors">
                 View all 26 industry benchmarks <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
               </Link>
+            </div>
+          </div>
+        </section>
+
+        {/* Featured AI Workflows Section */}
+        <section id="workflows" className="px-6 py-32 bg-stone-900 text-white border-t border-stone-800">
+          <div className="max-w-7xl mx-auto">
+            <div className="mb-20 text-center">
+              <span className="inline-block px-3 py-1 mb-6 text-xs font-mono font-bold tracking-wider rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase">
+                ACTIVE AI WORKFLOWS
+              </span>
+              <h2 className="text-4xl lg:text-6xl font-black mt-4 mb-6 tracking-tight">Active AI Workflows</h2>
+              <p className="text-xl text-stone-400 max-w-2xl mx-auto">
+                Deploy turn-key, pre-configured workflows that run autonomously inside your business.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {workflows.slice(0, 4).map((w) => (
+                <Link key={w.id} to={`/workflows/${w.id}` as any}
+                  className="group bg-stone-950 p-8 rounded-[2rem] border border-stone-850 hover:border-emerald-500/30 transition-all flex flex-col justify-between"
+                >
+                  <div>
+                    <span className="text-3xl mb-6 block">🤖</span>
+                    <h3 className="text-xl font-bold text-white mb-2 group-hover:text-emerald-400 transition-colors leading-tight">
+                      {w.name}
+                    </h3>
+                    <p className="text-xs text-stone-400 leading-relaxed line-clamp-3 mb-6">
+                      {w.description}
+                    </p>
+                  </div>
+                  <div className="text-xs font-mono text-emerald-400 font-bold border-t border-stone-900 pt-4 flex justify-between">
+                    <span>⏱ {w.timeSaved.split(" — ")[0]}</span>
+                    <span>→ View Workflow</span>
+                  </div>
+                </Link>
+              ))}
             </div>
           </div>
         </section>
