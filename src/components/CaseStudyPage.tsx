@@ -1,8 +1,14 @@
 import { Link } from "@tanstack/react-router";
+import { caseStudies } from "~/content/case-studies";
 import type { CaseStudy as CaseStudyType } from "~/content/case-studies";
 
 export default function CaseStudyPage({ data }: { data: CaseStudyType }) {
   const cs = data;
+
+  // Dynamically find other case studies in the same industry to render as related
+  const relatedCaseStudies = caseStudies.filter(
+    (item) => item.industry === cs.industry && item.id !== cs.id
+  );
 
   return (
     <div className="flex flex-col min-h-screen bg-stone-950 text-stone-100 font-sans">
@@ -38,11 +44,11 @@ export default function CaseStudyPage({ data }: { data: CaseStudyType }) {
             </div>
             
             <h1 className="text-3xl lg:text-5xl font-black tracking-tight text-white leading-tight">
-              {cs.headline}
+              {cs.title}
             </h1>
 
             <p className="text-lg text-stone-300 font-medium">
-              Client: <span className="text-emerald-400 font-bold">{cs.companyName}</span> &mdash; Timeline: {cs.timeline}
+              Client: <span className="text-emerald-400 font-bold">{cs.company}</span> &mdash; Timeline: {cs.timeline}
             </p>
           </div>
         </section>
@@ -58,7 +64,7 @@ export default function CaseStudyPage({ data }: { data: CaseStudyType }) {
                     <span>{res.value}</span>
                     <span className="text-emerald-500 text-sm">↑</span>
                   </div>
-                  <div className="text-[10px] font-mono uppercase tracking-widest text-stone-500 mt-2">{res.label}</div>
+                  <div className="text-[10px] font-mono uppercase tracking-widest text-stone-500 mt-2">{res.metric}</div>
                 </div>
               ))}
             </div>
@@ -97,11 +103,11 @@ export default function CaseStudyPage({ data }: { data: CaseStudyType }) {
               “
             </div>
             <p className="text-lg text-stone-200 italic leading-relaxed relative z-10">
-              "{cs.testimonial.quote}"
+              "{cs.quote.text}"
             </p>
             <footer className="mt-6 text-sm">
-              <div className="font-bold text-white">{cs.testimonial.author}</div>
-              <div className="text-xs font-mono text-stone-500">{cs.testimonial.role} &mdash; {cs.companyName}</div>
+              <div className="font-bold text-white">{cs.quote.attribution}</div>
+              <div className="text-xs font-mono text-stone-500">Client Partner &mdash; {cs.company}</div>
             </footer>
           </blockquote>
         </section>
@@ -134,15 +140,15 @@ export default function CaseStudyPage({ data }: { data: CaseStudyType }) {
         </section>
 
         {/* Related Case Studies */}
-        {cs.relatedCaseStudies && cs.relatedCaseStudies.length > 0 && (
+        {relatedCaseStudies && relatedCaseStudies.length > 0 && (
           <section className="px-6 py-16 bg-stone-900/20 border-t border-stone-900">
             <div className="max-w-4xl mx-auto space-y-6">
               <h2 className="text-2xl font-black text-white">Related Case Studies</h2>
               <div className="grid gap-4">
-                {cs.relatedCaseStudies.map((rcs, i) => (
+                {relatedCaseStudies.map((rcs, i) => (
                   <div key={i} className="p-6 bg-stone-950 border border-stone-850 rounded-2xl hover:border-emerald-500/20 transition-all flex justify-between items-center">
-                    <span className="text-sm font-bold uppercase tracking-wider">{rcs.replace(/-/g, " ")}</span>
-                    <Link to="/portal" className="text-xs font-mono text-emerald-400">
+                    <span className="text-sm font-bold uppercase tracking-wider">{rcs.title}</span>
+                    <Link to={`/case-studies/${rcs.id}` as any} className="text-xs font-mono text-emerald-400">
                       View case study →
                     </Link>
                   </div>
@@ -156,7 +162,7 @@ export default function CaseStudyPage({ data }: { data: CaseStudyType }) {
         <section className="px-6 py-24 text-center relative overflow-hidden border-t border-stone-900">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-emerald-950/20 via-transparent to-transparent opacity-50" />
           <div className="max-w-2xl mx-auto relative z-10 space-y-6">
-            <h2 className="text-3xl lg:text-5xl font-black text-white">Get Results Like {cs.companyName}</h2>
+            <h2 className="text-3xl lg:text-5xl font-black text-white">Get Results Like {cs.company}</h2>
             <p className="text-sm text-stone-400">
               Let us analyze your business bottlenecks and deploy targeted AI coworkers to reduce operational waste.
             </p>

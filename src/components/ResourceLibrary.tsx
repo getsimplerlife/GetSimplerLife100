@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import type { ResourceItem as ResourceItemType } from "~/content/resources";
+import type { Resource as ResourceItemType } from "~/content/resources";
 
 export default function ResourceLibrary({ resources }: { resources: ResourceItemType[] }) {
   const [selectedType, setSelectedType] = useState<string>("all");
@@ -110,7 +110,9 @@ export default function ResourceLibrary({ resources }: { resources: ResourceItem
                       <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded border border-emerald-500/20 uppercase tracking-widest">
                         {item.type}
                       </span>
-                      <span className="text-xs">{item.icon || "📄"}</span>
+                      <span className="text-xs">
+                        {item.type === "calculator" ? "🧮" : item.type === "guide" ? "📘" : item.type === "template" ? "📋" : "📄"}
+                      </span>
                     </div>
 
                     <h3 className="text-base font-bold text-white leading-snug group-hover:text-emerald-400 transition-colors">
@@ -128,7 +130,7 @@ export default function ResourceLibrary({ resources }: { resources: ResourceItem
                       <span className="text-[9px] font-mono text-stone-500 bg-stone-950 px-2 py-0.5 rounded border border-stone-900 uppercase">
                         {item.format}
                       </span>
-                      {item.industry.map((ind, i) => (
+                      {item.industry.map((ind: string, i: number) => (
                         <span key={i} className="text-[9px] font-mono text-emerald-500/80 bg-emerald-500/5 px-2 py-0.5 rounded uppercase">
                           #{ind.replace(/-/g, "")}
                         </span>
@@ -136,22 +138,24 @@ export default function ResourceLibrary({ resources }: { resources: ResourceItem
                     </div>
 
                     {/* Access CTA */}
-                    {item.link.startsWith("http") ? (
+                    {item.route ? (
+                      <Link
+                        to={item.route as any}
+                        className="w-full inline-block bg-emerald-600 hover:bg-emerald-500 text-stone-950 text-center py-2.5 rounded-xl text-xs font-bold transition-all"
+                      >
+                        Access Utility →
+                      </Link>
+                    ) : (
                       <a
-                        href={item.link}
-                        target="_blank"
-                        rel="noreferrer"
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          alert(`Download started for ${item.title}. The template is also available inside your Client Portal.`);
+                        }}
                         className="w-full inline-block bg-stone-950 hover:bg-stone-850 text-stone-200 hover:text-white border border-stone-800 text-center py-2.5 rounded-xl text-xs font-bold transition-all"
                       >
                         Download Resource ↗
                       </a>
-                    ) : (
-                      <Link
-                        to={item.link as any}
-                        className="w-full inline-block bg-stone-950 hover:bg-stone-850 text-stone-200 hover:text-white border border-stone-800 text-center py-2.5 rounded-xl text-xs font-bold transition-all"
-                      >
-                        Access Utility →
-                      </Link>
                     )}
                   </div>
                 </div>
