@@ -1,0 +1,9 @@
+import { createPipedriveClient } from "./client"; import { ConnectionConfig } from "../../framework/connection"; import type { ActionDefinition } from "../salesforce/actions";
+
+export const pipedriveActions: ActionDefinition[] = [
+  { name: "searchPipedrivePersons", description: "Search Pipedrive persons", inputSchema: { type: "object", properties: { query: { type: "string" } }, required: ["query"] }, handler: async (config, params) => { const c = createPipedriveClient(config); return c.searchPersons(params.query); } },
+  { name: "createPipedrivePerson", description: "Create Pipedrive person", inputSchema: { type: "object", properties: { name: { type: "string" }, email: { type: "string" }, phone: { type: "string" } }, required: ["name"] }, handler: async (config, params) => { const c = createPipedriveClient(config); return c.createPerson(params); } },
+  { name: "createPipedriveDeal", description: "Create Pipedrive deal", inputSchema: { type: "object", properties: { title: { type: "string" }, value: { type: "number" }, person_id: { type: "number" }, stage_id: { type: "number" } }, required: ["title"] }, handler: async (config, params) => { const c = createPipedriveClient(config); return c.createDeal(params); } },
+  { name: "getPipedriveStages", description: "Get Pipedrive pipeline stages", inputSchema: { type: "object", properties: {} }, handler: async (config) => { const c = createPipedriveClient(config); return c.getDealStages(); } },
+  { name: "pipedriveHealthCheck", description: "Check Pipedrive connection", inputSchema: { type: "object", properties: {} }, handler: async (config) => { const c = createPipedriveClient(config); return { healthy: await c.healthCheck(), provider: "pipedrive" }; } },
+];

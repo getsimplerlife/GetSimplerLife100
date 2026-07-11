@@ -1,0 +1,8 @@
+import { createCopperClient } from "./client"; import { ConnectionConfig } from "../../framework/connection"; import type { ActionDefinition } from "../salesforce/actions";
+
+export const copperActions: ActionDefinition[] = [
+  { name: "searchCopperPeople", description: "Search Copper people", inputSchema: { type: "object", properties: { query: { type: "string" } }, required: ["query"] }, handler: async (config, params) => { const c = createCopperClient(config); return c.searchPeople(params.query); } },
+  { name: "createCopperPerson", description: "Create Copper person", inputSchema: { type: "object", properties: { name: { type: "string" }, email: { type: "object", properties: { email: { type: "string" }, category: { type: "string" } } } }, required: ["name"] }, handler: async (config, params) => { const c = createCopperClient(config); return c.createPerson(params); } },
+  { name: "createCopperOpportunity", description: "Create Copper opportunity", inputSchema: { type: "object", properties: { name: { type: "string" } }, required: ["name"] }, handler: async (config, params) => { const c = createCopperClient(config); return c.createOpportunity(params); } },
+  { name: "copperHealthCheck", description: "Check Copper connection", inputSchema: { type: "object", properties: {} }, handler: async (config) => { const c = createCopperClient(config); return { healthy: await c.healthCheck(), provider: "copper" }; } },
+];

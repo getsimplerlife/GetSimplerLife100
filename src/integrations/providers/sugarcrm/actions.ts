@@ -1,0 +1,8 @@
+import { createSugarClient } from "./client"; import { ConnectionConfig } from "../../framework/connection"; import type { ActionDefinition } from "../salesforce/actions";
+
+export const sugarActions: ActionDefinition[] = [
+  { name: "searchSugarContacts", description: "List SugarCRM contacts", inputSchema: { type: "object", properties: { filter: { type: "string" } } }, handler: async (config, params) => { const c = createSugarClient(config); return c.list("Contacts", params.filter); } },
+  { name: "createSugarContact", description: "Create SugarCRM contact", inputSchema: { type: "object", properties: { last_name: { type: "string" }, first_name: { type: "string" }, email: { type: "string" }, phone_work: { type: "string" } }, required: ["last_name"] }, handler: async (config, params) => { const c = createSugarClient(config); return c.create("Contacts", params); } },
+  { name: "createSugarAccount", description: "Create SugarCRM account", inputSchema: { type: "object", properties: { name: { type: "string" }, industry: { type: "string" }, phone_office: { type: "string" } }, required: ["name"] }, handler: async (config, params) => { const c = createSugarClient(config); return c.create("Accounts", params); } },
+  { name: "sugarHealthCheck", description: "Check SugarCRM connection", inputSchema: { type: "object", properties: {} }, handler: async (config) => { const c = createSugarClient(config); return { healthy: await c.healthCheck(), provider: "sugarcrm" }; } },
+];

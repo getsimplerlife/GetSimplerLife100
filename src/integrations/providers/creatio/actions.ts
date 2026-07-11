@@ -1,0 +1,8 @@
+import { createCreatioClient } from "./client"; import { ConnectionConfig } from "../../framework/connection"; import type { ActionDefinition } from "../salesforce/actions";
+
+export const creatioActions: ActionDefinition[] = [
+  { name: "searchCreatioContacts", description: "List Creatio contacts", inputSchema: { type: "object", properties: { filter: { type: "string" } } }, handler: async (config, params) => { const c = createCreatioClient(config); return c.list("Contact", params.filter); } },
+  { name: "createCreatioContact", description: "Create Creatio contact", inputSchema: { type: "object", properties: { Name: { type: "string" }, Email: { type: "string" }, Phone: { type: "string" }, JobTitle: { type: "string" } }, required: ["Name"] }, handler: async (config, params) => { const c = createCreatioClient(config); return c.create("Contact", params); } },
+  { name: "createCreatioAccount", description: "Create Creatio account", inputSchema: { type: "object", properties: { Name: { type: "string" }, Type: { type: "string" }, Industry: { type: "string" } }, required: ["Name"] }, handler: async (config, params) => { const c = createCreatioClient(config); return c.create("Account", params); } },
+  { name: "creatioHealthCheck", description: "Check Creatio connection", inputSchema: { type: "object", properties: {} }, handler: async (config) => { const c = createCreatioClient(config); return { healthy: await c.healthCheck(), provider: "creatio" }; } },
+];
