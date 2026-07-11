@@ -32,6 +32,7 @@ import { sendEmail, renderEmailTemplate } from "./src/integrations/email";
 import { generateWorkflow, listTemplates } from "./src/api/workflowGenerator";
 import { runAgent, deployAgent, getAgentStatus, pauseAgent, resumeAgent } from "./src/agents/index";
 import { processDocument } from "./src/agents/documentProcessor";
+import { routeIntegrationRequest } from "./src/api/integrationRoutes";
 
 // Pinned, NOT read from the environment. The published preview URL
 // (<label>.<PUBLIC_SITE_DOMAIN>) is reverse-proxied to 0.0.0.0:3000 inside the
@@ -94,6 +95,11 @@ for (let attempt = 1; ; attempt++) {
       async fetch(req) {
         const { pathname } = new URL(req.url);
         console.log(`[serve.ts] FETCH: ${req.method} ${pathname}`);
+
+        // ─── Integration Routes ─────────────────────────────────────────────
+        const { routeIntegrationRequest } = await import("./src/api/integrationRoutes");
+        const integrationRes = await routeIntegrationRequest(req);
+        if (integrationRes) return integrationRes;
 
         // ─── Auth API Routes ───────────────────────────────────────────────
 
@@ -1158,6 +1164,14 @@ for (let attempt = 1; ; attempt++) {
         // Initialize audit table on first request
         ensureAuditTable().catch(e => console.error("[serve.ts] Failed to init audit table:", e));
 
+        // ─── Integration Routes (OAuth, Connection Mgmt, Webhooks) ──────────
+
+        const integrationResponse = await routeIntegrationRequest(req).catch((err: any) => {
+          console.error("[serve.ts] Integration route error:", err);
+          return null;
+        });
+        if (integrationResponse) return integrationResponse;
+
         // ─── Static Files & SSR Fallback ──────────────────────────────────
 
         if (pathname !== "/") {
@@ -1196,3 +1210,13 @@ setInterval(async () => {
     console.error("[serve.ts] Background email polling error:", err);
   }
 }, 15000);
+
+// Background integration health check: every 5 minutes
+setInterval(async () => {
+  try {
+    const { handleBackgroundHealthCheck } = await import("./src/api/integrationRoutes");
+    await handleBackgroundHealthCheck();
+  } catch (err) {
+    console.error("[serve.ts] Background health check error:", err);
+  }
+}, 300000);

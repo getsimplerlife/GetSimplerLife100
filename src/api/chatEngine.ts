@@ -7,6 +7,8 @@
 
 import { db } from "../db/index";
 import { sql } from "drizzle-orm";
+import { executeAction } from "../engine/action-executor";
+import { getToolDefinitions, suggestTools, executeToolCall, hasAction } from "../engine/integration-tools";
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -32,6 +34,8 @@ export interface ChatResponse {
   actions?: ChatAction[];
   confidence?: number;
   needs_human_review?: boolean;
+  tool_calls?: { name: string; args: Record<string, any> }[];
+  tool_results?: { name: string; success: boolean; data?: any; error?: string }[];
 }
 
 export interface ChatAction {
@@ -184,9 +188,11 @@ async function buildQueryContext(userId: string, userEmail: string): Promise<Que
 // ── Intent Classification ────────────────────────────────────────────────
 
 interface Intent {
-  type: "workflow_query" | "employee_query" | "activity_query" | "approval_query" | "analytics_query" | "general_query" | "workflow_create" | "command";
+  type: "workflow_query" | "employee_query" | "activity_query" | "approval_query" | "analytics_query" | "general_query" | "workflow_create" | "command" | "integration_action";
   confidence: number;
   filters?: Record<string, string>;
+  toolName?: string;
+  toolArgs?: Record<string, any>;
 }
 
 function classifyIntent(message: string): Intent {
@@ -279,6 +285,30 @@ function classifyIntent(message: string): Intent {
     lower.startsWith("pause")
   ) {
     return { type: "command", confidence: 0.7 };
+  }
+
+  // Integration action detection
+  // Check if the message mentions a provider or an integration action
+  const integrationKeywords = [
+    "salesforce", "hubspot", "dynamics", "zoho", "pipedrive", "copper",
+    "quickbooks", "xero", "netsuite", "sap", "oracle",
+    "gmail", "outlook", "slack", "teams", "twilio",
+    "shopify", "zendesk", "jira", "asana", "notion",
+    "send email", "create contact", "search contact", "create lead",
+    "create invoice", "send message", "create task",
+    "find contact", "get contact", "create account",
+    "connect to", "integration",
+  ];
+  if (integrationKeywords.some(kw => lower.includes(kw))) {
+    // Determine which tool to suggest
+    const matchedTool = suggestTools(message, 1)[0];
+    if (matchedTool) {
+      return {
+        type: "integration_action" as const,
+        confidence: 0.75,
+        toolName: matchedTool.function.name,
+      };
+    }
   }
 
   return { type: "general_query", confidence: 0.5 };
@@ -572,6 +602,36 @@ export async function processChatMessage(
           { type: "navigate", label: "Open Workflow Manager", payload: { path: "/portal/workflows" } },
         ],
       };
+      break;
+
+    case "integration_action":
+      // Try to execute an integration tool based on the message
+      const matchedTools = suggestTools(message, 3);
+      if (matchedTools.length > 0) {
+        const toolList = matchedTools.map(t => `• **${t.function.name}** — ${t.function.description}`).join("\n");
+        response = {
+          reply: `🔌 **Integration Actions Available**\n\nI found ${matchedTools.length} integration action${matchedTools.length > 1 ? 's' : ''} related to your request:\n\n${toolList}\n\nWould you like me to execute one? You can also visit the Integrations page to set up connections.`,
+          actions: [
+            ...matchedTools.map(t => ({
+              type: "query" as const,
+              label: t.function.name,
+              payload: { followUp: `Execute ${t.function.name}` },
+            })),
+            { type: "navigate", label: "Open Integrations", payload: { path: "/portal/integrations" } },
+          ],
+          tool_calls: matchedTools.map(t => ({
+            name: t.function.name,
+            args: {},
+          })),
+        };
+      } else {
+        response = {
+          reply: `🔌 **Integration Action**\n\nI can help you interact with your connected integrations. Here are some examples:\n- "Search contacts in Salesforce"\n- "Create a lead in HubSpot"\n- "Send an email via Gmail"\n- "Create a task in Asana"\n\nVisit the Integrations page to manage your connections.`,
+          actions: [
+            { type: "navigate", label: "Open Integrations", payload: { path: "/portal/integrations" } },
+          ],
+        };
+      }
       break;
 
     default:
