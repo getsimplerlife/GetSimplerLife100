@@ -1,0 +1,9 @@
+import { createZoomClient } from "./client"; import type { ActionDefinition } from "../salesforce/actions";
+
+export const zoomActions: ActionDefinition[] = [
+  { name: "listZoomUsers", description: "List Zoom users", inputSchema: { type: "object", properties: {} }, handler: async (config) => { const c = createZoomClient(config); return c.listUsers(); } },
+  { name: "createZoomMeeting", description: "Create Zoom meeting", inputSchema: { type: "object", properties: { userId: { type: "string" }, topic: { type: "string" }, type: { type: "number" }, startTime: { type: "string" }, duration: { type: "number" } }, required: ["userId", "topic"] }, handler: async (config, params) => { const c = createZoomClient(config); return c.createMeeting(params.userId, params.topic, params.type || 2, params.startTime, params.duration); } },
+  { name: "listZoomMeetings", description: "List Zoom meetings for user", inputSchema: { type: "object", properties: { userId: { type: "string" }, type: { type: "string" } }, required: ["userId"] }, handler: async (config, params) => { const c = createZoomClient(config); return c.listMeetings(params.userId, params.type); } },
+  { name: "listZoomPhoneCallLogs", description: "List Zoom Phone call logs", inputSchema: { type: "object", properties: { userId: { type: "string" } }, required: ["userId"] }, handler: async (config, params) => { const c = createZoomClient(config); return c.listPhoneCallLogs(params.userId); } },
+  { name: "zoomHealthCheck", description: "Check Zoom connection", inputSchema: { type: "object", properties: {} }, handler: async (config) => { const c = createZoomClient(config); return { healthy: await c.healthCheck(), provider: "zoom" }; } },
+];

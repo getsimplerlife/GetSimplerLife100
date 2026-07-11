@@ -1,0 +1,2 @@
+export * from "./auth"; export * from "./client"; export * from "./actions"; export * from "./webhooks";
+export const PROVIDER_ID = "teams"; export const PROVIDER_NAME = "Microsoft Teams"; export const PROVIDER_CATEGORY = "communication";

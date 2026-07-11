@@ -27,6 +27,11 @@ function registerProvider(module: {
     "qbdActions", "xeroActions", "freshBooksActions",
     "waveActions", "sage50Actions", "billActions",
     "expensifyActions", "rampActions", "brexActions",
+    "outlookActions", "exchangeActions", "gmailActions",
+    "gwsActions", "imapActions", "smtpActions",
+    "teamsActions", "slackActions", "zoomActions",
+    "ringCentralActions", "webexActions", "discordActions",
+    "twilioActions", "dialpadActions", "aircallActions",
   ];
 
   const actions: any[] = [];
@@ -100,6 +105,27 @@ import * as expensify from "./expensify";
 import * as ramp from "./ramp";
 import * as brex from "./brex";
 
+// ── Email Imports ────────────────────────────────────────────────────────────
+
+import * as outlook from "./outlook";
+import * as exchange from "./exchange";
+import * as gmail from "./gmail";
+import * as gws from "./google-workspace";
+import * as imap from "./imap";
+import * as smtp from "./smtp";
+
+// ── Communication Imports ────────────────────────────────────────────────────
+
+import * as teams from "./teams";
+import * as slack from "./slack";
+import * as zoom from "./zoom";
+import * as ringcentral from "./ringcentral";
+import * as webex from "./webex";
+import * as discord from "./discord";
+import * as twilio from "./twilio";
+import * as dialpad from "./dialpad";
+import * as aircall from "./aircall";
+
 // ── Register All Providers ────────────────────────────────────────────────────
 
 const providerModules = [
@@ -140,6 +166,23 @@ const providerModules = [
   { ...expensify, expensifyActions: expensify.expensifyActions },
   { ...ramp, rampActions: ramp.rampActions },
   { ...brex, brexActions: brex.brexActions },
+  // Email
+  { ...outlook, outlookActions: outlook.outlookActions },
+  { ...exchange, exchangeActions: exchange.exchangeActions },
+  { ...gmail, gmailActions: gmail.gmailActions },
+  { ...gws, gwsActions: gws.gwsActions },
+  { ...imap, imapActions: imap.imapActions },
+  { ...smtp, smtpActions: smtp.smtpActions },
+  // Communication
+  { ...teams, teamsActions: teams.teamsActions },
+  { ...slack, slackActions: slack.slackActions },
+  { ...zoom, zoomActions: zoom.zoomActions },
+  { ...ringcentral, ringCentralActions: ringcentral.ringCentralActions },
+  { ...webex, webexActions: webex.webexActions },
+  { ...discord, discordActions: discord.discordActions },
+  { ...twilio, twilioActions: twilio.twilioActions },
+  { ...dialpad, dialpadActions: dialpad.dialpadActions },
+  { ...aircall, aircallActions: aircall.aircallActions },
 ];
 
 for (const mod of providerModules) {
@@ -186,3 +229,20 @@ export * from "./bill";
 export * from "./expensify";
 export * from "./ramp";
 export * from "./brex";
+// Email
+export * from "./outlook";
+export * from "./exchange";
+export * from "./gmail";
+export * from "./google-workspace";
+export * from "./imap";
+export * from "./smtp";
+// Communication
+export * from "./teams";
+export * from "./slack";
+export * from "./zoom";
+export * from "./ringcentral";
+export * from "./webex";
+export * from "./discord";
+export * from "./twilio";
+export * from "./dialpad";
+export * from "./aircall";

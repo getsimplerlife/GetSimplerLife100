@@ -1,0 +1,2 @@
+export * from "./auth"; export * from "./client"; export * from "./actions"; export * from "./webhooks";
+export const PROVIDER_ID = "google-workspace"; export const PROVIDER_NAME = "Google Workspace"; export const PROVIDER_CATEGORY = "email";

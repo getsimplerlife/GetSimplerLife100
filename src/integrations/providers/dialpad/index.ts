@@ -1,0 +1,2 @@
+export * from "./auth"; export * from "./client"; export * from "./actions"; export * from "./webhooks";
+export const PROVIDER_ID = "dialpad"; export const PROVIDER_NAME = "Dialpad"; export const PROVIDER_CATEGORY = "communication";
