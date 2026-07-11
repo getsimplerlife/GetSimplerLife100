@@ -18,3 +18,16 @@ export const audits = sqliteTable("audits", {
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
 });
+
+export const integrations = sqliteTable("integrations", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id),
+  provider: text("provider").notNull(),
+  displayName: text("display_name").notNull(),
+  config: text("config").notNull(), // JSON: { access_token, refresh_token, instance_url, scope, expires_at }
+  status: text("status").notNull().default("active"), // 'active' | 'expired' | 'error' | 'pending'
+  healthAt: integer("health_at", { mode: "timestamp" }),
+  errorMsg: text("error_msg"),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+});
