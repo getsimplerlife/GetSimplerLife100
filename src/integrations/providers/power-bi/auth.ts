@@ -1,0 +1,4 @@
+export { getSSCAuthConfig as getPBIBAuthConfig, buildSSCAuthUrl as buildPBIBAuthUrl, handleSSCallback as handlePBIBack, refreshSSToken as refreshPBToken, isSSTokenExpired as isPBTokenExpired } from "../salesforce-service-cloud/auth";
+export function getPBIOAuthConfig(config: { tenantId: string; clientId: string; clientSecret: string; redirectUri: string }) {
+  return { clientId: config.clientId, clientSecret: config.clientSecret, redirectUri: config.redirectUri, scopes: ["https://analysis.windows.net/powerbi/api/Dataset.ReadWrite.All", "https://analysis.windows.net/powerbi/api/Report.ReadWrite.All", "https://analysis.windows.net/powerbi/api/Dashboard.ReadWrite.All", "https://analysis.windows.net/powerbi/api/Workspace.ReadWrite.All", "offline_access"], authorizeUrl: `https://login.microsoftonline.com/${config.tenantId}/oauth2/v2.0/authorize`, tokenUrl: `https://login.microsoftonline.com/${config.tenantId}/oauth2/v2.0/token`, flowType: "authorization_code" };
+}

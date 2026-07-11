@@ -1,0 +1,2 @@
+export function getMGAuthHeaders(apiKey: string): Record<string, string> { return { "X-API-Key": apiKey, "Content-Type": "application/json" }; }
+export class MGAuth { constructor(public apiKey: string) {} get headers() { return { "X-API-Key": this.apiKey, "Content-Type": "application/json" }; } }

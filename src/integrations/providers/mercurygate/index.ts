@@ -1,0 +1,2 @@
+export * from "./auth"; export * from "./client"; export * from "./actions"; export * from "./webhooks";
+export const PROVIDER_ID = "mercurygate"; export const PROVIDER_NAME = "MercuryGate TMS"; export const PROVIDER_CATEGORY = "logistics";

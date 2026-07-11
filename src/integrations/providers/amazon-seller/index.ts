@@ -1,0 +1,2 @@
+export * from "./auth"; export * from "./client"; export * from "./actions"; export * from "./webhooks";
+export const PROVIDER_ID = "amazon-seller"; export const PROVIDER_NAME = "Amazon Selling Partner"; export const PROVIDER_CATEGORY = "ecommerce";
