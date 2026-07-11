@@ -151,9 +151,14 @@ export default function WorkflowPage({ data }: { data: WorkflowType }) {
             </div>
             <div className="text-center md:text-right shrink-0">
               <div className="text-4xl font-mono font-black text-white mb-2">{currentPrice.price}</div>
-              <Link to="/build" className="inline-block bg-emerald-600 hover:bg-emerald-500 text-stone-950 px-6 py-2.5 rounded-xl text-xs font-bold uppercase font-mono tracking-wider transition-colors">
-                Initiate Setup →
-              </Link>
+              <a
+                href={w.priceTier === 'starter' ? 'https://buy.stripe.com/5kE5kE8sI5cM34q9ch3Ru01' : w.priceTier === 'growth' ? 'https://buy.stripe.com/8x25kE5QW7kUdJ44W13Ru02' : 'https://buy.stripe.com/7sY4gAenscFefRccot3Ru03'}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-block bg-emerald-600 hover:bg-emerald-500 text-stone-950 px-6 py-2.5 rounded-xl text-xs font-bold uppercase font-mono tracking-wider transition-colors"
+              >
+                Buy Now — {currentPrice.price} →
+              </a>
             </div>
           </div>
         </section>
