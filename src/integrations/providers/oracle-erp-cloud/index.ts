@@ -1,0 +1,2 @@
+export * from "./auth"; export * from "./client"; export * from "./actions"; export * from "./webhooks";
+export const PROVIDER_ID = "oracle-erp-cloud"; export const PROVIDER_NAME = "Oracle ERP Cloud"; export const PROVIDER_CATEGORY = "erp";

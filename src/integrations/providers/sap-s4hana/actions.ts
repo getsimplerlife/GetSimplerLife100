@@ -1,0 +1,8 @@
+import { createSAPS4Client } from "./client"; import type { ActionDefinition } from "../salesforce/actions";
+
+export const sapS4Actions: ActionDefinition[] = [
+  { name: "searchSAPBusinessPartners", description: "Search SAP S/4HANA business partners", inputSchema: { type: "object", properties: { filter: { type: "string" } } }, handler: async (config, params) => { const c = createSAPS4Client(config); return c.list("API_BUSINESS_PARTNER/A_BusinessPartner", params.filter); } },
+  { name: "createSAPSalesOrder", description: "Create SAP S/4HANA sales order", inputSchema: { type: "object", properties: { SalesOrderType: { type: "string" }, SalesOrganization: { type: "string" }, DistributionChannel: { type: "string" }, OrganizationDivision: { type: "string" }, SoldToParty: { type: "string" } }, required: ["SalesOrderType", "SoldToParty"] }, handler: async (config, params) => { const c = createSAPS4Client(config); return c.create("API_SALES_ORDER_SRV/A_SalesOrder", params); } },
+  { name: "createSAPPurchaseOrder", description: "Create SAP S/4HANA purchase order", inputSchema: { type: "object", properties: { PurchasingDocumentType: { type: "string" }, CompanyCode: { type: "string" }, Supplier: { type: "string" } }, required: ["PurchasingDocumentType", "Supplier"] }, handler: async (config, params) => { const c = createSAPS4Client(config); return c.create("API_PURCHASEORDER_PROCESS_SRV/A_PurchaseOrder", params); } },
+  { name: "sapS4HealthCheck", description: "Check SAP S/4HANA connection", inputSchema: { type: "object", properties: {} }, handler: async (config) => { const c = createSAPS4Client(config); return { healthy: await c.healthCheck(), provider: "sap-s4hana" }; } },
+];

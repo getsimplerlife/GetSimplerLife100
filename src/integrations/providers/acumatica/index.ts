@@ -1,0 +1,2 @@
+export * from "./auth"; export * from "./client"; export * from "./actions"; export * from "./webhooks";
+export const PROVIDER_ID = "acumatica"; export const PROVIDER_NAME = "Acumatica ERP"; export const PROVIDER_CATEGORY = "erp";

@@ -1,0 +1,2 @@
+export * from "./auth"; export * from "./client"; export * from "./actions"; export * from "./webhooks";
+export const PROVIDER_ID = "wave"; export const PROVIDER_NAME = "Wave Accounting"; export const PROVIDER_CATEGORY = "accounting";

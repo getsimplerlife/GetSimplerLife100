@@ -1,0 +1,9 @@
+import { createQBOClient } from "./client"; import type { ActionDefinition } from "../salesforce/actions";
+
+export const qboActions: ActionDefinition[] = [
+  { name: "queryQBO", description: "Run QBO query (SQL-like)", inputSchema: { type: "object", properties: { query: { type: "string" } }, required: ["query"] }, handler: async (config, params) => { const c = createQBOClient(config); return c.query(params.query); } },
+  { name: "createQBOInvoice", description: "Create QBO invoice", inputSchema: { type: "object", properties: { CustomerRef: { type: "object" }, Line: { type: "array" }, DueDate: { type: "string" } }, required: ["CustomerRef"] }, handler: async (config, params) => { const c = createQBOClient(config); return c.create("invoice", params); } },
+  { name: "createQBOCustomer", description: "Create QBO customer", inputSchema: { type: "object", properties: { DisplayName: { type: "string" }, PrimaryEmailAddr: { type: "object" } }, required: ["DisplayName"] }, handler: async (config, params) => { const c = createQBOClient(config); return c.create("customer", params); } },
+  { name: "createQBOPayment", description: "Create QBO payment", inputSchema: { type: "object", properties: { CustomerRef: { type: "object" }, TotalAmt: { type: "number" } }, required: ["CustomerRef", "TotalAmt"] }, handler: async (config, params) => { const c = createQBOClient(config); return c.create("payment", params); } },
+  { name: "qboHealthCheck", description: "Check QBO connection", inputSchema: { type: "object", properties: {} }, handler: async (config) => { const c = createQBOClient(config); return { healthy: await c.healthCheck(), provider: "quickbooks-online" }; } },
+];
