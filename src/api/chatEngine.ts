@@ -7,8 +7,7 @@
 
 import { db } from "../db/index";
 import { sql } from "drizzle-orm";
-import { executeAction } from "../engine/action-executor";
-import { getToolDefinitions, suggestTools, executeToolCall, hasAction } from "../engine/integration-tools";
+import { suggestTools } from "../engine/integration-tools";
 
 // ── Types ────────────────────────────────────────────────────────────────
 

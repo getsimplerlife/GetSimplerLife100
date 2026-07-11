@@ -7,9 +7,8 @@
  */
 
 import { registry } from "../integrations/providers";
-import { getConnection, listConnectionsByProvider, updateConnectionConfig, type ConnectionConfig } from "../integrations/framework/connection";
-import { isTokenExpired } from "../integrations/framework/oauth";
-import { refreshToken } from "../integrations/framework/oauth";
+import { listConnectionsByProvider, updateConnectionConfig, type ConnectionConfig } from "../integrations/framework/connection";
+import { isTokenExpired as _isTokenExpired, refreshToken } from "../integrations/framework/oauth";
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -41,7 +40,7 @@ export interface ExecutionOptions {
  * to their provider ID and handler function.
  */
 class ActionHandlerRegistry {
-  private handlers = new Map<string, { providerId: string; handler: (config: ConnectionConfig, params: Record<string, any>) => Promise<any> }>();
+  public handlers = new Map<string, { providerId: string; handler: (config: ConnectionConfig, params: Record<string, any>) => Promise<any> }>();
   private providerActions = new Map<string, ActionDefinition[]>();
 
   /**
