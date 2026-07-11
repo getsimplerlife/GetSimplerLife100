@@ -1,0 +1,9 @@
+import { createTwilioClient } from "./client"; import type { ActionDefinition } from "../salesforce/actions";
+
+export const twilioActions: ActionDefinition[] = [
+  { name: "sendTwilioSMS", description: "Send SMS via Twilio", inputSchema: { type: "object", properties: { to: { type: "string" }, from: { type: "string" }, body: { type: "string" } }, required: ["to", "from", "body"] }, handler: async (config, params) => { const c = createTwilioClient(config); return c.sendSMS(params.to, params.from, params.body); } },
+  { name: "listTwilioMessages", description: "List Twilio SMS messages", inputSchema: { type: "object", properties: { limit: { type: "number" } } }, handler: async (config, params) => { const c = createTwilioClient(config); return c.listMessages(params.limit); } },
+  { name: "makeTwilioCall", description: "Make Twilio voice call", inputSchema: { type: "object", properties: { to: { type: "string" }, from: { type: "string" }, twiml: { type: "string" } }, required: ["to", "from", "twiml"] }, handler: async (config, params) => { const c = createTwilioClient(config); return c.makeCall(params.to, params.from, params.twiml); } },
+  { name: "lookupTwilioPhone", description: "Lookup phone number via Twilio", inputSchema: { type: "object", properties: { phoneNumber: { type: "string" } }, required: ["phoneNumber"] }, handler: async (config, params) => { const c = createTwilioClient(config); return c.lookupPhoneNumber(params.phoneNumber); } },
+  { name: "twilioHealthCheck", description: "Check Twilio connection", inputSchema: { type: "object", properties: {} }, handler: async (config) => { const c = createTwilioClient(config); return { healthy: await c.healthCheck(), provider: "twilio" }; } },
+];

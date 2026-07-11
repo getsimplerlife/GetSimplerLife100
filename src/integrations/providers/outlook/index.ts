@@ -1,0 +1,2 @@
+export * from "./auth"; export * from "./client"; export * from "./actions"; export * from "./webhooks";
+export const PROVIDER_ID = "outlook"; export const PROVIDER_NAME = "Outlook/Office 365"; export const PROVIDER_CATEGORY = "email";

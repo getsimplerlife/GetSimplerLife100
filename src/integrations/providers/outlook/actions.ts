@@ -1,0 +1,10 @@
+import { createOutlookClient } from "./client"; import type { ActionDefinition } from "../salesforce/actions";
+
+export const outlookActions: ActionDefinition[] = [
+  { name: "listOutlookMessages", description: "List Outlook/Graph mail messages", inputSchema: { type: "object", properties: { folder: { type: "string" }, top: { type: "number" } } }, handler: async (config, params) => { const c = createOutlookClient(config); return c.listMessages(params.folder, params.top); } },
+  { name: "sendOutlookMessage", description: "Send email via Outlook/Graph", inputSchema: { type: "object", properties: { message: { type: "object" }, saveToSentItems: { type: "boolean" } }, required: ["message"] }, handler: async (config, params) => { const c = createOutlookClient(config); return c.sendMessage(params); } },
+  { name: "searchOutlookMessages", description: "Search Outlook messages", inputSchema: { type: "object", properties: { query: { type: "string" } }, required: ["query"] }, handler: async (config, params) => { const c = createOutlookClient(config); return c.searchMessages(params.query); } },
+  { name: "listOutlookCalendars", description: "List Outlook calendars", inputSchema: { type: "object", properties: {} }, handler: async (config) => { const c = createOutlookClient(config); return c.listCalendars(); } },
+  { name: "listOutlookEvents", description: "List Outlook calendar events", inputSchema: { type: "object", properties: { calendarId: { type: "string" }, top: { type: "number" } } }, handler: async (config, params) => { const c = createOutlookClient(config); return c.listEvents(params.calendarId, params.top); } },
+  { name: "outlookHealthCheck", description: "Check Outlook/Graph connection", inputSchema: { type: "object", properties: {} }, handler: async (config) => { const c = createOutlookClient(config); return { healthy: await c.healthCheck(), provider: "outlook" }; } },
+];

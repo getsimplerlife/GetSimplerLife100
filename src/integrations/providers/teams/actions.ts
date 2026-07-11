@@ -1,0 +1,9 @@
+import { createTeamsClient } from "./client"; import type { ActionDefinition } from "../salesforce/actions";
+
+export const teamsActions: ActionDefinition[] = [
+  { name: "listTeams", description: "List joined Teams", inputSchema: { type: "object", properties: {} }, handler: async (config) => { const c = createTeamsClient(config); return c.listTeams(); } },
+  { name: "listChannels", description: "List Teams channels", inputSchema: { type: "object", properties: { teamId: { type: "string" } }, required: ["teamId"] }, handler: async (config, params) => { const c = createTeamsClient(config); return c.listChannels(params.teamId); } },
+  { name: "sendTeamsMessage", description: "Send Teams channel message", inputSchema: { type: "object", properties: { teamId: { type: "string" }, channelId: { type: "string" }, content: { type: "string" } }, required: ["teamId", "channelId", "content"] }, handler: async (config, params) => { const c = createTeamsClient(config); return c.sendChannelMessage(params.teamId, params.channelId, params.content); } },
+  { name: "createTeamsMeeting", description: "Create Teams online meeting", inputSchema: { type: "object", properties: { subject: { type: "string" }, startDateTime: { type: "string" }, endDateTime: { type: "string" } }, required: ["subject", "startDateTime", "endDateTime"] }, handler: async (config, params) => { const c = createTeamsClient(config); return c.createMeeting(params.subject, params.startDateTime, params.endDateTime); } },
+  { name: "teamsHealthCheck", description: "Check Teams/Graph connection", inputSchema: { type: "object", properties: {} }, handler: async (config) => { const c = createTeamsClient(config); return { healthy: await c.healthCheck(), provider: "teams" }; } },
+];

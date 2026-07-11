@@ -1,0 +1,2 @@
+export * from "./auth"; export * from "./client"; export * from "./actions"; export * from "./webhooks";
+export const PROVIDER_ID = "slack"; export const PROVIDER_NAME = "Slack"; export const PROVIDER_CATEGORY = "communication";
