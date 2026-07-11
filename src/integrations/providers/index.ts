@@ -32,6 +32,22 @@ function registerProvider(module: {
     "teamsActions", "slackActions", "zoomActions",
     "ringCentralActions", "webexActions", "discordActions",
     "twilioActions", "dialpadActions", "aircallActions",
+    // Storage
+    "sharepointActions", "onedriveActions", "gdriveActions",
+    "dropboxActions", "boxActions", "egnyteActions",
+    // Document Processing
+    "adobeSignActions", "docusignActions", "pandadocActions",
+    "dropboxSignActions", "pdfCoActions", "ocrSpaceActions",
+    "abbyyActions", "textractActions", "azureDocIntelActions",
+    "googleDocAIActions",
+    // Project Management
+    "mondayComActions", "asanaActions", "clickUpActions",
+    "jiraActions", "trelloActions", "basecampActions",
+    "notionActions", "wrikeActions", "smartsheetActions",
+    // HR
+    "bamboohrActions", "workdayActions", "ukgActions",
+    "adpActions", "gustoActions", "ripplingActions",
+    "paychexActions", "greenhouseActions", "leverActions",
   ];
 
   const actions: any[] = [];
@@ -126,6 +142,52 @@ import * as twilio from "./twilio";
 import * as dialpad from "./dialpad";
 import * as aircall from "./aircall";
 
+// ── Storage Imports ──────────────────────────────────────────────────────────
+
+import * as sharepoint from "./sharepoint";
+import * as onedrive from "./onedrive";
+import * as gdrive from "./google-drive";
+import * as dropbox from "./dropbox";
+import * as box from "./box";
+import * as egnyte from "./egnyte";
+
+// ── Document Processing Imports ───────────────────────────────────────────────
+
+import * as adobeSign from "./adobe-sign";
+import * as docusign from "./docusign";
+import * as pandadoc from "./pandadoc";
+import * as dropboxSign from "./dropbox-sign";
+import * as pdfCo from "./pdf-co";
+import * as ocrSpace from "./ocr-space";
+import * as abbyy from "./abbyy";
+import * as textract from "./aws-textract";
+import * as azureDocIntel from "./azure-doc-intel";
+import * as googleDocAI from "./google-doc-ai";
+
+// ── Project Management Imports ────────────────────────────────────────────────
+
+import * as mondayCom from "./monday-com";
+import * as asana from "./asana";
+import * as clickup from "./clickup";
+import * as jira from "./jira";
+import * as trello from "./trello";
+import * as basecamp from "./basecamp";
+import * as notion from "./notion";
+import * as wrike from "./wrike";
+import * as smartsheet from "./smartsheet";
+
+// ── HR Imports ────────────────────────────────────────────────────────────────
+
+import * as bamboohr from "./bamboohr";
+import * as workday from "./workday";
+import * as ukg from "./ukg";
+import * as adp from "./adp";
+import * as gusto from "./gusto";
+import * as rippling from "./rippling";
+import * as paychex from "./paychex";
+import * as greenhouse from "./greenhouse";
+import * as lever from "./lever";
+
 // ── Register All Providers ────────────────────────────────────────────────────
 
 const providerModules = [
@@ -183,6 +245,44 @@ const providerModules = [
   { ...twilio, twilioActions: twilio.twilioActions },
   { ...dialpad, dialpadActions: dialpad.dialpadActions },
   { ...aircall, aircallActions: aircall.aircallActions },
+  // Storage
+  { ...sharepoint, sharepointActions: sharepoint.sharepointActions },
+  { ...onedrive, onedriveActions: onedrive.onedriveActions },
+  { ...gdrive, gdriveActions: gdrive.gdriveActions },
+  { ...dropbox, dropboxActions: dropbox.dropboxActions },
+  { ...box, boxActions: box.boxActions },
+  { ...egnyte, egnyteActions: egnyte.egnyteActions },
+  // Document Processing
+  { ...adobeSign, adobeSignActions: adobeSign.adobeSignActions },
+  { ...docusign, docusignActions: docusign.docusignActions },
+  { ...pandadoc, pandadocActions: pandadoc.pandadocActions },
+  { ...dropboxSign, dropboxSignActions: dropboxSign.dropboxSignActions },
+  { ...pdfCo, pdfCoActions: pdfCo.pdfCoActions },
+  { ...ocrSpace, ocrSpaceActions: ocrSpace.ocrSpaceActions },
+  { ...abbyy, abbyyActions: abbyy.abbyyActions },
+  { ...textract, textractActions: textract.textractActions },
+  { ...azureDocIntel, azureDocIntelActions: azureDocIntel.azureDocIntelActions },
+  { ...googleDocAI, googleDocAIActions: googleDocAI.googleDocAIActions },
+  // Project Management
+  { ...mondayCom, mondayComActions: mondayCom.mondayComActions },
+  { ...asana, asanaActions: asana.asanaActions },
+  { ...clickup, clickUpActions: clickup.clickUpActions },
+  { ...jira, jiraActions: jira.jiraActions },
+  { ...trello, trelloActions: trello.trelloActions },
+  { ...basecamp, basecampActions: basecamp.basecampActions },
+  { ...notion, notionActions: notion.notionActions },
+  { ...wrike, wrikeActions: wrike.wrikeActions },
+  { ...smartsheet, smartsheetActions: smartsheet.smartsheetActions },
+  // HR
+  { ...bamboohr, bamboohrActions: bamboohr.bamboohrActions },
+  { ...workday, workdayActions: workday.workdayActions },
+  { ...ukg, ukgActions: ukg.ukgActions },
+  { ...adp, adpActions: adp.adpActions },
+  { ...gusto, gustoActions: gusto.gustoActions },
+  { ...rippling, ripplingActions: rippling.ripplingActions },
+  { ...paychex, paychexActions: paychex.paychexActions },
+  { ...greenhouse, greenhouseActions: greenhouse.greenhouseActions },
+  { ...lever, leverActions: lever.leverActions },
 ];
 
 for (const mod of providerModules) {
@@ -246,3 +346,41 @@ export * from "./discord";
 export * from "./twilio";
 export * from "./dialpad";
 export * from "./aircall";
+// Storage
+export * from "./sharepoint";
+export * from "./onedrive";
+export * from "./google-drive";
+export * from "./dropbox";
+export * from "./box";
+export * from "./egnyte";
+// Document Processing
+export * from "./adobe-sign";
+export * from "./docusign";
+export * from "./pandadoc";
+export * from "./dropbox-sign";
+export * from "./pdf-co";
+export * from "./ocr-space";
+export * from "./abbyy";
+export * from "./aws-textract";
+export * from "./azure-doc-intel";
+export * from "./google-doc-ai";
+// Project Management
+export * from "./monday-com";
+export * from "./asana";
+export * from "./clickup";
+export * from "./jira";
+export * from "./trello";
+export * from "./basecamp";
+export * from "./notion";
+export * from "./wrike";
+export * from "./smartsheet";
+// HR
+export * from "./bamboohr";
+export * from "./workday";
+export * from "./ukg";
+export * from "./adp";
+export * from "./gusto";
+export * from "./rippling";
+export * from "./paychex";
+export * from "./greenhouse";
+export * from "./lever";

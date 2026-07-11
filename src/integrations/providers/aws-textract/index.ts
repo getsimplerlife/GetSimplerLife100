@@ -1,0 +1,2 @@
+export * from "./auth"; export * from "./client"; export * from "./actions"; export * from "./webhooks";
+export const PROVIDER_ID = "aws-textract"; export const PROVIDER_NAME = "AWS Textract"; export const PROVIDER_CATEGORY = "document-processing";

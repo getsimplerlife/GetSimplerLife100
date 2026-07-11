@@ -1,0 +1,2 @@
+export * from "./auth"; export * from "./client"; export * from "./actions"; export * from "./webhooks";
+export const PROVIDER_ID = "google-doc-ai"; export const PROVIDER_NAME = "Google Document AI"; export const PROVIDER_CATEGORY = "document-processing";
