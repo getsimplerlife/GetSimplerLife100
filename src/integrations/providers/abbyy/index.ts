@@ -1,0 +1,2 @@
+export * from "./auth"; export * from "./client"; export * from "./actions"; export * from "./webhooks";
+export const PROVIDER_ID = "abbyy"; export const PROVIDER_NAME = "ABBYY Cloud OCR"; export const PROVIDER_CATEGORY = "document-processing";

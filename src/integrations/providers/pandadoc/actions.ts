@@ -1,0 +1,8 @@
+import { createPandaDocClient } from "./client"; import type { ActionDefinition } from "../salesforce/actions";
+
+export const pandadocActions: ActionDefinition[] = [
+  { name: "listPandaDocDocuments", description: "List PandaDoc documents", inputSchema: { type: "object", properties: {} }, handler: async (config) => { const c = createPandaDocClient(config); return c.listDocuments(); } },
+  { name: "createPandaDocDocument", description: "Create PandaDoc document from template", inputSchema: { type: "object", properties: { name: { type: "string" }, template_id: { type: "string" }, recipients: { type: "array" }, tokens: { type: "array" } }, required: ["name", "template_id"] }, handler: async (config, params) => { const c = createPandaDocClient(config); return c.createDocument(params); } },
+  { name: "sendPandaDocDocument", description: "Send PandaDoc document for signing", inputSchema: { type: "object", properties: { id: { type: "string" }, subject: { type: "string" }, message: { type: "string" } }, required: ["id"] }, handler: async (config, params) => { const c = createPandaDocClient(config); return c.sendDocument(params.id, params); } },
+  { name: "pandadocHealthCheck", description: "Check PandaDoc connection", inputSchema: { type: "object", properties: {} }, handler: async (config) => { const c = createPandaDocClient(config); return { healthy: await c.healthCheck(), provider: "pandadoc" }; } },
+];

@@ -1,0 +1,6 @@
+export { getDynamicsOAuthConfig as getODOAuthConfig } from "../dynamics-365/auth";
+import { OAuthConfig } from "../../framework/oauth";
+export function getODOAuthConfig(config: { tenantId: string; clientId: string; clientSecret: string; redirectUri: string }): OAuthConfig {
+  return { clientId: config.clientId, clientSecret: config.clientSecret, redirectUri: config.redirectUri, scopes: ["Files.Read", "Files.ReadWrite", "Files.Read.All", "Files.ReadWrite.All", "Sites.Read.All", "offline_access"], authorizeUrl: `https://login.microsoftonline.com/${config.tenantId}/oauth2/v2.0/authorize`, tokenUrl: `https://login.microsoftonline.com/${config.tenantId}/oauth2/v2.0/token`, flowType: "authorization_code" };
+}
+export { buildDynamicsAuthUrl as buildODAuthUrl, handleDynamicsCallback as handleODCallback, refreshDynamicsToken as refreshODToken, isDynamicsTokenExpired as isODTokenExpired } from "../dynamics-365/auth";

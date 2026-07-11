@@ -1,0 +1,2 @@
+export * from "./auth"; export * from "./client"; export * from "./actions"; export * from "./webhooks";
+export const PROVIDER_ID = "azure-doc-intel"; export const PROVIDER_NAME = "Azure Document Intelligence"; export const PROVIDER_CATEGORY = "document-processing";

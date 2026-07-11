@@ -1,0 +1,2 @@
+export * from "./auth"; export * from "./client"; export * from "./actions"; export * from "./webhooks";
+export const PROVIDER_ID = "adp"; export const PROVIDER_NAME = "ADP Workforce Now"; export const PROVIDER_CATEGORY = "hr";

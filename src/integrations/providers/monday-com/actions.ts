@@ -1,0 +1,8 @@
+import { createMondayComClient } from "./client"; import type { ActionDefinition } from "../salesforce/actions";
+
+export const mondayComActions: ActionDefinition[] = [
+  { name: "listMondayComBoards", description: "List Monday.com boards", inputSchema: { type: "object", properties: {} }, handler: async (config) => { const c = createMondayComClient(config); return c.listBoards(); } },
+  { name: "createMondayComItem", description: "Create Monday.com item", inputSchema: { type: "object", properties: { boardId: { type: "number" }, groupId: { type: "string" }, itemName: { type: "string" }, columnValues: { type: "object" } }, required: ["boardId", "groupId", "itemName"] }, handler: async (config, params) => { const c = createMondayComClient(config); return c.createItem(params.boardId, params.groupId, params.itemName, params.columnValues); } },
+  { name: "listMondayComItems", description: "List Monday.com board items", inputSchema: { type: "object", properties: { boardId: { type: "number" }, limit: { type: "number" } }, required: ["boardId"] }, handler: async (config, params) => { const c = createMondayComClient(config); return c.listItems(params.boardId, params.limit); } },
+  { name: "mondayComHealthCheck", description: "Check Monday.com connection", inputSchema: { type: "object", properties: {} }, handler: async (config) => { const c = createMondayComClient(config); return { healthy: await c.healthCheck(), provider: "monday-com" }; } },
+];
