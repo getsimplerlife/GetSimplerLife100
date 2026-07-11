@@ -1,0 +1,8 @@
+import { createServiceNowClient } from "./client"; import type { ActionDefinition } from "../salesforce/actions";
+
+export const servicenowActions: ActionDefinition[] = [
+  { name: "listServiceNowIncidents", description: "List ServiceNow incidents", inputSchema: { type: "object", properties: {} }, handler: async (config) => { const c = createServiceNowClient(config); return c.listIncidents(); } },
+  { name: "createServiceNowIncident", description: "Create ServiceNow incident", inputSchema: { type: "object", properties: { short_description: { type: "string" }, description: { type: "string" }, category: { type: "string" }, urgency: { type: "number" } }, required: ["short_description"] }, handler: async (config, params) => { const c = createServiceNowClient(config); return c.createIncident(params); } },
+  { name: "queryServiceNowTable", description: "Query ServiceNow table", inputSchema: { type: "object", properties: { table: { type: "string" }, query: { type: "string" } }, required: ["table"] }, handler: async (config, params) => { const c = createServiceNowClient(config); return c.queryTable(params.table, params.query); } },
+  { name: "servicenowHealthCheck", description: "Check ServiceNow connection", inputSchema: { type: "object", properties: {} }, handler: async (config) => { const c = createServiceNowClient(config); return { healthy: await c.healthCheck(), provider: "servicenow" }; } },
+];

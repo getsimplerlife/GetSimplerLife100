@@ -1,0 +1,2 @@
+export * from "./auth"; export * from "./client"; export * from "./actions"; export * from "./webhooks";
+export const PROVIDER_ID = "intercom"; export const PROVIDER_NAME = "Intercom"; export const PROVIDER_CATEGORY = "customer-support";

@@ -1,0 +1,2 @@
+export * from "./auth"; export * from "./client"; export * from "./actions"; export * from "./webhooks";
+export const PROVIDER_ID = "bigcommerce"; export const PROVIDER_NAME = "BigCommerce"; export const PROVIDER_CATEGORY = "ecommerce";

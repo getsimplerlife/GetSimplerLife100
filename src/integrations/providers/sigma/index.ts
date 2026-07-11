@@ -1,0 +1,2 @@
+export * from "./auth"; export * from "./client"; export * from "./actions"; export * from "./webhooks";
+export const PROVIDER_ID = "sigma"; export const PROVIDER_NAME = "Sigma Computing"; export const PROVIDER_CATEGORY = "business-intelligence";

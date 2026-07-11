@@ -1,0 +1,2 @@
+export * from "./auth"; export * from "./client"; export * from "./actions"; export * from "./webhooks";
+export const PROVIDER_ID = "magento"; export const PROVIDER_NAME = "Magento"; export const PROVIDER_CATEGORY = "ecommerce";

@@ -1,0 +1,2 @@
+export * from "./auth"; export * from "./client"; export * from "./actions"; export * from "./webhooks";
+export const PROVIDER_ID = "shopify"; export const PROVIDER_NAME = "Shopify"; export const PROVIDER_CATEGORY = "ecommerce";

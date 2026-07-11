@@ -1,0 +1,2 @@
+export * from "./auth"; export * from "./client"; export * from "./actions"; export * from "./webhooks";
+export const PROVIDER_ID = "servicenow"; export const PROVIDER_NAME = "ServiceNow"; export const PROVIDER_CATEGORY = "customer-support";

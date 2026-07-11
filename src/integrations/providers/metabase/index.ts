@@ -1,0 +1,2 @@
+export * from "./auth"; export * from "./client"; export * from "./actions"; export * from "./webhooks";
+export const PROVIDER_ID = "metabase"; export const PROVIDER_NAME = "Metabase"; export const PROVIDER_CATEGORY = "business-intelligence";
