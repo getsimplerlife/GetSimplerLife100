@@ -1,0 +1,2 @@
+export * from "./auth"; export * from "./client"; export * from "./actions"; export * from "./webhooks";
+export const PROVIDER_ID = "epicor-kinetic"; export const PROVIDER_NAME = "Epicor Kinetic"; export const PROVIDER_CATEGORY = "erp";

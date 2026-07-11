@@ -1,0 +1,2 @@
+export * from "./auth"; export * from "./client"; export * from "./actions"; export * from "./webhooks";
+export const PROVIDER_ID = "dynamics-365-bc"; export const PROVIDER_NAME = "Dynamics 365 Business Central"; export const PROVIDER_CATEGORY = "erp";

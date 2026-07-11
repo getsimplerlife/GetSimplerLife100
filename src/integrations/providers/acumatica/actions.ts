@@ -1,0 +1,8 @@
+import { createAcumaticaClient } from "./client"; import type { ActionDefinition } from "../salesforce/actions";
+
+export const acumaticaActions: ActionDefinition[] = [
+  { name: "searchAcumaticaCustomers", description: "Search Acumatica customers", inputSchema: { type: "object", properties: { filter: { type: "string" } } }, handler: async (config, params) => { const c = createAcumaticaClient(config); return c.list("Customer", params.filter); } },
+  { name: "createAcumaticaSalesOrder", description: "Create Acumatica sales order", inputSchema: { type: "object", properties: { OrderType: { type: "string" }, CustomerID: { type: "string" } }, required: ["OrderType", "CustomerID"] }, handler: async (config, params) => { const c = createAcumaticaClient(config); return c.create("SalesOrder", params); } },
+  { name: "createAcumaticaInvoice", description: "Create Acumatica invoice", inputSchema: { type: "object", properties: { CustomerID: { type: "string" }, Type: { type: "string" } }, required: ["CustomerID"] }, handler: async (config, params) => { const c = createAcumaticaClient(config); return c.create("Invoice", params); } },
+  { name: "acumaticaHealthCheck", description: "Check Acumatica connection", inputSchema: { type: "object", properties: {} }, handler: async (config) => { const c = createAcumaticaClient(config); return { healthy: await c.healthCheck(), provider: "acumatica" }; } },
+];

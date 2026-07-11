@@ -1,0 +1,8 @@
+import { createOdooClient } from "./client"; import type { ActionDefinition } from "../salesforce/actions";
+
+export const odooActions: ActionDefinition[] = [
+  { name: "searchOdooPartners", description: "Search Odoo partners/customers", inputSchema: { type: "object", properties: { domain: { type: "array", items: { type: "array" } } }, required: ["domain"] }, handler: async (config, params) => { const c = createOdooClient(config); return c.search("res.partner", params.domain); } },
+  { name: "createOdooInvoice", description: "Create Odoo invoice", inputSchema: { type: "object", properties: { partner_id: { type: "number" }, invoice_date: { type: "string" }, invoice_line_ids: { type: "array" } }, required: ["partner_id"] }, handler: async (config, params) => { const c = createOdooClient(config); return c.create("account.move", { ...params, move_type: "out_invoice" }); } },
+  { name: "createOdooSalesOrder", description: "Create Odoo sales order", inputSchema: { type: "object", properties: { partner_id: { type: "number" }, date_order: { type: "string" } }, required: ["partner_id"] }, handler: async (config, params) => { const c = createOdooClient(config); return c.create("sale.order", params); } },
+  { name: "odooHealthCheck", description: "Check Odoo connection", inputSchema: { type: "object", properties: {} }, handler: async (config) => { const c = createOdooClient(config); return { healthy: await c.healthCheck(), provider: "odoo" }; } },
+];

@@ -1,0 +1,10 @@
+import { createNetSuiteClient } from "./client"; import { ConnectionConfig } from "../../framework/connection"; import type { ActionDefinition } from "../salesforce/actions";
+
+export const netSuiteActions: ActionDefinition[] = [
+  { name: "searchNetSuiteCustomers", description: "Search NetSuite customers", inputSchema: { type: "object", properties: { query: { type: "string" } } }, handler: async (config, params) => { const c = createNetSuiteClient(config); return c.list("customer", params.query); } },
+  { name: "createNetSuiteCustomer", description: "Create NetSuite customer record", inputSchema: { type: "object", properties: { companyName: { type: "string" }, email: { type: "string" }, phone: { type: "string" }, subsidiary: { type: "string" } }, required: ["companyName"] }, handler: async (config, params) => { const c = createNetSuiteClient(config); return c.create("customer", params); } },
+  { name: "searchNetSuiteSalesOrders", description: "Search NetSuite sales orders", inputSchema: { type: "object", properties: { query: { type: "string" } } }, handler: async (config, params) => { const c = createNetSuiteClient(config); return c.list("salesOrder", params.query); } },
+  { name: "createNetSuiteInvoice", description: "Create NetSuite invoice", inputSchema: { type: "object", properties: { entity: { type: "object" }, item: { type: "object" }, tranDate: { type: "string" } }, required: ["entity"] }, handler: async (config, params) => { const c = createNetSuiteClient(config); return c.create("invoice", params); } },
+  { name: "runNetSuiteQuery", description: "Run SuiteQL query on NetSuite", inputSchema: { type: "object", properties: { query: { type: "string" } }, required: ["query"] }, handler: async (config, params) => { const c = createNetSuiteClient(config); return c.runSuiteQL(params.query); } },
+  { name: "netSuiteHealthCheck", description: "Check NetSuite connection", inputSchema: { type: "object", properties: {} }, handler: async (config) => { const c = createNetSuiteClient(config); return { healthy: await c.healthCheck(), provider: "netsuite" }; } },
+];

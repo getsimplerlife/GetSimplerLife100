@@ -1,0 +1,2 @@
+export * from "./auth"; export * from "./client"; export * from "./actions"; export * from "./webhooks";
+export const PROVIDER_ID = "sap-s4hana"; export const PROVIDER_NAME = "SAP S/4HANA Cloud"; export const PROVIDER_CATEGORY = "erp";
