@@ -1,0 +1,8 @@
+import { createMondayClient } from "./client"; import { ConnectionConfig } from "../../framework/connection"; import type { ActionDefinition } from "../salesforce/actions";
+
+export const mondayActions: ActionDefinition[] = [
+  { name: "getMondayBoards", description: "Get Monday.com boards", inputSchema: { type: "object", properties: {} }, handler: async (config) => { const c = createMondayClient(config); return c.getBoards(); } },
+  { name: "createMondayItem", description: "Create Monday.com item", inputSchema: { type: "object", properties: { board_id: { type: "number" }, group_id: { type: "string" }, item_name: { type: "string" } }, required: ["board_id", "group_id", "item_name"] }, handler: async (config, params) => { const c = createMondayClient(config); return c.createItem(params.board_id, params.group_id, params.item_name, params.column_values); } },
+  { name: "getMondayItems", description: "Get items from Monday.com board", inputSchema: { type: "object", properties: { board_id: { type: "number" }, limit: { type: "number" } }, required: ["board_id"] }, handler: async (config, params) => { const c = createMondayClient(config); return c.getItems(params.board_id, params.limit); } },
+  { name: "mondayHealthCheck", description: "Check Monday.com connection", inputSchema: { type: "object", properties: {} }, handler: async (config) => { const c = createMondayClient(config); return { healthy: await c.healthCheck(), provider: "monday-crm" }; } },
+];

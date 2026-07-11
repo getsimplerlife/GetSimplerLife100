@@ -1,0 +1,8 @@
+import { createFreshsalesClient } from "./client"; import { ConnectionConfig } from "../../framework/connection"; import type { ActionDefinition } from "../salesforce/actions";
+
+export const freshsalesActions: ActionDefinition[] = [
+  { name: "searchFreshsalesContacts", description: "Search Freshsales contacts", inputSchema: { type: "object", properties: { query: { type: "string" } }, required: ["query"] }, handler: async (config, params) => { const c = createFreshsalesClient(config); return c.searchContacts(params.query); } },
+  { name: "createFreshsalesContact", description: "Create Freshsales contact", inputSchema: { type: "object", properties: { first_name: { type: "string" }, last_name: { type: "string" }, email: { type: "string" }, mobile_number: { type: "string" } }, required: ["last_name"] }, handler: async (config, params) => { const c = createFreshsalesClient(config); return c.createContact(params); } },
+  { name: "createFreshsalesDeal", description: "Create Freshsales deal", inputSchema: { type: "object", properties: { name: { type: "string" }, amount: { type: "number" }, deal_stage_id: { type: "number" } }, required: ["name"] }, handler: async (config, params) => { const c = createFreshsalesClient(config); return c.createDeal(params); } },
+  { name: "freshsalesHealthCheck", description: "Check Freshsales connection", inputSchema: { type: "object", properties: {} }, handler: async (config) => { const c = createFreshsalesClient(config); return { healthy: await c.healthCheck(), provider: "freshsales" }; } },
+];

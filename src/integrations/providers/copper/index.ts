@@ -1,0 +1,2 @@
+export * from "./auth"; export * from "./client"; export * from "./actions"; export * from "./webhooks";
+export const PROVIDER_ID = "copper"; export const PROVIDER_NAME = "Copper"; export const PROVIDER_CATEGORY = "crm";

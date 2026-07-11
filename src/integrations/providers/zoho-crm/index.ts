@@ -1,0 +1,2 @@
+export * from "./auth"; export * from "./client"; export * from "./actions"; export * from "./webhooks";
+export const PROVIDER_ID = "zoho-crm"; export const PROVIDER_NAME = "Zoho CRM"; export const PROVIDER_CATEGORY = "crm";

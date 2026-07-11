@@ -1,0 +1,8 @@
+import { createZohoClient } from "./client"; import { ConnectionConfig } from "../../framework/connection"; import type { ActionDefinition } from "../salesforce/actions";
+
+export const zohoActions: ActionDefinition[] = [
+  { name: "searchZohoContacts", description: "Search Zoho contacts", inputSchema: { type: "object", properties: { query: { type: "string" } }, required: ["query"] }, handler: async (config, params) => { const c = createZohoClient(config); return c.searchContacts(params.query); } },
+  { name: "createZohoContact", description: "Create Zoho contact", inputSchema: { type: "object", properties: { Last_Name: { type: "string" }, Email: { type: "string" }, First_Name: { type: "string" }, Phone: { type: "string" } }, required: ["Last_Name"] }, handler: async (config, params) => { const c = createZohoClient(config); return c.createContact(params); } },
+  { name: "createZohoDeal", description: "Create Zoho deal", inputSchema: { type: "object", properties: { Deal_Name: { type: "string" }, Stage: { type: "string" }, Amount: { type: "number" } }, required: ["Deal_Name", "Stage"] }, handler: async (config, params) => { const c = createZohoClient(config); return c.createDeal(params); } },
+  { name: "zohoHealthCheck", description: "Check Zoho connection", inputSchema: { type: "object", properties: {} }, handler: async (config) => { const c = createZohoClient(config); return { healthy: await c.healthCheck(), provider: "zoho-crm" }; } },
+];
