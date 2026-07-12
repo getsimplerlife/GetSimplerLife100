@@ -1,1 +1,1 @@
-export { getSFOAuthConfig as getSSCAuthConfig, buildSFAuthUrl as buildSSCAuthUrl, handleSFCallback as handleSSCallback, refreshSFToken as refreshSSToken, isSFTokenExpired as isSSTokenExpired } from "../salesforce/auth";
+export { getSalesforceOAuthConfig as getSSCAuthConfig, buildSalesforceAuthUrl as buildSSCAuthUrl, handleSalesforceCallback as handleSSCallback, refreshSalesforceToken as refreshSSToken, isSalesforceTokenExpired as isSSTokenExpired } from "../salesforce/auth";

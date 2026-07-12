@@ -55,6 +55,51 @@ async function requireUser(req: Request): Promise<{ userId: string; userEmail: s
   return getUserFromRequest(req);
 }
 
+// ─── Credential Storage ──────────────────────────────────────────────────────
+// Stores OAuth clientId + clientSecret per provider in the portal_data table
+// (section = "provider-credentials", id = providerId)
+
+async function getProviderCredentials(providerId: string): Promise<{ clientId: string; clientSecret: string } | null> {
+  try {
+    const { db } = await import("../db/index");
+    const { sql } = await import("drizzle-orm");
+    const rows = await db.all(sql.raw(`SELECT data FROM portal_data WHERE section = 'provider-credentials' AND id = '${providerId.replace(/'/g, "''")}' LIMIT 1`));
+    if (rows.length === 0) return null;
+    const parsed = JSON.parse(rows[0].data);
+    return { clientId: parsed.clientId || "", clientSecret: parsed.clientSecret || "" };
+  } catch {
+    return null;
+  }
+}
+
+async function saveProviderCredentials(providerId: string, clientId: string, clientSecret: string): Promise<void> {
+  const { db } = await import("../db/index");
+  const { sql } = await import("drizzle-orm");
+  const now = Date.now();
+  const data = JSON.stringify({ clientId, clientSecret });
+  const safeId = providerId.replace(/'/g, "''");
+  const safeData = data.replace(/'/g, "''");
+  // Upsert: delete existing then insert
+  await db.run(sql.raw(`DELETE FROM portal_data WHERE section = 'provider-credentials' AND id = '${safeId}'`));
+  await db.run(sql.raw(`INSERT INTO portal_data (id, user_id, section, data, created_at, updated_at) VALUES ('${safeId}', 'admin', 'provider-credentials', '${safeData}', ${now}, ${now})`));
+}
+
+async function deleteProviderCredentials(providerId: string): Promise<void> {
+  const { db } = await import("../db/index");
+  const { sql } = await import("drizzle-orm");
+  await db.run(sql.raw(`DELETE FROM portal_data WHERE section = 'provider-credentials' AND id = '${providerId.replace(/'/g, "''")}'`));
+}
+
+async function listAllCredentials(): Promise<Array<{ providerId: string; clientId: string; hasSecret: boolean }>> {
+  const { db } = await import("../db/index");
+  const { sql } = await import("drizzle-orm");
+  const rows = await db.all(sql.raw(`SELECT id, data FROM portal_data WHERE section = 'provider-credentials' ORDER BY id`));
+  return rows.map((r: any) => {
+    const parsed = JSON.parse(r.data);
+    return { providerId: r.id, clientId: parsed.clientId || "", hasSecret: !!(parsed.clientSecret) };
+  });
+}
+
 // ─── Dynamic Provider Import ──────────────────────────────────────────────────
 
 async function getProviderAuthModule(providerId: string): Promise<any | null> {
@@ -95,9 +140,13 @@ export async function handleOAuthAuthorize(req: Request): Promise<Response> {
 
   if (buildFnNames.length > 0) {
     const buildFn = authMod[buildFnNames[0]];
+    // Look up credentials: DB → env var → empty string
+    const stored = await getProviderCredentials(providerId);
+    const clientId = stored?.clientId || process.env[`${providerId.toUpperCase().replace(/-/g, "_")}_CLIENT_ID`] || "";
+    const clientSecret = stored?.clientSecret || process.env[`${providerId.toUpperCase().replace(/-/g, "_")}_CLIENT_SECRET`] || "";
     const result = await buildFn({
-      clientId: providerMeta.clientId || process.env[`${providerId.toUpperCase().replace(/-/g, "_")}_CLIENT_ID`] || "",
-      clientSecret: providerMeta.clientSecret || process.env[`${providerId.toUpperCase().replace(/-/g, "_")}_CLIENT_SECRET`] || "",
+      clientId,
+      clientSecret,
       redirectUri: `${SITE_ORIGIN}/api/oauth/callback?provider=${providerId}`,
       ...(providerMeta.defaultConfig || {}),
     });
@@ -106,11 +155,14 @@ export async function handleOAuthAuthorize(req: Request): Promise<Response> {
     verifier = result.verifier;
   } else {
     // Fallback: generate OAuth URL directly
+    const stored = await getProviderCredentials(providerId);
+    const clientId = stored?.clientId || "";
+    const clientSecret = stored?.clientSecret || "";
     state = generateState();
     verifier = generateCodeVerifier();
     const oauthConfig: OAuthConfig = {
-      clientId: providerMeta.clientId || "",
-      clientSecret: providerMeta.clientSecret || "",
+      clientId,
+      clientSecret,
       redirectUri: `${SITE_ORIGIN}/api/oauth/callback?provider=${providerId}`,
       scopes: providerMeta.scopes || [],
       authorizeUrl: providerMeta.authorizeUrl || "",
@@ -171,7 +223,7 @@ export async function handleOAuthCallback(req: Request): Promise<Response> {
       }, code, "");
     } else {
       // Generic exchange via oauth.ts framework
-      const { exchangeCode } = await import("../integrations/framework/oauth");
+      const { exchangeCodeForTokens } = await import("../integrations/framework/oauth");
       const oauthConfig: OAuthConfig = {
         clientId: providerMeta.clientId || "",
         clientSecret: providerMeta.clientSecret || "",
@@ -181,7 +233,7 @@ export async function handleOAuthCallback(req: Request): Promise<Response> {
         tokenUrl: providerMeta.tokenUrl || "",
         flowType: "authorization_code",
       };
-      tokens = await exchangeCode(oauthConfig, code, "");
+      tokens = await exchangeCodeForTokens(oauthConfig, code, "");
     }
 
     // Store the connection
@@ -444,6 +496,55 @@ export async function routeIntegrationRequest(req: Request): Promise<Response | 
 
   // Webhooks
   if (pathname.match(/^\/api\/webhooks\//) && req.method === "POST") return handleWebhookReceiver(req);
+
+  // ─── Credential Management ────────────────────────────────────────────────
+
+  // GET /api/credentials/:providerId — public check if provider has credentials
+  const credCheckMatch = pathname.match(/^\/api\/credentials\/([a-z0-9_-]+)$/);
+  if (credCheckMatch && req.method === "GET") {
+    const providerId = credCheckMatch[1];
+    const stored = await getProviderCredentials(providerId);
+    return json({ providerId, hasCredentials: stored !== null && !!stored.clientId });
+  }
+
+  // GET /api/admin/credentials — list all configured credentials (admin only)
+  if (pathname === "/api/admin/credentials" && req.method === "GET") {
+    const { verifySessionToken } = await import("../db/auth");
+    const token = req.headers.get("cookie")?.match(/session=([^;]+)/)?.[1];
+    if (!token) return error("Not authenticated", 401);
+    const userId = await verifySessionToken(token);
+    if (!userId || userId !== "admin") return error("Unauthorized", 403);
+    const credentials = await listAllCredentials();
+    return json(credentials);
+  }
+
+  // PUT /api/admin/credentials/:providerId — save credentials (admin only)
+  const adminCredPutMatch = pathname.match(/^\/api\/admin\/credentials\/([a-z0-9_-]+)$/);
+  if (adminCredPutMatch && req.method === "PUT") {
+    const { verifySessionToken } = await import("../db/auth");
+    const token = req.headers.get("cookie")?.match(/session=([^;]+)/)?.[1];
+    if (!token) return error("Not authenticated", 401);
+    const userId = await verifySessionToken(token);
+    if (!userId) return error("Unauthorized", 403);
+    const providerId = adminCredPutMatch[1];
+    const body = await req.json().catch(() => null);
+    if (!body || !body.clientId) return error("Missing clientId");
+    await saveProviderCredentials(providerId, body.clientId, body.clientSecret || "");
+    return json({ success: true, providerId });
+  }
+
+  // DELETE /api/admin/credentials/:providerId — remove credentials (admin only)
+  const adminCredDelMatch = pathname.match(/^\/api\/admin\/credentials\/([a-z0-9_-]+)$/);
+  if (adminCredDelMatch && req.method === "DELETE") {
+    const { verifySessionToken } = await import("../db/auth");
+    const token = req.headers.get("cookie")?.match(/session=([^;]+)/)?.[1];
+    if (!token) return error("Not authenticated", 401);
+    const userId = await verifySessionToken(token);
+    if (!userId) return error("Unauthorized", 403);
+    const providerId = adminCredDelMatch[1];
+    await deleteProviderCredentials(providerId);
+    return json({ success: true, providerId });
+  }
 
   return null; // not handled
 }

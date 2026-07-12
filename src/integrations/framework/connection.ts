@@ -43,7 +43,7 @@ export interface Connection {
 /**
  * Encrypt sensitive connection data
  */
-function encrypt(text: string): string {
+export function encrypt(text: string): string {
   const iv = randomBytes(16);
   const cipher = createCipheriv(ALGORITHM, Buffer.from(ENCRYPTION_KEY), iv);
   let encrypted = cipher.update(text, "utf8", "hex");
@@ -55,7 +55,7 @@ function encrypt(text: string): string {
 /**
  * Decrypt sensitive connection data
  */
-function decrypt(encryptedText: string): string {
+export function decrypt(encryptedText: string): string {
   const parts = encryptedText.split(":");
   if (parts.length !== 3) throw new Error("Invalid encrypted format");
   const iv = Buffer.from(parts[0], "hex");

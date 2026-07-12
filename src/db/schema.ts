@@ -31,3 +31,11 @@ export const integrations = sqliteTable("integrations", {
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
 });
+
+export const providerCredentials = sqliteTable("provider_credentials", {
+  provider: text("provider").primaryKey(),
+  clientId: text("client_id").notNull(),
+  clientSecret: text("client_secret").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+});

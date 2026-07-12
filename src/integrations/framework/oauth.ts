@@ -257,3 +257,6 @@ export async function revokeTokens(
     body: params.toString(),
   });
 }
+
+export { exchangeCodeForTokens as exchangeCode };
+
