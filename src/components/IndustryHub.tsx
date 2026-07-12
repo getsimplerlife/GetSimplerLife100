@@ -2,6 +2,8 @@ import { Link } from "@tanstack/react-router";
 import type { IndustryHub as IndustryHubType } from "~/content/industries";
 import { IndustryRecommendationEngine } from "./IndustryRecommendationEngine";
 import { HowItWorksTimeline } from "./HowItWorksTimeline";
+import { SocialProofBanner } from "./SocialProofBanner";
+import { IndustryResourceCenter } from "./IndustryResourceCenter";
 
 export default function IndustryHub({ data }: { data: IndustryHubType }) {
   const c = data;
@@ -66,6 +68,9 @@ export default function IndustryHub({ data }: { data: IndustryHubType }) {
           </div>
         </section>
 
+        {/* Social Proof Snippets */}
+        <SocialProofBanner industry={c.id} />
+
         {/* Dynamic Recommendation Engine Section */}
         <section id="recommendations" className="px-6 py-20 max-w-7xl mx-auto">
           <IndustryRecommendationEngine industry={c} />
@@ -77,6 +82,9 @@ export default function IndustryHub({ data }: { data: IndustryHubType }) {
             <HowItWorksTimeline />
           </div>
         </section>
+
+        {/* Industry Resource Center Section */}
+        <IndustryResourceCenter industryId={c.id} />
 
         {/* Integrations Section */}
         <section className="px-6 py-20 bg-stone-950 border-b border-stone-900">
