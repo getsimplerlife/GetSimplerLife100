@@ -123,8 +123,8 @@ function PlanAndBilling() {
             </h3>
             <div className="space-y-4">
               {[
-                { name: "Growth Build Package", desc: "5 AI Employees, cross-dept, full system integrations.", price: "$15,000", link: "https://buy.stripe.com/8x25kE5QW7kUdJ44W13Ru02" },
-                { name: "Scale Build Package", desc: "Unlimited AI Employees, customized modeling, priority tech support.", price: "$30,000", link: "https://buy.stripe.com/7sY4gAenscFefRccot3Ru03" },
+                { name: "Growth Build Package", desc: "5 AI Employees, cross-dept, full system integrations.", price: "$15,000", link: "https://buy.stripe.com/5kQdRbah1asf1mX7PO2Fa02" },
+                { name: "Scale Build Package", desc: "Unlimited AI Employees, customized modeling, priority tech support.", price: "$30,000", link: "https://buy.stripe.com/4gM9AV74P1VJ9Tt9XW2Fa03" },
               ].map((item) => (
                 <div key={item.name} className="p-4 bg-white dark:bg-stone-900/50 border border-stone-200 dark:border-stone-800 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="space-y-1">
@@ -187,17 +187,17 @@ function PlanAndBilling() {
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
-              { name: "Additional AI Agent", desc: "Deploy an extra dedicated agent loop tailored for unique operational tasks.", price: "$1,500", link: "https://buy.stripe.com/8x26oIensbBa0Wi4W13Ru07", icon: "🤖" },
-              { name: "CRM Integration", desc: "Sync your digital coworkers directly into Salesforce, HubSpot, or Zoho.", price: "$2,000", link: "https://buy.stripe.com/8x2dRaa7cax66gC0FL3Ru08", icon: "🔌" },
-              { name: "ERP Integration", desc: "Wire advanced inventory and resource data into SAP, NetSuite, or Oracle.", price: "$3,500", link: "https://buy.stripe.com/aFa9AUa7c7kUawSdsx3Ru09", icon: "🏭" },
-              { name: "Voice AI Receptionist", desc: "Deploy high-fidelity, autonomous voice lines handling inbound call reception.", price: "$2,500", link: "https://buy.stripe.com/dRmeVedjo5cM34qewB3Ru0a", icon: "📞" },
-              { name: "AI Sales Assistant", desc: "Automatically draft outreach, sync pipelines, and follow up warm leads.", price: "$2,000", link: "https://buy.stripe.com/28EcN61AGax6bAW3RX3Ru0b", icon: "📈" },
-              { name: "AI Customer Support Agent", desc: "Provide real-time email, ticket, and chat resolutions under 5 minutes.", price: "$1,800", link: "https://buy.stripe.com/fZu3cw3IO20AeN8ewB3Ru0c", icon: "🤝" },
-              { name: "Custom Dashboard", desc: "Gain real-time executive analytics, ROI calculators, and system health status.", price: "$1,500", link: "https://buy.stripe.com/5kQ7sM3IO20AgVgewB3Ru0d", icon: "📊" },
-              { name: "Document AI System", desc: "Extract unstructured invoice, fax, or contract data with 100% precision.", price: "$2,500", link: "https://buy.stripe.com/7sY5kEa7cdJi7kG9ch3Ru0e", icon: "📄" },
-              { name: "Internal Knowledge Assistant", desc: "Empower your workforce with immediate search across full internal company wiki.", price: "$1,500", link: "https://buy.stripe.com/00w28s3IO8oYbAW9ch3Ru0f", icon: "🧠" },
-              { name: "Employee Training", desc: "Custom training workflows mapping company compliance and handbook details.", price: "$1,200", link: "https://buy.stripe.com/3cI00k0wC0Ww8oKbkp3Ru0g", icon: "🏫" },
-              { name: "Additional Dept Automation", desc: "Extend automations across other vertical department operational tasks.", price: "$2,500", link: "https://buy.stripe.com/cNi00ka7ceNmdJ49ch3Ru0h", icon: "🏢" }
+              { name: "Additional AI Agent", desc: "Deploy an extra dedicated agent loop tailored for unique operational tasks.", price: "$1,500", link: "https://buy.stripe.com/3cI6oJ2Oz43R9Ttb202Fa04", icon: "🤖" },
+              { name: "CRM Integration", desc: "Sync your digital coworkers directly into Salesforce, HubSpot, or Zoho.", price: "$2,000", link: "https://buy.stripe.com/6oUcN788T8k71mX2vu2Fa05", icon: "🔌" },
+              { name: "ERP Integration", desc: "Wire advanced inventory and resource data into SAP, NetSuite, or Oracle.", price: "$3,500", link: "https://buy.stripe.com/6oU8wRbl5bwjc1B4DC2Fa06", icon: "🏭" },
+              { name: "Voice AI Receptionist", desc: "Deploy high-fidelity, autonomous voice lines handling inbound call reception.", price: "$2,500", link: "https://buy.stripe.com/5kQ9AV0Gr6bZd5F2vu2Fa07", icon: "📞" },
+              { name: "AI Sales Assistant", desc: "Automatically draft outreach, sync pipelines, and follow up warm leads.", price: "$2,000", link: "https://buy.stripe.com/28EbJ34WH57VfdNc642Fa08", icon: "📈" },
+              { name: "AI Customer Support Agent", desc: "Provide real-time email, ticket, and chat resolutions under 5 minutes.", price: "$1,800", link: "https://buy.stripe.com/6oU3cx4WH6bZ4z97PO2Fa09", icon: "🤝" },
+              { name: "Custom Dashboard", desc: "Gain real-time executive analytics, ROI calculators, and system health status.", price: "$1,500", link: "https://buy.stripe.com/5kQ00lcp9dEre9Jda82Fa0a", icon: "📊" },
+              { name: "Document AI System", desc: "Extract unstructured invoice, fax, or contract data with 100% precision.", price: "$2,500", link: "https://buy.stripe.com/dRm28t9cX7g3c1B3zy2Fa0b", icon: "📄" },
+              { name: "Internal Knowledge Assistant", desc: "Empower your workforce with immediate search across full internal company wiki.", price: "$1,500", link: "https://buy.stripe.com/3cIeVf60Lasfe9J8TS2Fa0c", icon: "🧠" },
+              { name: "Employee Training", desc: "Custom training workflows mapping company compliance and handbook details.", price: "$1,200", link: "https://buy.stripe.com/cNicN7cp92ZNc1B6LK2Fa0d", icon: "🏫" },
+              { name: "Additional Dept Automation", desc: "Extend automations across other vertical department operational tasks.", price: "$2,500", link: "https://buy.stripe.com/cNi7sNah1fMzd5F7PO2Fa0e", icon: "🏢" }
             ].map((item) => (
               <div key={item.name} className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 p-6 rounded-2xl flex flex-col justify-between gap-4 hover:border-emerald-500/20 hover:shadow-sm transition-all">
                 <div>

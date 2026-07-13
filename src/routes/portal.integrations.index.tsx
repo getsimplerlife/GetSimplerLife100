@@ -168,6 +168,56 @@ function ConnectedServices() {
   // Common Feedback State
   const [feedback, setFeedback] = useState("");
 
+  // Manual Credential Modal State
+  const [showCredentialModal, setShowCredentialModal] = useState(false);
+  const [credentialProvider, setCredentialProvider] = useState<ProviderItem | null>(null);
+  const [manualApiKey, setManualApiKey] = useState("");
+  const [manualApiSecret, setManualApiSecret] = useState("");
+  const [manualSubdomain, setManualSubdomain] = useState("");
+  const [manualSaving, setManualSaving] = useState(false);
+  const [manualError, setManualError] = useState<string | null>(null);
+
+  // Connect via Manual API Key
+  const handleConnectManual = async () => {
+    if (!credentialProvider) return;
+    if (!manualApiKey.trim()) {
+      setManualError("API Key is required");
+      return;
+    }
+    setManualSaving(true);
+    setManualError(null);
+    try {
+      const res = await fetch("/api/integrations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          provider: credentialProvider.id,
+          apiKey: manualApiKey.trim(),
+          apiSecret: manualApiSecret.trim() || undefined,
+          subdomain: manualSubdomain.trim() || undefined,
+          displayName: credentialProvider.name,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to connect");
+      }
+      setFeedback(`✅ ${credentialProvider.name} connected successfully!`);
+      setShowCredentialModal(false);
+      setCredentialProvider(null);
+      setManualApiKey("");
+      setManualApiSecret("");
+      setManualSubdomain("");
+      fetchConnectionsData();
+    } catch (err: any) {
+      setManualError(err.message || "Connection failed");
+    } finally {
+      setManualSaving(false);
+      setTimeout(() => setFeedback(""), 3000);
+    }
+  };
+
   // Fetch Providers and Connections
   const fetchConnectionsData = async () => {
     try {
@@ -627,12 +677,27 @@ function ConnectedServices() {
                           </>
                         )}
                         {!hasConnection && (
-                          <button
-                            onClick={() => handleConnect(prov.id)}
-                            className="bg-white text-black border-white hover:bg-stone-200 text-[9px] font-mono font-black tracking-wide uppercase px-4 py-1.5 rounded-lg border transition-all"
-                          >
-                            Connect Platform
-                          </button>
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => handleConnect(prov.id)}
+                              className="bg-white text-black border-white hover:bg-stone-200 text-[9px] font-mono font-black tracking-wide uppercase px-3 py-1.5 rounded-lg border transition-all"
+                            >
+                              OAuth
+                            </button>
+                            <button
+                              onClick={() => {
+                                setCredentialProvider(prov);
+                                setManualApiKey("");
+                                setManualApiSecret("");
+                                setManualSubdomain("");
+                                setManualError(null);
+                                setShowCredentialModal(true);
+                              }}
+                              className="bg-stone-900 hover:bg-stone-800 text-stone-300 border border-stone-800 hover:text-white text-[9px] font-mono font-bold px-3 py-1.5 rounded-lg transition-all"
+                            >
+                              API Key
+                            </button>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -935,6 +1000,76 @@ function ConnectedServices() {
                 className="bg-white text-black font-mono font-bold text-[10px] px-4 py-2 rounded-lg hover:bg-stone-200"
               >
                 Done Reviewing
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Manual Credential Modal ─── */}
+      {showCredentialModal && credentialProvider && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={() => setShowCredentialModal(false)}>
+          <div className="bg-stone-950 border border-stone-900 rounded-3xl p-8 w-full max-w-lg mx-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-start mb-6">
+              <div>
+                <h2 className="text-xl font-black text-white">🔑 {credentialProvider.name}</h2>
+                <p className="text-stone-400 text-xs mt-1">Enter your credentials to connect manually</p>
+              </div>
+              <button onClick={() => setShowCredentialModal(false)} className="text-stone-500 hover:text-white text-xl">&times;</button>
+            </div>
+
+            {manualError && (
+              <div className="bg-rose-950/20 border border-rose-800/30 text-rose-400 p-3 rounded-xl text-xs font-bold mb-4">
+                ⚠️ {manualError}
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-[10px] font-black uppercase text-stone-500 tracking-wider block mb-1">API Key *</label>
+                <input
+                  type="text"
+                  value={manualApiKey}
+                  onChange={e => setManualApiKey(e.target.value)}
+                  placeholder="Paste your API key here"
+                  className="w-full bg-stone-900 border border-stone-800 text-white rounded-xl px-4 py-3 text-xs font-mono placeholder-stone-700 focus:border-emerald-600 outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-black uppercase text-stone-500 tracking-wider block mb-1">API Secret (optional)</label>
+                <input
+                  type="password"
+                  value={manualApiSecret}
+                  onChange={e => setManualApiSecret(e.target.value)}
+                  placeholder="Client secret or API secret"
+                  className="w-full bg-stone-900 border border-stone-800 text-white rounded-xl px-4 py-3 text-xs font-mono placeholder-stone-700 focus:border-emerald-600 outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-black uppercase text-stone-500 tracking-wider block mb-1">Subdomain (optional)</label>
+                <input
+                  type="text"
+                  value={manualSubdomain}
+                  onChange={e => setManualSubdomain(e.target.value)}
+                  placeholder="e.g. your-company.salesforce.com"
+                  className="w-full bg-stone-900 border border-stone-800 text-white rounded-xl px-4 py-3 text-xs font-mono placeholder-stone-700 focus:border-emerald-600 outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 mt-8">
+              <button
+                onClick={() => setShowCredentialModal(false)}
+                className="bg-stone-900 hover:bg-stone-800 text-stone-300 border border-stone-800 px-5 py-2.5 rounded-xl text-xs font-bold transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConnectManual}
+                disabled={manualSaving}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all disabled:opacity-50"
+              >
+                {manualSaving ? "Connecting..." : "Connect"}
               </button>
             </div>
           </div>

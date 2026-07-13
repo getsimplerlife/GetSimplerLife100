@@ -55,49 +55,121 @@ async function requireUser(req: Request): Promise<{ userId: string; userEmail: s
   return getUserFromRequest(req);
 }
 
-// ─── Credential Storage ──────────────────────────────────────────────────────
-// Stores OAuth clientId + clientSecret per provider in the portal_data table
-// (section = "provider-credentials", id = providerId)
+// ─── Admin Check & Credentials Helpers ──────────────────────────────────────────
+
+async function isAdmin(userId: string): Promise<boolean> {
+  try {
+    const { db } = await import("../db/index");
+    const { users } = await import("../db/schema");
+    const { eq } = await import("drizzle-orm");
+    const currentUser = await db.query.users.findFirst({ where: eq(users.id, userId) });
+    return currentUser?.email === 'mathewortiz97@gmail.com';
+  } catch {
+    return false;
+  }
+}
 
 async function getProviderCredentials(providerId: string): Promise<{ clientId: string; clientSecret: string } | null> {
   try {
     const { db } = await import("../db/index");
-    const { sql } = await import("drizzle-orm");
-    const rows = await db.all(sql.raw(`SELECT data FROM portal_data WHERE section = 'provider-credentials' AND id = '${providerId.replace(/'/g, "''")}' LIMIT 1`));
+    const { providerCredentials } = await import("../db/schema");
+    const { eq } = await import("drizzle-orm");
+    const { decrypt } = await import("../integrations/framework/connection");
+
+    const rows = await db.select().from(providerCredentials).where(eq(providerCredentials.provider, providerId)).limit(1);
     if (rows.length === 0) return null;
-    const parsed = JSON.parse(rows[0].data);
-    return { clientId: parsed.clientId || "", clientSecret: parsed.clientSecret || "" };
-  } catch {
+    const cred = rows[0];
+    let clientSecret = "";
+    try {
+      clientSecret = decrypt(cred.clientSecret);
+    } catch {
+      clientSecret = cred.clientSecret;
+    }
+    return {
+      clientId: cred.clientId,
+      clientSecret,
+    };
+  } catch (err) {
+    console.error(`Error in getProviderCredentials for ${providerId}:`, err);
     return null;
   }
 }
 
 async function saveProviderCredentials(providerId: string, clientId: string, clientSecret: string): Promise<void> {
   const { db } = await import("../db/index");
-  const { sql } = await import("drizzle-orm");
-  const now = Date.now();
-  const data = JSON.stringify({ clientId, clientSecret });
-  const safeId = providerId.replace(/'/g, "''");
-  const safeData = data.replace(/'/g, "''");
-  // Upsert: delete existing then insert
-  await db.run(sql.raw(`DELETE FROM portal_data WHERE section = 'provider-credentials' AND id = '${safeId}'`));
-  await db.run(sql.raw(`INSERT INTO portal_data (id, user_id, section, data, created_at, updated_at) VALUES ('${safeId}', 'admin', 'provider-credentials', '${safeData}', ${now}, ${now})`));
+  const { providerCredentials } = await import("../db/schema");
+  const { eq } = await import("drizzle-orm");
+  const { encrypt } = await import("../integrations/framework/connection");
+
+  const now = new Date();
+  const existing = await db.select().from(providerCredentials).where(eq(providerCredentials.provider, providerId)).limit(1);
+
+  let encryptedSecret: string;
+  const isMaskedOrEmpty = clientSecret === "••••••••••••••••" || !clientSecret;
+
+  if (isMaskedOrEmpty) {
+    if (existing.length > 0) {
+      encryptedSecret = existing[0].clientSecret;
+    } else {
+      encryptedSecret = encrypt("");
+    }
+  } else {
+    encryptedSecret = encrypt(clientSecret);
+  }
+
+  // Upsert
+  if (existing.length > 0) {
+    await db.update(providerCredentials)
+      .set({
+        clientId,
+        clientSecret: encryptedSecret,
+        updatedAt: now,
+      })
+      .where(eq(providerCredentials.provider, providerId));
+  } else {
+    await db.insert(providerCredentials)
+      .values({
+        provider: providerId,
+        clientId,
+        clientSecret: encryptedSecret,
+        createdAt: now,
+        updatedAt: now,
+      });
+  }
 }
 
 async function deleteProviderCredentials(providerId: string): Promise<void> {
   const { db } = await import("../db/index");
-  const { sql } = await import("drizzle-orm");
-  await db.run(sql.raw(`DELETE FROM portal_data WHERE section = 'provider-credentials' AND id = '${providerId.replace(/'/g, "''")}'`));
+  const { providerCredentials } = await import("../db/schema");
+  const { eq } = await import("drizzle-orm");
+  await db.delete(providerCredentials).where(eq(providerCredentials.provider, providerId));
 }
 
 async function listAllCredentials(): Promise<Array<{ providerId: string; clientId: string; hasSecret: boolean }>> {
-  const { db } = await import("../db/index");
-  const { sql } = await import("drizzle-orm");
-  const rows = await db.all(sql.raw(`SELECT id, data FROM portal_data WHERE section = 'provider-credentials' ORDER BY id`));
-  return rows.map((r: any) => {
-    const parsed = JSON.parse(r.data);
-    return { providerId: r.id, clientId: parsed.clientId || "", hasSecret: !!(parsed.clientSecret) };
-  });
+  try {
+    const { db } = await import("../db/index");
+    const { providerCredentials } = await import("../db/schema");
+    const rows = await db.select().from(providerCredentials);
+    return rows.map((r: any) => ({
+      providerId: r.provider,
+      clientId: r.clientId,
+      hasSecret: !!(r.clientSecret),
+    }));
+  } catch (err) {
+    console.error("Error listing credentials:", err);
+    return [];
+  }
+}
+
+async function resolveCredentials(providerId: string, providerMeta: any): Promise<{ clientId: string; clientSecret: string }> {
+  const stored = await getProviderCredentials(providerId);
+  if (stored && stored.clientId) {
+    return stored;
+  }
+  const envPrefix = providerId.toUpperCase().replace(/-/g, "_");
+  const clientId = providerMeta.clientId || process.env[`${envPrefix}_CLIENT_ID`] || "";
+  const clientSecret = providerMeta.clientSecret || process.env[`${envPrefix}_CLIENT_SECRET`] || "";
+  return { clientId, clientSecret };
 }
 
 // ─── Dynamic Provider Import ──────────────────────────────────────────────────
@@ -207,6 +279,9 @@ export async function handleOAuthCallback(req: Request): Promise<Response> {
 
   try {
     let tokens: any;
+    const creds = await resolveCredentials(providerId, providerMeta);
+    const clientId = creds.clientId;
+    const clientSecret = creds.clientSecret;
 
     // Find the exchange function
     const exchangeFnNames = Object.getOwnPropertyNames(authMod || {}).filter(n =>
@@ -216,8 +291,8 @@ export async function handleOAuthCallback(req: Request): Promise<Response> {
     if (exchangeFnNames.length > 0 && authMod) {
       const exchangeFn = authMod[exchangeFnNames[0]];
       tokens = await exchangeFn({
-        clientId: providerMeta.clientId || "",
-        clientSecret: providerMeta.clientSecret || "",
+        clientId,
+        clientSecret,
         redirectUri: `${SITE_ORIGIN}/api/oauth/callback?provider=${providerId}`,
         ...(providerMeta.defaultConfig || {}),
       }, code, "");
@@ -225,8 +300,8 @@ export async function handleOAuthCallback(req: Request): Promise<Response> {
       // Generic exchange via oauth.ts framework
       const { exchangeCodeForTokens } = await import("../integrations/framework/oauth");
       const oauthConfig: OAuthConfig = {
-        clientId: providerMeta.clientId || "",
-        clientSecret: providerMeta.clientSecret || "",
+        clientId,
+        clientSecret,
         redirectUri: `${SITE_ORIGIN}/api/oauth/callback?provider=${providerId}`,
         scopes: providerMeta.scopes || [],
         authorizeUrl: providerMeta.authorizeUrl || "",
@@ -372,12 +447,15 @@ export async function handleConnectionSync(req: Request): Promise<Response> {
 // ─── 4. Provider Metadata ─────────────────────────────────────────────────────
 
 export async function handleListProviders(_req: Request): Promise<Response> {
+  const allCreds = await listAllCredentials();
+  const credMap = new Map(allCreds.map((c: any) => [c.providerId, c]));
   const providers = registry.listAll().map((p: any) => ({
     id: p.id,
     name: p.name,
     category: p.category,
     authType: p.authType || "oauth2",
     description: p.description || "",
+    hasCredentials: credMap.has(p.id) && !!credMap.get(p.id)!.clientId,
     actions: registry.getActions(p.id)?.map((a: any) => ({ name: a.name, description: a.description })) || [],
   }));
   return json(providers);
@@ -513,7 +591,7 @@ export async function routeIntegrationRequest(req: Request): Promise<Response | 
     const token = req.headers.get("cookie")?.match(/session=([^;]+)/)?.[1];
     if (!token) return error("Not authenticated", 401);
     const userId = await verifySessionToken(token);
-    if (!userId || userId !== "admin") return error("Unauthorized", 403);
+    if (!userId || !(await isAdmin(userId))) return error("Unauthorized", 403);
     const credentials = await listAllCredentials();
     return json(credentials);
   }
@@ -525,7 +603,7 @@ export async function routeIntegrationRequest(req: Request): Promise<Response | 
     const token = req.headers.get("cookie")?.match(/session=([^;]+)/)?.[1];
     if (!token) return error("Not authenticated", 401);
     const userId = await verifySessionToken(token);
-    if (!userId) return error("Unauthorized", 403);
+    if (!userId || !(await isAdmin(userId))) return error("Unauthorized", 403);
     const providerId = adminCredPutMatch[1];
     const body = await req.json().catch(() => null);
     if (!body || !body.clientId) return error("Missing clientId");
@@ -540,7 +618,7 @@ export async function routeIntegrationRequest(req: Request): Promise<Response | 
     const token = req.headers.get("cookie")?.match(/session=([^;]+)/)?.[1];
     if (!token) return error("Not authenticated", 401);
     const userId = await verifySessionToken(token);
-    if (!userId) return error("Unauthorized", 403);
+    if (!userId || !(await isAdmin(userId))) return error("Unauthorized", 403);
     const providerId = adminCredDelMatch[1];
     await deleteProviderCredentials(providerId);
     return json({ success: true, providerId });

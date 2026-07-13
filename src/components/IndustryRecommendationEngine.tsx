@@ -299,7 +299,7 @@ export function IndustryRecommendationEngine({ industry }: IndustryRecommendatio
                     </div>
 
                     <a
-                      href="https://buy.stripe.com/14A3cw2EKfRqcF0gEJ3Ru00"
+                      href="https://buy.stripe.com/fZufZj2OzdEr6Hh0nm2Fa00"
                       target="_blank"
                       rel="noreferrer"
                       className="w-full bg-stone-950 border border-stone-800 hover:bg-stone-900 hover:border-stone-700 text-stone-200 text-center py-2 rounded-xl text-xs font-bold block transition-all font-mono"

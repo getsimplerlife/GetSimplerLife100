@@ -129,7 +129,7 @@ export default function IndustryLanding({ config }: { config: IndustryConfig }) 
             {/* Deep-Dive Audit */}
             <div className="flex flex-col p-8 bg-white dark:bg-stone-800 border-2 rounded-2xl shadow-md relative">
               <div
-                className="absolute -top-3 left-1/2 -transtone-x-1/2 px-4 py-1 text-white text-xs font-bold rounded-full"
+                className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 text-white text-xs font-bold rounded-full"
                 style={{ backgroundColor: c.accent }}
               >
                 Most Popular
@@ -150,7 +150,7 @@ export default function IndustryLanding({ config }: { config: IndustryConfig }) 
                 ))}
               </ul>
               <a
-                href="https://buy.stripe.com/14A3cw2EKfRqcF0gEJ3Ru00"
+                href="https://buy.stripe.com/fZufZj2OzdEr6Hh0nm2Fa00"
                 className="w-full text-center text-white py-3 rounded-lg font-bold hover:opacity-90 transition-opacity"
                 style={{ backgroundColor: c.accent }}
               >
