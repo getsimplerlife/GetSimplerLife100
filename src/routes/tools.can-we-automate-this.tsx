@@ -163,12 +163,12 @@ function CanWeAutomateThis() {
                 {/* CTA */}
                 <div className="flex gap-3 pt-2">
                   <a
-                    href="https://buy.stripe.com/test_14k5nJ6XJ8kX5n6001"
+                    href="https://buy.stripe.com/eVq14p74P43RaXxfig2Fa0k"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-sm py-3 rounded-xl text-center transition-all"
                   >
-                    🚀 Deploy {result.top.suggestedAgentName} — Starts at $499/mo
+                    🚀 Deploy {result.top.suggestedAgentName} — Starts at $750/mo
                   </a>
                   <a
                     href="/contact"

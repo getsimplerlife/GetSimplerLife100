@@ -493,12 +493,12 @@ function AutomationAssessment() {
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <a
-                  href="https://buy.stripe.com/test_14k5nJ6XJ8kX5n6001"
+                  href="https://buy.stripe.com/eVq14p74P43RaXxfig2Fa0k"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-sm px-6 py-3 rounded-xl transition-all"
                 >
-                  🚀 Deploy Now — $499/mo
+                  🚀 Deploy Now — $750/mo
                 </a>
                 <a
                   href="/contact"

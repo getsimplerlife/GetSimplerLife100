@@ -69,7 +69,7 @@ const journeySteps = [
     description: "We build a technical roadmap and workflow that fits your business, showing exactly how the agents will work.",
     price: "$2,500",
     cta: "Get Your Custom Blueprint",
-    link: "https://buy.stripe.com/14A3cw2EKfRqcF0gEJ3Ru00"
+    link: "https://buy.stripe.com/fZufZj2OzdEr6Hh0nm2Fa00"
   },
   {
     step: "03",

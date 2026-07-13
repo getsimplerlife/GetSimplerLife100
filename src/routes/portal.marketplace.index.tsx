@@ -29,7 +29,7 @@ const DEFAULT_MARKETPLACE_ITEMS: MarketplaceItem[] = [
     rating: 4.9,
     runsMonth: "14.2k",
     icon: "🏥",
-    paymentLink: "https://buy.stripe.com/8x26oIensbBa0Wi4W13Ru07",
+    paymentLink: "https://buy.stripe.com/00w9AV60LeIvaXxb202Fa0f",
   },
   {
     id: "app-2",
@@ -41,7 +41,7 @@ const DEFAULT_MARKETPLACE_ITEMS: MarketplaceItem[] = [
     rating: 4.8,
     runsMonth: "42.8k",
     icon: "💸",
-    paymentLink: "https://buy.stripe.com/8x26oIensbBa0Wi4W13Ru07",
+    paymentLink: "https://buy.stripe.com/28E6oJexh57Vc1Bb202Fa0g",
   },
   {
     id: "app-3",
@@ -53,7 +53,7 @@ const DEFAULT_MARKETPLACE_ITEMS: MarketplaceItem[] = [
     rating: 4.7,
     runsMonth: "8.9k",
     icon: "🚀",
-    paymentLink: "https://buy.stripe.com/28EcN61AGax6bAW3RX3Ru0b",
+    paymentLink: "https://buy.stripe.com/8x2fZjfBlfMzghR8TS2Fa0h",
   },
   {
     id: "app-4",
@@ -65,7 +65,7 @@ const DEFAULT_MARKETPLACE_ITEMS: MarketplaceItem[] = [
     rating: 4.6,
     runsMonth: "5.1k",
     icon: "👤",
-    paymentLink: "https://buy.stripe.com/8x26oIensbBa0Wi4W13Ru07",
+    paymentLink: "https://buy.stripe.com/14AeVffBl2ZNc1Bc642Fa0i",
   },
   {
     id: "app-5",
@@ -77,7 +77,7 @@ const DEFAULT_MARKETPLACE_ITEMS: MarketplaceItem[] = [
     rating: 4.9,
     runsMonth: "25.4k",
     icon: "📦",
-    paymentLink: "https://buy.stripe.com/8x26oIensbBa0Wi4W13Ru07",
+    paymentLink: "https://buy.stripe.com/9B6eVfdtd57Vd5F4DC2Fa0j",
   },
   {
     id: "app-6",
@@ -89,7 +89,7 @@ const DEFAULT_MARKETPLACE_ITEMS: MarketplaceItem[] = [
     rating: 4.8,
     runsMonth: "19.3k",
     icon: "⚙️",
-    paymentLink: "https://buy.stripe.com/28E4gAens20AfRcbkp3Ru04",
+    paymentLink: "https://buy.stripe.com/eVq14p74P43RaXxfig2Fa0k",
   },
 ];
 

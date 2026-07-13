@@ -45,6 +45,7 @@ function AdminLayout() {
     { name: "🩺 Infrastructure Health", path: "/portal/admin/health" },
     { name: "🛠️ Workflow Builder", path: "/portal/admin/workflow-builder" },
     { name: "🔍 Audit Logs", path: "/portal/admin/audit" },
+    { name: "🔑 OAuth Credentials", path: "/portal/admin/credentials" },
   ];
 
   if (loading) {

@@ -595,12 +595,12 @@ function AssessmentPage() {
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
                 <a
-                  href="https://buy.stripe.com/test_14k5nJ6XJ8kX5n6001"
+                  href="https://buy.stripe.com/eVq14p74P43RaXxfig2Fa0k"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full sm:w-auto px-7 py-3.5 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-bold text-sm rounded-xl transition-all shadow-lg hover:shadow-[0_0_25px_rgba(99,102,241,0.4)]"
                 >
-                  🚀 DEPLOY AI TEAM — $499/MO
+                  🚀 DEPLOY AI TEAM — $750/MO
                 </a>
                 <Link
                   to="/contact"

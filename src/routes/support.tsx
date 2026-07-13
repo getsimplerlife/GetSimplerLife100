@@ -112,7 +112,7 @@ function SupportPage() {
                 }`}
               >
                 {tier.popular && (
-                  <div className="absolute top-0 left-1/2 -transtone-x-1/2 -transtone-y-1/2 bg-emerald-600 text-white px-6 py-1.5 rounded-full text-sm font-black uppercase tracking-widest shadow-lg shadow-emerald-200">
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-emerald-600 text-white px-6 py-1.5 rounded-full text-sm font-black uppercase tracking-widest shadow-lg shadow-emerald-200">
                     Most Popular
                   </div>
                 )}
