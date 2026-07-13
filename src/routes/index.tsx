@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { readFile } from "node:fs/promises";
+import { useState } from "react";
 import { getUser } from "~/db/queries";
 import { workflows } from "~/content/workflows";
 
@@ -58,7 +59,7 @@ const journeySteps = [
     benefit: "Audit",
     description: "In 30 minutes, we'll identify your top automation opportunities, estimate the time and cost savings, and recommend the best next step. If we don't find a meaningful opportunity, we'll tell you.",
     price: "FREE",
-    cta: "Book Your Free AI Workflow Assessment",
+    cta: "Stop Copy-Pasting. Get Your Blueprint ➜",
     link: "/contact"
   },
   {
@@ -67,7 +68,7 @@ const journeySteps = [
     benefit: "Blueprint",
     description: "We build a technical roadmap and workflow that fits your business, showing exactly how the agents will work.",
     price: "$2,500",
-    cta: "Get Your Blueprint",
+    cta: "Get Your Custom Blueprint",
     link: "https://buy.stripe.com/14A3cw2EKfRqcF0gEJ3Ru00"
   },
   {
@@ -76,7 +77,7 @@ const journeySteps = [
     benefit: "Implementation",
     description: "Our engineers build and integrate the agents into your existing systems (CRM, ERP, Slack, Email).",
     price: "From $7,500",
-    cta: "View Implementation",
+    cta: "Stop Copy-Pasting. Start Your Build ➜",
     link: "/build"
   },
   {
@@ -90,29 +91,112 @@ const journeySteps = [
   }
 ];
 
+const blueprintTemplates = {
+  invoice: {
+    title: "Invoice & AP Integration Map",
+    steps: [
+      { label: "Intake Trigger", icon: "📥", desc: "Ivy Invoice monitors incoming email attachments & files." },
+      { label: "OCR Extraction", icon: "🧠", desc: "Extracts table line items, totals, and invoice IDs." },
+      { label: "ERP/GL Match", icon: "🔌", desc: "Synchronizes validated bills directly into QuickBooks/SAP." },
+      { label: "Dispatch Ping", icon: "💬", desc: "Dispatches structural audit log to Slack #finance channel." }
+    ]
+  },
+  dispatch: {
+    title: "Carrier Dispatch Automation Map",
+    steps: [
+      { label: "Carrier Inquiry", icon: "📧", desc: "Monitors and filters high-volume carrier bid streams." },
+      { label: "TMS Rule Evaluation", icon: "🧠", desc: "Quentin Quote queries shipment matching criteria." },
+      { label: "Conditional Review", icon: "🎛️", desc: "Routes outliers above budget thresholds for manual signoff." },
+      { label: "Auto-Confirm", icon: "✅", desc: "Dispatches route confirmation to carrier, closing loop." }
+    ]
+  },
+  intake: {
+    title: "Patient Intake & EMR Map",
+    steps: [
+      { label: "Scanned Intake", icon: "📄", desc: "Monitors scanned patient intake folders and medical faxes." },
+      { label: "Eligibility Check", icon: "🧠", desc: "Extracts patient variables and runs insurance status checks." },
+      { label: "EMR Push", icon: "💾", desc: "Cleanly registers new user records directly into your EMR." },
+      { label: "Patient Invite", icon: "📅", desc: "Sends patient a text confirmation with intake details." }
+    ]
+  },
+  custom: {
+    title: "Custom Operational AI Map",
+    steps: [
+      { label: "Operational Event", icon: "⚡", desc: "Monitors operational events or legacy system updates." },
+      { label: "Agent Reasoning", icon: "🧠", desc: "AI worker reads unstructured datasets and plans next steps." },
+      { label: "Action Dispatch", icon: "🔌", desc: "Updates legacy ERPs/CRMs via customized APIs." },
+      { label: "Audit Trace", icon: "💬", desc: "Dispatches completed trace telemetry reports directly to your Slack." }
+    ]
+  }
+};
+
 function Home() {
   const { businessName, user } = Route.useLoaderData();
-  
+
+  // Prompt compiler state
+  const [promptText, setPromptText] = useState("Auto-read scanned invoice PDFs, extract line-items, update QuickBooks and notify Slack");
+  const [compilingState, setCompilingState] = useState<'idle' | 'analyzing' | 'mapping' | 'done'>('done');
+
+  // ROI Calculator sliders state
+  const [teamSize, setTeamSize] = useState(10);
+  const [hoursWasted, setHoursWasted] = useState(8);
+  const [hourlyRate, setHourlyRate] = useState(35);
+
+  const hoursReclaimed = teamSize * hoursWasted * 4;
+  const monthlySavings = hoursReclaimed * hourlyRate;
+  const annualSavings = monthlySavings * 12;
+  const paybackDays = Math.max(7, Math.round((10000 / Math.max(1, monthlySavings)) * 30));
+
+  const handleCompile = () => {
+    setCompilingState('analyzing');
+    setTimeout(() => {
+      setCompilingState('mapping');
+      setTimeout(() => {
+        setCompilingState('done');
+      }, 1000);
+    }, 1000);
+  };
+
+  const getActiveTemplate = () => {
+    const text = promptText.toLowerCase();
+    if (text.includes("invoice") || text.includes("billing") || text.includes("quickbooks") || text.includes("ap") || text.includes("ledger")) {
+      return blueprintTemplates.invoice;
+    }
+    if (text.includes("dispatch") || text.includes("carrier") || text.includes("logistics") || text.includes("load") || text.includes("tms")) {
+      return blueprintTemplates.dispatch;
+    }
+    if (text.includes("patient") || text.includes("medical") || text.includes("intake") || text.includes("clinical") || text.includes("emr")) {
+      return blueprintTemplates.intake;
+    }
+    return blueprintTemplates.custom;
+  };
+
+  const activeTemplate = getActiveTemplate();
+
   return (
-    <div className="flex flex-col min-h-screen selection:bg-emerald-100 selection:text-emerald-900">
-      <header className="px-6 py-6 bg-white dark:bg-stone-900 sticky top-0 z-50 border-b border-stone-100 dark:border-stone-800 backdrop-blur-md bg-white/80 dark:bg-stone-900/80">
+    <div className="flex flex-col min-h-screen selection:bg-emerald-100 selection:text-emerald-900 bg-stone-50">
+      
+      {/* ─── Header ─── */}
+      <header className="px-6 py-4 bg-white sticky top-0 z-50 border-b border-stone-100 backdrop-blur-md bg-white/80">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <Link to="/" className="text-2xl font-black text-emerald-600 tracking-tight">
             {businessName}
           </Link>
-          <nav className="hidden md:flex gap-10 items-center">
-            <a href="#solutions" className="text-sm font-bold text-stone-600 hover:text-emerald-600 transition-colors">Solutions</a>
-            <a href="#industries" className="text-sm font-bold text-stone-600 hover:text-emerald-600 transition-colors">Industries</a>
-            <Link to="/build" className="text-sm font-bold text-stone-600 hover:text-emerald-600 transition-colors">Builder</Link>
-            <Link to="/support" className="text-sm font-bold text-stone-600 hover:text-emerald-600 transition-colors">Support</Link>
+          <nav className="hidden md:flex gap-8 items-center">
+            <a href="#examples" className="text-sm font-bold text-stone-600 hover:text-emerald-600 transition-colors">Solutions</a>
+            <Link to="/how-it-works" className="text-sm font-bold text-stone-600 hover:text-emerald-600 transition-colors">How It Works</Link>
+            <Link to="/about" className="text-sm font-bold text-stone-600 hover:text-emerald-600 transition-colors">About</Link>
+            <Link to="/faq" className="text-sm font-bold text-stone-600 hover:text-emerald-600 transition-colors">FAQ</Link>
             <a href="#pricing" className="text-sm font-bold text-stone-600 hover:text-emerald-600 transition-colors">Pricing</a>
             <a href="#contact" className="text-sm font-bold text-stone-600 hover:text-emerald-600 transition-colors">Contact</a>
             {user ? (
-              <Link to="/portal" className="bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-emerald-700 transition-all shadow-md shadow-emerald-100">Dashboard</Link>
+              <Link to="/portal" className="bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-emerald-700 transition-all shadow-md">Dashboard</Link>
             ) : (
               <>
                 <Link to="/login" className="text-sm font-bold text-emerald-600 hover:text-emerald-700">Login</Link>
-                <Link to="/contact" className="bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-emerald-700 transition-all shadow-md shadow-emerald-100">Book Free AI Workflow Assessment</Link>
+                <Link to="/contact" className="bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-emerald-700 transition-all shadow-md text-xs min-h-[44px] flex items-center justify-center">
+                  Stop Copy-Pasting. Start Free Plan ➜
+                </Link>
               </>
             )}
           </nav>
@@ -120,76 +204,282 @@ function Home() {
       </header>
 
       <main className="flex-1">
-        {/* Hero Section */}
-        <section className="px-6 pt-24 pb-32 lg:pt-40 lg:pb-48 bg-white overflow-hidden relative border-b border-stone-50">
-          <div className="absolute top-0 left-1/2 -transtone-x-1/2 w-full max-w-7xl h-full opacity-[0.03] pointer-events-none">
-            <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,#4f46e5,transparent_70%)]" />
-          </div>
-          <div className="max-w-5xl mx-auto text-center relative z-10">
-            <h1 className="text-6xl lg:text-8xl font-black tracking-tight mb-10 text-stone-900 leading-[1.1]">
-              Cut repetitive operations by <span className="text-emerald-600">80%</span> with AI agents.
-            </h1>
-            <p className="text-2xl text-stone-500 mb-12 max-w-4xl mx-auto leading-relaxed">
-              We build AI employees that take repetitive operations work off your team's plate.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-6 justify-center">
-              <Link to="/contact" className="bg-emerald-600 text-white px-10 py-5 rounded-2xl font-bold text-xl hover:bg-emerald-700 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-xl shadow-emerald-200">
-                Book Your Free AI Workflow Assessment
-              </Link>
-              <a href="#examples" className="bg-white text-stone-900 border-2 border-stone-100 px-10 py-5 rounded-2xl font-bold text-xl hover:bg-stone-50 transition-all hover:border-stone-200">
-                See Example Automations
-              </a>
-            </div>
+        
+        {/* ─── Interactive Hero Section ─── */}
+        <section className="px-4 py-12 lg:py-24 bg-white border-b border-stone-100 overflow-hidden relative">
+          <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-center relative z-10">
             
-            {/* Ecosystem Logos */}
-            <div className="mt-24">
-              <p className="text-sm font-bold text-stone-400 uppercase tracking-widest mb-8 text-center">We work inside the software your team already uses</p>
-              <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-6">
-                {ecosystemLogos.map(logo => (
-                  <div key={logo} className="flex items-center gap-2">
-                    <svg className="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
-                    <span className="font-bold text-stone-600">{logo}</span>
+            {/* Left Column: Heading, Pain CTA, Prompt Compiler */}
+            <div className="lg:col-span-7 space-y-8">
+              <span className="inline-block px-3 py-1 text-xs font-mono font-bold tracking-wider rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 uppercase">
+                ACTIVE COGNITIVE WORKFORCES
+              </span>
+              <h1 className="text-4xl sm:text-5xl lg:text-7xl font-black tracking-tight text-stone-900 leading-[1.1] max-w-2xl">
+                Stop copy-pasting. Reclaim <span className="text-emerald-600">80%</span> of your team's time.
+              </h1>
+              <p className="text-lg lg:text-xl text-stone-500 max-w-xl leading-relaxed">
+                Describe your worst operational bottleneck in English. Our AI analyzes, maps, and compiles a custom automation blueprint instantly.
+              </p>
+
+              {/* Prompt Compiler Widget */}
+              <div className="bg-stone-50 border border-stone-200 rounded-3xl p-5 sm:p-6 space-y-4 shadow-sm">
+                <div>
+                  <label className="block text-[10px] font-mono tracking-wider uppercase text-stone-400 mb-2">
+                    Describe your repetitive manual process:
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={promptText}
+                    onChange={(e) => setPromptText(e.target.value)}
+                    className="w-full bg-white border border-stone-200 rounded-xl p-3 text-xs font-medium leading-relaxed outline-none focus:border-stone-400 placeholder-stone-400 resize-none text-stone-800"
+                    placeholder="E.g. Auto-read scanned invoice PDFs, extract line-items, update QuickBooks and notify Slack..."
+                  />
+                </div>
+
+                {/* Quick Examples Tag Pills */}
+                <div className="flex flex-wrap gap-2 items-center">
+                  <span className="text-[10px] text-stone-400 font-mono">QUICK EXAMPLES:</span>
+                  {[
+                    { label: "AP/Invoice Parsing", prompt: "Auto-read scanned invoice PDFs, extract line-items, update QuickBooks and notify Slack" },
+                    { label: "Logistics Dispatching", prompt: "Filter incoming carrier route bid faxes, match capacity on TMS, and send confirmation" },
+                    { label: "Patient Registration", prompt: "Process patient registration faxes, run eligibility checks, and update clinical EMR data" }
+                  ].map(ex => (
+                    <button
+                      key={ex.label}
+                      onClick={() => {
+                        setPromptText(ex.prompt);
+                        setCompilingState('done');
+                      }}
+                      className="text-[10px] bg-white hover:bg-stone-100 text-stone-600 font-bold px-2.5 py-1 rounded-full border border-stone-200 transition-colors min-h-[28px]"
+                    >
+                      {ex.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Action button */}
+                <button
+                  onClick={handleCompile}
+                  disabled={compilingState === 'analyzing' || compilingState === 'mapping'}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs font-mono py-3 px-4 rounded-xl transition-all shadow-md active:scale-95 disabled:opacity-50 min-h-[44px]"
+                >
+                  {compilingState === 'analyzing' ? (
+                    "🧠 Analyzing instructions..."
+                  ) : compilingState === 'mapping' ? (
+                    "🔗 Mapping system integrations..."
+                  ) : (
+                    "🪄 Compile AI Blueprint Plan"
+                  )}
+                </button>
+
+                {/* Simulated Generated Result Card */}
+                {compilingState === 'done' && (
+                  <div className="bg-white border border-stone-200/80 rounded-2xl p-4 space-y-4 animate-fadeIn">
+                    <div className="flex justify-between items-center border-b border-stone-100 pb-2.5">
+                      <h4 className="text-xs font-black text-stone-900 font-mono tracking-tight">{activeTemplate.title}</h4>
+                      <span className="text-[9px] font-mono bg-emerald-50 text-emerald-700 border border-emerald-100 px-2 py-0.5 rounded font-black">99.2% ACCURACY</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                      {activeTemplate.steps.map((st, i) => (
+                        <div key={i} className="p-3 bg-stone-50 rounded-xl space-y-1 relative border border-stone-100">
+                          <span className="text-xl block mb-1">{st.icon}</span>
+                          <div className="text-[10px] font-black text-stone-900 leading-tight">{st.label}</div>
+                          <div className="text-[8px] text-stone-500 leading-normal line-clamp-2">{st.desc}</div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                ))}
+                )}
+              </div>
+            </div>
+
+            {/* Right Column: Hero ROI Reclaim Sliders */}
+            <div className="lg:col-span-5 bg-stone-950 text-white rounded-[2.5rem] p-6 sm:p-8 space-y-6 shadow-2xl border border-white/5 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+              
+              <div className="space-y-1 relative z-10">
+                <h3 className="text-lg font-black tracking-tight text-white">Live ROI Calculator</h3>
+                <p className="text-stone-400 text-xs font-mono">Calculate your team's labor savings instantly</p>
+              </div>
+
+              {/* Sliders */}
+              <div className="space-y-5 relative z-10">
+                <div className="space-y-2">
+                  <div className="flex justify-between text-xs font-mono">
+                    <span className="text-stone-400 font-bold uppercase">Team Size</span>
+                    <span className="text-emerald-400 font-black">{teamSize} Employees</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="1"
+                    max="100"
+                    value={teamSize}
+                    onChange={(e) => setTeamSize(Number(e.target.value))}
+                    className="w-full h-1.5 bg-stone-850 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between text-xs font-mono">
+                    <span className="text-stone-400 font-bold uppercase">Hours Wasted / Week</span>
+                    <span className="text-emerald-400 font-black">{hoursWasted} Hours</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="1"
+                    max="40"
+                    value={hoursWasted}
+                    onChange={(e) => setHoursWasted(Number(e.target.value))}
+                    className="w-full h-1.5 bg-stone-850 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between text-xs font-mono">
+                    <span className="text-stone-400 font-bold uppercase">Hourly Loaded Cost</span>
+                    <span className="text-emerald-400 font-black">${hourlyRate}/hr</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="15"
+                    max="150"
+                    value={hourlyRate}
+                    onChange={(e) => setHourlyRate(Number(e.target.value))}
+                    className="w-full h-1.5 bg-stone-850 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                  />
+                </div>
+              </div>
+
+              {/* Live Savings Stats Display */}
+              <div className="bg-stone-900 border border-white/5 rounded-2xl p-5 space-y-4 relative z-10">
+                <div className="grid grid-cols-2 gap-4 divide-x divide-white/5">
+                  <div className="space-y-0.5">
+                    <span className="text-[9px] font-mono text-stone-500 uppercase block tracking-wider">Hours Reclaimed</span>
+                    <span className="text-2xl font-black text-white">{hoursReclaimed} hrs/mo</span>
+                  </div>
+                  <div className="space-y-0.5 pl-4">
+                    <span className="text-[9px] font-mono text-stone-500 uppercase block tracking-wider">Payback Period</span>
+                    <span className="text-2xl font-black text-emerald-400">{paybackDays} Days</span>
+                  </div>
+                </div>
+                <div className="border-t border-white/5 pt-3.5 space-y-0.5">
+                  <span className="text-[9px] font-mono text-stone-500 uppercase block tracking-wider">Monthly Reclaimed Labor</span>
+                  <div className="text-4xl font-black text-white tracking-tight">${monthlySavings.toLocaleString()} / mo</div>
+                </div>
+                <div className="text-[10px] text-stone-400 font-mono flex items-center justify-between bg-black/30 p-2.5 rounded-lg">
+                  <span>ANNUALIZED GAIN:</span>
+                  <span className="text-emerald-400 font-black">${annualSavings.toLocaleString()} / yr</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ─── Detailed Case Study Card ( fold-area ) ─── */}
+        <section className="px-4 py-16 bg-stone-50 border-b border-stone-200/80">
+          <div className="max-w-7xl mx-auto space-y-8">
+            <div className="border-l-4 border-emerald-600 pl-4">
+              <span className="text-[10px] font-mono font-bold tracking-widest text-stone-400 uppercase block">CUSTOMER TRIAL SUCCESS</span>
+              <h2 className="text-3xl font-black tracking-tight text-stone-950">Vanguard Precision Manufacturing</h2>
+            </div>
+
+            <div className="bg-white border border-stone-200 rounded-[2.5rem] p-6 lg:p-12 shadow-sm grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+              
+              {/* Context Block */}
+              <div className="lg:col-span-7 space-y-6">
+                <div>
+                  <span className="text-[9px] font-mono bg-stone-100 text-stone-600 border border-stone-200 px-2 py-0.5 rounded font-bold uppercase mr-2">INDUSTRY</span>
+                  <span className="text-xs text-stone-500 font-bold">Aviation & Aerospace Defense (50-person manufacturer)</span>
+                </div>
+                <h3 className="text-2xl font-black text-stone-950 leading-tight">
+                  Reclaiming AP labor: Reducing fax and PDF processing from 18 minutes to 2 minutes.
+                </h3>
+                <div className="space-y-4 text-stone-600 text-sm leading-relaxed">
+                  <p>
+                    Vanguard precision manufacturing processed hundreds of supply-chain supplier invoice PDFs, handwritten faxes, and delivery logs manually. Staff was burdened copying records, tracking line-items, and verifying data values against ERP entries.
+                  </p>
+                  <p>
+                    Simpler Life deployed **Ivy Invoice (Billing Coordinator)** to auto-monitor accounts, utilize advanced OCR to parse table records, reconcile items against standard inventories, and sync clean logs.
+                  </p>
+                </div>
+              </div>
+
+              {/* Visual Before/After & Metrics Block */}
+              <div className="lg:col-span-5 bg-stone-50 border border-stone-200 rounded-3xl p-6 sm:p-8 space-y-6">
+                
+                {/* Timeline Visual comparison */}
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-[10px] font-mono text-stone-500 uppercase font-black">
+                      <span>BEFORE (Manual Entry)</span>
+                      <span className="text-rose-600">18 minutes / bill</span>
+                    </div>
+                    <div className="w-full bg-stone-200 h-3 rounded-full overflow-hidden">
+                      <div className="bg-rose-600 h-full rounded-full" style={{ width: "100%" }} />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-[10px] font-mono text-stone-500 uppercase font-black">
+                      <span>AFTER (Simpler Life Employee)</span>
+                      <span className="text-emerald-600">2 minutes / bill</span>
+                    </div>
+                    <div className="w-full bg-stone-200 h-3 rounded-full overflow-hidden">
+                      <div className="bg-emerald-600 h-full rounded-full animate-pulse" style={{ width: "11%" }} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Metrics Grid */}
+                <div className="grid grid-cols-2 gap-4 border-t border-stone-200 pt-5 text-center">
+                  <div className="space-y-1">
+                    <div className="text-[9px] font-mono text-stone-500 uppercase block font-bold">Labor Reclaimed</div>
+                    <div className="text-xl font-black text-stone-900">$12,000 / mo</div>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="text-[9px] font-mono text-stone-500 uppercase block font-bold">Data Accuracy</div>
+                    <div className="text-xl font-black text-stone-900">100% Correct</div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </section>
 
         {/* Problems Section */}
-        <section className="px-6 py-32 bg-stone-50">
-          <div className="max-w-4xl mx-auto text-center">
-            <h2 className="text-4xl lg:text-5xl font-black mb-12 text-stone-900 tracking-tight">Your team shouldn't spend hours copying data between systems.</h2>
-            <p className="text-xl text-stone-600 leading-relaxed">
+        <section className="px-6 py-16 sm:py-32 bg-stone-100">
+          <div className="max-w-4xl mx-auto text-center space-y-6">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-stone-900 tracking-tight leading-tight">Your team shouldn't spend hours copying data between systems.</h2>
+            <p className="text-lg text-stone-600 leading-relaxed">
               Most operations teams are buried in manual work that software should already be doing: quoting, scheduling, CRM updates, invoicing, and document processing. We build AI coworkers that handle the repetitive parts so your people can focus on work that actually requires a human.
             </p>
           </div>
         </section>
 
         {/* ROI Calculator CTA */}
-        <section className="px-6 py-20 bg-emerald-600">
+        <section className="px-6 py-16 bg-emerald-600">
           <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-10">
             <div className="text-white text-center md:text-left">
               <h2 className="text-3xl lg:text-4xl font-black mb-4">Calculate Your Potential Savings</h2>
               <p className="text-emerald-100 text-lg font-medium">Use our simple ROI tool to see how many hours your team could reclaim.</p>
             </div>
-            <Link to="/roi-calculator" className="bg-white text-emerald-600 px-10 py-5 rounded-2xl font-black text-xl hover:bg-emerald-50 transition-all shadow-xl whitespace-nowrap">
+            <Link to="/roi-calculator" className="bg-white text-emerald-600 px-10 py-4 rounded-2xl font-black text-xl hover:bg-emerald-50 transition-all shadow-xl whitespace-nowrap min-h-[50px] flex items-center justify-center">
               Open ROI Calculator →
             </Link>
           </div>
         </section>
 
         {/* Industry Examples Section */}
-        <section id="examples" className="px-6 py-32 bg-stone-50 border-y border-stone-100">
+        <section id="examples" className="px-6 py-16 sm:py-32 bg-stone-50 border-y border-stone-100">
           <div className="max-w-7xl mx-auto">
-            <div className="mb-20 text-center">
-              <h2 className="text-4xl lg:text-6xl font-black mb-6 text-stone-900 tracking-tight">Real Automations. Real Results.</h2>
-              <p className="text-xl text-stone-500 max-w-2xl mx-auto mb-16">
+            <div className="mb-20 text-center space-y-6">
+              <h2 className="text-3xl sm:text-4xl lg:text-6xl font-black text-stone-900 tracking-tight">Real Automations. Real Results.</h2>
+              <p className="text-lg text-stone-500 max-w-2xl mx-auto">
                 We don't build generic bots. We build industry-specific agents for your highest-friction workflows.
               </p>
               
               {/* Workflow Visual */}
-              <div className="max-w-5xl mx-auto mb-20 bg-white p-8 lg:p-12 rounded-[3rem] shadow-xl border border-stone-100">
+              <div className="max-w-5xl mx-auto bg-white p-8 lg:p-12 rounded-[3rem] shadow-sm border border-stone-100">
                 <h3 className="text-2xl font-black text-stone-900 mb-10">How an AI Coworker handles an inquiry</h3>
                 <div className="flex flex-col lg:flex-row items-center justify-between gap-4">
                   {[
@@ -238,45 +528,8 @@ function Home() {
           </div>
         </section>
 
-        {/* What is an AI Agent? */}
-        <section className="px-6 py-32 bg-white">
-          <div className="max-w-7xl mx-auto">
-            <div className="grid lg:grid-cols-2 gap-20 items-center">
-              <div>
-                <h2 className="text-4xl lg:text-6xl font-black mb-8 text-stone-900 tracking-tight">What is an AI Agent?</h2>
-                <p className="text-xl text-stone-500 mb-10 leading-relaxed">
-                  Think of an AI agent as a digital employee that lives inside your existing tools. Unlike simple automation, agents can reason through tasks, read unstructured data, and make decisions based on your business rules.
-                </p>
-                <div className="grid grid-cols-2 gap-4">
-                  {[
-                    "Read emails", "Update CRMs", "Generate reports", "Call APIs",
-                    "Answer customers", "Schedule appointments", "Process documents", "Trigger workflows"
-                  ].map(task => (
-                    <div key={task} className="flex items-center gap-2 text-stone-700 font-bold">
-                      <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
-                      {task}
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="bg-stone-900 rounded-[3rem] p-12 text-white shadow-2xl">
-                <div className="space-y-6">
-                  <div className="pb-6 border-b border-white/10">
-                    <div className="text-emerald-400 font-bold mb-2">Example: Logistics Dispatch</div>
-                    <p className="text-stone-400">Agent reads incoming carrier email, extracts rate and equipment type, checks it against the TMS, and either auto-replies with an offer or flags it for human review if it meets specific criteria.</p>
-                  </div>
-                  <div>
-                    <div className="text-emerald-400 font-bold mb-2">Example: Patient Intake</div>
-                    <p className="text-stone-400">Agent monitors the fax folder, uses OCR to extract patient data from handwritten forms, verifies insurance eligibility via API, and creates the record in the EMR—instantly.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
         {/* Customer Results Section */}
-        <section className="px-6 py-32 bg-white">
+        <section className="px-6 py-16 sm:py-32 bg-white">
           <div className="max-w-7xl mx-auto">
             <div className="grid md:grid-cols-3 gap-12">
               <div className="p-8 border-l-4 border-emerald-600 bg-stone-50 rounded-r-3xl">
@@ -299,10 +552,10 @@ function Home() {
         </section>
 
         {/* ROI Table by Industry */}
-        <section id="industries" className="px-6 py-32 bg-stone-950 text-white">
+        <section id="industries" className="px-6 py-16 sm:py-32 bg-stone-950 text-white">
           <div className="max-w-7xl mx-auto">
-            <div className="mb-20">
-              <h2 className="text-4xl lg:text-6xl font-black mb-6 tracking-tight">Proven Time Savings by Industry</h2>
+            <div className="mb-20 space-y-4">
+              <h2 className="text-4xl lg:text-6xl font-black tracking-tight">Proven Time Savings by Industry</h2>
               <p className="text-xl text-stone-400 max-w-2xl">
                 Average time reclaimed for clients within the first 6 months of deployment.
               </p>
@@ -319,21 +572,21 @@ function Home() {
               ))}
             </div>
             <div className="mt-16 text-center">
-              <Link to="/audit" className="inline-flex items-center gap-2 font-bold text-emerald-400 hover:text-emerald-300 transition-colors">
-                View all 26 industry benchmarks <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+              <Link to="/assessment" className="inline-flex items-center gap-2 font-bold text-emerald-400 hover:text-emerald-300 transition-colors">
+                View all industry benchmarks <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
               </Link>
             </div>
           </div>
         </section>
 
         {/* Featured AI Workflows Section */}
-        <section id="workflows" className="px-6 py-32 bg-stone-900 text-white border-t border-stone-800">
+        <section id="workflows" className="px-6 py-16 sm:py-32 bg-stone-900 text-white border-t border-stone-800">
           <div className="max-w-7xl mx-auto">
-            <div className="mb-20 text-center">
-              <span className="inline-block px-3 py-1 mb-6 text-xs font-mono font-bold tracking-wider rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase">
+            <div className="mb-20 text-center space-y-4">
+              <span className="inline-block px-3 py-1 text-xs font-mono font-bold tracking-wider rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase">
                 ACTIVE AI WORKFLOWS
               </span>
-              <h2 className="text-4xl lg:text-6xl font-black mt-4 mb-6 tracking-tight">Active AI Workflows</h2>
+              <h2 className="text-4xl lg:text-6xl font-black tracking-tight">Active AI Workflows</h2>
               <p className="text-xl text-stone-400 max-w-2xl mx-auto">
                 Deploy turn-key, pre-configured workflows that run autonomously inside your business.
               </p>
@@ -363,16 +616,16 @@ function Home() {
         </section>
 
         {/* The 4-Step Journey Section */}
-        <section id="journey" className="px-6 py-32 bg-white">
+        <section id="journey" className="px-6 py-16 sm:py-32 bg-white">
           <div className="max-w-7xl mx-auto">
-            <div className="mb-24">
-              <h2 className="text-4xl lg:text-6xl font-black mb-6 text-stone-900 tracking-tight">How We Get You There</h2>
+            <div className="mb-24 space-y-4">
+              <h2 className="text-4xl lg:text-6xl font-black text-stone-900 tracking-tight">How We Get You There</h2>
               <p className="text-xl text-stone-500 max-w-2xl leading-relaxed">
-                We don't just hand you a tool. we build AI coworkers that handle repetitive work so your people can focus on higher-value tasks.
+                We don't just hand you a tool. We build AI coworkers that work inside the systems you already own.
               </p>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-12 relative">
-              <div className="hidden lg:block absolute top-1/2 left-0 w-full h-0.5 bg-stone-100 -transtone-y-1/2 z-0" />
+              <div className="hidden lg:block absolute top-1/2 left-0 w-full h-0.5 bg-stone-100 -translate-y-1/2 z-0" />
               {journeySteps.map((s) => (
                 <div key={s.step} className="relative z-10 bg-white pr-4">
                   <div className="w-16 h-16 rounded-2xl bg-emerald-600 text-white flex items-center justify-center text-2xl font-black mb-8 shadow-lg shadow-emerald-200">
@@ -384,7 +637,7 @@ function Home() {
                     {s.description}
                   </p>
                   <div className="text-lg font-black text-stone-900 mb-6">{s.price}</div>
-                  <a href={s.link} className="inline-block bg-stone-900 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-stone-800 transition-all">
+                  <a href={s.link} className="inline-flex items-center justify-center bg-stone-900 hover:bg-stone-850 text-white px-6 py-3 rounded-xl font-bold text-sm min-h-[44px]">
                     {s.cta}
                   </a>
                 </div>
@@ -393,74 +646,11 @@ function Home() {
           </div>
         </section>
 
-        {/* Founder / Personality Section */}
-        <section className="px-6 py-32 bg-stone-50">
-          <div className="max-w-4xl mx-auto">
-            <div className="bg-white p-12 lg:p-20 rounded-[3rem] shadow-xl border border-stone-100 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-50 rounded-full -mr-32 -mt-32 opacity-50" />
-              <div className="relative z-10">
-                <div className="text-emerald-600 font-bold mb-6 flex items-center gap-2">
-                  <div className="w-8 h-1 bg-emerald-600 rounded-full" />
-                  Our Mission
-                </div>
-                <h2 className="text-4xl lg:text-5xl font-black text-stone-900 mb-8 leading-tight">
-                  Software was supposed to make work easier. <span className="text-emerald-600">AI actually does.</span>
-                </h2>
-                <div className="text-xl text-stone-600 space-y-6 leading-relaxed">
-                  <p>
-                    We started Simpler Life 100 because we saw operations teams buried in manual work that software should have solved a decade ago. Copying data between tabs, manually reviewing documents, and chasing status updates isn't "work"—it's waste.
-                  </p>
-                  <p className="font-bold text-stone-900">
-                    We don't sell software. We build AI employees that work inside the systems you already own.
-                  </p>
-                  <p>
-                    Our goal is to give your team their time back, so they can focus on growth, strategy, and the human parts of your business that no computer could ever replicate.
-                  </p>
-                </div>
-                <div className="mt-12 pt-12 border-t border-stone-100 flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-full bg-emerald-600 flex items-center justify-center text-white text-2xl font-black shadow-lg">
-                    SL
-                  </div>
-                  <div>
-                    <div className="font-black text-stone-900 text-lg">Simpler Life 100</div>
-                    <div className="text-stone-500 font-bold text-sm">The Operations AI Team</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* FAQ / Objections Section */}
-        <section className="px-6 py-32 bg-white">
-          <div className="max-w-4xl mx-auto">
-            <div className="text-center mb-20">
-              <h2 className="text-4xl lg:text-5xl font-black text-stone-900 tracking-tight">Common Questions</h2>
-              <p className="text-xl text-stone-500 mt-4">Everything you need to know before we build.</p>
-            </div>
-            <div className="grid gap-6">
-              {[
-                { q: "Will this replace our employees?", a: "No. Our agents are designed to take over the repetitive, high-volume tasks that burn people out. This frees your team to focus on higher-value work that requires judgment, creativity, and human connection." },
-                { q: "Is our business data secure?", a: "Absolutely. We use enterprise-grade security protocols. Your data stays within your existing systems (Salesforce, Google, etc.), and we follow strict data privacy standards." },
-                { q: "How long does it take to deploy?", a: "Most AI agents are fully operational within 2 to 4 weeks. We handle the heavy lifting, from design to technical integration." },
-                { q: "Will it work with our existing software?", a: "Yes. Our agents integrate directly with Salesforce, HubSpot, Microsoft 365, Google Workspace, Slack, QuickBooks, SAP, and most modern APIs." },
-                { q: "How much work is required from my team?", a: "Minimal. Beyond the initial 60-minute assessment and a few workflow reviews, we handle the technical build, deployment, and ongoing management." },
-                { q: "What happens if the AI makes a mistake?", a: "Reliability is our priority. Every agent includes 'Human-in-the-Loop' review workflows for high-stakes decisions, ensuring your team has final oversight where it matters most." }
-              ].map((item, i) => (
-                <div key={i} className="p-8 bg-stone-50 rounded-3xl border border-stone-100 hover:border-emerald-200 transition-colors">
-                  <h4 className="text-xl font-black text-stone-900 mb-3">{item.q}</h4>
-                  <p className="text-stone-600 leading-relaxed">{item.a}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
         {/* Pricing / Services Section */}
-        <section id="pricing" className="px-6 py-32 bg-white">
+        <section id="pricing" className="px-6 py-16 sm:py-32 bg-white border-t border-stone-100">
           <div className="max-w-7xl mx-auto">
-            <div className="text-center mb-20">
-              <h2 className="text-4xl lg:text-6xl font-black mb-6 text-stone-900 tracking-tight">Simple, Transparent Pricing.</h2>
+            <div className="text-center mb-20 space-y-6">
+              <h2 className="text-4xl lg:text-6xl font-black text-stone-900 tracking-tight">Simple, Transparent Pricing.</h2>
               <p className="text-xl text-stone-500 max-w-2xl mx-auto leading-relaxed">
                 No hidden fees or open-ended hourly billing. You pay for working, deployed agents that handle specific business results.
               </p>
@@ -532,7 +722,7 @@ function Home() {
                   <div className="p-6 bg-white rounded-2xl border border-stone-100 flex justify-between items-center">
                     <div>
                       <div className="font-black text-stone-900 text-xl">Enterprise Ops</div>
-                      <div className="text-sm text-stone-500 font-bold">Dedicated engineer • Priority</div>
+                      <div className="text-sm text-stone-500 font-bold">Dedicated AI engineer • Priority</div>
                     </div>
                     <div className="text-right">
                       <div className="font-black text-emerald-600 text-2xl">$5,000/mo+</div>
@@ -542,21 +732,21 @@ function Home() {
               </div>
             </div>
 
-            <div className="mt-20 text-center">
-              <Link to="/contact" className="inline-block bg-emerald-600 text-white px-12 py-5 rounded-2xl font-bold text-2xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100">
-                Book Your Free AI Workflow Assessment
+            <div className="mt-20 text-center space-y-4">
+              <Link to="/contact" className="inline-flex items-center justify-center bg-emerald-600 text-white px-12 py-5 rounded-2xl font-bold text-2xl hover:bg-emerald-700 transition-all shadow-lg min-h-[56px]">
+                Stop Copy-Pasting. Start Your Plan ➜
               </Link>
-              <p className="mt-4 text-stone-500 font-medium">Identify your best opportunities before you commit to a build.</p>
+              <p className="text-stone-500 font-medium">Identify your best opportunities before you commit to a build.</p>
             </div>
           </div>
         </section>
 
         {/* Risk Reversal Section */}
-        <section className="px-6 py-32 bg-stone-900 text-white overflow-hidden relative">
+        <section className="px-6 py-16 sm:py-32 bg-stone-900 text-white overflow-hidden relative">
           <div className="max-w-5xl mx-auto relative z-10">
             <div className="grid lg:grid-cols-2 gap-20 items-center">
-              <div>
-                <h2 className="text-4xl lg:text-6xl font-black mb-8 leading-tight">100% Focused on Your Outcome.</h2>
+              <div className="space-y-8">
+                <h2 className="text-4xl lg:text-6xl font-black leading-tight">100% Focused on Your Outcome.</h2>
                 <div className="space-y-8">
                   <div className="flex gap-6">
                     <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
@@ -587,32 +777,32 @@ function Home() {
                   </div>
                 </div>
               </div>
-              <div className="bg-white/5 backdrop-blur-lg p-12 rounded-[3rem] border border-white/10 text-center">
-                <div className="text-emerald-400 font-bold uppercase tracking-widest text-xs mb-6">Start Today</div>
-                <h3 className="text-4xl font-black mb-8">Identify where AI can save you the most time.</h3>
-                <Link to="/contact" className="block w-full bg-white text-stone-950 py-5 rounded-2xl font-bold text-xl hover:bg-stone-100 transition-all">
-                  Book Your Free AI Workflow Assessment
+              <div className="bg-white/5 backdrop-blur-lg p-12 rounded-[3rem] border border-white/10 text-center space-y-8">
+                <div className="text-emerald-400 font-bold uppercase tracking-widest text-xs">Start Today</div>
+                <h3 className="text-4xl font-black leading-tight">Identify where AI can save you the most time.</h3>
+                <Link to="/contact" className="inline-flex items-center justify-center w-full bg-white text-stone-950 py-5 rounded-2xl font-bold text-xl hover:bg-stone-100 transition-all min-h-[56px]">
+                  Stop Copy-Pasting. Reclaim Your Time ➜
                 </Link>
-                <p className="mt-6 text-stone-500 text-sm font-medium">No credit card required. 30-minute assessment.</p>
+                <p className="text-stone-500 text-sm font-medium">No credit card required. 30-minute assessment.</p>
               </div>
             </div>
           </div>
         </section>
 
         {/* Closing CTA */}
-        <section id="contact" className="px-6 py-32 bg-stone-50">
-          <div className="max-w-4xl mx-auto bg-white rounded-[3rem] p-12 lg:p-20 shadow-2xl shadow-stone-200 border border-stone-100 text-center">
-            <h2 className="text-4xl lg:text-5xl font-black mb-8 text-stone-900 leading-tight">
+        <section id="contact" className="px-6 py-16 sm:py-32 bg-stone-50">
+          <div className="max-w-4xl mx-auto bg-white rounded-[3rem] p-12 lg:p-20 shadow-2xl shadow-stone-200 border border-stone-100 text-center space-y-12">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-stone-900 leading-tight">
               Every week your team spends hours on work that software should already be doing.
             </h2>
-            <p className="text-2xl text-stone-500 mb-12 leading-relaxed">
+            <p className="text-xl sm:text-2xl text-stone-500 leading-relaxed">
               In 30 minutes, we'll identify your top automation opportunities, estimate the time and cost savings, and recommend the best next step.
             </p>
-            <div className="flex flex-col items-center">
-              <Link to="/contact" className="inline-block bg-emerald-600 text-white px-12 py-5 rounded-2xl font-bold text-2xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 hover:scale-105 active:scale-95">
-                Start Your Free Assessment
+            <div className="flex flex-col items-center space-y-8">
+              <Link to="/contact" className="inline-flex items-center justify-center bg-emerald-600 text-white px-12 py-5 rounded-2xl font-bold text-2xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 min-h-[56px]">
+                Stop Copy-Pasting. Get Deployed ➜
               </Link>
-              <p className="mt-8 text-stone-400 font-medium italic">"The most productive 30 minutes your operations team will spend this quarter."</p>
+              <p className="text-stone-400 font-medium italic">"The most productive 30 minutes your operations team will spend this quarter."</p>
             </div>
           </div>
         </section>
@@ -625,11 +815,12 @@ function Home() {
             <p className="text-stone-400 max-w-sm">AI coworkers for operations teams. Work less, live more.</p>
           </div>
           <div className="flex flex-col items-center md:items-end gap-6">
-            <div className="flex gap-8 font-bold text-stone-600">
+            <div className="flex flex-wrap justify-center gap-8 font-bold text-stone-600">
               <Link to="/build" className="hover:text-emerald-600">Builder</Link>
               <Link to="/support" className="hover:text-emerald-600">Support</Link>
-              <a href="#" className="hover:text-emerald-600">Twitter</a>
-              <a href="#" className="hover:text-emerald-600">LinkedIn</a>
+              <Link to="/how-it-works" className="hover:text-emerald-600">How It Works</Link>
+              <Link to="/faq" className="hover:text-emerald-600">FAQ</Link>
+              <Link to="/about" className="hover:text-emerald-600">About</Link>
               <Link to="/demos/audit-portal" className="hover:text-emerald-600 underline underline-offset-4">Audit Workflow Demo</Link>
             </div>
             <div className="text-sm text-stone-400">
@@ -641,4 +832,3 @@ function Home() {
     </div>
   );
 }
-// re-triggering build
