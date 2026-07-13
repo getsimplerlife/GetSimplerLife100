@@ -127,28 +127,25 @@ function WorkflowBuilderPage() {
     
     try {
       setFeedback("Installing workflow schema to active orchestrator registry...");
-      const res = await fetch("/api/action", {
+      const res = await fetch("/api/data/workflows", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          action: "create_workflow",
-          resource: "workflow_builder",
-          details: {
-            name: generatedWorkflow.name,
-            description: generatedWorkflow.description,
-            status: "Active",
-            successRate: "100",
-            runtime: "1.4s",
-            errors: 0,
-            dependencies: "PDF Parser, Slack App, CRM Integration",
-            lastTriggered: "Never",
-            steps: generatedWorkflow.steps,
-          }
+          name: generatedWorkflow.name,
+          description: generatedWorkflow.description,
+          status: "Active",
+          successRate: "100",
+          runtime: "1.4s",
+          errors: 0,
+          dependencies: "PDF Parser, Slack App, CRM Integration",
+          lastTriggered: "Never",
+          steps: generatedWorkflow.steps,
         }),
       });
 
-      await res.json();
+      if (!res.ok) throw new Error("Failed to save workflow");
+
       setFeedback("Success: " + generatedWorkflow.name + " is now active & live on port 3000!");
       setTimeout(() => {
         setFeedback("");

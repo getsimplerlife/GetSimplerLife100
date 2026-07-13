@@ -758,13 +758,22 @@ for (let attempt = 1; ; attempt++) {
             const body = await parseJSON(req);
             if (!body) return new Response(JSON.stringify({ error: "Body required" }), { status: 400, headers: { "Content-Type": "application/json" } });
             const now = Date.now();
-            const id = crypto.randomUUID();
             const { _id, ...dataToStore } = body;
-            await db.run(sql.raw(`INSERT INTO portal_data (id, user_id, section, data, created_at, updated_at) VALUES ('${id}', '${userId}', '${section}', '${JSON.stringify(dataToStore).replace(/'/g, "''")}', ${now}, ${now})`));
-            return new Response(JSON.stringify({ success: true, id }), {
-              status: 200,
-              headers: { "Content-Type": "application/json" },
-            });
+            
+            if (_id) {
+              await db.run(sql.raw(`UPDATE portal_data SET data = '${JSON.stringify(dataToStore).replace(/'/g, "''")}', updated_at = ${now} WHERE id = '${_id}' AND user_id = '${userId}'`));
+              return new Response(JSON.stringify({ success: true, id: _id }), {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+              });
+            } else {
+              const id = crypto.randomUUID();
+              await db.run(sql.raw(`INSERT INTO portal_data (id, user_id, section, data, created_at, updated_at) VALUES ('${id}', '${userId}', '${section}', '${JSON.stringify(dataToStore).replace(/'/g, "''")}', ${now}, ${now})`));
+              return new Response(JSON.stringify({ success: true, id }), {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+              });
+            }
           } catch (err: any) {
             console.error("[serve.ts] Data POST error:", err);
             return new Response(JSON.stringify({ error: "Failed to save data" }), { status: 500, headers: { "Content-Type": "application/json" } });
