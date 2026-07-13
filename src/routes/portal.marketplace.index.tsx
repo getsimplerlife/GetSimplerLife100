@@ -15,7 +15,83 @@ interface MarketplaceItem {
   rating: number;
   runsMonth: string;
   icon: string;
+  paymentLink?: string;
 }
+
+const DEFAULT_MARKETPLACE_ITEMS: MarketplaceItem[] = [
+  {
+    id: "app-1",
+    name: "Healthcare Intake AI",
+    description: "Automates patient registrations, insurance eligibility verification, and OCR intake form ingestion. Directly connects with standard EHR systems.",
+    category: "Healthcare",
+    price: "$1,500/mo",
+    installed: false,
+    rating: 4.9,
+    runsMonth: "14.2k",
+    icon: "🏥",
+    paymentLink: "https://buy.stripe.com/8x26oIensbBa0Wi4W13Ru07",
+  },
+  {
+    id: "app-2",
+    name: "Invoice & Ledger AI",
+    description: "Orchestrates multi-currency receipt ingestion, calculates financial discrepancies, maps ledger line-items, and auto-notifies Stripe webhooks.",
+    category: "Finance",
+    price: "$950/mo",
+    installed: false,
+    rating: 4.8,
+    runsMonth: "42.8k",
+    icon: "💸",
+    paymentLink: "https://buy.stripe.com/8x26oIensbBa0Wi4W13Ru07",
+  },
+  {
+    id: "app-3",
+    name: "Sales Outreach Coordinator AI",
+    description: "Autonomous lead generation, email outbound scheduling, pre-qualification mapping, and real-time HubSpot deal creation and updating.",
+    category: "Sales",
+    price: "$1,200/mo",
+    installed: false,
+    rating: 4.7,
+    runsMonth: "8.9k",
+    icon: "🚀",
+    paymentLink: "https://buy.stripe.com/28EcN61AGax6bAW3RX3Ru0b",
+  },
+  {
+    id: "app-4",
+    name: "Automated HR Intake & Compliance AI",
+    description: "Validates onboarding document logs, processes background checks, cross-references W9 tax templates, and schedules general corporate compliance runs.",
+    category: "HR",
+    price: "$850/mo",
+    installed: false,
+    rating: 4.6,
+    runsMonth: "5.1k",
+    icon: "👤",
+    paymentLink: "https://buy.stripe.com/8x26oIensbBa0Wi4W13Ru07",
+  },
+  {
+    id: "app-5",
+    name: "Dispatch Logistics Optimization AI",
+    description: "Compares port congestion indexes, optimizes delivery schedules, dispatches container ETA deltas directly to Slack, and triggers CRM notification alerts.",
+    category: "Logistics",
+    price: "$1,800/mo",
+    installed: false,
+    rating: 4.9,
+    runsMonth: "25.4k",
+    icon: "📦",
+    paymentLink: "https://buy.stripe.com/8x26oIensbBa0Wi4W13Ru07",
+  },
+  {
+    id: "app-6",
+    name: "Operations Audit Logger AI",
+    description: "Aggregates background logs, calculates labor savings indicators, generates executive-facing analytics summaries, and maps operational anomalies.",
+    category: "Operations",
+    price: "$750/mo",
+    installed: false,
+    rating: 4.8,
+    runsMonth: "19.3k",
+    icon: "⚙️",
+    paymentLink: "https://buy.stripe.com/28E4gAens20AfRcbkp3Ru04",
+  },
+];
 
 function MarketplaceHub() {
   const [items, setItems] = useState<MarketplaceItem[]>([]);
@@ -33,20 +109,33 @@ function MarketplaceHub() {
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         const d = await res.json();
         
+        let loadedItems: MarketplaceItem[] = [];
         if (d.data && d.data.length > 0) {
           const firstRow = d.data[0];
           if (firstRow && Array.isArray(firstRow.data)) {
-            setItems(firstRow.data);
+            loadedItems = firstRow.data;
           } else {
-            setItems(d.data);
+            loadedItems = d.data;
           }
-        } else {
-          setItems([]);
         }
+
+        if (loadedItems.length === 0) {
+          // No items in database yet, let's initialize with the defaults!
+          loadedItems = DEFAULT_MARKETPLACE_ITEMS;
+          await fetch("/api/data/marketplace", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ data: DEFAULT_MARKETPLACE_ITEMS }),
+          });
+        }
+
+        setItems(loadedItems);
         setLoading(false);
       } catch (err) {
         console.error("Marketplace fetch error:", err);
-        setItems([]);
+        // Fallback to defaults to prevent an empty/offline screen on network failure
+        setItems(DEFAULT_MARKETPLACE_ITEMS);
         setLoading(false);
       }
     })();
@@ -107,7 +196,7 @@ function MarketplaceHub() {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px]">
-        <div className="w-10 h-10 border-2 border-stone-850 border-t-white rounded-full animate-spin mb-4" />
+        <div className="w-10 h-10 border-2 border-stone-850 border-t-emerald-500 rounded-full animate-spin mb-4" />
         <p className="text-stone-500 text-[10px] font-mono tracking-widest uppercase">Syncing Marketplace...</p>
       </div>
     );
@@ -120,27 +209,11 @@ function MarketplaceHub() {
       <div className="border-b border-stone-900 pb-5">
         <h1 className="text-3xl font-black text-white tracking-tight">🛍️ AI Employees Marketplace</h1>
         <p className="text-stone-400 text-xs mt-1">
-          Deploy pre-trained, vertical-specific digital coworkers. Click install to immediately activate their cognitive engines on your dashboard.
+          Deploy pre-trained, vertical-specific digital coworkers. Purchase or launch cognitive engines to activate them on your dashboard.
         </p>
       </div>
 
-      {items.length === 0 ? (
-        <div className="flex flex-col items-center justify-center text-center p-8 py-16 bg-stone-950 border border-stone-900 rounded-2xl max-w-xl mx-auto my-8">
-          <div className="text-4xl mb-4">🛍️</div>
-          <h3 className="text-lg font-bold text-white mb-2">Marketplace currently offline</h3>
-          <p className="text-sm text-stone-400 mb-6 max-w-sm leading-relaxed">
-            All custom pre-trained AI employee bundles will appear here once ready. In the meantime, you can explore scaling options on the billing page.
-          </p>
-          <Link
-            to="/portal/billing"
-            className="inline-flex items-center justify-center bg-white hover:bg-stone-100 text-black font-extrabold px-6 py-3 rounded-xl transition-all font-mono text-xs shadow-lg shadow-white/5 active:scale-95"
-          >
-            Review Upgrade Plans
-          </Link>
-        </div>
-      ) : (
-        <>
-          {/* ─── App Store Search & Controls ─── */}
+      {/* ─── App Store Search & Controls ─── */}
       <div className="space-y-4">
         <div className="bg-stone-950 p-3.5 border border-stone-900 rounded-xl flex items-center">
           <span className="text-stone-600 text-sm mr-3 font-mono">🔍</span>
@@ -161,7 +234,7 @@ function MarketplaceHub() {
               onClick={() => setActiveCategory(cat)}
               className={`px-3.5 py-1.5 rounded-lg text-[10px] font-mono font-bold tracking-wide uppercase transition-all ${
                 activeCategory === cat
-                  ? "bg-white text-black font-black"
+                  ? "bg-emerald-600 text-white font-black"
                   : "bg-stone-900/60 text-stone-400 hover:text-stone-200"
               }`}
             >
@@ -217,24 +290,34 @@ function MarketplaceHub() {
                   <span className="text-xs font-bold text-white font-mono">{itm.price}</span>
                 </div>
 
-                <button
-                  onClick={() => handleAction(itm.id, itm.installed)}
-                  className={`text-[10px] font-mono font-black tracking-wide uppercase px-4 py-2 rounded-lg border transition-all ${
-                    itm.installed
-                      ? "bg-stone-900 text-stone-400 border-stone-800 hover:text-stone-200"
-                      : "bg-white text-black border-white hover:bg-stone-100 font-black"
-                  }`}
-                >
-                  {itm.installed ? "✓ Deployed" : "Deploy Employee"}
-                </button>
+                {itm.installed ? (
+                  <button
+                    onClick={() => handleAction(itm.id, itm.installed)}
+                    className="text-[10px] font-mono font-black tracking-wide uppercase px-4 py-2 rounded-lg border bg-stone-900 text-stone-400 border-stone-800 hover:text-stone-200 transition-all cursor-pointer"
+                  >
+                    ✓ Deployed
+                  </button>
+                ) : itm.paymentLink ? (
+                  <button
+                    onClick={() => window.open(itm.paymentLink, "_blank")}
+                    className="text-[10px] font-mono font-black tracking-wide uppercase px-4 py-2 rounded-lg border bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-500 hover:border-emerald-500 font-black transition-all cursor-pointer shadow-lg shadow-emerald-950/20 active:scale-95"
+                  >
+                    Buy Now
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleAction(itm.id, itm.installed)}
+                    className="text-[10px] font-mono font-black tracking-wide uppercase px-4 py-2 rounded-lg border bg-white text-black border-white hover:bg-stone-100 font-black transition-all cursor-pointer active:scale-95"
+                  >
+                    Deploy Employee
+                  </button>
+                )}
               </div>
 
             </div>
           ))
         )}
       </div>
-    </>
-  )}
 
       {/* ─── Feedback Toast Confirmation ─── */}
       {feedback && (
