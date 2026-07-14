@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { analyzeDescription } from "../tools/automation-analyzer";
 
 export const Route = createFileRoute("/tools/")({
   component: ToolsHub,
@@ -9,14 +8,33 @@ export const Route = createFileRoute("/tools/")({
 function ToolsHub() {
   const [quickInput, setQuickInput] = useState("");
   const [quickResult, setQuickResult] = useState<string | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
 
-  const handleQuickAnalyze = () => {
+  const handleQuickAnalyze = async () => {
     if (!quickInput.trim()) return;
-    const analysis = analyzeDescription(quickInput);
-    const top = analysis.topMatch;
-    setQuickResult(
-      `🎯 **${top.match.name}** — Save ~${top.estimatedHoursSaved}h/week with ${top.suggestedAgentName}`
-    );
+    setAnalyzing(true);
+    setQuickResult(null);
+    try {
+      const res = await fetch("/api/automate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description: quickInput }),
+      });
+      if (!res.ok) throw new Error("Request failed");
+      const data = await res.json();
+      if (data && data.estimatedTimeSavings) {
+        setQuickResult(
+          `🎯 **Ready for Automation** — Save ~${data.estimatedTimeSavings} (Confidence: ${Math.round(data.confidence * 100)}%) with a Custom AI Coworker. Recommended Approach: ${data.recommendedApproach}`
+        );
+      } else {
+        setQuickResult("✨ Done! Recommended Approach: " + (data.recommendedApproach || "Automatable"));
+      }
+    } catch (err) {
+      console.error(err);
+      setQuickResult("⚠️ Analysis failed. Please try again.");
+    } finally {
+      setAnalyzing(false);
+    }
   };
 
   return (
@@ -161,10 +179,10 @@ function ToolsHub() {
             />
             <button
               onClick={handleQuickAnalyze}
-              disabled={!quickInput.trim()}
-              className="bg-emerald-500 hover:bg-emerald-400 disabled:bg-stone-700 disabled:text-stone-500 text-black font-bold text-sm px-4 py-2.5 rounded-xl transition-all"
+              disabled={!quickInput.trim() || analyzing}
+              className="bg-emerald-500 hover:bg-emerald-400 disabled:bg-stone-700 disabled:text-stone-500 text-black font-bold text-sm px-4 py-2.5 rounded-xl transition-all min-w-[100px] flex items-center justify-center"
             >
-              Analyze
+              {analyzing ? "Analyzing..." : "Analyze"}
             </button>
           </div>
           {quickResult && (
