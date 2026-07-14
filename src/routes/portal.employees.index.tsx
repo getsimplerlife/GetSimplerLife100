@@ -325,7 +325,7 @@ function EmployeesManager() {
                 </thead>
                 <tbody className="divide-y divide-stone-900">
                   {filteredEmployees.map((emp, _idx) => (
-                    <tr key={emp.id || idx} className="hover:bg-stone-900/10 transition-colors">
+                    <tr key={emp.id || _idx} className="hover:bg-stone-900/10 transition-colors">
                       {/* Name & Owner */}
                       <td className="p-4 pl-6">
                         <Link to="/portal/employees/$id" params={{ id: emp.id }} className="font-bold text-white hover:text-blue-400 block transition-colors">

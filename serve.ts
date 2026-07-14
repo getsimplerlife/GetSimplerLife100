@@ -489,6 +489,37 @@ for (let attempt = 1; ; attempt++) {
 
         // ─── AI Agent API ──────────────────────────────────────────────────────
 
+        // POST /api/deploy — deploy an AI employee (called from marketplace)
+        if (pathname === "/api/deploy" && req.method === "POST") {
+          try {
+            const body = await parseJSON(req);
+            if (!body || !body.agentType) {
+              return new Response(JSON.stringify({ error: "agentType required" }), { status: 400, headers: { "Content-Type": "application/json" } });
+            }
+            const user = await getUserFromRequest(req);
+            if (!user || !user.userId) {
+              return new Response(JSON.stringify({ error: "Not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
+            }
+
+            const instance = await deployAgent(user.userId, body.agentType, body.name, body.config);
+            await logAuditEvent({
+              userId: user.userId, userEmail: user.userEmail,
+              action: "agent_deploy", resource: instance.id,
+              details: { agentType: body.agentType, name: instance.name, source: "marketplace" },
+              status: "success", severity: "info",
+              ipAddress: getRequestIP(req),
+            });
+
+            return new Response(JSON.stringify({ success: true, agent: instance }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            });
+          } catch (err: any) {
+            console.error("[serve.ts] /api/deploy error:", err);
+            return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { "Content-Type": "application/json" } });
+          }
+        }
+
         // POST /api/agents/deploy — deploy an AI employee for a user
         if (pathname === "/api/agents/deploy" && req.method === "POST") {
           try {

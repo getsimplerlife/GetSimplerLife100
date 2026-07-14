@@ -101,9 +101,20 @@ const DEFAULT_MARKETPLACE_ITEMS: MarketplaceItem[] = [
   },
 ];
 
+// Map marketplace item ID → agent type for deploy API calls
+const ITEM_TO_AGENT_TYPE: Record<string, string> = {
+  "app-1": "document_intake",
+  "app-2": "document_intake",
+  "app-3": "document_intake",
+  "app-4": "document_intake",
+  "app-5": "document_intake",
+  "app-6": "document_intake",
+};
+
 function MarketplaceHub() {
   const [items, setItems] = useState<MarketplaceItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deploying, setDeploying] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeCategory, setActiveCategory] = useState<string>("all");
 
@@ -173,6 +184,86 @@ function MarketplaceHub() {
       }
     })();
   }, []);
+
+  const handleDeploy = async (item: MarketplaceItem) => {
+    if (deploying) return;
+    setDeploying(item.id);
+    try {
+      const res = await fetch("/api/deploy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          agentType: ITEM_TO_AGENT_TYPE[item.id] || "document_intake",
+          name: item.name,
+          config: { marketplaceItemId: item.id, category: item.category, source: "marketplace" },
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Deploy failed");
+      }
+
+      const deployData = await res.json();
+      const agentId = deployData.agent?.id;
+
+      // Save employee record for the directory
+      await fetch("/api/data/employees/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          _id: agentId,
+          id: agentId,
+          name: item.name,
+          purpose: item.description,
+          dept: item.category,
+          status: "Active",
+          version: "1.0.0",
+          currentTask: "Awaiting instructions",
+          performance: 98,
+          successRate: 98,
+          avgTime: "<1s",
+          owner: "",
+        }),
+      });
+
+      // Log audit
+      await fetch("/api/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          action: "marketplace_deploy",
+          resource: item.id,
+          details: { id: item.id, name: item.name, agentId },
+        }),
+      });
+
+      // Update local state
+      setItems(prev =>
+        prev.map(itm =>
+          itm.id === item.id ? { ...itm, installed: true, agentId } : itm
+        )
+      );
+
+      // Persist to marketplace data
+      const updatedItems = items.map(itm =>
+        itm.id === item.id ? { ...itm, installed: true, agentId } : itm
+      );
+      await fetch("/api/data/marketplace", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ data: updatedItems }),
+      });
+    } catch (err: any) {
+      console.error("Deploy error:", err);
+    } finally {
+      setDeploying(null);
+    }
+  };
 
   const filteredItems = items.filter((itm) => {
     const matchesSearch =
@@ -295,7 +386,13 @@ function MarketplaceHub() {
                     Buy Now
                   </button>
                 ) : (
-                  <span className="text-[9px] font-mono text-stone-600">Contact Sales</span>
+                  <button
+                    onClick={() => handleDeploy(itm)}
+                    disabled={deploying === itm.id}
+                    className="text-[10px] font-mono font-black tracking-wide uppercase px-4 py-2 rounded-lg border bg-white text-black border-white hover:bg-stone-100 font-black transition-all cursor-pointer active:scale-95 disabled:opacity-50"
+                  >
+                    {deploying === itm.id ? "Deploying..." : "Deploy Employee"}
+                  </button>
                 )}
               </div>
 
