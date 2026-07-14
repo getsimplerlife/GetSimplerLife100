@@ -1,14 +1,15 @@
 /**
  * AI Agent Execution Runtime — Tool System
  *
- * Provides a tool registry and built-in tools for agents to use.
- * Tools are registered with a name, description, parameter schema, and handler function.
+ * Real implementation using LLM for classification, extraction, and sentiment.
+ * Falls back to rule-based methods when LLM is unavailable.
  */
 
 import { db } from "../db/index";
 import { sql } from "drizzle-orm";
 import type { ToolDefinition, ToolContext, ToolResult } from "./schema";
 import { extractTextFromUpload, createNotification } from "./schema";
+import { classifyDocumentLLM, extractInfoLLM, analyzeSentimentLLM } from "../ai/llm";
 
 // ── Tool Registry ───────────────────────────────────────────────────────────
 
@@ -16,9 +17,6 @@ class ToolRegistry {
   private tools: Map<string, ToolDefinition> = new Map();
 
   register(tool: ToolDefinition): void {
-    if (this.tools.has(tool.name)) {
-      console.warn(`[ToolRegistry] Overwriting existing tool: ${tool.name}`);
-    }
     this.tools.set(tool.name, tool);
   }
 
@@ -47,13 +45,13 @@ export const registry = new ToolRegistry();
 
 // ── Built-in Tools ──────────────────────────────────────────────────────────
 
-// Tool: data_api_get — read from portal_data by section
+// Tool: data_api_get — read from portal_data
 registry.register({
   name: "data_api_get",
-  description: "Read data from the portal_data table by section. Returns all records for the current user in the specified section.",
+  description: "Read data from the portal_data table by section.",
   parameters: [
-    { name: "section", type: "string", description: "The data section to read (e.g., 'workflows', 'employees', 'documents')", required: true },
-    { name: "limit", type: "number", description: "Maximum number of records to return (default 50)", required: false },
+    { name: "section", type: "string", description: "The data section to read", required: true },
+    { name: "limit", type: "number", description: "Maximum records to return", required: false },
   ],
   handler: async (params: Record<string, any>, ctx: ToolContext): Promise<ToolResult> => {
     const section = params.section as string;
@@ -77,7 +75,7 @@ registry.register({
 // Tool: data_api_post — write to portal_data
 registry.register({
   name: "data_api_post",
-  description: "Save or create a record in the portal_data table under a specified section.",
+  description: "Save or create a record in the portal_data table.",
   parameters: [
     { name: "section", type: "string", description: "The data section to write to", required: true },
     { name: "data", type: "object", description: "The data object to store", required: true },
@@ -103,10 +101,10 @@ registry.register({
 // Tool: document_extract — extract text from uploaded documents
 registry.register({
   name: "document_extract",
-  description: "Extract text content from a file. Supports PDF, text, CSV, JSON, and other common formats.",
+  description: "Extract text content from a file.",
   parameters: [
-    { name: "filePath", type: "string", description: "Absolute path to the file to extract text from", required: true },
-    { name: "mimeType", type: "string", description: "MIME type of the file (e.g., 'text/plain', 'application/pdf')", required: false },
+    { name: "filePath", type: "string", description: "Absolute path to the file", required: true },
+    { name: "mimeType", type: "string", description: "MIME type of the file", required: false },
   ],
   handler: async (params: Record<string, any>): Promise<ToolResult> => {
     const filePath = params.filePath as string;
@@ -121,13 +119,13 @@ registry.register({
   },
 });
 
-// Tool: notify_user — create a notification for a user
+// Tool: notify_user
 registry.register({
   name: "notify_user",
-  description: "Create a notification for the current user in their notifications panel.",
+  description: "Create a notification for the current user.",
   parameters: [
     { name: "title", type: "string", description: "Notification title", required: true },
-    { name: "body", type: "string", description: "Notification body text", required: true },
+    { name: "body", type: "string", description: "Notification body", required: true },
     { name: "type", type: "string", description: "Notification type: 'info', 'success', 'warning', 'error'", required: false },
   ],
   handler: async (params: Record<string, any>, ctx: ToolContext): Promise<ToolResult> => {
@@ -144,170 +142,152 @@ registry.register({
   },
 });
 
-// Tool: classify_document — classify document type based on content
+// Tool: classify_document — LLM-powered document classification
 registry.register({
   name: "classify_document",
-  description: "Classify a document based on its text content into predefined types (invoice, contract, report, email, form, other).",
+  description: "Classify a document based on its text content using AI.",
   parameters: [
     { name: "text", type: "string", description: "The text content to classify", required: true },
-    { name: "filename", type: "string", description: "Original filename for additional context", required: false },
+    { name: "filename", type: "string", description: "Original filename for context", required: false },
   ],
   handler: async (params: Record<string, any>): Promise<ToolResult> => {
     const text = (params.text as string) || "";
     const filename = (params.filename as string) || "";
     const lower = (text + " " + filename).toLowerCase();
 
-    // Simple rule-based classification
-    let docType = "other";
-    let confidence = 0.5;
-
-    const patterns: [string, string, number][] = [
-      ["invoice", "invoice", 0.9],
-      ["receipt", "invoice", 0.7],
-      ["bill", "invoice", 0.7],
-      ["payment", "invoice", 0.6],
-      ["contract", "contract", 0.9],
-      ["agreement", "contract", 0.8],
-      ["terms", "contract", 0.7],
-      ["lease", "contract", 0.7],
-      ["report", "report", 0.8],
-      ["summary", "report", 0.7],
-      ["analysis", "report", 0.7],
-      ["email", "email", 0.8],
-      ["from:", "email", 0.7],
-      ["subject:", "email", 0.7],
-      ["application", "form", 0.7],
-      ["registration", "form", 0.7],
-      ["questionnaire", "form", 0.7],
-    ];
-
-    for (const [keyword, type, score] of patterns) {
-      if (lower.includes(keyword) && score > confidence) {
-        docType = type;
-        confidence = score;
+    try {
+      // Try LLM classification
+      const result = await classifyDocumentLLM(text, filename);
+      return {
+        success: true,
+        data: {
+          documentType: result.documentType,
+          confidence: result.confidence,
+          subType: result.subType,
+          extractableFields: result.extractableFields,
+        },
+      };
+    } catch {
+      // Fallback: rule-based
+      const patterns: [string, string, number][] = [
+        ["invoice", "invoice", 0.9], ["receipt", "invoice", 0.7],
+        ["bill", "invoice", 0.7], ["contract", "contract", 0.9],
+        ["agreement", "contract", 0.8], ["report", "report", 0.8],
+        ["email", "email", 0.8], ["from:", "email", 0.7],
+        ["subject:", "email", 0.7], ["application", "form", 0.7],
+        ["purchase order", "purchase_order", 0.9],
+      ];
+      let docType = "other";
+      let confidence = 0.5;
+      for (const [keyword, type, score] of patterns) {
+        if (lower.includes(keyword) && score > confidence) {
+          docType = type;
+          confidence = score;
+        }
       }
+      return {
+        success: true,
+        data: { documentType: docType, confidence, extractableFields: getFieldsForType(docType) },
+      };
     }
-
-    return {
-      success: true,
-      data: {
-        documentType: docType,
-        confidence,
-        extractableFields: getFieldsForType(docType),
-      },
-    };
   },
 });
 
 function getFieldsForType(type: string): string[] {
   const fields: Record<string, string[]> = {
     invoice: ["vendor_name", "invoice_number", "date", "total_amount", "tax_amount", "line_items", "due_date"],
-    contract: ["title", "parties", "effective_date", "expiry_date", "jurisdiction", "clauses"],
-    report: ["title", "date", "author", "sections", "summary", "conclusions"],
-    email: ["sender", "recipient", "subject", "date", "body", "attachments"],
+    contract: ["title", "parties", "effective_date", "expiry_date", "jurisdiction"],
+    report: ["title", "date", "author", "sections", "summary"],
+    email: ["sender", "recipient", "subject", "date", "body"],
     form: ["form_type", "submitted_by", "date", "fields"],
+    purchase_order: ["po_number", "vendor", "date", "total", "items"],
     other: ["title", "content_type", "date"],
   };
   return fields[type] || fields.other;
 }
 
-// Tool: analyze_sentiment — basic sentiment analysis
-registry.register({
-  name: "analyze_sentiment",
-  description: "Analyze the sentiment of a piece of text. Returns positive, negative, or neutral with confidence score.",
-  parameters: [
-    { name: "text", type: "string", description: "The text to analyze", required: true },
-  ],
-  handler: async (params: Record<string, any>): Promise<ToolResult> => {
-    const text = (params.text as string) || "";
-    const lower = text.toLowerCase();
-
-    const positiveWords = ["good", "great", "excellent", "happy", "satisfied", "pleased", "thanks", "thank", "wonderful", "amazing", "love", "best", "outstanding"];
-    const negativeWords = ["bad", "terrible", "awful", "angry", "unhappy", "dissatisfied", "poor", "worst", "hate", "horrible", "disappointed", "frustrated", "failed"];
-
-    let positiveCount = 0;
-    let negativeCount = 0;
-
-    for (const word of positiveWords) {
-      if (lower.includes(word)) positiveCount++;
-    }
-    for (const word of negativeWords) {
-      if (lower.includes(word)) negativeCount++;
-    }
-
-    let sentiment: string;
-    let confidence: number;
-
-    if (positiveCount > negativeCount) {
-      sentiment = "positive";
-      confidence = 0.5 + (positiveCount / (positiveCount + negativeCount + 1)) * 0.5;
-    } else if (negativeCount > positiveCount) {
-      sentiment = "negative";
-      confidence = 0.5 + (negativeCount / (positiveCount + negativeCount + 1)) * 0.5;
-    } else {
-      sentiment = "neutral";
-      confidence = 0.6;
-    }
-
-    return { success: true, data: { sentiment, confidence: Math.round(confidence * 100) / 100, positiveWords: positiveCount, negativeWords: negativeCount } };
-  },
-});
-
-// Tool: extract_key_info — extract key information from text
+// Tool: extract_key_info — LLM-powered extraction
 registry.register({
   name: "extract_key_info",
-  description: "Extract key information fields from document text (dates, amounts, names, IDs, email addresses).",
+  description: "Extract key information from document text using AI.",
   parameters: [
     { name: "text", type: "string", description: "The text to extract information from", required: true },
   ],
   handler: async (params: Record<string, any>): Promise<ToolResult> => {
     const text = (params.text as string) || "";
-    const extracted: Record<string, any> = {};
 
-    // Extract dollar amounts
-    const amountRegex = /\$[\d,]+(?:\.\d{2})?/g;
-    const amounts = text.match(amountRegex);
-    if (amounts) extracted.amounts = amounts;
-
-    // Extract email addresses
-    const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
-    const emails = text.match(emailRegex);
-    if (emails) extracted.emails = emails;
-
-    // Extract dates (various formats)
-    const dateRegex = /\b\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}\b|\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{1,2},?\s*\d{4}\b/g;
-    const dates = text.match(dateRegex);
-    if (dates) extracted.dates = dates;
-
-    // Extract phone numbers
-    const phoneRegex = /(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g;
-    const phones = text.match(phoneRegex);
-    if (phones) extracted.phones = phones;
-
-    // Extract invoice/PO numbers
-    const idRegex = /(?:INV|PO|ORD|REF|#)\s*[-]?\s*[A-Z0-9]{4,}/gi;
-    const ids = text.match(idRegex);
-    if (ids) extracted.identifiers = ids;
-
-    return { success: true, data: extracted };
+    try {
+      // Try LLM extraction
+      const result = await extractInfoLLM(text);
+      return { success: true, data: result };
+    } catch {
+      // Fallback: regex-based
+      const extracted: Record<string, any> = {};
+      const amounts = text.match(/\$[\d,]+(?:\.\d{2})?/g);
+      if (amounts) extracted.amounts = amounts;
+      const emails = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g);
+      if (emails) extracted.emails = emails;
+      const dates = text.match(/\b\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}\b|\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{1,2},?\s*\d{4}\b/g);
+      if (dates) extracted.dates = dates;
+      const phones = text.match(/(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g);
+      if (phones) extracted.phones = phones;
+      const ids = text.match(/(?:INV|PO|ORD|REF|#)\s*[-]?\s*[A-Z0-9]{4,}/gi);
+      if (ids) extracted.identifiers = ids;
+      return { success: true, data: extracted };
+    }
   },
 });
 
-// Tool: search_files — search for files by name pattern
+// Tool: analyze_sentiment — LLM-powered sentiment analysis
+registry.register({
+  name: "analyze_sentiment",
+  description: "Analyze the sentiment of a piece of text using AI.",
+  parameters: [
+    { name: "text", type: "string", description: "The text to analyze", required: true },
+  ],
+  handler: async (params: Record<string, any>): Promise<ToolResult> => {
+    const text = (params.text as string) || "";
+
+    try {
+      const result = await analyzeSentimentLLM(text);
+      return {
+        success: true,
+        data: {
+          sentiment: result.sentiment,
+          confidence: result.confidence,
+          summary: result.summary,
+        },
+      };
+    } catch {
+      // Fallback: basic keyword counting
+      const lower = text.toLowerCase();
+      const positiveWords = ["good", "great", "excellent", "happy", "satisfied", "pleased", "thanks", "thank", "wonderful", "amazing", "love", "best", "outstanding"];
+      const negativeWords = ["bad", "terrible", "awful", "angry", "unhappy", "dissatisfied", "poor", "worst", "hate", "horrible", "disappointed", "frustrated", "failed"];
+      let positiveCount = 0, negativeCount = 0;
+      for (const w of positiveWords) { if (lower.includes(w)) positiveCount++; }
+      for (const w of negativeWords) { if (lower.includes(w)) negativeCount++; }
+      let sentiment: string, confidence: number;
+      if (positiveCount > negativeCount) { sentiment = "positive"; confidence = 0.5 + (positiveCount / (positiveCount + negativeCount + 1)) * 0.5; }
+      else if (negativeCount > positiveCount) { sentiment = "negative"; confidence = 0.5 + (negativeCount / (positiveCount + negativeCount + 1)) * 0.5; }
+      else { sentiment = "neutral"; confidence = 0.6; }
+      return { success: true, data: { sentiment, confidence: Math.round(confidence * 100) / 100, positiveWords: positiveCount, negativeWords: negativeCount } };
+    }
+  },
+});
+
+// Tool: search_files — search for files by name
 registry.register({
   name: "search_files",
   description: "Search for uploaded files by name or path pattern.",
   parameters: [
-    { name: "pattern", type: "string", description: "Filename search pattern (glob-style, e.g. '*.pdf', 'invoice*')", required: true },
-    { name: "limit", type: "number", description: "Maximum results to return", required: false },
+    { name: "pattern", type: "string", description: "Filename search pattern", required: true },
+    { name: "limit", type: "number", description: "Maximum results", required: false },
   ],
   handler: async (params: Record<string, any>): Promise<ToolResult> => {
     const pattern = params.pattern as string;
     const limit = Math.min((params.limit as number) || 20, 100);
     if (!pattern) return { success: false, error: "pattern is required" };
-
     try {
-      // Search in portal_data documents section
       const rows = await db.all(
         sql.raw(`SELECT data FROM portal_data WHERE section = 'documents' ORDER BY created_at DESC LIMIT ${limit * 2}`)
       );
@@ -319,7 +299,6 @@ registry.register({
           return name.includes(p);
         })
         .slice(0, limit);
-
       return { success: true, data: { count: results.length, files: results } };
     } catch (err: any) {
       return { success: false, error: `Failed to search files: ${err.message}` };
@@ -327,14 +306,14 @@ registry.register({
   },
 });
 
-// Tool: log_to_audit — log an audit event
+// Tool: log_to_audit
 registry.register({
   name: "log_to_audit",
-  description: "Log an event to the audit trail for compliance and monitoring.",
+  description: "Log an event to the audit trail.",
   parameters: [
-    { name: "action", type: "string", description: "The action name to log", required: true },
-    { name: "resource", type: "string", description: "The resource the action applies to", required: false },
-    { name: "details", type: "object", description: "Additional details as key-value pairs", required: false },
+    { name: "action", type: "string", description: "The action name", required: true },
+    { name: "resource", type: "string", description: "The resource", required: false },
+    { name: "details", type: "object", description: "Additional details", required: false },
     { name: "severity", type: "string", description: "Severity: 'info', 'warning', 'error', 'critical'", required: false },
   ],
   handler: async (params: Record<string, any>, ctx: ToolContext): Promise<ToolResult> => {

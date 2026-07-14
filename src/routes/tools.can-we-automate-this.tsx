@@ -1,10 +1,19 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { analyzeDescription, type AnalysisResult } from "../tools/automation-analyzer";
 
 export const Route = createFileRoute("/tools/can-we-automate-this")({
   component: CanWeAutomateThis,
 });
+
+interface AutomationPlan {
+  automatable: boolean;
+  confidence: number;
+  estimatedTimeSavings: string;
+  recommendedApproach: string;
+  steps: { name: string; description: string; complexity: "easy" | "medium" | "hard" }[];
+  toolsNeeded: string[];
+  fallback?: string;
+}
 
 const examplePrompts = [
   "Every morning I download PDF invoices from email, type the amounts into QuickBooks, then email customers a receipt",
@@ -16,24 +25,26 @@ const examplePrompts = [
 
 function CanWeAutomateThis() {
   const [input, setInput] = useState("");
-  const [result, setResult] = useState<{ top: AnalysisResult; summary: string; industry: string; allResults: AnalysisResult[] } | null>(null);
+  const [result, setResult] = useState<AutomationPlan | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
 
-  const handleAnalyze = () => {
+  const handleAnalyze = async () => {
     if (!input.trim()) return;
     setAnalyzing(true);
-
-    // Simulate brief analysis delay for UX
-    setTimeout(() => {
-      const analysis = analyzeDescription(input);
-      setResult({
-        top: analysis.topMatch,
-        summary: analysis.savingsSummary,
-        industry: analysis.industryGuess,
-        allResults: analysis.allMatches,
+    try {
+      const res = await fetch("/api/automate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description: input }),
       });
+      if (!res.ok) throw new Error("Analysis request failed");
+      const data = await res.json();
+      setResult(data);
+    } catch (error) {
+      console.error(error);
+    } finally {
       setAnalyzing(false);
-    }, 600);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -110,55 +121,79 @@ function CanWeAutomateThis() {
           {/* Top Match Card */}
           <div className="bg-gradient-to-br from-emerald-950/40 to-stone-900/80 border border-emerald-900/50 rounded-2xl p-8">
             <div className="flex items-start gap-6 flex-col md:flex-row">
-              <div className="text-5xl">{result.top.suggestedAgentEmoji}</div>
+              <div className="text-5xl">{result.automatable ? "🤖" : "⚠️"}</div>
               <div className="flex-1 space-y-4">
                 <div>
                   <div className="text-xs font-mono text-emerald-400 font-bold tracking-wider mb-1">
-                    ✅ AUTOMATION OPPORTUNITY DETECTED
+                    {result.automatable ? "✅ AUTOMATION POTENTIAL: HIGHLY FEASIBLE" : "⚠️ AUTOMATION FEASIBILITY: COMPLEX"}
                   </div>
-                  <h2 className="text-2xl font-black">{result.top.match.name}</h2>
-                  <p className="text-stone-400 text-sm mt-1">{result.top.match.description}</p>
+                  <h2 className="text-2xl font-black">AI Automation Strategy Report</h2>
+                  <p className="text-stone-300 text-sm mt-1 leading-relaxed">{result.recommendedApproach}</p>
                 </div>
 
                 {/* Stats Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   <div className="bg-stone-900/80 border border-stone-800 rounded-xl p-4 text-center">
-                    <div className="text-2xl font-black text-emerald-400">{result.top.estimatedHoursSaved}h</div>
-                    <div className="text-[10px] font-mono text-stone-500 mt-1">SAVED / WEEK</div>
+                    <div className="text-xl md:text-2xl font-black text-emerald-400">{result.estimatedTimeSavings}</div>
+                    <div className="text-[10px] font-mono text-stone-500 mt-1">EST. SAVINGS / REDUCTION</div>
                   </div>
                   <div className="bg-stone-900/80 border border-stone-800 rounded-xl p-4 text-center">
-                    <div className="text-2xl font-black text-emerald-400">${(result.top.estimatedHoursSaved * 25).toLocaleString()}</div>
-                    <div className="text-[10px] font-mono text-stone-500 mt-1">SAVED / WEEK*</div>
+                    <div className="text-xl md:text-2xl font-black text-emerald-400">{(result.confidence * 100).toFixed(0)}%</div>
+                    <div className="text-[10px] font-mono text-stone-500 mt-1">CONFIDENCE SCORE</div>
                   </div>
                   <div className="bg-stone-900/80 border border-stone-800 rounded-xl p-4 text-center">
-                    <div className="text-2xl font-black text-emerald-400 capitalize">{result.top.confidence}</div>
-                    <div className="text-[10px] font-mono text-stone-500 mt-1">MATCH CONFIDENCE</div>
-                  </div>
-                  <div className="bg-stone-900/80 border border-stone-800 rounded-xl p-4 text-center">
-                    <div className="text-lg font-black text-stone-300">{result.industry}</div>
-                    <div className="text-[10px] font-mono text-stone-500 mt-1">INDUSTRY</div>
+                    <div className="text-xl md:text-2xl font-black text-stone-300 capitalize">{result.automatable ? "Automated" : "Manual / Mixed"}</div>
+                    <div className="text-[10px] font-mono text-stone-500 mt-1">APPROACH TYPE</div>
                   </div>
                 </div>
 
-                {/* Suggested Agent */}
-                <div className="bg-stone-950/60 border border-stone-800 rounded-xl p-4">
-                  <div className="text-xs font-mono text-stone-500 mb-2">SUGGESTED AI AGENT</div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">{result.top.suggestedAgentEmoji}</span>
-                      <div>
-                        <div className="font-bold text-emerald-400">{result.top.suggestedAgentName}</div>
-                        <div className="text-xs text-stone-400">{result.top.match.timeSaved}</div>
-                      </div>
+                {/* Recommended Steps */}
+                {result.steps && result.steps.length > 0 && (
+                  <div className="space-y-3 pt-2">
+                    <div className="text-xs font-mono text-stone-500">RECOMMENDED AUTOMATION PIPELINE ({result.steps.length} steps)</div>
+                    <div className="space-y-3">
+                      {result.steps.map((step, idx) => (
+                        <div key={idx} className="bg-stone-950/60 border border-stone-800 rounded-xl p-4 flex gap-4">
+                          <span className="flex items-center justify-center h-6 w-6 rounded-full bg-stone-900 text-stone-400 font-mono font-bold text-xs shrink-0">{idx + 1}</span>
+                          <div className="flex-1 space-y-1">
+                            <div className="flex items-center justify-between">
+                              <h4 className="font-bold text-stone-200 text-sm">{step.name}</h4>
+                              <span className={`text-[9px] font-mono uppercase font-bold px-2 py-0.5 rounded-full ${
+                                step.complexity === "easy" ? "bg-emerald-950/60 text-emerald-400 border border-emerald-900/50" :
+                                step.complexity === "medium" ? "bg-amber-950/60 text-amber-400 border border-amber-900/50" :
+                                "bg-rose-950/60 text-rose-400 border border-rose-900/50"
+                              }`}>
+                                {step.complexity}
+                              </span>
+                            </div>
+                            <p className="text-stone-400 text-xs leading-relaxed">{step.description}</p>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    <a
-                      href={`/workflows/${result.top.match.id}`}
-                      className="bg-stone-800 hover:bg-stone-700 text-stone-200 text-xs font-bold px-4 py-2 rounded-lg transition-all"
-                    >
-                      Learn More →
-                    </a>
                   </div>
-                </div>
+                )}
+
+                {/* Tools Needed */}
+                {result.toolsNeeded && result.toolsNeeded.length > 0 && (
+                  <div className="space-y-2 pt-2">
+                    <div className="text-xs font-mono text-stone-500">REQUIRED SYSTEMS & INTEGRATIONS</div>
+                    <div className="flex flex-wrap gap-2">
+                      {result.toolsNeeded.map((tool, idx) => (
+                        <span key={idx} className="bg-stone-900/60 border border-stone-800 px-3 py-1.5 rounded-xl text-xs font-mono text-stone-300">
+                          🔌 {tool}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Fallback advice */}
+                {result.fallback && (
+                  <div className="bg-amber-950/20 border border-amber-900/40 rounded-xl p-4 text-xs text-amber-300/80 leading-relaxed">
+                    ⚠️ <strong>Human-in-the-Loop Backup:</strong> {result.fallback}
+                  </div>
+                )}
 
                 {/* CTA */}
                 <div className="flex gap-3 pt-2">
@@ -168,7 +203,7 @@ function CanWeAutomateThis() {
                     rel="noopener noreferrer"
                     className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-sm py-3 rounded-xl text-center transition-all"
                   >
-                    🚀 Deploy {result.top.suggestedAgentName} — Starts at $750/mo
+                    🚀 Deploy Custom AI Coworker — Starts at $750/mo
                   </a>
                   <a
                     href="/contact"
@@ -177,52 +212,6 @@ function CanWeAutomateThis() {
                     Book Consultation
                   </a>
                 </div>
-
-                <p className="text-[10px] text-stone-600 italic">
-                  *Savings calculated at $25/hr blended labor rate. Your actual savings may vary based on volume and complexity.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Other Matches */}
-          {result.allResults.length > 1 && (
-            <div className="space-y-3">
-              <h3 className="text-sm font-mono font-bold text-stone-500 tracking-wide px-1">
-                OTHER AUTOMATION OPPORTUNITIES ({result.allResults.length - 1} found)
-              </h3>
-              <div className="grid md:grid-cols-2 gap-3">
-                {result.allResults.slice(1).map((r, i) => (
-                  <div key={i} className="bg-stone-900/40 border border-stone-800/60 rounded-xl p-4 flex items-start gap-3 hover:bg-stone-900/60 transition-all">
-                    <span className="text-2xl">{r.suggestedAgentEmoji}</span>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-bold text-sm text-stone-200">{r.match.name}</div>
-                      <div className="text-xs text-stone-500 mt-0.5 line-clamp-2">{r.match.description}</div>
-                      <div className="flex items-center gap-3 mt-2 text-xs">
-                        <span className="text-emerald-400 font-bold">{r.estimatedHoursSaved}h/week</span>
-                        <span className="text-stone-600">•</span>
-                        <span className="text-stone-500 capitalize">{r.confidence} match</span>
-                      </div>
-                    </div>
-                    <a
-                      href={`/workflows/${r.match.id}`}
-                      className="text-emerald-400 hover:text-emerald-300 text-xs font-bold shrink-0 mt-1"
-                    >
-                      Details →
-                    </a>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Savings Summary */}
-          <div className="bg-stone-900/30 border border-stone-800/50 rounded-xl p-6">
-            <div className="flex items-start gap-4">
-              <span className="text-2xl">📊</span>
-              <div>
-                <div className="text-sm font-bold text-stone-200 mb-1">Summary</div>
-                <p className="text-sm text-stone-400 leading-relaxed">{result.summary}</p>
               </div>
             </div>
           </div>

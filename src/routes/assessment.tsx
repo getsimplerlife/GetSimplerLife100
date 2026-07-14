@@ -73,13 +73,22 @@ function AssessmentPage() {
     if (step > 0) setStep(step - 1);
   };
 
-  const generateReport = () => {
+  const generateReport = async () => {
     setGenerating(true);
-    setTimeout(() => {
-      const result = runAssessment(answers);
+    try {
+      const res = await fetch("/api/assess", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ answers }),
+      });
+      if (!res.ok) throw new Error("Assessment request failed");
+      const result = await res.json();
       setReport(result);
+    } catch (error) {
+      console.error("Assessment error:", error);
+    } finally {
       setGenerating(false);
-    }, 1500);
+    }
   };
 
   const downloadPDF = () => {
@@ -595,7 +604,7 @@ function AssessmentPage() {
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
                 <a
-                  href="https://buy.stripe.com/eVq14p74P43RaXxfig2Fa0k"
+                  href="https://buy.stripe.com/28E4gAens20AfRcbkp3Ru04"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full sm:w-auto px-7 py-3.5 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-bold text-sm rounded-xl transition-all shadow-lg hover:shadow-[0_0_25px_rgba(99,102,241,0.4)]"

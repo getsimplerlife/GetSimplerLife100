@@ -70,13 +70,22 @@ function AutomationAssessment() {
     if (step > 0) setStep(step - 1);
   };
 
-  const generateReport = () => {
+  const generateReport = async () => {
     setGenerating(true);
-    setTimeout(() => {
-      const result = runAssessment(answers);
+    try {
+      const res = await fetch("/api/assess", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ answers }),
+      });
+      if (!res.ok) throw new Error("Assessment request failed");
+      const result = await res.json();
       setReport(result);
+    } catch (error) {
+      console.error("Assessment error:", error);
+    } finally {
       setGenerating(false);
-    }, 800);
+    }
   };
 
   const downloadPDF = () => {
@@ -493,7 +502,7 @@ function AutomationAssessment() {
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <a
-                  href="https://buy.stripe.com/eVq14p74P43RaXxfig2Fa0k"
+                  href="https://buy.stripe.com/28E4gAens20AfRcbkp3Ru04"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-sm px-6 py-3 rounded-xl transition-all"
