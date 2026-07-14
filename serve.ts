@@ -30,9 +30,12 @@ import {
 import { processChatMessage, listSessions, deleteSession } from "./src/api/chatEngine";
 import { sendEmail, renderEmailTemplate } from "./src/integrations/email";
 import { generateWorkflow, listTemplates } from "./src/api/workflowGenerator";
-import { runAgent, deployAgent, getAgentStatus, pauseAgent, resumeAgent } from "./src/agents/index";
+import { runAgent, deployAgent, getAgentStatus, pauseAgent, resumeAgent, listAgentTypes } from "./src/agents/index";
+import { listAgentInstances } from "./src/agents/schema";
 import { processDocument } from "./src/agents/documentProcessor";
 import { routeIntegrationRequest } from "./src/api/integrationRoutes";
+import { analyzeAutomationPotential } from "./src/ai/llm";
+import { runAssessment } from "./src/tools/assessment-engine";
 
 // Pinned, NOT read from the environment. The published preview URL
 // (<label>.<PUBLIC_SITE_DOMAIN>) is reverse-proxied to 0.0.0.0:3000 inside the
@@ -335,21 +338,20 @@ for (let attempt = 1; ; attempt++) {
               return new Response(JSON.stringify({ error: "Message required" }), { status: 400, headers: { "Content-Type": "application/json" } });
             }
             const user = await getUserFromRequest(req);
-            if (!user || !user.userId) {
-              return new Response(JSON.stringify({ error: "Not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
-            }
+            const userId = user?.userId || "public-session-user";
+            const userEmail = user?.userEmail || "public@example.com";
 
             // Process the message through the AI Chat Engine
             const response = await processChatMessage(
-              user.userId,
-              user.userEmail || "unknown",
+              userId,
+              userEmail,
               body.message,
               body.sessionId
             );
 
             // Log the chat interaction
             await logAuditEvent({
-              userId: user.userId, userEmail: user.userEmail,
+              userId, userEmail,
               action: "chat_message", resource: "ai_assistant",
               details: {
                 message: body.message.slice(0, 200),
@@ -514,6 +516,25 @@ for (let attempt = 1; ; attempt++) {
             });
           } catch (err: any) {
             console.error("[serve.ts] Agent deploy error:", err);
+            return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { "Content-Type": "application/json" } });
+          }
+        }
+
+        // GET /api/agents/list — list all deployed agents for the current user
+        if (pathname === "/api/agents/list" && req.method === "GET") {
+          try {
+            const user = await getUserFromRequest(req);
+            if (!user || !user.userId) {
+              return new Response(JSON.stringify({ error: "Not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
+            }
+            const instances = await listAgentInstances(user.userId);
+            const types = listAgentTypes();
+            return new Response(JSON.stringify({ success: true, agents: instances, agentTypes: types }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            });
+          } catch (err: any) {
+            console.error("[serve.ts] Agent list error:", err);
             return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { "Content-Type": "application/json" } });
           }
         }
@@ -1082,6 +1103,34 @@ for (let attempt = 1; ; attempt++) {
             return new Response(JSON.stringify({ error: "Failed to send email", details: err.message }), {
               status: 500, headers: { "Content-Type": "application/json" },
             });
+          }
+        }
+
+        // POST /api/automate — "Can We Automate This?" tool
+        if (pathname === "/api/automate" && req.method === "POST") {
+          try {
+            const body = await parseJSON(req);
+            if (!body || !body.description) {
+              return new Response(JSON.stringify({ error: "Description required" }), { status: 400, headers: { "Content-Type": "application/json" } });
+            }
+            const result = await analyzeAutomationPotential(body.description);
+            return new Response(JSON.stringify(result), { status: 200, headers: { "Content-Type": "application/json" } });
+          } catch (err: any) {
+            return new Response(JSON.stringify({ error: "Analysis failed: " + err.message }), { status: 500, headers: { "Content-Type": "application/json" } });
+          }
+        }
+
+        // POST /api/assess — AI Automation Assessment
+        if (pathname === "/api/assess" && req.method === "POST") {
+          try {
+            const body = await parseJSON(req);
+            if (!body || !body.answers) {
+              return new Response(JSON.stringify({ error: "Assessment answers required" }), { status: 400, headers: { "Content-Type": "application/json" } });
+            }
+            const report = runAssessment(body.answers);
+            return new Response(JSON.stringify(report), { status: 200, headers: { "Content-Type": "application/json" } });
+          } catch (err: any) {
+            return new Response(JSON.stringify({ error: "Assessment failed: " + err.message }), { status: 500, headers: { "Content-Type": "application/json" } });
           }
         }
 

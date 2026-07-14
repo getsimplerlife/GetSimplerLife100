@@ -5,23 +5,94 @@ export const Route = createFileRoute("/portal/employees/")({
   component: EmployeesManager,
 });
 
+interface Employee {
+  id: string;
+  name: string;
+  purpose: string;
+  dept: string;
+  status: string;
+  version: string;
+  currentTask: string;
+  performance: number;
+  successRate: number;
+  avgTime: string;
+  owner: string;
+}
+
 function EmployeesManager() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [feedback, setFeedback] = useState("");
-  const [employees, setEmployees] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchEmployees = async () => {
     try {
-      const res = await fetch("/api/data/employees", { credentials: "include" });
-      const d = await res.json();
-      
-      if (d.data && d.data.length > 0) {
-        setEmployees(d.data);
-      } else {
-        setEmployees([]);
+      // Fetch both data sources in parallel
+      const [dataRes, agentRes] = await Promise.all([
+        fetch("/api/data/employees", { credentials: "include" }),
+        fetch("/api/agents/list", { credentials: "include" }),
+      ]);
+
+      // Build employee map from the flat data section
+      const employeeMap = new Map<string, Employee>();
+      if (dataRes.ok) {
+        const d = await dataRes.json();
+        if (d.data && d.data.length > 0) {
+          for (const row of d.data) {
+            const emp: Employee = {
+              id: row.id || row._id || row.agentId || "",
+              name: row.name || "Unknown",
+              purpose: row.purpose || "No description",
+              dept: row.dept || row.category || "General",
+              status: row.status || "Idle",
+              version: row.version || "1.0.0",
+              currentTask: row.currentTask || "Awaiting instructions",
+              performance: row.performance || 98,
+              successRate: row.successRate || 98,
+              avgTime: row.avgTime || "<1s",
+              owner: row.owner || row.userId || "",
+            };
+            if (emp.id) employeeMap.set(emp.id, emp);
+          }
+        }
       }
+
+      // Merge in real agent instances from the runtime
+      if (agentRes.ok) {
+        const agentData = await agentRes.json();
+        if (agentData.success && agentData.agents) {
+          for (const agent of agentData.agents) {
+            const agentId = agent.id;
+            const existing = employeeMap.get(agentId);
+            const agentStatus = agent.status === "running" ? "Active" :
+                                agent.status === "paused" ? "Paused" : "Idle";
+
+            if (existing) {
+              // Update status from real agent runtime
+              existing.status = agentStatus;
+              employeeMap.set(agentId, existing);
+            } else {
+              // Create entry from agent instance
+              employeeMap.set(agentId, {
+                id: agentId,
+                name: agent.name || "AI Employee",
+                purpose: agent.description || "No description available",
+                dept: agent.agentType || "General",
+                status: agentStatus,
+                version: "1.0.0",
+                currentTask: "Awaiting instructions",
+                performance: 95,
+                successRate: 95,
+                avgTime: "<1s",
+                owner: agent.userId || "",
+              });
+            }
+          }
+        }
+      }
+
+      setEmployees(Array.from(employeeMap.values()));
       setLoading(false);
     } catch (err) {
       console.error("Error loading employees:", err);
@@ -36,7 +107,31 @@ function EmployeesManager() {
   const handleAction = async (empName: string, actionName: string) => {
     try {
       setFeedback(`Processing action "${actionName}" for ${empName}...`);
-      const res = await fetch("/api/action", {
+
+      // Find the employee to get their agent ID
+      const emp = employees.find(e => e.name === empName);
+
+      if (emp && emp.id) {
+        // Call proper agent runtime API for pause/resume
+        if (actionName === "Pause") {
+          const res = await fetch(`/api/agents/${emp.id}/pause`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+          });
+          if (!res.ok) throw new Error("Pause request failed");
+        } else if (actionName === "Resume") {
+          const res = await fetch(`/api/agents/${emp.id}/resume`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+          });
+          if (!res.ok) throw new Error("Resume request failed");
+        }
+      }
+
+      // Also log audit
+      await fetch("/api/action", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -46,20 +141,17 @@ function EmployeesManager() {
           details: { name: empName, action: actionName },
         }),
       });
-      await res.json();
-      
-      // Update local state to immediately show change
-      const updated = employees.map(emp => {
-        if (emp.name === empName) {
-          if (actionName === "Pause") {
-            return { ...emp, status: "Paused" };
-          } else if (actionName === "Resume") {
-            return { ...emp, status: "Active" };
+
+      // Update local state
+      setEmployees(prev =>
+        prev.map(e => {
+          if (e.name === empName) {
+            if (actionName === "Pause") return { ...e, status: "Paused" };
+            if (actionName === "Resume") return { ...e, status: "Active" };
           }
-        }
-        return emp;
-      });
-      setEmployees(updated);
+          return e;
+        })
+      );
 
       setFeedback(`Success: ${actionName} processed for ${empName}`);
       setTimeout(() => setFeedback(""), 3000);
@@ -71,15 +163,13 @@ function EmployeesManager() {
   };
 
   const filteredEmployees = employees.filter((emp) => {
-    const matchesSearch = emp.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    const matchesSearch = emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           emp.purpose.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           emp.dept.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || emp.status.toLowerCase() === statusFilter.toLowerCase();
     return matchesSearch && matchesStatus;
   });
 
-  // Help find a local employee database entry safely
-  const getEmpId = (emp: any) => emp.id || emp._id;
 
   if (loading) {
     return (
@@ -114,10 +204,10 @@ function EmployeesManager() {
             Purchase an AI employee build to automate your high-friction workflows and scale your business.
           </p>
           <Link
-            to="/portal/billing"
+            to="/portal/marketplace"
             className="inline-flex items-center justify-center bg-white hover:bg-stone-100 text-black font-extrabold px-6 py-3 rounded-xl transition-all font-mono text-xs shadow-lg shadow-white/5 active:scale-95"
           >
-            Deploy an AI Employee
+            Browse Marketplace
           </Link>
         </div>
       ) : (
@@ -130,19 +220,19 @@ function EmployeesManager() {
             </div>
 
             <div className="bg-stone-950 border border-stone-900 rounded-xl p-6 overflow-x-auto select-none relative">
-              
+
               {/* Main SVG connecting line */}
               <div className="min-w-[900px] flex items-center justify-between py-6 relative">
-                
+
                 {/* SVG Connecting Dotted Lines with pulse effect */}
                 <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-1 z-0 overflow-hidden">
                   <svg className="w-full h-2" fill="none">
-                    <line 
-                      x1="0" y1="4" x2="100%" y2="4" 
+                    <line
+                      x1="0" y1="4" x2="100%" y2="4"
                       stroke="#292524" strokeWidth="2" strokeDasharray="6 6"
                     />
-                    <line 
-                      x1="0" y1="4" x2="100%" y2="4" 
+                    <line
+                      x1="0" y1="4" x2="100%" y2="4"
                       stroke="#10b981" strokeWidth="2" strokeDasharray="6 40"
                       className="animate-pulse"
                     />
@@ -160,95 +250,28 @@ function EmployeesManager() {
                   </div>
                 </div>
 
-                {/* Node 1: Sales AI */}
-                {employees.find(e => e.id === "sales-ai") && (
-                  <Link 
+                {/* Dynamic employee nodes from deployed agents */}
+                {employees.slice(0, 5).map((emp) => (
+                  <Link
+                    key={emp.id}
                     to="/portal/employees/$id"
-                    params={{ id: "sales-ai" }}
+                    params={{ id: emp.id }}
                     className="flex flex-col items-center space-y-2.5 z-10 w-40 shrink-0 group transition-all"
                   >
-                    <div className="h-12 w-12 rounded-xl bg-stone-950 border-2 border-emerald-900 group-hover:border-emerald-500 flex items-center justify-center relative shadow-xl transition-all duration-300">
+                    <div className={`h-12 w-12 rounded-xl bg-stone-950 border-2 flex items-center justify-center relative shadow-xl transition-all duration-300 ${
+                      emp.status === "Active" ? "border-emerald-900 group-hover:border-emerald-500" : "border-stone-800 group-hover:border-stone-500"
+                    }`}>
                       <span className="text-lg">🤖</span>
-                      <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse border border-stone-950" />
+                      {emp.status === "Active" && (
+                        <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse border border-stone-950" />
+                      )}
                     </div>
                     <div className="text-center space-y-0.5">
-                      <p className="text-[11px] font-bold text-stone-200 group-hover:text-emerald-400 transition-colors">Sarah Jenkins</p>
-                      <p className="text-[9px] font-mono text-stone-500 uppercase tracking-widest">Sales Coordinator</p>
+                      <p className="text-[11px] font-bold text-stone-200 group-hover:text-emerald-400 transition-colors truncate max-w-[120px]">{emp.name}</p>
+                      <p className="text-[9px] font-mono text-stone-500 uppercase tracking-widest truncate max-w-[120px]">{emp.dept}</p>
                     </div>
                   </Link>
-                )}
-
-                {/* Node 2: CRM AI */}
-                {employees.find(e => e.id === "crm-ai") && (
-                  <Link 
-                    to="/portal/employees/$id"
-                    params={{ id: "crm-ai" }}
-                    className="flex flex-col items-center space-y-2.5 z-10 w-40 shrink-0 group transition-all"
-                  >
-                    <div className="h-12 w-12 rounded-xl bg-stone-950 border-2 border-emerald-900 group-hover:border-emerald-500 flex items-center justify-center relative shadow-xl transition-all duration-300">
-                      <span className="text-lg">🤖</span>
-                      <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse border border-stone-950" />
-                    </div>
-                    <div className="text-center space-y-0.5">
-                      <p className="text-[11px] font-bold text-stone-200 group-hover:text-emerald-400 transition-colors">Charlie CRM</p>
-                      <p className="text-[9px] font-mono text-stone-500 uppercase tracking-widest">Enrichment Agent</p>
-                    </div>
-                  </Link>
-                )}
-
-                {/* Node 3: Quote AI */}
-                {employees.find(e => e.id === "quote-ai") && (
-                  <Link 
-                    to="/portal/employees/$id"
-                    params={{ id: "quote-ai" }}
-                    className="flex flex-col items-center space-y-2.5 z-10 w-40 shrink-0 group transition-all"
-                  >
-                    <div className="h-12 w-12 rounded-xl bg-stone-950 border-2 border-stone-800 group-hover:border-stone-500 flex items-center justify-center relative shadow-xl transition-all duration-300">
-                      <span className="text-lg">🤖</span>
-                      <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-stone-500 border border-stone-950" />
-                    </div>
-                    <div className="text-center space-y-0.5">
-                      <p className="text-[11px] font-bold text-stone-300 group-hover:text-stone-100 transition-colors">Quentin Quote</p>
-                      <p className="text-[9px] font-mono text-stone-500 uppercase tracking-widest">Pricing Engine</p>
-                    </div>
-                  </Link>
-                )}
-
-                {/* Node 4: Invoice AI */}
-                {employees.find(e => e.id === "invoice-ai") && (
-                  <Link 
-                    to="/portal/employees/$id"
-                    params={{ id: "invoice-ai" }}
-                    className="flex flex-col items-center space-y-2.5 z-10 w-40 shrink-0 group transition-all"
-                  >
-                    <div className="h-12 w-12 rounded-xl bg-stone-950 border-2 border-emerald-900 group-hover:border-emerald-500 flex items-center justify-center relative shadow-xl transition-all duration-300">
-                      <span className="text-lg">🤖</span>
-                      <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse border border-stone-950" />
-                    </div>
-                    <div className="text-center space-y-0.5">
-                      <p className="text-[11px] font-bold text-stone-200 group-hover:text-emerald-400 transition-colors">Ivy Invoice</p>
-                      <p className="text-[9px] font-mono text-stone-500 uppercase tracking-widest">Billing Officer</p>
-                    </div>
-                  </Link>
-                )}
-
-                {/* Node 5: Collections AI */}
-                {employees.find(e => e.id === "collections-ai") && (
-                  <Link 
-                    to="/portal/employees/$id"
-                    params={{ id: "collections-ai" }}
-                    className="flex flex-col items-center space-y-2.5 z-10 w-40 shrink-0 group transition-all"
-                  >
-                    <div className="h-12 w-12 rounded-xl bg-stone-950 border-2 border-emerald-900 group-hover:border-emerald-500 flex items-center justify-center relative shadow-xl transition-all duration-300">
-                      <span className="text-lg">🤖</span>
-                      <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse border border-stone-950" />
-                    </div>
-                    <div className="text-center space-y-0.5">
-                      <p className="text-[11px] font-bold text-stone-200 group-hover:text-emerald-400 transition-colors">Caleb Collections</p>
-                      <p className="text-[9px] font-mono text-stone-500 uppercase tracking-widest">Dunning Agent</p>
-                    </div>
-                  </Link>
-                )}
+                ))}
 
                 {/* ERP/Accounting Output Node */}
                 <div className="flex flex-col items-center space-y-2.5 z-10 w-40 shrink-0">
@@ -301,14 +324,14 @@ function EmployeesManager() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-stone-900">
-                  {filteredEmployees.map((emp, idx) => (
-                    <tr key={idx} className="hover:bg-stone-900/10 transition-colors">
+                  {filteredEmployees.map((emp, _idx) => (
+                    <tr key={emp.id || idx} className="hover:bg-stone-900/10 transition-colors">
                       {/* Name & Owner */}
                       <td className="p-4 pl-6">
-                        <Link to="/portal/employees/$id" params={{ id: getEmpId(emp) }} className="font-bold text-white hover:text-blue-400 block transition-colors">
+                        <Link to="/portal/employees/$id" params={{ id: emp.id }} className="font-bold text-white hover:text-blue-400 block transition-colors">
                           {emp.name.split(" (")[0]}
                         </Link>
-                        <span className="text-[10px] text-stone-500 font-mono">Owner ID: {emp.owner}</span>
+                        <span className="text-[10px] text-stone-500 font-mono">ID: {emp.id.slice(0, 8)}...</span>
                       </td>
                       {/* Purpose & Dept */}
                       <td className="p-4 max-w-xs leading-normal font-normal">
@@ -353,7 +376,7 @@ function EmployeesManager() {
                           </button>
                           <Link
                             to="/portal/employees/$id"
-                            params={{ id: getEmpId(emp) }}
+                            params={{ id: emp.id }}
                             className="bg-white hover:bg-stone-100 text-black font-bold px-2.5 py-1.5 rounded-lg transition-all"
                           >
                             Profile

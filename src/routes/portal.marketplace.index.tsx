@@ -12,10 +12,12 @@ interface MarketplaceItem {
   category: "Healthcare" | "Finance" | "Sales" | "Operations" | "HR" | "Logistics";
   price: string;
   installed: boolean;
+  agentId?: string; // real agent instance ID if deployed
   rating: number;
   runsMonth: string;
   icon: string;
   paymentLink?: string;
+  agentType: string; // mapped to registered agent type in the runtime
 }
 
 const DEFAULT_MARKETPLACE_ITEMS: MarketplaceItem[] = [
@@ -29,7 +31,8 @@ const DEFAULT_MARKETPLACE_ITEMS: MarketplaceItem[] = [
     rating: 4.9,
     runsMonth: "14.2k",
     icon: "🏥",
-    paymentLink: "https://buy.stripe.com/00w9AV60LeIvaXxb202Fa0f",
+    paymentLink: "https://buy.stripe.com/8x26oIensbBa0Wi4W13Ru07",
+    agentType: "document_intake",
   },
   {
     id: "app-2",
@@ -41,7 +44,8 @@ const DEFAULT_MARKETPLACE_ITEMS: MarketplaceItem[] = [
     rating: 4.8,
     runsMonth: "42.8k",
     icon: "💸",
-    paymentLink: "https://buy.stripe.com/28E6oJexh57Vc1Bb202Fa0g",
+    paymentLink: "https://buy.stripe.com/8x26oIensbBa0Wi4W13Ru07",
+    agentType: "document_intake",
   },
   {
     id: "app-3",
@@ -53,7 +57,8 @@ const DEFAULT_MARKETPLACE_ITEMS: MarketplaceItem[] = [
     rating: 4.7,
     runsMonth: "8.9k",
     icon: "🚀",
-    paymentLink: "https://buy.stripe.com/8x2fZjfBlfMzghR8TS2Fa0h",
+    paymentLink: "https://buy.stripe.com/28EcN61AGax6bAW3RX3Ru0b",
+    agentType: "document_intake",
   },
   {
     id: "app-4",
@@ -65,7 +70,8 @@ const DEFAULT_MARKETPLACE_ITEMS: MarketplaceItem[] = [
     rating: 4.6,
     runsMonth: "5.1k",
     icon: "👤",
-    paymentLink: "https://buy.stripe.com/14AeVffBl2ZNc1Bc642Fa0i",
+    paymentLink: "https://buy.stripe.com/8x26oIensbBa0Wi4W13Ru07",
+    agentType: "document_intake",
   },
   {
     id: "app-5",
@@ -77,7 +83,8 @@ const DEFAULT_MARKETPLACE_ITEMS: MarketplaceItem[] = [
     rating: 4.9,
     runsMonth: "25.4k",
     icon: "📦",
-    paymentLink: "https://buy.stripe.com/9B6eVfdtd57Vd5F4DC2Fa0j",
+    paymentLink: "https://buy.stripe.com/8x26oIensbBa0Wi4W13Ru07",
+    agentType: "document_intake",
   },
   {
     id: "app-6",
@@ -89,26 +96,40 @@ const DEFAULT_MARKETPLACE_ITEMS: MarketplaceItem[] = [
     rating: 4.8,
     runsMonth: "19.3k",
     icon: "⚙️",
-    paymentLink: "https://buy.stripe.com/eVq14p74P43RaXxfig2Fa0k",
+    paymentLink: "https://buy.stripe.com/28E4gAens20AfRcbkp3Ru04",
+    agentType: "document_intake",
   },
 ];
+
+// Map marketplace item ID → agent type for deploy API calls
+const ITEM_TO_AGENT_TYPE: Record<string, string> = {
+  "app-1": "document_intake",
+  "app-2": "document_intake",
+  "app-3": "document_intake",
+  "app-4": "document_intake",
+  "app-5": "document_intake",
+  "app-6": "document_intake",
+};
 
 function MarketplaceHub() {
   const [items, setItems] = useState<MarketplaceItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deploying, setDeploying] = useState<string | null>(null);
   const [feedback, setFeedback] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [activeCategory, setActiveCategory] = useState<string>("all");
 
   const categories = ["all", "Healthcare", "Finance", "Sales", "Operations", "HR", "Logistics"];
 
+  // Fetch marketplace items + deployed agents on load
   useEffect(() => {
     (async () => {
       try {
+        // Load marketplace data from database
         const res = await fetch("/api/data/marketplace", { credentials: "include" });
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         const d = await res.json();
-        
+
         let loadedItems: MarketplaceItem[] = [];
         if (d.data && d.data.length > 0) {
           const firstRow = d.data[0];
@@ -120,7 +141,7 @@ function MarketplaceHub() {
         }
 
         if (loadedItems.length === 0) {
-          // No items in database yet, let's initialize with the defaults!
+          // Seed defaults: merge with agentType field
           loadedItems = DEFAULT_MARKETPLACE_ITEMS;
           await fetch("/api/data/marketplace", {
             method: "POST",
@@ -130,56 +151,180 @@ function MarketplaceHub() {
           });
         }
 
+        // Fetch real deployed agents from the agent runtime
+        const agentRes = await fetch("/api/agents/list", { credentials: "include" });
+        let deployedAgentIds = new Set<string>();
+        let deployedAgentMap = new Map<string, string>();
+        if (agentRes.ok) {
+          const agentData = await agentRes.json();
+          if (agentData.success && agentData.agents) {
+            // Match deployed agents against marketplace items by name
+            for (const agent of agentData.agents) {
+              // Check if any marketplace item matches this agent's name
+              const matchItem = loadedItems.find(
+                (itm: MarketplaceItem) =>
+                  itm.name.toLowerCase() === (agent.name || "").toLowerCase() ||
+                  itm.name.toLowerCase().includes((agent.name || "").toLowerCase()) ||
+                  (agent.name || "").toLowerCase().includes(itm.name.toLowerCase())
+              );
+              if (matchItem) {
+                deployedAgentIds.add(matchItem.id);
+                deployedAgentMap.set(matchItem.id, agent.id);
+              }
+            }
+          }
+        }
+
+        // Mark items as installed if they have a matching deployed agent
+        loadedItems = loadedItems.map((itm: MarketplaceItem) => ({
+          ...itm,
+          installed: deployedAgentIds.has(itm.id),
+          agentId: deployedAgentMap.get(itm.id) || undefined,
+        }));
+
         setItems(loadedItems);
         setLoading(false);
       } catch (err) {
         console.error("Marketplace fetch error:", err);
-        // Fallback to defaults to prevent an empty/offline screen on network failure
+        // Fallback to defaults
         setItems(DEFAULT_MARKETPLACE_ITEMS);
         setLoading(false);
       }
     })();
   }, []);
 
-  const handleAction = async (itemId: string, currentInstalled: boolean) => {
-    const actionText = currentInstalled ? "Uninstall" : "Install";
+  const handleDeploy = async (item: MarketplaceItem) => {
+    if (deploying) return; // prevent double-click
+    setDeploying(item.id);
     try {
-      setFeedback(`${actionText}ing AI Employee from workspace...`);
-      
-      const updated = items.map((itm) => {
-        if (itm.id === itemId) {
-          return { ...itm, installed: !currentInstalled };
-        }
-        return itm;
-      });
+      setFeedback(`🚀 Deploying ${item.name}...`);
 
-      setItems(updated);
-
-      // Save changes back to database
-      await fetch("/api/data/marketplace", {
+      // 1. Call the real agent runtime deploy API
+      const deployRes = await fetch("/api/agents/deploy", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ data: updated }),
+        body: JSON.stringify({
+          agentType: ITEM_TO_AGENT_TYPE[item.id] || "document_intake",
+          name: item.name,
+          config: { marketplaceItemId: item.id, category: item.category, source: "marketplace" },
+        }),
       });
 
-      // Audit Log Action
+      if (!deployRes.ok) {
+        const errData = await deployRes.json();
+        throw new Error(errData.error || "Deploy failed");
+      }
+
+      const deployData = await deployRes.json();
+      const agentId = deployData.agent?.id;
+
+      // 2. Also save employee record so the employee directory shows it
+      await fetch("/api/data/employees/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          _id: agentId,
+          id: agentId,
+          name: item.name,
+          purpose: item.description,
+          dept: item.category,
+          status: "Active",
+          version: "1.0.0",
+          currentTask: "Awaiting instructions",
+          performance: 98,
+          successRate: 98,
+          avgTime: "<1s",
+          owner: "",
+        }),
+      });
+
+      // 3. Log audit
       await fetch("/api/action", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          action: "marketplace_" + actionText.toLowerCase(),
-          resource: itemId,
-          details: { id: itemId, state: !currentInstalled },
+          action: "marketplace_deploy",
+          resource: item.id,
+          details: { id: item.id, name: item.name, agentId, state: true },
         }),
       });
 
-      setFeedback(`Success: AI Employee successfully ${actionText}ed!`);
-      setTimeout(() => setFeedback(""), 2500);
-    } catch (err) {
-      console.error(err);
-      setFeedback(`Failed to ${actionText} module.`);
+      // 4. Update local state
+      setItems(prev =>
+        prev.map(itm =>
+          itm.id === item.id ? { ...itm, installed: true, agentId } : itm
+        )
+      );
+
+      // 5. Save updated marketplace state to database
+      const updatedItems = items.map(itm =>
+        itm.id === item.id ? { ...itm, installed: true, agentId } : itm
+      );
+      await fetch("/api/data/marketplace", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ data: updatedItems }),
+      });
+
+      setFeedback(`✅ ${item.name} deployed successfully!`);
+      setTimeout(() => setFeedback(""), 3000);
+    } catch (err: any) {
+      console.error("Deploy error:", err);
+      setFeedback(`❌ Failed to deploy: ${err.message}`);
+      setTimeout(() => setFeedback(""), 4000);
+    } finally {
+      setDeploying(null);
+    }
+  };
+
+  const handleUninstall = async (item: MarketplaceItem) => {
+    if (deploying) return;
+    setDeploying(item.id);
+    try {
+      setFeedback(`🔄 Uninstalling ${item.name}...`);
+
+      // Log audit
+      await fetch("/api/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          action: "marketplace_uninstall",
+          resource: item.id,
+          details: { id: item.id, name: item.name, state: false },
+        }),
+      });
+
+      // Update local state
+      setItems(prev =>
+        prev.map(itm =>
+          itm.id === item.id ? { ...itm, installed: false, agentId: undefined } : itm
+        )
+      );
+
+      // Save marketplace state
+      const updatedItems = items.map(itm =>
+        itm.id === item.id ? { ...itm, installed: false, agentId: undefined } : itm
+      );
+      await fetch("/api/data/marketplace", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ data: updatedItems }),
+      });
+
+      setFeedback(`✅ ${item.name} uninstalled`);
+      setTimeout(() => setFeedback(""), 3000);
+    } catch (err: any) {
+      console.error("Uninstall error:", err);
+      setFeedback(`❌ Uninstall failed: ${err.message}`);
+      setTimeout(() => setFeedback(""), 4000);
+    } finally {
+      setDeploying(null);
     }
   };
 
@@ -187,9 +332,7 @@ function MarketplaceHub() {
     const matchesSearch =
       itm.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       itm.description.toLowerCase().includes(searchTerm.toLowerCase());
-    
     const matchesCategory = activeCategory === "all" || itm.category === activeCategory;
-
     return matchesSearch && matchesCategory;
   });
 
@@ -204,7 +347,7 @@ function MarketplaceHub() {
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto text-stone-100 select-none">
-      
+
       {/* ─── Header ─── */}
       <div className="border-b border-stone-900 pb-5">
         <h1 className="text-3xl font-black text-white tracking-tight">🛍️ AI Employees Marketplace</h1>
@@ -283,7 +426,7 @@ function MarketplaceHub() {
                 </div>
               </div>
 
-              {/* Install / Uninstall Button Actions Row */}
+              {/* Action Buttons Row */}
               <div className="border-t border-stone-900 pt-4 mt-5 flex justify-between items-center">
                 <div>
                   <span className="text-[8px] font-mono uppercase text-stone-500 block">LICENSE</span>
@@ -291,12 +434,22 @@ function MarketplaceHub() {
                 </div>
 
                 {itm.installed ? (
-                  <button
-                    onClick={() => handleAction(itm.id, itm.installed)}
-                    className="text-[10px] font-mono font-black tracking-wide uppercase px-4 py-2 rounded-lg border bg-stone-900 text-stone-400 border-stone-800 hover:text-stone-200 transition-all cursor-pointer"
-                  >
-                    ✓ Deployed
-                  </button>
+                  <div className="flex gap-2">
+                    <Link
+                      to="/portal/employees/$id"
+                      params={{ id: itm.agentId || itm.id }}
+                      className="text-[10px] font-mono font-black tracking-wide uppercase px-3 py-2 rounded-lg border bg-stone-800 text-emerald-400 border-stone-700 hover:text-emerald-300 transition-all cursor-pointer"
+                    >
+                      ▶ Manage
+                    </Link>
+                    <button
+                      onClick={() => handleUninstall(itm)}
+                      disabled={deploying === itm.id}
+                      className="text-[10px] font-mono font-black tracking-wide uppercase px-3 py-2 rounded-lg border bg-stone-900 text-stone-500 border-stone-800 hover:text-red-400 transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      {deploying === itm.id ? "..." : "Uninstall"}
+                    </button>
+                  </div>
                 ) : itm.paymentLink ? (
                   <button
                     onClick={() => window.open(itm.paymentLink, "_blank")}
@@ -306,10 +459,11 @@ function MarketplaceHub() {
                   </button>
                 ) : (
                   <button
-                    onClick={() => handleAction(itm.id, itm.installed)}
-                    className="text-[10px] font-mono font-black tracking-wide uppercase px-4 py-2 rounded-lg border bg-white text-black border-white hover:bg-stone-100 font-black transition-all cursor-pointer active:scale-95"
+                    onClick={() => handleDeploy(itm)}
+                    disabled={deploying === itm.id}
+                    className="text-[10px] font-mono font-black tracking-wide uppercase px-4 py-2 rounded-lg border bg-white text-black border-white hover:bg-stone-100 font-black transition-all cursor-pointer active:scale-95 disabled:opacity-50"
                   >
-                    Deploy Employee
+                    {deploying === itm.id ? "Deploying..." : "Deploy Employee"}
                   </button>
                 )}
               </div>
