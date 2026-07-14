@@ -12,12 +12,12 @@ interface MarketplaceItem {
   category: "Healthcare" | "Finance" | "Sales" | "Operations" | "HR" | "Logistics";
   price: string;
   installed: boolean;
-  agentId?: string; // real agent instance ID if deployed
+  agentId?: string;
   rating: number;
   runsMonth: string;
   icon: string;
   paymentLink?: string;
-  agentType: string; // mapped to registered agent type in the runtime
+  agentType: string;
 }
 
 const DEFAULT_MARKETPLACE_ITEMS: MarketplaceItem[] = [
@@ -101,31 +101,17 @@ const DEFAULT_MARKETPLACE_ITEMS: MarketplaceItem[] = [
   },
 ];
 
-// Map marketplace item ID → agent type for deploy API calls
-const ITEM_TO_AGENT_TYPE: Record<string, string> = {
-  "app-1": "document_intake",
-  "app-2": "document_intake",
-  "app-3": "document_intake",
-  "app-4": "document_intake",
-  "app-5": "document_intake",
-  "app-6": "document_intake",
-};
-
 function MarketplaceHub() {
   const [items, setItems] = useState<MarketplaceItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [deploying, setDeploying] = useState<string | null>(null);
-  const [feedback, setFeedback] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [activeCategory, setActiveCategory] = useState<string>("all");
 
   const categories = ["all", "Healthcare", "Finance", "Sales", "Operations", "HR", "Logistics"];
 
-  // Fetch marketplace items + deployed agents on load
   useEffect(() => {
     (async () => {
       try {
-        // Load marketplace data from database
         const res = await fetch("/api/data/marketplace", { credentials: "include" });
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         const d = await res.json();
@@ -141,7 +127,6 @@ function MarketplaceHub() {
         }
 
         if (loadedItems.length === 0) {
-          // Seed defaults: merge with agentType field
           loadedItems = DEFAULT_MARKETPLACE_ITEMS;
           await fetch("/api/data/marketplace", {
             method: "POST",
@@ -151,182 +136,43 @@ function MarketplaceHub() {
           });
         }
 
-        // Fetch real deployed agents from the agent runtime
+        // Fetch real deployed agents from the agent runtime to show deployment status
         const agentRes = await fetch("/api/agents/list", { credentials: "include" });
-        let deployedAgentIds = new Set<string>();
-        let deployedAgentMap = new Map<string, string>();
+        const deployedNames = new Set<string>();
+        const deployedIds = new Map<string, string>();
         if (agentRes.ok) {
           const agentData = await agentRes.json();
           if (agentData.success && agentData.agents) {
-            // Match deployed agents against marketplace items by name
             for (const agent of agentData.agents) {
-              // Check if any marketplace item matches this agent's name
-              const matchItem = loadedItems.find(
+              const match = loadedItems.find(
                 (itm: MarketplaceItem) =>
                   itm.name.toLowerCase() === (agent.name || "").toLowerCase() ||
-                  itm.name.toLowerCase().includes((agent.name || "").toLowerCase()) ||
-                  (agent.name || "").toLowerCase().includes(itm.name.toLowerCase())
+                  (agent.name || "").toLowerCase().includes(itm.name.toLowerCase()) ||
+                  itm.name.toLowerCase().includes((agent.name || "").toLowerCase())
               );
-              if (matchItem) {
-                deployedAgentIds.add(matchItem.id);
-                deployedAgentMap.set(matchItem.id, agent.id);
+              if (match) {
+                deployedNames.add(match.id);
+                deployedIds.set(match.id, agent.id);
               }
             }
           }
         }
 
-        // Mark items as installed if they have a matching deployed agent
         loadedItems = loadedItems.map((itm: MarketplaceItem) => ({
           ...itm,
-          installed: deployedAgentIds.has(itm.id),
-          agentId: deployedAgentMap.get(itm.id) || undefined,
+          installed: deployedNames.has(itm.id),
+          agentId: deployedIds.get(itm.id) || undefined,
         }));
 
         setItems(loadedItems);
         setLoading(false);
       } catch (err) {
         console.error("Marketplace fetch error:", err);
-        // Fallback to defaults
         setItems(DEFAULT_MARKETPLACE_ITEMS);
         setLoading(false);
       }
     })();
   }, []);
-
-  const handleDeploy = async (item: MarketplaceItem) => {
-    if (deploying) return; // prevent double-click
-    setDeploying(item.id);
-    try {
-      setFeedback(`🚀 Deploying ${item.name}...`);
-
-      // 1. Call the real agent runtime deploy API
-      const deployRes = await fetch("/api/agents/deploy", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          agentType: ITEM_TO_AGENT_TYPE[item.id] || "document_intake",
-          name: item.name,
-          config: { marketplaceItemId: item.id, category: item.category, source: "marketplace" },
-        }),
-      });
-
-      if (!deployRes.ok) {
-        const errData = await deployRes.json();
-        throw new Error(errData.error || "Deploy failed");
-      }
-
-      const deployData = await deployRes.json();
-      const agentId = deployData.agent?.id;
-
-      // 2. Also save employee record so the employee directory shows it
-      await fetch("/api/data/employees/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          _id: agentId,
-          id: agentId,
-          name: item.name,
-          purpose: item.description,
-          dept: item.category,
-          status: "Active",
-          version: "1.0.0",
-          currentTask: "Awaiting instructions",
-          performance: 98,
-          successRate: 98,
-          avgTime: "<1s",
-          owner: "",
-        }),
-      });
-
-      // 3. Log audit
-      await fetch("/api/action", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          action: "marketplace_deploy",
-          resource: item.id,
-          details: { id: item.id, name: item.name, agentId, state: true },
-        }),
-      });
-
-      // 4. Update local state
-      setItems(prev =>
-        prev.map(itm =>
-          itm.id === item.id ? { ...itm, installed: true, agentId } : itm
-        )
-      );
-
-      // 5. Save updated marketplace state to database
-      const updatedItems = items.map(itm =>
-        itm.id === item.id ? { ...itm, installed: true, agentId } : itm
-      );
-      await fetch("/api/data/marketplace", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ data: updatedItems }),
-      });
-
-      setFeedback(`✅ ${item.name} deployed successfully!`);
-      setTimeout(() => setFeedback(""), 3000);
-    } catch (err: any) {
-      console.error("Deploy error:", err);
-      setFeedback(`❌ Failed to deploy: ${err.message}`);
-      setTimeout(() => setFeedback(""), 4000);
-    } finally {
-      setDeploying(null);
-    }
-  };
-
-  const handleUninstall = async (item: MarketplaceItem) => {
-    if (deploying) return;
-    setDeploying(item.id);
-    try {
-      setFeedback(`🔄 Uninstalling ${item.name}...`);
-
-      // Log audit
-      await fetch("/api/action", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          action: "marketplace_uninstall",
-          resource: item.id,
-          details: { id: item.id, name: item.name, state: false },
-        }),
-      });
-
-      // Update local state
-      setItems(prev =>
-        prev.map(itm =>
-          itm.id === item.id ? { ...itm, installed: false, agentId: undefined } : itm
-        )
-      );
-
-      // Save marketplace state
-      const updatedItems = items.map(itm =>
-        itm.id === item.id ? { ...itm, installed: false, agentId: undefined } : itm
-      );
-      await fetch("/api/data/marketplace", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ data: updatedItems }),
-      });
-
-      setFeedback(`✅ ${item.name} uninstalled`);
-      setTimeout(() => setFeedback(""), 3000);
-    } catch (err: any) {
-      console.error("Uninstall error:", err);
-      setFeedback(`❌ Uninstall failed: ${err.message}`);
-      setTimeout(() => setFeedback(""), 4000);
-    } finally {
-      setDeploying(null);
-    }
-  };
 
   const filteredItems = items.filter((itm) => {
     const matchesSearch =
@@ -426,7 +272,7 @@ function MarketplaceHub() {
                 </div>
               </div>
 
-              {/* Action Buttons Row */}
+              {/* Action Buttons Row — deploy ONLY via Stripe purchase */}
               <div className="border-t border-stone-900 pt-4 mt-5 flex justify-between items-center">
                 <div>
                   <span className="text-[8px] font-mono uppercase text-stone-500 block">LICENSE</span>
@@ -434,22 +280,13 @@ function MarketplaceHub() {
                 </div>
 
                 {itm.installed ? (
-                  <div className="flex gap-2">
-                    <Link
-                      to="/portal/employees/$id"
-                      params={{ id: itm.agentId || itm.id }}
-                      className="text-[10px] font-mono font-black tracking-wide uppercase px-3 py-2 rounded-lg border bg-stone-800 text-emerald-400 border-stone-700 hover:text-emerald-300 transition-all cursor-pointer"
-                    >
-                      ▶ Manage
-                    </Link>
-                    <button
-                      onClick={() => handleUninstall(itm)}
-                      disabled={deploying === itm.id}
-                      className="text-[10px] font-mono font-black tracking-wide uppercase px-3 py-2 rounded-lg border bg-stone-900 text-stone-500 border-stone-800 hover:text-red-400 transition-all cursor-pointer disabled:opacity-50"
-                    >
-                      {deploying === itm.id ? "..." : "Uninstall"}
-                    </button>
-                  </div>
+                  <Link
+                    to="/portal/employees/$id"
+                    params={{ id: itm.agentId || itm.id }}
+                    className="text-[10px] font-mono font-black tracking-wide uppercase px-4 py-2 rounded-lg border bg-stone-800 text-emerald-400 border-stone-700 hover:text-emerald-300 transition-all cursor-pointer"
+                  >
+                    ✓ Deployed — Manage
+                  </Link>
                 ) : itm.paymentLink ? (
                   <button
                     onClick={() => window.open(itm.paymentLink, "_blank")}
@@ -458,13 +295,7 @@ function MarketplaceHub() {
                     Buy Now
                   </button>
                 ) : (
-                  <button
-                    onClick={() => handleDeploy(itm)}
-                    disabled={deploying === itm.id}
-                    className="text-[10px] font-mono font-black tracking-wide uppercase px-4 py-2 rounded-lg border bg-white text-black border-white hover:bg-stone-100 font-black transition-all cursor-pointer active:scale-95 disabled:opacity-50"
-                  >
-                    {deploying === itm.id ? "Deploying..." : "Deploy Employee"}
-                  </button>
+                  <span className="text-[9px] font-mono text-stone-600">Contact Sales</span>
                 )}
               </div>
 
@@ -472,14 +303,6 @@ function MarketplaceHub() {
           ))
         )}
       </div>
-
-      {/* ─── Feedback Toast Confirmation ─── */}
-      {feedback && (
-        <div className="fixed bottom-6 right-6 bg-stone-900 border border-emerald-500 text-white px-5 py-3 rounded-2xl shadow-xl z-50 flex items-center gap-3 animate-slideUp select-none">
-          <span className="text-emerald-500">✓</span>
-          <span className="text-xs font-bold">{feedback}</span>
-        </div>
-      )}
 
     </div>
   );
