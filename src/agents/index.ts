@@ -7,6 +7,11 @@
 // Import agent types (they self-register on import)
 import "./employees/documentIntake";
 import "./employees/healthcareIntake";
+import "./employees/invoiceLedger";
+import "./employees/salesOutreach";
+import "./employees/hrCompliance";
+import "./employees/dispatchLogistics";
+import "./employees/auditLogger";
 
 // Re-export public API
 export { runAgent, deployAgent, getAgentStatus, pauseAgent, resumeAgent, registerAgentType, listAgentTypes } from "./runtime";

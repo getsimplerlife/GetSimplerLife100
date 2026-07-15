@@ -777,6 +777,127 @@ for (let attempt = 1; ; attempt++) {
           }
         }
 
+        // ─── Knowledge Base RAG API ──────────────────────────────────────────
+
+        // POST /api/knowledge/query — query the knowledge base
+        if (pathname === "/api/knowledge/query" && req.method === "POST") {
+          try {
+            const token = getCookie(req, "session");
+            if (!token) return new Response(JSON.stringify({ error: "Not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
+            const userId = await verifySessionToken(token);
+            if (!userId) return new Response(JSON.stringify({ error: "Invalid session" }), { status: 401, headers: { "Content-Type": "application/json" } });
+
+            const body = await parseJSON(req);
+            if (!body || !body.query) {
+              return new Response(JSON.stringify({ error: "query parameter is required" }), { status: 400, headers: { "Content-Type": "application/json" } });
+            }
+
+            const { queryKnowledgeBase } = await import("./src/ai/rag");
+            const result = await queryKnowledgeBase(body.query, userId);
+
+            return new Response(JSON.stringify({ success: true, ...result }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            });
+          } catch (err: any) {
+            console.error("[serve.ts] KB query error:", err);
+            return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { "Content-Type": "application/json" } });
+          }
+        }
+
+        // POST /api/knowledge/upload — upload and index a document in the knowledge base
+        if (pathname === "/api/knowledge/upload" && req.method === "POST") {
+          try {
+            const token = getCookie(req, "session");
+            if (!token) return new Response(JSON.stringify({ error: "Not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
+            const userId = await verifySessionToken(token);
+            if (!userId) return new Response(JSON.stringify({ error: "Invalid session" }), { status: 401, headers: { "Content-Type": "application/json" } });
+
+            const formData = await req.formData();
+            const file = formData.get("file") as File | null;
+            if (!file) {
+              return new Response(JSON.stringify({ error: "No file provided" }), { status: 400, headers: { "Content-Type": "application/json" } });
+            }
+
+            // Size limit: 10MB
+            if (file.size > 10 * 1024 * 1024) {
+              return new Response(JSON.stringify({ error: "File size exceeds 10MB limit" }), { status: 400, headers: { "Content-Type": "application/json" } });
+            }
+
+            const path = await import("node:path");
+            const fs = await import("node:fs/promises");
+            const originalExt = path.extname(file.name).toLowerCase().replace(".", "");
+            const tempDir = "/tmp/uploads";
+            await fs.mkdir(tempDir, { recursive: true });
+            const tempPath = path.join(tempDir, `kb_${crypto.randomUUID()}.${originalExt}`);
+            await Bun.write(tempPath, file);
+
+            // Extract text
+            const text = await extractTextFromUpload(tempPath, file.type || "application/octet-stream");
+            await fs.unlink(tempPath).catch(err => console.error("[serve.ts] KB unlink error:", err));
+
+            if (text.startsWith("[Error") || text.length < 10) {
+              return new Response(JSON.stringify({ error: "Failed to extract text from file" }), { status: 400, headers: { "Content-Type": "application/json" } });
+            }
+
+            // Index in knowledge base
+            const { KnowledgeBase } = await import("./src/ai/rag");
+            const documentId = await KnowledgeBase.addDocument(userId, file.name, file.type || "application/octet-stream", text);
+
+            return new Response(JSON.stringify({ success: true, documentId, title: file.name }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            });
+          } catch (err: any) {
+            console.error("[serve.ts] KB upload error:", err);
+            return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { "Content-Type": "application/json" } });
+          }
+        }
+
+        // GET /api/knowledge/documents — list all indexed documents
+        if (pathname === "/api/knowledge/documents" && req.method === "GET") {
+          try {
+            const token = getCookie(req, "session");
+            if (!token) return new Response(JSON.stringify({ error: "Not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
+            const userId = await verifySessionToken(token);
+            if (!userId) return new Response(JSON.stringify({ error: "Invalid session" }), { status: 401, headers: { "Content-Type": "application/json" } });
+
+            const { KnowledgeBase } = await import("./src/ai/rag");
+            const documents = await KnowledgeBase.listDocuments(userId);
+
+            return new Response(JSON.stringify({ success: true, documents }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            });
+          } catch (err: any) {
+            console.error("[serve.ts] KB list error:", err);
+            return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { "Content-Type": "application/json" } });
+          }
+        }
+
+        // DELETE /api/knowledge/documents/:id — delete an indexed document
+        const kbDocMatch = pathname.match(/^\/api\/knowledge\/documents\/([a-f0-9-]+)$/);
+        if (kbDocMatch && req.method === "DELETE") {
+          try {
+            const token = getCookie(req, "session");
+            if (!token) return new Response(JSON.stringify({ error: "Not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
+            const userId = await verifySessionToken(token);
+            if (!userId) return new Response(JSON.stringify({ error: "Invalid session" }), { status: 401, headers: { "Content-Type": "application/json" } });
+
+            const documentId = kbDocMatch[1];
+            const { KnowledgeBase } = await import("./src/ai/rag");
+            await KnowledgeBase.deleteDocument(userId, documentId);
+
+            return new Response(JSON.stringify({ success: true }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            });
+          } catch (err: any) {
+            console.error("[serve.ts] KB delete error:", err);
+            return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { "Content-Type": "application/json" } });
+          }
+        }
+
         // ─── Portal Data API (generic JSON store per user per section) ──────────
 
         // GET /api/data/:section — get all data for a section for the current user
@@ -990,6 +1111,146 @@ for (let attempt = 1; ; attempt++) {
           }
         }
 
+
+        // ─── Twilio Voice Receptionist Webhook ────────────────────────────
+
+        // Incoming call from Twilio: respond with greeting TwiML
+        if (pathname === "/api/twilio/voice" && req.method === "POST") {
+          try {
+            console.log("[serve.ts] Twilio voice call received");
+            const body = await req.formData ? await parseJSON(req) : {};
+            const from = body.From || "unknown";
+            const callSid = body.CallSid || "unknown";
+
+            // Log the call
+            await import("./src/api/auditLogs").then(m => m.logAuditEvent({
+              action: "voice_call_received", resource: "twilio_voice",
+              details: { from, callSid }, status: "success", severity: "info",
+            }));
+
+            // Build TwiML greeting with speech gathering
+            const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="alice" language="en-US">Hello and thank you for calling Simpler Life 100. This is your AI receptionist speaking. How can I help you today? You can say something like "I need to schedule an appointment" or "I have a question about your services."</Say>
+  <Gather input="speech" timeout="5" speechTimeout="auto" action="/api/twilio/voice/process" method="POST" language="en-US">
+    <Say voice="alice" language="en-US">Please tell me how I can help you today.</Say>
+  </Gather>
+  <Say voice="alice">I didn't catch that. Please hold while I transfer you to our team.</Say>
+  <Redirect>/api/twilio/voice/process</Redirect>
+</Response>`;
+
+            return new Response(twiml, {
+              status: 200,
+              headers: { "Content-Type": "application/xml" },
+            });
+          } catch (err: any) {
+            console.error("[serve.ts] Twilio voice error:", err);
+            const errorTwiML = `<?xml version="1.0" encoding="UTF-8"?>
+<Response><Say voice="alice">We are experiencing technical difficulties. Please call back later. Thank you.</Say></Response>`;
+            return new Response(errorTwiML, {
+              status: 200,
+              headers: { "Content-Type": "application/xml" },
+            });
+          }
+        }
+
+        // Process speech from caller — classify intent and respond
+        if (pathname === "/api/twilio/voice/process" && req.method === "POST") {
+          try {
+            const rawBody = await req.text();
+            const params = new URLSearchParams(rawBody);
+            const from = params.get("From") || "unknown";
+            const callSid = params.get("CallSid") || "unknown";
+            const speechResult = params.get("SpeechResult") || "";
+            const digits = params.get("Digits") || "";
+
+            console.log(`[serve.ts] Twilio voice process: from=${from} speech="${speechResult}" digits="${digits}"`);
+
+            // Classify intent using OpenAI
+            let intent = "other";
+            let responseMessage = "";
+            let confidence = 0;
+
+            try {
+              const { chatResponse } = await import("./src/ai/llm");
+              const intentResponse = await chatResponse(
+                `Classify this caller's request into one of these intents: appointment (scheduling/rescheduling/canceling), inquiry (questions about services/products/pricing), transfer (asking for a person/department), complaint (issue/complaint), or other. Return ONLY the intent word and nothing else.\n\nCaller said: "${speechResult || digits}"`,
+                []
+              );
+              const cleanIntent = intentResponse.toLowerCase().trim().replace(/[^a-zA-Z]/g, "");
+              if (["appointment", "inquiry", "transfer", "complaint", "other"].includes(cleanIntent)) {
+                intent = cleanIntent;
+                confidence = 0.9;
+              }
+            } catch {
+              // Rule-based fallback
+              if (/appointment|schedule|reschedule|booking|book|cancel/i.test(speechResult)) {
+                intent = "appointment"; confidence = 0.7;
+              } else if (/question|how much|price|cost|service|hours|location|info/i.test(speechResult)) {
+                intent = "inquiry"; confidence = 0.7;
+              } else if (/speak|talk|person|manager|supervisor|human|agent|department/i.test(speechResult)) {
+                intent = "transfer"; confidence = 0.7;
+              } else if (/complaint|issue|problem|unhappy|bad|wrong|broken/i.test(speechResult)) {
+                intent = "complaint"; confidence = 0.7;
+              }
+            }
+
+            // Generate AI response based on intent
+            try {
+              const { chatResponse } = await import("./src/ai/llm");
+              responseMessage = await chatResponse(
+                `You are a professional AI receptionist. Generate a brief, friendly spoken response for a phone call. Keep it to 2-3 short sentences, suitable for text-to-speech.\n\nThe caller's intent is: ${intent}.\n${speechResult ? `They said: "${speechResult}"` : ""}\n\n- For appointment: Offer to schedule and ask for preferred date/time and name.\n- For inquiry: Provide a brief helpful answer and offer to connect with a specialist.\n- For transfer: Acknowledge and say you'll transfer them.\n- For complaint: Apologize and say the issue will be escalated to our team.\n- For other: Say you'll connect them with someone who can help.`,
+                []
+              );
+            } catch {
+              responseMessage = "Thank you. Let me connect you with the right person to help.";
+            }
+
+            // Log the interaction
+            await import("./src/api/auditLogs").then(m => m.logAuditEvent({
+              action: "voice_call_processed", resource: "twilio_voice",
+              details: { from, callSid, speechResult, intent, confidence },
+              status: "success", severity: "info",
+            }));
+
+            // Store the interaction
+            try {
+              const { db } = await import("./src/db/index");
+              const { sql } = await import("drizzle-orm");
+              await db.run(sql.raw(
+                `INSERT INTO portal_data (id, user_id, section, data, created_at, updated_at) VALUES ('${crypto.randomUUID()}', 'system', 'voice_interactions', '${JSON.stringify({ from, callSid, speechResult, intent, confidence, timestamp: Date.now() }).replace(/'/g, "''")}', ${Date.now()}, ${Date.now()})`
+              ));
+            } catch {}
+
+            // Build response TwiML
+            let twiml = "";
+            if (intent === "transfer") {
+              twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="alice">${responseMessage} Please hold while I connect you.</Say>
+  <Dial>+15551234567</Dial>
+</Response>`;
+            } else {
+              twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="alice">${responseMessage}</Say>
+  <Hangup/>
+</Response>`;
+            }
+
+            return new Response(twiml, {
+              status: 200,
+              headers: { "Content-Type": "application/xml" },
+            });
+          } catch (err: any) {
+            console.error("[serve.ts] Twilio voice process error:", err);
+            return new Response(`<?xml version="1.0" encoding="UTF-8"?>
+<Response><Say voice="alice">We are experiencing technical difficulties. Please call back later.</Say><Hangup/></Response>`, {
+              status: 200,
+              headers: { "Content-Type": "application/xml" },
+            });
+          }
+        }
 
         // ─── Audit Logs API ─────────────────────────────────────────────────
 
