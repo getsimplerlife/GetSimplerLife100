@@ -31,7 +31,7 @@ import { processChatMessage, listSessions, deleteSession } from "./src/api/chatE
 import { sendEmail, renderEmailTemplate } from "./src/integrations/email";
 import { generateWorkflow, listTemplates } from "./src/api/workflowGenerator";
 import { runAgent, deployAgent, getAgentStatus, pauseAgent, resumeAgent, listAgentTypes } from "./src/agents/index";
-import { listAgentInstances } from "./src/agents/schema";
+import { listAgentInstances, extractTextFromUpload } from "./src/agents/schema";
 import { processDocument } from "./src/agents/documentProcessor";
 import { routeIntegrationRequest } from "./src/api/integrationRoutes";
 import { analyzeAutomationPotential } from "./src/ai/llm";
