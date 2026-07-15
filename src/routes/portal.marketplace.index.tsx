@@ -103,7 +103,7 @@ const DEFAULT_MARKETPLACE_ITEMS: MarketplaceItem[] = [
 
 // Map marketplace item ID → agent type for deploy API calls
 const ITEM_TO_AGENT_TYPE: Record<string, string> = {
-  "app-1": "document_intake",
+  "app-1": "healthcare_intake",
   "app-2": "document_intake",
   "app-3": "document_intake",
   "app-4": "document_intake",
