@@ -17,6 +17,7 @@ const knowledgeAssistantConfig: AgentConfig = {
   description: "Answers questions about company handbooks, compliance documents, and internal wikis using semantically-indexed document sources.",
   defaultTools: [
     "search_knowledge_base",
+    "search_web",
     "data_api_get",
     "data_api_post",
     "notify_user",

@@ -20,6 +20,7 @@ const auditLoggerConfig: AgentConfig = {
     "notify_user",
     "log_to_audit",
     "search_files",
+    "search_web",
   ],
   systemPrompt: `You are the Operations Audit Logger AI Employee, a specialized agent that monitors operations and generates audit reports.
 Your workflow is:
