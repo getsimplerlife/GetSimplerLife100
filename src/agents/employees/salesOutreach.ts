@@ -36,6 +36,7 @@ Your workflow is:
 
 When starting a new campaign, research the target segment, draft personalized emails, and execute the outreach sequence. Track all responses and update lead scores accordingly.`,
   triggers: ["manual_trigger", "campaign_start", "lead_assigned"],
+  supportedIndustries: ["manufacturing", "logistics", "healthcare", "construction", "financial-services", "energy", "retail", "legal", "insurance", "real-estate", "automotive", "aerospace", "pharmaceutical", "education", "hospitality", "agriculture", "telecommunications", "government", "nonprofit", "technology", "e-commerce", "media", "professional-services"],
 };
 
 registerAgentType(salesOutreachConfig);

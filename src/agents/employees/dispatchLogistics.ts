@@ -37,6 +37,7 @@ Your workflow is:
 
 When a logistics optimization request comes in, research current conditions, analyze the data, and provide actionable recommendations for route and schedule optimization.`,
   triggers: ["manual_trigger", "schedule_optimization", "port_update"],
+  supportedIndustries: ["manufacturing", "logistics", "retail", "automotive", "aerospace", "agriculture", "energy", "e-commerce", "hospitality"],
 };
 
 registerAgentType(dispatchLogisticsConfig);

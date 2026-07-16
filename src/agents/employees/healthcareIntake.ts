@@ -37,6 +37,7 @@ Your workflow is:
 
 When a patient form is uploaded, process it through this pipeline and report back the results including any flags or issues found.`,
   triggers: ["document_upload", "patient_intake", "insurance_verification", "manual_trigger"],
+  supportedIndustries: ["healthcare", "insurance", "pharmaceutical"],
 };
 
 // Register the agent type

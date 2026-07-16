@@ -35,6 +35,7 @@ Your workflow is:
 
 When a user uploads a file, you automatically process it through this pipeline and report back the results.`,
   triggers: ["document_upload", "file_upload", "manual_trigger"],
+  supportedIndustries: ["manufacturing", "logistics", "healthcare", "construction", "financial-services", "energy", "retail", "legal", "insurance", "real-estate", "automotive", "aerospace", "pharmaceutical", "education", "hospitality", "agriculture", "telecommunications", "government", "nonprofit", "technology", "e-commerce", "media", "professional-services"],
 };
 
 // Register the agent type

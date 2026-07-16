@@ -36,6 +36,7 @@ Your workflow is:
 
 When a financial document is uploaded, process it through this pipeline and report back with a summary of all findings.`,
   triggers: ["document_upload", "invoice_received", "manual_trigger"],
+  supportedIndustries: ["manufacturing", "logistics", "healthcare", "construction", "financial-services", "energy", "retail", "legal", "insurance", "real-estate", "automotive", "aerospace", "pharmaceutical", "education", "hospitality", "agriculture", "telecommunications", "government", "nonprofit", "technology", "e-commerce", "media", "professional-services"],
 };
 
 registerAgentType(invoiceLedgerConfig);

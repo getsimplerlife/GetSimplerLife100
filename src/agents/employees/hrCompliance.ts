@@ -37,6 +37,7 @@ Your workflow is:
 
 When a new employee packet is submitted, process all documents and verify compliance with company policies and regulatory requirements.`,
   triggers: ["document_upload", "employee_onboarding", "compliance_check", "manual_trigger"],
+  supportedIndustries: ["manufacturing", "logistics", "healthcare", "construction", "financial-services", "energy", "retail", "legal", "insurance", "real-estate", "automotive", "aerospace", "pharmaceutical", "education", "hospitality", "agriculture", "telecommunications", "government", "nonprofit", "technology", "e-commerce", "media", "professional-services"],
 };
 
 registerAgentType(hrComplianceConfig);

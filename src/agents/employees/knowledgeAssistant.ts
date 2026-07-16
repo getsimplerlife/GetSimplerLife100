@@ -34,6 +34,7 @@ Your workflow is:
 
 Never invent or hallucinate answers that are not backed up by the retrieved document chunks. Always maintain high fidelity to the source documents.`,
   triggers: ["manual_trigger", "knowledge_query"],
+  supportedIndustries: ["manufacturing", "logistics", "healthcare", "construction", "financial-services", "energy", "retail", "legal", "insurance", "real-estate", "automotive", "aerospace", "pharmaceutical", "education", "hospitality", "agriculture", "telecommunications", "government", "nonprofit", "technology", "e-commerce", "media", "professional-services"],
 };
 
 registerAgentType(knowledgeAssistantConfig);

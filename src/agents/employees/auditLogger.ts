@@ -36,6 +36,7 @@ Your workflow is:
 
 When an audit request comes in, aggregate the available data, analyze it for patterns and anomalies, and produce a comprehensive summary with actionable recommendations.`,
   triggers: ["manual_trigger", "audit_request", "scheduled_review"],
+  supportedIndustries: ["manufacturing", "logistics", "healthcare", "construction", "financial-services", "energy", "retail", "legal", "insurance", "real-estate", "automotive", "aerospace", "pharmaceutical", "education", "hospitality", "agriculture", "telecommunications", "government", "nonprofit", "technology", "e-commerce", "media", "professional-services"],
 };
 
 registerAgentType(auditLoggerConfig);

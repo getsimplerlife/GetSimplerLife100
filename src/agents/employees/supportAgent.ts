@@ -57,6 +57,7 @@ Your workflow:
 
 When you cannot resolve an issue, clearly explain why and prepare a detailed escalation summary for the human team.`,
   triggers: ["new_ticket", "email_inbound", "web_form_submit", "manual_trigger"],
+  supportedIndustries: ["manufacturing", "logistics", "healthcare", "construction", "financial-services", "energy", "retail", "legal", "insurance", "real-estate", "automotive", "aerospace", "pharmaceutical", "education", "hospitality", "agriculture", "telecommunications", "government", "nonprofit", "technology", "e-commerce", "media", "professional-services"],
 };
 
 // Register the agent type

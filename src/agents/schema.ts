@@ -91,6 +91,7 @@ export interface AgentConfig {
   defaultTools: string[];
   systemPrompt: string;
   triggers: string[];
+  supportedIndustries?: string[];
 }
 
 // ── Database Operations ─────────────────────────────────────────────────────
