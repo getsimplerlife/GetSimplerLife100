@@ -843,4 +843,302 @@ export const automationLibrary: AutomationCard[] = [
     roi: "Report generation time reduced 70%; grant compliance rate improved to 99%",
     demoDescription: "The AI team reviews 12 active grants, tracks progress against 47 deliverables, calculates budget utilization for each grant, identifies 3 at risk of underspend, compiles quarterly narrative and financial reports, and submits to funders."
   },
+
+  // ======================================================================
+  // AUTOMOTIVE
+  // ======================================================================
+  {
+    id: "auto-parts-inventory",
+    name: "Automotive Parts Inventory Management",
+    industry: ["automotive"],
+    description: "Automate parts inventory tracking across dealerships, warehouses, and service centers with real-time stock visibility, reorder triggers, and cross-location transfers.",
+    timeSaved: "18 hrs/week per inventory manager",
+    difficulty: "medium",
+    integrations: ["sap", "oracle-netsuite", "quickbooks-enterprise", "shopify"],
+    roi: "Parts stockout reduced 70%; inventory carrying cost reduced 22%; order fulfillment time cut 55%",
+    demoDescription: "The AI team monitors parts inventory across 3 dealerships and a central warehouse, identifies 14 part numbers below reorder point, checks availability at sister locations, initiates 6 cross-location transfers and 8 supplier POs — all triggered by real-time usage data from the service bays."
+  },
+  {
+    id: "auto-supply-chain",
+    name: "Automotive Supply Chain Coordination",
+    industry: ["automotive"],
+    description: "Automate tier-1 and tier-2 supplier communication, JIT delivery tracking, ASN processing, and quality documentation exchange across the automotive supply chain.",
+    timeSaved: "22 hrs/week per supply chain analyst",
+    difficulty: "hard",
+    integrations: ["sap", "oracle-netsuite", "edifact", "outlook"],
+    roi: "Supplier delivery compliance improved from 72% to 96%; line-side stockouts reduced 85%",
+    demoDescription: "The AI team monitors JIT delivery schedules from 34 suppliers, processes 28 ASNs, identifies 3 at-risk deliveries with potential line stoppage, coordinates expedited shipments, and updates the production schedule — all before the morning shift starts."
+  },
+  {
+    id: "auto-dealership-ops",
+    name: "Dealership Operations Automation",
+    industry: ["automotive"],
+    description: "Automate customer lead management, vehicle inventory synchronization, service appointment scheduling, F&I document processing, and DMV paperwork across dealership locations.",
+    timeSaved: "25 hrs/week per dealership operations manager",
+    difficulty: "medium",
+    integrations: ["salesforce", "hubspot", "quickbooks-enterprise", "outlook"],
+    roi: "Dealership F&I doc processing reduced from 45 minutes to 5 minutes per sale; customer follow-up time reduced 80%",
+    demoDescription: "The AI team captures 34 new vehicle leads from the website and phone, syncs inventory from the DMS to 3 listing platforms, schedules 12 service appointments, and processes F&I paperwork for 4 sold vehicles — completed before the sales manager's morning meeting."
+  },
+  {
+    id: "auto-warranty-claims",
+    name: "Warranty Claims Processing",
+    industry: ["automotive"],
+    description: "Automate warranty claim submission, part return tracking, claim status monitoring, and recovery analysis across OEM warranty programs and third-party administrators.",
+    timeSaved: "15 hrs/week per warranty administrator",
+    difficulty: "hard",
+    integrations: ["sap", "salesforce", "servicenow", "outlook"],
+    roi: "Warranty claim processing time reduced from 6 days to 8 hours; recovery rate improved 25%",
+    demoDescription: "The AI team reviews 47 warranty claims from the service department, validates each against OEM policy coverage, checks part return status, submits 42 complete claims, flags 5 for missing documentation, and tracks all claim statuses in a dashboard."
+  },
+  // ======================================================================
+  // AEROSPACE & DEFENSE
+  // ======================================================================
+  {
+    id: "aero-compliance-docs",
+    name: "Aerospace Compliance Documentation",
+    industry: ["aerospace-defense"],
+    description: "Automate AS9100/ISO compliance documentation, audit trail generation, non-conformance reporting, and supplier quality certification tracking across aerospace programs.",
+    timeSaved: "24 hrs/week per compliance engineer",
+    difficulty: "hard",
+    integrations: ["sap", "servicenow", "sharepoint", "abbeyy"],
+    roi: "Audit preparation time reduced 70%; non-conformance detection improved 3x; zero audit findings in 2 consecutive cycles",
+    demoDescription: "The AI team reviews 340 quality records across 3 programs, identifies 12 non-conformances, cross-references supplier certifications against the approved vendor list, flags 2 expired certs, and generates a complete compliance status report for the upcoming AS9100 surveillance audit."
+  },
+  {
+    id: "aero-supply-chain",
+    name: "Aerospace Supply Chain & Counterfeit Prevention",
+    industry: ["aerospace-defense"],
+    description: "Automate supplier qualification, counterfeit part detection documentation, traceability record maintenance, and export control compliance across the aerospace supply base.",
+    timeSaved: "20 hrs/week per supply chain specialist",
+    difficulty: "hard",
+    integrations: ["sap", "oracle-netsuite", "servicenow", "sharepoint"],
+    roi: "Supplier qualification cycle reduced 60%; counterfeit detection documentation improved 95%; ITAR compliance maintained at 100%",
+    demoDescription: "The AI team processes 18 new supplier applications, checks each against ITAR restricted party lists, validates AS9100 certifications, collects quality agreements, and provisions approved suppliers into the ERP — all within 48 hours."
+  },
+  {
+    id: "aero-engineering-changes",
+    name: "Engineering Change Management (Aerospace)",
+    industry: ["aerospace-defense"],
+    description: "Automate engineering change notice processing, configuration management, drawing revision tracking, and effectivity across aircraft programs and serial numbers.",
+    timeSaved: "18 hrs/week per configuration manager",
+    difficulty: "hard",
+    integrations: ["sap", "sharepoint", "autocad", "servicenow"],
+    roi: "ECN processing cycle reduced from 12 to 3 days; configuration audit findings reduced 85%",
+    demoDescription: "The AI team processes 8 engineering change notices, traces effectivity across 47 aircraft serial numbers, updates affected BOMs and drawings, notifies 23 stakeholders, and generates the configuration status accounting report."
+  },
+  // ======================================================================
+  // PHARMACEUTICAL & LIFE SCIENCES
+  // ======================================================================
+  {
+    id: "pharm-lab-data",
+    name: "Laboratory Data Management",
+    industry: ["pharmaceuticals", "life-sciences"],
+    description: "Automate collection, validation, and reporting of laboratory data from R&D, QC, and stability testing with 21 CFR Part 11 compliant audit trails.",
+    timeSaved: "22 hrs/week per lab manager",
+    difficulty: "hard",
+    integrations: ["sap", "servicenow", "sharepoint", "abbeyy"],
+    roi: "Lab data processing time reduced 65%; data integrity audit findings eliminated; report generation cut from 3 days to 3 hours",
+    demoDescription: "The AI team collects 280 lab test results from QC instruments, validates against specification limits, flags 7 out-of-specification results, generates stability trend reports for 12 batches, and maintains complete 21 CFR Part 11 audit trails."
+  },
+  {
+    id: "pharm-sop-management",
+    name: "SOP Management & Training Tracking",
+    industry: ["pharmaceuticals", "life-sciences"],
+    description: "Automate SOP revision control, training assignment, competency tracking, and training records management across GMP and GXP regulated environments.",
+    timeSaved: "14 hrs/week per training coordinator",
+    difficulty: "medium",
+    integrations: ["servicenow", "sharepoint", "outlook"],
+    roi: "SOP-to-training completion cycle reduced from 21 to 5 days; training compliance maintained at 99.5%",
+    demoDescription: "The AI team processes 4 SOP revisions, identifies 87 employees requiring training across 3 shifts, assigns training modules, tracks completion, generates compliance reports, and sends automated reminders to non-compliant personnel."
+  },
+  // ======================================================================
+  // EDUCATION
+  // ======================================================================
+  {
+    id: "edu-transcript-processing",
+    name: "Transcript & Record Processing",
+    industry: ["education"],
+    description: "Automate transcript request processing, grade posting, degree audit, diploma ordering, and student record maintenance across multiple systems and academic terms.",
+    timeSaved: "16 hrs/week per registrar",
+    difficulty: "medium",
+    integrations: ["servicenow", "salesforce", "sharepoint", "outlook"],
+    roi: "Transcript processing time reduced from 5 days to 4 hours; degree audit accuracy improved to 99.8%",
+    demoDescription: "The AI team processes 45 transcript requests, verifies each student's identity and financial clearance, posts 280 final grades from faculty submissions, audits 34 degree candidates for completion, and generates diplomas for 28 qualified graduates."
+  },
+  {
+    id: "edu-accreditation",
+    name: "Accreditation Compliance Reporting",
+    industry: ["education"],
+    description: "Automate collection and organization of accreditation evidence, faculty credential tracking, program outcome assessment, and compliance report generation for regional and programmatic accreditors.",
+    timeSaved: "20 hrs/week per accreditation coordinator",
+    difficulty: "hard",
+    integrations: ["sharepoint", "servicenow", "outlook"],
+    roi: "Accreditation report preparation time reduced 70%; evidence organization improved from 2 months to 2 weeks",
+    demoDescription: "The AI team collects assessment data from 14 academic programs, matches faculty credentials against teaching assignments, compiles student learning outcome data for each program, and generates the 400-page self-study report with cross-referenced evidence."
+  },
+  {
+    id: "edu-fa-verification",
+    name: "Financial Aid Verification Processing",
+    industry: ["education"],
+    description: "Automate financial aid document collection, verification tracking, award calculation, and disbursement scheduling across federal, state, and institutional aid programs.",
+    timeSaved: "18 hrs/week per financial aid officer",
+    difficulty: "hard",
+    integrations: ["servicenow", "outlook", "quickbooks"],
+    roi: "Verification processing time reduced from 2 weeks to 2 days; award accuracy improved to 99.5%",
+    demoDescription: "The AI team processes 120 financial aid files, identifies 34 selected for verification, collects required tax documents, calculates awards based on EFC and program limits, and generates award letters — all within the first week of each term."
+  },
+  // ======================================================================
+  // TECHNOLOGY / SAAS
+  // ======================================================================
+  {
+    id: "tech-subscription-billing",
+    name: "Subscription Billing & Revenue Recognition",
+    industry: ["technology", "saas"],
+    description: "Automate recurring invoice generation, payment collection, dunning, revenue recognition under ASC 606, and subscription lifecycle management across pricing tiers and plans.",
+    timeSaved: "18 hrs/week per billing analyst",
+    difficulty: "medium",
+    integrations: ["quickbooks", "stripe", "salesforce", "hubspot"],
+    roi: "Revenue recognition accuracy improved to 99.8%; billing cycle reduced from 5 days to same-day; churn reduced 12% through proactive dunning",
+    demoDescription: "The AI team generates 3,400 subscription invoices across 6 pricing tiers, applies discounts and credits, processes payments via Stripe, sends dunning emails to 87 overdue accounts, and calculates ASC 606 revenue schedules — all on the first of the month."
+  },
+  {
+    id: "tech-customer-support",
+    name: "SaaS Customer Support Ticket Automation",
+    industry: ["technology", "saas"],
+    description: "Automate ticket triage, response generation for common issues, escalation routing, SLA monitoring, and customer satisfaction follow-up across support channels.",
+    timeSaved: "25 hrs/week per support engineer",
+    difficulty: "medium",
+    integrations: ["zendesk", "freshdesk", "intercom", "salesforce", "slack"],
+    roi: "First response time reduced from 4 hours to 2 minutes; ticket deflection rate of 65%; CSAT improved from 82% to 94%",
+    demoDescription: "The AI team triages 180 incoming tickets across email, chat, and portal, auto-resolves 117 with knowledge base matches, escalates 28 tier-2 issues to the right engineering team, monitors SLA compliance, and sends follow-up surveys."
+  },
+  {
+    id: "tech-saas-onboarding",
+    name: "SaaS Customer Onboarding Automation",
+    industry: ["technology", "saas"],
+    description: "Automate new customer account provisioning, welcome sequences, training scheduling, implementation milestone tracking, and health scoring during the critical first 90 days.",
+    timeSaved: "15 hrs/week per customer success manager",
+    difficulty: "medium",
+    integrations: ["salesforce", "hubspot", "intercom", "slack"],
+    roi: "Time-to-value reduced from 45 to 14 days; 90-day retention improved from 72% to 91%",
+    demoDescription: "The AI team provisions 14 new customer accounts, sends personalized onboarding sequences based on each customer's use case, schedules training sessions, tracks implementation progress against milestones, and generates health scores identifying 3 accounts needing proactive intervention."
+  },
+  {
+    id: "tech-devops-ticketing",
+    name: "DevOps Ticket & Incident Management",
+    industry: ["technology", "saas"],
+    description: "Automate incident detection alerting, ticket creation, runbook execution, status page updates, and post-mortem documentation for infrastructure and application incidents.",
+    timeSaved: "12 hrs/week per SRE",
+    difficulty: "hard",
+    integrations: ["jira", "slack", "servicenow", "outlook"],
+    roi: "MTTR reduced 40%; incident documentation completeness improved to 100%; status page updates automated",
+    demoDescription: "The AI team detects a P1 incident from monitoring alerts, creates a Jira ticket with full context, executes the runbook for the affected service, updates the status page, notifies the on-call engineer via Slack, and posts the timeline to the incident channel."
+  },
+  // ======================================================================
+  // MEDIA & ENTERTAINMENT
+  // ======================================================================
+  {
+    id: "media-rights-mgmt",
+    name: "Content Rights & Royalty Management",
+    industry: ["media-entertainment"],
+    description: "Automate rights tracking, royalty calculation, licensing compliance monitoring, and payment distribution across content catalogs, territories, and distribution platforms.",
+    timeSaved: "24 hrs/week per rights manager",
+    difficulty: "hard",
+    integrations: ["sap", "quickbooks", "salesforce", "sharepoint"],
+    roi: "Royalty payment accuracy improved from 89% to 99.6%; licensing compliance achieved 100%",
+    demoDescription: "The AI team processes royalty statements from 8 distribution platforms, calculates owed payments across 1,200+ content titles and 340 rights holders, reconciles against contract terms, flags 12 discrepancies, and generates payment instructions."
+  },
+  {
+    id: "media-production-scheduling",
+    name: "Production Scheduling & Crew Coordination",
+    industry: ["media-entertainment"],
+    description: "Automate production scheduling, crew call sheets, equipment reservation, location booking, and post-production timeline tracking across multiple concurrent projects.",
+    timeSaved: "20 hrs/week per production coordinator",
+    difficulty: "medium",
+    integrations: ["outlook", "sharepoint", "servicenow"],
+    roi: "Production scheduling time reduced 65%; crew scheduling conflicts eliminated; on-time wrap rate improved to 94%",
+    demoDescription: "The AI team manages schedules for 4 concurrent productions, coordinates 85 crew members across departments, books equipment and locations, generates daily call sheets, tracks post-production milestones, and flags scheduling conflicts before they cause delays."
+  },
+  {
+    id: "media-content-distribution",
+    name: "Content Distribution & Metadata Management",
+    industry: ["media-entertainment"],
+    description: "Automate content metadata creation, distribution package generation, delivery verification, and platform compliance checking across streaming, broadcast, and theatrical channels.",
+    timeSaved: "16 hrs/week per distribution manager",
+    difficulty: "medium",
+    integrations: ["sharepoint", "dropbox", "servicenow"],
+    roi: "Content delivery time reduced from 3 days to 6 hours; metadata accuracy improved to 99.7%",
+    demoDescription: "The AI team prepares 12 content packages for distribution to 8 platforms, generates and validates metadata against each platform's spec, creates QC reports, tracks delivery confirmations, and flags any rejected assets for re-encoding."
+  },
+  // ======================================================================
+  // HOSPITALITY (additional)
+  // ======================================================================
+  {
+    id: "hosp-revenue-management",
+    name: "Hospitality Revenue Management",
+    industry: ["hospitality"],
+    description: "Automate rate optimization, competitor pricing analysis, demand forecasting, and inventory allocation across room types and distribution channels.",
+    timeSaved: "14 hrs/week per revenue manager",
+    difficulty: "hard",
+    integrations: ["salesforce", "outlook", "excel"],
+    roi: "RevPAR increased 12% through dynamic pricing; manual rate update time reduced from 4 hours to 10 minutes daily",
+    demoDescription: "The AI team analyzes competitive rate data for 28 competitor properties, adjusts 6 rate categories based on demand forecasts and occupancy projections, updates channel inventory allocations, and publishes optimized rates across the PMS and OTA channels."
+  },
+  // ======================================================================
+  // GOVERNMENT (additional)
+  // ======================================================================
+  {
+    id: "gov-records-mgmt",
+    name: "Government Records Management",
+    industry: ["government"],
+    description: "Automate records classification, retention scheduling, FOIA request processing, archival workflows, and disposition tracking in compliance with federal record-keeping regulations.",
+    timeSaved: "18 hrs/week per records manager",
+    difficulty: "hard",
+    integrations: ["servicenow", "sharepoint", "outlook"],
+    roi: "FOIA response time reduced from 30 to 5 days; records retrieval time reduced 80%; compliance maintained at 100%",
+    demoDescription: "The AI team processes 340 new records across 12 departments, classifies each according to the records retention schedule, identifies 85 eligible for archival, processes 14 FOIA requests, and tracks disposition dates for time-based destruction."
+  },
+  // ======================================================================
+  // NONPROFIT (additional)
+  // ======================================================================
+  {
+    id: "npo-volunteer-coordination",
+    name: "Volunteer Scheduling & Coordination",
+    industry: ["nonprofit"],
+    description: "Automate volunteer recruitment, shift scheduling, training tracking, communication, and hour logging across programs, locations, and events.",
+    timeSaved: "12 hrs/week per volunteer coordinator",
+    difficulty: "easy",
+    integrations: ["salesforce", "outlook", "hubspot"],
+    roi: "Volunteer scheduling time reduced 80%; no-show rate reduced from 22% to 8%; volunteer hours tracked at 100% accuracy",
+    demoDescription: "The AI team processes 45 new volunteer applications, schedules orientation sessions, assigns 120 volunteers to shifts across 4 programs, sends automated reminders, logs completed hours, and generates impact reports for grant reporting."
+  },
+  // ======================================================================
+  // AGRICULTURE (additional)
+  // ======================================================================
+  {
+    id: "ag-supply-chain",
+    name: "Agriculture Supply Chain Traceability",
+    industry: ["agriculture"],
+    description: "Automate lot tracking, harvest-to-sale traceability, cold chain monitoring documentation, and certificate of analysis generation for food safety compliance.",
+    timeSaved: "12 hrs/week per supply chain coordinator",
+    difficulty: "medium",
+    integrations: ["sap", "quickbooks", "sharepoint"],
+    roi: "Lot traceability time reduced from 4 hours to 20 minutes; food safety audit preparation reduced from 2 weeks to 2 days",
+    demoDescription: "The AI team tracks 12 harvest lots from field to customer, logs temperature data from cold chain monitors, generates Certificates of Analysis for 8 shipments, and maintains complete farm-to-fork traceability documentation for food safety auditors."
+  },
+  // ======================================================================
+  // PROFESSIONAL SERVICES (additional)
+  // ======================================================================
+  {
+    id: "ps-client-onboarding",
+    name: "Professional Services Client Onboarding",
+    industry: ["professional-services"],
+    description: "Automate client onboarding workflows including engagement letter generation, document collection, compliance checks, portal provisioning, and project setup across service lines.",
+    timeSaved: "10 hrs/week per engagement manager",
+    difficulty: "medium",
+    integrations: ["salesforce", "hubspot", "adobe-sign", "sharepoint"],
+    roi: "Client onboarding time reduced from 10 to 3 business days; information collection completeness improved to 98%",
+    demoDescription: "The AI team initiates onboarding for 3 new clients, generates engagement letters from proposal data, sends document collection requests for KYC and compliance, provisions client portals, creates project codes in the PSA system, and schedules kickoff meetings."
+  },
 ];
