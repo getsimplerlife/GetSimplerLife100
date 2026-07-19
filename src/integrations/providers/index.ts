@@ -96,7 +96,10 @@ function registerProvider(module: {
     "sqlServerActions", "postgresqlActions", "mysqlActions",
     "oracleDbActions", "mongodbActions", "snowflakeActions",
     "bigqueryActions", "azureSqlActions", "airtableActions",
-  ];
+            // New Integrations
+            "clickhouseActions", "awsLambdaActions", "airflowActions",
+            "iguanaActions", "mirthActions",
+          ];
 
   const actions: any[] = [];
   for (const key of actionKeys) {
@@ -344,6 +347,13 @@ import * as bigquery from "./bigquery";
 import * as azureSql from "./azure-sql";
 import * as airtable from "./airtable";
 
+// ── New Provider Imports ───────────────────────────────────────────────────────
+import * as clickhouse from "./clickhouse";
+import * as awsLambda from "./aws-lambda";
+import * as airflow from "./airflow";
+import * as iguana from "./iguana";
+import * as mirthConnect from "./mirth-connect";
+
 // ── Register All Providers ────────────────────────────────────────────────────
 
 const providerModules = [
@@ -546,6 +556,12 @@ const providerModules = [
   { ...bigquery, bigqueryActions: bigquery.bigqueryActions },
   { ...azureSql, azureSqlActions: azureSql.azureSqlActions },
   { ...airtable, airtableActions: airtable.airtableActions },
+  // New Integrations
+  { ...clickhouse, clickhouseActions: clickhouse.clickhouseActions },
+  { ...awsLambda, awsLambdaActions: awsLambda.awsLambdaActions },
+  { ...airflow, airflowActions: airflow.airflowActions },
+  { ...iguana, iguanaActions: iguana.iguanaActions },
+  { ...mirthConnect, mirthActions: mirthConnect.mirthActions },
 ];
 
 for (const mod of providerModules) {
@@ -754,3 +770,9 @@ export * from "./snowflake";
 export * from "./bigquery";
 export * from "./azure-sql";
 export * from "./airtable";
+// New Integrations
+export * from "./clickhouse";
+export * from "./aws-lambda";
+export * from "./airflow";
+export * from "./iguana";
+export * from "./mirth-connect";
