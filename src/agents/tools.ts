@@ -10,6 +10,11 @@ import { sql } from "drizzle-orm";
 import type { ToolDefinition, ToolContext, ToolResult } from "./schema";
 import { extractTextFromUpload, createNotification } from "./schema";
 
+// Import tool modules — they self-register on import
+import "./tools/hl7FhirTools";
+import "./tools/terraformTools";
+import "./tools/phpTools";
+
 // ── Tool Registry ───────────────────────────────────────────────────────────
 
 class ToolRegistry {
