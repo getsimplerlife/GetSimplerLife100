@@ -252,6 +252,12 @@ import * as snowflake from "../integrations/providers/snowflake";
 import * as bigquery from "../integrations/providers/bigquery";
 import * as azureSql from "../integrations/providers/azure-sql";
 import * as airtable from "../integrations/providers/airtable";
+// New Integrations
+import * as clickhouseModule from "../integrations/providers/clickhouse";
+import * as awsLambdaModule from "../integrations/providers/aws-lambda";
+import * as airflowModule from "../integrations/providers/airflow";
+import * as iguanaModule from "../integrations/providers/iguana";
+import * as mirthConnectModule from "../integrations/providers/mirth-connect";
 
 // ── Register All Provider Actions ────────────────────────────────────────
 
@@ -456,6 +462,12 @@ registerProviderActions("snowflake", [snowflake], ["snowflakeActions"]);
 registerProviderActions("bigquery", [bigquery], ["bigqueryActions"]);
 registerProviderActions("azure-sql", [azureSql], ["azureSqlActions"]);
 registerProviderActions("airtable", [airtable], ["airtableActions"]);
+// New Integrations
+registerProviderActions("clickhouse", [clickhouseModule], ["clickhouseActions"]);
+registerProviderActions("aws-lambda", [awsLambdaModule], ["awsLambdaActions"]);
+registerProviderActions("airflow", [airflowModule], ["airflowActions"]);
+registerProviderActions("iguana", [iguanaModule], ["iguanaActions"]);
+registerProviderActions("mirth-connect", [mirthConnectModule], ["mirthActions"]);
 
 // ── Public API ───────────────────────────────────────────────────────────
 
