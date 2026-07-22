@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   /* Custom Premium Animations */
   --animate-fadeIn: fadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
@@ -24,6 +26,28 @@
 @layer base {
   html,
   body {
-    @apply bg-stone-50 text-stone-900 antialiased dark:bg-stone-950 dark:text-stone-100 scroll-smooth;
+    @apply bg-stone-950 text-stone-100 antialiased scroll-smooth;
+  }
+
+  /* Custom scrollbar for dark theme */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #1c1917;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #44403c;
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #57534e;
+  }
+
+  /* Selection color */
+  ::selection {
+    background: rgba(5, 150, 105, 0.3);
+    color: #a7f3d0;
   }
 }
