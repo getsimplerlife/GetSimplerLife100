@@ -28,11 +28,15 @@ import {
   getUserFromRequest,
 } from "./src/api/auditLogs";
 import { processChatMessage, listSessions, deleteSession } from "./src/api/chatEngine";
+import { processChatMessage as processAIChatMessage, listSessions as listAISessions, deleteSession as deleteAISession } from "./src/api/aiChatEngine";
 import { sendEmail, renderEmailTemplate } from "./src/integrations/email";
 import { generateWorkflow, listTemplates } from "./src/api/workflowGenerator";
-import { runAgent, deployAgent, getAgentStatus, pauseAgent, resumeAgent } from "./src/agents/index";
+import { runAgent, deployAgent, getAgentStatus, pauseAgent, resumeAgent, listAgentTypes } from "./src/agents/index";
 import { processDocument } from "./src/agents/documentProcessor";
 import { routeIntegrationRequest } from "./src/api/integrationRoutes";
+import { getAgentSetupRequirements, getAgentTypesWithSetup } from "./src/agents/setupRequirements";
+import { getWorkflowMapping, getAllWorkflowMappings, getCrossAgentIntegrations } from "./src/agents/workflowMappings";
+import { provisionPurchase } from "./src/api/purchaseProvisioner";
 
 // Pinned, NOT read from the environment. The published preview URL
 // (<label>.<PUBLIC_SITE_DOMAIN>) is reverse-proxied to 0.0.0.0:3000 inside the
@@ -327,7 +331,7 @@ for (let attempt = 1; ; attempt++) {
           }
         }
 
-        // POST /api/chat — send a chat message (AI-powered)
+        // POST /api/chat — send a chat message (AI-powered, guest fallback)
         if (pathname === "/api/chat" && req.method === "POST") {
           try {
             const body = await parseJSON(req);
@@ -335,30 +339,33 @@ for (let attempt = 1; ; attempt++) {
               return new Response(JSON.stringify({ error: "Message required" }), { status: 400, headers: { "Content-Type": "application/json" } });
             }
             const user = await getUserFromRequest(req);
-            if (!user || !user.userId) {
-              return new Response(JSON.stringify({ error: "Not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
-            }
+            const isGuest = !user || !user.userId;
+            const userId = isGuest ? ("guest-" + (getRequestIP(req) || "anon")) : user!.userId;
+            const userEmail = isGuest ? "guest@simplerlife100.com" : (user!.userEmail || "unknown");
 
-            // Process the message through the AI Chat Engine
-            const response = await processChatMessage(
-              user.userId,
-              user.userEmail || "unknown",
+            // Process the message through the AI-powered Chat Engine
+            const response = await processAIChatMessage(
+              userId,
+              userEmail,
               body.message,
-              body.sessionId
+              body.sessionId,
+              isGuest
             );
 
-            // Log the chat interaction
-            await logAuditEvent({
-              userId: user.userId, userEmail: user.userEmail,
-              action: "chat_message", resource: "ai_assistant",
-              details: {
-                message: body.message.slice(0, 200),
-                intent: body.message.length > 5 ? "ai_processed" : "short",
-                sessionId: response.sessionId,
-              },
-              status: "success", severity: "info",
-              ipAddress: getRequestIP(req),
-            });
+            // Log the chat interaction (for authenticated users only)
+            if (!isGuest) {
+              await logAuditEvent({
+                userId: user!.userId, userEmail: user!.userEmail,
+                action: "chat_message", resource: "ai_assistant",
+                details: {
+                  message: body.message.slice(0, 200),
+                  intent: "ai_powered",
+                  sessionId: response.sessionId,
+                },
+                status: "success", severity: "info",
+                ipAddress: getRequestIP(req),
+              });
+            }
 
             return new Response(JSON.stringify(response), {
               status: 200,
@@ -370,14 +377,46 @@ for (let attempt = 1; ; attempt++) {
           }
         }
 
-        // GET /api/chat/sessions — list chat sessions
+
+        // POST /api/automate — analyze a workflow description via OpenAI
+        if (pathname === "/api/automate" && req.method === "POST") {
+          try {
+            const body = await parseJSON(req);
+            if (!body || !body.description) {
+              return new Response(JSON.stringify({ error: "Description required" }), { status: 400, headers: { "Content-Type": "application/json" } });
+            }
+            const apiKey = process.env.OPENAI_API_KEY;
+            if (!apiKey) {
+              return new Response(JSON.stringify({ error: "AI service not configured" }), { status: 500, headers: { "Content-Type": "application/json" } });
+            }
+            const prompt = "Analyze this workflow description. Return JSON with workflowName, workflowId, description, hoursSavedPerWeek (number), confidence (high/medium/low), agentName, agentEmoji, industry. Description: " + JSON.stringify(body.description) + ". Return ONLY valid JSON.";
+            const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "Authorization": "Bearer " + apiKey },
+              body: JSON.stringify({ model: "gpt-4o-mini", messages: [{ role: "user", content: prompt }], temperature: 0.3, max_tokens: 500 }),
+            });
+            if (!openaiRes.ok) throw new Error("OpenAI error: " + openaiRes.status);
+            const data = await openaiRes.json();
+            const content = data.choices?.[0]?.message?.content || "{}";
+            const parsed = JSON.parse(content.replace(/```json|```/g, "").trim());
+            return new Response(JSON.stringify({
+              workflow: { id: parsed.workflowId || "data-entry-automation", name: parsed.workflowName || "Data Entry Automation", description: parsed.description || "Automated data processing" },
+              hoursSavedPerWeek: parsed.hoursSavedPerWeek || 10, confidence: parsed.confidence || "medium",
+              agentName: parsed.agentName || "Automation AI", agentEmoji: parsed.agentEmoji || "🤖", industry: parsed.industry || "General Business",
+            }), { status: 200, headers: { "Content-Type": "application/json" } });
+          } catch (err) {
+            console.error("[serve.ts] /api/automate error:", err);
+            return new Response(JSON.stringify({ error: "Analysis failed, please try again" }), { status: 500, headers: { "Content-Type": "application/json" } });
+          }
+        }
+
+        // GET /api/chat/sessions — list chat sessions (supports guests)
         if (pathname === "/api/chat/sessions" && req.method === "GET") {
           try {
             const user = await getUserFromRequest(req);
-            if (!user || !user.userId) {
-              return new Response(JSON.stringify({ error: "Not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
-            }
-            const sessions = await listSessions(user.userId);
+            const isGuest = !user || !user.userId;
+            const userId = isGuest ? ("guest-" + (getRequestIP(req) || "anon")) : user!.userId;
+            const sessions = await listAISessions(userId, isGuest);
             return new Response(JSON.stringify({ sessions }), {
               status: 200,
               headers: { "Content-Type": "application/json" },
@@ -388,15 +427,14 @@ for (let attempt = 1; ; attempt++) {
           }
         }
 
-        // DELETE /api/chat/sessions/:id — delete a chat session
+        // DELETE /api/chat/sessions/:id — delete a chat session (supports guests)
         const deleteSessionMatch = pathname.match(/^\/api\/chat\/sessions\/([a-f0-9-]+)$/);
         if (deleteSessionMatch && req.method === "DELETE") {
           try {
             const user = await getUserFromRequest(req);
-            if (!user || !user.userId) {
-              return new Response(JSON.stringify({ error: "Not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
-            }
-            await deleteSession(user.userId, deleteSessionMatch[1]);
+            const isGuest = !user || !user.userId;
+            const userId = isGuest ? ("guest-" + (getRequestIP(req) || "anon")) : user!.userId;
+            await deleteAISession(userId, deleteSessionMatch[1], isGuest);
             return new Response(JSON.stringify({ success: true }), {
               status: 200,
               headers: { "Content-Type": "application/json" },
@@ -614,9 +652,695 @@ for (let attempt = 1; ; attempt++) {
           }
         }
 
+        // ─── Agent Types API ──────────────────────────────────────────────────
+
+        // GET /api/agents/types — list all registered agent types with setup requirements
+        if (pathname === "/api/agents/types" && req.method === "GET") {
+          try {
+            const types = listAgentTypes();
+            const typesWithSetup = getAgentTypesWithSetup(types);
+            return new Response(JSON.stringify({ success: true, types: typesWithSetup }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            });
+          } catch (err: any) {
+            console.error("[serve.ts] Agent types error:", err);
+            return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { "Content-Type": "application/json" } });
+          }
+        }
+
+        // GET /api/agents/types/:type — get setup requirements for a specific agent type
+        const agentTypeDetailMatch = pathname.match(/^\/api\/agents\/types\/([a-z_]+)$/);
+        if (agentTypeDetailMatch && req.method === "GET") {
+          try {
+            const type = agentTypeDetailMatch[1];
+            const requirements = getAgentSetupRequirements(type);
+            return new Response(JSON.stringify({ success: true, ...requirements }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            });
+          } catch (err: any) {
+            console.error("[serve.ts] Agent type detail error:", err);
+            return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { "Content-Type": "application/json" } });
+          }
+        }
+
+        // ─── Agent Config API ─────────────────────────────────────────────────
+
+        // GET /api/agents/:id/config — get agent instance data + current config
+        const agentConfigGetMatch = pathname.match(/^\/api\/agents\/([a-f0-9-]+)\/config$/);
+        if (agentConfigGetMatch && req.method === "GET") {
+          try {
+            const user = await getUserFromRequest(req);
+            if (!user || !user.userId) {
+              return new Response(JSON.stringify({ error: "Not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
+            }
+            const agentId = agentConfigGetMatch[1];
+            const { getAgentInstance } = await import("./src/agents/schema");
+            const instance = await getAgentInstance(agentId, user.userId);
+            if (!instance) {
+              return new Response(JSON.stringify({ error: "Agent not found" }), { status: 404, headers: { "Content-Type": "application/json" } });
+            }
+            const requirements = getAgentSetupRequirements(instance.agentType);
+            // Also check if there's any saved config data in portal_data for this agent
+            const configRows = await db.all(sql.raw(`SELECT data FROM portal_data WHERE user_id = '${user.userId}' AND section = 'agent_config' ORDER BY created_at DESC LIMIT 1`));
+            let savedConfig = {};
+            for (const row of configRows as any[]) {
+              const data = JSON.parse(typeof row.data === "string" ? row.data : row.data);
+              if (data.agentId === agentId) {
+                savedConfig = data.config || {};
+                break;
+              }
+            }
+            return new Response(JSON.stringify({
+              success: true,
+              agent: instance,
+              config: instance.config || {},
+              savedConfig,
+              setupRequirements: requirements,
+            }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            });
+          } catch (err: any) {
+            console.error("[serve.ts] Agent config GET error:", err);
+            return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { "Content-Type": "application/json" } });
+          }
+        }
+
+        // POST /api/agents/:id/config — save agent configuration
+        if (agentConfigGetMatch && req.method === "POST") {
+          try {
+            const user = await getUserFromRequest(req);
+            if (!user || !user.userId) {
+              return new Response(JSON.stringify({ error: "Not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
+            }
+            const agentId = agentConfigGetMatch[1];
+            const body = await parseJSON(req);
+            if (!body) {
+              return new Response(JSON.stringify({ error: "Config body required" }), { status: 400, headers: { "Content-Type": "application/json" } });
+            }
+
+            // Update the agent instance config
+            const { getAgentInstance, saveAgentInstance } = await import("./src/agents/schema");
+            const instance = await getAgentInstance(agentId, user.userId);
+            if (!instance) {
+              return new Response(JSON.stringify({ error: "Agent not found" }), { status: 404, headers: { "Content-Type": "application/json" } });
+            }
+
+            // Merge new config into existing config
+            instance.config = { ...(instance.config || {}), ...(body.config || {}) };
+            instance.updatedAt = Date.now();
+            await saveAgentInstance(instance);
+
+            // Also save config to agent_config section for separate access
+            const now = Date.now();
+            const configId = crypto.randomUUID();
+            await db.run(sql.raw(`INSERT INTO portal_data (id, user_id, section, data, created_at, updated_at) VALUES ('${configId}', '${user.userId}', 'agent_config', '${JSON.stringify({ agentId, config: instance.config }).replace(/'/g, "''")}', ${now}, ${now})`));
+
+            // Log the config update
+            await logAuditEvent({
+              userId: user.userId, userEmail: user.userEmail,
+              action: "agent_config_update", resource: agentId,
+              details: { agentType: instance.agentType, configFields: Object.keys(body.config || {}) },
+              status: "success", severity: "info",
+              ipAddress: getRequestIP(req),
+            });
+
+            return new Response(JSON.stringify({ success: true, agent: instance }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            });
+          } catch (err: any) {
+            console.error("[serve.ts] Agent config POST error:", err);
+            return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { "Content-Type": "application/json" } });
+          }
+        }
+
+        // ─── Agent Setup Status API ───────────────────────────────────────────
+
+                    // GET /api/agents/:id/setup-status — return setup completion status for an agent
+                    const agentSetupStatusMatch = pathname.match(/^\/api\/agents\/([a-f0-9-]+)\/setup-status$/);
+                    if (agentSetupStatusMatch && req.method === "GET") {
+                      try {
+                        const user = await getUserFromRequest(req);
+                        if (!user || !user.userId) {
+                          return new Response(JSON.stringify({ error: "Not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
+                        }
+                        const agentId = agentSetupStatusMatch[1];
+                        const { getAgentInstance } = await import("./src/agents/schema");
+                        const instance = await getAgentInstance(agentId, user.userId);
+                        if (!instance) {
+                          return new Response(JSON.stringify({ error: "Agent not found" }), { status: 404, headers: { "Content-Type": "application/json" } });
+                        }
+
+                        const requirements = getAgentSetupRequirements(instance.agentType);
+                        const agentConfig = instance.config || {};
+
+                        // Check which connections are connected
+                        const connections: Record<string, boolean> = {};
+                        for (const connType of requirements.needsConnections) {
+                          // Check if there's a connection saved in the integrations table
+                          const connRows = await db.all(sql.raw(`SELECT status FROM integrations WHERE user_id = '${user.userId}' AND provider LIKE '%${connType}%' LIMIT 1`));
+                          connections[connType] = connRows.length > 0 && (connRows[0] as any).status === "connected";
+                        }
+
+                        // Check if data has been uploaded (for agents that need it)
+                        let dataUploaded = false;
+                        if (requirements.needsDataUpload) {
+                          const docRows = await db.all(sql.raw(`SELECT id FROM portal_data WHERE user_id = '${user.userId}' AND section = 'documents' LIMIT 1`));
+                          dataUploaded = docRows.length > 0;
+                        }
+
+                        // Check if configuration is complete
+                        let configComplete = true;
+                        if (requirements.needsConfiguration) {
+                          const requiredFields = requirements.configFields.filter(f => f.required);
+                          for (const field of requiredFields) {
+                            if (!agentConfig[field.key] && !agentConfig[field.key] !== undefined) {
+                              // Check if it's a connection type that's already connected
+                              if (field.type === "connection") {
+                                // Skip connection fields — they're tracked separately
+                                continue;
+                              }
+                              configComplete = false;
+                              break;
+                            }
+                          }
+                        }
+
+                        // Check if workflow mapping is complete
+                        const workflowMappingRows = await db.all(sql.raw(`SELECT id FROM portal_data WHERE user_id = '${user.userId}' AND section = 'workflow_mappings' AND data LIKE '%"agentId":"${agentId}"%' LIMIT 1`));
+                        const workflowMappingComplete = workflowMappingRows.length > 0;
+
+                        // Check if agent has bottlenecks
+                        const bottleneckRows = await db.all(sql.raw(`SELECT id FROM portal_data WHERE user_id = '${user.userId}' AND section = 'bottlenecks' AND data LIKE '%"agentId":"${agentId}"%' LIMIT 1`));
+                        const hasBottlenecks = bottleneckRows.length > 0;
+
+                        // Calculate completion percentage
+                        const totalChecks = requirements.needsConnections.length + (requirements.needsDataUpload ? 1 : 0) + (requirements.needsConfiguration ? 1 : 0) + 1 + 1; // +1 for agent deployed, +1 for workflow mapping
+                        let completedChecks = 1; // Agent is deployed
+
+                        // Check each connection
+                        const connectedCount = Object.values(connections).filter(Boolean).length;
+                        completedChecks += connectedCount;
+
+                        // Check data upload
+                        if (requirements.needsDataUpload && dataUploaded) {
+                          completedChecks++;
+                        }
+
+                        // Check config
+                        if (requirements.needsConfiguration && configComplete) {
+                          completedChecks++;
+                        }
+
+                        // Check workflow mapping
+                        if (workflowMappingComplete) {
+                          completedChecks++;
+                        }
+
+                        const completionPercent = Math.round((completedChecks / totalChecks) * 100);
+
+                        // Determine which steps are complete
+                        const stepStatus = requirements.setupSteps.map((step) => {
+                          let isComplete = false;
+                          switch (step.action) {
+                            case "connect":
+                              isComplete = step.connectionType ? (connections[step.connectionType] || false) : false;
+                              break;
+                            case "upload":
+                              isComplete = dataUploaded;
+                              break;
+                            case "configure":
+                              isComplete = configComplete;
+                              break;
+                            case "run":
+                              isComplete = instance.status === "running" || instance.status === "idle";
+                              break;
+                            case "verify":
+                              // Verification is considered complete if other steps are done
+                              isComplete = configComplete && (dataUploaded || !requirements.needsDataUpload);
+                              break;
+                          }
+                          return { ...step, complete: isComplete };
+                        });
+
+                        return new Response(JSON.stringify({
+                          success: true,
+                          agentId,
+                          agentType: instance.agentType,
+                          status: instance.status,
+                          connections,
+                          dataUploaded,
+                          configComplete,
+                          workflowMappingComplete,
+                          hasBottlenecks,
+                          completionPercent,
+                          totalSteps: requirements.setupSteps.length,
+                          completedSteps: stepStatus.filter(s => s.complete).length,
+                          steps: stepStatus,
+                          setupRequirements: requirements,
+                        }), {
+                          status: 200,
+                          headers: { "Content-Type": "application/json" },
+                        });
+                      } catch (err: any) {
+                        console.error("[serve.ts] Agent setup status error:", err);
+                        return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { "Content-Type": "application/json" } });
+                      }
+                    }
+
+                    // ─── Agent Workflow Map API ────────────────────────────────────────
+
+                    // GET /api/agents/:id/workflow-map — get the workflow map for an agent
+                    const agentWorkflowMapMatch = pathname.match(/^\/api\/agents\/([a-f0-9-]+)\/workflow-map$/);
+                    if (agentWorkflowMapMatch && req.method === "GET") {
+                      try {
+                        const user = await getUserFromRequest(req);
+                        if (!user || !user.userId) {
+                          return new Response(JSON.stringify({ error: "Not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
+                        }
+                        const agentId = agentWorkflowMapMatch[1];
+                        const { getAgentInstance } = await import("./src/agents/schema");
+                        const instance = await getAgentInstance(agentId, user.userId);
+                        if (!instance) {
+                          return new Response(JSON.stringify({ error: "Agent not found" }), { status: 404, headers: { "Content-Type": "application/json" } });
+                        }
+
+                        // Get the default workflow mapping from our definitions
+                        const defaultMapping = getWorkflowMapping(instance.agentType);
+
+                        // Check if the customer has saved their own workflow mapping
+                        const mappingRows = await db.all(sql.raw(`SELECT id, data, created_at, updated_at FROM portal_data WHERE user_id = '${user.userId}' AND section = 'workflow_mappings' AND data LIKE '%"agentId":"${agentId}"%' ORDER BY created_at DESC LIMIT 1`));
+                        let customerMapping = null;
+                        if (mappingRows.length > 0) {
+                          const row = mappingRows[0] as any;
+                          customerMapping = JSON.parse(typeof row.data === "string" ? row.data : row.data);
+                        }
+
+                        return new Response(JSON.stringify({
+                          success: true,
+                          agentId,
+                          agentType: instance.agentType,
+                          agentName: instance.name,
+                          defaultMapping,
+                          customerMapping,
+                          hasCustomerMapping: customerMapping !== null,
+                        }), {
+                          status: 200,
+                          headers: { "Content-Type": "application/json" },
+                        });
+                      } catch (err: any) {
+                        console.error("[serve.ts] Agent workflow map GET error:", err);
+                        return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { "Content-Type": "application/json" } });
+                      }
+                    }
+
+                    // POST /api/agents/:id/workflow-map — save customer's workflow mapping
+                    if (agentWorkflowMapMatch && req.method === "POST") {
+                      try {
+                        const user = await getUserFromRequest(req);
+                        if (!user || !user.userId) {
+                          return new Response(JSON.stringify({ error: "Not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
+                        }
+                        const agentId = agentWorkflowMapMatch[1];
+                        const body = await parseJSON(req);
+                        if (!body || !body.currentProcessSteps) {
+                          return new Response(JSON.stringify({ error: "currentProcessSteps required" }), { status: 400, headers: { "Content-Type": "application/json" } });
+                        }
+
+                        const { getAgentInstance } = await import("./src/agents/schema");
+                        const instance = await getAgentInstance(agentId, user.userId);
+                        if (!instance) {
+                          return new Response(JSON.stringify({ error: "Agent not found" }), { status: 404, headers: { "Content-Type": "application/json" } });
+                        }
+
+                        // Save the workflow mapping
+                        const now = Date.now();
+                        const mappingId = crypto.randomUUID();
+                        const mappingData = {
+                          agentId,
+                          agentType: instance.agentType,
+                          agentName: instance.name,
+                          currentProcessSteps: body.currentProcessSteps,
+                          aiProcessSteps: body.aiProcessSteps || [],
+                          humanStepsRemaining: body.humanStepsRemaining || [],
+                          bottleneckIndicators: body.bottleneckIndicators || [],
+                          crossAgentIntegration: body.crossAgentIntegration || [],
+                          createdAt: now,
+                          updatedAt: now,
+                        };
+
+                        // Delete any existing mapping for this agent
+                        await db.run(sql.raw(`DELETE FROM portal_data WHERE user_id = '${user.userId}' AND section = 'workflow_mappings' AND data LIKE '%"agentId":"${agentId}"%'`));
+
+                        // Insert new mapping
+                        await db.run(sql.raw(`INSERT INTO portal_data (id, user_id, section, data, created_at, updated_at) VALUES ('${mappingId}', '${user.userId}', 'workflow_mappings', '${JSON.stringify(mappingData).replace(/'/g, "''")}', ${now}, ${now})`));
+
+                        // Log the workflow mapping
+                        await logAuditEvent({
+                          userId: user.userId, userEmail: user.userEmail,
+                          action: "workflow_mapping_saved", resource: agentId,
+                          details: { agentType: instance.agentType, stepCount: body.currentProcessSteps.length },
+                          status: "success", severity: "info",
+                          ipAddress: getRequestIP(req),
+                        });
+
+                        return new Response(JSON.stringify({ success: true, mappingId }), {
+                          status: 200,
+                          headers: { "Content-Type": "application/json" },
+                        });
+                      } catch (err: any) {
+                        console.error("[serve.ts] Agent workflow map POST error:", err);
+                        return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { "Content-Type": "application/json" } });
+                      }
+                    }
+
+                    // ─── Agent Link API ────────────────────────────────────────────────
+
+                    // POST /api/agents/link — link two agents together for cross-agent workflows
+                    if (pathname === "/api/agents/link" && req.method === "POST") {
+                      try {
+                        const user = await getUserFromRequest(req);
+                        if (!user || !user.userId) {
+                          return new Response(JSON.stringify({ error: "Not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
+                        }
+                        const body = await parseJSON(req);
+                        if (!body || !body.sourceAgentId || !body.targetAgentId) {
+                          return new Response(JSON.stringify({ error: "sourceAgentId and targetAgentId required" }), { status: 400, headers: { "Content-Type": "application/json" } });
+                        }
+
+                        const { getAgentInstance } = await import("./src/agents/schema");
+                        const source = await getAgentInstance(body.sourceAgentId, user.userId);
+                        const target = await getAgentInstance(body.targetAgentId, user.userId);
+
+                        if (!source) {
+                          return new Response(JSON.stringify({ error: "Source agent not found" }), { status: 404, headers: { "Content-Type": "application/json" } });
+                        }
+                        if (!target) {
+                          return new Response(JSON.stringify({ error: "Target agent not found" }), { status: 404, headers: { "Content-Type": "application/json" } });
+                        }
+
+                        // Check if the integration is valid
+                        const sourceIntegrations = getCrossAgentIntegrations(source.agentType);
+                        const targetIntegrations = getCrossAgentIntegrations(target.agentType);
+                        const isValid = sourceIntegrations.includes(target.agentType) || targetIntegrations.includes(source.agentType);
+
+                        // Save the link
+                        const now = Date.now();
+                        const linkId = crypto.randomUUID();
+                        const linkData = {
+                          sourceAgentId: body.sourceAgentId,
+                          sourceAgentType: source.agentType,
+                          sourceAgentName: source.name,
+                          targetAgentId: body.targetAgentId,
+                          targetAgentType: target.agentType,
+                          targetAgentName: target.name,
+                          isValidIntegration: isValid,
+                          config: body.config || {},
+                          createdAt: now,
+                          updatedAt: now,
+                        };
+
+                        await db.run(sql.raw(`INSERT INTO portal_data (id, user_id, section, data, created_at, updated_at) VALUES ('${linkId}', '${user.userId}', 'agent_links', '${JSON.stringify(linkData).replace(/'/g, "''")}', ${now}, ${now})`));
+
+                        // Log the link
+                        await logAuditEvent({
+                          userId: user.userId, userEmail: user.userEmail,
+                          action: "agent_link_created", resource: linkId,
+                          details: { sourceAgent: source.agentType, targetAgent: target.agentType, isValid },
+                          status: "success", severity: "info",
+                          ipAddress: getRequestIP(req),
+                        });
+
+                        return new Response(JSON.stringify({
+                          success: true,
+                          linkId,
+                          isValidIntegration: isValid,
+                          suggestedIntegrations: isValid ? [] : getCrossAgentIntegrations(source.agentType),
+                        }), {
+                          status: 200,
+                          headers: { "Content-Type": "application/json" },
+                        });
+                      } catch (err: any) {
+                        console.error("[serve.ts] Agent link error:", err);
+                        return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { "Content-Type": "application/json" } });
+                      }
+                    }
+
+                    // GET /api/agents/link — list all agent links for the current user
+                    if (pathname === "/api/agents/link" && req.method === "GET") {
+                      try {
+                        const user = await getUserFromRequest(req);
+                        if (!user || !user.userId) {
+                          return new Response(JSON.stringify({ error: "Not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
+                        }
+
+                        const rows = await db.all(sql.raw(`SELECT id, data, created_at FROM portal_data WHERE user_id = '${user.userId}' AND section = 'agent_links' ORDER BY created_at DESC`));
+                        const links = (rows as any[]).map((r: any) => ({
+                          id: r.id,
+                          ...JSON.parse(typeof r.data === "string" ? r.data : r.data),
+                          createdAt: r.created_at,
+                        }));
+
+                        return new Response(JSON.stringify({ success: true, links }), {
+                          status: 200,
+                          headers: { "Content-Type": "application/json" },
+                        });
+                      } catch (err: any) {
+                        console.error("[serve.ts] Agent link list error:", err);
+                        return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { "Content-Type": "application/json" } });
+                      }
+                    }
+
+                    // DELETE /api/agents/link/:id — delete an agent link
+                    const agentLinkDeleteMatch = pathname.match(/^\/api\/agents\/link\/([a-f0-9-]+)$/);
+                    if (agentLinkDeleteMatch && req.method === "DELETE") {
+                      try {
+                        const user = await getUserFromRequest(req);
+                        if (!user || !user.userId) {
+                          return new Response(JSON.stringify({ error: "Not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
+                        }
+                        await db.run(sql.raw(`DELETE FROM portal_data WHERE id = '${agentLinkDeleteMatch[1]}' AND user_id = '${user.userId}'`));
+                        return new Response(JSON.stringify({ success: true }), {
+                          status: 200,
+                          headers: { "Content-Type": "application/json" },
+                        });
+                      } catch (err: any) {
+                        console.error("[serve.ts] Agent link delete error:", err);
+                        return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { "Content-Type": "application/json" } });
+                      }
+                    }
+
+                    // ─── Agent Bottlenecks API ─────────────────────────────────────────
+
+                    // GET /api/agents/bottlenecks — get bottleneck analysis for all deployed agents
+                    if (pathname === "/api/agents/bottlenecks" && req.method === "GET") {
+                      try {
+                        const user = await getUserFromRequest(req);
+                        if (!user || !user.userId) {
+                          return new Response(JSON.stringify({ error: "Not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
+                        }
+
+                        const { listAgentInstances } = await import("./src/agents/schema");
+                        const instances = await listAgentInstances(user.userId);
+
+                        if (instances.length === 0) {
+                          return new Response(JSON.stringify({ success: true, bottlenecks: [], totalBottlenecks: 0 }), {
+                            status: 200,
+                            headers: { "Content-Type": "application/json" },
+                          });
+                        }
+
+                        // Analyze bottlenecks for each agent
+                        const bottlenecks: any[] = [];
+
+                        for (const instance of instances) {
+                          const mapping = getWorkflowMapping(instance.agentType);
+                          if (!mapping) continue;
+
+                          // Get execution history for this agent
+                          const executionRows = await db.all(sql.raw(`SELECT data FROM portal_data WHERE user_id = '${user.userId}' AND section = 'agent_executions' ORDER BY created_at DESC LIMIT 50`));
+                          const executions = (executionRows as any[])
+                            .map((r: any) => JSON.parse(typeof r.data === "string" ? r.data : r.data))
+                            .filter((e: any) => e.agentId === instance.id);
+
+                          // Calculate failure rate
+                          const totalExecutions = executions.length;
+                          const failedExecutions = executions.filter((e: any) => e.status === "failed").length;
+                          const failureRate = totalExecutions > 0 ? (failedExecutions / totalExecutions) * 100 : 0;
+
+                          // Check if human review steps are being triggered frequently
+                          const humanReviewCount = executions.filter((e: any) =>
+                            e.steps?.some((s: any) => s.status === "failed" || s.confidence < 0.5)
+                          ).length;
+                          const humanReviewRate = totalExecutions > 0 ? (humanReviewCount / totalExecutions) * 100 : 0;
+
+                          // Check for execution time anomalies
+                          const avgExecutionTime = totalExecutions > 0
+                            ? executions.reduce((sum: number, e: any) => {
+                                const duration = e.completedAt && e.startedAt ? e.completedAt - e.startedAt : 0;
+                                return sum + duration;
+                              }, 0) / totalExecutions
+                            : 0;
+
+                          // Get bottleneck indicators from workflow mapping
+                          const indicators = mapping.bottleneckIndicators.map((indicator) => {
+                            let triggered = false;
+                            let severity: "low" | "medium" | "high" = "low";
+
+                            // Check if indicator relates to failure rate
+                            if (indicator.includes("manual review") && humanReviewRate > 10) {
+                              triggered = true;
+                              severity = humanReviewRate > 20 ? "high" : "medium";
+                            }
+                            if (indicator.includes("accuracy") && failureRate > 5) {
+                              triggered = true;
+                              severity = failureRate > 15 ? "high" : "medium";
+                            }
+                            if (indicator.includes("error") && failureRate > 10) {
+                              triggered = true;
+                              severity = failureRate > 20 ? "high" : "medium";
+                            }
+
+                            return { indicator, triggered, severity };
+                          });
+
+                          const activeBottlenecks = indicators.filter((i) => i.triggered);
+
+                          if (activeBottlenecks.length > 0) {
+                            bottlenecks.push({
+                              agentId: instance.id,
+                              agentName: instance.name,
+                              agentType: instance.agentType,
+                              status: instance.status,
+                              metrics: {
+                                totalExecutions,
+                                failedExecutions,
+                                failureRate: parseFloat(failureRate.toFixed(1)),
+                                humanReviewRate: parseFloat(humanReviewRate.toFixed(1)),
+                                avgExecutionTimeMs: parseFloat(avgExecutionTime.toFixed(0)),
+                              },
+                              activeBottlenecks,
+                              totalBottlenecks: activeBottlenecks.length,
+                            });
+                          }
+                        }
+
+                        // Save bottleneck analysis results
+                        if (bottlenecks.length > 0) {
+                          const now = Date.now();
+                          const bottleneckId = crypto.randomUUID();
+                          await db.run(sql.raw(`INSERT INTO portal_data (id, user_id, section, data, created_at, updated_at) VALUES ('${bottleneckId}', '${user.userId}', 'bottlenecks', '${JSON.stringify({ bottlenecks, analyzedAt: now }).replace(/'/g, "''")}', ${now}, ${now})`));
+                        }
+
+                        return new Response(JSON.stringify({
+                          success: true,
+                          bottlenecks,
+                          totalBottlenecks: bottlenecks.length,
+                          totalAgents: instances.length,
+                        }), {
+                          status: 200,
+                          headers: { "Content-Type": "application/json" },
+                        });
+                      } catch (err: any) {
+                        console.error("[serve.ts] Agent bottlenecks error:", err);
+                        return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { "Content-Type": "application/json" } });
+                      }
+                    }
+
+                    // ─── Marketplace API ────────────────────────────────────────────────
+
+        // GET /api/marketplace/items — return marketplace items with setup requirements
+        if (pathname === "/api/marketplace/items" && req.method === "GET") {
+          try {
+            const token = getCookie(req, "session");
+            if (!token) return new Response(JSON.stringify({ error: "Not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
+            const userId = await verifySessionToken(token);
+            if (!userId) return new Response(JSON.stringify({ error: "Invalid session" }), { status: 401, headers: { "Content-Type": "application/json" } });
+
+            // Get agent types with setup requirements
+            const types = listAgentTypes();
+            const typesWithSetup = getAgentTypesWithSetup(types);
+
+            // Get marketplace items from database
+            const rows = await db.all(sql.raw(`SELECT id, data FROM portal_data WHERE user_id = '${userId}' AND section = 'marketplace' ORDER BY created_at DESC LIMIT 1`));
+            let items: any[] = [];
+            if (rows.length > 0) {
+              const row = rows[0] as any;
+              const data = JSON.parse(typeof row.data === "string" ? row.data : row.data);
+              items = Array.isArray(data) ? data : (data.data || []);
+            }
+
+            // Build a map of agent type name -> setup requirements
+            const setupMap: Record<string, any> = {};
+            for (const t of typesWithSetup) {
+              setupMap[t.name.toLowerCase()] = t.setupRequirements;
+            }
+
+            // Enrich items with setup requirements
+            const enrichedItems = items.map((item: any) => {
+              const key = item.name?.toLowerCase() || "";
+              const setup = setupMap[key] || null;
+              return {
+                ...item,
+                setupRequirements: setup,
+                badges: setup?.badges || [],
+              };
+            });
+
+            return new Response(JSON.stringify({
+              success: true,
+              items: enrichedItems,
+              agentTypes: typesWithSetup,
+            }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            });
+          } catch (err: any) {
+            console.error("[serve.ts] Marketplace items error:", err);
+            return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { "Content-Type": "application/json" } });
+          }
+        }
+
         // GET /api/billing/portal — redirect to Stripe customer portal
+        // Note: In production, this should call the Stripe Customer Portal API
+        // to create a billing portal session. Without a STRIPE_SECRET_KEY, we
+        // return a helpful message directing users to contact support.
         if (pathname === "/api/billing/portal" && req.method === "GET") {
-          return new Response(JSON.stringify({ url: "https://buy.stripe.com/14A3cw2EKfRqcF0gEJ3Ru00" }), {
+          const url = new URL(req.url);
+          const email = url.searchParams.get("email");
+
+          // If we have a Stripe secret key, create a real portal session
+          if (process.env.STRIPE_SECRET_KEY) {
+            try {
+              const Stripe = await import("stripe");
+              const stripe = new Stripe.default(process.env.STRIPE_SECRET_KEY, { apiVersion: "2025-03-31.beta" as any });
+              // Look up customer by email
+              const customers = await stripe.customers.list({ email: email || "", limit: 1 });
+              const customerId = customers.data[0]?.id;
+              if (customerId) {
+                const session = await stripe.billingPortal.sessions.create({
+                  customer: customerId,
+                  return_url: "https://simplerlife100.ctonew.app/portal/billing",
+                });
+                return new Response(JSON.stringify({ url: session.url }), {
+                  status: 200,
+                  headers: { "Content-Type": "application/json" },
+                });
+              }
+            } catch (err: any) {
+              console.error("[billing/portal] Stripe portal error:", err);
+            }
+          }
+
+          // No Stripe key or no customer found
+          return new Response(JSON.stringify({
+            url: null,
+            message: "To manage your subscription, please contact support at support@simplerlife100.ctonew.app",
+            contactEmail: "support@simplerlife100.ctonew.app",
+          }), {
             status: 200,
             headers: { "Content-Type": "application/json" },
           });
@@ -697,13 +1421,57 @@ for (let attempt = 1; ; attempt++) {
             // Store results in the existing portal_data system
             const now = Date.now();
             const id = crypto.randomUUID();
+
+            // Save permanently to disk for future download
+            const permanentPath = `/home/team/shared/uploads/${id}_${file.name}`;
+            await fs.mkdir("/home/team/shared/uploads", { recursive: true });
+            await fs.writeFile(permanentPath, Buffer.from(arrayBuffer)).catch(err => console.error("[serve.ts] Permanent upload copy error:", err));
+
+            // Map document type to agent
+            const docTypeLower = (extractResult.documentType || "unknown").toLowerCase();
+            let routedAgent = "Document AI System";
+            let routedAgentType = "document_intake";
+
+            if (docTypeLower.includes("invoice") || docTypeLower.includes("bill") || docTypeLower.includes("receipt") || docTypeLower.includes("ledger")) {
+              routedAgent = "Invoice & Ledger AI";
+              routedAgentType = "invoice_ledger";
+            } else if (docTypeLower.includes("medical") || docTypeLower.includes("patient") || docTypeLower.includes("health") || docTypeLower.includes("clinical")) {
+              routedAgent = "Healthcare Intake AI";
+              routedAgentType = "healthcare_intake";
+            } else if (docTypeLower.includes("resume") || docTypeLower.includes("w9") || docTypeLower.includes("w-9") || docTypeLower.includes("background") || docTypeLower.includes("onboarding") || docTypeLower.includes("hr")) {
+              routedAgent = "HR Intake & Compliance AI";
+              routedAgentType = "hr_compliance";
+            } else if (docTypeLower.includes("contract") || docTypeLower.includes("agreement") || docTypeLower.includes("nda") || docTypeLower.includes("lease") || docTypeLower.includes("legal")) {
+              routedAgent = "Contract Management AI";
+              routedAgentType = "contract_management";
+            } else if (docTypeLower.includes("purchase") || docTypeLower.includes("po") || docTypeLower.includes("vendor") || docTypeLower.includes("procurement")) {
+              routedAgent = "Procurement & Vendor Management AI";
+              routedAgentType = "procurement_vendor";
+            } else if (docTypeLower.includes("inventory") || docTypeLower.includes("stock") || docTypeLower.includes("warehouse")) {
+              routedAgent = "Inventory Management AI";
+              routedAgentType = "inventory_management";
+            } else if (docTypeLower.includes("financial") || docTypeLower.includes("p&l") || docTypeLower.includes("p_and_l") || docTypeLower.includes("tax") || docTypeLower.includes("budget") || docTypeLower.includes("planning")) {
+              routedAgent = "Financial Planning & FP&A AI";
+              routedAgentType = "fp_and_a";
+            } else if (docTypeLower.includes("network") || docTypeLower.includes("system") || docTypeLower.includes("it") || docTypeLower.includes("devops") || docTypeLower.includes("terraform")) {
+              routedAgent = "IT Operations & DevOps AI";
+              routedAgentType = "it_operations";
+            } else if (docTypeLower.includes("marketing") || docTypeLower.includes("social") || docTypeLower.includes("campaign") || docTypeLower.includes("ad")) {
+              routedAgent = "Marketing & Social Media AI";
+              routedAgentType = "marketing_social";
+            }
+
             const dataToStore = {
               file_name: file.name,
               file_size: file.size,
+              file_extension: ext,
               extracted_text: extractResult.extractedText,
               document_type: extractResult.documentType,
               key_info: extractResult.keyInfo,
-              status: "processed"
+              status: "processed",
+              routed_agent: routedAgent,
+              routed_agent_type: routedAgentType,
+              routing_status: "Auto-Routed"
             };
             await db.run(sql.raw(`INSERT INTO portal_data (id, user_id, section, data, created_at, updated_at) VALUES ('${id}', '${userId}', 'documents', '${JSON.stringify(dataToStore).replace(/'/g, "''")}', ${now}, ${now})`));
 
@@ -715,6 +1483,9 @@ for (let attempt = 1; ; attempt++) {
               keyInfo: extractResult.keyInfo,
               fileName: file.name,
               fileSize: file.size,
+              routedAgent,
+              routedAgentType,
+              routingStatus: "Auto-Routed"
             }), {
               status: 200,
               headers: { "Content-Type": "application/json" },
@@ -722,6 +1493,69 @@ for (let attempt = 1; ; attempt++) {
           } catch (err: any) {
             console.error("[serve.ts] Upload POST error:", err);
             return new Response(JSON.stringify({ error: "Failed to upload and process document: " + err.message }), { status: 500, headers: { "Content-Type": "application/json" } });
+          }
+        }
+
+        // GET /api/download/:id — download a previously uploaded document
+        const downloadMatch = pathname.match(/^\/api\/download\/([a-f0-9-]+)$/);
+        if (downloadMatch && req.method === "GET") {
+          try {
+            const token = getCookie(req, "session");
+            if (!token) return new Response(JSON.stringify({ error: "Not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
+            const userId = await verifySessionToken(token);
+            if (!userId) return new Response(JSON.stringify({ error: "Invalid session" }), { status: 401, headers: { "Content-Type": "application/json" } });
+
+            const docId = downloadMatch[1];
+            const rows = await db.all(sql.raw(`SELECT id, data FROM portal_data WHERE id = '${docId}' AND user_id = '${userId}' AND section = 'documents'`));
+            if (rows.length === 0) {
+              return new Response(JSON.stringify({ error: "Document not found" }), { status: 404, headers: { "Content-Type": "application/json" } });
+            }
+
+            const docData = JSON.parse(rows[0].data);
+            const fileName = docData.file_name || "document";
+            const fileExt = docData.file_extension || fileName.split(".").pop().toLowerCase();
+            const filePath = `/home/team/shared/uploads/${docId}_${fileName}`;
+
+            const fs = await import("node:fs/promises");
+            try {
+              const fileContent = await fs.readFile(filePath);
+              const mimeTypes: Record<string, string> = {
+                "pdf": "application/pdf",
+                "doc": "application/msword",
+                "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                "xls": "application/vnd.ms-excel",
+                "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "csv": "text/csv",
+                "png": "image/png",
+                "jpg": "image/jpeg",
+                "jpeg": "image/jpeg",
+                "tiff": "image/tiff"
+              };
+              const contentType = mimeTypes[fileExt] || "application/octet-stream";
+
+              return new Response(fileContent, {
+                status: 200,
+                headers: {
+                  "Content-Type": contentType,
+                  "Content-Disposition": `attachment; filename="${fileName}"`,
+                }
+              });
+            } catch (fileErr) {
+              // If the file is not on disk (e.g. from an old upload, or if we want to fallback), we can return the extracted text as a .txt download
+              if (docData.extracted_text) {
+                return new Response(docData.extracted_text, {
+                  status: 200,
+                  headers: {
+                    "Content-Type": "text/plain",
+                    "Content-Disposition": `attachment; filename="${fileName}.txt"`,
+                  }
+                });
+              }
+              return new Response(JSON.stringify({ error: "File content not found on disk" }), { status: 404, headers: { "Content-Type": "application/json" } });
+            }
+          } catch (err: any) {
+            console.error("[serve.ts] Download GET error:", err);
+            return new Response(JSON.stringify({ error: "Failed to download document: " + err.message }), { status: 500, headers: { "Content-Type": "application/json" } });
           }
         }
 
@@ -890,7 +1724,7 @@ for (let attempt = 1; ; attempt++) {
               const session = body.data.object;
               const email = session.customer_details?.email || session.customer_email;
               const amount = session.amount_total / 100;
-              const productName = session.line_items?.[0]?.description || "Document AI System";
+              const productName = session.metadata?.product_name || session.metadata?.product || "Document AI System";
 
               let auditType = "Custom Audit";
               if (amount === 2500) auditType = "Deep-Dive AI Opportunity Audit";
@@ -904,7 +1738,6 @@ for (let attempt = 1; ; attempt++) {
                 await createAuditForEmailInternal(email, auditType);
 
                 // Run our robust purchase provisioner flow
-                const { provisionPurchase } = await import("./src/api/purchaseProvisioner");
                 await provisionPurchase({
                   email,
                   productName,

@@ -15,6 +15,9 @@ interface DocumentItem {
   key_info?: Record<string, any>;
   status: string;
   _created_at: number;
+  routed_agent?: string;
+  routed_agent_type?: string;
+  routing_status?: string;
 }
 
 function DocumentManagement() {
@@ -249,7 +252,7 @@ function DocumentManagement() {
                   </div>
                   <div className="space-y-2">
                     <p className="text-white text-xs font-bold font-mono uppercase tracking-wider animate-pulse">Parsing file...</p>
-                    <p className="text-stone-500 text-[9px] font-mono leading-relaxed max-w-[200px] mx-auto">
+                    <p className="text-stone-400 text-[9px] font-mono leading-relaxed max-w-[200px] mx-auto">
                       {uploadStep}
                     </p>
                   </div>
@@ -266,7 +269,7 @@ function DocumentManagement() {
                     <p className="text-xs font-extrabold text-white">
                       Drag file here or <span className="text-emerald-400 hover:underline">browse files</span>
                     </p>
-                    <p className="text-[9px] text-stone-500 font-mono tracking-wide">
+                    <p className="text-[9px] text-stone-400 font-mono tracking-wide">
                       PDF, CSV, XLSX, DOCX, PNG, JPG (MAX 10MB)
                     </p>
                   </div>
@@ -318,17 +321,19 @@ function DocumentManagement() {
                 <div className="text-center py-16 space-y-3">
                   <span className="text-3xl block">📁</span>
                   <h4 className="text-xs font-extrabold text-stone-400">Ledger is Empty</h4>
-                  <p className="text-[10px] text-stone-500 max-w-sm mx-auto leading-relaxed font-semibold">
+                  <p className="text-[10px] text-stone-400 max-w-sm mx-auto leading-relaxed font-semibold">
                     You have not submitted any operational payloads yet. Drag-and-drop a file on the left console to trigger instant neural extraction logs.
                   </p>
                 </div>
               ) : (
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-stone-900/60 border-b border-stone-850 font-mono text-[9px] text-stone-500 uppercase tracking-wider">
+                    <tr className="bg-stone-900/60 border-b border-stone-850 font-mono text-[9px] text-stone-400 uppercase tracking-wider">
                       <th className="p-4 font-bold">Document Name</th>
                       <th className="p-4 font-bold">Extracted Type</th>
                       <th className="p-4 font-bold">File Size</th>
+                      <th className="p-4 font-bold">Auto-Routed AI</th>
+                      <th className="p-4 font-bold">Routing Status</th>
                       <th className="p-4 font-bold">Status</th>
                       <th className="p-4 font-bold">Ingested Timestamp</th>
                       <th className="p-4 font-bold text-right">Actions</th>
@@ -337,14 +342,26 @@ function DocumentManagement() {
                   <tbody className="divide-y divide-stone-900/50 text-xs font-semibold text-stone-300">
                     {filteredDocuments.map((doc) => (
                       <tr key={doc._id} className="hover:bg-stone-900/20 transition-colors">
-                        <td className="p-4 font-extrabold text-white truncate max-w-[180px]" title={doc.file_name}>
+                        <td className="p-4 font-extrabold text-white truncate max-w-[150px]" title={doc.file_name}>
                           {doc.file_name}
                         </td>
                         <td className="p-4 text-stone-400 font-mono text-[10px]">
                           {doc.document_type || "Unstructured Raw"}
                         </td>
-                        <td className="p-4 text-stone-500 font-mono text-[10px]">
+                        <td className="p-4 text-stone-400 font-mono text-[10px]">
                           {formatFileSize(doc.file_size)}
+                        </td>
+                        <td className="p-4 text-stone-300">
+                          <div className="flex items-center gap-1.5 font-extrabold">
+                            <span className="text-[10px] bg-stone-900 px-2 py-0.5 rounded border border-stone-800 text-stone-300">
+                              🤖 {doc.routed_agent || "Document AI System"}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <span className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border uppercase bg-indigo-950/40 text-indigo-400 border-indigo-900/40`}>
+                            {doc.routing_status || "Auto-Routed"}
+                          </span>
                         </td>
                         <td className="p-4">
                           <span className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border uppercase ${
@@ -366,9 +383,16 @@ function DocumentManagement() {
                             >
                               View Data
                             </button>
+                            <a
+                              href={`/api/download/${doc._id}`}
+                              className="text-xs font-bold text-emerald-400 hover:text-emerald-300 hover:underline transition-colors"
+                              title="Download original file payload"
+                            >
+                              Download
+                            </a>
                             <button
                               onClick={() => handleDelete(doc._id, doc.file_name)}
-                              className="text-xs font-bold text-stone-500 hover:text-rose-400 transition-colors"
+                              className="text-xs font-bold text-stone-400 hover:text-rose-400 transition-colors"
                             >
                               Erase
                             </button>
@@ -382,7 +406,7 @@ function DocumentManagement() {
             </div>
 
             {/* Secure Disclaimer Footnote */}
-            <div className="border-t border-stone-850 pt-4 text-[9px] font-mono text-stone-600 flex justify-between uppercase">
+            <div className="border-t border-stone-850 pt-4 text-[9px] font-mono text-stone-400 flex justify-between uppercase">
               <span>SYSTEM LAYER: DRIZZLE PORTAL DATA INTEGRITY LOCK</span>
               <span>ENCRYPTED REPOSITORY: /TMP/UPLOADS SECURE ERASE</span>
             </div>
@@ -399,12 +423,12 @@ function DocumentManagement() {
                 <span className="text-xl">📊</span>
                 <div>
                   <h3 className="font-extrabold text-white text-base">Extracted Payload: {selectedDoc.file_name}</h3>
-                  <span className="text-[9px] font-mono text-stone-500 uppercase tracking-wider block mt-0.5">DOCUMENT TYPE: {selectedDoc.document_type || "UNKNOWN"}</span>
+                  <span className="text-[9px] font-mono text-stone-400 uppercase tracking-wider block mt-0.5">DOCUMENT TYPE: {selectedDoc.document_type || "UNKNOWN"}</span>
                 </div>
               </div>
               <button
                 onClick={() => setSelectedDoc(null)}
-                className="text-stone-500 hover:text-white text-xs font-mono"
+                className="text-stone-400 hover:text-white text-xs font-mono"
               >
                 CLOSE [X]
               </button>
@@ -415,11 +439,11 @@ function DocumentManagement() {
               {/* Key Info JSON block */}
               {selectedDoc.key_info && Object.keys(selectedDoc.key_info).length > 0 ? (
                 <div className="space-y-3">
-                  <span className="text-[10px] font-mono font-bold text-stone-500 uppercase tracking-wider block">Extracted Schema Key-Values</span>
+                  <span className="text-[10px] font-mono font-bold text-stone-400 uppercase tracking-wider block">Extracted Schema Key-Values</span>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {Object.entries(selectedDoc.key_info).map(([k, v]) => (
                       <div key={k} className="bg-stone-900/30 border border-stone-900/60 rounded-xl p-3 font-mono text-[10px] space-y-1">
-                        <span className="text-stone-500 uppercase block font-bold truncate" title={k}>{k.replace(/_/g, " ")}</span>
+                        <span className="text-stone-400 uppercase block font-bold truncate" title={k}>{k.replace(/_/g, " ")}</span>
                         <span className="text-white font-extrabold break-all">{typeof v === "object" ? JSON.stringify(v) : String(v)}</span>
                       </div>
                     ))}
@@ -427,14 +451,14 @@ function DocumentManagement() {
                 </div>
               ) : (
                 <div className="p-4 bg-stone-900/10 border border-stone-900 rounded-xl text-center">
-                  <span className="text-xs text-stone-500 font-semibold italic">No tabular key-value fields were automatically classified from this document layout.</span>
+                  <span className="text-xs text-stone-400 font-semibold italic">No tabular key-value fields were automatically classified from this document layout.</span>
                 </div>
               )}
 
               {/* Raw text section */}
               {selectedDoc.extracted_text && (
                 <div className="space-y-2">
-                  <span className="text-[10px] font-mono font-bold text-stone-500 uppercase tracking-wider block">Raw Extracted Text OCR Stream</span>
+                  <span className="text-[10px] font-mono font-bold text-stone-400 uppercase tracking-wider block">Raw Extracted Text OCR Stream</span>
                   <div className="bg-stone-900/20 border border-stone-900 rounded-xl p-4 max-h-[150px] overflow-y-auto text-[10px] font-mono text-stone-400 whitespace-pre-wrap leading-relaxed select-text">
                     {selectedDoc.extracted_text}
                   </div>
@@ -442,11 +466,11 @@ function DocumentManagement() {
               )}
             </div>
 
-            <div className="flex justify-between items-center pt-3 border-t border-stone-900 text-[9px] font-mono text-stone-600 uppercase">
+            <div className="flex justify-between items-center pt-3 border-t border-stone-900 text-[9px] font-mono text-stone-400 uppercase">
               <span>LEDGER TIMESTAMP: {new Date(selectedDoc._created_at).toLocaleString()}</span>
               <button
                 onClick={() => setSelectedDoc(null)}
-                className="bg-white text-black font-mono font-bold text-[10px] px-4 py-2 rounded-lg hover:bg-stone-200"
+                className="bg-stone-950 text-black font-mono font-bold text-[10px] px-4 py-2 rounded-lg hover:bg-stone-200"
               >
                 Done Reviewing
               </button>
