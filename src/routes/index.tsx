@@ -247,7 +247,7 @@ function Home() {
                     rows={2}
                     value={promptText}
                     onChange={(e) => setPromptText(e.target.value)}
-                    className="w-full bg-stone-950 border border-stone-900 rounded-xl p-3 text-xs font-medium leading-relaxed outline-none focus:border-stone-400 placeholder-stone-400 resize-none text-stone-800"
+                    className="w-full bg-stone-950 border border-stone-900 rounded-xl p-3 text-xs font-medium leading-relaxed outline-none focus:border-stone-400 placeholder-stone-400 resize-none text-stone-200"
                     placeholder="E.g. Auto-read scanned invoice PDFs, extract line-items, update QuickBooks and notify Slack..."
                   />
                 </div>
@@ -430,7 +430,7 @@ function Home() {
                       <span>BEFORE (Manual Entry)</span>
                       <span className="text-rose-600">18 minutes / bill</span>
                     </div>
-                    <div className="w-full bg-stone-200 h-3 rounded-full overflow-hidden">
+                    <div className="w-full bg-stone-700 h-3 rounded-full overflow-hidden">
                       <div className="bg-rose-600 h-full rounded-full" style={{ width: "100%" }} />
                     </div>
                   </div>
@@ -440,7 +440,7 @@ function Home() {
                       <span>AFTER (Simpler Life Employee)</span>
                       <span className="text-emerald-600">2 minutes / bill</span>
                     </div>
-                    <div className="w-full bg-stone-200 h-3 rounded-full overflow-hidden">
+                    <div className="w-full bg-stone-700 h-3 rounded-full overflow-hidden">
                       <div className="bg-emerald-600 h-full rounded-full animate-pulse" style={{ width: "11%" }} />
                     </div>
                   </div>
@@ -463,7 +463,7 @@ function Home() {
         </section>
 
         {/* Problems Section */}
-        <section className="px-6 py-16 sm:py-32 bg-stone-100">
+        <section className="px-6 py-16 sm:py-32 bg-stone-900">
           <div className="max-w-4xl mx-auto text-center space-y-6">
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">Your team shouldn't spend hours copying data between systems.</h2>
             <p className="text-lg text-stone-400 leading-relaxed">
@@ -499,11 +499,11 @@ function Home() {
                 <h3 className="text-2xl font-black text-white mb-10">How an AI Coworker handles an inquiry</h3>
                 <div className="flex flex-col lg:flex-row items-center justify-between gap-4">
                   {[
-                    { label: "Customer Email", icon: "📧", color: "bg-blue-50 text-blue-600" },
+                    { label: "Customer Email", icon: "📧", color: "bg-blue-500/10 text-blue-400" },
                     { label: "AI reads & extracts", icon: "🧠", color: "bg-emerald-500/10 text-emerald-600" },
                     { label: "Updates CRM", icon: "📊", color: "bg-emerald-500/10 text-emerald-600" },
                     { label: "Creates Invoice", icon: "🧾", color: "bg-amber-500/10 text-amber-600" },
-                    { label: "Sends Confirmation", icon: "✅", color: "bg-violet-50 text-violet-600" },
+                    { label: "Sends Confirmation", icon: "✅", color: "bg-violet-500/10 text-violet-400" },
                     { label: "Slack Notification", icon: "💬", color: "bg-rose-500/10 text-rose-600" }
                   ].map((step, i, arr) => (
                     <div key={step.label} className="flex flex-col lg:flex-row items-center gap-4 flex-1">
@@ -532,7 +532,7 @@ function Home() {
                   <h3 className="text-2xl font-black text-white mb-6">{item.industry}</h3>
                   <ul className="space-y-4">
                     {item.examples.map(ex => (
-                      <li key={ex} className="flex items-start gap-3 text-stone-600">
+                      <li key={ex} className="flex items-start gap-3 text-stone-400">
                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-600 mt-2.5 shrink-0" />
                         <span className="font-medium">{ex}</span>
                       </li>
@@ -610,7 +610,7 @@ function Home() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {workflows.slice(0, 4).map((w) => (
                 <Link key={w.id} to={`/workflows/${w.id}` as any}
-                  className="group bg-stone-950 p-8 rounded-[2rem] border border-stone-850 hover:border-emerald-500/30 transition-all flex flex-col justify-between"
+                  className="group bg-stone-950 p-8 rounded-[2rem] border border-stone-800 hover:border-emerald-500/30 transition-all flex flex-col justify-between"
                 >
                   <div>
                     <span className="text-3xl mb-6 block">🤖</span>
@@ -644,7 +644,7 @@ function Home() {
               <div className="hidden lg:block absolute top-1/2 left-0 w-full h-0.5 bg-stone-900 -translate-y-1/2 z-0" />
               {journeySteps.map((s) => (
                 <div key={s.step} className="relative z-10 bg-stone-950 pr-4">
-                  <div className="w-16 h-16 rounded-2xl bg-emerald-600 text-white flex items-center justify-center text-2xl font-black mb-8 shadow-lg shadow-emerald-200">
+                  <div className="w-16 h-16 rounded-2xl bg-emerald-600 text-white flex items-center justify-center text-2xl font-black mb-8 shadow-lg shadow-emerald-900/30">
                     {s.step}
                   </div>
                   <div className="text-emerald-400 font-bold uppercase tracking-widest text-xs mb-2">{s.benefit}</div>
@@ -697,7 +697,7 @@ function Home() {
                       <div className="text-[10px] text-stone-400 font-bold uppercase tracking-tighter">One-Time</div>
                     </div>
                   </div>
-                  <div className="p-6 bg-emerald-600 rounded-2xl flex justify-between items-center text-white shadow-xl shadow-emerald-100">
+                  <div className="p-6 bg-emerald-600 rounded-2xl flex justify-between items-center text-white shadow-xl shadow-emerald-900/30">
                     <div>
                       <div className="font-black text-xl">Enterprise</div>
                       <div className="text-sm text-emerald-100 font-bold">Custom workflows • Unlimited scale</div>
@@ -807,7 +807,7 @@ function Home() {
 
         {/* Closing CTA */}
         <section id="contact" className="px-6 py-16 sm:py-32 bg-stone-900">
-          <div className="max-w-4xl mx-auto bg-stone-950 rounded-[3rem] p-12 lg:p-20 shadow-2xl shadow-stone-200 border border-stone-800 text-center space-y-12">
+          <div className="max-w-4xl mx-auto bg-stone-950 rounded-[3rem] p-12 lg:p-20 shadow-2xl shadow-stone-900/30 border border-stone-800 text-center space-y-12">
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white leading-tight">
               Every week your team spends hours on work that software should already be doing.
             </h2>
@@ -815,7 +815,7 @@ function Home() {
               In 30 minutes, we'll identify your top automation opportunities, estimate the time and cost savings, and recommend the best next step.
             </p>
             <div className="flex flex-col items-center space-y-8">
-              <Link to="/contact" className="inline-flex items-center justify-center bg-emerald-600 text-white px-12 py-5 rounded-2xl font-bold text-2xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 min-h-[56px]">
+              <Link to="/contact" className="inline-flex items-center justify-center bg-emerald-600 text-white px-12 py-5 rounded-2xl font-bold text-2xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-900/30 min-h-[56px]">
                 Stop Copy-Pasting. Get Deployed ➜
               </Link>
               <p className="text-stone-400 font-medium italic">"The most productive 30 minutes your operations team will spend this quarter."</p>
@@ -832,11 +832,11 @@ function Home() {
           </div>
           <div className="flex flex-col items-center md:items-end gap-6">
             <div className="flex flex-wrap justify-center gap-8 font-bold text-stone-600">
-              <Link to="/build" className="hover:text-emerald-600">Builder</Link>
-              <Link to="/support" className="hover:text-emerald-600">Support</Link>
-              <Link to="/how-it-works" className="hover:text-emerald-600">How It Works</Link>
-              <Link to="/faq" className="hover:text-emerald-600">FAQ</Link>
-              <Link to="/about" className="hover:text-emerald-600">About</Link>
+              <Link to="/build" className="hover:text-emerald-400">Builder</Link>
+              <Link to="/support" className="hover:text-emerald-400">Support</Link>
+              <Link to="/how-it-works" className="hover:text-emerald-400">How It Works</Link>
+              <Link to="/faq" className="hover:text-emerald-400">FAQ</Link>
+              <Link to="/about" className="hover:text-emerald-400">About</Link>
               <Link to="/demos/audit-portal" className="hover:text-emerald-400 underline underline-offset-4">Audit Workflow Demo</Link>
             </div>
             <div className="text-sm text-stone-400">
