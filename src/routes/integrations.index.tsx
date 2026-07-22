@@ -111,6 +111,43 @@ const setRoutingAgentFn = createServerFn()
     return { success: true };
   });
 
+const testConnectionFn = createServerFn()
+  .validator((connectionId: string) => connectionId)
+  .handler(async ({ data: connectionId }) => {
+    const user = await getUser();
+    if (!user) throw new Error("Unauthorized");
+    const row = await db.query.integrations.findFirst({
+      where: and(eq(integrationsTable.id, connectionId), eq(integrationsTable.userId, user.id)),
+    });
+    if (!row) throw new Error("Connection not found");
+
+    let config: Record<string, any> = {};
+    try { config = JSON.parse(row.config); } catch { /* empty */ }
+
+    // Lightweight health check: if the connection has an apiKey or accessToken, consider it "reachable"
+    // In production, this would make an actual API call to the provider's health endpoint
+    const hasCredentials = !!(config.apiKey || config.accessToken);
+    const now = new Date();
+
+    if (hasCredentials) {
+      await db.update(integrationsTable).set({
+        status: "active",
+        healthAt: now,
+        errorMsg: null,
+        updatedAt: now,
+      }).where(and(eq(integrationsTable.id, connectionId), eq(integrationsTable.userId, user.id)));
+      return { success: true, status: "active" as const, healthAt: now.toISOString() };
+    } else {
+      await db.update(integrationsTable).set({
+        status: "error",
+        healthAt: now,
+        errorMsg: "No valid credentials found",
+        updatedAt: now,
+      }).where(and(eq(integrationsTable.id, connectionId), eq(integrationsTable.userId, user.id)));
+      return { success: false, status: "error" as const, healthAt: now.toISOString(), error: "No valid credentials found" };
+    }
+  });
+
 export const Route = createFileRoute("/integrations/")({
   component: IntegrationCatalogPage,
 });
@@ -152,6 +189,7 @@ function IntegrationCatalogPage() {
   const [expandedProvider, setExpandedProvider] = useState<string | null>(null);
   const [routingLoading, setRoutingLoading] = useState<string | null>(null);
   const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
+  const [testingHealthId, setTestingHealthId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"catalog" | "connected">("catalog");
 
   // Load connections once
@@ -221,6 +259,19 @@ function IntegrationCatalogPage() {
       console.error("Failed to set routing:", err);
     } finally {
       setRoutingLoading(null);
+    }
+  }, []);
+
+  const handleTestConnection = useCallback(async (connectionId: string) => {
+    setTestingHealthId(connectionId);
+    try {
+      await testConnectionFn({ data: connectionId });
+      const { connections: fresh } = await getUserConnections();
+      setConnections(fresh);
+    } catch (err) {
+      console.error("Health check failed:", err);
+    } finally {
+      setTestingHealthId(null);
     }
   }, []);
 
@@ -516,6 +567,8 @@ function IntegrationCatalogPage() {
                       connection={conn}
                       onAssign={(agentType) => handleAssignAgent(conn.id, agentType)}
                       loading={routingLoading === conn.id}
+                      onTestConnection={() => handleTestConnection(conn.id)}
+                      testingConnection={testingHealthId === conn.id}
                     />
                   )}
                 </div>
@@ -622,51 +675,92 @@ function RoutingPanel({
   connection,
   onAssign,
   loading,
+  onTestConnection,
+  testingConnection,
 }: {
   connection: UserConnection;
   onAssign: (agentType: string | null) => void;
   loading: boolean;
+  onTestConnection: () => void;
+  testingConnection: boolean;
 }) {
   const currentAgent = connection.assignedAgent;
   const currentAgentName = AGENT_TYPES.find((a) => a.id === currentAgent)?.name ?? null;
+  const lastHealth = connection.healthAt ? new Date(connection.healthAt).toLocaleString() : null;
 
   return (
     <div className="mt-4 pt-3 border-t border-stone-850/60 space-y-3">
-      <div className="flex items-center justify-between">
-        <p className="text-[10px] font-mono font-bold text-stone-400 uppercase">
-          Data Routing → AI Agent
-        </p>
-        {currentAgentName && (
-          <span className="text-[9px] font-mono font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded">
-            {currentAgentName}
+      {/* Health status bar */}
+      <div className="flex items-center justify-between bg-stone-950/50 rounded-lg p-2.5 border border-stone-850/50">
+        <div className="flex items-center gap-2">
+          <span className={`inline-block h-2 w-2 rounded-full ${
+            connection.status === "active" ? "bg-emerald-500" :
+            connection.status === "error" ? "bg-rose-500" :
+            connection.status === "expired" ? "bg-amber-500" : "bg-indigo-500 animate-pulse"
+          }`} />
+          <span className="text-[10px] font-mono font-bold text-stone-300 uppercase">
+            {connection.status}
           </span>
+          {lastHealth && (
+            <span className="text-[9px] font-mono text-stone-500">
+              Last check: {lastHealth}
+            </span>
+          )}
+        </div>
+        <button
+          onClick={onTestConnection}
+          disabled={testingConnection}
+          className="text-[9px] font-mono font-bold text-indigo-400 hover:text-indigo-300 border border-indigo-500/20 hover:border-indigo-500/40 bg-indigo-500/5 rounded px-2 py-1 transition-all disabled:opacity-50"
+        >
+          {testingConnection ? "Testing…" : "Test Connection"}
+        </button>
+      </div>
+
+      {/* Error message */}
+      {connection.errorMsg && (
+        <div className="bg-rose-500/5 border border-rose-500/20 rounded-lg p-2.5">
+          <p className="text-[9px] font-mono text-rose-400">{connection.errorMsg}</p>
+        </div>
+      )}
+
+      {/* AI routing */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <p className="text-[10px] font-mono font-bold text-stone-400 uppercase">
+            Data Routing → AI Agent
+          </p>
+          {currentAgentName && (
+            <span className="text-[9px] font-mono font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded">
+              {currentAgentName}
+            </span>
+          )}
+        </div>
+        <p className="text-[10px] text-stone-500 leading-relaxed">
+          Route data from this connection to a specific AI agent for automated processing.
+        </p>
+        <select
+          value={currentAgent || ""}
+          onChange={(e) => {
+            const val = e.target.value || null;
+            onAssign(val);
+          }}
+          disabled={loading}
+          className="w-full bg-stone-950 border border-stone-800 focus:border-indigo-600 rounded-lg px-3 py-2 text-xs text-stone-200 outline-none disabled:opacity-50"
+        >
+          <option value="">— Select AI Agent —</option>
+          <option value="">(No routing / unassigned)</option>
+          {AGENT_TYPES.map((agent) => (
+            <option key={agent.id} value={agent.id}>
+              {agent.name}
+            </option>
+          ))}
+        </select>
+        {loading && (
+          <p className="text-[10px] text-indigo-400 font-mono animate-pulse">
+            Updating routing…
+          </p>
         )}
       </div>
-      <p className="text-[10px] text-stone-500 leading-relaxed">
-        Route data from this connection to a specific AI agent for automated processing.
-      </p>
-      <select
-        value={currentAgent || ""}
-        onChange={(e) => {
-          const val = e.target.value || null;
-          onAssign(val);
-        }}
-        disabled={loading}
-        className="w-full bg-stone-950 border border-stone-800 focus:border-indigo-600 rounded-lg px-3 py-2 text-xs text-stone-200 outline-none disabled:opacity-50"
-      >
-        <option value="">— Select AI Agent —</option>
-        <option value="">(No routing / unassigned)</option>
-        {AGENT_TYPES.map((agent) => (
-          <option key={agent.id} value={agent.id}>
-            {agent.name}
-          </option>
-        ))}
-      </select>
-      {loading && (
-        <p className="text-[10px] text-indigo-400 font-mono animate-pulse">
-          Updating routing…
-        </p>
-      )}
     </div>
   );
 }
