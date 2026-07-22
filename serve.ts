@@ -30,6 +30,7 @@ import {
 import { processChatMessage, listSessions, deleteSession } from "./src/api/chatEngine";
 import { sendEmail, renderEmailTemplate } from "./src/integrations/email";
 import { generateWorkflow, listTemplates } from "./src/api/workflowGenerator";
+import { getAgentMapping, createLink, deleteLink } from "./src/api/connectAI";
 import { runAgent, deployAgent, getAgentStatus, pauseAgent, resumeAgent } from "./src/agents/index";
 import { processDocument } from "./src/agents/documentProcessor";
 import { routeIntegrationRequest } from "./src/api/integrationRoutes";
@@ -100,6 +101,89 @@ for (let attempt = 1; ; attempt++) {
         const { routeIntegrationRequest } = await import("./src/api/integrationRoutes");
         const integrationRes = await routeIntegrationRequest(req);
         if (integrationRes) return integrationRes;
+        // ─── Connect AI — Agent↔Integration Mapping ─────────────────────
+        // GET /api/connect-ai/mapping — get full agent↔integration mapping
+        if (pathname === "/api/connect-ai/mapping" && req.method === "GET") {
+          try {
+            const user = await getUserFromRequest(req);
+            if (!user || !user.userId) {
+              return new Response(JSON.stringify({ error: "Not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
+            }
+            const mapping = await getAgentMapping(user.userId);
+            return new Response(JSON.stringify(mapping), { status: 200, headers: { "Content-Type": "application/json" } });
+          } catch (err: any) {
+            console.error("[serve.ts] Connect AI mapping error:", err);
+            return new Response(JSON.stringify({ error: "Failed to load mapping" }), { status: 500, headers: { "Content-Type": "application/json" } });
+          }
+        }
+
+        // POST /api/connect-ai/mapping — create a new agent↔integration link
+        if (pathname === "/api/connect-ai/mapping" && req.method === "POST") {
+          try {
+            const user = await getUserFromRequest(req);
+            if (!user || !user.userId) {
+              return new Response(JSON.stringify({ error: "Not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
+            }
+            const body = await parseJSON(req);
+            if (!body || !body.agentId || !body.integrationId) {
+              return new Response(JSON.stringify({ error: "agentId and integrationId required" }), { status: 400, headers: { "Content-Type": "application/json" } });
+            }
+            // Look up agent name/type
+            let agentName = body.agentId;
+            let agentType = "unknown";
+            let agentStatus = "unknown";
+            try {
+              const empRows = await import("./src/db/index").then(m => m.db.all(
+                import("drizzle-orm").then(d => d.sql.raw(`SELECT data FROM portal_data WHERE user_id = '${user.userId}' AND section = 'employees'`))
+              ));
+              // Simple query approach
+              const { db } = await import("./src/db/index");
+              const { sql } = await import("drizzle-orm");
+              const rows = await db.all(sql.raw(`SELECT data FROM portal_data WHERE user_id = '${user.userId}' AND section = 'employees'`));
+              for (const row of rows as any[]) {
+                const e = typeof row.data === "string" ? JSON.parse(row.data) : row.data;
+                if ((e.id || e._id) === body.agentId) {
+                  agentName = e.name || body.agentId;
+                  agentType = e.agentType || e.role || "unknown";
+                  agentStatus = e.status || "unknown";
+                  break;
+                }
+              }
+            } catch {}
+            const link = await createLink(user.userId, {
+              userId: user.userId,
+              agentId: body.agentId,
+              agentName,
+              agentType,
+              agentStatus,
+              integrationId: body.integrationId,
+              integrationName: body.integrationName || body.integrationId,
+              integrationCategory: body.integrationCategory || "General",
+              config: body.config || { autoSync: true },
+            });
+            return new Response(JSON.stringify(link), { status: 201, headers: { "Content-Type": "application/json" } });
+          } catch (err: any) {
+            console.error("[serve.ts] Connect AI create link error:", err);
+            return new Response(JSON.stringify({ error: "Failed to create link" }), { status: 500, headers: { "Content-Type": "application/json" } });
+          }
+        }
+
+        // DELETE /api/connect-ai/mapping/:id — remove a link
+        const connectAIDeleteMatch = pathname.match(/^\/api\/connect-ai\/mapping\/([a-f0-9-]+)$/);
+        if (connectAIDeleteMatch && req.method === "DELETE") {
+          try {
+            const user = await getUserFromRequest(req);
+            if (!user || !user.userId) {
+              return new Response(JSON.stringify({ error: "Not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
+            }
+            const ok = await deleteLink(user.userId, connectAIDeleteMatch[1]);
+            return new Response(JSON.stringify({ success: ok }), { status: ok ? 200 : 404, headers: { "Content-Type": "application/json" } });
+          } catch (err: any) {
+            console.error("[serve.ts] Connect AI delete error:", err);
+            return new Response(JSON.stringify({ error: "Failed to delete link" }), { status: 500, headers: { "Content-Type": "application/json" } });
+          }
+        }
+
 
         // ─── Auth API Routes ───────────────────────────────────────────────
 
@@ -796,6 +880,83 @@ for (let attempt = 1; ; attempt++) {
           } catch (err: any) {
             console.error("[serve.ts] Data DELETE error:", err);
             return new Response(JSON.stringify({ error: "Failed to delete" }), { status: 500, headers: { "Content-Type": "application/json" } });
+          }
+        }
+
+        // ─── Activity Feed API ───────────────────────────────────────────────
+
+        // GET /api/activity-feed — aggregated activity feed across all connected accounts
+        if (pathname === "/api/activity-feed" && req.method === "GET") {
+          try {
+            const token = getCookie(req, "session");
+            if (!token) return new Response(JSON.stringify({ error: "Not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
+            const userId = await verifySessionToken(token);
+            if (!userId) return new Response(JSON.stringify({ error: "Invalid session" }), { status: 401, headers: { "Content-Type": "application/json" } });
+
+            const sections = ["inbox", "communications", "documents", "approvals", "tasks", "notifications"];
+            let allRows: any[] = [];
+            for (const section of sections) {
+              try {
+                const rows = await db.all(sql.raw(`SELECT id, data, created_at FROM portal_data WHERE user_id = '${userId}' AND section = '${section}' ORDER BY created_at DESC LIMIT 30`));
+                for (const row of rows as any[]) {
+                  let parsed: any = {};
+                  try { parsed = typeof row.data === "string" ? JSON.parse(row.data) : row.data; } catch { parsed = {}; }
+                  allRows.push({ _source: section, _id: row.id, _created_at: row.created_at, ...parsed });
+                }
+              } catch { /* section may not exist */ }
+            }
+            try {
+              const { listAgentInstances } = await import("./src/agents/schema");
+              const instances = await listAgentInstances(userId);
+              for (const inst of instances) {
+                allRows.push({ _source: "agents", _id: inst.id, _created_at: inst.createdAt || Date.now(), agentType: inst.agentType, agentName: inst.name || inst.agentType, status: inst.status, action: inst.status === "running" ? "Agent running" : "Agent deployed", source: "system" });
+              }
+            } catch { /* no agents */ }
+
+            const AGENT_META: Record<string, { name: string; emoji: string }> = {
+              document_intake: { name: "Document Intake AI", emoji: "📄" }, healthcare_intake: { name: "Healthcare Intake AI", emoji: "🏥" },
+              invoice_ledger: { name: "Invoice & Ledger AI", emoji: "💰" }, sales_outreach: { name: "Sales Outreach AI", emoji: "📊" },
+              hr_compliance: { name: "HR & Compliance AI", emoji: "👥" }, dispatch_logistics: { name: "Dispatch Logistics AI", emoji: "🚚" },
+              audit_logger: { name: "Audit Logger AI", emoji: "🔍" }, voice_receptionist: { name: "Voice Receptionist AI", emoji: "📞" },
+              support_agent: { name: "Support Agent AI", emoji: "🎧" }, knowledge_assistant: { name: "Knowledge Assistant AI", emoji: "🧠" },
+              inventory_management: { name: "Inventory Management AI", emoji: "📦" }, contract_management: { name: "Contract Management AI", emoji: "📝" },
+              customer_success: { name: "Customer Success AI", emoji: "⭐" }, project_management: { name: "Project Management AI", emoji: "📋" },
+              procurement_vendor: { name: "Procurement & Vendor AI", emoji: "🏪" }, it_operations: { name: "IT Operations AI", emoji: "💻" },
+              fp_and_a: { name: "FP&A AI", emoji: "📈" }, marketing_social: { name: "Marketing & Social AI", emoji: "📱" },
+            };
+            const SOURCE_ICONS: Record<string, string> = { email: "📧", document: "📄", sms: "💬", chat: "👤", task: "⚡", invoice: "💰", ticket: "🎫", approval: "✅", integration: "🔗", workflow: "⚙️", notification: "🔔", system: "🖥️", inbox: "📥", communications: "💬", documents: "📄", approvals: "✅", tasks: "⚡", notifications: "🔔", agents: "🤖" };
+
+            const activities = allRows.slice(0, 100).map((row: any) => {
+              const agentType = row.agentType || row.routed_agent_type || "document_intake";
+              const agentMeta = AGENT_META[agentType] || { name: agentType?.replace(/_/g, " ") || "AI Agent", emoji: "🤖" };
+              let actionType = row.source || row.actionType || row._source || "system";
+              if (row._source === "documents") actionType = "document";
+              else if (row._source === "approvals") actionType = "approval";
+              else if (row._source === "tasks") actionType = "workflow";
+              else if (row._source === "notifications") actionType = "notification";
+              else if (row._source === "communications") actionType = row.channel || "email";
+              let status = "completed";
+              if (row.status === "processing" || row.status === "running") status = "processing";
+              else if (row.status === "failed" || row.status === "error") status = "failed";
+              else if (row.status === "pending_review" || row.status === "Unresolved" || row.requires_human_review) status = "pending_review";
+              else if (row.status === "escalated") status = "escalated";
+              const src = row._source || row.source || "system";
+              return { id: row._id || row.id || crypto.randomUUID(), timestamp: row._created_at || row.timestamp || new Date().toISOString(), agentId: agentType, agentName: agentMeta.name, agentEmoji: agentMeta.emoji, agentType, action: row.title || row.action || row.summary || `Activity from ${src}`, actionType, status, summary: row.title || row.summary || row.message || "", detail: row.aiReasoning || row.detail || row.content || "", source: src, sourceIcon: SOURCE_ICONS[src] || SOURCE_ICONS[actionType] || "📌", connectionName: row.sender || row.from || undefined, metrics: row.metrics || (row.confidenceScore ? { confidence: row.confidenceScore / 100 } : undefined) };
+            });
+            activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+            const stats = {
+              emailsProcessed: activities.filter((a: any) => a.actionType === "email" && a.status === "completed").length,
+              invoicesHandled: activities.filter((a: any) => a.actionType === "invoice" && a.status === "completed").length,
+              ticketsCreated: activities.filter((a: any) => a.actionType === "ticket").length,
+              approvalsPending: activities.filter((a: any) => a.actionType === "approval" && a.status === "pending_review").length,
+              activeAgents: new Set(activities.filter((a: any) => a.status === "processing").map((a: any) => a.agentType)).size,
+              totalActions: activities.length,
+            };
+            return new Response(JSON.stringify({ activities, stats }), { status: 200, headers: { "Content-Type": "application/json" } });
+          } catch (err: any) {
+            console.error("[serve.ts] Activity feed error:", err);
+            return new Response(JSON.stringify({ activities: [], stats: { emailsProcessed: 0, invoicesHandled: 0, ticketsCreated: 0, approvalsPending: 0, activeAgents: 0, totalActions: 0 } }), { status: 200, headers: { "Content-Type": "application/json" } });
           }
         }
 
