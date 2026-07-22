@@ -28,32 +28,32 @@ function HowItWorksPage() {
 
   return (
     <div className="flex flex-col min-h-screen selection:bg-emerald-100 selection:text-emerald-900 bg-stone-50">
-      <header className="px-6 py-6 bg-white sticky top-0 z-50 border-b border-stone-100 backdrop-blur-md bg-white/80">
+      <header className="px-6 py-6 bg-stone-950 sticky top-0 z-50 border-b border-stone-800 backdrop-blur-md bg-white/80">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <Link to="/" className="text-2xl font-black text-emerald-600 tracking-tight">
+          <Link to="/" className="text-2xl font-black text-emerald-400 tracking-tight">
             {businessName}
           </Link>
           <nav className="flex gap-8 items-center">
-            <Link to="/" className="text-sm font-bold text-stone-600 hover:text-emerald-600 transition-colors">Home</Link>
-            <Link to="/how-it-works" className="text-sm font-bold text-emerald-600 transition-colors">How It Works</Link>
-            <Link to="/faq" className="text-sm font-bold text-stone-600 hover:text-emerald-600 transition-colors">FAQ</Link>
-            <Link to="/about" className="text-sm font-bold text-stone-600 hover:text-emerald-600 transition-colors">About</Link>
-            <Link to="/contact" className="text-sm font-bold text-stone-600 hover:text-emerald-600 transition-colors">Contact</Link>
+            <Link to="/" className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">Home</Link>
+            <Link to="/how-it-works" className="text-sm font-bold text-emerald-400 transition-colors">How It Works</Link>
+            <Link to="/faq" className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">FAQ</Link>
+            <Link to="/about" className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">About</Link>
+            <Link to="/contact" className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">Contact</Link>
           </nav>
         </div>
       </header>
 
       <main className="flex-1">
         {/* Hero */}
-        <section className="px-6 py-20 lg:py-28 bg-white border-b border-stone-100 text-center">
+        <section className="px-6 py-20 lg:py-28 bg-stone-950 border-b border-stone-800 text-center">
           <div className="max-w-4xl mx-auto">
-            <span className="inline-block px-3 py-1 mb-4 text-xs font-mono font-bold tracking-wider rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 uppercase">
+            <span className="inline-block px-3 py-1 mb-4 text-xs font-mono font-bold tracking-wider rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase">
               AGENT ARCHITECTURE
             </span>
-            <h1 className="text-5xl lg:text-7xl font-black text-stone-900 tracking-tight mb-6 leading-tight">
+            <h1 className="text-5xl lg:text-7xl font-black text-white tracking-tight mb-6 leading-tight">
               What is an AI Agent?
             </h1>
-            <p className="text-xl lg:text-2xl text-stone-500 max-w-2xl mx-auto leading-relaxed">
+            <p className="text-xl lg:text-2xl text-stone-400 max-w-2xl mx-auto leading-relaxed">
               Think of an AI agent as a digital employee that lives inside your existing tools. Unlike traditional automation, agents can read, reason, decide, and act autonomously.
             </p>
           </div>
@@ -63,10 +63,10 @@ function HowItWorksPage() {
         <section className="px-6 py-20 max-w-7xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div className="space-y-8">
-              <h2 className="text-3xl lg:text-4xl font-black text-stone-900 tracking-tight">
+              <h2 className="text-3xl lg:text-4xl font-black text-white tracking-tight">
                 An AI Employee in your existing tool stack.
               </h2>
-              <p className="text-lg text-stone-600 leading-relaxed">
+              <p className="text-lg text-stone-400 leading-relaxed">
                 Traditional software requires perfect, structured data (like a database entry) to work. AI agents can reason through messy, unstructured real-world tasks. They understand normal human language, extract data from scanned PDFs, make logical conditional decisions, and handle exceptions.
               </p>
               <div className="grid grid-cols-2 gap-4">
@@ -80,8 +80,8 @@ function HowItWorksPage() {
                   "Parse invoices & documents",
                   "Trigger automated alerts"
                 ].map(task => (
-                  <div key={task} className="flex items-center gap-2 text-stone-700 font-bold text-sm">
-                    <svg className="w-5 h-5 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div key={task} className="flex items-center gap-2 text-stone-300 font-bold text-sm">
+                    <svg className="w-5 h-5 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
                     </svg>
                     <span>{task}</span>
@@ -155,28 +155,28 @@ function HowItWorksPage() {
         {/* Security & Reliability */}
         <section className="px-6 py-20 max-w-5xl mx-auto space-y-12">
           <div className="text-center">
-            <h2 className="text-3xl lg:text-4xl font-black text-stone-900 tracking-tight">Security & Reliability First</h2>
-            <p className="text-stone-500 mt-2">Enterprise-grade guardrails for complete peace of mind.</p>
+            <h2 className="text-3xl lg:text-4xl font-black text-white tracking-tight">Security & Reliability First</h2>
+            <p className="text-stone-400 mt-2">Enterprise-grade guardrails for complete peace of mind.</p>
           </div>
           <div className="grid md:grid-cols-3 gap-8">
-            <div className="p-8 bg-white border border-stone-100 rounded-3xl space-y-4">
+            <div className="p-8 bg-stone-950 border border-stone-800 rounded-3xl space-y-4">
               <div className="text-3xl">🛡️</div>
               <h4 className="text-lg font-black text-stone-900">Data Stays Local</h4>
-              <p className="text-sm text-stone-600 leading-relaxed">
+              <p className="text-sm text-stone-400 leading-relaxed">
                 Our agents connect directly within your existing systems (Salesforce, Google, etc.). We never store or resell your operational credentials.
               </p>
             </div>
-            <div className="p-8 bg-white border border-stone-100 rounded-3xl space-y-4">
+            <div className="p-8 bg-stone-950 border border-stone-800 rounded-3xl space-y-4">
               <div className="text-3xl">👥</div>
               <h4 className="text-lg font-black text-stone-900">Human-In-The-Loop</h4>
-              <p className="text-sm text-stone-600 leading-relaxed">
+              <p className="text-sm text-stone-400 leading-relaxed">
                 High-stakes financial or logistical decisions can be routed to an approval dashboard. Your human employees maintain final authority where it counts.
               </p>
             </div>
-            <div className="p-8 bg-white border border-stone-100 rounded-3xl space-y-4">
+            <div className="p-8 bg-stone-950 border border-stone-800 rounded-3xl space-y-4">
               <div className="text-3xl">🔄</div>
               <h4 className="text-lg font-black text-stone-900">Operational Redundancy</h4>
-              <p className="text-sm text-stone-600 leading-relaxed">
+              <p className="text-sm text-stone-400 leading-relaxed">
                 If an external API is down or model latency surges, our platform retries and auto-scales to ensure zero transaction drop-outs.
               </p>
             </div>
@@ -191,7 +191,7 @@ function HowItWorksPage() {
               Our 30-minute operational assessment will outline the exact workflows, cost savings, and timelines for your custom AI employee.
             </p>
             <div className="flex justify-center">
-              <Link to="/contact" className="bg-white text-emerald-600 px-10 py-4 rounded-xl font-black text-lg hover:bg-emerald-50 transition-all shadow-xl">
+              <Link to="/contact" className="bg-stone-950 text-emerald-400 px-10 py-4 rounded-xl font-black text-lg hover:bg-emerald-500/10 transition-all shadow-xl">
                 Get Your Free Blueprint ➜
               </Link>
             </div>
@@ -199,10 +199,10 @@ function HowItWorksPage() {
         </section>
       </main>
 
-      <footer className="px-6 py-12 border-t border-stone-200 bg-white text-stone-500">
+      <footer className="px-6 py-12 border-t border-stone-900 bg-stone-950 text-stone-500">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
           <div>
-            <div className="text-2xl font-black text-emerald-600 mb-2">{businessName}</div>
+            <div className="text-2xl font-black text-emerald-400 mb-2">{businessName}</div>
             <p className="text-sm text-stone-400">AI coworkers for operations teams. Work less, live more.</p>
           </div>
           <div className="text-sm font-bold flex gap-6">

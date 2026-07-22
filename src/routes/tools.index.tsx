@@ -50,15 +50,15 @@ function ToolsHub() {
               <div className="grid grid-cols-3 gap-3 text-center text-xs">
                 <div className="bg-stone-900/50 rounded-lg p-3">
                   <div className="font-bold text-emerald-400">30+</div>
-                  <div className="text-stone-500 mt-0.5">Workflows matched</div>
+                  <div className="text-stone-400 mt-0.5">Workflows matched</div>
                 </div>
                 <div className="bg-stone-900/50 rounded-lg p-3">
                   <div className="font-bold text-emerald-400">Instant</div>
-                  <div className="text-stone-500 mt-0.5">Results</div>
+                  <div className="text-stone-400 mt-0.5">Results</div>
                 </div>
                 <div className="bg-stone-900/50 rounded-lg p-3">
                   <div className="font-bold text-emerald-400">No signup</div>
-                  <div className="text-stone-500 mt-0.5">Required</div>
+                  <div className="text-stone-400 mt-0.5">Required</div>
                 </div>
               </div>
               <a
@@ -88,15 +88,15 @@ function ToolsHub() {
               <div className="grid grid-cols-3 gap-3 text-center text-xs">
                 <div className="bg-stone-900/50 rounded-lg p-3">
                   <div className="font-bold text-indigo-400">PDF Report</div>
-                  <div className="text-stone-500 mt-0.5">Download blueprint</div>
+                  <div className="text-stone-400 mt-0.5">Download blueprint</div>
                 </div>
                 <div className="bg-stone-900/50 rounded-lg p-3">
                   <div className="font-bold text-indigo-400">10 Questions</div>
-                  <div className="text-stone-500 mt-0.5">Detailed audit</div>
+                  <div className="text-stone-400 mt-0.5">Detailed audit</div>
                 </div>
                 <div className="bg-stone-900/50 rounded-lg p-3">
                   <div className="font-bold text-indigo-400">Strategic ROI</div>
-                  <div className="text-stone-500 mt-0.5">Custom analysis</div>
+                  <div className="text-stone-400 mt-0.5">Custom analysis</div>
                 </div>
               </div>
               <a
@@ -125,15 +125,15 @@ function ToolsHub() {
               <div className="grid grid-cols-3 gap-3 text-center text-xs">
                 <div className="bg-stone-900/50 rounded-lg p-3">
                   <div className="font-bold text-emerald-400">Guided</div>
-                  <div className="text-stone-500 mt-0.5">Conversation</div>
+                  <div className="text-stone-400 mt-0.5">Conversation</div>
                 </div>
                 <div className="bg-stone-900/50 rounded-lg p-3">
                   <div className="font-bold text-emerald-400">Personalized</div>
-                  <div className="text-stone-500 mt-0.5">Recommendations</div>
+                  <div className="text-stone-400 mt-0.5">Recommendations</div>
                 </div>
                 <div className="bg-stone-900/50 rounded-lg p-3">
                   <div className="font-bold text-emerald-400">Savings</div>
-                  <div className="text-stone-500 mt-0.5">Estimate</div>
+                  <div className="text-stone-400 mt-0.5">Estimate</div>
                 </div>
               </div>
               <a
@@ -148,7 +148,7 @@ function ToolsHub() {
 
         {/* Quick Try */}
         <div className="bg-stone-900/30 border border-stone-800/50 rounded-2xl p-6 mt-8">
-          <h3 className="text-sm font-mono font-bold text-stone-500 tracking-wide mb-3">
+          <h3 className="text-sm font-mono font-bold text-stone-400 tracking-wide mb-3">
             ⚡ QUICK TEST — Describe a process:
           </h3>
           <div className="flex gap-2">
@@ -162,7 +162,7 @@ function ToolsHub() {
             <button
               onClick={handleQuickAnalyze}
               disabled={!quickInput.trim()}
-              className="bg-emerald-500 hover:bg-emerald-400 disabled:bg-stone-700 disabled:text-stone-500 text-black font-bold text-sm px-4 py-2.5 rounded-xl transition-all"
+              className="bg-emerald-500 hover:bg-emerald-400 disabled:bg-stone-700 disabled:text-stone-400 text-black font-bold text-sm px-4 py-2.5 rounded-xl transition-all"
             >
               Analyze
             </button>

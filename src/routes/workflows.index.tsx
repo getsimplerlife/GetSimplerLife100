@@ -120,12 +120,12 @@ function AutomationLibraryPage() {
                 value={searchTerm}
                 onChange={(e) => setSearchBar(e.target.value)}
                 placeholder="Search workflows, software or systems..."
-                className="w-full bg-stone-950 border border-stone-850 focus:border-indigo-600 rounded-xl px-4 py-2.5 text-xs text-stone-200 outline-none transition-all placeholder:text-stone-600 font-medium"
+                className="w-full bg-stone-950 border border-stone-850 focus:border-indigo-600 rounded-xl px-4 py-2.5 text-xs text-stone-200 outline-none transition-all placeholder:text-stone-400 font-medium"
               />
               {searchTerm && (
                 <button
                   onClick={() => setSearchBar("")}
-                  className="absolute right-3.5 top-3 text-[10px] text-stone-500 hover:text-stone-300 font-mono font-bold"
+                  className="absolute right-3.5 top-3 text-[10px] text-stone-400 hover:text-stone-300 font-mono font-bold"
                 >
                   CLEAR
                 </button>
@@ -203,11 +203,11 @@ function AutomationLibraryPage() {
 
                     {/* Meta Section */}
                     <div className="pt-4 border-t border-stone-850/60 mt-auto">
-                      <div className="flex items-center justify-between text-[11px] font-mono text-stone-500 mb-2">
+                      <div className="flex items-center justify-between text-[11px] font-mono text-stone-400 mb-2">
                         <span>⏱ SAVED:</span>
                         <span className="text-emerald-400 font-bold">{w.timeSaved}</span>
                       </div>
-                      <div className="flex items-center justify-between text-[11px] font-mono text-stone-500 mb-3">
+                      <div className="flex items-center justify-between text-[11px] font-mono text-stone-400 mb-3">
                         <span>💰 INVESTMENT:</span>
                         <span className="text-white font-bold">{price}</span>
                       </div>
@@ -215,12 +215,12 @@ function AutomationLibraryPage() {
                       {/* Integrations Icons List */}
                       <div className="flex flex-wrap gap-1 mb-4">
                         {w.integrations.slice(0, 4).map((sys) => (
-                          <span key={sys} className="px-1.5 py-0.5 bg-stone-950 border border-stone-850 text-[9px] font-mono text-stone-500 rounded uppercase">
+                          <span key={sys} className="px-1.5 py-0.5 bg-stone-950 border border-stone-850 text-[9px] font-mono text-stone-400 rounded uppercase">
                             {sys}
                           </span>
                         ))}
                         {w.integrations.length > 4 && (
-                          <span className="text-[10px] font-mono text-stone-600 pl-1">
+                          <span className="text-[10px] font-mono text-stone-400 pl-1">
                             +{w.integrations.length - 4} more
                           </span>
                         )}
@@ -239,7 +239,7 @@ function AutomationLibraryPage() {
             <div className="text-center py-20 bg-stone-900/10 border border-stone-900 rounded-3xl p-8 max-w-xl mx-auto space-y-4">
               <div className="text-3xl">🔍</div>
               <h3 className="text-lg font-black text-white">No workflows matched your filters</h3>
-              <p className="text-xs text-stone-500 max-w-sm mx-auto leading-relaxed">
+              <p className="text-xs text-stone-400 max-w-sm mx-auto leading-relaxed">
                 Try clearing your search term, modifying your complexity filter, or selecting a broader vertical domain to preview more blueprints.
               </p>
               <button
@@ -280,7 +280,7 @@ function AutomationLibraryPage() {
                     </div>
                     <button
                       onClick={() => setSelectedCard(null)}
-                      className="text-stone-500 hover:text-white font-mono text-xs border border-stone-800 hover:border-stone-700 bg-stone-900 rounded-lg px-3 py-1.5 transition-all"
+                      className="text-stone-400 hover:text-white font-mono text-xs border border-stone-800 hover:border-stone-700 bg-stone-900 rounded-lg px-3 py-1.5 transition-all"
                     >
                       [ CLOSE ]
                     </button>
@@ -305,11 +305,11 @@ function AutomationLibraryPage() {
                     {/* Standard Metrics */}
                     <div className="grid grid-cols-2 gap-4 bg-stone-950/40 border border-stone-850/60 p-5 rounded-2xl">
                       <div>
-                        <div className="text-[10px] font-mono text-stone-500 uppercase mb-1">⏱ Weekly Reclaimed Hours</div>
+                        <div className="text-[10px] font-mono text-stone-400 uppercase mb-1">⏱ Weekly Reclaimed Hours</div>
                         <div className="text-sm font-bold text-emerald-400">{selectedCard.timeSaved}</div>
                       </div>
                       <div>
-                        <div className="text-[10px] font-mono text-stone-500 uppercase mb-1">Complexity Class</div>
+                        <div className="text-[10px] font-mono text-stone-400 uppercase mb-1">Complexity Class</div>
                         <div className="text-sm font-bold text-white capitalize">{selectedCard.difficulty} Setup</div>
                       </div>
                     </div>
@@ -363,7 +363,7 @@ function AutomationLibraryPage() {
                   {/* Footer Action Card */}
                   <div className="px-6 py-6 border-t border-stone-800 bg-stone-950 flex flex-col sm:flex-row items-center justify-between gap-4 sticky bottom-0 z-10">
                     <div className="space-y-1 text-center sm:text-left">
-                      <div className="text-[10px] font-mono text-stone-500 uppercase">Blueprints Deployment Investment</div>
+                      <div className="text-[10px] font-mono text-stone-400 uppercase">Blueprints Deployment Investment</div>
                       <div className="text-2xl font-mono font-black text-white">{getTierPrice(selectedCard.difficulty)}</div>
                     </div>
                     <a

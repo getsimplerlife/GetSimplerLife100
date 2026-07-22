@@ -16,7 +16,7 @@ const VERTICALS = [
     title: "Energy Audit",
     slug: "energy",
     icon: "⚡",
-    color: "bg-emerald-50 text-emerald-700 border-emerald-100",
+    color: "bg-emerald-500/10 text-emerald-400 border-emerald-100",
     description: "Analyzes grid load balancing, predictive maintenance alerts, and renewable energy credit reconciliation.",
     points: [
       "Real-time grid stability monitoring and automated peak-shaving triggers.",
@@ -76,7 +76,7 @@ const VERTICALS = [
     title: "Logistics Audit",
     slug: "logistics",
     icon: "🚚",
-    color: "bg-amber-50 text-amber-700 border-amber-100",
+    color: "bg-amber-500/10 text-amber-400 border-amber-100",
     description: "Audits route optimization, warehouse space utilization, and last-mile delivery tracking.",
     points: [
       "AI-driven route planning to minimize fuel consumption and delivery times.",
@@ -91,7 +91,7 @@ const VERTICALS = [
     title: "Healthcare Audit",
     slug: "healthcare",
     icon: "🏥",
-    color: "bg-emerald-50 text-emerald-700 border-emerald-100",
+    color: "bg-emerald-500/10 text-emerald-400 border-emerald-100",
     description: "Evaluates patient intake efficiency, HIPAA-compliant document storage, and insurance claim reconciliation.",
     points: [
       "Digital patient intake forms with automated data sync to EMR systems.",
@@ -151,7 +151,7 @@ const VERTICALS = [
     title: "SaaS Audit",
     slug: "saas",
     icon: "☁️",
-    color: "bg-emerald-50 text-emerald-700 border-emerald-100",
+    color: "bg-emerald-500/10 text-emerald-400 border-emerald-100",
     description: "Evaluates churn prediction models, automated user onboarding, and SaaS seat utilization.",
     points: [
       "Churn risk scoring based on user activity levels and support ticket frequency.",
@@ -286,7 +286,7 @@ const VERTICALS = [
     title: "Construction Audit",
     slug: "construction",
     icon: "🏗️",
-    color: "bg-amber-50 text-amber-700 border-amber-100",
+    color: "bg-amber-500/10 text-amber-400 border-amber-100",
     description: "Audits project budget burn, safety compliance logs, and vendor payment triggers.",
     points: [
       "Real-time project cost tracking against initial budget estimates.",
@@ -316,7 +316,7 @@ const VERTICALS = [
     title: "Government Audit",
     slug: "government",
     icon: "🏛️",
-    color: "bg-stone-50 text-stone-700 border-stone-100",
+    color: "bg-stone-900 text-stone-300 border-stone-100",
     description: "Audits public record accessibility, grant management workflows, and procurement compliance.",
     points: [
       "Automated indexing and searchability of public records and documents.",
@@ -331,7 +331,7 @@ const VERTICALS = [
     title: "Hospitality Audit",
     slug: "hospitality",
     icon: "🏨",
-    color: "bg-rose-50 text-rose-700 border-rose-100",
+    color: "bg-rose-500/10 text-rose-400 border-rose-100",
     description: "Evaluates booking system integrity, housekeeping automation, and guest sentiment AI.",
     points: [
       "Real-time room availability sync across global distribution systems.",
@@ -391,7 +391,7 @@ const VERTICALS = [
     title: "Nonprofits Audit",
     slug: "nonprofits",
     icon: "🤝",
-    color: "bg-stone-50 text-stone-700 border-stone-100",
+    color: "bg-stone-900 text-stone-300 border-stone-100",
     description: "Evaluates donor management hygiene, automated grant reporting, and volunteer tracking.",
     points: [
       "Donor database hygiene and automated tax receipt dispatch.",
@@ -462,19 +462,19 @@ function AuditChecklist() {
   return (
     <div className="flex flex-col min-h-screen bg-white">
       {/* Nav */}
-      <header className="px-6 py-4 border-b bg-white dark:bg-stone-900">
+      <header className="px-6 py-4 border-b bg-stone-950 dark:bg-stone-900">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <Link to="/" className="text-2xl font-bold text-emerald-600 tracking-tight">
+          <Link to="/" className="text-2xl font-bold text-emerald-400 tracking-tight">
             Simpler Life 100
           </Link>
           <div className="flex items-center gap-6">
-            <Link to="/" className="text-sm font-medium hover:text-emerald-600 transition-colors">
+            <Link to="/" className="text-sm font-medium hover:text-emerald-400 transition-colors">
               Home
             </Link>
             {user ? (
-              <Link to="/portal" className="text-sm font-bold text-emerald-600 border border-emerald-600 px-4 py-1.5 rounded-lg hover:bg-emerald-50 transition-colors">Dashboard</Link>
+              <Link to="/portal" className="text-sm font-bold text-emerald-400 border border-emerald-600 px-4 py-1.5 rounded-lg hover:bg-emerald-500/10 transition-colors">Dashboard</Link>
             ) : (
-              <Link to="/login" className="text-sm font-medium hover:text-emerald-600 transition-colors">Login</Link>
+              <Link to="/login" className="text-sm font-medium hover:text-emerald-400 transition-colors">Login</Link>
             )}
           </div>
         </div>
@@ -485,7 +485,7 @@ function AuditChecklist() {
 
           {/* Header Section */}
           <div className="text-center mb-12">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100 mb-4 uppercase tracking-wider">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mb-4 uppercase tracking-wider">
               Our Diagnostic Standard
             </span>
             <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight sm:text-4xl">
@@ -498,7 +498,7 @@ function AuditChecklist() {
             <div className="mt-6 flex justify-center gap-4">
               <button
                 onClick={() => toggleAll(true)}
-                className="text-sm font-medium text-emerald-600 hover:text-emerald-800 transition border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50"
+                className="text-sm font-medium text-emerald-400 hover:text-emerald-400 transition border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50"
               >
                 Expand All
               </button>
@@ -512,7 +512,7 @@ function AuditChecklist() {
           </div>
 
           {/* Quick-Jump Vertical Nav */}
-          <div className="mb-10 bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+          <div className="mb-10 bg-stone-950 border border-gray-200 rounded-xl p-4 shadow-sm">
             <div className="flex items-center gap-2 mb-3">
               <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Jump to Vertical</span>
             </div>
@@ -524,7 +524,7 @@ function AuditChecklist() {
                     const el = document.getElementById(`vertical-${v.id}`);
                     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
                   }}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition hover:shadow-sm ${v.color}`}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition hover:shadow-black/20 ${v.color}`}
                   title={v.title}
                 >
                   <span className="text-sm">{v.icon}</span>
@@ -541,7 +541,7 @@ function AuditChecklist() {
                 <div
                   key={vertical.id}
                   id={`vertical-${vertical.id}`}
-                  className="border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition duration-200 bg-white"
+                  className="border border-gray-200 rounded-xl overflow-hidden shadow-black/20 hover:shadow-md transition duration-200 bg-white"
                 >
                   <button
                     onClick={() => toggleSection(vertical.id)}
@@ -572,7 +572,7 @@ function AuditChecklist() {
                       </p>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {vertical.points.map((point, index) => (
-                          <div key={index} className="flex items-start space-x-3 bg-white p-3.5 rounded-lg border border-gray-100 shadow-sm">
+                          <div key={index} className="flex items-start space-x-3 bg-stone-950 p-3.5 rounded-lg border border-gray-100 shadow-sm">
                             <CheckIcon />
                             <span className="text-sm text-gray-700 leading-normal font-medium">
                               {point}
@@ -585,13 +585,13 @@ function AuditChecklist() {
                         <div className="flex items-center gap-2">
                           <Link
                             to={`/industries/${vertical.slug}` as any}
-                            className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-emerald-600 transition bg-white hover:bg-emerald-50/60 px-3 py-1.5 rounded-lg border border-gray-200"
+                            className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-emerald-400 transition bg-stone-950 hover:bg-emerald-50/60 px-3 py-1.5 rounded-lg border border-gray-200"
                           >
                             View Industry Page <ArrowRightIcon />
                           </Link>
                           <a
                             href="https://buy.stripe.com/fZufZj2OzdEr6Hh0nm2Fa00"
-                            className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 hover:text-emerald-800 transition bg-emerald-50/60 hover:bg-emerald-100 px-3 py-1.5 rounded-lg border border-emerald-100"
+                            className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-400 hover:text-emerald-400 transition bg-emerald-50/60 hover:bg-emerald-100 px-3 py-1.5 rounded-lg border border-emerald-100"
                           >
                             Get Deep-Dive Audit <ArrowRightIcon />
                           </a>
@@ -626,7 +626,7 @@ function AuditChecklist() {
               <div className="flex flex-col sm:flex-row gap-4">
                 <a
                   href="https://buy.stripe.com/fZufZj2OzdEr6Hh0nm2Fa00"
-                  className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-bold rounded-xl text-emerald-900 bg-white hover:bg-emerald-50 transition shadow-lg shrink-0"
+                  className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-bold rounded-xl text-emerald-900 bg-stone-950 hover:bg-emerald-500/10 transition shadow-lg shrink-0"
                 >
                   Secure Your Deep-Dive Audit <ArrowRightIcon />
                 </a>

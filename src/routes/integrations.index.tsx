@@ -444,7 +444,7 @@ function IntegrationExplorerPage() {
                   key={cat}
                   onClick={() => setActiveCategory(cat)}
                   className={`text-[9px] font-mono font-bold px-2 py-1 rounded transition-colors ${
-                    activeCategory === cat ? "bg-indigo-600 text-white" : "bg-stone-900 text-stone-500 hover:text-stone-300"
+                    activeCategory === cat ? "bg-indigo-600 text-white" : "bg-stone-900 text-stone-400 hover:text-stone-300"
                   }`}
                 >
                   {cat}
@@ -485,7 +485,7 @@ function IntegrationExplorerPage() {
             {selectedApps.length > 0 && (
               <button
                 onClick={() => setSelectedApps([])}
-                className="w-full py-2 bg-stone-900 hover:bg-stone-850 border border-stone-850 text-stone-500 hover:text-stone-300 rounded-xl text-[10px] font-mono font-bold transition-all"
+                className="w-full py-2 bg-stone-900 hover:bg-stone-850 border border-stone-850 text-stone-400 hover:text-stone-300 rounded-xl text-[10px] font-mono font-bold transition-all"
               >
                 [ RESET SELECTIONS ]
               </button>
@@ -509,7 +509,7 @@ function IntegrationExplorerPage() {
               <div className="text-center py-20 bg-stone-900/5 border border-stone-900/60 border-dashed rounded-3xl p-8 space-y-4">
                 <div className="text-4xl text-stone-600">🔌</div>
                 <h4 className="text-sm font-black text-white">Explore Integration Combinations</h4>
-                <p className="text-xs text-stone-500 max-w-sm mx-auto leading-relaxed">
+                <p className="text-xs text-stone-400 max-w-sm mx-auto leading-relaxed">
                   Select at least one tool from your software stack (such as Salesforce, SAP, Outlook, or Slack) on the left sidebar to generate matching multi-step autonomous pipelines.
                 </p>
               </div>
@@ -538,7 +538,7 @@ function IntegrationExplorerPage() {
                     </p>
 
                     <div className="space-y-2.5">
-                      <h5 className="text-[10px] font-mono font-bold text-stone-500 uppercase tracking-wider">How S1 Executes This Pipeline:</h5>
+                      <h5 className="text-[10px] font-mono font-bold text-stone-400 uppercase tracking-wider">How S1 Executes This Pipeline:</h5>
                       <ol className="space-y-2">
                         {autom.steps.map((step, sIdx) => (
                           <li key={sIdx} className="flex items-start gap-2.5 text-xs text-stone-400 leading-relaxed">
@@ -550,7 +550,7 @@ function IntegrationExplorerPage() {
                     </div>
 
                     <div className="pt-3 border-t border-stone-850/60 flex items-center justify-between">
-                      <span className="text-[10px] font-mono text-stone-500 uppercase">Trigger Event: {autom.trigger}</span>
+                      <span className="text-[10px] font-mono text-stone-400 uppercase">Trigger Event: {autom.trigger}</span>
                       <Link
                         to="/build"
                         className="text-xs font-mono font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1 hover:underline"
@@ -572,7 +572,7 @@ function IntegrationExplorerPage() {
                   Your selected combination is fully supported! Simpler Life 100 handles custom multi-system endpoints across our entire library of over 175 integrated applications.
                 </p>
                 <div className="bg-stone-950/40 p-4 rounded-xl space-y-2">
-                  <h5 className="text-[10px] font-mono font-bold text-stone-500 uppercase">Selected Services Connected:</h5>
+                  <h5 className="text-[10px] font-mono font-bold text-stone-400 uppercase">Selected Services Connected:</h5>
                   <div className="flex flex-wrap gap-1.5">
                     {selectedApps.map((app) => (
                       <span key={app} className="text-xs font-mono font-bold text-stone-300 bg-stone-900 border border-stone-850 px-2.5 py-1 rounded">
@@ -627,7 +627,7 @@ function IntegrationExplorerPage() {
                           </span>
                         </div>
                         <h4 className="text-xs font-bold">{demo.name}</h4>
-                        <p className="text-[10px] text-stone-500 leading-normal line-clamp-1">{demo.description}</p>
+                        <p className="text-[10px] text-stone-400 leading-normal line-clamp-1">{demo.description}</p>
                       </div>
                       <div className="flex gap-0.5 shrink-0">
                         {demo.appIcons.map((ico, idx) => (
@@ -655,7 +655,7 @@ function IntegrationExplorerPage() {
 
                 <div>
                   {/* Console Header */}
-                  <div className="flex items-center gap-1.5 border-b border-stone-900 pb-3 mb-4 text-[11px] text-stone-500 uppercase">
+                  <div className="flex items-center gap-1.5 border-b border-stone-900 pb-3 mb-4 text-[11px] text-stone-400 uppercase">
                     <span className="h-2 w-2 rounded-full bg-rose-500" />
                     <span className="h-2 w-2 rounded-full bg-amber-500" />
                     <span className="h-2 w-2 rounded-full bg-emerald-500" />
@@ -666,7 +666,7 @@ function IntegrationExplorerPage() {
                   {selectedDemoId === null ? (
                     <div className="text-center py-20 space-y-3">
                       <div className="text-2xl">🖥️</div>
-                      <p className="text-xs text-stone-600 max-w-xs mx-auto leading-relaxed">
+                      <p className="text-xs text-stone-400 max-w-xs mx-auto leading-relaxed">
                         No active simulation console. Select any blueprint demo card from the left panel to execute an S1 operation flow.
                       </p>
                     </div>
@@ -688,7 +688,7 @@ function IntegrationExplorerPage() {
                         );
                       })}
                       {demoState === "running" && (
-                        <div className="text-stone-600 animate-pulse">■ Executing operational tasks...</div>
+                        <div className="text-stone-400 animate-pulse">■ Executing operational tasks...</div>
                       )}
                     </div>
                   )}

@@ -244,7 +244,7 @@ function AIAdvisor() {
                 <button
                   onClick={() => handleSend(input)}
                   disabled={!input.trim() || loading || analyzing}
-                  className="bg-emerald-500 hover:bg-emerald-400 disabled:bg-stone-700 disabled:text-stone-500 text-black font-bold text-sm px-5 py-3 rounded-xl transition-all"
+                  className="bg-emerald-500 hover:bg-emerald-400 disabled:bg-stone-700 disabled:text-stone-400 text-black font-bold text-sm px-5 py-3 rounded-xl transition-all"
                 >
                   Send
                 </button>
@@ -302,7 +302,7 @@ function AIAdvisor() {
             <div className="text-center">
               <a
                 href="/"
-                className="text-xs text-stone-500 hover:text-stone-300 font-mono transition-all"
+                className="text-xs text-stone-400 hover:text-stone-300 font-mono transition-all"
               >
                 ← Back to Home
               </a>

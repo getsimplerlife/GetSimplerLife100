@@ -174,26 +174,42 @@ function Home() {
   const activeTemplate = getActiveTemplate();
 
   return (
-    <div className="flex flex-col min-h-screen selection:bg-emerald-100 selection:text-emerald-900 bg-stone-50">
+    <div className="flex flex-col min-h-screen bg-stone-950">
       
       {/* ─── Header ─── */}
-      <header className="px-6 py-4 bg-white sticky top-0 z-50 border-b border-stone-100 backdrop-blur-md bg-white/80">
+      <header className="px-6 py-4 bg-stone-950/95 backdrop-blur-md sticky top-0 z-50 border-b border-stone-900">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <Link to="/" className="text-2xl font-black text-emerald-600 tracking-tight">
+          <Link to="/" className="text-2xl font-black text-emerald-400 tracking-tight">
             {businessName}
           </Link>
           <nav className="hidden md:flex gap-8 items-center">
-            <a href="#examples" className="text-sm font-bold text-stone-600 hover:text-emerald-600 transition-colors">Solutions</a>
-            <Link to="/how-it-works" className="text-sm font-bold text-stone-600 hover:text-emerald-600 transition-colors">How It Works</Link>
-            <Link to="/about" className="text-sm font-bold text-stone-600 hover:text-emerald-600 transition-colors">About</Link>
-            <Link to="/faq" className="text-sm font-bold text-stone-600 hover:text-emerald-600 transition-colors">FAQ</Link>
-            <a href="#pricing" className="text-sm font-bold text-stone-600 hover:text-emerald-600 transition-colors">Pricing</a>
-            <a href="#contact" className="text-sm font-bold text-stone-600 hover:text-emerald-600 transition-colors">Contact</a>
+            <a href="#examples" className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">Solutions</a>
+            <Link to="/how-it-works" className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">How It Works</Link>
+            <div className="relative group">
+              <button className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors flex items-center gap-1 cursor-pointer">
+                Tools
+                <svg className="w-3 h-3 mt-0.5 transition-transform group-hover:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                <div className="bg-stone-900 border border-stone-800 rounded-xl shadow-xl shadow-black/30 p-2 min-w-[220px] space-y-0.5">
+                  <Link to="/tools/ai-advisor" className="block px-3.5 py-2 text-sm font-bold rounded-lg text-stone-300 hover:text-white hover:bg-stone-800 transition-colors">🤖 AI Advisor</Link>
+                  <Link to="/tools/can-we-automate-this" className="block px-3.5 py-2 text-sm font-bold rounded-lg text-stone-300 hover:text-white hover:bg-stone-800 transition-colors">🔍 Can We Automate This?</Link>
+                  <Link to="/tools/assessment" className="block px-3.5 py-2 text-sm font-bold rounded-lg text-stone-300 hover:text-white hover:bg-stone-800 transition-colors">📋 AI Automation Assessment</Link>
+                  <Link to="/roi-calculator" className="block px-3.5 py-2 text-sm font-bold rounded-lg text-stone-300 hover:text-white hover:bg-stone-800 transition-colors">📊 ROI Calculator</Link>
+                </div>
+              </div>
+            </div>
+            <Link to="/about" className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">About</Link>
+            <Link to="/faq" className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">FAQ</Link>
+            <a href="#pricing" className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">Pricing</a>
+            <a href="#contact" className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">Contact</a>
             {user ? (
               <Link to="/portal" className="bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-emerald-700 transition-all shadow-md">Dashboard</Link>
             ) : (
               <>
-                <Link to="/login" className="text-sm font-bold text-emerald-600 hover:text-emerald-700">Login</Link>
+                <Link to="/login" className="text-sm font-bold text-emerald-400 hover:text-emerald-700">Login</Link>
                 <Link to="/contact" className="bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-emerald-700 transition-all shadow-md text-xs min-h-[44px] flex items-center justify-center">
                   Stop Copy-Pasting. Start Free Plan ➜
                 </Link>
@@ -206,23 +222,23 @@ function Home() {
       <main className="flex-1">
         
         {/* ─── Interactive Hero Section ─── */}
-        <section className="px-4 py-12 lg:py-24 bg-white border-b border-stone-100 overflow-hidden relative">
+        <section className="px-4 py-12 lg:py-24 bg-stone-950 border-b border-stone-800 overflow-hidden relative">
           <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-center relative z-10">
             
             {/* Left Column: Heading, Pain CTA, Prompt Compiler */}
             <div className="lg:col-span-7 space-y-8">
-              <span className="inline-block px-3 py-1 text-xs font-mono font-bold tracking-wider rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 uppercase">
+              <span className="inline-block px-3 py-1 text-xs font-mono font-bold tracking-wider rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase">
                 ACTIVE COGNITIVE WORKFORCES
               </span>
-              <h1 className="text-4xl sm:text-5xl lg:text-7xl font-black tracking-tight text-stone-900 leading-[1.1] max-w-2xl">
+              <h1 className="text-4xl sm:text-5xl lg:text-7xl font-black tracking-tight text-white leading-[1.1] max-w-2xl">
                 Stop copy-pasting. Reclaim <span className="text-emerald-600">80%</span> of your team's time.
               </h1>
-              <p className="text-lg lg:text-xl text-stone-500 max-w-xl leading-relaxed">
+              <p className="text-lg lg:text-xl text-stone-400 max-w-xl leading-relaxed">
                 Describe your worst operational bottleneck in English. Our AI analyzes, maps, and compiles a custom automation blueprint instantly.
               </p>
 
               {/* Prompt Compiler Widget */}
-              <div className="bg-stone-50 border border-stone-200 rounded-3xl p-5 sm:p-6 space-y-4 shadow-sm">
+              <div className="bg-stone-900 border border-stone-900 rounded-3xl p-5 sm:p-6 space-y-4 shadow-sm">
                 <div>
                   <label className="block text-[10px] font-mono tracking-wider uppercase text-stone-400 mb-2">
                     Describe your repetitive manual process:
@@ -231,7 +247,7 @@ function Home() {
                     rows={2}
                     value={promptText}
                     onChange={(e) => setPromptText(e.target.value)}
-                    className="w-full bg-white border border-stone-200 rounded-xl p-3 text-xs font-medium leading-relaxed outline-none focus:border-stone-400 placeholder-stone-400 resize-none text-stone-800"
+                    className="w-full bg-stone-950 border border-stone-900 rounded-xl p-3 text-xs font-medium leading-relaxed outline-none focus:border-stone-400 placeholder-stone-400 resize-none text-stone-800"
                     placeholder="E.g. Auto-read scanned invoice PDFs, extract line-items, update QuickBooks and notify Slack..."
                   />
                 </div>
@@ -250,7 +266,7 @@ function Home() {
                         setPromptText(ex.prompt);
                         setCompilingState('done');
                       }}
-                      className="text-[10px] bg-white hover:bg-stone-100 text-stone-600 font-bold px-2.5 py-1 rounded-full border border-stone-200 transition-colors min-h-[28px]"
+                      className="text-[10px] bg-stone-950 hover:bg-stone-900 text-stone-400 font-bold px-2.5 py-1 rounded-full border border-stone-900 transition-colors min-h-[28px]"
                     >
                       {ex.label}
                     </button>
@@ -274,17 +290,17 @@ function Home() {
 
                 {/* Simulated Generated Result Card */}
                 {compilingState === 'done' && (
-                  <div className="bg-white border border-stone-200/80 rounded-2xl p-4 space-y-4 animate-fadeIn">
-                    <div className="flex justify-between items-center border-b border-stone-100 pb-2.5">
-                      <h4 className="text-xs font-black text-stone-900 font-mono tracking-tight">{activeTemplate.title}</h4>
-                      <span className="text-[9px] font-mono bg-emerald-50 text-emerald-700 border border-emerald-100 px-2 py-0.5 rounded font-black">99.2% ACCURACY</span>
+                  <div className="bg-stone-950 border border-stone-200/80 rounded-2xl p-4 space-y-4 animate-fadeIn">
+                    <div className="flex justify-between items-center border-b border-stone-800 pb-2.5">
+                      <h4 className="text-xs font-black text-white font-mono tracking-tight">{activeTemplate.title}</h4>
+                      <span className="text-[9px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded font-black">99.2% ACCURACY</span>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                       {activeTemplate.steps.map((st, i) => (
-                        <div key={i} className="p-3 bg-stone-50 rounded-xl space-y-1 relative border border-stone-100">
+                        <div key={i} className="p-3 bg-stone-900 rounded-xl space-y-1 relative border border-stone-100">
                           <span className="text-xl block mb-1">{st.icon}</span>
-                          <div className="text-[10px] font-black text-stone-900 leading-tight">{st.label}</div>
-                          <div className="text-[8px] text-stone-500 leading-normal line-clamp-2">{st.desc}</div>
+                          <div className="text-[10px] font-black text-white leading-tight">{st.label}</div>
+                          <div className="text-[8px] text-stone-400 leading-normal line-clamp-2">{st.desc}</div>
                         </div>
                       ))}
                     </div>
@@ -354,16 +370,16 @@ function Home() {
               <div className="bg-stone-900 border border-white/5 rounded-2xl p-5 space-y-4 relative z-10">
                 <div className="grid grid-cols-2 gap-4 divide-x divide-white/5">
                   <div className="space-y-0.5">
-                    <span className="text-[9px] font-mono text-stone-500 uppercase block tracking-wider">Hours Reclaimed</span>
+                    <span className="text-[9px] font-mono text-stone-400 uppercase block tracking-wider">Hours Reclaimed</span>
                     <span className="text-2xl font-black text-white">{hoursReclaimed} hrs/mo</span>
                   </div>
                   <div className="space-y-0.5 pl-4">
-                    <span className="text-[9px] font-mono text-stone-500 uppercase block tracking-wider">Payback Period</span>
+                    <span className="text-[9px] font-mono text-stone-400 uppercase block tracking-wider">Payback Period</span>
                     <span className="text-2xl font-black text-emerald-400">{paybackDays} Days</span>
                   </div>
                 </div>
                 <div className="border-t border-white/5 pt-3.5 space-y-0.5">
-                  <span className="text-[9px] font-mono text-stone-500 uppercase block tracking-wider">Monthly Reclaimed Labor</span>
+                  <span className="text-[9px] font-mono text-stone-400 uppercase block tracking-wider">Monthly Reclaimed Labor</span>
                   <div className="text-4xl font-black text-white tracking-tight">${monthlySavings.toLocaleString()} / mo</div>
                 </div>
                 <div className="text-[10px] text-stone-400 font-mono flex items-center justify-between bg-black/30 p-2.5 rounded-lg">
@@ -376,25 +392,25 @@ function Home() {
         </section>
 
         {/* ─── Detailed Case Study Card ( fold-area ) ─── */}
-        <section className="px-4 py-16 bg-stone-50 border-b border-stone-200/80">
+        <section className="px-4 py-16 bg-stone-900 border-b border-stone-200/80">
           <div className="max-w-7xl mx-auto space-y-8">
             <div className="border-l-4 border-emerald-600 pl-4">
               <span className="text-[10px] font-mono font-bold tracking-widest text-stone-400 uppercase block">CUSTOMER TRIAL SUCCESS</span>
               <h2 className="text-3xl font-black tracking-tight text-stone-950">Vanguard Precision Manufacturing</h2>
             </div>
 
-            <div className="bg-white border border-stone-200 rounded-[2.5rem] p-6 lg:p-12 shadow-sm grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+            <div className="bg-stone-950 border border-stone-900 rounded-[2.5rem] p-6 lg:p-12 shadow-black/20 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
               
               {/* Context Block */}
               <div className="lg:col-span-7 space-y-6">
                 <div>
-                  <span className="text-[9px] font-mono bg-stone-100 text-stone-600 border border-stone-200 px-2 py-0.5 rounded font-bold uppercase mr-2">INDUSTRY</span>
-                  <span className="text-xs text-stone-500 font-bold">Aviation & Aerospace Defense (50-person manufacturer)</span>
+                  <span className="text-[9px] font-mono bg-stone-900 text-stone-400 border border-stone-900 px-2 py-0.5 rounded font-bold uppercase mr-2">INDUSTRY</span>
+                  <span className="text-xs text-stone-400 font-bold">Aviation & Aerospace Defense (50-person manufacturer)</span>
                 </div>
-                <h3 className="text-2xl font-black text-stone-950 leading-tight">
+                <h3 className="text-2xl font-black text-stone-100 leading-tight">
                   Reclaiming AP labor: Reducing fax and PDF processing from 18 minutes to 2 minutes.
                 </h3>
-                <div className="space-y-4 text-stone-600 text-sm leading-relaxed">
+                <div className="space-y-4 text-stone-400 text-sm leading-relaxed">
                   <p>
                     Vanguard precision manufacturing processed hundreds of supply-chain supplier invoice PDFs, handwritten faxes, and delivery logs manually. Staff was burdened copying records, tracking line-items, and verifying data values against ERP entries.
                   </p>
@@ -405,12 +421,12 @@ function Home() {
               </div>
 
               {/* Visual Before/After & Metrics Block */}
-              <div className="lg:col-span-5 bg-stone-50 border border-stone-200 rounded-3xl p-6 sm:p-8 space-y-6">
+              <div className="lg:col-span-5 bg-stone-900 border border-stone-900 rounded-3xl p-6 sm:p-8 space-y-6">
                 
                 {/* Timeline Visual comparison */}
                 <div className="space-y-4">
                   <div className="space-y-1">
-                    <div className="flex justify-between text-[10px] font-mono text-stone-500 uppercase font-black">
+                    <div className="flex justify-between text-[10px] font-mono text-stone-400 uppercase font-black">
                       <span>BEFORE (Manual Entry)</span>
                       <span className="text-rose-600">18 minutes / bill</span>
                     </div>
@@ -420,7 +436,7 @@ function Home() {
                   </div>
 
                   <div className="space-y-1">
-                    <div className="flex justify-between text-[10px] font-mono text-stone-500 uppercase font-black">
+                    <div className="flex justify-between text-[10px] font-mono text-stone-400 uppercase font-black">
                       <span>AFTER (Simpler Life Employee)</span>
                       <span className="text-emerald-600">2 minutes / bill</span>
                     </div>
@@ -431,13 +447,13 @@ function Home() {
                 </div>
 
                 {/* Metrics Grid */}
-                <div className="grid grid-cols-2 gap-4 border-t border-stone-200 pt-5 text-center">
+                <div className="grid grid-cols-2 gap-4 border-t border-stone-900 pt-5 text-center">
                   <div className="space-y-1">
-                    <div className="text-[9px] font-mono text-stone-500 uppercase block font-bold">Labor Reclaimed</div>
+                    <div className="text-[9px] font-mono text-stone-400 uppercase block font-bold">Labor Reclaimed</div>
                     <div className="text-xl font-black text-stone-900">$12,000 / mo</div>
                   </div>
                   <div className="space-y-1">
-                    <div className="text-[9px] font-mono text-stone-500 uppercase block font-bold">Data Accuracy</div>
+                    <div className="text-[9px] font-mono text-stone-400 uppercase block font-bold">Data Accuracy</div>
                     <div className="text-xl font-black text-stone-900">100% Correct</div>
                   </div>
                 </div>
@@ -449,8 +465,8 @@ function Home() {
         {/* Problems Section */}
         <section className="px-6 py-16 sm:py-32 bg-stone-100">
           <div className="max-w-4xl mx-auto text-center space-y-6">
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-stone-900 tracking-tight leading-tight">Your team shouldn't spend hours copying data between systems.</h2>
-            <p className="text-lg text-stone-600 leading-relaxed">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">Your team shouldn't spend hours copying data between systems.</h2>
+            <p className="text-lg text-stone-400 leading-relaxed">
               Most operations teams are buried in manual work that software should already be doing: quoting, scheduling, CRM updates, invoicing, and document processing. We build AI coworkers that handle the repetitive parts so your people can focus on work that actually requires a human.
             </p>
           </div>
@@ -463,39 +479,39 @@ function Home() {
               <h2 className="text-3xl lg:text-4xl font-black mb-4">Calculate Your Potential Savings</h2>
               <p className="text-emerald-100 text-lg font-medium">Use our simple ROI tool to see how many hours your team could reclaim.</p>
             </div>
-            <Link to="/roi-calculator" className="bg-white text-emerald-600 px-10 py-4 rounded-2xl font-black text-xl hover:bg-emerald-50 transition-all shadow-xl whitespace-nowrap min-h-[50px] flex items-center justify-center">
+            <Link to="/roi-calculator" className="bg-stone-950 text-emerald-400 px-10 py-4 rounded-2xl font-black text-xl hover:bg-emerald-500/10 transition-all shadow-xl whitespace-nowrap min-h-[50px] flex items-center justify-center">
               Open ROI Calculator →
             </Link>
           </div>
         </section>
 
         {/* Industry Examples Section */}
-        <section id="examples" className="px-6 py-16 sm:py-32 bg-stone-50 border-y border-stone-100">
+        <section id="examples" className="px-6 py-16 sm:py-32 bg-stone-900 border-y border-stone-100">
           <div className="max-w-7xl mx-auto">
             <div className="mb-20 text-center space-y-6">
-              <h2 className="text-3xl sm:text-4xl lg:text-6xl font-black text-stone-900 tracking-tight">Real Automations. Real Results.</h2>
-              <p className="text-lg text-stone-500 max-w-2xl mx-auto">
+              <h2 className="text-3xl sm:text-4xl lg:text-6xl font-black text-white tracking-tight">Real Automations. Real Results.</h2>
+              <p className="text-lg text-stone-400 max-w-2xl mx-auto">
                 We don't build generic bots. We build industry-specific agents for your highest-friction workflows.
               </p>
               
               {/* Workflow Visual */}
-              <div className="max-w-5xl mx-auto bg-white p-8 lg:p-12 rounded-[3rem] shadow-sm border border-stone-100">
-                <h3 className="text-2xl font-black text-stone-900 mb-10">How an AI Coworker handles an inquiry</h3>
+              <div className="max-w-5xl mx-auto bg-stone-950 p-8 lg:p-12 rounded-[3rem] shadow-black/20 border border-stone-100">
+                <h3 className="text-2xl font-black text-white mb-10">How an AI Coworker handles an inquiry</h3>
                 <div className="flex flex-col lg:flex-row items-center justify-between gap-4">
                   {[
                     { label: "Customer Email", icon: "📧", color: "bg-blue-50 text-blue-600" },
-                    { label: "AI reads & extracts", icon: "🧠", color: "bg-emerald-50 text-emerald-600" },
-                    { label: "Updates CRM", icon: "📊", color: "bg-emerald-50 text-emerald-600" },
-                    { label: "Creates Invoice", icon: "🧾", color: "bg-amber-50 text-amber-600" },
+                    { label: "AI reads & extracts", icon: "🧠", color: "bg-emerald-500/10 text-emerald-600" },
+                    { label: "Updates CRM", icon: "📊", color: "bg-emerald-500/10 text-emerald-600" },
+                    { label: "Creates Invoice", icon: "🧾", color: "bg-amber-500/10 text-amber-600" },
                     { label: "Sends Confirmation", icon: "✅", color: "bg-violet-50 text-violet-600" },
-                    { label: "Slack Notification", icon: "💬", color: "bg-rose-50 text-rose-600" }
+                    { label: "Slack Notification", icon: "💬", color: "bg-rose-500/10 text-rose-600" }
                   ].map((step, i, arr) => (
                     <div key={step.label} className="flex flex-col lg:flex-row items-center gap-4 flex-1">
                       <div className="flex flex-col items-center text-center group">
-                        <div className={`w-16 h-16 rounded-2xl ${step.color} flex items-center justify-center text-3xl mb-3 shadow-sm group-hover:scale-110 transition-transform`}>
+                        <div className={`w-16 h-16 rounded-2xl ${step.color} flex items-center justify-center text-3xl mb-3 shadow-black/20 group-hover:scale-110 transition-transform`}>
                           {step.icon}
                         </div>
-                        <div className="text-xs font-black uppercase tracking-tighter text-stone-500 max-w-[80px] leading-tight">
+                        <div className="text-xs font-black uppercase tracking-tighter text-stone-400 max-w-[80px] leading-tight">
                           {step.label}
                         </div>
                       </div>
@@ -512,8 +528,8 @@ function Home() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {industryExamples.map((item) => (
-                <div key={item.industry} className="bg-white p-10 rounded-[2.5rem] shadow-sm border border-stone-100">
-                  <h3 className="text-2xl font-black text-stone-900 mb-6">{item.industry}</h3>
+                <div key={item.industry} className="bg-stone-950 p-10 rounded-[2.5rem] shadow-black/20 border border-stone-100">
+                  <h3 className="text-2xl font-black text-white mb-6">{item.industry}</h3>
                   <ul className="space-y-4">
                     {item.examples.map(ex => (
                       <li key={ex} className="flex items-start gap-3 text-stone-600">
@@ -532,20 +548,20 @@ function Home() {
         <section className="px-6 py-16 sm:py-32 bg-white">
           <div className="max-w-7xl mx-auto">
             <div className="grid md:grid-cols-3 gap-12">
-              <div className="p-8 border-l-4 border-emerald-600 bg-stone-50 rounded-r-3xl">
+              <div className="p-8 border-l-4 border-emerald-600 bg-stone-900 rounded-r-3xl">
                 <div className="text-stone-400 font-bold uppercase tracking-widest text-xs mb-2">Manufacturing Client</div>
-                <div className="text-3xl font-black text-stone-900 mb-4">18 mins → 2 mins</div>
-                <p className="text-stone-600 font-medium">Reduced manual order processing time by over 85% per transaction.</p>
+                <div className="text-3xl font-black text-white mb-4">18 mins → 2 mins</div>
+                <p className="text-stone-400 font-medium">Reduced manual order processing time by over 85% per transaction.</p>
               </div>
-              <div className="p-8 border-l-4 border-emerald-600 bg-stone-50 rounded-r-3xl">
+              <div className="p-8 border-l-4 border-emerald-600 bg-stone-900 rounded-r-3xl">
                 <div className="text-stone-400 font-bold uppercase tracking-widest text-xs mb-2">Logistics Client</div>
-                <div className="text-3xl font-black text-stone-900 mb-4">140 hours / month</div>
-                <p className="text-stone-600 font-medium">Total labor hours saved across the dispatch team in the first 30 days.</p>
+                <div className="text-3xl font-black text-white mb-4">140 hours / month</div>
+                <p className="text-stone-400 font-medium">Total labor hours saved across the dispatch team in the first 30 days.</p>
               </div>
-              <div className="p-8 border-l-4 border-emerald-600 bg-stone-50 rounded-r-3xl">
+              <div className="p-8 border-l-4 border-emerald-600 bg-stone-900 rounded-r-3xl">
                 <div className="text-stone-400 font-bold uppercase tracking-widest text-xs mb-2">Healthcare Practice</div>
-                <div className="text-3xl font-black text-stone-900 mb-4">73% Reduction</div>
-                <p className="text-stone-600 font-medium">Decrease in scheduling-related phone calls via automated patient reminders.</p>
+                <div className="text-3xl font-black text-white mb-4">73% Reduction</div>
+                <p className="text-stone-400 font-medium">Decrease in scheduling-related phone calls via automated patient reminders.</p>
               </div>
             </div>
           </div>
@@ -619,24 +635,24 @@ function Home() {
         <section id="journey" className="px-6 py-16 sm:py-32 bg-white">
           <div className="max-w-7xl mx-auto">
             <div className="mb-24 space-y-4">
-              <h2 className="text-4xl lg:text-6xl font-black text-stone-900 tracking-tight">How We Get You There</h2>
-              <p className="text-xl text-stone-500 max-w-2xl leading-relaxed">
+              <h2 className="text-4xl lg:text-6xl font-black text-white tracking-tight">How We Get You There</h2>
+              <p className="text-xl text-stone-400 max-w-2xl leading-relaxed">
                 We don't just hand you a tool. We build AI coworkers that work inside the systems you already own.
               </p>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-12 relative">
-              <div className="hidden lg:block absolute top-1/2 left-0 w-full h-0.5 bg-stone-100 -translate-y-1/2 z-0" />
+              <div className="hidden lg:block absolute top-1/2 left-0 w-full h-0.5 bg-stone-900 -translate-y-1/2 z-0" />
               {journeySteps.map((s) => (
-                <div key={s.step} className="relative z-10 bg-white pr-4">
+                <div key={s.step} className="relative z-10 bg-stone-950 pr-4">
                   <div className="w-16 h-16 rounded-2xl bg-emerald-600 text-white flex items-center justify-center text-2xl font-black mb-8 shadow-lg shadow-emerald-200">
                     {s.step}
                   </div>
-                  <div className="text-emerald-600 font-bold uppercase tracking-widest text-xs mb-2">{s.benefit}</div>
-                  <h3 className="text-2xl font-black text-stone-900 mb-4">{s.name}</h3>
-                  <p className="text-stone-500 leading-relaxed mb-6">
+                  <div className="text-emerald-400 font-bold uppercase tracking-widest text-xs mb-2">{s.benefit}</div>
+                  <h3 className="text-2xl font-black text-white mb-4">{s.name}</h3>
+                  <p className="text-stone-400 leading-relaxed mb-6">
                     {s.description}
                   </p>
-                  <div className="text-lg font-black text-stone-900 mb-6">{s.price}</div>
+                  <div className="text-lg font-black text-white mb-6">{s.price}</div>
                   <a href={s.link} className="inline-flex items-center justify-center bg-stone-900 hover:bg-stone-850 text-white px-6 py-3 rounded-xl font-bold text-sm min-h-[44px]">
                     {s.cta}
                   </a>
@@ -647,37 +663,37 @@ function Home() {
         </section>
 
         {/* Pricing / Services Section */}
-        <section id="pricing" className="px-6 py-16 sm:py-32 bg-white border-t border-stone-100">
+        <section id="pricing" className="px-6 py-16 sm:py-32 bg-stone-950 border-t border-stone-100">
           <div className="max-w-7xl mx-auto">
             <div className="text-center mb-20 space-y-6">
-              <h2 className="text-4xl lg:text-6xl font-black text-stone-900 tracking-tight">Simple, Transparent Pricing.</h2>
-              <p className="text-xl text-stone-500 max-w-2xl mx-auto leading-relaxed">
+              <h2 className="text-4xl lg:text-6xl font-black text-white tracking-tight">Simple, Transparent Pricing.</h2>
+              <p className="text-xl text-stone-400 max-w-2xl mx-auto leading-relaxed">
                 No hidden fees or open-ended hourly billing. You pay for working, deployed agents that handle specific business results.
               </p>
             </div>
             
             <div className="grid lg:grid-cols-2 gap-12">
               {/* Implementations */}
-              <div className="bg-stone-50 rounded-[3rem] p-12 border border-stone-100">
-                <h3 className="text-xl font-bold text-emerald-600 mb-8 uppercase tracking-widest">Implementations</h3>
+              <div className="bg-stone-900 rounded-[3rem] p-12 border border-stone-100">
+                <h3 className="text-xl font-bold text-emerald-400 mb-8 uppercase tracking-widest">Implementations</h3>
                 <div className="space-y-4">
-                  <div className="p-6 bg-white rounded-2xl border border-stone-100 flex justify-between items-center">
+                  <div className="p-6 bg-stone-950 rounded-2xl border border-stone-800 flex justify-between items-center">
                     <div>
-                      <div className="font-black text-stone-900 text-xl">Small Team</div>
-                      <div className="text-sm text-stone-500 font-bold">2 AI Agents • 3 workflows</div>
+                      <div className="font-black text-white text-xl">Small Team</div>
+                      <div className="text-sm text-stone-400 font-bold">2 AI Agents • 3 workflows</div>
                     </div>
                     <div className="text-right">
-                      <div className="font-black text-emerald-600 text-2xl">Starting at $7,500</div>
+                      <div className="font-black text-emerald-400 text-2xl">Starting at $7,500</div>
                       <div className="text-[10px] text-stone-400 font-bold uppercase tracking-tighter">One-Time</div>
                     </div>
                   </div>
-                  <div className="p-6 bg-white rounded-2xl border border-stone-100 flex justify-between items-center">
+                  <div className="p-6 bg-stone-950 rounded-2xl border border-stone-800 flex justify-between items-center">
                     <div>
-                      <div className="font-black text-stone-900 text-xl">Growing Business</div>
-                      <div className="text-sm text-stone-500 font-bold">5 AI Agents • Cross-department</div>
+                      <div className="font-black text-white text-xl">Growing Business</div>
+                      <div className="text-sm text-stone-400 font-bold">5 AI Agents • Cross-department</div>
                     </div>
                     <div className="text-right">
-                      <div className="font-black text-emerald-600 text-2xl">$15,000</div>
+                      <div className="font-black text-emerald-400 text-2xl">$15,000</div>
                       <div className="text-[10px] text-stone-400 font-bold uppercase tracking-tighter">One-Time</div>
                     </div>
                   </div>
@@ -693,39 +709,39 @@ function Home() {
                   </div>
                 </div>
                 <div className="mt-8">
-                  <p className="text-sm text-stone-500 font-medium italic">*The $2,500 blueprint fee is credited toward any implementation.</p>
+                  <p className="text-sm text-stone-400 font-medium italic">*The $2,500 blueprint fee is credited toward any implementation.</p>
                 </div>
               </div>
 
               {/* Monthly Ops */}
-              <div className="bg-stone-50 rounded-[3rem] p-12 border border-stone-100">
-                <h3 className="text-xl font-bold text-emerald-600 mb-8 uppercase tracking-widest">Managed Operations</h3>
+              <div className="bg-stone-900 rounded-[3rem] p-12 border border-stone-100">
+                <h3 className="text-xl font-bold text-emerald-400 mb-8 uppercase tracking-widest">Managed Operations</h3>
                 <div className="space-y-4">
-                  <div className="p-6 bg-white rounded-2xl border border-stone-100 flex justify-between items-center">
+                  <div className="p-6 bg-stone-950 rounded-2xl border border-stone-800 flex justify-between items-center">
                     <div>
-                      <div className="font-black text-stone-900 text-xl">Essential Ops</div>
-                      <div className="text-sm text-stone-500 font-bold">Monitoring • Bug fixes</div>
+                      <div className="font-black text-white text-xl">Essential Ops</div>
+                      <div className="text-sm text-stone-400 font-bold">Monitoring • Bug fixes</div>
                     </div>
                     <div className="text-right">
-                      <div className="font-black text-emerald-600 text-2xl">$750/mo</div>
+                      <div className="font-black text-emerald-400 text-2xl">$750/mo</div>
                     </div>
                   </div>
-                  <div className="p-6 bg-white rounded-2xl border border-stone-100 flex justify-between items-center">
+                  <div className="p-6 bg-stone-950 rounded-2xl border border-stone-800 flex justify-between items-center">
                     <div>
-                      <div className="font-black text-stone-900 text-xl">Professional Ops</div>
-                      <div className="text-sm text-stone-500 font-bold">New automations • Strategy call</div>
+                      <div className="font-black text-white text-xl">Professional Ops</div>
+                      <div className="text-sm text-stone-400 font-bold">New automations • Strategy call</div>
                     </div>
                     <div className="text-right">
-                      <div className="font-black text-emerald-600 text-2xl">$2,000/mo</div>
+                      <div className="font-black text-emerald-400 text-2xl">$2,000/mo</div>
                     </div>
                   </div>
-                  <div className="p-6 bg-white rounded-2xl border border-stone-100 flex justify-between items-center">
+                  <div className="p-6 bg-stone-950 rounded-2xl border border-stone-800 flex justify-between items-center">
                     <div>
-                      <div className="font-black text-stone-900 text-xl">Enterprise Ops</div>
-                      <div className="text-sm text-stone-500 font-bold">Dedicated AI engineer • Priority</div>
+                      <div className="font-black text-white text-xl">Enterprise Ops</div>
+                      <div className="text-sm text-stone-400 font-bold">Dedicated AI engineer • Priority</div>
                     </div>
                     <div className="text-right">
-                      <div className="font-black text-emerald-600 text-2xl">$5,000/mo+</div>
+                      <div className="font-black text-emerald-400 text-2xl">$5,000/mo+</div>
                     </div>
                   </div>
                 </div>
@@ -736,7 +752,7 @@ function Home() {
               <Link to="/contact" className="inline-flex items-center justify-center bg-emerald-600 text-white px-12 py-5 rounded-2xl font-bold text-2xl hover:bg-emerald-700 transition-all shadow-lg min-h-[56px]">
                 Stop Copy-Pasting. Start Your Plan ➜
               </Link>
-              <p className="text-stone-500 font-medium">Identify your best opportunities before you commit to a build.</p>
+              <p className="text-stone-400 font-medium">Identify your best opportunities before you commit to a build.</p>
             </div>
           </div>
         </section>
@@ -780,10 +796,10 @@ function Home() {
               <div className="bg-white/5 backdrop-blur-lg p-12 rounded-[3rem] border border-white/10 text-center space-y-8">
                 <div className="text-emerald-400 font-bold uppercase tracking-widest text-xs">Start Today</div>
                 <h3 className="text-4xl font-black leading-tight">Identify where AI can save you the most time.</h3>
-                <Link to="/contact" className="inline-flex items-center justify-center w-full bg-white text-stone-950 py-5 rounded-2xl font-bold text-xl hover:bg-stone-100 transition-all min-h-[56px]">
+                <Link to="/contact" className="inline-flex items-center justify-center w-full bg-stone-950 text-stone-100 py-5 rounded-2xl font-bold text-xl hover:bg-stone-900 transition-all min-h-[56px]">
                   Stop Copy-Pasting. Reclaim Your Time ➜
                 </Link>
-                <p className="text-stone-500 text-sm font-medium">No credit card required. 30-minute assessment.</p>
+                <p className="text-stone-400 text-sm font-medium">No credit card required. 30-minute assessment.</p>
               </div>
             </div>
           </div>
@@ -791,11 +807,11 @@ function Home() {
 
         {/* Closing CTA */}
         <section id="contact" className="px-6 py-16 sm:py-32 bg-stone-50">
-          <div className="max-w-4xl mx-auto bg-white rounded-[3rem] p-12 lg:p-20 shadow-2xl shadow-stone-200 border border-stone-100 text-center space-y-12">
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-stone-900 leading-tight">
+          <div className="max-w-4xl mx-auto bg-stone-950 rounded-[3rem] p-12 lg:p-20 shadow-2xl shadow-stone-200 border border-stone-800 text-center space-y-12">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white leading-tight">
               Every week your team spends hours on work that software should already be doing.
             </h2>
-            <p className="text-xl sm:text-2xl text-stone-500 leading-relaxed">
+            <p className="text-xl sm:text-2xl text-stone-400 leading-relaxed">
               In 30 minutes, we'll identify your top automation opportunities, estimate the time and cost savings, and recommend the best next step.
             </p>
             <div className="flex flex-col items-center space-y-8">
@@ -808,10 +824,10 @@ function Home() {
         </section>
       </main>
 
-      <footer className="px-6 py-12 border-t border-stone-100 bg-white">
+      <footer className="px-6 py-12 border-t border-stone-800 bg-white">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-12">
           <div>
-            <div className="text-2xl font-black text-emerald-600 mb-4">{businessName}</div>
+            <div className="text-2xl font-black text-emerald-400 mb-4">{businessName}</div>
             <p className="text-stone-400 max-w-sm">AI coworkers for operations teams. Work less, live more.</p>
           </div>
           <div className="flex flex-col items-center md:items-end gap-6">
@@ -821,7 +837,7 @@ function Home() {
               <Link to="/how-it-works" className="hover:text-emerald-600">How It Works</Link>
               <Link to="/faq" className="hover:text-emerald-600">FAQ</Link>
               <Link to="/about" className="hover:text-emerald-600">About</Link>
-              <Link to="/demos/audit-portal" className="hover:text-emerald-600 underline underline-offset-4">Audit Workflow Demo</Link>
+              <Link to="/demos/audit-portal" className="hover:text-emerald-400 underline underline-offset-4">Audit Workflow Demo</Link>
             </div>
             <div className="text-sm text-stone-400">
               &copy; {new Date().getFullYear()} {businessName}. All rights reserved.
