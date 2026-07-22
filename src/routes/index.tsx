@@ -33,6 +33,32 @@ const topVerticals = [
   { name: "Logistics", slug: "logistics", result: "Saved 140 labor hours every month", icon: "🚚", color: "#d97706" },
 ];
 
+const allIndustries = [
+  { name: "Aerospace", id: "aerospace", icon: "✈️" },
+  { name: "Agriculture", id: "agriculture", icon: "🌾" },
+  { name: "Automotive", id: "automotive", icon: "🚗" },
+  { name: "Construction", id: "construction", icon: "🏗️" },
+  { name: "E-Commerce", id: "e-commerce", icon: "🛒" },
+  { name: "Education", id: "education", icon: "📚" },
+  { name: "Energy", id: "energy", icon: "⚡" },
+  { name: "Financial Services", id: "financial-services", icon: "💰" },
+  { name: "Government", id: "government", icon: "🏛️" },
+  { name: "Healthcare", id: "healthcare", icon: "🏥" },
+  { name: "Hospitality", id: "hospitality", icon: "🏨" },
+  { name: "Insurance", id: "insurance", icon: "🛡️" },
+  { name: "Legal", id: "legal", icon: "⚖️" },
+  { name: "Logistics", id: "logistics", icon: "🚚" },
+  { name: "Manufacturing", id: "manufacturing", icon: "🏭" },
+  { name: "Media", id: "media", icon: "🎬" },
+  { name: "Pharmaceuticals", id: "pharmaceuticals", icon: "💊" },
+  { name: "Professional Services", id: "professional-services", icon: "💼" },
+  { name: "Real Estate", id: "real-estate", icon: "🏠" },
+  { name: "Retail", id: "retail", icon: "🛍️" },
+  { name: "Technology", id: "technology", icon: "💻" },
+  { name: "Telecom", id: "telecom", icon: "📡" },
+  { name: "Transportation", id: "transportation", icon: "🚆" },
+];
+
 const industryExamples = [
   {
     industry: "Healthcare",
@@ -137,6 +163,9 @@ function Home() {
   const [promptText, setPromptText] = useState("Auto-read scanned invoice PDFs, extract line-items, update QuickBooks and notify Slack");
   const [compilingState, setCompilingState] = useState<'idle' | 'analyzing' | 'mapping' | 'done'>('done');
 
+  // Mobile menu state
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   // ROI Calculator sliders state
   const [teamSize, setTeamSize] = useState(10);
   const [hoursWasted, setHoursWasted] = useState(8);
@@ -182,9 +211,33 @@ function Home() {
           <Link to="/" className="text-2xl font-black text-emerald-400 tracking-tight">
             {businessName}
           </Link>
-          <nav className="hidden md:flex gap-8 items-center">
-            <a href="#examples" className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">Solutions</a>
-            <Link to="/how-it-works" className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">How It Works</Link>
+
+          {/* Desktop Nav */}
+          <nav className="hidden md:flex gap-6 items-center">
+            {/* INDUSTRY Dropdown */}
+            <div className="relative group">
+              <button className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors flex items-center gap-1 cursor-pointer">
+                Industries
+                <svg className="w-3 h-3 mt-0.5 transition-transform group-hover:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                <div className="bg-stone-900 border border-stone-800 rounded-xl shadow-xl shadow-black/30 p-2 min-w-[220px] max-h-[60vh] overflow-y-auto space-y-0.5">
+                  {allIndustries.map((ind) => (
+                    <Link
+                      key={ind.id}
+                      to={`/industries/${ind.id}`}
+                      className="block px-3.5 py-2 text-sm font-bold rounded-lg text-stone-300 hover:text-white hover:bg-stone-800 transition-colors"
+                    >
+                      {ind.icon} {ind.name}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* TOOLS Dropdown */}
             <div className="relative group">
               <button className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors flex items-center gap-1 cursor-pointer">
                 Tools
@@ -201,22 +254,68 @@ function Home() {
                 </div>
               </div>
             </div>
-            <Link to="/about" className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">About</Link>
+
+            <Link to="/build" className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">Builder</Link>
             <Link to="/faq" className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">FAQ</Link>
-            <a href="#pricing" className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">Pricing</a>
-            <a href="#contact" className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">Contact</a>
             {user ? (
               <Link to="/portal" className="bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-emerald-700 transition-all shadow-md">Dashboard</Link>
             ) : (
-              <>
-                <Link to="/login" className="text-sm font-bold text-emerald-400 hover:text-emerald-700">Login</Link>
-                <Link to="/contact" className="bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-emerald-700 transition-all shadow-md text-xs min-h-[44px] flex items-center justify-center">
-                  Stop Copy-Pasting. Start Free Plan ➜
-                </Link>
-              </>
+              <Link to="/login" className="text-sm font-bold text-emerald-400 hover:text-emerald-700">Login</Link>
             )}
           </nav>
+
+          {/* Mobile Hamburger */}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden text-stone-400 hover:text-emerald-400 transition-colors p-2"
+            aria-label="Toggle navigation menu"
+          >
+            {mobileMenuOpen ? (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            )}
+          </button>
         </div>
+
+        {/* Mobile Nav Overlay */}
+        {mobileMenuOpen && (
+          <div className="md:hidden border-t border-stone-800 mt-4 pt-4 pb-2 space-y-1">
+            <div className="text-xs font-mono font-bold tracking-wider text-stone-500 uppercase px-1 mb-2">Industries</div>
+            <div className="max-h-[45vh] overflow-y-auto space-y-0.5">
+              {allIndustries.map((ind) => (
+                <Link
+                  key={ind.id}
+                  to={`/industries/${ind.id}`}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block px-3 py-2 text-sm font-bold rounded-lg text-stone-300 hover:text-white hover:bg-stone-800 transition-colors"
+                >
+                  {ind.icon} {ind.name}
+                </Link>
+              ))}
+            </div>
+            <div className="border-t border-stone-800 mt-3 pt-3 space-y-1">
+              <div className="text-xs font-mono font-bold tracking-wider text-stone-500 uppercase px-1 mb-2">Tools</div>
+              <Link to="/tools/ai-advisor" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-sm font-bold rounded-lg text-stone-300 hover:text-white hover:bg-stone-800 transition-colors">🤖 AI Advisor</Link>
+              <Link to="/tools/can-we-automate-this" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-sm font-bold rounded-lg text-stone-300 hover:text-white hover:bg-stone-800 transition-colors">🔍 Can We Automate This?</Link>
+              <Link to="/tools/assessment" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-sm font-bold rounded-lg text-stone-300 hover:text-white hover:bg-stone-800 transition-colors">📋 AI Automation Assessment</Link>
+              <Link to="/roi-calculator" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-sm font-bold rounded-lg text-stone-300 hover:text-white hover:bg-stone-800 transition-colors">📊 ROI Calculator</Link>
+            </div>
+            <div className="border-t border-stone-800 mt-3 pt-3 space-y-1">
+              <Link to="/build" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-sm font-bold rounded-lg text-stone-300 hover:text-white hover:bg-stone-800 transition-colors">🔨 Builder</Link>
+              <Link to="/faq" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-sm font-bold rounded-lg text-stone-300 hover:text-white hover:bg-stone-800 transition-colors">❓ FAQ</Link>
+              {user ? (
+                <Link to="/portal" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-sm font-bold rounded-lg text-emerald-400 hover:text-emerald-300 hover:bg-stone-800 transition-colors">📊 Dashboard</Link>
+              ) : (
+                <Link to="/login" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-sm font-bold rounded-lg text-emerald-400 hover:text-emerald-300 hover:bg-stone-800 transition-colors">🔐 Login</Link>
+              )}
+            </div>
+          </div>
+        )}
       </header>
 
       <main className="flex-1">

@@ -87,6 +87,7 @@ export function Header({ businessName, user }: HeaderProps) {
 
           <Link to="/about" className={navLinkClass("/about")}>About</Link>
           <Link to="/faq" className={navLinkClass("/faq")}>FAQ</Link>
+          <Link to="/tools" className={navLinkClass("/tools")}>Tools</Link>
           <a href="#pricing" className="text-sm font-bold text-stone-400 hover:text-white transition-colors">Pricing</a>
           <a href="#contact" className="text-sm font-bold text-stone-400 hover:text-white transition-colors">Contact</a>
 
