@@ -111,20 +111,20 @@ function BuildBuilder() {
   if (submitted) {
     return (
       <div className="flex flex-col min-h-screen selection:bg-emerald-100 selection:text-emerald-900">
-        <header className="px-6 py-6 bg-white border-b border-stone-100">
+        <header className="px-6 py-6 bg-stone-950 border-b border-stone-100">
           <div className="max-w-7xl mx-auto flex justify-between items-center">
-            <Link to="/" className="text-2xl font-black text-emerald-600 tracking-tight">
+            <Link to="/" className="text-2xl font-black text-emerald-400 tracking-tight">
               {businessName}
             </Link>
           </div>
         </header>
         <main className="flex-1 flex items-center justify-center p-6 bg-stone-50">
-          <div className="max-w-xl w-full bg-white p-12 rounded-[3rem] shadow-xl text-center border border-stone-100">
-            <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-4xl mx-auto mb-8">
+          <div className="max-w-xl w-full bg-stone-950 p-12 rounded-[3rem] shadow-xl text-center border border-stone-100">
+            <div className="w-20 h-20 bg-emerald-100 text-emerald-400 rounded-full flex items-center justify-center text-4xl mx-auto mb-8">
               ✅
             </div>
-            <h1 className="text-4xl font-black text-stone-900 mb-6">Build Received!</h1>
-            <p className="text-xl text-stone-600 leading-relaxed mb-10">
+            <h1 className="text-4xl font-black text-white mb-6">Build Received!</h1>
+            <p className="text-xl text-stone-400 leading-relaxed mb-10">
               Thanks {formData.name}! We've received your build configuration. Our team will review it and send you a custom payment link within 24 hours.
             </p>
             <Link to="/" className="inline-block bg-emerald-600 text-white px-10 py-4 rounded-2xl font-bold text-lg hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100">
@@ -138,24 +138,24 @@ function BuildBuilder() {
 
   return (
     <div className="flex flex-col min-h-screen selection:bg-emerald-100 selection:text-emerald-900">
-      <header className="px-6 py-6 bg-white sticky top-0 z-50 border-b border-stone-100 backdrop-blur-md bg-white/80">
+      <header className="px-6 py-6 bg-stone-950 sticky top-0 z-50 border-b border-stone-800 backdrop-blur-md bg-white/80">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <Link to="/" className="text-2xl font-black text-emerald-600 tracking-tight">
+          <Link to="/" className="text-2xl font-black text-emerald-400 tracking-tight">
             {businessName}
           </Link>
           <nav className="flex gap-8 items-center">
-            <Link to="/" className="text-sm font-bold text-stone-600 hover:text-emerald-600 transition-colors">Home</Link>
-            <Link to="/support" className="text-sm font-bold text-stone-600 hover:text-emerald-600 transition-colors">Support</Link>
-            <Link to="/contact" className="text-sm font-bold text-stone-600 hover:text-emerald-600 transition-colors">Contact</Link>
+            <Link to="/" className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">Home</Link>
+            <Link to="/support" className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">Support</Link>
+            <Link to="/contact" className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">Contact</Link>
           </nav>
         </div>
       </header>
 
-      <main className="flex-1 bg-stone-50 py-20 px-6">
+      <main className="flex-1 bg-stone-900 py-20 px-6">
         <div className="max-w-5xl mx-auto">
           <div className="mb-16 text-center">
-            <h1 className="text-5xl lg:text-6xl font-black text-stone-900 mb-6 tracking-tight">Implementation Builder</h1>
-            <p className="text-xl text-stone-500 max-w-2xl mx-auto">
+            <h1 className="text-5xl lg:text-6xl font-black text-white mb-6 tracking-tight">Implementation Builder</h1>
+            <p className="text-xl text-stone-400 max-w-2xl mx-auto">
               Configure your custom AI automation package. We'll review your build and send a payment link to get started.
             </p>
           </div>
@@ -169,31 +169,31 @@ function BuildBuilder() {
               </div>
               <div className="grid md:grid-cols-3 gap-6">
                 <div>
-                  <label className="block text-sm font-bold text-stone-700 mb-2">Your Name</label>
+                  <label className="block text-sm font-bold text-stone-300 mb-2">Your Name</label>
                   <input
                     required
                     type="text"
-                    className="w-full bg-white border border-stone-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                    className="w-full bg-stone-950 border border-stone-900 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-stone-700 mb-2">Work Email</label>
+                  <label className="block text-sm font-bold text-stone-300 mb-2">Work Email</label>
                   <input
                     required
                     type="email"
-                    className="w-full bg-white border border-stone-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                    className="w-full bg-stone-950 border border-stone-900 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-stone-700 mb-2">Company Name</label>
+                  <label className="block text-sm font-bold text-stone-300 mb-2">Company Name</label>
                   <input
                     required
                     type="text"
-                    className="w-full bg-white border border-stone-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                    className="w-full bg-stone-950 border border-stone-900 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
                     value={formData.company}
                     onChange={(e) => setFormData({ ...formData, company: e.target.value })}
                   />
@@ -215,7 +215,7 @@ function BuildBuilder() {
                     className={`cursor-pointer p-8 rounded-[2rem] border-2 transition-all ${
                       selectedBase.id === pkg.id
                         ? 'border-emerald-600 bg-emerald-50/30 shadow-xl shadow-emerald-100/50'
-                        : 'border-stone-100 bg-white hover:border-stone-200'
+                        : 'border-stone-800 bg-stone-950 hover:border-stone-200'
                     }`}
                   >
                     <div className="flex justify-between items-start mb-4">
@@ -226,12 +226,12 @@ function BuildBuilder() {
                         {selectedBase.id === pkg.id && <div className="w-2 h-2 rounded-full bg-white" />}
                       </div>
                     </div>
-                    <div className="text-3xl font-black text-emerald-600 mb-6">
+                    <div className="text-3xl font-black text-emerald-400 mb-6">
                       ${pkg.price.toLocaleString()}
                     </div>
                     <ul className="space-y-3">
                       {pkg.features.map((f) => (
-                        <li key={f} className="flex items-center gap-2 text-stone-600 text-sm font-medium">
+                        <li key={f} className="flex items-center gap-2 text-stone-400 text-sm font-medium">
                           <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
                           </svg>
@@ -258,12 +258,12 @@ function BuildBuilder() {
                     className={`cursor-pointer p-6 rounded-2xl border-2 transition-all flex justify-between items-center ${
                       selectedAddOns.includes(addon.id)
                         ? 'border-emerald-600 bg-emerald-50/30 shadow-md'
-                        : 'border-stone-100 bg-white hover:border-stone-200'
+                        : 'border-stone-800 bg-stone-950 hover:border-stone-200'
                     }`}
                   >
                     <div>
                       <div className="font-bold text-stone-900">{addon.name}</div>
-                      <div className="text-emerald-600 font-black">+${addon.price.toLocaleString()}</div>
+                      <div className="text-emerald-400 font-black">+${addon.price.toLocaleString()}</div>
                     </div>
                     <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center ${
                       selectedAddOns.includes(addon.id) ? 'border-emerald-600 bg-emerald-600' : 'border-stone-200'
@@ -300,9 +300,9 @@ function BuildBuilder() {
         </div>
       </main>
 
-      <footer className="px-6 py-12 border-t border-stone-100 bg-white">
+      <footer className="px-6 py-12 border-t border-stone-800 bg-white">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-12 text-stone-400 text-sm">
-          <div className="font-black text-emerald-600 text-xl">{businessName}</div>
+          <div className="font-black text-emerald-400 text-xl">{businessName}</div>
           <div>&copy; {new Date().getFullYear()} {businessName}. All rights reserved.</div>
         </div>
       </footer>

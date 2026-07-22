@@ -78,7 +78,7 @@ function CanWeAutomateThis() {
                 <button
                   key={p}
                   onClick={() => setInput(p)}
-                  className="text-[10px] font-mono text-stone-500 hover:text-emerald-400 bg-stone-900 hover:bg-stone-800 border border-stone-800 px-2.5 py-1 rounded-lg transition-all truncate max-w-[200px]"
+                  className="text-[10px] font-mono text-stone-400 hover:text-emerald-400 bg-stone-900 hover:bg-stone-800 border border-stone-800 px-2.5 py-1 rounded-lg transition-all truncate max-w-[200px]"
                 >
                   {p.slice(0, 40)}...
                 </button>
@@ -87,7 +87,7 @@ function CanWeAutomateThis() {
             <button
               onClick={handleAnalyze}
               disabled={!input.trim() || analyzing}
-              className="bg-emerald-500 hover:bg-emerald-400 disabled:bg-stone-700 disabled:text-stone-500 text-black font-bold text-sm px-6 py-2.5 rounded-xl transition-all flex items-center gap-2"
+              className="bg-emerald-500 hover:bg-emerald-400 disabled:bg-stone-700 disabled:text-stone-400 text-black font-bold text-sm px-6 py-2.5 rounded-xl transition-all flex items-center gap-2"
             >
               {analyzing ? (
                 <>
@@ -124,25 +124,25 @@ function CanWeAutomateThis() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <div className="bg-stone-900/80 border border-stone-800 rounded-xl p-4 text-center">
                     <div className="text-2xl font-black text-emerald-400">{result.top.estimatedHoursSaved}h</div>
-                    <div className="text-[10px] font-mono text-stone-500 mt-1">SAVED / WEEK</div>
+                    <div className="text-[10px] font-mono text-stone-400 mt-1">SAVED / WEEK</div>
                   </div>
                   <div className="bg-stone-900/80 border border-stone-800 rounded-xl p-4 text-center">
                     <div className="text-2xl font-black text-emerald-400">${(result.top.estimatedHoursSaved * 25).toLocaleString()}</div>
-                    <div className="text-[10px] font-mono text-stone-500 mt-1">SAVED / WEEK*</div>
+                    <div className="text-[10px] font-mono text-stone-400 mt-1">SAVED / WEEK*</div>
                   </div>
                   <div className="bg-stone-900/80 border border-stone-800 rounded-xl p-4 text-center">
                     <div className="text-2xl font-black text-emerald-400 capitalize">{result.top.confidence}</div>
-                    <div className="text-[10px] font-mono text-stone-500 mt-1">MATCH CONFIDENCE</div>
+                    <div className="text-[10px] font-mono text-stone-400 mt-1">MATCH CONFIDENCE</div>
                   </div>
                   <div className="bg-stone-900/80 border border-stone-800 rounded-xl p-4 text-center">
                     <div className="text-lg font-black text-stone-300">{result.industry}</div>
-                    <div className="text-[10px] font-mono text-stone-500 mt-1">INDUSTRY</div>
+                    <div className="text-[10px] font-mono text-stone-400 mt-1">INDUSTRY</div>
                   </div>
                 </div>
 
                 {/* Suggested Agent */}
                 <div className="bg-stone-950/60 border border-stone-800 rounded-xl p-4">
-                  <div className="text-xs font-mono text-stone-500 mb-2">SUGGESTED AI AGENT</div>
+                  <div className="text-xs font-mono text-stone-400 mb-2">SUGGESTED AI AGENT</div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <span className="text-2xl">{result.top.suggestedAgentEmoji}</span>
@@ -178,7 +178,7 @@ function CanWeAutomateThis() {
                   </a>
                 </div>
 
-                <p className="text-[10px] text-stone-600 italic">
+                <p className="text-[10px] text-stone-400 italic">
                   *Savings calculated at $25/hr blended labor rate. Your actual savings may vary based on volume and complexity.
                 </p>
               </div>
@@ -188,7 +188,7 @@ function CanWeAutomateThis() {
           {/* Other Matches */}
           {result.allResults.length > 1 && (
             <div className="space-y-3">
-              <h3 className="text-sm font-mono font-bold text-stone-500 tracking-wide px-1">
+              <h3 className="text-sm font-mono font-bold text-stone-400 tracking-wide px-1">
                 OTHER AUTOMATION OPPORTUNITIES ({result.allResults.length - 1} found)
               </h3>
               <div className="grid md:grid-cols-2 gap-3">
@@ -197,11 +197,11 @@ function CanWeAutomateThis() {
                     <span className="text-2xl">{r.suggestedAgentEmoji}</span>
                     <div className="flex-1 min-w-0">
                       <div className="font-bold text-sm text-stone-200">{r.match.name}</div>
-                      <div className="text-xs text-stone-500 mt-0.5 line-clamp-2">{r.match.description}</div>
+                      <div className="text-xs text-stone-400 mt-0.5 line-clamp-2">{r.match.description}</div>
                       <div className="flex items-center gap-3 mt-2 text-xs">
                         <span className="text-emerald-400 font-bold">{r.estimatedHoursSaved}h/week</span>
                         <span className="text-stone-600">•</span>
-                        <span className="text-stone-500 capitalize">{r.confidence} match</span>
+                        <span className="text-stone-400 capitalize">{r.confidence} match</span>
                       </div>
                     </div>
                     <a
@@ -232,7 +232,7 @@ function CanWeAutomateThis() {
       {/* Empty State */}
       {!result && !analyzing && (
         <section className="max-w-3xl mx-auto px-6 pb-20">
-          <div className="text-center text-stone-600 space-y-4">
+          <div className="text-center text-stone-400 space-y-4">
             <div className="text-4xl">🤔</div>
             <p className="text-sm font-medium">
               Describe any manual process your team does daily — we'll match it to an automation workflow

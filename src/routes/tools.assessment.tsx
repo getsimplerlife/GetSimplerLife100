@@ -227,7 +227,7 @@ function AutomationAssessment() {
 
       {/* Progress Bar */}
       <div className="max-w-2xl mx-auto px-6 mb-6">
-        <div className="flex justify-between text-[10px] font-mono text-stone-600 mb-2">
+        <div className="flex justify-between text-[10px] font-mono text-stone-400 mb-2">
           <span>Assessment</span>
           <span>{report ? "Complete!" : `Step ${step + 1} of ${totalSteps}`}</span>
         </div>
@@ -250,7 +250,7 @@ function AutomationAssessment() {
               </div>
               <h2 className="text-xl font-bold mb-1">{assessmentQuestions[step].question}</h2>
               {assessmentQuestions[step].description && (
-                <p className="text-xs text-stone-500 mb-6">{assessmentQuestions[step].description}</p>
+                <p className="text-xs text-stone-400 mb-6">{assessmentQuestions[step].description}</p>
               )}
 
               {/* Options */}
@@ -308,7 +308,7 @@ function AutomationAssessment() {
                     placeholder={assessmentQuestions[step].placeholder}
                     className="w-full h-28 bg-stone-950 border border-stone-800 rounded-xl p-4 text-sm text-stone-200 placeholder-stone-600 outline-none focus:border-emerald-700 resize-none font-medium leading-relaxed"
                   />
-                  <p className="text-[10px] text-stone-600 mt-2">
+                  <p className="text-[10px] text-stone-400 mt-2">
                     Be specific — mention systems, people, and frequency for the best recommendations
                   </p>
                 </div>
@@ -319,14 +319,14 @@ function AutomationAssessment() {
                 <button
                   onClick={handleBack}
                   disabled={step === 0}
-                  className="px-5 py-2.5 bg-stone-800 hover:bg-stone-700 disabled:bg-stone-900 disabled:text-stone-600 text-stone-200 font-bold text-sm rounded-xl transition-all"
+                  className="px-5 py-2.5 bg-stone-800 hover:bg-stone-700 disabled:bg-stone-900 disabled:text-stone-400 text-stone-200 font-bold text-sm rounded-xl transition-all"
                 >
                   ← Back
                 </button>
                 <button
                   onClick={handleNext}
                   disabled={!canProceed()}
-                  className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-400 disabled:bg-stone-700 disabled:text-stone-500 text-black font-bold text-sm rounded-xl transition-all"
+                  className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-400 disabled:bg-stone-700 disabled:text-stone-400 text-black font-bold text-sm rounded-xl transition-all"
                 >
                   {step < totalSteps - 1 ? "Next →" : generating ? (
                     <span className="flex items-center gap-2">
@@ -380,7 +380,7 @@ function AutomationAssessment() {
                           {w.priority === "quick-win" ? "⚡ Quick Win" : w.priority === "medium-term" ? "📅 Medium" : "🏗️ Long-term"}
                         </span>
                       </div>
-                      <p className="text-xs text-stone-500 mt-1 line-clamp-2">{w.workflow.description}</p>
+                      <p className="text-xs text-stone-400 mt-1 line-clamp-2">{w.workflow.description}</p>
                       <div className="flex items-center gap-4 mt-2 text-xs">
                         <span className="text-emerald-400 font-bold">${w.estimatedAnnualSavings.toLocaleString()}/yr</span>
                         <span className="text-stone-600">•</span>
@@ -416,13 +416,13 @@ function AutomationAssessment() {
                           <span className="text-emerald-400 mt-0.5">✓</span>
                           <div>
                             <span className="font-medium">{w.workflow.name}</span>
-                            <span className="text-stone-500 block">${w.estimatedAnnualSavings.toLocaleString()}/yr</span>
+                            <span className="text-stone-400 block">${w.estimatedAnnualSavings.toLocaleString()}/yr</span>
                           </div>
                         </li>
                       ))}
                     </ul>
                   ) : (
-                    <p className="text-xs text-stone-500 italic">No quick wins identified for your profile</p>
+                    <p className="text-xs text-stone-400 italic">No quick wins identified for your profile</p>
                   )}
                 </div>
 
@@ -436,13 +436,13 @@ function AutomationAssessment() {
                           <span className="text-amber-400 mt-0.5">→</span>
                           <div>
                             <span className="font-medium">{w.workflow.name}</span>
-                            <span className="text-stone-500 block">${w.estimatedAnnualSavings.toLocaleString()}/yr</span>
+                            <span className="text-stone-400 block">${w.estimatedAnnualSavings.toLocaleString()}/yr</span>
                           </div>
                         </li>
                       ))}
                     </ul>
                   ) : (
-                    <p className="text-xs text-stone-500 italic">No medium-term items</p>
+                    <p className="text-xs text-stone-400 italic">No medium-term items</p>
                   )}
                 </div>
 
@@ -456,13 +456,13 @@ function AutomationAssessment() {
                           <span className="text-red-400 mt-0.5">◆</span>
                           <div>
                             <span className="font-medium">{w.workflow.name}</span>
-                            <span className="text-stone-500 block">${w.estimatedAnnualSavings.toLocaleString()}/yr</span>
+                            <span className="text-stone-400 block">${w.estimatedAnnualSavings.toLocaleString()}/yr</span>
                           </div>
                         </li>
                       ))}
                     </ul>
                   ) : (
-                    <p className="text-xs text-stone-500 italic">No long-term items</p>
+                    <p className="text-xs text-stone-400 italic">No long-term items</p>
                   )}
                 </div>
               </div>
@@ -478,7 +478,7 @@ function AutomationAssessment() {
                   {report.recommendedIntegrations.map((i) => (
                     <span key={i.name} className="px-3 py-1.5 bg-stone-950 border border-stone-800 rounded-lg text-xs text-stone-300 font-medium">
                       {i.name}
-                      <span className="text-stone-600 ml-1">({i.category})</span>
+                      <span className="text-stone-400 ml-1">({i.category})</span>
                     </span>
                   ))}
                 </div>
@@ -518,7 +518,7 @@ function AutomationAssessment() {
             <div className="text-center">
               <a
                 href="/tools"
-                className="text-xs text-stone-600 hover:text-stone-400 font-mono transition-all"
+                className="text-xs text-stone-400 hover:text-stone-400 font-mono transition-all"
               >
                 ← Back to all tools
               </a>

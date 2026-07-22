@@ -75,7 +75,7 @@ function ROICalculatorPage() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-stone-900 bg-stone-950/40 py-8 text-center text-stone-500 text-[10px] tracking-widest uppercase font-mono">
+      <footer className="border-t border-stone-900 bg-stone-950/40 py-8 text-center text-stone-400 text-[10px] tracking-widest uppercase font-mono">
         &copy; {new Date().getFullYear()} Simpler Life 100 &bull; Strategic AI Operations
       </footer>
 
