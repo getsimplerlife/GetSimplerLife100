@@ -4,6 +4,7 @@
 import { serve, file } from "bun";
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
+import { industryContent } from "./src/content/industryContentFixed";
 
 const PORT = 3000;
 const HOST = "0.0.0.0";
@@ -1005,11 +1006,73 @@ function renderROICalculator(): string {
 }
 
 // ─── Industry Pages ───
+const SLUG_TO_KEY: Record<string, string> = {
+  "e-commerce": "ecommerce",
+  "financial-services": "financialServices",
+  "professional-services": "professionalServices",
+  "real-estate": "realEstate",
+};
+
 function renderIndustry(slug: string): string {
-  const ind = allIndustries.find(i => i.id === slug) || { name: slug.charAt(0).toUpperCase()+slug.slice(1).replace(/-/g,' '), icon: '🏢', id: slug };
-  const ints = ["Salesforce","HubSpot","QuickBooks","SAP","Oracle NetSuite","Microsoft 365","Google Workspace","Slack","Teams"];
-  const wfs = ["Invoice Automation","Document Processing","Data Entry Automation","Compliance Reporting","Supplier Communication","Purchase Orders","Inventory Reconciliation"];
-  return '<section class="section" style="text-align:center"><div class="container" style="max-width:48rem"><span style="display:inline-block;padding:0.25rem 0.75rem;font-size:0.625rem;font-weight:800;letter-spacing:0.1em;border-radius:9999px;background:rgba(16,185,129,0.1);color:#34d399;border:1px solid rgba(16,185,129,0.2);text-transform:uppercase;margin-bottom:1rem">INDUSTRY SOLUTIONS</span><h1 style="font-size:3rem;font-weight:900;color:#fff;margin-bottom:1rem">'+ind.icon+' AI for '+ind.name+'</h1><p style="font-size:1.125rem;color:#a8a29e;line-height:1.7">Pre-built AI operations teams for '+ind.name.toLowerCase()+' companies. Deploy in days, not months.</p></div></section><section class="section" style="padding-top:2rem"><div class="container" style="max-width:64rem"><div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;margin-bottom:3rem"><div style="background:#292524;border:1px solid #44403c;border-radius:2rem;padding:2.5rem"><h3 style="font-size:1.25rem;font-weight:900;color:#fff;margin-bottom:1.5rem">🔌 Recommended Integrations</h3><div style="display:flex;flex-wrap:wrap;gap:0.5rem">'+ints.map(function(i){return '<span style="background:#1c1917;color:#a8a29e;font-weight:700;font-size:0.75rem;padding:0.5rem 0.75rem;border-radius:0.5rem;border:1px solid #44403c">'+i+'</span>'}).join("")+'</div></div><div style="background:#292524;border:1px solid #44403c;border-radius:2rem;padding:2.5rem"><h3 style="font-size:1.25rem;font-weight:900;color:#fff;margin-bottom:1.5rem">⚡ Automated Workflows</h3><div style="display:flex;flex-wrap:wrap;gap:0.5rem">'+wfs.map(function(w){return '<span style="background:rgba(16,185,129,0.08);color:#10b981;font-weight:700;font-size:0.75rem;padding:0.5rem 0.75rem;border-radius:0.5rem;border:1px solid rgba(16,185,129,0.2)">✓ '+w+'</span>'}).join("")+'</div></div></div><div style="background:#292524;border:1px solid #44403c;border-radius:2rem;padding:3rem;text-align:center"><h2 style="font-size:2rem;font-weight:900;color:#fff;margin-bottom:1rem">Ready to automate '+ind.name.toLowerCase()+' operations?</h2><p style="color:#a8a29e;font-size:1.125rem;margin-bottom:2rem">Select your AI team and deploy in under 21 days with pre-built '+ind.name.toLowerCase()+' integrations.</p><div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap"><a href="/build" style="display:inline-block;background:#10b981;color:#000;padding:1rem 2rem;border-radius:1rem;font-weight:800;font-size:1.125rem;text-decoration:none">Build Your AI Team →</a><a href="/tools/assessment" style="display:inline-block;background:#44403c;color:#e7e5e4;padding:1rem 2rem;border-radius:1rem;font-weight:800;font-size:1.125rem;text-decoration:none">Free Assessment →</a></div></div></div></section>';
+  const key = SLUG_TO_KEY[slug] || slug;
+  const d = (industryContent as Record<string, any>)[key];
+
+  if (!d) {
+    const ind = allIndustries.find(function(i){return i.id===slug}) || { name: slug.charAt(0).toUpperCase()+slug.slice(1).replace(/-/g,' '), icon: '🏢', id: slug };
+    var ints = ["Salesforce","HubSpot","QuickBooks","SAP","Oracle NetSuite","Microsoft 365","Google Workspace","Slack","Teams"];
+    var wfs = ["Invoice Automation","Document Processing","Data Entry Automation","Compliance Reporting","Supplier Communication","Purchase Orders","Inventory Reconciliation"];
+    return '<section class="section" style="text-align:center"><div class="container" style="max-width:48rem"><span style="display:inline-block;padding:0.25rem 0.75rem;font-size:0.625rem;font-weight:800;letter-spacing:0.1em;border-radius:9999px;background:rgba(16,185,129,0.1);color:#34d399;border:1px solid rgba(16,185,129,0.2);text-transform:uppercase;margin-bottom:1rem">INDUSTRY SOLUTIONS</span><h1 style="font-size:3rem;font-weight:900;color:#fff;margin-bottom:1rem">'+ind.icon+' AI for '+ind.name+'</h1><p style="font-size:1.125rem;color:#a8a29e;line-height:1.7">Pre-built AI operations teams for '+ind.name.toLowerCase()+' companies. Deploy in days, not months.</p></div></section><section class="section" style="padding-top:2rem"><div class="container" style="max-width:64rem"><div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;margin-bottom:3rem"><div style="background:#292524;border:1px solid #44403c;border-radius:2rem;padding:2.5rem"><h3 style="font-size:1.25rem;font-weight:900;color:#fff;margin-bottom:1.5rem">🔌 Recommended Integrations</h3><div style="display:flex;flex-wrap:wrap;gap:0.5rem">'+ints.map(function(i){return '<span style="background:#1c1917;color:#a8a29e;font-weight:700;font-size:0.75rem;padding:0.5rem 0.75rem;border-radius:0.5rem;border:1px solid #44403c">'+i+'</span>'}).join("")+'</div></div><div style="background:#292524;border:1px solid #44403c;border-radius:2rem;padding:2.5rem"><h3 style="font-size:1.25rem;font-weight:900;color:#fff;margin-bottom:1.5rem">⚡ Automated Workflows</h3><div style="display:flex;flex-wrap:wrap;gap:0.5rem">'+wfs.map(function(w){return '<span style="background:rgba(16,185,129,0.08);color:#10b981;font-weight:700;font-size:0.75rem;padding:0.5rem 0.75rem;border-radius:0.5rem;border:1px solid rgba(16,185,129,0.2)">✓ '+w+'</span>'}).join("")+'</div></div></div><div style="background:#292524;border:1px solid #44403c;border-radius:2rem;padding:3rem;text-align:center"><h2 style="font-size:2rem;font-weight:900;color:#fff;margin-bottom:1rem">Ready to automate '+ind.name.toLowerCase()+' operations?</h2><p style="color:#a8a29e;font-size:1.125rem;margin-bottom:2rem">Select your AI team and deploy in under 21 days with pre-built '+ind.name.toLowerCase()+' integrations.</p><div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap"><a href="/build" style="display:inline-block;background:#10b981;color:#000;padding:1rem 2rem;border-radius:1rem;font-weight:800;font-size:1.125rem;text-decoration:none">Build Your AI Team →</a><a href="/tools/assessment" style="display:inline-block;background:#44403c;color:#e7e5e4;padding:1rem 2rem;border-radius:1rem;font-weight:800;font-size:1.125rem;text-decoration:none">Free Assessment →</a></div></div></div></section>';
+  }
+
+  var html = '';
+
+  html += '<section class="section" style="text-align:center"><div class="container" style="max-width:56rem"><span style="display:inline-block;padding:0.25rem 0.75rem;font-size:0.625rem;font-weight:800;letter-spacing:0.1em;border-radius:9999px;background:rgba(16,185,129,0.1);color:#34d399;border:1px solid rgba(16,185,129,0.2);text-transform:uppercase;margin-bottom:1rem">INDUSTRY SOLUTIONS</span><h1 style="font-size:3rem;font-weight:900;color:#fff;margin-bottom:1rem">'+e(d.hero.emoji)+' AI for '+slug.charAt(0).toUpperCase()+slug.slice(1).replace(/-/g," ")+'</h1><h2 style="font-size:1.5rem;font-weight:800;color:#e7e5e4;margin-bottom:0.75rem">'+e(d.hero.headline)+'</h2><p style="font-size:1.125rem;color:#a8a29e;line-height:1.7;max-width:42rem;margin:0 auto">'+e(d.hero.subHeadline)+'</p></div></section>';
+
+  html += '<section class="section" style="padding-top:2rem"><div class="container" style="max-width:56rem"><div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem"><div style="background:#292524;border:1px solid #44403c;border-radius:1.5rem;padding:2rem"><span style="font-size:2rem">⏱️</span><h3 style="font-size:0.75rem;font-weight:800;color:#78716c;text-transform:uppercase;letter-spacing:0.05em;margin:0.75rem 0 0.25rem">Time Savings</h3><p style="font-size:1rem;font-weight:700;color:#fff;margin-bottom:0.5rem">'+e(d.timeSavings.monthlyHours)+'</p><p style="font-size:0.75rem;color:#a8a29e;line-height:1.5">'+e(d.timeSavings.context)+'</p></div><div style="background:#292524;border:1px solid #44403c;border-radius:1.5rem;padding:2rem"><span style="font-size:2rem">💰</span><h3 style="font-size:0.75rem;font-weight:800;color:#78716c;text-transform:uppercase;letter-spacing:0.05em;margin:0.75rem 0 0.25rem">Dollar Savings</h3><p style="font-size:1rem;font-weight:700;color:#10b981;margin-bottom:0.5rem">'+e(d.dollarSavings.annual)+'</p><p style="font-size:0.75rem;color:#a8a29e;line-height:1.5">'+e(d.dollarSavings.context)+'</p></div></div></div></section>';
+
+  html += '<section class="section"><div class="container" style="max-width:64rem"><h3 style="font-size:1.5rem;font-weight:900;color:#fff;margin-bottom:1.5rem;text-align:center">🧩 Operational Pain Points We Solve</h3><div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">';
+  for (var i = 0; i < d.painPoints.length; i++) {
+    var p = d.painPoints[i];
+    html += '<div style="background:#292524;border:1px solid #44403c;border-radius:1.25rem;padding:1.5rem"><h4 style="font-size:0.875rem;font-weight:800;color:#fbbf24;margin-bottom:0.5rem">'+e(p.title)+'</h4><p style="font-size:0.8125rem;color:#a8a29e;line-height:1.6">'+e(p.description)+'</p></div>';
+  }
+  html += '</div></div></section>';
+
+  html += '<section class="section"><div class="container" style="max-width:64rem"><h3 style="font-size:1.5rem;font-weight:900;color:#fff;margin-bottom:1.5rem;text-align:center">🤖 Recommended AI Operations Team</h3><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem">';
+  for (var i = 0; i < d.recommendedAgents.length; i++) {
+    var a = d.recommendedAgents[i];
+    html += '<div style="background:#292524;border:1px solid #44403c;border-radius:1.25rem;padding:1.5rem"><span style="display:inline-block;padding:0.125rem 0.5rem;font-size:0.5625rem;font-weight:800;border-radius:0.25rem;background:rgba(16,185,129,0.12);color:#34d399;text-transform:uppercase;margin-bottom:0.5rem">'+e(a.agentType.replace(/_/g," "))+'</span><h4 style="font-size:1rem;font-weight:800;color:#fff;margin-bottom:0.5rem">'+e(a.name)+'</h4><p style="font-size:0.75rem;color:#a8a29e;line-height:1.5">'+e(a.description)+'</p></div>';
+  }
+  html += '</div></div></section>';
+
+  html += '<section class="section"><div class="container" style="max-width:64rem"><h3 style="font-size:1.5rem;font-weight:900;color:#fff;margin-bottom:1.5rem;text-align:center">🔌 Key Integrations</h3><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem">';
+  for (var i = 0; i < d.keyIntegrations.length; i++) {
+    var ki = d.keyIntegrations[i];
+    html += '<div style="background:#292524;border:1px solid #44403c;border-radius:1rem;padding:1.25rem"><h4 style="font-size:0.9375rem;font-weight:800;color:#fff;margin-bottom:0.375rem">'+e(ki.name)+'</h4><p style="font-size:0.75rem;color:#a8a29e;line-height:1.5">'+e(ki.description)+'</p></div>';
+  }
+  html += '</div></div></section>';
+
+  html += '<section class="section"><div class="container" style="max-width:64rem"><h3 style="font-size:1.5rem;font-weight:900;color:#fff;margin-bottom:1.5rem;text-align:center">⚡ Workflow Automation Examples</h3><div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">';
+  for (var i = 0; i < d.workflowExamples.length; i++) {
+    var w = d.workflowExamples[i];
+    html += '<div style="background:#292524;border:1px solid #44403c;border-radius:1.25rem;padding:1.5rem"><div style="display:flex;gap:0.75rem;align-items:flex-start"><span style="display:flex;align-items:center;justify-content:center;width:2rem;min-width:2rem;height:2rem;border-radius:0.5rem;background:rgba(16,185,129,0.12);color:#34d399;font-size:0.75rem;font-weight:900;font-family:monospace">'+(i+1)+'</span><div><h4 style="font-size:0.9375rem;font-weight:800;color:#fff;margin-bottom:0.375rem">'+e(w.name)+'</h4><p style="font-size:0.8125rem;color:#a8a29e;line-height:1.6">'+e(w.description)+'</p></div></div></div>';
+  }
+  html += '</div></div></section>';
+
+  html += '<section class="section"><div class="container" style="max-width:56rem"><div style="background:#292524;border:1px solid #44403c;border-radius:2rem;padding:2.5rem"><h3 style="font-size:1.25rem;font-weight:900;color:#fff;margin-bottom:1.5rem;text-align:center">📊 Verified ROI Metrics</h3><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1.5rem"><div style="background:#1c1917;border-radius:1rem;padding:1.25rem;text-align:center"><span style="font-size:0.625rem;font-weight:800;color:#78716c;text-transform:uppercase;display:block;margin-bottom:0.375rem">Payback Period</span><span style="font-size:1.125rem;font-weight:900;color:#10b981">'+d.roi.paybackMonths+' months</span></div><div style="background:#1c1917;border-radius:1rem;padding:1.25rem;text-align:center"><span style="font-size:0.625rem;font-weight:800;color:#78716c;text-transform:uppercase;display:block;margin-bottom:0.375rem">Accuracy</span><span style="font-size:1.125rem;font-weight:900;color:#10b981">'+e(d.roi.accuracyImprovement)+'</span></div>';
+  for (var i = 0; i < d.roi.additionalMetrics.length; i++) {
+    var m = d.roi.additionalMetrics[i];
+    html += '<div style="background:#1c1917;border-radius:1rem;padding:1.25rem;text-align:center"><span style="font-size:0.625rem;font-weight:800;color:#78716c;text-transform:uppercase;display:block;margin-bottom:0.375rem">'+e(m.label)+'</span><span style="font-size:1.125rem;font-weight:900;color:#10b981">'+e(m.value)+'</span></div>';
+  }
+  html += '</div></div></div></section>';
+
+  var indName = slug.charAt(0).toUpperCase()+slug.slice(1).replace(/-/g," ");
+  html += '<section class="section" style="padding-bottom:4rem"><div class="container" style="max-width:48rem"><div style="background:#292524;border:1px solid #44403c;border-radius:2rem;padding:3rem;text-align:center"><h2 style="font-size:2rem;font-weight:900;color:#fff;margin-bottom:1rem">'+e(d.cta.headline)+'</h2><p style="color:#a8a29e;font-size:1.125rem;margin-bottom:2rem">Select your AI team and deploy in under 21 days with pre-built '+indName.toLowerCase()+' integrations.</p><div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap"><a href="'+e(d.cta.buildLink)+'" style="display:inline-block;background:#10b981;color:#000;padding:1rem 2rem;border-radius:1rem;font-weight:800;font-size:1.125rem;text-decoration:none">Build Your AI Team →</a><a href="'+e(d.cta.assessmentLink)+'" style="display:inline-block;background:#44403c;color:#e7e5e4;padding:1rem 2rem;border-radius:1rem;font-weight:800;font-size:1.125rem;text-decoration:none">Free Assessment →</a></div></div></div></section>';
+
+  return html;
+}
+
+function e(s: string): string {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
 function renderFooter() {
