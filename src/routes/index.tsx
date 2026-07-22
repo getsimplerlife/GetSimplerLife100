@@ -290,14 +290,14 @@ function Home() {
 
                 {/* Simulated Generated Result Card */}
                 {compilingState === 'done' && (
-                  <div className="bg-stone-950 border border-stone-200/80 rounded-2xl p-4 space-y-4 animate-fadeIn">
+                  <div className="bg-stone-950 border border-stone-800/80 rounded-2xl p-4 space-y-4 animate-fadeIn">
                     <div className="flex justify-between items-center border-b border-stone-800 pb-2.5">
                       <h4 className="text-xs font-black text-white font-mono tracking-tight">{activeTemplate.title}</h4>
                       <span className="text-[9px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded font-black">99.2% ACCURACY</span>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                       {activeTemplate.steps.map((st, i) => (
-                        <div key={i} className="p-3 bg-stone-900 rounded-xl space-y-1 relative border border-stone-100">
+                        <div key={i} className="p-3 bg-stone-900 rounded-xl space-y-1 relative border border-stone-900">
                           <span className="text-xl block mb-1">{st.icon}</span>
                           <div className="text-[10px] font-black text-white leading-tight">{st.label}</div>
                           <div className="text-[8px] text-stone-400 leading-normal line-clamp-2">{st.desc}</div>
@@ -392,7 +392,7 @@ function Home() {
         </section>
 
         {/* ─── Detailed Case Study Card ( fold-area ) ─── */}
-        <section className="px-4 py-16 bg-stone-900 border-b border-stone-200/80">
+        <section className="px-4 py-16 bg-stone-900 border-b border-stone-800/80">
           <div className="max-w-7xl mx-auto space-y-8">
             <div className="border-l-4 border-emerald-600 pl-4">
               <span className="text-[10px] font-mono font-bold tracking-widest text-stone-400 uppercase block">CUSTOMER TRIAL SUCCESS</span>
@@ -450,11 +450,11 @@ function Home() {
                 <div className="grid grid-cols-2 gap-4 border-t border-stone-900 pt-5 text-center">
                   <div className="space-y-1">
                     <div className="text-[9px] font-mono text-stone-400 uppercase block font-bold">Labor Reclaimed</div>
-                    <div className="text-xl font-black text-stone-900">$12,000 / mo</div>
+                    <div className="text-xl font-black text-stone-100">$12,000 / mo</div>
                   </div>
                   <div className="space-y-1">
                     <div className="text-[9px] font-mono text-stone-400 uppercase block font-bold">Data Accuracy</div>
-                    <div className="text-xl font-black text-stone-900">100% Correct</div>
+                    <div className="text-xl font-black text-stone-100">100% Correct</div>
                   </div>
                 </div>
               </div>
@@ -486,7 +486,7 @@ function Home() {
         </section>
 
         {/* Industry Examples Section */}
-        <section id="examples" className="px-6 py-16 sm:py-32 bg-stone-900 border-y border-stone-100">
+        <section id="examples" className="px-6 py-16 sm:py-32 bg-stone-900 border-y border-stone-900">
           <div className="max-w-7xl mx-auto">
             <div className="mb-20 text-center space-y-6">
               <h2 className="text-3xl sm:text-4xl lg:text-6xl font-black text-white tracking-tight">Real Automations. Real Results.</h2>
@@ -495,7 +495,7 @@ function Home() {
               </p>
               
               {/* Workflow Visual */}
-              <div className="max-w-5xl mx-auto bg-stone-950 p-8 lg:p-12 rounded-[3rem] shadow-black/20 border border-stone-100">
+              <div className="max-w-5xl mx-auto bg-stone-950 p-8 lg:p-12 rounded-[3rem] shadow-black/20 border border-stone-900">
                 <h3 className="text-2xl font-black text-white mb-10">How an AI Coworker handles an inquiry</h3>
                 <div className="flex flex-col lg:flex-row items-center justify-between gap-4">
                   {[
@@ -528,7 +528,7 @@ function Home() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {industryExamples.map((item) => (
-                <div key={item.industry} className="bg-stone-950 p-10 rounded-[2.5rem] shadow-black/20 border border-stone-100">
+                <div key={item.industry} className="bg-stone-950 p-10 rounded-[2.5rem] shadow-black/20 border border-stone-900">
                   <h3 className="text-2xl font-black text-white mb-6">{item.industry}</h3>
                   <ul className="space-y-4">
                     {item.examples.map(ex => (
@@ -545,7 +545,7 @@ function Home() {
         </section>
 
         {/* Customer Results Section */}
-        <section className="px-6 py-16 sm:py-32 bg-white">
+        <section className="px-6 py-16 sm:py-32 bg-stone-950">
           <div className="max-w-7xl mx-auto">
             <div className="grid md:grid-cols-3 gap-12">
               <div className="p-8 border-l-4 border-emerald-600 bg-stone-900 rounded-r-3xl">
@@ -579,7 +579,7 @@ function Home() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
               {topVerticals.map((v) => (
                 <Link key={v.name} to={`/industries/${v.slug}` as any}
-                  className="group bg-white/5 p-8 rounded-3xl border border-white/10 hover:bg-white/10 transition-all"
+                  className="group bg-stone-900/50 p-8 rounded-3xl border border-white/10 hover:bg-stone-800/80 transition-all"
                 >
                   <span className="text-4xl mb-6 block">{v.icon}</span>
                   <div className="text-stone-400 font-bold uppercase tracking-widest text-xs mb-2">{v.name}</div>
@@ -632,7 +632,7 @@ function Home() {
         </section>
 
         {/* The 4-Step Journey Section */}
-        <section id="journey" className="px-6 py-16 sm:py-32 bg-white">
+        <section id="journey" className="px-6 py-16 sm:py-32 bg-stone-950">
           <div className="max-w-7xl mx-auto">
             <div className="mb-24 space-y-4">
               <h2 className="text-4xl lg:text-6xl font-black text-white tracking-tight">How We Get You There</h2>
@@ -663,7 +663,7 @@ function Home() {
         </section>
 
         {/* Pricing / Services Section */}
-        <section id="pricing" className="px-6 py-16 sm:py-32 bg-stone-950 border-t border-stone-100">
+        <section id="pricing" className="px-6 py-16 sm:py-32 bg-stone-950 border-t border-stone-900">
           <div className="max-w-7xl mx-auto">
             <div className="text-center mb-20 space-y-6">
               <h2 className="text-4xl lg:text-6xl font-black text-white tracking-tight">Simple, Transparent Pricing.</h2>
@@ -674,7 +674,7 @@ function Home() {
             
             <div className="grid lg:grid-cols-2 gap-12">
               {/* Implementations */}
-              <div className="bg-stone-900 rounded-[3rem] p-12 border border-stone-100">
+              <div className="bg-stone-900 rounded-[3rem] p-12 border border-stone-900">
                 <h3 className="text-xl font-bold text-emerald-400 mb-8 uppercase tracking-widest">Implementations</h3>
                 <div className="space-y-4">
                   <div className="p-6 bg-stone-950 rounded-2xl border border-stone-800 flex justify-between items-center">
@@ -714,7 +714,7 @@ function Home() {
               </div>
 
               {/* Monthly Ops */}
-              <div className="bg-stone-900 rounded-[3rem] p-12 border border-stone-100">
+              <div className="bg-stone-900 rounded-[3rem] p-12 border border-stone-900">
                 <h3 className="text-xl font-bold text-emerald-400 mb-8 uppercase tracking-widest">Managed Operations</h3>
                 <div className="space-y-4">
                   <div className="p-6 bg-stone-950 rounded-2xl border border-stone-800 flex justify-between items-center">
@@ -793,7 +793,7 @@ function Home() {
                   </div>
                 </div>
               </div>
-              <div className="bg-white/5 backdrop-blur-lg p-12 rounded-[3rem] border border-white/10 text-center space-y-8">
+              <div className="bg-stone-900/50 backdrop-blur-lg p-12 rounded-[3rem] border border-white/10 text-center space-y-8">
                 <div className="text-emerald-400 font-bold uppercase tracking-widest text-xs">Start Today</div>
                 <h3 className="text-4xl font-black leading-tight">Identify where AI can save you the most time.</h3>
                 <Link to="/contact" className="inline-flex items-center justify-center w-full bg-stone-950 text-stone-100 py-5 rounded-2xl font-bold text-xl hover:bg-stone-900 transition-all min-h-[56px]">
@@ -806,7 +806,7 @@ function Home() {
         </section>
 
         {/* Closing CTA */}
-        <section id="contact" className="px-6 py-16 sm:py-32 bg-stone-50">
+        <section id="contact" className="px-6 py-16 sm:py-32 bg-stone-900">
           <div className="max-w-4xl mx-auto bg-stone-950 rounded-[3rem] p-12 lg:p-20 shadow-2xl shadow-stone-200 border border-stone-800 text-center space-y-12">
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white leading-tight">
               Every week your team spends hours on work that software should already be doing.
@@ -824,7 +824,7 @@ function Home() {
         </section>
       </main>
 
-      <footer className="px-6 py-12 border-t border-stone-800 bg-white">
+      <footer className="px-6 py-12 border-t border-stone-800 bg-stone-950">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-12">
           <div>
             <div className="text-2xl font-black text-emerald-400 mb-4">{businessName}</div>
