@@ -10,45 +10,13 @@ import { sql } from "drizzle-orm";
 import type { ToolDefinition, ToolContext, ToolResult } from "./schema";
 import { extractTextFromUpload, createNotification } from "./schema";
 
+import { registry } from "./registry";
+export { registry };
+
 // Import tool modules — they self-register on import
 import "./tools/hl7FhirTools";
 import "./tools/terraformTools";
 import "./tools/phpTools";
-
-// ── Tool Registry ───────────────────────────────────────────────────────────
-
-class ToolRegistry {
-  private tools: Map<string, ToolDefinition> = new Map();
-
-  register(tool: ToolDefinition): void {
-    if (this.tools.has(tool.name)) {
-      console.warn(`[ToolRegistry] Overwriting existing tool: ${tool.name}`);
-    }
-    this.tools.set(tool.name, tool);
-  }
-
-  get(name: string): ToolDefinition | undefined {
-    return this.tools.get(name);
-  }
-
-  getAll(): ToolDefinition[] {
-    return Array.from(this.tools.values());
-  }
-
-  async execute(name: string, params: Record<string, any>, context: ToolContext): Promise<ToolResult> {
-    const tool = this.tools.get(name);
-    if (!tool) {
-      return { success: false, error: `Tool '${name}' not found` };
-    }
-    try {
-      return await tool.handler(params, context);
-    } catch (err: any) {
-      return { success: false, error: `Tool '${name}' error: ${err.message}` };
-    }
-  }
-}
-
-export const registry = new ToolRegistry();
 
 // ── Built-in Tools ──────────────────────────────────────────────────────────
 

@@ -7,7 +7,7 @@
  * Target agent: healthcare_intake
  */
 
-import { registry } from "../tools";
+import { registry } from "../registry";
 import type { ToolContext, ToolResult } from "../schema";
 
 // ── HL7 v2 Message Types ─────────────────────────────────────────────────

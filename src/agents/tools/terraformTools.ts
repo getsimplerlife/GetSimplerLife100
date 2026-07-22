@@ -8,7 +8,7 @@
  * Target agent: it_operations
  */
 
-import { registry } from "../tools";
+import { registry } from "../registry";
 import type { ToolContext, ToolResult } from "../schema";
 
 // ── Terraform Plan Parser ────────────────────────────────────────────────
