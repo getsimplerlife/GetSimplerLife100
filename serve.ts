@@ -28,6 +28,7 @@ import {
   getUserFromRequest,
 } from "./src/api/auditLogs";
 import { processChatMessage, listSessions, deleteSession } from "./src/api/chatEngine";
+import { processChatMessage as processAIChatMessage, listSessions as listAISessions, deleteSession as deleteAISession } from "./src/api/aiChatEngine";
 import { sendEmail, renderEmailTemplate } from "./src/integrations/email";
 import { generateWorkflow, listTemplates } from "./src/api/workflowGenerator";
 import { runAgent, deployAgent, getAgentStatus, pauseAgent, resumeAgent } from "./src/agents/index";
@@ -327,7 +328,7 @@ for (let attempt = 1; ; attempt++) {
           }
         }
 
-        // POST /api/chat — send a chat message (AI-powered)
+        // POST /api/chat — send a chat message (AI-powered, guest fallback)
         if (pathname === "/api/chat" && req.method === "POST") {
           try {
             const body = await parseJSON(req);
@@ -335,30 +336,33 @@ for (let attempt = 1; ; attempt++) {
               return new Response(JSON.stringify({ error: "Message required" }), { status: 400, headers: { "Content-Type": "application/json" } });
             }
             const user = await getUserFromRequest(req);
-            if (!user || !user.userId) {
-              return new Response(JSON.stringify({ error: "Not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
-            }
+            const isGuest = !user || !user.userId;
+            const userId = isGuest ? ("guest-" + (getRequestIP(req) || "anon")) : user!.userId;
+            const userEmail = isGuest ? "guest@simplerlife100.com" : (user!.userEmail || "unknown");
 
-            // Process the message through the AI Chat Engine
-            const response = await processChatMessage(
-              user.userId,
-              user.userEmail || "unknown",
+            // Process the message through the AI-powered Chat Engine
+            const response = await processAIChatMessage(
+              userId,
+              userEmail,
               body.message,
-              body.sessionId
+              body.sessionId,
+              isGuest
             );
 
-            // Log the chat interaction
-            await logAuditEvent({
-              userId: user.userId, userEmail: user.userEmail,
-              action: "chat_message", resource: "ai_assistant",
-              details: {
-                message: body.message.slice(0, 200),
-                intent: body.message.length > 5 ? "ai_processed" : "short",
-                sessionId: response.sessionId,
-              },
-              status: "success", severity: "info",
-              ipAddress: getRequestIP(req),
-            });
+            // Log the chat interaction (for authenticated users only)
+            if (!isGuest) {
+              await logAuditEvent({
+                userId: user!.userId, userEmail: user!.userEmail,
+                action: "chat_message", resource: "ai_assistant",
+                details: {
+                  message: body.message.slice(0, 200),
+                  intent: "ai_powered",
+                  sessionId: response.sessionId,
+                },
+                status: "success", severity: "info",
+                ipAddress: getRequestIP(req),
+              });
+            }
 
             return new Response(JSON.stringify(response), {
               status: 200,
@@ -370,14 +374,13 @@ for (let attempt = 1; ; attempt++) {
           }
         }
 
-        // GET /api/chat/sessions — list chat sessions
+        // GET /api/chat/sessions — list chat sessions (supports guests)
         if (pathname === "/api/chat/sessions" && req.method === "GET") {
           try {
             const user = await getUserFromRequest(req);
-            if (!user || !user.userId) {
-              return new Response(JSON.stringify({ error: "Not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
-            }
-            const sessions = await listSessions(user.userId);
+            const isGuest = !user || !user.userId;
+            const userId = isGuest ? ("guest-" + (getRequestIP(req) || "anon")) : user!.userId;
+            const sessions = await listAISessions(userId, isGuest);
             return new Response(JSON.stringify({ sessions }), {
               status: 200,
               headers: { "Content-Type": "application/json" },
@@ -388,15 +391,14 @@ for (let attempt = 1; ; attempt++) {
           }
         }
 
-        // DELETE /api/chat/sessions/:id — delete a chat session
+        // DELETE /api/chat/sessions/:id — delete a chat session (supports guests)
         const deleteSessionMatch = pathname.match(/^\/api\/chat\/sessions\/([a-f0-9-]+)$/);
         if (deleteSessionMatch && req.method === "DELETE") {
           try {
             const user = await getUserFromRequest(req);
-            if (!user || !user.userId) {
-              return new Response(JSON.stringify({ error: "Not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
-            }
-            await deleteSession(user.userId, deleteSessionMatch[1]);
+            const isGuest = !user || !user.userId;
+            const userId = isGuest ? ("guest-" + (getRequestIP(req) || "anon")) : user!.userId;
+            await deleteAISession(userId, deleteSessionMatch[1], isGuest);
             return new Response(JSON.stringify({ success: true }), {
               status: 200,
               headers: { "Content-Type": "application/json" },

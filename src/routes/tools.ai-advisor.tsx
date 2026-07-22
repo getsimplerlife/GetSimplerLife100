@@ -1,14 +1,9 @@
 import { useState, useRef } from "react";
-import { createFileRoute } from "@tanstack/react-router";
-import { analyzeDescription, getFollowUpQuestions } from "../tools/automation-analyzer";
+import { createFileRoute, Link } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/tools/ai-advisor")({
   component: AIAdvisor,
 });
-
-// ── Chat Flow Types ──────────────────────────────────────────────────────
-
-type AdvisorStep = "greeting" | "listening" | "followup" | "results";
 
 interface ChatMessage {
   role: "advisor" | "user";
@@ -16,124 +11,68 @@ interface ChatMessage {
   timestamp: number;
 }
 
-// ── Component ─────────────────────────────────────────────────────────────
-
 function AIAdvisor() {
-  const [step, setStep] = useState<AdvisorStep>("greeting");
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: "advisor",
-      text: "Hi! I'm your AI Operations Advisor. 🎯\n\nTell me — **what repetitive process frustrates your team the most?**",
+      text: "Hi! I'm your AI Operations Advisor.\n\nI can help you:\n\u2022 Identify automation opportunities for your business\n\u2022 Explain our 18 AI agent types and which fits your needs\n\u2022 Answer questions about pricing, integrations, and how it works\n\u2022 Walk through our free tools\n\n**What would you like to know?**",
       timestamp: Date.now(),
     },
   ]);
   const [input, setInput] = useState("");
-  const [userDescription, setUserDescription] = useState("");
-  const [followUps, setFollowUps] = useState<string[]>([]);
-  const [followUpIndex, setFollowUpIndex] = useState(0);
-  const [responses, setResponses] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
-  const [analyzing, setAnalyzing] = useState(false);
+  const [sessionId, setSessionId] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const addMessage = (role: "advisor" | "user", text: string) => {
-    setMessages((prev) => [...prev, { role, text, timestamp: Date.now() }]);
+  const scrollToBottom = () => {
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
   };
 
-  const handleSend = (text: string) => {
-    if (!text.trim() || loading || analyzing) return;
+  const handleSend = async (text: string) => {
+    if (!text.trim() || loading) return;
 
-    addMessage("user", text);
+    const userMsg: ChatMessage = { role: "user", text, timestamp: Date.now() };
+    setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setLoading(true);
 
-    setTimeout(() => {
-      switch (step) {
-        case "greeting":
-          // User responded to the initial question
-          setUserDescription(text);
-          addMessage("advisor", "Great, thanks for sharing! Let me understand a bit more...");
-          setStep("listening");
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: text,
+          sessionId: sessionId || undefined,
+        }),
+      });
+      const data = await res.json();
 
-          // Generate follow-up questions
-          setTimeout(() => {
-            const questions = getFollowUpQuestions(text);
-            setFollowUps(questions);
-            setFollowUpIndex(0);
+      const advisorMsg: ChatMessage = {
+        role: "advisor",
+        text: data.reply || "Thanks for sharing! Let me think about that...",
+        timestamp: Date.now(),
+      };
+      setMessages((prev) => [...prev, advisorMsg]);
 
-            if (questions.length > 0) {
-              addMessage("advisor", `📋 **Quick follow-ups:**\n\n**${questions[0]}**`);
-              setStep("followup");
-            } else {
-              // No follow-ups needed, go straight to results
-              generateResults(text, {});
-            }
-            setLoading(false);
-          }, 800);
-          break;
-
-        case "followup":
-          // User answered a follow-up question
-          const currentQ = followUps[followUpIndex] || "";
-          const newResponses = { ...responses, [currentQ]: text };
-          setResponses(newResponses);
-
-          const nextIdx = followUpIndex + 1;
-          if (nextIdx < followUps.length) {
-            setFollowUpIndex(nextIdx);
-            setTimeout(() => {
-              addMessage("advisor", `📋 **${followUps[nextIdx]}**`);
-              setLoading(false);
-            }, 600);
-          } else {
-            // All follow-ups answered, generate results
-            setTimeout(() => {
-              generateResults(userDescription, newResponses);
-              setLoading(false);
-            }, 600);
-          }
-          break;
-
-        default:
-          setLoading(false);
-          break;
+      if (data.sessionId && !sessionId) {
+        setSessionId(data.sessionId);
       }
-    }, 500);
-  };
-
-  const generateResults = (description: string, _responses: Record<string, string>) => {
-    setAnalyzing(true);
-    setStep("results");
-
-    // Brief delay for UX
-    setTimeout(() => {
-      const analysis = analyzeDescription(description);
-      const top = analysis.topMatch;
-
-      const totalHours = analysis.allMatches.reduce((sum: number, r: any) => sum + r.estimatedHoursSaved, 0);
-
-      const resultMessage = [
-        "🎯 **Analysis Complete! Here's what I found:**\n",
-        `Based on what you've shared, here are the top automation opportunities for your team:\n`,
-        `**🥇 ${top.suggestedAgentEmoji} ${top.match.name}**`,
-        `   → ${top.estimatedHoursSaved}h/week saved | ${top.confidence} match confidence`,
-        `   → ${top.match.description}`,
-        "",
-        ...analysis.allMatches.slice(1, 3).map(
-          (r: any, i: number) =>
-            `**${i === 0 ? "🥈" : "🥉"} ${r.suggestedAgentEmoji} ${r.match.name}**\n   → ${r.estimatedHoursSaved}h/week saved | ${r.confidence} match\n   → ${r.match.description}`
-        ),
-        "",
-        `📊 **Total estimated savings: ~${totalHours} hours per week**`,
-        `💰 **That's approximately $${(totalHours * 25 * 4).toLocaleString()} per month in labor savings**`,
-        "",
-        `*Based on a blended labor rate of $25/hr*`,
-      ].join("\n");
-
-      addMessage("advisor", resultMessage.trim());
-      setAnalyzing(false);
-    }, 1200);
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "advisor",
+          text: "Sorry, I encountered an issue. Please try again.",
+          timestamp: Date.now(),
+        },
+      ]);
+    } finally {
+      setLoading(false);
+      scrollToBottom();
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -144,43 +83,48 @@ function AIAdvisor() {
   };
 
   const handleRestart = () => {
-    setStep("greeting");
+    setSessionId("");
     setMessages([
       {
         role: "advisor",
-        text: "Hi! I'm your AI Operations Advisor. 🎯\n\nTell me — **what repetitive process frustrates your team the most?**",
+        text: "Hi! I'm your AI Operations Advisor.\n\nI can help you:\n\u2022 Identify automation opportunities for your business\n\u2022 Explain our 18 AI agent types and which fits your needs\n\u2022 Answer questions about pricing, integrations, and how it works\n\u2022 Walk through our free tools\n\n**What would you like to know?**",
         timestamp: Date.now(),
       },
     ]);
     setInput("");
-    setUserDescription("");
-    setFollowUps([]);
-    setFollowUpIndex(0);
-    setResponses({});
     setLoading(false);
-    setAnalyzing(false);
   };
+
+  const suggestedPrompts = [
+    "What AI agents can help with invoice processing?",
+    "How much does it cost to get started?",
+    "What integrations do you support?",
+    "Can you automate healthcare patient intake?",
+  ];
 
   return (
     <div className="min-h-screen bg-stone-950 text-stone-100">
-      {/* Hero */}
-      <section className="max-w-3xl mx-auto px-6 pt-16 pb-8 text-center">
+      <div className="max-w-3xl mx-auto px-6 pt-6">
+        <Link to="/" className="inline-flex items-center gap-1.5 text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+          Back to Simpler Life 100
+        </Link>
+      </div>
+      <section className="max-w-3xl mx-auto px-6 pt-12 pb-8 text-center">
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-900/30 border border-emerald-800/50 text-emerald-400 text-xs font-mono font-bold tracking-wider mb-6">
-          🎯 FREE CONSULTATION
+          AI-POWERED \u2022 FREE TO USE
         </div>
         <h1 className="text-3xl md:text-4xl font-black tracking-tight mb-3">
           AI Operations <span className="text-emerald-400">Advisor</span>
         </h1>
         <p className="text-stone-400 text-base max-w-xl mx-auto">
-          Tell us about your team's pain points. We'll identify automation opportunities and estimate your savings.
+          Ask anything about automating your operations. Our AI knows all 18 agent types, 23 industries, and 180+ integrations.
         </p>
       </section>
 
-      {/* Chat Interface */}
       <section className="max-w-2xl mx-auto px-6 pb-20">
         <div className="bg-stone-900/50 border border-stone-800 rounded-2xl overflow-hidden">
-          {/* Messages */}
-          <div className="h-[400px] overflow-y-auto p-6 space-y-4">
+          <div className="h-[450px] overflow-y-auto p-6 space-y-4">
             {messages.map((msg, i) => (
               <div key={i} className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
                 <div
@@ -190,7 +134,7 @@ function AIAdvisor() {
                       : "bg-stone-800 border-stone-700 text-stone-300"
                   }`}
                 >
-                  {msg.role === "advisor" ? "🎯" : "👤"}
+                  {msg.role === "advisor" ? "\u{1F3AF}" : "\u{1F464}"}
                 </div>
                 <div
                   className={`max-w-[80%] rounded-xl p-4 text-sm leading-relaxed border whitespace-pre-line ${
@@ -204,11 +148,10 @@ function AIAdvisor() {
               </div>
             ))}
 
-            {/* Loading indicator */}
-            {(loading || analyzing) && (
+            {loading && (
               <div className="flex gap-3">
                 <div className="h-8 w-8 rounded-full bg-emerald-950/50 border border-emerald-800 flex items-center justify-center text-sm animate-pulse">
-                  🎯
+                  {"\u{1F3AF}"}
                 </div>
                 <div className="bg-stone-950 border border-stone-800 rounded-xl p-4">
                   <div className="flex gap-1.5">
@@ -220,95 +163,72 @@ function AIAdvisor() {
               </div>
             )}
 
+            {messages.length <= 1 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
+                {suggestedPrompts.map((prompt) => (
+                  <button
+                    key={prompt}
+                    onClick={() => handleSend(prompt)}
+                    disabled={loading}
+                    className="text-left bg-stone-900/50 hover:bg-stone-900 hover:border-stone-700 border border-stone-800/80 p-3 rounded-xl text-[11px] leading-snug font-medium text-stone-400 hover:text-stone-200 transition-all disabled:opacity-50"
+                  >
+                    {"\u{1F4A1}"} {prompt}
+                  </button>
+                ))}
+              </div>
+            )}
+
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input area */}
           <div className="p-4 border-t border-stone-800">
-            {step !== "results" ? (
-              <div className="flex gap-2">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder={
-                    step === "greeting"
-                      ? "Describe your team's biggest frustration..."
-                      : "Tell me more..."
-                  }
-                  disabled={loading || analyzing}
-                  className="flex-1 bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-sm outline-none focus:border-emerald-700 placeholder-stone-600 text-stone-200 disabled:opacity-50"
-                />
-                <button
-                  onClick={() => handleSend(input)}
-                  disabled={!input.trim() || loading || analyzing}
-                  className="bg-emerald-500 hover:bg-emerald-400 disabled:bg-stone-700 disabled:text-stone-500 text-black font-bold text-sm px-5 py-3 rounded-xl transition-all"
-                >
-                  Send
-                </button>
-              </div>
-            ) : (
-              <div className="flex gap-3">
-                <button
-                  onClick={handleRestart}
-                  className="flex-1 bg-stone-800 hover:bg-stone-700 text-stone-200 font-bold text-sm py-3 rounded-xl transition-all"
-                >
-                  🔄 Start New Assessment
-                </button>
-                <a
-                  href="/tools/can-we-automate-this"
-                  className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-sm py-3 rounded-xl text-center transition-all"
-                >
-                  🔍 Try Detailed Analyzer
-                </a>
-              </div>
+            <div className="flex gap-2">
+              <input
+                ref={inputRef}
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Ask me anything about automating your operations..."
+                disabled={loading}
+                className="flex-1 bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-sm outline-none focus:border-emerald-700 placeholder-stone-600 text-stone-200 disabled:opacity-50"
+              />
+              <button
+                onClick={() => handleSend(input)}
+                disabled={!input.trim() || loading}
+                className="bg-emerald-500 hover:bg-emerald-400 disabled:bg-stone-700 disabled:text-stone-500 text-black font-bold text-sm px-5 py-3 rounded-xl transition-all"
+              >
+                Send
+              </button>
+            </div>
+            {messages.length > 1 && (
+              <button onClick={handleRestart} className="mt-3 text-xs text-stone-500 hover:text-stone-300 transition-colors">
+                {"\u{1F504}"} Start new conversation
+              </button>
             )}
           </div>
         </div>
 
-        {/* Result Action Cards (shown after analysis) */}
-        {step === "results" && (
-          <div className="mt-6 space-y-3">
-            <div className="bg-gradient-to-br from-emerald-950/30 to-stone-900/60 border border-emerald-900/40 rounded-xl p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <span className="text-2xl">🚀</span>
-                <div>
-                  <h3 className="font-bold text-emerald-400">Ready to automate?</h3>
-                  <p className="text-xs text-stone-400">
-                    Deploy your AI Operations Team and start saving hours today
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <a
-                  href="https://buy.stripe.com/eVq14p74P43RaXxfig2Fa0k"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-sm py-3 rounded-xl text-center transition-all"
-                >
-                  🛒 Deploy Now — $750/mo
-                </a>
-                <a
-                  href="/contact"
-                  className="px-6 bg-stone-800 hover:bg-stone-700 text-stone-200 text-sm font-bold py-3 rounded-xl transition-all whitespace-nowrap"
-                >
-                  Book Consultation
-                </a>
+        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <a href="/tools/can-we-automate-this" className="bg-stone-900/50 border border-stone-800 rounded-xl p-4 hover:border-emerald-800/50 transition-all group">
+            <div className="flex items-center gap-3">
+              <span className="text-xl">{"\u{1F50D}"}</span>
+              <div>
+                <h3 className="font-bold text-stone-200 text-sm group-hover:text-emerald-400">Can We Automate This?</h3>
+                <p className="text-xs text-stone-500">Detailed process analyzer</p>
               </div>
             </div>
-
-            <div className="text-center">
-              <a
-                href="/"
-                className="text-xs text-stone-500 hover:text-stone-300 font-mono transition-all"
-              >
-                ← Back to Home
-              </a>
+          </a>
+          <a href="/roi-calculator" className="bg-stone-900/50 border border-stone-800 rounded-xl p-4 hover:border-emerald-800/50 transition-all group">
+            <div className="flex items-center gap-3">
+              <span className="text-xl">{"\u{1F4B0}"}</span>
+              <div>
+                <h3 className="font-bold text-stone-200 text-sm group-hover:text-emerald-400">ROI Calculator</h3>
+                <p className="text-xs text-stone-500">See your potential savings</p>
+              </div>
             </div>
-          </div>
-        )}
+          </a>
+        </div>
       </section>
     </div>
   );
