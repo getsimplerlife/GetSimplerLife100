@@ -96,6 +96,12 @@ function servePage(req: Request) {
   if (pathname === "/api/tenant/purchases") {
     return handleTenantPurchases(req);
   }
+  if (pathname === "/api/integrations/connect" && req.method === "POST") {
+    return handleIntegrationConnect(req);
+  }
+  if (pathname === "/api/integrations/disconnect" && req.method === "POST") {
+    return handleIntegrationDisconnect(req);
+  }
   if (pathname.startsWith("/api/")) {
     return new Response(JSON.stringify({ error: "Not found" }), {
       status: 404,
@@ -1422,848 +1428,85 @@ function renderPortalSidebar(email: string, active: string): string {
 
 // ─── 1. Dashboard ───
 function renderPortalDashboard(email: string): string {
-  return '<div class="portal-main-header"><div><h1 style="margin-bottom:0.25rem">Dashboard</h1><p style="color:#78716c;font-size:0.875rem">Welcome back, '+email+'</p></div><div style="display:flex;gap:0.5rem;flex-wrap:wrap"><a href="/portal/employees" class="portal-btn portal-btn-primary portal-btn-sm">+ Deploy Agent</a><a href="/portal/reports" class="portal-btn portal-btn-secondary portal-btn-sm">View Reports</a></div></div><div id="dash-content"><div class="portal-skeleton"><div class="portal-skeleton-line w4"></div><div class="portal-skeleton-line w3"></div><div class="portal-skeleton-card"></div><div class="portal-skeleton-card"></div></div></div><script>fetch("/api/tenant/dashboard",{credentials:"same-origin"}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(d){var h="";h+=\'<div class="portal-stat-grid">\';h+=\'<div class="portal-card"><div class="portal-card-header">Active AI Employees</div><div class="portal-card-value">\'+(d.agentCount||0)+\'</div><div class="portal-card-sub">Deployed agents</div></div>\';h+=\'<div class="portal-card"><div class="portal-card-header">Workflows Running</div><div class="portal-card-value">\'+(d.activeWorkflows||0)+\'</div><div class="portal-card-sub">Active workflows</div></div>\';h+=\'<div class="portal-card"><div class="portal-card-header">Documents Processed</div><div class="portal-card-value">\'+(d.docCount||0)+\'</div><div class="portal-card-sub">Total documents</div></div>\';h+=\'<div class="portal-card"><div class="portal-card-header">Integrations</div><div class="portal-card-value">\'+(d.integrationCount||0)+\'</div><div class="portal-card-sub">Connected services</div></div>\';h+=\'</div>\';document.getElementById("dash-content").innerHTML=h;fetch("/api/tenant/agents",{credentials:"same-origin"}).then(function(r2){return r2.json()}).then(function(agents){var act="";var hasErr=agents.some(function(a){return a.status==="error"||a.status==="degraded"});if(hasErr)act+=\'<div class="portal-alert portal-alert-warn"><span>⚠️</span><span>Some agents need attention — check <a href="/portal/employees" style="color:#fcd34d">AI Employees</a></span></div>\';act+=\'<div style="display:grid;grid-template-columns:2fr 1fr;gap:1.5rem"><div class="portal-card"><div class="portal-card-header" style="margin-bottom:1rem">Agent Activity</div>\';if(agents.length===0){act+=\'<div class="portal-empty"><div class="portal-empty-icon">🤖</div><div class="portal-empty-title">No agents deployed</div><div class="portal-empty-text">Deploy your first AI employee to get started</div><a href="/portal/employees" class="portal-btn portal-btn-primary portal-btn-sm">Deploy Agent</a></div>\'}else{agents.slice(0,6).forEach(function(a,i){var ts=a.lastActive?new Date(a.lastActive).toLocaleString():"";act+=\'<div class="portal-notif unread"><span class="portal-notif-dot green"></span><span>\'+a.name+\' — \'+a.status+\'</span><span style="margin-left:auto;font-size:0.6875rem;color:#57534e;white-space:nowrap">\'+ts+\'</span></div>\'})}act+=\'</div><div class="portal-card"><div class="portal-card-header" style="margin-bottom:1rem">Quick Status</div>\';act+=\'<div class="portal-alert portal-alert-success"><span>✅</span><span>Dashboard loaded successfully</span></div>\';act+=\'<div class="portal-alert portal-alert-info"><span>📋</span><span>\'+(d.activeWorkflows||0)+\' active workflows</span></div>\';act+=\'<div class="portal-alert portal-alert-info"><span>🔌</span><span>\'+(d.integrationCount||0)+\' connected integrations</span></div>\';act+=\'</div></div>\';document.getElementById("dash-content").innerHTML+=act}).catch(function(){})}).catch(function(){document.getElementById("dash-content").innerHTML=\'<div class="portal-error"><div class="portal-error-icon">⚠️</div><div class="portal-error-title">Failed to load dashboard</div><div class="portal-error-text">The dashboard API is not available yet. The Integration Engineer may still be building it.</div><a href="/portal" class="portal-btn portal-btn-secondary portal-btn-sm">Retry</a></div>\'})</script>';
+  return `<div class="portal-main-header"><div><h1 style="margin-bottom:0.25rem">Dashboard</h1><p style="color:#78716c;font-size:0.875rem">Welcome back, '+email+'</p></div><div style="display:flex;gap:0.5rem;flex-wrap:wrap"><a href="/portal/employees" class="portal-btn portal-btn-primary portal-btn-sm">+ Deploy Agent</a><a href="/portal/reports" class="portal-btn portal-btn-secondary portal-btn-sm">View Reports</a></div></div><div id="dash-content"><div class="portal-skeleton"><div class="portal-skeleton-line w4"></div><div class="portal-skeleton-line w3"></div><div class="portal-skeleton-card"></div><div class="portal-skeleton-card"></div></div></div><script>fetch("/api/tenant/dashboard",{credentials:"same-origin"}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(d){var h="";h+=\'<div class="portal-stat-grid">\';h+=\'<div class="portal-card"><div class="portal-card-header">Active AI Employees</div><div class="portal-card-value">\'+(d.agentCount||0)+\'</div><div class="portal-card-sub">Deployed agents</div></div>\';h+=\'<div class="portal-card"><div class="portal-card-header">Workflows Running</div><div class="portal-card-value">\'+(d.activeWorkflows||0)+\'</div><div class="portal-card-sub">Active workflows</div></div>\';h+=\'<div class="portal-card"><div class="portal-card-header">Documents Processed</div><div class="portal-card-value">\'+(d.docCount||0)+\'</div><div class="portal-card-sub">Total documents</div></div>\';h+=\'<div class="portal-card"><div class="portal-card-header">Integrations</div><div class="portal-card-value">\'+(d.integrationCount||0)+\'</div><div class="portal-card-sub">Connected services</div></div>\';h+=\'</div>\';document.getElementById("dash-content").innerHTML=h;fetch("/api/tenant/agents",{credentials:"same-origin"}).then(function(r2){return r2.json()}).then(function(agents){var act="";var hasErr=agents.some(function(a){return a.status==="error"||a.status==="degraded"});if(hasErr)act+=\'<div class="portal-alert portal-alert-warn"><span>⚠️</span><span>Some agents need attention — check <a href="/portal/employees" style="color:#fcd34d">AI Employees</a></span></div>\';act+=\'<div style="display:grid;grid-template-columns:2fr 1fr;gap:1.5rem"><div class="portal-card"><div class="portal-card-header" style="margin-bottom:1rem">Agent Activity</div>\';if(agents.length===0){act+=\'<div class="portal-empty"><div class="portal-empty-icon">🤖</div><div class="portal-empty-title">No agents deployed</div><div class="portal-empty-text">Deploy your first AI employee to get started</div><a href="/portal/employees" class="portal-btn portal-btn-primary portal-btn-sm">Deploy Agent</a></div>\'}else{agents.slice(0,6).forEach(function(a,i){var ts=a.lastActive?new Date(a.lastActive).toLocaleString():"";act+=\'<div class="portal-notif unread"><span class="portal-notif-dot green"></span><span>\'+a.name+\' — \'+a.status+\'</span><span style="margin-left:auto;font-size:0.6875rem;color:#57534e;white-space:nowrap">\'+ts+\'</span></div>\'})}act+=\'</div><div class="portal-card"><div class="portal-card-header" style="margin-bottom:1rem">Quick Status</div>\';act+=\'<div class="portal-alert portal-alert-success"><span>✅</span><span>Dashboard loaded successfully</span></div>\';act+=\'<div class="portal-alert portal-alert-info"><span>📋</span><span>\'+(d.activeWorkflows||0)+\' active workflows</span></div>\';act+=\'<div class="portal-alert portal-alert-info"><span>🔌</span><span>\'+(d.integrationCount||0)+\' connected integrations</span></div>\';act+=\'</div></div>\';document.getElementById("dash-content").innerHTML+=act}).catch(function(){})}).catch(function(){document.getElementById("dash-content").innerHTML=\'<div class="portal-error"><div class="portal-error-icon">⚠️</div><div class="portal-error-title">Failed to load dashboard</div><div class="portal-error-text">The dashboard API is not available yet. The Integration Engineer may still be building it.</div><a href="/portal" class="portal-btn portal-btn-secondary portal-btn-sm">Retry</a></div>\'})</script>`;
 }
 
 // ─── 2. AI Employees ───
 function renderPortalEmployees(): string {
-  return '<div class="portal-main-header"><div><h1>AI Employees</h1><p style="color:#78716c;font-size:0.875rem">Your deployed AI agents</p></div><div style="display:flex;gap:0.5rem"><input class="portal-input" style="max-width:200px" placeholder="Search agents..." id="agent-search" oninput="filterAgents()"><select class="portal-input" style="max-width:140px" id="agent-status" onchange="filterAgents()"><option value="all">All Status</option><option value="active">Active</option><option value="inactive">Inactive</option><option value="error">Error</option></select></div></div><div id="agents-content"><div class="portal-skeleton"><div class="portal-skeleton-line w4"></div><div class="portal-skeleton-card"></div><div class="portal-skeleton-card"></div></div></div><script>var allAgents=[];function filterAgents(){var s=document.getElementById("agent-search").value.toLowerCase();var st=document.getElementById("agent-status").value;document.querySelectorAll(".portal-agent-card").forEach(function(c){var ok=true;if(s&&c.dataset.name.indexOf(s)===-1)ok=false;if(st!=="all"&&c.dataset.status!==st)ok=false;c.style.display=ok?"":"none"})}fetch("/api/tenant/agents",{credentials:"same-origin"}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(agents){allAgents=agents;var h="";if(agents.length===0){h=\'<div class="portal-empty"><div class="portal-empty-icon">🤖</div><div class="portal-empty-title">No AI employees yet</div><div class="portal-empty-text">Deploy your first AI agent from the Builder</div><a href="/build" class="portal-btn portal-btn-primary portal-btn-sm">Open Builder</a></div>\'}else{h+=\'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem">\';agents.forEach(function(a){var ts=a.lastActive?new Date(a.lastActive).toLocaleDateString():"Never";h+=\'<div class="portal-agent-card" data-name="\'+a.name.toLowerCase()+'" data-status="\'+a.status+\'"><div class="agent-header"><div class="agent-icon">🤖</div><span class="portal-badge \'+(a.status==="active"?"portal-badge-green":a.status==="error"?"portal-badge-red":"portal-badge-gray")+\'">\'+a.status+\'</span></div><div class="agent-name">\'+a.name+\'</div><div class="agent-desc">\'+(a.type||"Agent")+\' — deployed \'+new Date(a.deployedAt).toLocaleDateString()+\'</div><div class="agent-tags">\'+(a.industry?\'<span class="agent-tag">\'+a.industry+\'</span>\':"")+\'</div><div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid #292524;font-size:0.6875rem;color:#78716c">Last active: \'+ts+\'</div></div>\'})}h+=\'</div>\';document.getElementById("agents-content").innerHTML=h}).catch(function(){document.getElementById("agents-content").innerHTML=\'<div class="portal-error"><div class="portal-error-icon">⚠️</div><div class="portal-error-title">Failed to load agents</div><div class="portal-error-text">The agents API may not be available yet.</div><a href="/portal/employees" class="portal-btn portal-btn-secondary portal-btn-sm">Retry</a></div>\'})</script>';
+  return `<div class="portal-main-header"><div><h1>AI Employees</h1><p style="color:#78716c;font-size:0.875rem">Your deployed AI agents</p></div><div style="display:flex;gap:0.5rem"><input class="portal-input" style="max-width:200px" placeholder="Search agents..." id="agent-search" oninput="filterAgents()"><select class="portal-input" style="max-width:140px" id="agent-status" onchange="filterAgents()"><option value="all">All Status</option><option value="active">Active</option><option value="inactive">Inactive</option><option value="error">Error</option></select></div></div><div id="agents-content"><div class="portal-skeleton"><div class="portal-skeleton-line w4"></div><div class="portal-skeleton-card"></div><div class="portal-skeleton-card"></div></div></div><script>var allAgents=[];function filterAgents(){var s=document.getElementById("agent-search").value.toLowerCase();var st=document.getElementById("agent-status").value;document.querySelectorAll(".portal-agent-card").forEach(function(c){var ok=true;if(s&&c.dataset.name.indexOf(s)===-1)ok=false;if(st!=="all"&&c.dataset.status!==st)ok=false;c.style.display=ok?"":"none"})}fetch("/api/tenant/agents",{credentials:"same-origin"}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(agents){allAgents=agents;var h="";if(agents.length===0){h=\'<div class="portal-empty"><div class="portal-empty-icon">🤖</div><div class="portal-empty-title">No AI employees yet</div><div class="portal-empty-text">Deploy your first AI agent from the Builder</div><a href="/build" class="portal-btn portal-btn-primary portal-btn-sm">Open Builder</a></div>\'}else{h+=\'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem">\';agents.forEach(function(a){var ts=a.lastActive?new Date(a.lastActive).toLocaleDateString():"Never";h+=\'<div class="portal-agent-card" data-name="\'+a.name.toLowerCase()+'" data-status="\'+a.status+\'"><div class="agent-header"><div class="agent-icon">🤖</div><span class="portal-badge \'+(a.status==="active"?"portal-badge-green":a.status==="error"?"portal-badge-red":"portal-badge-gray")+\'">\'+a.status+\'</span></div><div class="agent-name">\'+a.name+\'</div><div class="agent-desc">\'+(a.type||"Agent")+\' — deployed \'+new Date(a.deployedAt).toLocaleDateString()+\'</div><div class="agent-tags">\'+(a.industry?\'<span class="agent-tag">\'+a.industry+\'</span>\':"")+\'</div><div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid #292524;font-size:0.6875rem;color:#78716c">Last active: \'+ts+\'</div></div>\'})}h+=\'</div>\';document.getElementById("agents-content").innerHTML=h}).catch(function(){document.getElementById("agents-content").innerHTML=\'<div class="portal-error"><div class="portal-error-icon">⚠️</div><div class="portal-error-title">Failed to load agents</div><div class="portal-error-text">The agents API may not be available yet.</div><a href="/portal/employees" class="portal-btn portal-btn-secondary portal-btn-sm">Retry</a></div>\'})</script>`;
 }
 
 // ─── 3. Documents ───
 function renderPortalDocs(): string {
-  return '<div class="portal-main-header"><div><h1>Documents</h1><p style="color:#78716c;font-size:0.875rem">Upload and manage processed documents</p></div></div><div class="portal-upload" style="margin-bottom:2rem" onclick="alert(\'Upload coming soon\')"><div class="portal-upload-icon">📁</div><div class="portal-upload-text">Drag & drop files or click to browse</div><div class="portal-upload-sub">Supports PDF, Excel, Word, CSV, PNG, JPEG — up to 50MB</div></div><div id="docs-content"><div class="portal-skeleton"><div class="portal-skeleton-line w4"></div><div class="portal-skeleton-card"></div></div></div><script>fetch("/api/tenant/documents",{credentials:"same-origin"}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(docs){var h="";if(docs.length===0){h=\'<div class="portal-empty"><div class="portal-empty-icon">📄</div><div class="portal-empty-title">No documents yet</div><div class="portal-empty-text">Upload documents for AI processing</div></div>\'}else{h+=\'<div class="portal-card"><table class="portal-table"><thead><tr><th>Name</th><th>Type</th><th>Date</th><th>Status</th><th>Size</th></tr></thead><tbody>\';docs.forEach(function(d){h+=\'<tr><td style="font-weight:700">\'+d.name+\'</td><td><span class="portal-badge portal-badge-gray">\'+(d.type||"PDF")+\'</span></td><td>\'+new Date(d.uploadedAt).toLocaleDateString()+\'</td><td><span class="portal-badge \'+(d.status==="processed"?"portal-badge-green":d.status==="processing"?"portal-badge-amber":"portal-badge-gray")+\'">\'+(d.status||"pending")+\'</span></td><td>\'+(d.size?Math.round(d.size/1024)+" KB":"—")+\'</td></tr>\'})}h+=\'</tbody></table></div>\';document.getElementById("docs-content").innerHTML=h}).catch(function(){document.getElementById("docs-content").innerHTML=\'<div class="portal-error"><div class="portal-error-icon">⚠️</div><div class="portal-error-title">Failed to load documents</div><div class="portal-error-text">The documents API may not be available yet.</div><a href="/portal/documents" class="portal-btn portal-btn-secondary portal-btn-sm">Retry</a></div>\'})</script>';
+  return `<div class="portal-main-header"><div><h1>Documents</h1><p style="color:#78716c;font-size:0.875rem">Upload and manage processed documents</p></div></div><div class="portal-upload" style="margin-bottom:2rem" onclick="alert(\'Upload coming soon\')"><div class="portal-upload-icon">📁</div><div class="portal-upload-text">Drag & drop files or click to browse</div><div class="portal-upload-sub">Supports PDF, Excel, Word, CSV, PNG, JPEG — up to 50MB</div></div><div id="docs-content"><div class="portal-skeleton"><div class="portal-skeleton-line w4"></div><div class="portal-skeleton-card"></div></div></div><script>fetch("/api/tenant/documents",{credentials:"same-origin"}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(docs){var h="";if(docs.length===0){h=\'<div class="portal-empty"><div class="portal-empty-icon">📄</div><div class="portal-empty-title">No documents yet</div><div class="portal-empty-text">Upload documents for AI processing</div></div>\'}else{h+=\'<div class="portal-card"><table class="portal-table"><thead><tr><th>Name</th><th>Type</th><th>Date</th><th>Status</th><th>Size</th></tr></thead><tbody>\';docs.forEach(function(d){h+=\'<tr><td style="font-weight:700">\'+d.name+\'</td><td><span class="portal-badge portal-badge-gray">\'+(d.type||"PDF")+\'</span></td><td>\'+new Date(d.uploadedAt).toLocaleDateString()+\'</td><td><span class="portal-badge \'+(d.status==="processed"?"portal-badge-green":d.status==="processing"?"portal-badge-amber":"portal-badge-gray")+\'">\'+(d.status||"pending")+\'</span></td><td>\'+(d.size?Math.round(d.size/1024)+" KB":"—")+\'</td></tr>\'})}h+=\'</tbody></table></div>\';document.getElementById("docs-content").innerHTML=h}).catch(function(){document.getElementById("docs-content").innerHTML=\'<div class="portal-error"><div class="portal-error-icon">⚠️</div><div class="portal-error-title">Failed to load documents</div><div class="portal-error-text">The documents API may not be available yet.</div><a href="/portal/documents" class="portal-btn portal-btn-secondary portal-btn-sm">Retry</a></div>\'})</script>`;
 }
 
 // ─── 4. Workflows ───
 function renderPortalWorkflows(): string {
-  return '<div class="portal-main-header"><div><h1>Workflows</h1><p style="color:#78716c;font-size:0.875rem">Your automation workflows</p></div><a href="/build" class="portal-btn portal-btn-primary portal-btn-sm">+ Create Workflow</a></div><div id="wf-content"><div class="portal-skeleton"><div class="portal-skeleton-line w4"></div><div class="portal-skeleton-card"></div></div></div><script>function toggleWF(id,active){var btn=document.querySelector("[data-wf=\'"+id+"\']");if(btn){btn.disabled=true;btn.textContent="...";fetch("/api/tenant/workflows/"+id,{method:"PUT",headers:{"Content-Type":"application/json"},credentials:"same-origin",body:JSON.stringify({active:!active})}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(){loadWorkflows()}).catch(function(){alert("Failed to toggle");loadWorkflows()})}}function loadWorkflows(){fetch("/api/tenant/workflows",{credentials:"same-origin"}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(wfs){var h="";if(wfs.length===0){h=\'<div class="portal-empty"><div class="portal-empty-icon">⚡</div><div class="portal-empty-title">No workflows yet</div><div class="portal-empty-text">Create workflows from the Builder to automate your processes</div><a href="/build" class="portal-btn portal-btn-primary portal-btn-sm">Open Builder</a></div>\'}else{h+=\'<div class="portal-card"><table class="portal-table"><thead><tr><th>Workflow</th><th>Agent</th><th>Steps</th><th>Status</th><th></th></tr></thead><tbody>\';wfs.forEach(function(w){h+=\'<tr><td style="font-weight:700">\'+w.name+\'</td><td style="font-size:0.8125rem;color:#a8a29e">\'+(w.agentType||"—")+\'</td><td>\'+(w.steps||0)+\'</td><td><label class="portal-toggle" onclick="event.stopPropagation()"><input type="checkbox" \'+(w.active?"checked":"")+\' onchange="toggleWF(\\\'\'+w.id+\'\\\',this.checked)" data-wf="\'+w.id+\'"><span class="track"></span><span class="thumb"></span></label></td><td><span class="portal-badge \'+(w.active?"portal-badge-green":"portal-badge-gray")+\'">\'+(w.status||"inactive")+\'</span></td></tr>\'})}h+=\'</tbody></table></div>\';document.getElementById("wf-content").innerHTML=h}).catch(function(){document.getElementById("wf-content").innerHTML=\'<div class="portal-error"><div class="portal-error-icon">⚠️</div><div class="portal-error-title">Failed to load workflows</div><div class="portal-error-text">The workflows API may not be available yet.</div><a href="/portal/workflows" class="portal-btn portal-btn-secondary portal-btn-sm">Retry</a></div>\'})}loadWorkflows()</script>';
+  return `<div class="portal-main-header"><div><h1>Workflows</h1><p style="color:#78716c;font-size:0.875rem">Your automation workflows</p></div><a href="/build" class="portal-btn portal-btn-primary portal-btn-sm">+ Create Workflow</a></div><div id="wf-content"><div class="portal-skeleton"><div class="portal-skeleton-line w4"></div><div class="portal-skeleton-card"></div></div></div><script>function toggleWF(id,active){var btn=document.querySelector("[data-wf=\'"+id+"\']");if(btn){btn.disabled=true;btn.textContent="...";fetch("/api/tenant/workflows/"+id,{method:"PUT",headers:{"Content-Type":"application/json"},credentials:"same-origin",body:JSON.stringify({active:!active})}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(){loadWorkflows()}).catch(function(){alert("Failed to toggle");loadWorkflows()})}}function loadWorkflows(){fetch("/api/tenant/workflows",{credentials:"same-origin"}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(wfs){var h="";if(wfs.length===0){h=\'<div class="portal-empty"><div class="portal-empty-icon">⚡</div><div class="portal-empty-title">No workflows yet</div><div class="portal-empty-text">Create workflows from the Builder to automate your processes</div><a href="/build" class="portal-btn portal-btn-primary portal-btn-sm">Open Builder</a></div>\'}else{h+=\'<div class="portal-card"><table class="portal-table"><thead><tr><th>Workflow</th><th>Agent</th><th>Steps</th><th>Status</th><th></th></tr></thead><tbody>\';wfs.forEach(function(w){h+=\'<tr><td style="font-weight:700">\'+w.name+\'</td><td style="font-size:0.8125rem;color:#a8a29e">\'+(w.agentType||"—")+\'</td><td>\'+(w.steps||0)+\'</td><td><label class="portal-toggle" onclick="event.stopPropagation()"><input type="checkbox" \'+(w.active?"checked":"")+\' onchange="toggleWF(\\\'\'+w.id+\'\\\',this.checked)" data-wf="\'+w.id+\'"><span class="track"></span><span class="thumb"></span></label></td><td><span class="portal-badge \'+(w.active?"portal-badge-green":"portal-badge-gray")+\'">\'+(w.status||"inactive")+\'</span></td></tr>\'})}h+=\'</tbody></table></div>\';document.getElementById("wf-content").innerHTML=h}).catch(function(){document.getElementById("wf-content").innerHTML=\'<div class="portal-error"><div class="portal-error-icon">⚠️</div><div class="portal-error-title">Failed to load workflows</div><div class="portal-error-text">The workflows API may not be available yet.</div><a href="/portal/workflows" class="portal-btn portal-btn-secondary portal-btn-sm">Retry</a></div>\'})}loadWorkflows()</script>`;
 }
 
 // ─── 5. AI Chat ───
 function renderPortalChat(): string {
-  return '<div class="portal-main-header"><div><h1>AI Chat</h1><p style="color:#78716c;font-size:0.875rem">Ask questions about your integrations, agents, and automations</p></div></div><div class="portal-chat"><div class="portal-chat-messages" id="chat-msgs"><div class="portal-chat-msg ai">👋 Hi! I can help with your automations. Ask me about your agents, integrations, or workflows.</div></div><div class="portal-chat-suggest"><button onclick="sendChatMsg(\'What agents do I have deployed?\')">What agents do I have deployed?</button><button onclick="sendChatMsg(\'Show my connected integrations\')">Show my connected integrations</button><button onclick="sendChatMsg(\'How many documents have been processed?\')">How many documents processed?</button></div><div class="portal-chat-input-wrap"><input id="chat-input" class="portal-input portal-chat-input" placeholder="Type your question..." onkeydown="if(event.key===\'Enter\')sendChatMsg(this.value)"><button class="portal-btn portal-btn-primary" onclick="sendChatMsg(document.getElementById(\'chat-input\').value)" style="min-height:48px">Send</button></div></div><script>var chatMsgs=document.getElementById("chat-msgs");var agentNames="";fetch("/api/tenant/agents",{credentials:"same-origin"}).then(function(r){return r.json()}).then(function(a){agentNames=a.map(function(x){return x.name}).join(", ")}).catch(function(){});function sendChatMsg(txt){if(!txt||!txt.trim())return;chatMsgs.innerHTML+=\'<div class="portal-chat-msg user">\'+txt.replace(/</g,"&lt;")+\'</div>\';document.getElementById("chat-input").value="";chatMsgs.scrollTop=chatMsgs.scrollHeight;setTimeout(function(){var resp="";if(txt.toLowerCase().indexOf("agent")>-1){resp="Your deployed agents: "+(agentNames||"No agents loaded yet. Check your <a href=\'/portal/employees\'>AI Employees</a> page.")}else if(txt.toLowerCase().indexOf("integration")>-1){resp="Check your <a href=\'/portal/integrations\'>Integrations</a> page for all connected services. You can connect 180+ platforms."}else if(txt.toLowerCase().indexOf("document")>-1){resp="Your documents are listed on the <a href=\'/portal/documents\'>Documents</a> page. Upload new documents there for AI processing."}else{resp="I can help with questions about your agents, integrations, workflows, and documents. Try the suggested questions above!"}chatMsgs.innerHTML+=\'<div class="portal-chat-msg ai">\'+resp+\'</div>\';chatMsgs.scrollTop=chatMsgs.scrollHeight},800)}</script>';
+  return `<div class="portal-main-header"><div><h1>AI Chat</h1><p style="color:#78716c;font-size:0.875rem">Ask questions about your integrations, agents, and automations</p></div></div><div class="portal-chat"><div class="portal-chat-messages" id="chat-msgs"><div class="portal-chat-msg ai">👋 Hi! I can help with your automations. Ask me about your agents, integrations, or workflows.</div></div><div class="portal-chat-suggest"><button onclick="sendChatMsg(\'What agents do I have deployed?\')">What agents do I have deployed?</button><button onclick="sendChatMsg(\'Show my connected integrations\')">Show my connected integrations</button><button onclick="sendChatMsg(\'How many documents have been processed?\')">How many documents processed?</button></div><div class="portal-chat-input-wrap"><input id="chat-input" class="portal-input portal-chat-input" placeholder="Type your question..." onkeydown="if(event.key===\'Enter\')sendChatMsg(this.value)"><button class="portal-btn portal-btn-primary" onclick="sendChatMsg(document.getElementById(\'chat-input\').value)" style="min-height:48px">Send</button></div></div><script>var chatMsgs=document.getElementById("chat-msgs");var agentNames="";fetch("/api/tenant/agents",{credentials:"same-origin"}).then(function(r){return r.json()}).then(function(a){agentNames=a.map(function(x){return x.name}).join(", ")}).catch(function(){});function sendChatMsg(txt){if(!txt||!txt.trim())return;chatMsgs.innerHTML+=\'<div class="portal-chat-msg user">\'+txt.replace(/</g,"&lt;")+\'</div>\';document.getElementById("chat-input").value="";chatMsgs.scrollTop=chatMsgs.scrollHeight;setTimeout(function(){var resp="";if(txt.toLowerCase().indexOf("agent")>-1){resp="Your deployed agents: "+(agentNames||"No agents loaded yet. Check your <a href=\'/portal/employees\'>AI Employees</a> page.")}else if(txt.toLowerCase().indexOf("integration")>-1){resp="Check your <a href=\'/portal/integrations\'>Integrations</a> page for all connected services. You can connect 180+ platforms."}else if(txt.toLowerCase().indexOf("document")>-1){resp="Your documents are listed on the <a href=\'/portal/documents\'>Documents</a> page. Upload new documents there for AI processing."}else{resp="I can help with questions about your agents, integrations, workflows, and documents. Try the suggested questions above!"}chatMsgs.innerHTML+=\'<div class="portal-chat-msg ai">\'+resp+\'</div>\';chatMsgs.scrollTop=chatMsgs.scrollHeight},800)}</script>`;
 }
 
 // ─── 6. Reports ───
 function renderPortalReports(): string {
-  return '<div class="portal-main-header"><div><h1>Reports</h1><p style="color:#78716c;font-size:0.875rem">Automation analytics and performance metrics</p></div><div style="display:flex;gap:0.5rem"><button class="portal-btn portal-btn-secondary portal-btn-sm">Export PDF</button><button class="portal-btn portal-btn-secondary portal-btn-sm">Export CSV</button></div></div><div id="reports-content"><div class="portal-skeleton"><div class="portal-skeleton-line w4"></div><div class="portal-skeleton-card"></div></div></div><script>fetch("/api/tenant/dashboard",{credentials:"same-origin"}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(d){var h="";h+=\'<div class="portal-stat-grid col2">\';h+=\'<div class="portal-card"><div class="portal-card-header">Total Automations</div><div class="portal-card-value">\'+(d.workflowCount||0)+\'</div><div class="portal-card-sub">Workflows configured</div></div>\';h+=\'<div class="portal-card"><div class="portal-card-header">Active Workflows</div><div class="portal-card-value">\'+(d.activeWorkflows||0)+\'</div><div class="portal-card-sub">Running now</div></div>\';h+=\'<div class="portal-card"><div class="portal-card-header">Documents</div><div class="portal-card-value">\'+(d.docCount||0)+\'</div><div class="portal-card-sub">Total processed</div></div>\';h+=\'<div class="portal-card"><div class="portal-card-header">Integrations</div><div class="portal-card-value">\'+(d.integrationCount||0)+\'</div><div class="portal-card-sub">Connected services</div></div>\';h+=\'</div>\';h+=\'<div class="portal-card" style="margin-bottom:1.5rem"><div class="portal-card-header" style="margin-bottom:1rem">Activity Overview</div><div class="portal-chart"><div class="portal-chart-bar" style="height:40%"><div class="portal-chart-bar-val">Active</div><div class="portal-chart-bar-label">Agents</div></div><div class="portal-chart-bar" style="height:70%"><div class="portal-chart-bar-val">\'+(d.activeWorkflows||0)+\'</div><div class="portal-chart-bar-label">Workflows</div></div><div class="portal-chart-bar" style="height:50%"><div class="portal-chart-bar-val">\'+(d.integrationCount||0)+\'</div><div class="portal-chart-bar-label">Integrations</div></div><div class="portal-chart-bar" style="height:30%"><div class="portal-chart-bar-val">\'+(d.docCount||0)+\'</div><div class="portal-chart-bar-label">Docs</div></div></div></div>\';document.getElementById("reports-content").innerHTML=h}).catch(function(){document.getElementById("reports-content").innerHTML=\'<div class="portal-error"><div class="portal-error-icon">⚠️</div><div class="portal-error-title">Failed to load reports</div><div class="portal-error-text">Connect workflows and integrations to see report data.</div><a href="/portal/reports" class="portal-btn portal-btn-secondary portal-btn-sm">Retry</a></div>\'})</script>';
+  return `<div class="portal-main-header"><div><h1>Reports</h1><p style="color:#78716c;font-size:0.875rem">Automation analytics and performance metrics</p></div><div style="display:flex;gap:0.5rem"><button class="portal-btn portal-btn-secondary portal-btn-sm">Export PDF</button><button class="portal-btn portal-btn-secondary portal-btn-sm">Export CSV</button></div></div><div id="reports-content"><div class="portal-skeleton"><div class="portal-skeleton-line w4"></div><div class="portal-skeleton-card"></div></div></div><script>fetch("/api/tenant/dashboard",{credentials:"same-origin"}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(d){var h="";h+=\'<div class="portal-stat-grid col2">\';h+=\'<div class="portal-card"><div class="portal-card-header">Total Automations</div><div class="portal-card-value">\'+(d.workflowCount||0)+\'</div><div class="portal-card-sub">Workflows configured</div></div>\';h+=\'<div class="portal-card"><div class="portal-card-header">Active Workflows</div><div class="portal-card-value">\'+(d.activeWorkflows||0)+\'</div><div class="portal-card-sub">Running now</div></div>\';h+=\'<div class="portal-card"><div class="portal-card-header">Documents</div><div class="portal-card-value">\'+(d.docCount||0)+\'</div><div class="portal-card-sub">Total processed</div></div>\';h+=\'<div class="portal-card"><div class="portal-card-header">Integrations</div><div class="portal-card-value">\'+(d.integrationCount||0)+\'</div><div class="portal-card-sub">Connected services</div></div>\';h+=\'</div>\';h+=\'<div class="portal-card" style="margin-bottom:1.5rem"><div class="portal-card-header" style="margin-bottom:1rem">Activity Overview</div><div class="portal-chart"><div class="portal-chart-bar" style="height:40%"><div class="portal-chart-bar-val">Active</div><div class="portal-chart-bar-label">Agents</div></div><div class="portal-chart-bar" style="height:70%"><div class="portal-chart-bar-val">\'+(d.activeWorkflows||0)+\'</div><div class="portal-chart-bar-label">Workflows</div></div><div class="portal-chart-bar" style="height:50%"><div class="portal-chart-bar-val">\'+(d.integrationCount||0)+\'</div><div class="portal-chart-bar-label">Integrations</div></div><div class="portal-chart-bar" style="height:30%"><div class="portal-chart-bar-val">\'+(d.docCount||0)+\'</div><div class="portal-chart-bar-label">Docs</div></div></div></div>\';document.getElementById("reports-content").innerHTML=h}).catch(function(){document.getElementById("reports-content").innerHTML=\'<div class="portal-error"><div class="portal-error-icon">⚠️</div><div class="portal-error-title">Failed to load reports</div><div class="portal-error-text">Connect workflows and integrations to see report data.</div><a href="/portal/reports" class="portal-btn portal-btn-secondary portal-btn-sm">Retry</a></div>\'})</script>`;
 }
 
 // ─── 7. Integrations ───
 function renderPortalIntegrations(): string {
   const allProviders = [
-    { name: "Salesforce", icon: "☁️", cat: "CRM" },{ name: "HubSpot", icon: "🧲", cat: "CRM" },{ name: "Google Drive", icon: "📁", cat: "Storage" },{ name: "Slack", icon: "💬", cat: "Communication" },{ name: "Gmail", icon: "✉️", cat: "Communication" },{ name: "Teams", icon: "🟣", cat: "Communication" },{ name: "SharePoint", icon: "📂", cat: "Storage" },{ name: "Dropbox", icon: "📦", cat: "Storage" },{ name: "NetSuite", icon: "🏢", cat: "ERP" },{ name: "SAP", icon: "🔷", cat: "ERP" },{ name: "Jira", icon: "🎯", cat: "Project Mgmt" },{ name: "Asana", icon: "✅", cat: "Project Mgmt" },{ name: "Zoom", icon: "📹", cat: "Communication" },{ name: "Stripe", icon: "💳", cat: "Payments" },{ name: "QuickBooks", icon: "📒", cat: "Accounting" },{ name: "Xero", icon: "📗", cat: "Accounting" },{ name: "Zendesk", icon: "🎧", cat: "Support" },{ name: "Intercom", icon: "💭", cat: "Support" },{ name: "Shopify", icon: "🛍️", cat: "E-Commerce" },{ name: "GitHub", icon: "🐙", cat: "Dev Tools" },{ name: "Notion", icon: "📝", cat: "Productivity" },{ name: "Trello", icon: "📋", cat: "Project Mgmt" },{ name: "GitLab", icon: "🦊", cat: "Dev Tools" },{ name: "WooCommerce", icon: "🛒", cat: "E-Commerce" }
+    { name: "ABBYY", icon: "📄", cat: "Document Processing" }, { name: "Acuity Scheduling", icon: "📅", cat: "Scheduling" }, { name: "Acumatica", icon: "🏢", cat: "ERP" }, { name: "Adobe Sign", icon: "📄", cat: "Document Processing" }, { name: "ADP", icon: "👥", cat: "HR" }, { name: "Aircall", icon: "💬", cat: "Communication" }, 
+    { name: "Apache Airflow", icon: "🛠️", cat: "Dev Tools" }, { name: "Airtable", icon: "🗄️", cat: "Databases" }, { name: "Amazon Seller Central", icon: "🛍️", cat: "E-Commerce" }, { name: "Anthropic Claude", icon: "🤖", cat: "AI Models" }, { name: "Asana", icon: "📊", cat: "Project Mgmt" }, { name: "AscendTMS", icon: "🚛", cat: "Logistics" }, 
+    { name: "Athenahealth", icon: "🏥", cat: "Healthcare" }, { name: "Auth0", icon: "🔐", cat: "Identity" }, { name: "Authorize.net", icon: "💳", cat: "Payments" }, { name: "AWS Bedrock", icon: "🤖", cat: "AI Models" }, { name: "AWS Lambda", icon: "🛠️", cat: "Dev Tools" }, { name: "AWS Textract", icon: "📄", cat: "Document Processing" }, 
+    { name: "Azure Blob Storage", icon: "📁", cat: "Storage" }, { name: "Azure Document Intelligence", icon: "📄", cat: "Document Processing" }, { name: "Azure OpenAI", icon: "🤖", cat: "AI Models" }, { name: "Azure SQL", icon: "🗄️", cat: "Databases" }, { name: "BambooHR", icon: "👥", cat: "HR" }, { name: "Basecamp", icon: "📊", cat: "Project Mgmt" }, 
+    { name: "BigCommerce", icon: "🛍️", cat: "E-Commerce" }, { name: "BigQuery", icon: "🗄️", cat: "Databases" }, { name: "Bill.com", icon: "📒", cat: "Accounting" }, { name: "Boomi", icon: "⚡", cat: "Automation" }, { name: "Box", icon: "📁", cat: "Storage" }, { name: "Braintree", icon: "💳", cat: "Payments" }, 
+    { name: "Brex", icon: "📒", cat: "Accounting" }, { name: "Calendly", icon: "📅", cat: "Scheduling" }, { name: "ClickHouse", icon: "🗄️", cat: "Databases" }, { name: "ClickUp", icon: "📊", cat: "Project Mgmt" }, { name: "Cohere", icon: "🤖", cat: "AI Models" }, { name: "Copper", icon: "📋", cat: "CRM" }, 
+    { name: "Creatio", icon: "📋", cat: "CRM" }, { name: "DAT", icon: "🚛", cat: "Logistics" }, { name: "Descartes", icon: "🚛", cat: "Logistics" }, { name: "Dialpad", icon: "💬", cat: "Communication" }, { name: "Discord", icon: "💬", cat: "Communication" }, { name: "DocuSign", icon: "📄", cat: "Document Processing" }, 
+    { name: "Dropbox", icon: "📁", cat: "Storage" }, { name: "Dropbox Sign", icon: "📄", cat: "Document Processing" }, { name: "Dynamics 365", icon: "📋", cat: "CRM" }, { name: "Dynamics 365 Business Central", icon: "🏢", cat: "ERP" }, { name: "Dynamics 365 Finance & Ops", icon: "🏢", cat: "ERP" }, { name: "eClinicalWorks", icon: "🏥", cat: "Healthcare" }, 
+    { name: "Egnyte", icon: "📁", cat: "Storage" }, { name: "Microsoft Entra ID", icon: "🔐", cat: "Identity" }, { name: "Epicor", icon: "🏢", cat: "ERP" }, { name: "Epicor Kinetic", icon: "🏢", cat: "ERP" }, { name: "Epicor Kinetic Mfg", icon: "🏭", cat: "Manufacturing" }, { name: "Exchange", icon: "✉️", cat: "Email" }, 
+    { name: "Expensify", icon: "📒", cat: "Accounting" }, { name: "Fishbowl", icon: "🏭", cat: "Manufacturing" }, { name: "Formstack", icon: "📝", cat: "Forms" }, { name: "FourKites", icon: "🚛", cat: "Logistics" }, { name: "FreshBooks", icon: "📒", cat: "Accounting" }, { name: "Freshdesk", icon: "🎧", cat: "Support" }, 
+    { name: "Freshsales", icon: "📋", cat: "CRM" }, { name: "Google Cloud Storage", icon: "📁", cat: "Storage" }, { name: "Gmail", icon: "✉️", cat: "Email" }, { name: "Google Calendar", icon: "📅", cat: "Scheduling" }, { name: "Google Document AI", icon: "📄", cat: "Document Processing" }, { name: "Google Drive", icon: "📁", cat: "Storage" }, 
+    { name: "Google Forms", icon: "📝", cat: "Forms" }, { name: "Google Gemini", icon: "🤖", cat: "AI Models" }, { name: "Google Workspace", icon: "✉️", cat: "Email" }, { name: "Google Workspace Identity", icon: "🔐", cat: "Identity" }, { name: "GraphQL", icon: "🛠️", cat: "Dev Tools" }, { name: "Gravity Forms", icon: "📝", cat: "Forms" }, 
+    { name: "Greenhouse", icon: "👥", cat: "HR" }, { name: "Gusto", icon: "👥", cat: "HR" }, { name: "Help Scout", icon: "🔌", cat: "Other" }, { name: "HubSpot", icon: "📋", cat: "CRM" }, { name: "Iguana", icon: "🏥", cat: "Healthcare" }, { name: "IMAP", icon: "✉️", cat: "Email" }, 
+    { name: "Infor CloudSuite", icon: "🏢", cat: "ERP" }, { name: "Intercom", icon: "🎧", cat: "Support" }, { name: "IQMS", icon: "🏭", cat: "Manufacturing" }, { name: "Jira", icon: "📊", cat: "Project Mgmt" }, { name: "Jotform", icon: "📝", cat: "Forms" }, { name: "JSON API", icon: "🛠️", cat: "Dev Tools" }, 
+    { name: "Katana", icon: "🏭", cat: "Manufacturing" }, { name: "Lever", icon: "👥", cat: "HR" }, { name: "Looker", icon: "📈", cat: "BI" }, { name: "Magento", icon: "🛍️", cat: "E-Commerce" }, { name: "Make", icon: "⚡", cat: "Automation" }, { name: "McLeod Software", icon: "🚛", cat: "Logistics" }, 
+    { name: "MercuryGate", icon: "🚛", cat: "Logistics" }, { name: "Metabase", icon: "📈", cat: "BI" }, { name: "Microsoft Bookings", icon: "📅", cat: "Scheduling" }, { name: "Microsoft Forms", icon: "📝", cat: "Forms" }, { name: "Mirth Connect", icon: "🏥", cat: "Healthcare" }, { name: "Mistral", icon: "🤖", cat: "AI Models" }, 
+    { name: "Monday.com", icon: "📊", cat: "Project Mgmt" }, { name: "Monday CRM", icon: "📋", cat: "CRM" }, { name: "MongoDB", icon: "🗄️", cat: "Databases" }, { name: "Motive", icon: "🚛", cat: "Logistics" }, { name: "MRPeasy", icon: "🏭", cat: "Manufacturing" }, { name: "MySQL", icon: "🗄️", cat: "Databases" }, 
+    { name: "n8n", icon: "⚡", cat: "Automation" }, { name: "NetSuite", icon: "🏢", cat: "ERP" }, { name: "NextGen", icon: "🏥", cat: "Healthcare" }, { name: "Notion", icon: "✅", cat: "Productivity" }, { name: "OCR.space", icon: "📄", cat: "Document Processing" }, { name: "Odoo", icon: "🏢", cat: "ERP" }, 
+    { name: "Okta", icon: "🔐", cat: "Identity" }, { name: "OneDrive", icon: "📁", cat: "Storage" }, { name: "OpenAI", icon: "🤖", cat: "AI Models" }, { name: "Oracle DB", icon: "🗄️", cat: "Databases" }, { name: "Oracle ERP Cloud", icon: "🏢", cat: "ERP" }, { name: "Outlook", icon: "✉️", cat: "Email" }, 
+    { name: "Outlook Calendar", icon: "📅", cat: "Scheduling" }, { name: "PandaDoc", icon: "📄", cat: "Document Processing" }, { name: "Paychex", icon: "👥", cat: "HR" }, { name: "PayPal", icon: "💳", cat: "Payments" }, { name: "PCS TMS", icon: "🚛", cat: "Logistics" }, { name: "PDF.co", icon: "📄", cat: "Document Processing" }, 
+    { name: "Pipedrive", icon: "📋", cat: "CRM" }, { name: "Plex", icon: "🏭", cat: "Manufacturing" }, { name: "PostgreSQL", icon: "🗄️", cat: "Databases" }, { name: "Power Automate", icon: "⚡", cat: "Automation" }, { name: "Power BI", icon: "📈", cat: "BI" }, { name: "project44", icon: "🚛", cat: "Logistics" }, 
+    { name: "Qlik Sense", icon: "📈", cat: "BI" }, { name: "QuickBooks Desktop", icon: "📒", cat: "Accounting" }, { name: "QuickBooks Enterprise", icon: "🏢", cat: "ERP" }, { name: "QuickBooks Online", icon: "📒", cat: "Accounting" }, { name: "Ramp", icon: "📒", cat: "Accounting" }, { name: "REST API", icon: "🛠️", cat: "Dev Tools" }, 
+    { name: "RingCentral", icon: "💬", cat: "Communication" }, { name: "Rippling", icon: "👥", cat: "HR" }, { name: "Amazon S3", icon: "📁", cat: "Storage" }, { name: "Sage 50", icon: "📒", cat: "Accounting" }, { name: "Sage Intacct", icon: "🏢", cat: "ERP" }, { name: "Sage X3", icon: "🏢", cat: "ERP" }, 
+    { name: "Salesforce", icon: "📋", cat: "CRM" }, { name: "Salesforce Service Cloud", icon: "🎧", cat: "Support" }, { name: "Samsara", icon: "🚛", cat: "Logistics" }, { name: "SAP Business One", icon: "🏢", cat: "ERP" }, { name: "SAP S/4HANA", icon: "🏢", cat: "ERP" }, { name: "ServiceNow", icon: "🎧", cat: "Support" }, 
+    { name: "SFTP", icon: "🛠️", cat: "Dev Tools" }, { name: "SharePoint", icon: "📁", cat: "Storage" }, { name: "Shopify", icon: "🛍️", cat: "E-Commerce" }, { name: "Siemens Opcenter", icon: "🏭", cat: "Manufacturing" }, { name: "Sigma", icon: "📈", cat: "BI" }, { name: "Slack", icon: "💬", cat: "Communication" }, 
+    { name: "Smartsheet", icon: "📊", cat: "Project Mgmt" }, { name: "SMTP", icon: "✉️", cat: "Email" }, { name: "Snowflake", icon: "🗄️", cat: "Databases" }, { name: "SOAP API", icon: "🛠️", cat: "Dev Tools" }, { name: "SQL Server", icon: "🗄️", cat: "Databases" }, { name: "Square", icon: "💳", cat: "Payments" }, 
+    { name: "SugarCRM", icon: "📋", cat: "CRM" }, { name: "Tableau", icon: "📈", cat: "BI" }, { name: "Teams", icon: "💬", cat: "Communication" }, { name: "Tray.io", icon: "⚡", cat: "Automation" }, { name: "Trello", icon: "📊", cat: "Project Mgmt" }, { name: "Trimble TMS", icon: "🚛", cat: "Logistics" }, 
+    { name: "Truckstop", icon: "🚛", cat: "Logistics" }, { name: "Twilio", icon: "💬", cat: "Communication" }, { name: "Typeform", icon: "📝", cat: "Forms" }, { name: "UiPath", icon: "⚡", cat: "Automation" }, { name: "UKG", icon: "👥", cat: "HR" }, { name: "Wave", icon: "📒", cat: "Accounting" }, 
+    { name: "Webex", icon: "💬", cat: "Communication" }, { name: "Webhooks", icon: "🛠️", cat: "Dev Tools" }, { name: "WooCommerce", icon: "🛍️", cat: "E-Commerce" }, { name: "Workato", icon: "⚡", cat: "Automation" }, { name: "Workday", icon: "👥", cat: "HR" }, { name: "Wrike", icon: "📊", cat: "Project Mgmt" }, 
+    { name: "Xero", icon: "📒", cat: "Accounting" }, { name: "XML API", icon: "🛠️", cat: "Dev Tools" }, { name: "Zapier", icon: "⚡", cat: "Automation" }, { name: "Zendesk", icon: "🎧", cat: "Support" }, { name: "Zoho CRM", icon: "📋", cat: "CRM" }, { name: "Zoom", icon: "💬", cat: "Communication" }
   ];
-  return '<div class="portal-main-header"><div><h1>Integrations</h1><p style="color:#78716c;font-size:0.875rem" id="int-count">Loading...</p></div></div><div class="portal-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg><input placeholder="Search 180+ integrations..." id="int-search" oninput="filterInts()"></div><div id="ints-content"><div class="portal-skeleton"><div class="portal-skeleton-line w4"></div><div class="portal-skeleton-card"></div></div></div><script>var allInts=[];function filterInts(){var s=document.getElementById("int-search").value.toLowerCase();document.querySelectorAll(".integration-card").forEach(function(c){c.style.display=!s||c.dataset.name.indexOf(s)>-1||c.dataset.cat.indexOf(s)>-1?"":"none"})}fetch("/api/tenant/integrations",{credentials:"same-origin"}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(connected){var connMap={};connected.forEach(function(c){connMap[c.provider]=c});var merged=allProviders.map(function(p){var c=connMap[p.name];return c?{name:p.name,icon:p.icon,cat:p.cat,connected:true,lastSync:c.lastSync}:{name:p.name,icon:p.icon,cat:p.cat,connected:false}});allInts=merged;var connCount=merged.filter(function(m){return m.connected}).length;document.getElementById("int-count").textContent=connCount+" connected, 180+ available";var h="";h+=\'<div style="display:flex;gap:0.5rem;margin-bottom:1.5rem;flex-wrap:wrap"><button class="portal-btn portal-btn-sm portal-btn-secondary" onclick="document.querySelectorAll(\\\'.integration-card\\\').forEach(function(c){c.style.display=\\\'\\\'})">All</button>\';["CRM","Communication","Storage","ERP","Project Mgmt","Payments","Accounting","Support","E-Commerce","Dev Tools","Productivity"].forEach(function(cat){h+=\'<button class="portal-btn portal-btn-sm portal-btn-secondary" onclick="document.querySelectorAll(\\\'.integration-card\\\').forEach(function(el){el.style.display=el.dataset.cat===\\\'\'+cat+\'\\\'?\\\'\\\':\\\'none\\\'})">\'+cat+\'</button>\'});h+=\'</div>\';h+=\'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem">\';merged.forEach(function(i){h+=\'<div class="portal-card integration-card" data-name="\'+i.name.toLowerCase()+'" data-cat="\'+i.cat+\'" style="text-align:center"><div style="font-size:2rem;margin-bottom:0.5rem">\'+i.icon+\'</div><div style="font-weight:800;color:#e7e5e4;margin-bottom:0.25rem;font-size:0.9375rem">\'+i.name+\'</div><span class="portal-badge portal-badge-gray" style="margin-bottom:0.75rem">\'+i.cat+\'</span><div style="margin-top:0.5rem">\'+(i.connected?\'<span class="portal-badge portal-badge-green">✓ Connected</span><div style="font-size:0.625rem;color:#78716c;margin-top:0.25rem">\'+(i.lastSync?new Date(i.lastSync).toLocaleString():"")+\'</div>\':\'<button class="portal-btn portal-btn-primary portal-btn-sm" style="width:100%" onclick="alert(\\\'Connect flow coming soon\\\')">Connect</button>\')+\'</div></div>\'})}h+=\'</div>\';document.getElementById("ints-content").innerHTML=h}).catch(function(){document.getElementById("ints-content").innerHTML=\'<div class="portal-error"><div class="portal-error-icon">⚠️</div><div class="portal-error-title">Failed to load integrations</div><div class="portal-error-text">The integrations API may not be available yet.</div><a href="/portal/integrations" class="portal-btn portal-btn-secondary portal-btn-sm">Retry</a></div>\'})</script>';
+  return `<div class="portal-main-header"><div><h1>Integrations</h1><p style="color:#78716c;font-size:0.875rem" id="int-count">Loading...</p></div></div><div class="portal-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg><input placeholder="Search 180+ integrations..." id="int-search" oninput="filterInts()"></div><div id="ints-content"><div class="portal-skeleton"><div class="portal-skeleton-line w4"></div><div class="portal-skeleton-card"></div></div></div><script>var allInts=[];function filterInts(){var s=document.getElementById("int-search").value.toLowerCase();document.querySelectorAll(".integration-card").forEach(function(c){c.style.display=!s||c.dataset.name.indexOf(s)>-1||c.dataset.cat.indexOf(s)>-1?"":"none"})}fetch("/api/tenant/integrations",{credentials:"same-origin"}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(connected){var connMap={};connected.forEach(function(c){connMap[c.provider]=c});var merged=allProviders.map(function(p){var c=connMap[p.name];return c?{name:p.name,icon:p.icon,cat:p.cat,connected:true,lastSync:c.lastSync}:{name:p.name,icon:p.icon,cat:p.cat,connected:false}});allInts=merged;var connCount=merged.filter(function(m){return m.connected}).length;document.getElementById("int-count").textContent=connCount+" connected, 180+ available";var h="";h+=\'<div style="display:flex;gap:0.5rem;margin-bottom:1.5rem;flex-wrap:wrap"><button class="portal-btn portal-btn-sm portal-btn-secondary" onclick="document.querySelectorAll(\\\'.integration-card\\\').forEach(function(c){c.style.display=\\\'\\\'})">All</button>\';["CRM","ERP","Accounting","Email","Communication","Storage","Document Processing","Project Mgmt","HR","Support","BI","E-Commerce","Logistics","Manufacturing","Healthcare","Scheduling","Forms","Payments","AI Models","Automation","Identity","Dev Tools","Databases","Productivity"].forEach(function(cat){h+=\'<button class="portal-btn portal-btn-sm portal-btn-secondary" onclick="document.querySelectorAll(\\\'.integration-card\\\').forEach(function(el){el.style.display=el.dataset.cat===\\\'\'+cat+\'\\\'?\\\'\\\':\\\'none\\\'})">\'+cat+\'</button>\'});h+=\'</div>\';h+=\'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem">\';merged.forEach(function(i){h+=\'<div class="portal-card integration-card" data-name="\'+i.name.toLowerCase()+'" data-cat="\'+i.cat+\'" style="text-align:center"><div style="font-size:2rem;margin-bottom:0.5rem">\'+i.icon+\'</div><div style="font-weight:800;color:#e7e5e4;margin-bottom:0.25rem;font-size:0.9375rem">\'+i.name+\'</div><span class="portal-badge portal-badge-gray" style="margin-bottom:0.75rem">\'+i.cat+\'</span><div style="margin-top:0.5rem">\'+(i.connected?\'<span class="portal-badge portal-badge-green">✓ Connected</span><div style="font-size:0.625rem;color:#78716c;margin-top:0.25rem">\'+(i.lastSync?new Date(i.lastSync).toLocaleString():"")+\'</div>\':\'<button class="portal-btn portal-btn-primary portal-btn-sm" style="width:100%" onclick="connectProvider(\\\'"+i.name+"\\\')">Connect</button>\')+\'</div></div>\'})}h+=\'</div>\';document.getElementById("ints-content").innerHTML=h}).catch(function(){document.getElementById("ints-content").innerHTML=\'<div class="portal-error"><div class="portal-error-icon">⚠️</div><div class="portal-error-title">Failed to load integrations</div><div class="portal-error-text">The integrations API may not be available yet.</div><a href="/portal/integrations" class="portal-btn portal-btn-secondary portal-btn-sm">Retry</a></div>\'})</script>`;
 }
 
 // ─── 8. CRM / ERP ───
 function renderPortalCRM(): string {
-  return '<div class="portal-main-header"><div><h1>CRM / ERP</h1><p style="color:#78716c;font-size:0.875rem" id="crm-count">Loading...</p></div></div><div id="crm-content"><div class="portal-skeleton"><div class="portal-skeleton-line w4"></div><div class="portal-skeleton-card"></div></div></div><script>var crmNames=["Salesforce","HubSpot","Dynamics 365","NetSuite","SAP","Zoho CRM","Pipedrive","Freshsales"];var crmIcons={"Salesforce":"☁️","HubSpot":"🧲","Dynamics 365":"🟦","NetSuite":"🏢","SAP":"🔷","Zoho CRM":"📋","Pipedrive":"📊","Freshsales":"🌱"};fetch("/api/tenant/integrations",{credentials:"same-origin"}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(connected){var connMap={};connected.forEach(function(c){connMap[c.provider]=c});var count=0;var h=\'<div class="portal-card"><table class="portal-table"><thead><tr><th>Platform</th><th>Status</th><th>Last Sync</th><th></th></tr></thead><tbody>\';crmNames.forEach(function(name){var c=connMap[name];if(c)count++;h+=\'<tr><td style="font-weight:700"><span style="margin-right:0.5rem">\'+(crmIcons[name]||"🏢")+\'</span>\'+name+\'</td><td><span class="portal-badge \'+(c?"portal-badge-green":"portal-badge-gray")+\'">\'+(c?"Connected":"Not Connected")+\'</span></td><td style="font-size:0.8125rem">\'+(c&&c.lastSync?new Date(c.lastSync).toLocaleString():"Never")+\'</td><td>\'+(c?\'<button class="portal-btn portal-btn-sm portal-btn-secondary">Sync Now</button>\':\'<button class="portal-btn portal-btn-sm portal-btn-primary" onclick="alert(\\\'Connect flow coming soon\\\')">Connect</button>\')+\'</td></tr>\'});h+=\'</tbody></table></div>\';document.getElementById("crm-count").textContent=count+" connected";document.getElementById("crm-content").innerHTML=h}).catch(function(){document.getElementById("crm-content").innerHTML=\'<div class="portal-error"><div class="portal-error-icon">⚠️</div><div class="portal-error-title">Failed to load CRM/ERP data</div><div class="portal-error-text">The integrations API may not be available yet.</div><a href="/portal/crm" class="portal-btn portal-btn-secondary portal-btn-sm">Retry</a></div>\'})</script>';
+  return `<div class="portal-main-header"><div><h1>CRM / ERP</h1><p style="color:#78716c;font-size:0.875rem" id="crm-count">Loading...</p></div></div><div id="crm-content"><div class="portal-skeleton"><div class="portal-skeleton-line w4"></div><div class="portal-skeleton-card"></div></div></div><script>var crmNames=["Salesforce","HubSpot","Dynamics 365","NetSuite","SAP","Zoho CRM","Pipedrive","Freshsales"];var crmIcons={"Salesforce":"☁️","HubSpot":"🧲","Dynamics 365":"🟦","NetSuite":"🏢","SAP":"🔷","Zoho CRM":"📋","Pipedrive":"📊","Freshsales":"🌱"};fetch("/api/tenant/integrations",{credentials:"same-origin"}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(connected){var connMap={};connected.forEach(function(c){connMap[c.provider]=c});var count=0;var h=\'<div class="portal-card"><table class="portal-table"><thead><tr><th>Platform</th><th>Status</th><th>Last Sync</th><th></th></tr></thead><tbody>\';crmNames.forEach(function(name){var c=connMap[name];if(c)count++;h+=\'<tr><td style="font-weight:700"><span style="margin-right:0.5rem">\'+(crmIcons[name]||"🏢")+\'</span>\'+name+\'</td><td><span class="portal-badge \'+(c?"portal-badge-green":"portal-badge-gray")+\'">\'+(c?"Connected":"Not Connected")+\'</span></td><td style="font-size:0.8125rem">\'+(c&&c.lastSync?new Date(c.lastSync).toLocaleString():"Never")+\'</td><td>\'+(c?\'<button class="portal-btn portal-btn-sm portal-btn-secondary">Sync Now</button>\':\'<button class="portal-btn portal-btn-sm portal-btn-primary" onclick="connectProvider(\\\'"+name+"\\\')">Connect</button>\')+\'</td></tr>\'});h+=\'</tbody></table></div>\';document.getElementById("crm-count").textContent=count+" connected";document.getElementById("crm-content").innerHTML=h}).catch(function(){document.getElementById("crm-content").innerHTML=\'<div class="portal-error"><div class="portal-error-icon">⚠️</div><div class="portal-error-title">Failed to load CRM/ERP data</div><div class="portal-error-text">The integrations API may not be available yet.</div><a href="/portal/crm" class="portal-btn portal-btn-secondary portal-btn-sm">Retry</a></div>\'})</script>`;
 }
 
 // ─── 9. API Keys ───
 function renderPortalAPIKeys(): string {
-  return '<div class="portal-main-header"><div><h1>API Keys</h1><p style="color:#78716c;font-size:0.875rem">Manage API access for automations</p></div><button class="portal-btn portal-btn-primary portal-btn-sm" onclick="generateKey()">+ Generate New Key</button></div><div id="keys-content"><div class="portal-skeleton"><div class="portal-skeleton-line w4"></div><div class="portal-skeleton-card"></div></div></div><script>function loadKeys(){fetch("/api/tenant/api-keys",{credentials:"same-origin"}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(keys){var h="";if(keys.length===0){h=\'<div class="portal-empty"><div class="portal-empty-icon">🔑</div><div class="portal-empty-title">No API keys yet</div><div class="portal-empty-text">Generate an API key to access the platform programmatically</div><button class="portal-btn portal-btn-primary portal-btn-sm" onclick="generateKey()">Generate Key</button></div>\'}else{keys.forEach(function(k){h+=\'<div class="portal-card" style="margin-bottom:0.75rem"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem"><div><div style="font-weight:800;color:#e7e5e4;font-size:0.9375rem;margin-bottom:0.25rem">\'+k.name+\'</div><code style="font-size:0.75rem;color:#a8a29e;background:#0c0a09;padding:0.125rem 0.5rem;border-radius:0.25rem;cursor:pointer" onclick="navigator.clipboard.writeText(\\\'\'+k.masked+\'\\\')" title="Click to copy">\'+k.masked+\'</code></div><div style="text-align:right"><div style="font-size:0.75rem;color:#a8a29e">Created \'+new Date(k.created).toLocaleDateString()+\' · \'+(k.calls||0).toLocaleString()+\' calls</div><div style="font-size:0.6875rem;color:#78716c">Last used: \'+(k.lastUsed||"Never")+\'</div></div></div><div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid #292524;display:flex;gap:0.5rem"><button class="portal-btn portal-btn-sm portal-btn-secondary" onclick="navigator.clipboard.writeText(\\\'\'+k.masked+\'\\\')">📋 Copy</button><button class="portal-btn portal-btn-sm portal-btn-danger" onclick="if(confirm(\\\'Revoke this key?\\\'))revokeKey(\\\'\'+k.id+\'\\\')">Revoke</button></div></div>\'})}document.getElementById("keys-content").innerHTML=h}).catch(function(){document.getElementById("keys-content").innerHTML=\'<div class="portal-error"><div class="portal-error-icon">⚠️</div><div class="portal-error-title">Failed to load API keys</div><div class="portal-error-text">The API keys endpoint may not be available yet.</div><a href="/portal/api" class="portal-btn portal-btn-secondary portal-btn-sm">Retry</a></div>\'})}function generateKey(){var n=prompt("Key name (e.g. Production, Staging):");if(!n)return;fetch("/api/tenant/api-keys",{method:"POST",headers:{"Content-Type":"application/json"},credentials:"same-origin",body:JSON.stringify({name:n})}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(k){alert("New key: "+k.key+"\\nCopy it now — it won\\'t be shown again!");loadKeys()}).catch(function(){alert("Failed to generate key. API may not be ready.")})}function revokeKey(id){fetch("/api/tenant/api-keys/"+id,{method:"DELETE",credentials:"same-origin"}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(){loadKeys()}).catch(function(){alert("Failed to revoke key")})}loadKeys()</script>';
+  return `<div class="portal-main-header"><div><h1>API Keys</h1><p style="color:#78716c;font-size:0.875rem">Manage API access for automations</p></div><button class="portal-btn portal-btn-primary portal-btn-sm" onclick="generateKey()">+ Generate New Key</button></div><div id="keys-content"><div class="portal-skeleton"><div class="portal-skeleton-line w4"></div><div class="portal-skeleton-card"></div></div></div><script>function loadKeys(){fetch("/api/tenant/api-keys",{credentials:"same-origin"}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(keys){var h="";if(keys.length===0){h=\'<div class="portal-empty"><div class="portal-empty-icon">🔑</div><div class="portal-empty-title">No API keys yet</div><div class="portal-empty-text">Generate an API key to access the platform programmatically</div><button class="portal-btn portal-btn-primary portal-btn-sm" onclick="generateKey()">Generate Key</button></div>\'}else{keys.forEach(function(k){h+=\'<div class="portal-card" style="margin-bottom:0.75rem"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem"><div><div style="font-weight:800;color:#e7e5e4;font-size:0.9375rem;margin-bottom:0.25rem">\'+k.name+\'</div><code style="font-size:0.75rem;color:#a8a29e;background:#0c0a09;padding:0.125rem 0.5rem;border-radius:0.25rem;cursor:pointer" onclick="navigator.clipboard.writeText(\\\'\'+k.masked+\'\\\')" title="Click to copy">\'+k.masked+\'</code></div><div style="text-align:right"><div style="font-size:0.75rem;color:#a8a29e">Created \'+new Date(k.created).toLocaleDateString()+\' · \'+(k.calls||0).toLocaleString()+\' calls</div><div style="font-size:0.6875rem;color:#78716c">Last used: \'+(k.lastUsed||"Never")+\'</div></div></div><div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid #292524;display:flex;gap:0.5rem"><button class="portal-btn portal-btn-sm portal-btn-secondary" onclick="navigator.clipboard.writeText(\\\'\'+k.masked+\'\\\')">📋 Copy</button><button class="portal-btn portal-btn-sm portal-btn-danger" onclick="if(confirm(\\\'Revoke this key?\\\'))revokeKey(\\\'\'+k.id+\'\\\')">Revoke</button></div></div>\'})}document.getElementById("keys-content").innerHTML=h}).catch(function(){document.getElementById("keys-content").innerHTML=\'<div class="portal-error"><div class="portal-error-icon">⚠️</div><div class="portal-error-title">Failed to load API keys</div><div class="portal-error-text">The API keys endpoint may not be available yet.</div><a href="/portal/api" class="portal-btn portal-btn-secondary portal-btn-sm">Retry</a></div>\'})}function generateKey(){var n=prompt("Key name (e.g. Production, Staging):");if(!n)return;fetch("/api/tenant/api-keys",{method:"POST",headers:{"Content-Type":"application/json"},credentials:"same-origin",body:JSON.stringify({name:n})}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(k){alert("New key: "+k.key+"\\nCopy it now — it won\\'t be shown again!");loadKeys()}).catch(function(){alert("Failed to generate key. API may not be ready.")})}function revokeKey(id){fetch("/api/tenant/api-keys/"+id,{method:"DELETE",credentials:"same-origin"}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(){loadKeys()}).catch(function(){alert("Failed to revoke key")})}loadKeys()</script>`;
 }
 
 // ─── 10. Settings ───
 function renderPortalSettings(email: string): string {
-  return '<div class="portal-main-header"><div><h1>Settings</h1><p style="color:#78716c;font-size:0.875rem">Manage your account and preferences</p></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem"><div class="portal-card"><h2 style="font-size:1.125rem;font-weight:800;color:#e7e5e4;margin-bottom:1.25rem">Account Information</h2><form class="portal-form" onsubmit="handleAccountSave(event)"><div><label>Email</label><input class="portal-input" type="email" value="'+email+'" disabled style="opacity:0.6"></div><div><label>Full Name</label><input class="portal-input" type="text" placeholder="Your name" value="Operations Lead"></div><div><label>Company</label><input class="portal-input" type="text" placeholder="Company name" value="Acme Industries"></div><button type="submit" class="portal-btn portal-btn-primary">Save Changes</button></form></div><div class="portal-card"><h2 style="font-size:1.125rem;font-weight:800;color:#e7e5e4;margin-bottom:1.25rem">Change Password</h2><form class="portal-form" onsubmit="handlePasswordChange(event)"><div><label>Current Password</label><input class="portal-input" type="password" placeholder="••••••••"></div><div><label>New Password</label><input class="portal-input" type="password" placeholder="Min 8 characters"></div><div><label>Confirm New Password</label><input class="portal-input" type="password" placeholder="Re-enter password"></div><button type="submit" class="portal-btn portal-btn-primary">Update Password</button></form></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-top:1.5rem"><div class="portal-card"><h2 style="font-size:1.125rem;font-weight:800;color:#e7e5e4;margin-bottom:1.25rem">Notification Preferences</h2><div style="display:flex;flex-direction:column;gap:0.75rem">'+["Workflow completions","Agent deployment updates","Integration health alerts","Weekly digest report","Billing notifications","Product updates & tips"].map(function(p,i){return '<label class="portal-toggle"><input type="checkbox" '+(i<5?'checked':'')+' onchange="localStorage.setItem(\\'notif-'+i+'\\',this.checked)"><span class="track"></span><span class="thumb"></span><span class="portal-toggle-label">'+p+'</span></label>'}).join("")+'</div></div><div class="portal-card"><h2 style="font-size:1.125rem;font-weight:800;color:#e7e5e4;margin-bottom:1.25rem">Billing</h2><div id="billing-content"><div style="display:flex;flex-direction:column;gap:1rem"><div style="display:flex;justify-content:space-between;align-items:center"><span style="color:#a8a29e;font-size:0.875rem">Plan</span><span class="portal-badge portal-badge-green">Active</span></div><a href="/build" class="portal-btn portal-btn-secondary portal-btn-sm" style="width:100%;text-decoration:none">Upgrade Plan</a></div></div></div></div><div class="portal-danger-zone"><h3>Danger Zone</h3><p>Permanently delete your account and all associated data. This action cannot be undone.</p><button class="portal-btn portal-btn-danger" onclick="if(confirm(\'Are you absolutely sure? This cannot be undone.\'))alert(\'Account deletion requires admin approval. Contact support.\')">Delete Account</button></div><script>async function handlePasswordChange(e){e.preventDefault();var btn=e.target.querySelector("button");btn.disabled=true;btn.textContent="Updating...";try{var inputs=e.target.querySelectorAll("input");if(inputs[2]&&inputs[1].value!==inputs[2].value){throw new Error("Passwords do not match")}var res=await fetch("/api/settings/password",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({currentPassword:inputs[0].value,newPassword:inputs[1].value})});var d=await res.json();if(!res.ok)throw new Error(d.error||"Failed");alert("Password updated!");e.target.reset()}catch(err){alert(err.message)}finally{btn.disabled=false;btn.textContent="Update Password"}}async function handleAccountSave(e){e.preventDefault();var btn=e.target.querySelector("button");btn.disabled=true;btn.textContent="Saving...";try{await new Promise(function(r){setTimeout(r,500)});alert("Settings saved!")}finally{btn.disabled=false;btn.textContent="Save Changes"}}fetch("/api/tenant/purchases",{credentials:"same-origin"}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(p){if(p.length>0){var h=\'<div class="portal-card-header" style="margin-bottom:0.75rem">Purchase History</div>\';p.forEach(function(pu){h+=\'<div style="display:flex;justify-content:space-between;padding:0.375rem 0;border-bottom:1px solid #292524;font-size:0.8125rem"><span style="color:#d6d3d1">\'+(pu.agentType||pu.productId)+\'</span><span style="color:#78716c">\'+new Date(pu.date).toLocaleDateString()+\'</span></div>\'});document.getElementById("billing-content").innerHTML=h}}).catch(function(){})</script>';
+  return `<div class="portal-main-header"><div><h1>Settings</h1><p style="color:#78716c;font-size:0.875rem">Manage your account and preferences</p></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem"><div class="portal-card"><h2 style="font-size:1.125rem;font-weight:800;color:#e7e5e4;margin-bottom:1.25rem">Account Information</h2><form class="portal-form" onsubmit="handleAccountSave(event)"><div><label>Email</label><input class="portal-input" type="email" value="'+email+'" disabled style="opacity:0.6"></div><div><label>Full Name</label><input class="portal-input" type="text" placeholder="Your name" value="Operations Lead"></div><div><label>Company</label><input class="portal-input" type="text" placeholder="Company name" value="Acme Industries"></div><button type="submit" class="portal-btn portal-btn-primary">Save Changes</button></form></div><div class="portal-card"><h2 style="font-size:1.125rem;font-weight:800;color:#e7e5e4;margin-bottom:1.25rem">Change Password</h2><form class="portal-form" onsubmit="handlePasswordChange(event)"><div><label>Current Password</label><input class="portal-input" type="password" placeholder="••••••••"></div><div><label>New Password</label><input class="portal-input" type="password" placeholder="Min 8 characters"></div><div><label>Confirm New Password</label><input class="portal-input" type="password" placeholder="Re-enter password"></div><button type="submit" class="portal-btn portal-btn-primary">Update Password</button></form></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-top:1.5rem"><div class="portal-card"><h2 style="font-size:1.125rem;font-weight:800;color:#e7e5e4;margin-bottom:1.25rem">Notification Preferences</h2><div style="display:flex;flex-direction:column;gap:0.75rem">'+["Workflow completions","Agent deployment updates","Integration health alerts","Weekly digest report","Billing notifications","Product updates & tips"].map(function(p,i){return '<label class="portal-toggle"><input type="checkbox" '+(i<5?'checked':'')+' onchange="localStorage.setItem(\\'notif-'+i+'\\',this.checked)"><span class="track"></span><span class="thumb"></span><span class="portal-toggle-label">'+p+'</span></label>'}).join("")+'</div></div><div class="portal-card"><h2 style="font-size:1.125rem;font-weight:800;color:#e7e5e4;margin-bottom:1.25rem">Billing</h2><div id="billing-content"><div style="display:flex;flex-direction:column;gap:1rem"><div style="display:flex;justify-content:space-between;align-items:center"><span style="color:#a8a29e;font-size:0.875rem">Plan</span><span class="portal-badge portal-badge-green">Active</span></div><a href="/build" class="portal-btn portal-btn-secondary portal-btn-sm" style="width:100%;text-decoration:none">Upgrade Plan</a></div></div></div></div><div class="portal-danger-zone"><h3>Danger Zone</h3><p>Permanently delete your account and all associated data. This action cannot be undone.</p><button class="portal-btn portal-btn-danger" onclick="if(confirm(\'Are you absolutely sure? This cannot be undone.\'))alert(\'Account deletion requires admin approval. Contact support.\')">Delete Account</button></div><script>async function handlePasswordChange(e){e.preventDefault();var btn=e.target.querySelector("button");btn.disabled=true;btn.textContent="Updating...";try{var inputs=e.target.querySelectorAll("input");if(inputs[2]&&inputs[1].value!==inputs[2].value){throw new Error("Passwords do not match")}var res=await fetch("/api/settings/password",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({currentPassword:inputs[0].value,newPassword:inputs[1].value})});var d=await res.json();if(!res.ok)throw new Error(d.error||"Failed");alert("Password updated!");e.target.reset()}catch(err){alert(err.message)}finally{btn.disabled=false;btn.textContent="Update Password"}}async function handleAccountSave(e){e.preventDefault();var btn=e.target.querySelector("button");btn.disabled=true;btn.textContent="Saving...";try{await new Promise(function(r){setTimeout(r,500)});alert("Settings saved!")}finally{btn.disabled=false;btn.textContent="Save Changes"}}fetch("/api/tenant/purchases",{credentials:"same-origin"}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(p){if(p.length>0){var h=\'<div class="portal-card-header" style="margin-bottom:0.75rem">Purchase History</div>\';p.forEach(function(pu){h+=\'<div style="display:flex;justify-content:space-between;padding:0.375rem 0;border-bottom:1px solid #292524;font-size:0.8125rem"><span style="color:#d6d3d1">\'+(pu.agentType||pu.productId)+\'</span><span style="color:#78716c">\'+new Date(pu.date).toLocaleDateString()+\'</span></div>\'});document.getElementById("billing-content").innerHTML=h}}).catch(function(){})</script>`;
 }
-
-// ─── Auth Helpers ───
-const DATA_DIR = "/home/team/shared/site/.data";
-const USERS_FILE = DATA_DIR + "/users.json";
-const SESSIONS_FILE = DATA_DIR + "/sessions.json";
-const TENANT_AGENTS_FILE = DATA_DIR + "/tenant_agents.json";
-const TENANT_INTEGRATIONS_FILE = DATA_DIR + "/tenant_integrations.json";
-const TENANT_DOCUMENTS_FILE = DATA_DIR + "/tenant_documents.json";
-const TENANT_WORKFLOWS_FILE = DATA_DIR + "/tenant_workflows.json";
-const TENANT_API_KEYS_FILE = DATA_DIR + "/tenant_api_keys.json";
-const TENANT_PURCHASES_FILE = DATA_DIR + "/purchases.json";
-
-function ensureDataDir() {
-  const { existsSync, mkdirSync } = require("fs");
-  if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
-}
-function readJSON(path: string): any {
-  ensureDataDir();
-  const { existsSync, readFileSync } = require("fs");
-  if (!existsSync(path)) return {};
-  try { return JSON.parse(readFileSync(path, "utf-8")); } catch { return {}; }
-}
-function writeJSON(path: string, data: any) {
-  ensureDataDir();
-  const { writeFileSync } = require("fs");
-  writeFileSync(path, JSON.stringify(data, null, 2));
-}
-function hashPassword(pw: string): string {
-  return require("crypto").createHash("sha256").update(pw + "sl100-salt").digest("hex");
-}
-function generateToken(): string {
-  return require("crypto").randomBytes(32).toString("hex");
-}
-// ─── Tenant Data Helpers ───
-function readTenantData(file: string, email: string): any[] {
-  const all = readJSON(file);
-  return Array.isArray(all[email]) ? all[email] : [];
-}
-function writeTenantData(file: string, email: string, data: any[]) {
-  const all = readJSON(file);
-  all[email] = data;
-  writeJSON(file, all);
-}
-
-// ─── Seed Data ───
-function seedTenantDataIfNeeded(email: string) {
-  const seedEmail = "mathewortiz97@gmail.com";
-  if (email !== seedEmail) return;
-
-  // Seed agents
-  const agents = readJSON(TENANT_AGENTS_FILE);
-  if (!agents[seedEmail]) {
-    agents[seedEmail] = [
-      { id: "agent-001", type: "document_intake", name: "Document Intake AI", status: "Active", industry: "Universal", deployedAt: "2026-06-20T10:30:00Z", lastActive: new Date().toISOString() },
-      { id: "agent-002", type: "sales_outreach", name: "Sales Outreach Coordinator AI", status: "Active", industry: "Universal", deployedAt: "2026-06-22T14:15:00Z", lastActive: new Date(Date.now() - 3600000).toISOString() },
-      { id: "agent-003", type: "support_agent", name: "AI Customer Support Agent", status: "Active", industry: "Universal", deployedAt: "2026-07-01T09:00:00Z", lastActive: new Date(Date.now() - 600000).toISOString() },
-      { id: "agent-004", type: "invoice_ledger", name: "Invoice & Ledger AI", status: "Active", industry: "Universal", deployedAt: "2026-07-10T11:45:00Z", lastActive: new Date(Date.now() - 1800000).toISOString() },
-    ];
-    writeJSON(TENANT_AGENTS_FILE, agents);
-  }
-
-  // Seed integrations
-  const integrations = readJSON(TENANT_INTEGRATIONS_FILE);
-  if (!integrations[seedEmail]) {
-    integrations[seedEmail] = [
-      { id: "int-001", provider: "Salesforce", status: "Connected", connectedAt: "2026-06-20T10:35:00Z", lastSync: new Date(Date.now() - 120000).toISOString() },
-      { id: "int-002", provider: "Slack", status: "Connected", connectedAt: "2026-07-01T09:05:00Z", lastSync: new Date(Date.now() - 300000).toISOString() },
-    ];
-    writeJSON(TENANT_INTEGRATIONS_FILE, integrations);
-  }
-
-  // Seed documents
-  const docs = readJSON(TENANT_DOCUMENTS_FILE);
-  if (!docs[seedEmail]) {
-    docs[seedEmail] = [
-      { id: "doc-001", name: "invoice_123.pdf", type: "PDF", status: "Complete", uploadedAt: "2026-07-20T08:30:00Z", size: 245760 },
-      { id: "doc-002", name: "contract_q3.docx", type: "Word", status: "Complete", uploadedAt: "2026-07-18T16:00:00Z", size: 512000 },
-      { id: "doc-003", name: "onboarding_form.pdf", type: "PDF", status: "Complete", uploadedAt: "2026-07-15T11:20:00Z", size: 128000 },
-    ];
-    writeJSON(TENANT_DOCUMENTS_FILE, docs);
-  }
-
-  // Seed workflows
-  const workflows = readJSON(TENANT_WORKFLOWS_FILE);
-  if (!workflows[seedEmail]) {
-    workflows[seedEmail] = [
-      { id: "wf-001", name: "Invoice Processing", agentType: "invoice_ledger", steps: 5, status: "active", active: true },
-      { id: "wf-002", name: "Lead Qualification", agentType: "sales_outreach", steps: 4, status: "active", active: true },
-      { id: "wf-003", name: "Support Triage", agentType: "support_agent", steps: 6, status: "active", active: true },
-    ];
-    writeJSON(TENANT_WORKFLOWS_FILE, workflows);
-  }
-
-  // Seed API keys
-  const apiKeys = readJSON(TENANT_API_KEYS_FILE);
-  if (!apiKeys[seedEmail]) {
-    apiKeys[seedEmail] = [
-      { id: "key-001", name: "Production API Key", key: "sl_live_" + require("crypto").randomBytes(16).toString("hex"), masked: "sl_live_••••••••••••••••••••••a7f2", created: "2026-06-15T00:00:00Z", lastUsed: new Date(Date.now() - 7200000).toISOString(), calls: 2847 },
-      { id: "key-002", name: "Staging API Key", key: "sl_test_" + require("crypto").randomBytes(16).toString("hex"), masked: "sl_test_••••••••••••••••••••••b3e8", created: "2026-06-15T00:00:00Z", lastUsed: new Date(Date.now() - 432000000).toISOString(), calls: 412 },
-    ];
-    writeJSON(TENANT_API_KEYS_FILE, apiKeys);
-  }
-
-  // Seed purchases
-  const purchases = readJSON(TENANT_PURCHASES_FILE);
-  if (!purchases[seedEmail]) {
-    purchases[seedEmail] = [
-      { id: "pur-001", productId: "prod_R5kL09pQ2mNx7v", agentType: "document_intake", date: "2026-06-20T10:30:00Z", status: "active" },
-      { id: "pur-002", productId: "prod_R5kL09pQ2mNx7v", agentType: "sales_outreach", date: "2026-06-22T14:15:00Z", status: "active" },
-      { id: "pur-003", productId: "prod_R5kL09pQ2mNx7v", agentType: "support_agent", date: "2026-07-01T09:00:00Z", status: "active" },
-      { id: "pur-004", productId: "prod_R5kL09pQ2mNx7v", agentType: "invoice_ledger", date: "2026-07-10T11:45:00Z", status: "active" },
-    ];
-    writeJSON(TENANT_PURCHASES_FILE, purchases);
-  }
-}
-
-function getSessionUser(req: Request): { email: string } | null {
-  const cookie = req.headers.get("cookie") || "";
-  const match = cookie.match(/sl100_session=([^;]+)/);
-  if (!match) return null;
-  const sessions = readJSON(SESSIONS_FILE);
-  return sessions[match[1]] || null;
-}
-
-async function handleAPILogin(req: Request): Promise<Response> {
-  try {
-    const body: any = await req.json();
-    const { email, password } = body;
-    if (!email || !password) return json({ error: "Email and password required" }, 400);
-    const users = readJSON(USERS_FILE);
-    const user = users[email.toLowerCase()];
-    if (!user) return json({ error: "Invalid email or password" }, 401);
-    if (user.password !== hashPassword(password)) return json({ error: "Invalid email or password" }, 401);
-    const token = generateToken();
-    const sessions = readJSON(SESSIONS_FILE);
-    sessions[token] = { email: user.email, createdAt: Date.now() };
-    writeJSON(SESSIONS_FILE, sessions);
-    return new Response(JSON.stringify({ success: true, email: user.email }), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Set-Cookie": `sl100_session=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400`,
-      },
-    });
-  } catch (e: any) { return json({ error: e.message }, 400); }
-}
-
-async function handleAPIRegister(req: Request): Promise<Response> {
-  try {
-    const body: any = await req.json();
-    const { email, password } = body;
-    if (!email || !password) return json({ error: "Email and password required" }, 400);
-    if (password.length < 8) return json({ error: "Password must be at least 8 characters" }, 400);
-    const key = email.toLowerCase();
-    const users = readJSON(USERS_FILE);
-    if (users[key]) return json({ error: "An account with this email already exists" }, 409);
-    users[key] = { email: key, password: hashPassword(password), createdAt: Date.now() };
-    writeJSON(USERS_FILE, users);
-    const token = generateToken();
-    const sessions = readJSON(SESSIONS_FILE);
-    sessions[token] = { email: key, createdAt: Date.now() };
-    writeJSON(SESSIONS_FILE, sessions);
-    return new Response(JSON.stringify({ success: true, email: key }), {
-      status: 201,
-      headers: {
-        "Content-Type": "application/json",
-        "Set-Cookie": `sl100_session=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400`,
-      },
-    });
-  } catch (e: any) { return json({ error: e.message }, 400); }
-}
-
-function handleAPIMe(req: Request): Response {
-  const user = getSessionUser(req);
-  if (!user) return json({ error: "Not authenticated" }, 401);
-  return json({ email: user.email });
-}
-
-async function handleAPIPasswordChange(req: Request): Promise<Response> {
-  const user = getSessionUser(req);
-  if (!user) return json({ error: "Not authenticated" }, 401);
-  try {
-    const body: any = await req.json();
-    const { currentPassword, newPassword } = body;
-    if (!currentPassword || !newPassword) return json({ error: "Current and new passwords required" }, 400);
-    if (newPassword.length < 8) return json({ error: "New password must be at least 8 characters" }, 400);
-    const users = readJSON(USERS_FILE);
-    const u = users[user.email];
-    if (!u || u.password !== hashPassword(currentPassword)) return json({ error: "Current password is incorrect" }, 401);
-    u.password = hashPassword(newPassword);
-    writeJSON(USERS_FILE, users);
-    return json({ success: true });
-  } catch (e: any) { return json({ error: e.message }, 400); }
-}
-
-function json(data: any, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
-}
-// ─── Portal Pages ───
-
-function renderPortalPage(pathname: string, email: string): string {
-  const clean = pathname.replace(/\/$/, "");
-  const page = clean.split("/")[2] || "dashboard";
-  
-  let content = "";
-  switch (page) {
-    case "dashboard": content = renderPortalDashboard(email); break;
-    case "employees": content = renderPortalEmployees(); break;
-    case "documents": content = renderPortalDocs(); break;
-    case "workflows": content = renderPortalWorkflows(); break;
-    case "chat": content = renderPortalChat(); break;
-    case "reports": content = renderPortalReports(); break;
-    case "integrations": content = renderPortalIntegrations(); break;
-    case "crm": content = renderPortalCRM(); break;
-    case "api": content = renderPortalAPIKeys(); break;
-    case "settings": content = renderPortalSettings(email); break;
-    default: content = renderPortalDashboard(email);
-  }
-  
-  const titleMap: Record<string, string> = {
-    dashboard: "Dashboard", employees: "AI Employees", documents: "Documents",
-    workflows: "Workflows", chat: "AI Chat", reports: "Reports",
-    integrations: "Integrations", crm: "CRM / ERP", api: "API Keys", settings: "Settings"
-  };
-  const active = page === "dashboard" && pathname === "/portal" ? "dashboard" : page;
-  
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"/>
-<title>${titleMap[active] || "Portal"} | ${businessName}</title>
-<meta name="theme-color" content="#000000"/>
-<style>${CSS}</style>
-</head>
-<body>
-${renderPortalNav(email, active)}
-<div class="portal-layout">
-  ${renderPortalSidebar(email, active)}
-  <main class="portal-main">${content}</main>
-</div>
-<script>
-(function(){
-  var sb = document.getElementById('portal-sidebar');
-  var overlay = document.getElementById('portal-overlay');
-  var toggle = document.getElementById('portal-mtoggle');
-  if(toggle) toggle.addEventListener('click',function(){
-    sb.classList.toggle('open');
-    if(overlay) overlay.classList.toggle('open');
-  });
-  if(overlay) overlay.addEventListener('click',function(){
-    sb.classList.remove('open');
-    overlay.classList.remove('open');
-  });
-})();
-</script>
-</body>
-</html>`;
-}
-
-function renderPortalNav(email: string, active: string): string {
-  return `<header class="header" style="position:sticky;top:0;z-index:600">
-    <div class="header-inner">
-      <div style="display:flex;align-items:center;gap:0.75rem">
-        <button id="portal-mtoggle" class="portal-sidebar-mobile-toggle" style="display:none;background:none;border:none;color:#e7e5e4;font-size:1.5rem;padding:0.25rem;cursor:pointer;min-height:44px" aria-label="Menu">☰</button>
-        <a href="/portal" class="logo">${businessName}</a>
-      </div>
-      <div style="display:flex;align-items:center;gap:1rem">
-        <span style="font-size:0.75rem;color:#78716c;display:none" class="header-email">${email}</span>
-        <a href="/portal/settings" class="nav-link">${email}</a>
-        <a href="/" class="nav-link" style="color:#ef4444">Logout</a>
-      </div>
-    </div>
-  </header>
-  <div id="portal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:499"></div>
-  <style>
-  .portal-sidebar-mobile-toggle{display:none!important}
-  @media(max-width:768px){
-    .portal-sidebar-mobile-toggle{display:flex!important}
-    #portal-overlay.open{display:block}
-    .header-email{display:none!important}
-  }
-  </style>`;
-}
-
-const portalNavItems = [
-  { section: "Main", items: [
-    { id: "dashboard", icon: "📊", label: "Dashboard" },
-    { id: "employees", icon: "🤖", label: "AI Employees" },
-    { id: "workflows", icon: "⚡", label: "Workflows" },
-    { id: "chat", icon: "💬", label: "AI Chat" },
-    { id: "reports", icon: "📈", label: "Reports" },
-  ]},
-  { section: "Data", items: [
-    { id: "documents", icon: "📄", label: "Documents" },
-    { id: "integrations", icon: "🔌", label: "Integrations" },
-    { id: "crm", icon: "🏢", label: "CRM / ERP" },
-  ]},
-  { section: "Admin", items: [
-    { id: "api", icon: "🔑", label: "API Keys" },
-    { id: "settings", icon: "⚙️", label: "Settings" },
-  ]},
-];
-
-function renderPortalSidebar(email: string, active: string): string {
-  let html = `<nav id="portal-sidebar" class="portal-sidebar">
-    <div class="portal-sidebar-header">
-      <div style="font-size:0.6875rem;font-weight:800;text-transform:uppercase;letter-spacing:0.1em;color:#57534e;margin-bottom:0.25rem">Portal</div>
-      <div style="font-size:0.875rem;font-weight:800;color:#e7e5e4">${businessName}</div>
-    </div>`;
-  
-  for (const group of portalNavItems) {
-    html += `<div class="portal-sidebar-section">${group.section}</div>`;
-    for (const item of group.items) {
-      const isActive = item.id === active;
-      html += `<a href="/portal/${item.id === 'dashboard' ? '' : item.id}" class="portal-sidebar-link${isActive ? ' active' : ''}">
-        <span class="nav-icon">${item.icon}</span>${item.label}
-      </a>`;
-    }
-  }
-  
-  html += `<div class="portal-sidebar-footer">
-    <div class="user-email">${email}</div>
-    <a href="/" class="logout-btn">🚪 Sign out</a>
-  </div></nav>`;
-  return html;
-}
-
-// ─── 1. Dashboard ───
-function renderPortalDashboard(email: string): string {
-  return `
-<div class="portal-main-header">
-  <div><h1 style="margin-bottom:0.25rem">Dashboard</h1><p style="color:#78716c;font-size:0.875rem">Welcome back, ${email}</p></div>
-  <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
-    <a href="/portal/employees" class="portal-btn portal-btn-primary portal-btn-sm">+ Deploy Agent</a>
-    <a href="/portal/reports" class="portal-btn portal-btn-secondary portal-btn-sm">View Reports</a>
-  </div>
-</div>
-
-<div class="portal-stat-grid">
-  <div class="portal-card"><div class="portal-card-header">Active AI Employees</div><div class="portal-card-value">12<span style="font-size:1rem;color:#10b981">/18</span></div><div class="portal-card-sub">3 deploying this week</div></div>
-  <div class="portal-card"><div class="portal-card-header">Workflows Running</div><div class="portal-card-value">47</div><div class="portal-card-sub">+8 this month</div></div>
-  <div class="portal-card"><div class="portal-card-header">Documents Processed</div><div class="portal-card-value">2,847</div><div class="portal-card-sub">99.2% OCR accuracy</div></div>
-  <div class="portal-card"><div class="portal-card-header">Monthly Savings</div><div class="portal-card-value">$42,500</div><div class="portal-card-sub">↑ 18% vs last month</div></div>
-</div>
-
-<div style="display:grid;grid-template-columns:2fr 1fr;gap:1.5rem">
-  <div class="portal-card">
-    <div class="portal-card-header" style="margin-bottom:1rem">Recent Activity</div>
-    ${["Invoice Ledger AI processed 247 invoices — saved 16 hours","Sales Outreach Coordinator sent 89 personalized emails","Document Intake AI classified 312 new documents","Healthcare Intake AI processed 43 patient forms","Audit Logger flagged 2 compliance anomalies — resolved","Dispatch AI optimized 127 delivery routes"].map((a,i) => `
-    <div class="portal-notif ${i<4 ? 'unread' : 'read'}"><span class="portal-notif-dot ${i<4 ? 'green' : 'gray'}"></span><span>${a}</span><span style="margin-left:auto;font-size:0.6875rem;color:#57534e;white-space:nowrap">${['10m','32m','1h','2h','4h','6h'][i]} ago</span></div>`).join("")}
-  </div>
-  <div class="portal-card">
-    <div class="portal-card-header" style="margin-bottom:1rem">Quick Status</div>
-    <div style="display:flex;flex-direction:column;gap:0.75rem">
-      <div class="portal-alert portal-alert-success"><span>✅</span><span>All systems operational</span></div>
-      <div class="portal-alert portal-alert-info"><span>📋</span><span>2 workflows pending approval</span></div>
-      <div class="portal-alert portal-alert-warn"><span>⚠️</span><span>1 integration needs re-auth</span></div>
-    </div>
-  </div>
-</div>
-<script>
-async function handlePasswordChange(e){e.preventDefault();var btn=e.target.querySelector("button");btn.disabled=true;btn.textContent="Updating...";try{var inputs=e.target.querySelectorAll("input");if(inputs[2]&&inputs[1].value!==inputs[2].value){throw new Error("Passwords do not match")}var res=await fetch("/api/settings/password",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({currentPassword:inputs[0].value,newPassword:inputs[1].value})});var d=await res.json();if(!res.ok)throw new Error(d.error||"Failed");alert("Password updated!");e.target.reset()}catch(err){alert(err.message)}finally{btn.disabled=false;btn.textContent="Update Password"}}
-async function handleAccountSave(e){e.preventDefault();var btn=e.target.querySelector("button");btn.disabled=true;btn.textContent="Saving...";try{await new Promise(function(r){setTimeout(r,500)});alert("Settings saved!")}finally{btn.disabled=false;btn.textContent="Save Changes"}}
-</script>`;
-}
-
-// ─── 2. AI Employees ───
-const agentTypes = [
-  { name: "Document Intake AI", icon: "📄", desc: "Ingests, classifies, and routes documents automatically", tags: ["Universal"], status: "active" },
-  { name: "Healthcare Intake AI", icon: "🏥", desc: "Processes patient intake forms, insurance verifications", tags: ["Healthcare","Insurance","Pharma"], status: "active" },
-  { name: "Invoice & Ledger AI", icon: "🧾", desc: "Reads invoices, updates ledgers, flags discrepancies", tags: ["Universal"], status: "active" },
-  { name: "Sales Outreach AI", icon: "📧", desc: "Personalized outreach, follow-ups, CRM sync", tags: ["Universal"], status: "active" },
-  { name: "HR Compliance AI", icon: "👥", desc: "Onboarding docs, policy acknowledgments, audit trails", tags: ["Universal"], status: "active" },
-  { name: "Dispatch Logistics AI", icon: "🚚", desc: "Route optimization, carrier coordination, ETA tracking", tags: ["Logistics","Manufacturing","Retail"], status: "active" },
-  { name: "Audit Logger AI", icon: "🔍", desc: "Real-time operation logging, compliance monitoring", tags: ["Universal"], status: "inactive" },
-  { name: "Voice Receptionist AI", icon: "📞", desc: "Answers calls, routes inquiries, schedules appointments", tags: ["Universal"], status: "inactive" },
-  { name: "Support Agent AI", icon: "🎧", desc: "Customer support triage and resolution", tags: ["Universal"], status: "active" },
-  { name: "Knowledge Assistant AI", icon: "📚", desc: "Internal knowledge base with RAG pipeline", tags: ["Universal"], status: "active" },
-  { name: "Inventory Management AI", icon: "📦", desc: "Stock monitoring, reorder alerts, warehouse sync", tags: ["Universal"], status: "active" },
-  { name: "Contract Management AI", icon: "📝", desc: "Contract review, renewal tracking, clause extraction", tags: ["Universal"], status: "active" },
-  { name: "Customer Success AI", icon: "🌟", desc: "Churn prediction, engagement scoring, health monitoring", tags: ["Universal"], status: "inactive" },
-  { name: "Project Management AI", icon: "📋", desc: "Task tracking, resource allocation, status reporting", tags: ["Universal"], status: "inactive" },
-  { name: "Procurement AI", icon: "🛒", desc: "Vendor management, purchase orders, spend analysis", tags: ["Universal"], status: "inactive" },
-  { name: "IT Operations AI", icon: "🖥️", desc: "DevOps monitoring, incident response, ticketing", tags: ["Tech","E-Commerce","Fin Services"], status: "inactive" },
-  { name: "FP&A AI", icon: "💰", desc: "Financial planning, forecasting, variance analysis", tags: ["Universal"], status: "active" },
-  { name: "Marketing AI", icon: "📣", desc: "Social scheduling, content generation, analytics", tags: ["Retail","E-Commerce","Hospitality"], status: "inactive" },
-];
-
-function renderPortalEmployees(): string {
-  return `
-<div class="portal-main-header">
-  <div><h1>AI Employees</h1><p style="color:#78716c;font-size:0.875rem">${agentTypes.filter(a=>a.status==='active').length} active, ${agentTypes.filter(a=>a.status==='inactive').length} available</p></div>
-  <div style="display:flex;gap:0.5rem">
-    <input class="portal-input" style="max-width:200px" placeholder="Search agents..." oninput="var v=this.value.toLowerCase();document.querySelectorAll('.portal-agent-card').forEach(function(c){c.style.display=c.textContent.toLowerCase().includes(v)?'':'none'})">
-    <select class="portal-input" style="max-width:140px" onchange="var v=this.value;document.querySelectorAll('.portal-agent-card').forEach(function(c){c.style.display=v==='all'||c.dataset.status===v?'':'none'})">
-      <option value="all">All Status</option><option value="active">Active</option><option value="inactive">Inactive</option>
-    </select>
-  </div>
-</div>
-<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem">
-  ${agentTypes.map(a => `
-  <div class="portal-agent-card" data-status="${a.status}" onclick="this.querySelector('.agent-detail').style.display=this.querySelector('.agent-detail').style.display==='none'?'block':'none'">
-    <div class="agent-header">
-      <div class="agent-icon">${a.icon}</div>
-      <span class="portal-badge ${a.status==='active'?'portal-badge-green':'portal-badge-gray'}">${a.status==='active'?'Active':'Available'}</span>
-    </div>
-    <div class="agent-name">${a.name}</div>
-    <div class="agent-desc">${a.desc}</div>
-    <div class="agent-tags">${a.tags.map(t=>`<span class="agent-tag">${t}</span>`).join("")}</div>
-    <div class="agent-detail" style="display:none;margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid #292524">
-      <p style="font-size:0.75rem;color:#78716c;margin-bottom:0.5rem">Last activity: ${a.status==='active'?'Today, 2:45 PM':'N/A'}</p>
-      ${a.status==='active'?`<button class="portal-btn portal-btn-secondary portal-btn-sm" style="width:100%">Configure Workflow</button>`:`<button class="portal-btn portal-btn-primary portal-btn-sm" style="width:100%">Deploy Agent</button>`}
-    </div>
-  </div>`).join("")}
-</div>
-<script>
-async function handlePasswordChange(e){e.preventDefault();var btn=e.target.querySelector("button");btn.disabled=true;btn.textContent="Updating...";try{var inputs=e.target.querySelectorAll("input");if(inputs[2]&&inputs[1].value!==inputs[2].value){throw new Error("Passwords do not match")}var res=await fetch("/api/settings/password",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({currentPassword:inputs[0].value,newPassword:inputs[1].value})});var d=await res.json();if(!res.ok)throw new Error(d.error||"Failed");alert("Password updated!");e.target.reset()}catch(err){alert(err.message)}finally{btn.disabled=false;btn.textContent="Update Password"}}
-async function handleAccountSave(e){e.preventDefault();var btn=e.target.querySelector("button");btn.disabled=true;btn.textContent="Saving...";try{await new Promise(function(r){setTimeout(r,500)});alert("Settings saved!")}finally{btn.disabled=false;btn.textContent="Save Changes"}}
-</script>`;
-}
-
-// ─── 3. Documents ───
-function renderPortalDocs(): string {
-  return `
-<div class="portal-main-header">
-  <div><h1>Documents</h1><p style="color:#78716c;font-size:0.875rem">Upload, process, and manage your automated documents</p></div>
-</div>
-<div class="portal-upload" style="margin-bottom:2rem" onclick="alert('Upload flow would open file picker')">
-  <div class="portal-upload-icon">📁</div>
-  <div class="portal-upload-text">Drag & drop files or click to browse</div>
-  <div class="portal-upload-sub">Supports PDF, Excel (.xlsx), Word (.docx), CSV, PNG, JPEG — up to 50MB</div>
-</div>
-<div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap">
-  <button class="portal-btn portal-btn-sm portal-btn-secondary">All</button>
-  <button class="portal-btn portal-btn-sm portal-btn-secondary">PDF</button>
-  <button class="portal-btn portal-btn-sm portal-btn-secondary">Excel</button>
-  <button class="portal-btn portal-btn-sm portal-btn-secondary">Word</button>
-  <button class="portal-btn portal-btn-sm portal-btn-secondary">Image</button>
-</div>
-<div class="portal-card">
-  <table class="portal-table">
-    <thead><tr><th>Name</th><th>Type</th><th>Date</th><th>OCR Status</th><th></th></tr></thead>
-    <tbody>
-      ${[
-        ["Q3 Invoice Batch #247","PDF","Jul 22, 2026","Complete"],
-        ["Patient Intake — Smith, J.","PDF","Jul 22, 2026","Complete"],
-        ["Warehouse Inventory Jul 21","Excel","Jul 21, 2026","Complete"],
-        ["Vendor Contract — Acme Corp","Word","Jul 21, 2026","Processing"],
-        ["Delivery Manifest #8912","PDF","Jul 20, 2026","Complete"],
-        ["Employee Onboarding — Lee","PDF","Jul 20, 2026","Complete"],
-        ["Expense Report Q2","Excel","Jul 19, 2026","Complete"],
-        ["Insurance Claim #4521","Image","Jul 19, 2026","Failed"],
-      ].map(r => `<tr><td style="font-weight:700">${r[0]}</td><td><span class="portal-badge portal-badge-gray">${r[1]}</span></td><td>${r[2]}</td><td><span class="portal-badge ${r[3]==='Complete'?'portal-badge-green':r[3]==='Processing'?'portal-badge-amber':'portal-badge-red'}">${r[3]}</span></td><td><button class="portal-btn portal-btn-sm portal-btn-secondary">View</button></td></tr>`).join("")}
-    </tbody>
-  </table>
-</div>
-<script>
-async function handlePasswordChange(e){e.preventDefault();var btn=e.target.querySelector("button");btn.disabled=true;btn.textContent="Updating...";try{var inputs=e.target.querySelectorAll("input");if(inputs[2]&&inputs[1].value!==inputs[2].value){throw new Error("Passwords do not match")}var res=await fetch("/api/settings/password",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({currentPassword:inputs[0].value,newPassword:inputs[1].value})});var d=await res.json();if(!res.ok)throw new Error(d.error||"Failed");alert("Password updated!");e.target.reset()}catch(err){alert(err.message)}finally{btn.disabled=false;btn.textContent="Update Password"}}
-async function handleAccountSave(e){e.preventDefault();var btn=e.target.querySelector("button");btn.disabled=true;btn.textContent="Saving...";try{await new Promise(function(r){setTimeout(r,500)});alert("Settings saved!")}finally{btn.disabled=false;btn.textContent="Save Changes"}}
-</script>`;
-}
-
-// ─── 4. Workflows ───
-function renderPortalWorkflows(): string {
-  const workflows = [
-    { name: "Invoice Processing Pipeline", trigger: "New email with PDF attachment", steps: 5, status: "active", runs: 247 },
-    { name: "Patient Intake Automation", trigger: "Form submission on website", steps: 6, status: "active", runs: 143 },
-    { name: "Sales Lead Enrichment", trigger: "New CRM contact created", steps: 4, status: "active", runs: 89 },
-    { name: "Inventory Reorder Alert", trigger: "Stock below threshold", steps: 3, status: "active", runs: 56 },
-    { name: "Contract Renewal Reminder", trigger: "30 days before expiration", steps: 4, status: "inactive", runs: 0 },
-    { name: "Employee Onboarding", trigger: "HR creates new hire record", steps: 7, status: "draft", runs: 0 },
-  ];
-  return `
-<div class="portal-main-header">
-  <div><h1>Workflows</h1><p style="color:#78716c;font-size:0.875rem">${workflows.filter(w=>w.status==='active').length} active workflows</p></div>
-  <button class="portal-btn portal-btn-primary portal-btn-sm">+ Create Workflow</button>
-</div>
-<div class="portal-card">
-  <table class="portal-table">
-    <thead><tr><th>Workflow</th><th>Trigger</th><th>Steps</th><th>Runs</th><th>Status</th><th></th></tr></thead>
-    <tbody>
-      ${workflows.map(w => `<tr>
-        <td style="font-weight:700">${w.name}</td>
-        <td style="font-size:0.8125rem;color:#a8a29e">${w.trigger}</td>
-        <td>${w.steps}</td>
-        <td>${w.runs.toLocaleString()}</td>
-        <td><label class="portal-toggle" onclick="event.stopPropagation()"><input type="checkbox" ${w.status==='active'?'checked':''}><span class="track"></span><span class="thumb"></span></label></td>
-        <td><button class="portal-btn portal-btn-sm portal-btn-secondary">Edit</button></td>
-      </tr>`).join("")}
-    </tbody>
-  </table>
-</div>
-<script>
-async function handlePasswordChange(e){e.preventDefault();var btn=e.target.querySelector("button");btn.disabled=true;btn.textContent="Updating...";try{var inputs=e.target.querySelectorAll("input");if(inputs[2]&&inputs[1].value!==inputs[2].value){throw new Error("Passwords do not match")}var res=await fetch("/api/settings/password",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({currentPassword:inputs[0].value,newPassword:inputs[1].value})});var d=await res.json();if(!res.ok)throw new Error(d.error||"Failed");alert("Password updated!");e.target.reset()}catch(err){alert(err.message)}finally{btn.disabled=false;btn.textContent="Update Password"}}
-async function handleAccountSave(e){e.preventDefault();var btn=e.target.querySelector("button");btn.disabled=true;btn.textContent="Saving...";try{await new Promise(function(r){setTimeout(r,500)});alert("Settings saved!")}finally{btn.disabled=false;btn.textContent="Save Changes"}}
-</script>`;
-}
-
-// ─── 5. AI Chat ───
-function renderPortalChat(): string {
-  return `
-<div class="portal-main-header">
-  <div><h1>AI Chat</h1><p style="color:#78716c;font-size:0.875rem">Ask questions about your integrations, platform, and automations</p></div>
-</div>
-<div class="portal-chat">
-  <div class="portal-chat-messages" id="chat-msgs">
-    <div class="portal-chat-msg ai">👋 Hi! I'm your AI assistant. I can answer questions about your integrations, connected platforms, automation workflows, and help you troubleshoot issues. What can I help with today?</div>
-  </div>
-  <div class="portal-chat-suggest">
-    <button onclick="sendChatMsg('How do I connect Salesforce?')">How do I connect Salesforce?</button>
-    <button onclick="sendChatMsg('What integrations are supported?')">What integrations are supported?</button>
-    <button onclick="sendChatMsg('Show me my active workflows')">Show me my active workflows</button>
-  </div>
-  <div class="portal-chat-input-wrap">
-    <input id="chat-input" class="portal-input portal-chat-input" placeholder="Type your question..." onkeydown="if(event.key==='Enter')sendChatMsg(this.value)">
-    <button class="portal-btn portal-btn-primary" onclick="sendChatMsg(document.getElementById('chat-input').value)" style="min-height:48px">Send</button>
-  </div>
-</div>
-<script>
-var chatMsgs=document.getElementById('chat-msgs');
-var chatResponses={
-  'How do I connect Salesforce?':'Connecting Salesforce is straightforward! Go to the <a href="/portal/integrations">Integrations</a> page, search for Salesforce, and click "Connect". You\'ll be prompted to log in via OAuth. Once connected, your AI agents can read/write leads, contacts, opportunities, and cases.',
-  'What integrations are supported?':'We support 180+ integrations across CRM (Salesforce, HubSpot, Dynamics), ERP (NetSuite, SAP), communication (Slack, Teams, Gmail), storage (Google Drive, SharePoint, Dropbox), and many more. Check the <a href="/portal/integrations">Integrations</a> page for the full list.',
-  'Show me my active workflows':'You have 4 active workflows: Invoice Processing Pipeline, Patient Intake Automation, Sales Lead Enrichment, and Inventory Reorder Alert. View them all on your <a href="/portal/workflows">Workflows</a> page.',
-};
-function sendChatMsg(txt){
-  if(!txt||!txt.trim())return;
-  chatMsgs.innerHTML+='<div class="portal-chat-msg user">'+txt.replace(/</g,'&lt;')+'</div>';
-  document.getElementById('chat-input').value='';
-  chatMsgs.scrollTop=chatMsgs.scrollHeight;
-  setTimeout(function(){
-    var resp=chatResponses[txt]||'Great question! Let me look into that. For now, I\'d recommend checking your <a href="/portal/dashboard">Dashboard</a> or the <a href="/portal/integrations">Integrations</a> page for more details.';
-    chatMsgs.innerHTML+='<div class="portal-chat-msg ai">'+resp+'</div>';
-    chatMsgs.scrollTop=chatMsgs.scrollHeight;
-  },800);
-}
-</script>`;
-}
-
-// ─── 6. Reports ───
-function renderPortalReports(): string {
-  return `
-<div class="portal-main-header">
-  <div><h1>Reports</h1><p style="color:#78716c;font-size:0.875rem">Performance metrics and automation analytics</p></div>
-  <div style="display:flex;gap:0.5rem">
-    <button class="portal-btn portal-btn-secondary portal-btn-sm">Export PDF</button>
-    <button class="portal-btn portal-btn-secondary portal-btn-sm">Export CSV</button>
-  </div>
-</div>
-<div class="portal-stat-grid col2">
-  <div class="portal-card"><div class="portal-card-header">Total Automations</div><div class="portal-card-value">3,912</div><div class="portal-card-sub">This month</div></div>
-  <div class="portal-card"><div class="portal-card-header">Time Saved</div><div class="portal-card-value">847 hrs</div><div class="portal-card-sub">~21 work weeks</div></div>
-  <div class="portal-card"><div class="portal-card-header">Cost Saved</div><div class="portal-card-value">$127,400</div><div class="portal-card-sub">Annualized</div></div>
-  <div class="portal-card"><div class="portal-card-header">Accuracy Rate</div><div class="portal-card-value">99.4%</div><div class="portal-card-sub">Across all agents</div></div>
-</div>
-<div class="portal-card" style="margin-bottom:1.5rem">
-  <div class="portal-card-header" style="margin-bottom:1rem">Automations Per Week</div>
-  <div class="portal-chart">
-    ${[{l:"Mon",v:134},{l:"Tue",v:187},{l:"Wed",v:156},{l:"Thu",v:203},{l:"Fri",v:178},{l:"Sat",v:42},{l:"Sun",v:28}].map(d=>`<div class="portal-chart-bar" style="height:${d.v/203*100}%"><div class="portal-chart-bar-val">${d.v}</div><div class="portal-chart-bar-label">${d.l}</div></div>`).join("")}
-  </div>
-</div>
-<div class="portal-card">
-  <div class="portal-card-header" style="margin-bottom:1rem">Recent Reports</div>
-  <table class="portal-table">
-    <thead><tr><th>Date</th><th>Type</th><th>Summary</th><th></th></tr></thead>
-    <tbody>
-      ${[
-        ["Jul 22, 2026","Weekly Digest","247 automations, 12 active agents, 99.4% accuracy"],
-        ["Jul 15, 2026","Weekly Digest","231 automations, 11 active agents, 99.1% accuracy"],
-        ["Jul 8, 2026","Weekly Digest","198 automations, 10 active agents, 99.6% accuracy"],
-        ["Jul 1, 2026","Monthly Report","847 automations, $42,500 saved, 99.4% accuracy"],
-        ["Jun 1, 2026","Monthly Report","802 automations, $38,200 saved, 99.2% accuracy"],
-      ].map(r => `<tr><td>${r[0]}</td><td><span class="portal-badge portal-badge-amber">${r[1]}</span></td><td style="font-size:0.8125rem">${r[2]}</td><td><button class="portal-btn portal-btn-sm portal-btn-secondary">Download</button></td></tr>`).join("")}
-    </tbody>
-  </table>
-</div>
-<script>
-async function handlePasswordChange(e){e.preventDefault();var btn=e.target.querySelector("button");btn.disabled=true;btn.textContent="Updating...";try{var inputs=e.target.querySelectorAll("input");if(inputs[2]&&inputs[1].value!==inputs[2].value){throw new Error("Passwords do not match")}var res=await fetch("/api/settings/password",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({currentPassword:inputs[0].value,newPassword:inputs[1].value})});var d=await res.json();if(!res.ok)throw new Error(d.error||"Failed");alert("Password updated!");e.target.reset()}catch(err){alert(err.message)}finally{btn.disabled=false;btn.textContent="Update Password"}}
-async function handleAccountSave(e){e.preventDefault();var btn=e.target.querySelector("button");btn.disabled=true;btn.textContent="Saving...";try{await new Promise(function(r){setTimeout(r,500)});alert("Settings saved!")}finally{btn.disabled=false;btn.textContent="Save Changes"}}
-</script>`;
-}
-
-// ─── 7. Integrations ───
-const integrations = [
-  { name: "Salesforce", icon: "☁️", cat: "CRM", connected: true },
-  { name: "HubSpot", icon: "🧲", cat: "CRM", connected: true },
-  { name: "Google Drive", icon: "📁", cat: "Storage", connected: true },
-  { name: "Slack", icon: "💬", cat: "Communication", connected: true },
-  { name: "Gmail", icon: "✉️", cat: "Communication", connected: true },
-  { name: "Microsoft Teams", icon: "🟣", cat: "Communication", connected: false },
-  { name: "SharePoint", icon: "📂", cat: "Storage", connected: false },
-  { name: "Dropbox", icon: "📦", cat: "Storage", connected: false },
-  { name: "NetSuite", icon: "🏢", cat: "ERP", connected: true },
-  { name: "SAP", icon: "🔷", cat: "ERP", connected: false },
-  { name: "Jira", icon: "🎯", cat: "Project Mgmt", connected: true },
-  { name: "Asana", icon: "✅", cat: "Project Mgmt", connected: false },
-  { name: "Zoom", icon: "📹", cat: "Communication", connected: true },
-  { name: "Stripe", icon: "💳", cat: "Payments", connected: true },
-  { name: "QuickBooks", icon: "📒", cat: "Accounting", connected: true },
-  { name: "Xero", icon: "📗", cat: "Accounting", connected: false },
-  { name: "Zendesk", icon: "🎧", cat: "Support", connected: true },
-  { name: "Intercom", icon: "💭", cat: "Support", connected: false },
-  { name: "Shopify", icon: "🛍️", cat: "E-Commerce", connected: false },
-  { name: "WooCommerce", icon: "🛒", cat: "E-Commerce", connected: false },
-  { name: "GitHub", icon: "🐙", cat: "Dev Tools", connected: true },
-  { name: "GitLab", icon: "🦊", cat: "Dev Tools", connected: false },
-  { name: "Trello", icon: "📋", cat: "Project Mgmt", connected: false },
-  { name: "Notion", icon: "📝", cat: "Productivity", connected: true },
-];
-
-function renderPortalIntegrations(): string {
-  return `
-<div class="portal-main-header">
-  <div><h1>Integrations</h1><p style="color:#78716c;font-size:0.875rem">${integrations.filter(i=>i.connected).length} connected, 180+ available</p></div>
-</div>
-<div class="portal-search">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
-  <input placeholder="Search 180+ integrations..." oninput="var v=this.value.toLowerCase();document.querySelectorAll('.integration-card').forEach(function(c){c.style.display=c.dataset.name.includes(v)||c.dataset.cat.includes(v)?'':'none'})">
-</div>
-<div style="display:flex;gap:0.5rem;margin-bottom:1.5rem;flex-wrap:wrap">
-  <button class="portal-btn portal-btn-sm portal-btn-secondary" onclick="document.querySelectorAll('.integration-card').forEach(function(c){c.style.display=''})">All</button>
-  ${["CRM","Communication","Storage","ERP","Project Mgmt","Payments","Accounting","Support","E-Commerce","Dev Tools","Productivity"].map(c=>`<button class="portal-btn portal-btn-sm portal-btn-secondary" onclick="document.querySelectorAll('.integration-card').forEach(function(el){el.style.display=el.dataset.cat==='${c}'?'':'none'})">${c}</button>`).join("")}
-</div>
-<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem">
-  ${integrations.map(i => `
-  <div class="portal-card integration-card" data-name="${i.name.toLowerCase()}" data-cat="${i.cat}" style="text-align:center">
-    <div style="font-size:2rem;margin-bottom:0.5rem">${i.icon}</div>
-    <div style="font-weight:800;color:#e7e5e4;margin-bottom:0.25rem;font-size:0.9375rem">${i.name}</div>
-    <span class="portal-badge portal-badge-gray" style="margin-bottom:0.75rem">${i.cat}</span>
-    <div style="margin-top:0.5rem">
-      ${i.connected
-        ? `<span class="portal-badge portal-badge-green">✓ Connected</span>`
-        : `<button class="portal-btn portal-btn-primary portal-btn-sm" style="width:100%">Connect</button>`}
-    </div>
-  </div>`).join("")}
-</div>
-<script>
-async function handlePasswordChange(e){e.preventDefault();var btn=e.target.querySelector("button");btn.disabled=true;btn.textContent="Updating...";try{var inputs=e.target.querySelectorAll("input");if(inputs[2]&&inputs[1].value!==inputs[2].value){throw new Error("Passwords do not match")}var res=await fetch("/api/settings/password",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({currentPassword:inputs[0].value,newPassword:inputs[1].value})});var d=await res.json();if(!res.ok)throw new Error(d.error||"Failed");alert("Password updated!");e.target.reset()}catch(err){alert(err.message)}finally{btn.disabled=false;btn.textContent="Update Password"}}
-async function handleAccountSave(e){e.preventDefault();var btn=e.target.querySelector("button");btn.disabled=true;btn.textContent="Saving...";try{await new Promise(function(r){setTimeout(r,500)});alert("Settings saved!")}finally{btn.disabled=false;btn.textContent="Save Changes"}}
-</script>`;
-}
-
-// ─── 8. CRM / ERP ───
-const crmTools = [
-  { name: "Salesforce", icon: "☁️", connected: true, lastSync: "2 min ago", records: "12,847" },
-  { name: "HubSpot", icon: "🧲", connected: true, lastSync: "5 min ago", records: "8,421" },
-  { name: "Dynamics 365", icon: "🟦", connected: false, lastSync: "Never", records: "—" },
-  { name: "NetSuite", icon: "🏢", connected: true, lastSync: "1 min ago", records: "23,109" },
-  { name: "SAP", icon: "🔷", connected: false, lastSync: "Never", records: "—" },
-  { name: "Zoho CRM", icon: "📋", connected: false, lastSync: "Never", records: "—" },
-  { name: "Pipedrive", icon: "📊", connected: false, lastSync: "Never", records: "—" },
-  { name: "Freshsales", icon: "🌱", connected: false, lastSync: "Never", records: "—" },
-];
-
-function renderPortalCRM(): string {
-  return `
-<div class="portal-main-header">
-  <div><h1>CRM / ERP</h1><p style="color:#78716c;font-size:0.875rem">${crmTools.filter(c=>c.connected).length} connected systems</p></div>
-</div>
-<div class="portal-card">
-  <table class="portal-table">
-    <thead><tr><th>Platform</th><th>Status</th><th>Last Sync</th><th>Records</th><th></th></tr></thead>
-    <tbody>
-      ${crmTools.map(c => `<tr>
-        <td style="font-weight:700"><span style="margin-right:0.5rem">${c.icon}</span>${c.name}</td>
-        <td><span class="portal-badge ${c.connected?'portal-badge-green':'portal-badge-gray'}">${c.connected?'Connected':'Not Connected'}</span></td>
-        <td style="font-size:0.8125rem">${c.lastSync}</td>
-        <td>${c.records}</td>
-        <td>${c.connected
-          ? `<div style="display:flex;gap:0.375rem"><button class="portal-btn portal-btn-sm portal-btn-secondary">Sync Now</button><button class="portal-btn portal-btn-sm portal-btn-danger">Disconnect</button></div>`
-          : `<button class="portal-btn portal-btn-sm portal-btn-primary">Connect</button>`}
-        </td>
-      </tr>`).join("")}
-    </tbody>
-  </table>
-</div>
-<script>
-async function handlePasswordChange(e){e.preventDefault();var btn=e.target.querySelector("button");btn.disabled=true;btn.textContent="Updating...";try{var inputs=e.target.querySelectorAll("input");if(inputs[2]&&inputs[1].value!==inputs[2].value){throw new Error("Passwords do not match")}var res=await fetch("/api/settings/password",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({currentPassword:inputs[0].value,newPassword:inputs[1].value})});var d=await res.json();if(!res.ok)throw new Error(d.error||"Failed");alert("Password updated!");e.target.reset()}catch(err){alert(err.message)}finally{btn.disabled=false;btn.textContent="Update Password"}}
-async function handleAccountSave(e){e.preventDefault();var btn=e.target.querySelector("button");btn.disabled=true;btn.textContent="Saving...";try{await new Promise(function(r){setTimeout(r,500)});alert("Settings saved!")}finally{btn.disabled=false;btn.textContent="Save Changes"}}
-</script>`;
-}
-
-// ─── 9. API Keys ───
-function renderPortalAPIKeys(): string {
-  const keys = [
-    { name: "Production API Key", prefix: "sl_live_", masked: "sl_live_••••••••••••••••••••••a7f2", created: "Jun 15, 2026", lastUsed: "2 hours ago", calls: 2847 },
-    { name: "Staging API Key", prefix: "sl_test_", masked: "sl_test_••••••••••••••••••••••b3e8", created: "Jun 15, 2026", lastUsed: "5 days ago", calls: 412 },
-  ];
-  return `
-<div class="portal-main-header">
-  <div><h1>API Keys</h1><p style="color:#78716c;font-size:0.875rem">Manage API access for your team</p></div>
-  <button class="portal-btn portal-btn-primary portal-btn-sm" onclick="var n=prompt('Key name:');if(n){var el=document.getElementById('key-list');el.innerHTML+='<div class=portal-card style=margin-bottom:0.75rem><div style=display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem><div><div style=font-weight:800;color:#e7e5e4;font-size:0.9375rem>'+n.replace(/</g,'')+'</div><code style=font-size:0.75rem;color:#10b981;background:#0c0a09;padding:0.125rem 0.5rem;border-radius:0.25rem>sl_live_'+Math.random().toString(36).substring(2,14)+Math.random().toString(36).substring(2,10)+'</code></div><span class=portal-badge portal-badge-green>Active</span></div></div>'}">+ Generate New Key</button>
-</div>
-<div id="key-list">
-  ${keys.map(k => `
-  <div class="portal-card" style="margin-bottom:0.75rem">
-    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem">
-      <div>
-        <div style="font-weight:800;color:#e7e5e4;font-size:0.9375rem;margin-bottom:0.25rem">${k.name}</div>
-        <code style="font-size:0.75rem;color:#a8a29e;background:#0c0a09;padding:0.125rem 0.5rem;border-radius:0.25rem;cursor:pointer" onclick="navigator.clipboard.writeText('${k.masked}')" title="Click to copy">${k.masked}</code>
-      </div>
-      <div style="text-align:right">
-        <div style="font-size:0.75rem;color:#a8a29e">Created ${k.created} · ${k.calls.toLocaleString()} calls</div>
-        <div style="font-size:0.6875rem;color:#78716c">Last used: ${k.lastUsed}</div>
-      </div>
-    </div>
-    <div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid #292524;display:flex;gap:0.5rem">
-      <button class="portal-btn portal-btn-sm portal-btn-secondary" onclick="navigator.clipboard.writeText('${k.masked}')">📋 Copy</button>
-      <button class="portal-btn portal-btn-sm portal-btn-danger" onclick="if(confirm('Revoke this key?'))this.closest('.portal-card').remove()">Revoke</button>
-    </div>
-  </div>`).join("")}
-</div>
-<div class="portal-card" style="margin-top:1rem">
-  <div class="portal-card-header">API Usage (Last 30 Days)</div>
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-top:1rem">
-    <div><div style="font-size:1.25rem;font-weight:900;color:#fff">3,259</div><div style="font-size:0.75rem;color:#78716c">Total API Calls</div></div>
-    <div><div style="font-size:1.25rem;font-weight:900;color:#10b981">142ms</div><div style="font-size:0.75rem;color:#78716c">Avg Response Time</div></div>
-    <div><div style="font-size:1.25rem;font-weight:900;color:#fff">0</div><div style="font-size:0.75rem;color:#78716c">Errors</div></div>
-  </div>
-</div>
-<script>
-async function handlePasswordChange(e){e.preventDefault();var btn=e.target.querySelector("button");btn.disabled=true;btn.textContent="Updating...";try{var inputs=e.target.querySelectorAll("input");if(inputs[2]&&inputs[1].value!==inputs[2].value){throw new Error("Passwords do not match")}var res=await fetch("/api/settings/password",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({currentPassword:inputs[0].value,newPassword:inputs[1].value})});var d=await res.json();if(!res.ok)throw new Error(d.error||"Failed");alert("Password updated!");e.target.reset()}catch(err){alert(err.message)}finally{btn.disabled=false;btn.textContent="Update Password"}}
-async function handleAccountSave(e){e.preventDefault();var btn=e.target.querySelector("button");btn.disabled=true;btn.textContent="Saving...";try{await new Promise(function(r){setTimeout(r,500)});alert("Settings saved!")}finally{btn.disabled=false;btn.textContent="Save Changes"}}
-</script>`;
-}
-
-// ─── 10. Settings ───
-function renderPortalSettings(email: string): string {
-  return `
-<div class="portal-main-header">
-  <div><h1>Settings</h1><p style="color:#78716c;font-size:0.875rem">Manage your account and preferences</p></div>
-</div>
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
-  <div class="portal-card">
-    <h2 style="font-size:1.125rem;font-weight:800;color:#e7e5e4;margin-bottom:1.25rem">Account Information</h2>
-    <form class="portal-form" onsubmit="handleAccountSave(event)">
-      <div><label>Email</label><input class="portal-input" type="email" value="${email}" disabled style="opacity:0.6"></div>
-      <div><label>Full Name</label><input class="portal-input" type="text" placeholder="Your name" value="Operations Lead"></div>
-      <div><label>Company</label><input class="portal-input" type="text" placeholder="Company name" value="Acme Industries"></div>
-      <button type="submit" class="portal-btn portal-btn-primary">Save Changes</button>
-    </form>
-  </div>
-  <div class="portal-card">
-    <h2 style="font-size:1.125rem;font-weight:800;color:#e7e5e4;margin-bottom:1.25rem">Change Password</h2>
-    <form class="portal-form" onsubmit="handlePasswordChange(event)">
-      <div><label>Current Password</label><input class="portal-input" type="password" placeholder="••••••••"></div>
-      <div><label>New Password</label><input class="portal-input" type="password" placeholder="Min 8 characters"></div>
-      <div><label>Confirm New Password</label><input class="portal-input" type="password" placeholder="Re-enter password"></div>
-      <button type="submit" class="portal-btn portal-btn-primary">Update Password</button>
-    </form>
-  </div>
-</div>
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-top:1.5rem">
-  <div class="portal-card">
-    <h2 style="font-size:1.125rem;font-weight:800;color:#e7e5e4;margin-bottom:1.25rem">Notification Preferences</h2>
-    <div style="display:flex;flex-direction:column;gap:0.75rem">
-      ${[
-        ["Workflow completions","checked"],
-        ["Agent deployment updates","checked"],
-        ["Integration health alerts","checked"],
-        ["Weekly digest report","checked"],
-        ["Billing notifications","checked"],
-        ["Product updates & tips",""],
-      ].map(p => `<label class="portal-toggle"><input type="checkbox" ${p[1]}><span class="track"></span><span class="thumb"></span><span class="portal-toggle-label">${p[0]}</span></label>`).join("")}
-    </div>
-  </div>
-  <div class="portal-card">
-    <h2 style="font-size:1.125rem;font-weight:800;color:#e7e5e4;margin-bottom:1.25rem">Billing Overview</h2>
-    <div style="display:flex;flex-direction:column;gap:1rem">
-      <div style="display:flex;justify-content:space-between;align-items:center"><span style="color:#a8a29e;font-size:0.875rem">Current Plan</span><span class="portal-badge portal-badge-green">Growth — $15,000/mo</span></div>
-      <div style="display:flex;justify-content:space-between;align-items:center"><span style="color:#a8a29e;font-size:0.875rem">AI Employees</span><span style="color:#e7e5e4;font-weight:700">12 / 18 deployed</span></div>
-      <div style="display:flex;justify-content:space-between;align-items:center"><span style="color:#a8a29e;font-size:0.875rem">Next Billing</span><span style="color:#e7e5e4;font-weight:700">Aug 15, 2026</span></div>
-      <a href="/build" class="portal-btn portal-btn-secondary portal-btn-sm" style="width:100%;text-decoration:none">Upgrade Plan</a>
-    </div>
-  </div>
-</div>
-<div class="portal-danger-zone">
-  <h3>Danger Zone</h3>
-  <p>Permanently delete your account and all associated data. This action cannot be undone.</p>
-  <button class="portal-btn portal-btn-danger" onclick="if(confirm('Are you absolutely sure? This cannot be undone.')){if(confirm('Type DELETE to confirm')===true)alert('Account deletion would be processed here.')}">Delete Account</button>
-</div>
-<script>
-async function handlePasswordChange(e){e.preventDefault();var btn=e.target.querySelector("button");btn.disabled=true;btn.textContent="Updating...";try{var inputs=e.target.querySelectorAll("input");if(inputs[2]&&inputs[1].value!==inputs[2].value){throw new Error("Passwords do not match")}var res=await fetch("/api/settings/password",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({currentPassword:inputs[0].value,newPassword:inputs[1].value})});var d=await res.json();if(!res.ok)throw new Error(d.error||"Failed");alert("Password updated!");e.target.reset()}catch(err){alert(err.message)}finally{btn.disabled=false;btn.textContent="Update Password"}}
-async function handleAccountSave(e){e.preventDefault();var btn=e.target.querySelector("button");btn.disabled=true;btn.textContent="Saving...";try{await new Promise(function(r){setTimeout(r,500)});alert("Settings saved!")}finally{btn.disabled=false;btn.textContent="Save Changes"}}
-</script>`;
-}
-
-
 // ─── Tenant API Handlers ───
 function handleTenantDashboard(req: Request): Response {
   const user = getSessionUser(req);
