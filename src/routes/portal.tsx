@@ -182,26 +182,24 @@ function PortalLayout() {
   };
 
   const navLinks = [
-    { name: "Dashboard", path: "/portal", icon: "🏠" },
-    { name: "AI Employees", path: "/portal/employees", icon: "🤖" },
-    { name: "Workflows", path: "/portal/workflows", icon: "⚡" },
-    { name: "Inbox", path: "/portal/inbox", icon: "📥" },
-    { name: "AI Chat", path: "/portal/chat", icon: "💬" },
-    { name: "Customers", path: "/portal/customers", icon: "👥" },
-    { name: "Documents", path: "/portal/documents", icon: "📁" },
-    { name: "Analytics", path: "/portal/analytics", icon: "📊" },
-    { name: "Knowledge", path: "/portal/knowledge-base", icon: "🧠" },
-    { name: "Integrations", path: "/portal/integrations", icon: "🔌" },
-    { name: "Marketplace", path: "/portal/marketplace", icon: "🛒" },
-    { name: "Settings", path: "/portal/settings", icon: "⚙️" },
+    { name: "Dashboard", subtitle: "Metrics · Billing · Approvals", path: "/portal", icon: "🏠", section: "Overview" },
+    { name: "AI Employees", subtitle: "Workforce · Marketplace", path: "/portal/employees", icon: "🤖", section: "AI Workforce" },
+    { name: "Documents", subtitle: "Upload · Process · Export", path: "/portal/documents", icon: "📁", section: "Operations" },
+    { name: "Workflows", subtitle: "Builder · Management", path: "/portal/workflows", icon: "⚡", section: "Operations" },
+    { name: "AI Chat", subtitle: "Advisor · Assistant", path: "/portal/chat", icon: "💬", section: "Communications" },
+    { name: "Reports", subtitle: "Analytics · Inbox · Alerts", path: "/portal/reports", icon: "📊", section: "Communications" },
+    { name: "Integrations", subtitle: "All 180+ Connections", path: "/portal/integrations", icon: "🔌", section: "Integrations & Data" },
+    { name: "CRM / ERP", subtitle: "Salesforce · SAP · NetSuite", path: "/portal/crm", icon: "👥", section: "Integrations & Data" },
+    { name: "API Keys", subtitle: "Developer Access", path: "/portal/api", icon: "🔑", section: "Admin & Settings" },
+    { name: "Settings", subtitle: "Account · Brand · Billing", path: "/portal/settings", icon: "⚙️", section: "Admin & Settings" },
   ];
 
   const mobileLinks = [
     { name: "Dashboard", path: "/portal", icon: "🏠" },
     { name: "Employees", path: "/portal/employees", icon: "🤖" },
     { name: "AI Chat", path: "/portal/chat", icon: "💬" },
-    { name: "Inbox", path: "/portal/inbox", icon: "📥" },
-    { name: "Alerts", path: "/portal/notifications", icon: "🔔", badge: unreadCount },
+    { name: "Reports", path: "/portal/reports", icon: "📊" },
+    { name: "Settings", path: "/portal/settings", icon: "⚙️", badge: unreadCount },
   ];
 
   const currentPath = location.pathname;
@@ -264,42 +262,61 @@ function PortalLayout() {
         </div>
 
         {/* Navigation list */}
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto mt-14 lg:mt-0 select-none scrollbar-none">
-          <p className="text-[9px] font-bold text-stone-600 uppercase tracking-widest px-3 mb-2">Workspace Platform</p>
-          {navLinks.map((link) => {
-            const isActive = currentPath === link.path || (link.path === "/portal" && currentPath === "/portal/");
-            return (
-              <Link
-                key={link.path}
-                to={link.path as any}
-                onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 px-3 py-2 rounded-lg font-bold text-xs transition-all ${
-                  isActive
-                    ? "bg-stone-900 text-white border-l-2 border-blue-500"
-                    : "text-stone-400 hover:bg-stone-900/50 hover:text-stone-200"
-                }`}
-              >
-                <span className="text-sm shrink-0">{link.icon}</span>
-                <span>{link.name}</span>
-                {link.name === "Inbox" && (
-                  <span className="ml-auto bg-stone-850 border border-stone-800 text-stone-400 text-[9px] px-1.5 py-0.5 rounded-md">3</span>
-                )}
-              </Link>
-            );
-          })}
+        <nav className="flex-1 px-3 py-4 overflow-y-auto mt-14 lg:mt-0 select-none scrollbar-none">
+          {(() => {
+            const sections = [...new Set(navLinks.map(l => l.section))];
+            return sections.map(section => (
+              <div key={section} className="mb-4">
+                <p className="text-[9px] font-bold text-stone-600 uppercase tracking-widest px-3 mb-1.5">{section}</p>
+                {navLinks.filter(l => l.section === section).map((link) => {
+                  const isActive = currentPath === link.path || (link.path === "/portal" && currentPath === "/portal/");
+                  const isIntegrations = link.name === "Integrations";
+                  return (
+                    <Link
+                      key={link.path}
+                      to={link.path as any}
+                      onClick={() => setSidebarOpen(false)}
+                      className={`flex items-center gap-3 px-3 py-2 rounded-lg font-bold text-xs transition-all group ${
+                        isActive
+                          ? "bg-stone-900 text-white border-l-2 border-blue-500"
+                          : isIntegrations
+                          ? "text-stone-300 hover:bg-stone-900/50 hover:text-white border-l-2 border-transparent hover:border-blue-500/50"
+                          : "text-stone-400 hover:bg-stone-900/50 hover:text-stone-200 border-l-2 border-transparent"
+                      }`}
+                    >
+                      <span className="text-sm shrink-0">{link.icon}</span>
+                      <div className="min-w-0">
+                        <div className="truncate">{link.name}</div>
+                        {link.subtitle && (
+                          <div className={`text-[9px] font-medium truncate ${isActive ? "text-stone-500" : "text-stone-600 group-hover:text-stone-500"}`}>
+                            {link.subtitle}
+                          </div>
+                        )}
+                      </div>
+                      {isIntegrations && !isActive && (
+                        <span className="ml-auto bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[8px] px-1.5 py-0.5 rounded-md font-bold tracking-wider shrink-0">180+</span>
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+            ));
+          })()}
 
           <div className="pt-4 mt-4 border-t border-stone-900 space-y-1">
             <p className="text-[9px] font-bold text-stone-600 uppercase tracking-widest px-3 mb-2">Controls</p>
-            <Link
-              to="/portal/admin"
-              className="flex items-center gap-3 px-3 py-2 rounded-lg font-bold text-xs text-stone-400 hover:bg-stone-900/50 hover:text-stone-200"
-            >
-              <span className="text-sm shrink-0">👑</span>
-              <span>Admin Panel</span>
-            </Link>
+            {user.email === "mathewortiz97@gmail.com" && (
+              <Link
+                to="/portal/admin"
+                className="flex items-center gap-3 px-3 py-2 rounded-lg font-bold text-xs text-stone-400 hover:bg-stone-900/50 hover:text-stone-200 border-l-2 border-transparent"
+              >
+                <span className="text-sm shrink-0">👑</span>
+                <span>Admin Panel</span>
+              </Link>
+            )}
             <Link
               to="/"
-              className="flex items-center gap-3 px-3 py-2 rounded-lg font-bold text-xs text-stone-400 hover:bg-stone-900/50 hover:text-stone-200"
+              className="flex items-center gap-3 px-3 py-2 rounded-lg font-bold text-xs text-stone-400 hover:bg-stone-900/50 hover:text-stone-200 border-l-2 border-transparent"
             >
               <span className="text-sm shrink-0">🏠</span>
               <span>Landing Page</span>
@@ -412,11 +429,11 @@ function PortalLayout() {
                   </div>
                   <div className="p-3 border-t border-stone-900 bg-stone-900/20 text-center">
                     <Link
-                      to="/portal/notifications"
+                      to="/portal/reports"
                       onClick={() => setBellOpen(false)}
                       className="text-[10px] text-stone-400 hover:text-white font-bold tracking-wider uppercase"
                     >
-                      See All Alerts & Channels →
+                      See All Reports & Alerts →
                     </Link>
                   </div>
                 </div>

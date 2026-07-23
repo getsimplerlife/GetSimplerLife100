@@ -78,17 +78,17 @@ function FaqPage() {
 
   return (
     <div className="flex flex-col min-h-screen selection:bg-emerald-100 selection:text-emerald-900 bg-stone-50">
-      <header className="px-6 py-6 bg-white sticky top-0 z-50 border-b border-stone-100 backdrop-blur-md bg-white/80">
+      <header className="px-6 py-6 bg-stone-950 sticky top-0 z-50 border-b border-stone-800 backdrop-blur-md bg-white/80">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <Link to="/" className="text-2xl font-black text-emerald-600 tracking-tight">
+          <Link to="/" className="text-2xl font-black text-emerald-400 tracking-tight">
             {businessName}
           </Link>
           <nav className="flex gap-8 items-center">
-            <Link to="/" className="text-sm font-bold text-stone-600 hover:text-emerald-600 transition-colors">Home</Link>
-            <Link to="/how-it-works" className="text-sm font-bold text-stone-600 hover:text-emerald-600 transition-colors">How It Works</Link>
-            <Link to="/faq" className="text-sm font-bold text-emerald-600 transition-colors">FAQ</Link>
-            <Link to="/about" className="text-sm font-bold text-stone-600 hover:text-emerald-600 transition-colors">About</Link>
-            <Link to="/contact" className="text-sm font-bold text-stone-600 hover:text-emerald-600 transition-colors">Contact</Link>
+            <Link to="/" className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">Home</Link>
+            <Link to="/how-it-works" className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">How It Works</Link>
+            <Link to="/faq" className="text-sm font-bold text-emerald-400 transition-colors">FAQ</Link>
+            <Link to="/about" className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">About</Link>
+            <Link to="/contact" className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">Contact</Link>
           </nav>
         </div>
       </header>
@@ -98,13 +98,13 @@ function FaqPage() {
           
           {/* Header */}
           <div className="text-center">
-            <span className="inline-block px-3 py-1 mb-4 text-xs font-mono font-bold tracking-wider rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 uppercase">
+            <span className="inline-block px-3 py-1 mb-4 text-xs font-mono font-bold tracking-wider rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase">
               RESOURCES
             </span>
-            <h1 className="text-5xl lg:text-7xl font-black text-stone-900 tracking-tight mb-6">
+            <h1 className="text-5xl lg:text-7xl font-black text-white tracking-tight mb-6">
               Common Questions
             </h1>
-            <p className="text-xl text-stone-500 max-w-2xl mx-auto">
+            <p className="text-xl text-stone-400 max-w-2xl mx-auto">
               Everything you need to know before we build, deploy, and scale your AI operations team.
             </p>
           </div>
@@ -113,16 +113,16 @@ function FaqPage() {
           <div className="space-y-12">
             {faqCategories.map((cat, idx) => (
               <div key={idx} className="space-y-6">
-                <h3 className="text-xs font-mono font-bold tracking-widest text-stone-400 uppercase border-b border-stone-200 pb-3">
+                <h3 className="text-xs font-mono font-bold tracking-widest text-stone-400 uppercase border-b border-stone-900 pb-3">
                   {cat.category}
                 </h3>
                 <div className="grid md:grid-cols-2 gap-6">
                   {cat.items.map((item, itemIdx) => (
-                    <div key={itemIdx} className="p-8 bg-white border border-stone-100 rounded-3xl space-y-3 hover:border-emerald-200 transition-colors shadow-sm">
-                      <h4 className="text-lg lg:text-xl font-black text-stone-900 leading-snug">
+                    <div key={itemIdx} className="p-8 bg-stone-950 border border-stone-800 rounded-3xl space-y-3 hover:border-emerald-200 transition-colors shadow-sm">
+                      <h4 className="text-lg lg:text-xl font-black text-white leading-snug">
                         {item.q}
                       </h4>
-                      <p className="text-sm text-stone-600 leading-relaxed">
+                      <p className="text-sm text-stone-400 leading-relaxed">
                         {item.a}
                       </p>
                     </div>
@@ -139,7 +139,7 @@ function FaqPage() {
               We build custom integrations for high-security healthcare, logistics, and financial environments. Let's discuss your specific API requirements.
             </p>
             <div className="flex justify-center">
-              <Link to="/contact" className="bg-white text-stone-950 font-black text-sm px-8 py-3.5 rounded-xl hover:bg-stone-100 transition-all">
+              <Link to="/contact" className="bg-stone-950 text-stone-100 font-black text-sm px-8 py-3.5 rounded-xl hover:bg-stone-900 transition-all">
                 Talk to an Integration Engineer
               </Link>
             </div>
@@ -148,10 +148,10 @@ function FaqPage() {
         </div>
       </main>
 
-      <footer className="px-6 py-12 border-t border-stone-200 bg-white text-stone-500">
+      <footer className="px-6 py-12 border-t border-stone-900 bg-stone-950 text-stone-500">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
           <div>
-            <div className="text-2xl font-black text-emerald-600 mb-2">{businessName}</div>
+            <div className="text-2xl font-black text-emerald-400 mb-2">{businessName}</div>
             <p className="text-sm text-stone-400">AI coworkers for operations teams. Work less, live more.</p>
           </div>
           <div className="text-sm font-bold flex gap-6">

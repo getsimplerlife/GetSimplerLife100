@@ -572,7 +572,7 @@ Simpler Life 100`);
                   {activeTab === "invoice" && invoiceLogs.map((log, i) => <div key={i}>{log}</div>)}
                   {activeTab === "crm" && crmLogs.map((log, i) => <div key={i}>{log}</div>)}
                   {simulationState === "running" && (
-                    <div className="flex items-center gap-1 text-stone-500 animate-pulse mt-1">
+                    <div className="flex items-center gap-1 text-stone-400 animate-pulse mt-1">
                       <span>_</span>
                     </div>
                   )}
@@ -704,25 +704,25 @@ Simpler Life 100`);
                       <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-4 text-[11px] border-b border-stone-850 pb-3">
                           <div>
-                            <span className="text-stone-500 block">SENDER</span>
+                            <span className="text-stone-400 block">SENDER</span>
                             <span className="font-bold text-stone-200">{emailExtracted.sender}</span>
                           </div>
                           <div>
-                            <span className="text-stone-500 block">COMPANY</span>
+                            <span className="text-stone-400 block">COMPANY</span>
                             <span className="font-bold text-stone-200">{emailExtracted.company}</span>
                           </div>
                           <div>
-                            <span className="text-stone-500 block">KEY ENTITY</span>
+                            <span className="text-stone-400 block">KEY ENTITY</span>
                             <span className="font-bold text-emerald-400">{emailExtracted.documentId}</span>
                           </div>
                           <div>
-                            <span className="text-stone-500 block">PRIORITY</span>
+                            <span className="text-stone-400 block">PRIORITY</span>
                             <span className="font-black text-rose-500 uppercase">{emailExtracted.priority}</span>
                           </div>
                         </div>
 
                         <div className="space-y-1">
-                          <span className="text-[10px] text-stone-500 block font-bold">DRAFT RESPONSE</span>
+                          <span className="text-[10px] text-stone-400 block font-bold">DRAFT RESPONSE</span>
                           <pre className="p-3 bg-stone-900 rounded-xl font-mono text-[10px] text-stone-300 overflow-x-auto whitespace-pre-wrap leading-relaxed max-h-40 overflow-y-auto">
                             {emailDraft}
                           </pre>
@@ -735,25 +735,25 @@ Simpler Life 100`);
                       <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-4 text-[11px] border-b border-stone-850 pb-3">
                           <div>
-                            <span className="text-stone-500 block">SUPPLIER / VENDOR</span>
+                            <span className="text-stone-400 block">SUPPLIER / VENDOR</span>
                             <span className="font-bold text-stone-200">{invoiceExtracted.vendor}</span>
                           </div>
                           <div>
-                            <span className="text-stone-500 block">INVOICE DATE</span>
+                            <span className="text-stone-400 block">INVOICE DATE</span>
                             <span className="font-bold text-stone-200">{invoiceExtracted.invoiceDate}</span>
                           </div>
                           <div>
-                            <span className="text-stone-500 block">PO REFERENCE</span>
+                            <span className="text-stone-400 block">PO REFERENCE</span>
                             <span className="font-bold text-emerald-400">{invoiceExtracted.poRef}</span>
                           </div>
                           <div>
-                            <span className="text-stone-500 block">TOTAL BALANCE</span>
+                            <span className="text-stone-400 block">TOTAL BALANCE</span>
                             <span className="font-bold text-white text-sm">{invoiceExtracted.total}</span>
                           </div>
                         </div>
 
                         <div className="space-y-1">
-                          <span className="text-[10px] text-stone-500 block font-bold">LINE ITEMS EXTRACTED</span>
+                          <span className="text-[10px] text-stone-400 block font-bold">LINE ITEMS EXTRACTED</span>
                           <div className="space-y-1 bg-stone-900 p-3 rounded-xl">
                             {invoiceExtracted.items.map((it: string, i: number) => (
                               <div key={i} className="text-[10px] text-stone-300 font-mono flex items-center gap-1.5">
@@ -770,29 +770,29 @@ Simpler Life 100`);
                       <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-4 text-[11px] border-b border-stone-850 pb-3">
                           <div>
-                            <span className="text-stone-500 block">KEY CONTACT</span>
+                            <span className="text-stone-400 block">KEY CONTACT</span>
                             <span className="font-bold text-stone-200">{crmExtracted.contact}</span>
                           </div>
                           <div>
-                            <span className="text-stone-500 block">ORGANIZATION</span>
+                            <span className="text-stone-400 block">ORGANIZATION</span>
                             <span className="font-bold text-stone-200">{crmExtracted.company}</span>
                           </div>
                           <div>
-                            <span className="text-stone-500 block">CRM ACTION TRIGGER</span>
+                            <span className="text-stone-400 block">CRM ACTION TRIGGER</span>
                             <span className="font-bold text-emerald-400">{crmExtracted.actionTrigger}</span>
                           </div>
                           <div>
-                            <span className="text-stone-500 block">AUTOPILOT DOWNSTREAM TASK</span>
+                            <span className="text-stone-400 block">AUTOPILOT DOWNSTREAM TASK</span>
                             <span className="font-bold text-stone-300">{crmExtracted.downstreamTask}</span>
                           </div>
                         </div>
 
                         <div className="space-y-1.5">
-                          <span className="text-[10px] text-stone-500 block font-bold">DB UPDATES REGISTERED</span>
+                          <span className="text-[10px] text-stone-400 block font-bold">DB UPDATES REGISTERED</span>
                           <div className="bg-stone-900 p-3 rounded-xl space-y-1 text-[10px] font-mono">
                             {Object.entries(crmExtracted.updates).map(([k, v]: any) => (
                               <div key={k} className="flex justify-between text-stone-300 border-b border-stone-850 pb-1 last:border-0 last:pb-0">
-                                <span className="text-stone-500 uppercase">{k.replace(/([A-Z])/g, ' $1')}</span>
+                                <span className="text-stone-400 uppercase">{k.replace(/([A-Z])/g, ' $1')}</span>
                                 <span className="text-white font-bold">{v}</span>
                               </div>
                             ))}
@@ -842,7 +842,7 @@ Simpler Life 100`);
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-stone-900 bg-stone-950/40 py-8 text-center text-stone-500 text-[10px] tracking-widest uppercase font-mono mt-12">
+      <footer className="border-t border-stone-900 bg-stone-950/40 py-8 text-center text-stone-400 text-[10px] tracking-widest uppercase font-mono mt-12">
         &copy; {new Date().getFullYear()} Simpler Life 100 &bull; Strategic AI Operations
       </footer>
 

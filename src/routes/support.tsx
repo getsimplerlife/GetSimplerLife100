@@ -81,24 +81,24 @@ function SupportPage() {
 
   return (
     <div className="flex flex-col min-h-screen selection:bg-emerald-100 selection:text-emerald-900">
-      <header className="px-6 py-6 bg-white sticky top-0 z-50 border-b border-stone-100 backdrop-blur-md bg-white/80">
+      <header className="px-6 py-6 bg-stone-950 sticky top-0 z-50 border-b border-stone-800 backdrop-blur-md bg-white/80">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <Link to="/" className="text-2xl font-black text-emerald-600 tracking-tight">
+          <Link to="/" className="text-2xl font-black text-emerald-400 tracking-tight">
             {businessName}
           </Link>
           <nav className="flex gap-8 items-center">
-            <Link to="/" className="text-sm font-bold text-stone-600 hover:text-emerald-600 transition-colors">Home</Link>
-            <Link to="/build" className="text-sm font-bold text-stone-600 hover:text-emerald-600 transition-colors">Builder</Link>
-            <Link to="/contact" className="text-sm font-bold text-stone-600 hover:text-emerald-600 transition-colors">Contact</Link>
+            <Link to="/" className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">Home</Link>
+            <Link to="/build" className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">Builder</Link>
+            <Link to="/contact" className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">Contact</Link>
           </nav>
         </div>
       </header>
 
-      <main className="flex-1 bg-stone-50 py-24 px-6">
+      <main className="flex-1 bg-stone-900 py-24 px-6">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-20">
-            <h1 className="text-5xl lg:text-7xl font-black text-stone-900 mb-6 tracking-tight">Managed AI Operations</h1>
-            <p className="text-xl text-stone-500 max-w-3xl mx-auto leading-relaxed">
+            <h1 className="text-5xl lg:text-7xl font-black text-white mb-6 tracking-tight">Managed AI Operations</h1>
+            <p className="text-xl text-stone-400 max-w-3xl mx-auto leading-relaxed">
               Model rot and prompt drift are real. We keep your AI employees running at peak performance while continuously building new automations for your team.
             </p>
           </div>
@@ -107,7 +107,7 @@ function SupportPage() {
             {supportTiers.map((tier) => (
               <div
                 key={tier.name}
-                className={`relative bg-white p-10 lg:p-12 rounded-[3rem] shadow-xl border-2 transition-all ${
+                className={`relative bg-stone-950 p-10 lg:p-12 rounded-[3rem] shadow-xl border-2 transition-all ${
                   tier.popular ? 'border-emerald-600 scale-105 z-10' : 'border-stone-50 hover:border-stone-200'
                 }`}
               >
@@ -117,8 +117,8 @@ function SupportPage() {
                   </div>
                 )}
                 <div className="mb-8">
-                  <h3 className="text-2xl font-black text-stone-900 mb-2">{tier.name}</h3>
-                  <p className="text-stone-500 font-medium leading-relaxed">{tier.description}</p>
+                  <h3 className="text-2xl font-black text-white mb-2">{tier.name}</h3>
+                  <p className="text-stone-400 font-medium leading-relaxed">{tier.description}</p>
                 </div>
                 <div className="flex items-baseline gap-1 mb-8">
                   <span className="text-5xl font-black text-stone-900">{tier.price}</span>
@@ -127,7 +127,7 @@ function SupportPage() {
                 <ul className="space-y-4 mb-10">
                   {tier.features.map((feature) => (
                     <li key={feature} className="flex items-start gap-3 text-stone-600">
-                      <div className="w-6 h-6 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center shrink-0 mt-0.5">
+                      <div className="w-6 h-6 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0 mt-0.5">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
                         </svg>
@@ -150,8 +150,8 @@ function SupportPage() {
             ))}
           </div>
 
-          <div className="mt-24 max-w-4xl mx-auto bg-white p-12 rounded-[3rem] shadow-xl border border-stone-100 text-center">
-            <h2 className="text-3xl font-black text-stone-900 mb-6 tracking-tight italic">
+          <div className="mt-24 max-w-4xl mx-auto bg-stone-950 p-12 rounded-[3rem] shadow-xl border border-stone-800 text-center">
+            <h2 className="text-3xl font-black text-white mb-6 tracking-tight italic">
               "We treat your AI like a real employee. We don't just build it and walk away — we manage, train, and improve it every month."
             </h2>
             <div className="flex items-center justify-center gap-4">
@@ -165,9 +165,9 @@ function SupportPage() {
         </div>
       </main>
 
-      <footer className="px-6 py-12 border-t border-stone-100 bg-white">
+      <footer className="px-6 py-12 border-t border-stone-800 bg-white">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-12 text-stone-400 text-sm">
-          <div className="font-black text-emerald-600 text-xl">{businessName}</div>
+          <div className="font-black text-emerald-400 text-xl">{businessName}</div>
           <div className="flex gap-8 font-bold">
             <Link to="/" className="hover:text-emerald-600">Home</Link>
             <Link to="/build" className="hover:text-emerald-600">Builder</Link>

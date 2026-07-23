@@ -7,7 +7,7 @@
  * Generic tool for all agents.
  */
 
-import { registry } from "../tools";
+import { registry } from "../registry";
 import type { ToolContext, ToolResult } from "../schema";
 
 // ── PHP Legacy Patterns ──────────────────────────────────────────────────

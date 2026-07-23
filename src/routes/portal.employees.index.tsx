@@ -2,283 +2,188 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 
 export const Route = createFileRoute("/portal/employees/")({
-  component: EmployeesManager,
+  component: AIEmployeesWorkspaceHub,
 });
 
-function EmployeesManager() {
+function AIEmployeesWorkspaceHub() {
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [feedback, setFeedback] = useState("");
-  const [employees, setEmployees] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [editPanel, setEditPanel] = useState<{ emp: any } | null>(null);
+
+  // Per-agent status from runtime API
+  const [agentStatuses, setAgentStatuses] = useState<Record<string, any>>({});
+  const [actionLoading, setActionLoading] = useState<Record<string, string>>({});
 
   const fetchEmployees = async () => {
     try {
       const res = await fetch("/api/data/employees", { credentials: "include" });
       const d = await res.json();
-      
-      if (d.data && d.data.length > 0) {
-        setEmployees(d.data);
-      } else {
-        setEmployees([]);
+      const emps = d.data || [];
+      setEmployees(emps);
+
+      // Fetch real-time status from agent runtime for each employee
+      for (const emp of emps) {
+        const agentId = emp.id || emp._id;
+        if (agentId) {
+          fetch(`/api/agents/${agentId}/status`, { credentials: "include" })
+            .then(r => r.json())
+            .then(s => {
+              setAgentStatuses(prev => ({ ...prev, [agentId]: s }));
+            })
+            .catch(() => {});
+        }
       }
       setLoading(false);
-    } catch (err) {
-      console.error("Error loading employees:", err);
+    } catch {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchEmployees();
-  }, []);
+  useEffect(() => { fetchEmployees(); }, []);
 
-  const handleAction = async (empName: string, actionName: string) => {
+  const handleAgentAction = async (emp: any, action: "pause" | "resume" | "run") => {
+    const agentId = emp.id || emp._id;
+    setActionLoading(prev => ({ ...prev, [agentId]: action }));
+    setFeedback(`${action === "pause" ? "Pausing" : action === "resume" ? "Resuming" : "Starting"} ${emp.name}...`);
+
     try {
-      setFeedback(`Processing action "${actionName}" for ${empName}...`);
-      const res = await fetch("/api/action", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          action: "employee_" + actionName.toLowerCase().replace(" ", "_"),
-          resource: empName,
-          details: { name: empName, action: actionName },
-        }),
-      });
-      await res.json();
-      
-      // Update local state to immediately show change
-      const updated = employees.map(emp => {
-        if (emp.name === empName) {
-          if (actionName === "Pause") {
-            return { ...emp, status: "Paused" };
-          } else if (actionName === "Resume") {
-            return { ...emp, status: "Active" };
-          }
-        }
-        return emp;
-      });
-      setEmployees(updated);
+      let res: Response;
+      if (action === "run") {
+        res = await fetch("/api/agents/run", {
+          method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+          body: JSON.stringify({ agentId, prompt: `Execute ${emp.purpose || "your task"}`, context: {} }),
+        });
+      } else {
+        res = await fetch(`/api/agents/${agentId}/${action}`, {
+          method: "POST", credentials: "include",
+        });
+      }
 
-      setFeedback(`Success: ${actionName} processed for ${empName}`);
-      setTimeout(() => setFeedback(""), 3000);
-    } catch (err) {
-      console.error(err);
-      setFeedback(`Error: Failed to process ${actionName} for ${empName}`);
-      setTimeout(() => setFeedback(""), 3000);
+      if (res.ok) {
+        const data = await res.json();
+        // Update local state
+        setEmployees(emps => emps.map(e => {
+          if ((e.id || e._id) === agentId) {
+            return { ...e, status: action === "pause" ? "Paused" : action === "resume" ? "Active" : e.status };
+          }
+          return e;
+        }));
+        // Refresh status
+        const sRes = await fetch(`/api/agents/${agentId}/status`, { credentials: "include" });
+        if (sRes.ok) {
+          const sData = await sRes.json();
+          setAgentStatuses(prev => ({ ...prev, [agentId]: sData }));
+        }
+        setFeedback(`✓ ${action === "pause" ? "Paused" : action === "resume" ? "Resumed" : "Started"} ${emp.name}`);
+      } else {
+        setFeedback(`Failed to ${action} ${emp.name}`);
+      }
+    } catch {
+      setFeedback(`Error: Could not ${action} ${emp.name}`);
     }
+    setTimeout(() => setFeedback(""), 3000);
+    setActionLoading(prev => { const n = { ...prev }; delete n[agentId]; return n; });
   };
 
-  const filteredEmployees = employees.filter((emp) => {
-    const matchesSearch = emp.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          emp.purpose.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          emp.dept.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === "all" || emp.status.toLowerCase() === statusFilter.toLowerCase();
-    return matchesSearch && matchesStatus;
+  const handleSaveCapabilities = async (emp: any, updates: Record<string, any>) => {
+    setFeedback(`Updating ${emp.name} capabilities...`);
+    try {
+      await fetch("/api/data/employees", {
+        method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+        body: JSON.stringify({ id: emp.id || emp._id, ...updates }),
+      });
+      setEmployees(emps => emps.map(e => {
+        if ((e.id || e._id) === (emp.id || emp._id)) return { ...e, ...updates };
+        return e;
+      }));
+      setFeedback(`✓ ${emp.name} updated`);
+      setEditPanel(null);
+    } catch {
+      setFeedback("Failed to save capabilities");
+    }
+    setTimeout(() => setFeedback(""), 3000);
+  };
+
+  const getAgentId = (emp: any) => emp.id || emp._id;
+
+  const filtered = employees.filter((emp: any) => {
+    const m = emp.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              emp.purpose?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              emp.agentType?.toLowerCase().includes(searchTerm.toLowerCase());
+    const s = statusFilter === "all" || emp.status?.toLowerCase() === statusFilter.toLowerCase();
+    return m && s;
   });
 
-  // Help find a local employee database entry safely
-  const getEmpId = (emp: any) => emp.id || emp._id;
+  const activeCount = employees.filter((e: any) => e.status === "Active").length;
+  const idleCount = employees.filter((e: any) => e.status === "Idle").length;
+  const errorCount = employees.filter((e: any) => e.status !== "Active" && e.status !== "Idle" && e.status !== "Paused").length;
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+      <div className="flex items-center justify-center min-h-[400px]">
         <div className="w-8 h-8 border-2 border-stone-800 border-t-white rounded-full animate-spin" />
-        <p className="text-xs font-mono text-stone-500">
-          Loading active workforce context...
-        </p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-10 text-stone-100 max-w-6xl mx-auto">
-      {/* Header */}
+    <div className="space-y-8 text-stone-100 max-w-6xl mx-auto">
+
+      {/* ── Header ─────────────────────────────────────────────── */}
       <div className="space-y-2">
         <div className="flex items-center gap-2">
           <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-[10px] font-mono tracking-widest text-stone-500 uppercase">AI WORKFORCE SYSTEM ACTIVE</span>
+          <span className="text-[10px] font-mono tracking-widest text-stone-500 uppercase">Workspace Hub</span>
         </div>
-        <h1 className="text-3xl font-black text-white tracking-tight leading-none">🤖 AI Employee Directory</h1>
+        <h1 className="text-3xl font-black text-white tracking-tight">🤖 AI Employees</h1>
         <p className="text-stone-400 text-sm max-w-2xl leading-relaxed">
-          Monitor operational statuses, review embedded knowledge bases, and configure trigger-execution policies for your specialized coworkers.
+          Monitor, control, and configure your autonomous AI workforce.{" "}
+          <span className="text-blue-400 font-mono text-[10px]">Runtime: src/agents/runtime.ts</span>
         </p>
       </div>
 
+      {/* ── Empty State ────────────────────────────────────────── */}
       {employees.length === 0 ? (
-        <div className="flex flex-col items-center justify-center text-center p-8 py-16 bg-stone-950 border border-stone-900 rounded-2xl max-w-xl mx-auto my-8">
+        <div className="flex flex-col items-center justify-center text-center p-8 py-16 bg-stone-950 border border-stone-900 rounded-2xl max-w-xl mx-auto">
           <div className="text-4xl mb-4">🤖</div>
           <h3 className="text-lg font-bold text-white mb-2">No AI employees deployed yet</h3>
           <p className="text-sm text-stone-400 mb-6 max-w-sm leading-relaxed">
-            Purchase an AI employee build to automate your high-friction workflows and scale your business.
+            Deploy your first AI employee from the Marketplace to begin automating high-friction workflows.
           </p>
-          <Link
-            to="/portal/billing"
-            className="inline-flex items-center justify-center bg-white hover:bg-stone-100 text-black font-extrabold px-6 py-3 rounded-xl transition-all font-mono text-xs shadow-lg shadow-white/5 active:scale-95"
-          >
-            Deploy an AI Employee
+          <Link to="/portal/marketplace"
+            className="inline-flex items-center justify-center bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold px-6 py-3 rounded-xl transition-all font-mono text-xs shadow-lg active:scale-95">
+            🛒 Browse Marketplace
           </Link>
         </div>
       ) : (
         <>
-          {/* ─── AI WORKFORCE HIERARCHY MAP ─── */}
-          <div className="space-y-4">
-            <div className="space-y-1">
-              <h2 className="text-sm font-mono tracking-widest text-stone-500 uppercase">⚡ PIPELINE WORKFORCE MAP</h2>
-              <p className="text-xs text-stone-600">Click any employee node below to review full cognitive profiles, knowledge bases, and decision histories.</p>
-            </div>
-
-            <div className="bg-stone-950 border border-stone-900 rounded-xl p-6 overflow-x-auto select-none relative">
-              
-              {/* Main SVG connecting line */}
-              <div className="min-w-[900px] flex items-center justify-between py-6 relative">
-                
-                {/* SVG Connecting Dotted Lines with pulse effect */}
-                <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-1 z-0 overflow-hidden">
-                  <svg className="w-full h-2" fill="none">
-                    <line 
-                      x1="0" y1="4" x2="100%" y2="4" 
-                      stroke="#292524" strokeWidth="2" strokeDasharray="6 6"
-                    />
-                    <line 
-                      x1="0" y1="4" x2="100%" y2="4" 
-                      stroke="#10b981" strokeWidth="2" strokeDasharray="6 40"
-                      className="animate-pulse"
-                    />
-                  </svg>
-                </div>
-
-                {/* Sales Intake Trigger Node */}
-                <div className="flex flex-col items-center space-y-2.5 z-10 w-40 shrink-0">
-                  <div className="h-10 w-10 rounded-full bg-stone-900 border-2 border-stone-800 flex items-center justify-center text-xs font-mono font-bold text-stone-500 shadow-lg">
-                    📥
-                  </div>
-                  <div className="text-center space-y-0.5">
-                    <p className="text-[10px] font-mono font-bold text-stone-400">SALES INTAKE</p>
-                    <p className="text-[9px] text-stone-600 font-medium">Inbound Emails / RFPs</p>
-                  </div>
-                </div>
-
-                {/* Node 1: Sales AI */}
-                {employees.find(e => e.id === "sales-ai") && (
-                  <Link 
-                    to="/portal/employees/$id"
-                    params={{ id: "sales-ai" }}
-                    className="flex flex-col items-center space-y-2.5 z-10 w-40 shrink-0 group transition-all"
-                  >
-                    <div className="h-12 w-12 rounded-xl bg-stone-950 border-2 border-emerald-900 group-hover:border-emerald-500 flex items-center justify-center relative shadow-xl transition-all duration-300">
-                      <span className="text-lg">🤖</span>
-                      <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse border border-stone-950" />
-                    </div>
-                    <div className="text-center space-y-0.5">
-                      <p className="text-[11px] font-bold text-stone-200 group-hover:text-emerald-400 transition-colors">Sarah Jenkins</p>
-                      <p className="text-[9px] font-mono text-stone-500 uppercase tracking-widest">Sales Coordinator</p>
-                    </div>
-                  </Link>
-                )}
-
-                {/* Node 2: CRM AI */}
-                {employees.find(e => e.id === "crm-ai") && (
-                  <Link 
-                    to="/portal/employees/$id"
-                    params={{ id: "crm-ai" }}
-                    className="flex flex-col items-center space-y-2.5 z-10 w-40 shrink-0 group transition-all"
-                  >
-                    <div className="h-12 w-12 rounded-xl bg-stone-950 border-2 border-emerald-900 group-hover:border-emerald-500 flex items-center justify-center relative shadow-xl transition-all duration-300">
-                      <span className="text-lg">🤖</span>
-                      <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse border border-stone-950" />
-                    </div>
-                    <div className="text-center space-y-0.5">
-                      <p className="text-[11px] font-bold text-stone-200 group-hover:text-emerald-400 transition-colors">Charlie CRM</p>
-                      <p className="text-[9px] font-mono text-stone-500 uppercase tracking-widest">Enrichment Agent</p>
-                    </div>
-                  </Link>
-                )}
-
-                {/* Node 3: Quote AI */}
-                {employees.find(e => e.id === "quote-ai") && (
-                  <Link 
-                    to="/portal/employees/$id"
-                    params={{ id: "quote-ai" }}
-                    className="flex flex-col items-center space-y-2.5 z-10 w-40 shrink-0 group transition-all"
-                  >
-                    <div className="h-12 w-12 rounded-xl bg-stone-950 border-2 border-stone-800 group-hover:border-stone-500 flex items-center justify-center relative shadow-xl transition-all duration-300">
-                      <span className="text-lg">🤖</span>
-                      <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-stone-500 border border-stone-950" />
-                    </div>
-                    <div className="text-center space-y-0.5">
-                      <p className="text-[11px] font-bold text-stone-300 group-hover:text-stone-100 transition-colors">Quentin Quote</p>
-                      <p className="text-[9px] font-mono text-stone-500 uppercase tracking-widest">Pricing Engine</p>
-                    </div>
-                  </Link>
-                )}
-
-                {/* Node 4: Invoice AI */}
-                {employees.find(e => e.id === "invoice-ai") && (
-                  <Link 
-                    to="/portal/employees/$id"
-                    params={{ id: "invoice-ai" }}
-                    className="flex flex-col items-center space-y-2.5 z-10 w-40 shrink-0 group transition-all"
-                  >
-                    <div className="h-12 w-12 rounded-xl bg-stone-950 border-2 border-emerald-900 group-hover:border-emerald-500 flex items-center justify-center relative shadow-xl transition-all duration-300">
-                      <span className="text-lg">🤖</span>
-                      <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse border border-stone-950" />
-                    </div>
-                    <div className="text-center space-y-0.5">
-                      <p className="text-[11px] font-bold text-stone-200 group-hover:text-emerald-400 transition-colors">Ivy Invoice</p>
-                      <p className="text-[9px] font-mono text-stone-500 uppercase tracking-widest">Billing Officer</p>
-                    </div>
-                  </Link>
-                )}
-
-                {/* Node 5: Collections AI */}
-                {employees.find(e => e.id === "collections-ai") && (
-                  <Link 
-                    to="/portal/employees/$id"
-                    params={{ id: "collections-ai" }}
-                    className="flex flex-col items-center space-y-2.5 z-10 w-40 shrink-0 group transition-all"
-                  >
-                    <div className="h-12 w-12 rounded-xl bg-stone-950 border-2 border-emerald-900 group-hover:border-emerald-500 flex items-center justify-center relative shadow-xl transition-all duration-300">
-                      <span className="text-lg">🤖</span>
-                      <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse border border-stone-950" />
-                    </div>
-                    <div className="text-center space-y-0.5">
-                      <p className="text-[11px] font-bold text-stone-200 group-hover:text-emerald-400 transition-colors">Caleb Collections</p>
-                      <p className="text-[9px] font-mono text-stone-500 uppercase tracking-widest">Dunning Agent</p>
-                    </div>
-                  </Link>
-                )}
-
-                {/* ERP/Accounting Output Node */}
-                <div className="flex flex-col items-center space-y-2.5 z-10 w-40 shrink-0">
-                  <div className="h-10 w-10 rounded-full bg-stone-900 border-2 border-stone-800 flex items-center justify-center text-xs font-mono font-bold text-stone-500 shadow-lg">
-                    🏛️
-                  </div>
-                  <div className="text-center space-y-0.5">
-                    <p className="text-[10px] font-mono font-bold text-stone-400">LEDGER SYNC</p>
-                    <p className="text-[9px] text-stone-600 font-medium">QuickBooks / SAP</p>
-                  </div>
-                </div>
-
+          {/* ── Health Summary ──────────────────────────────────── */}
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { label: "Active", count: activeCount, color: "emerald", dot: "🟢" },
+              { label: "Idle", count: idleCount, color: "amber", dot: "🟡" },
+              { label: "Error/Paused", count: errorCount, color: "red", dot: "🔴" },
+            ].map(s => (
+              <div key={s.label} className="bg-stone-950 border border-stone-900 rounded-xl p-4 text-center">
+                <span className="text-lg">{s.dot}</span>
+                <p className="text-2xl font-black text-white mt-1">{s.count}</p>
+                <span className="text-[10px] font-mono text-stone-500 uppercase tracking-wider">{s.label}</span>
               </div>
-            </div>
+            ))}
           </div>
 
-          {/* Filter and Search Bar */}
-          <div className="flex flex-col sm:flex-row gap-4 bg-stone-950 p-4 rounded-xl border border-stone-900">
+          {/* ── Filters ─────────────────────────────────────────── */}
+          <div className="flex flex-col sm:flex-row gap-3 bg-stone-950 border border-stone-900 rounded-xl p-3">
             <input
-              type="text"
-              placeholder="Search AI coworkers by name, department, or description..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="flex-1 bg-stone-900/40 border border-stone-900 rounded-lg px-4 py-2.5 text-xs outline-none focus:border-stone-800 font-medium placeholder-stone-600 text-stone-200"
+              type="text" placeholder="Search by name, type, or purpose..."
+              value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+              className="flex-1 bg-stone-900/50 border border-stone-800 rounded-lg px-4 py-2.5 text-xs outline-none focus:border-stone-700 text-stone-200 placeholder-stone-600"
             />
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="bg-stone-900/40 border border-stone-900 rounded-lg px-4 py-2.5 text-xs outline-none focus:border-stone-800 font-bold text-stone-400"
-            >
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+              className="bg-stone-900/50 border border-stone-800 rounded-lg px-4 py-2.5 text-xs outline-none focus:border-stone-700 text-stone-400">
               <option value="all">All Statuses</option>
               <option value="active">Active</option>
               <option value="idle">Idle</option>
@@ -286,102 +191,246 @@ function EmployeesManager() {
             </select>
           </div>
 
-          {/* Main Table Container */}
-          <div className="bg-stone-950 border border-stone-900 rounded-xl overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs font-medium">
-                <thead>
-                  <tr className="border-b border-stone-900 text-stone-500 uppercase font-mono tracking-wider text-[10px]">
-                    <th className="p-4 pl-6">COWORKER IDENTIFICATION</th>
-                    <th className="p-4">DEPARTMENT & PURPOSE</th>
-                    <th className="p-4">STATUS & BUILD</th>
-                    <th className="p-4">CURRENT OPERATING TASK</th>
-                    <th className="p-4">ACCURACY PROFILE</th>
-                    <th className="p-4 text-right pr-6">CONTROL ACTIONS</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-stone-900">
-                  {filteredEmployees.map((emp, idx) => (
-                    <tr key={idx} className="hover:bg-stone-900/10 transition-colors">
-                      {/* Name & Owner */}
-                      <td className="p-4 pl-6">
-                        <Link to="/portal/employees/$id" params={{ id: getEmpId(emp) }} className="font-bold text-white hover:text-blue-400 block transition-colors">
-                          {emp.name.split(" (")[0]}
-                        </Link>
-                        <span className="text-[10px] text-stone-500 font-mono">Owner ID: {emp.owner}</span>
-                      </td>
-                      {/* Purpose & Dept */}
-                      <td className="p-4 max-w-xs leading-normal font-normal">
-                        <span className="text-[9px] font-mono font-bold uppercase bg-stone-900 text-stone-400 px-1.5 py-0.5 rounded border border-stone-850 block w-max mb-1.5">
-                          {emp.dept}
+          {/* ── Employee Cards ──────────────────────────────────── */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {filtered.map((emp: any) => {
+              const agentId = getAgentId(emp);
+              const runtimeStatus = agentStatuses[agentId];
+              const lastExec = runtimeStatus?.lastExecutions?.[0];
+              const isLoading = !!actionLoading[agentId];
+
+              return (
+                <div key={agentId} className="bg-stone-950 border border-stone-900 rounded-xl p-5 space-y-4 hover:border-stone-800 transition-all">
+                  {/* Top row: name + status */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <Link to="/portal/employees/$id" params={{ id: agentId }}
+                        className="text-sm font-bold text-white hover:text-blue-400 transition-colors block truncate">
+                        {emp.name}
+                      </Link>
+                      <p className="text-[10px] text-stone-500 font-mono mt-0.5">
+                        {emp.agentType?.replace(/_/g, " ") || "AI Agent"} · v{emp.version || "1.0"}
+                      </p>
+                    </div>
+                    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[9px] font-mono uppercase font-bold shrink-0 ${
+                      emp.status === "Active" ? "bg-emerald-950/40 text-emerald-400 border border-emerald-900" :
+                      emp.status === "Idle" ? "bg-stone-900 text-stone-400 border border-stone-800" :
+                      emp.status === "Paused" ? "bg-amber-950/40 text-amber-400 border border-amber-900" :
+                      "bg-red-950/40 text-red-400 border border-red-900"
+                    }`}>
+                      <span className={`h-1 w-1 rounded-full ${
+                        emp.status === "Active" ? "bg-emerald-400 animate-pulse" :
+                        emp.status === "Paused" ? "bg-amber-400" :
+                        emp.status === "Idle" ? "bg-stone-500" : "bg-red-400"
+                      }`} />
+                      {emp.status}
+                    </span>
+                  </div>
+
+                  {/* Purpose */}
+                  <p className="text-[11px] text-stone-400 leading-relaxed">{emp.purpose}</p>
+
+                  {/* Current Task */}
+                  {lastExec && (
+                    <div className="bg-stone-900/50 border border-stone-800 rounded-lg p-3">
+                      <span className="text-[9px] font-mono uppercase text-stone-500 font-bold tracking-wider">Current Task</span>
+                      <p className="text-[10px] text-stone-300 mt-1 truncate">{lastExec.prompt || "Idle — awaiting instruction"}</p>
+                      <div className="flex gap-4 mt-1.5 text-[9px] font-mono">
+                        <span className={lastExec.status === "completed" ? "text-emerald-400" : lastExec.status === "failed" ? "text-red-400" : "text-amber-400"}>
+                          {lastExec.status}
                         </span>
-                        <div className="text-stone-400 font-medium line-clamp-2">{emp.purpose}</div>
-                      </td>
-                      {/* Status & Version */}
-                      <td className="p-4">
-                        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[9px] font-mono uppercase tracking-wider font-bold mb-1.5 ${
-                          emp.status === "Active" ? "bg-emerald-950/40 text-emerald-400 border border-emerald-900" :
-                          emp.status === "Idle" ? "bg-stone-900 text-stone-400 border border-stone-850" :
-                          "bg-stone-900/40 text-stone-500 border border-stone-900"
-                        }`}>
-                          <span className={`h-1 w-1 rounded-full ${emp.status === "Active" ? "bg-emerald-400 animate-pulse" : "bg-stone-500"}`} />
-                          {emp.status}
-                        </span>
-                        <div className="text-[10px] text-stone-500 font-mono block">Ver: {emp.version}</div>
-                      </td>
-                      {/* Current Task */}
-                      <td className="p-4 text-stone-400 font-medium max-w-xs truncate">{emp.currentTask}</td>
-                      {/* Performance */}
-                      <td className="p-4">
-                        <div className="space-y-1.5 w-32">
-                          <div className="w-full bg-stone-900 rounded-full h-1 overflow-hidden">
-                            <div className="bg-emerald-500 h-full" style={{ width: `${emp.successRate || 100}%` }} />
-                          </div>
-                          <div className="text-[10px] text-stone-500 font-mono">
-                            Acc: {emp.performance}% • {emp.avgTime || "1s"}
-                          </div>
-                        </div>
-                      </td>
-                      {/* Actions */}
-                      <td className="p-4 text-right pr-6">
-                        <div className="flex justify-end gap-1.5 font-mono text-[10px]">
-                          <button
-                            onClick={() => handleAction(emp.name, emp.status === "Active" ? "Pause" : "Resume")}
-                            className="bg-stone-900 hover:bg-stone-850 text-white font-bold px-2.5 py-1.5 rounded-lg border border-stone-800 transition-all"
-                          >
-                            {emp.status === "Active" ? "Pause" : "Resume"}
-                          </button>
-                          <Link
-                            to="/portal/employees/$id"
-                            params={{ id: getEmpId(emp) }}
-                            className="bg-white hover:bg-stone-100 text-black font-bold px-2.5 py-1.5 rounded-lg transition-all"
-                          >
-                            Profile
-                          </Link>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                  {filteredEmployees.length === 0 && (
-                    <tr>
-                      <td colSpan={6} className="text-center py-10 text-stone-500 font-mono text-xs">
-                        No autonomous coworkers match the filter criteria.
-                      </td>
-                    </tr>
+                        {lastExec.duration && <span className="text-stone-600">{lastExec.duration}ms</span>}
+                      </div>
+                    </div>
                   )}
-                </tbody>
-              </table>
-            </div>
+
+                  {/* Performance bar */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-[9px] font-mono">
+                      <span className="text-stone-500">Performance</span>
+                      <span className="text-stone-400">{emp.performance || 100}%</span>
+                    </div>
+                    <div className="w-full bg-stone-900 rounded-full h-1 overflow-hidden">
+                      <div className="bg-emerald-500 h-full rounded-full transition-all"
+                        style={{ width: `${emp.performance || 100}%` }} />
+                    </div>
+                  </div>
+
+                  {/* Controls */}
+                  <div className="flex gap-2 pt-1">
+                    {emp.status !== "Active" && emp.status !== "Paused" && (
+                      <button onClick={() => handleAgentAction(emp, "run")} disabled={isLoading}
+                        className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] py-2 rounded-lg transition-all disabled:opacity-50">
+                        {isLoading ? "..." : "▶ Start"}
+                      </button>
+                    )}
+                    {emp.status === "Active" && (
+                      <button onClick={() => handleAgentAction(emp, "pause")} disabled={isLoading}
+                        className="flex-1 bg-amber-600 hover:bg-amber-500 text-white font-bold text-[10px] py-2 rounded-lg transition-all disabled:opacity-50">
+                        {isLoading ? "..." : "⏸ Pause"}
+                      </button>
+                    )}
+                    {(emp.status === "Paused" || emp.status === "Idle") && (
+                      <button onClick={() => handleAgentAction(emp, "resume")} disabled={isLoading}
+                        className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold text-[10px] py-2 rounded-lg transition-all disabled:opacity-50">
+                        {isLoading ? "..." : "▶ Resume"}
+                      </button>
+                    )}
+                    <button onClick={() => setEditPanel({ emp })}
+                      className="bg-stone-800 hover:bg-stone-700 text-stone-200 font-bold text-[10px] px-3 py-2 rounded-lg transition-all">
+                      ⚙️ Edit
+                    </button>
+                    <Link to="/portal/employees/$id" params={{ id: agentId }}
+                      className="bg-stone-800 hover:bg-stone-700 text-stone-300 font-bold text-[10px] px-3 py-2 rounded-lg transition-all">
+                      Profile →
+                    </Link>
+                  </div>
+                </div>
+              );
+            })}
+            {filtered.length === 0 && (
+              <div className="col-span-full text-center py-12 text-stone-500 text-xs font-mono">
+                No AI employees match filters.
+              </div>
+            )}
           </div>
         </>
       )}
 
+      {/* ── Edit Capabilities Slide-Out Panel ──────────────────── */}
+      {editPanel && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setEditPanel(null)} />
+          <div className="relative w-full max-w-md bg-stone-950 border-l border-stone-900 h-full overflow-y-auto animate-slideUp">
+            <div className="p-6 space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-black text-white">⚙️ Edit Capabilities</h2>
+                <button onClick={() => setEditPanel(null)}
+                  className="text-stone-500 hover:text-white text-xl leading-none">&times;</button>
+              </div>
+
+              <div className="space-y-2">
+                <span className="text-[9px] font-mono uppercase text-stone-500 tracking-wider">Agent</span>
+                <p className="text-sm font-bold text-white">{editPanel.emp.name}</p>
+                <p className="text-[10px] text-stone-400 font-mono">{editPanel.emp.agentType?.replace(/_/g, " ")}</p>
+              </div>
+
+              <CapabilityForm emp={editPanel.emp} onSave={handleSaveCapabilities} onCancel={() => setEditPanel(null)} />
+
+              <div className="pt-4 border-t border-stone-900">
+                <span className="text-[9px] font-mono uppercase text-stone-500 tracking-wider block mb-2">Agent Type Info</span>
+                <div className="space-y-2 text-[10px] font-mono">
+                  <div className="flex justify-between"><span className="text-stone-500">Type</span><span className="text-stone-300">{editPanel.emp.agentType}</span></div>
+                  <div className="flex justify-between"><span className="text-stone-500">Version</span><span className="text-stone-300">{editPanel.emp.version || "1.0"}</span></div>
+                  <div className="flex justify-between"><span className="text-stone-500">Status</span><span className="text-stone-300">{editPanel.emp.status}</span></div>
+                  <div className="flex justify-between"><span className="text-stone-500">Dept</span><span className="text-stone-300">{editPanel.emp.dept || "—"}</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Feedback Toast ─────────────────────────────────────── */}
       {feedback && (
-        <div className="fixed bottom-6 right-6 bg-stone-900 border border-stone-850 text-white px-5 py-3 rounded-xl shadow-xl z-50 flex items-center gap-3 animate-slideUp font-mono text-xs">
-          <span className="text-blue-500">✓</span>
+        <div className="fixed bottom-6 right-6 bg-stone-900 border border-stone-800 text-white px-5 py-3 rounded-xl shadow-xl z-50 flex items-center gap-3 animate-slideUp font-mono text-xs">
+          <span className="text-emerald-400">✓</span>
           <span className="font-bold">{feedback}</span>
         </div>
       )}
     </div>
+  );
+}
+
+/* ── Capability Form ──────────────────────────────────────────── */
+
+function CapabilityForm({ emp, onSave, onCancel }: { emp: any; onSave: (emp: any, updates: Record<string, any>) => void; onCancel: () => void }) {
+  const [purpose, setPurpose] = useState(emp.purpose || "");
+  const [dept, setDept] = useState(emp.dept || "");
+
+  // Configurable options per agent type
+  const [autoPause, setAutoPause] = useState(emp.autoPause !== false);
+  const [notifyOnError, setNotifyOnError] = useState(emp.notifyOnError !== false);
+  const [maxRetries, setMaxRetries] = useState(emp.maxRetries || 3);
+  const [priority, setPriority] = useState(emp.priority || "normal");
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave(emp, {
+      purpose,
+      dept,
+      autoPause,
+      notifyOnError,
+      maxRetries,
+      priority,
+      updatedAt: new Date().toISOString(),
+    });
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-5">
+      {/* Purpose */}
+      <div className="space-y-1">
+        <label className="text-[9px] font-mono uppercase text-stone-500 font-bold tracking-wider">Purpose</label>
+        <textarea value={purpose} onChange={e => setPurpose(e.target.value)} rows={3}
+          className="w-full bg-stone-900 border border-stone-800 rounded-lg px-3 py-2 text-xs text-stone-200 outline-none focus:border-stone-700 resize-none" />
+      </div>
+
+      {/* Department */}
+      <div className="space-y-1">
+        <label className="text-[9px] font-mono uppercase text-stone-500 font-bold tracking-wider">Department</label>
+        <input type="text" value={dept} onChange={e => setDept(e.target.value)}
+          className="w-full bg-stone-900 border border-stone-800 rounded-lg px-3 py-2 text-xs text-stone-200 outline-none focus:border-stone-700" />
+      </div>
+
+      {/* Priority */}
+      <div className="space-y-1">
+        <label className="text-[9px] font-mono uppercase text-stone-500 font-bold tracking-wider">Priority</label>
+        <select value={priority} onChange={e => setPriority(e.target.value)}
+          className="w-full bg-stone-900 border border-stone-800 rounded-lg px-3 py-2 text-xs text-stone-200 outline-none focus:border-stone-700">
+          <option value="low">Low</option>
+          <option value="normal">Normal</option>
+          <option value="high">High</option>
+          <option value="critical">Critical</option>
+        </select>
+      </div>
+
+      {/* Max Retries */}
+      <div className="space-y-1">
+        <label className="text-[9px] font-mono uppercase text-stone-500 font-bold tracking-wider">Max Retries</label>
+        <input type="number" min={1} max={10} value={maxRetries} onChange={e => setMaxRetries(Number(e.target.value))}
+          className="w-full bg-stone-900 border border-stone-800 rounded-lg px-3 py-2 text-xs text-stone-200 outline-none focus:border-stone-700" />
+      </div>
+
+      {/* Toggles */}
+      <div className="space-y-3">
+        <label className="flex items-center justify-between cursor-pointer">
+          <span className="text-[10px] text-stone-400 font-medium">Auto-pause on errors</span>
+          <div className={`w-9 h-5 rounded-full transition-colors ${autoPause ? "bg-emerald-600" : "bg-stone-700"} relative`}
+            onClick={() => setAutoPause(!autoPause)}>
+            <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${autoPause ? "left-4" : "left-0.5"}`} />
+          </div>
+        </label>
+        <label className="flex items-center justify-between cursor-pointer">
+          <span className="text-[10px] text-stone-400 font-medium">Notify on error</span>
+          <div className={`w-9 h-5 rounded-full transition-colors ${notifyOnError ? "bg-emerald-600" : "bg-stone-700"} relative`}
+            onClick={() => setNotifyOnError(!notifyOnError)}>
+            <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${notifyOnError ? "left-4" : "left-0.5"}`} />
+          </div>
+        </label>
+      </div>
+
+      {/* Buttons */}
+      <div className="flex gap-2 pt-2">
+        <button type="submit"
+          className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2.5 rounded-lg transition-all">
+          Save Capabilities
+        </button>
+        <button type="button" onClick={onCancel}
+          className="flex-1 bg-stone-800 hover:bg-stone-700 text-stone-300 font-bold text-xs py-2.5 rounded-lg transition-all">
+          Cancel
+        </button>
+      </div>
+    </form>
   );
 }

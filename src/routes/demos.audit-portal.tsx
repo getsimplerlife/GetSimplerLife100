@@ -40,9 +40,9 @@ function AuditPortalDemo() {
   const [activeStep, setActiveStep] = useState(1);
 
   return (
-    <div className="min-h-screen bg-stone-50 dark:bg-stone-950">
+    <div className="min-h-screen bg-stone-900 dark:bg-stone-950">
       {/* Header */}
-      <header className="px-6 py-4 border-b bg-white dark:bg-stone-900 sticky top-0 z-50">
+      <header className="px-6 py-4 border-b bg-stone-950 dark:bg-stone-900 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <Link to="/" className="text-xl font-black text-emerald-600 tracking-tight">
             Simpler Life 100
@@ -60,10 +60,10 @@ function AuditPortalDemo() {
           {/* Left: Content */}
           <div className="space-y-12">
             <div>
-              <h1 className="text-4xl font-black text-stone-900 dark:text-white tracking-tight leading-tight">
+              <h1 className="text-4xl font-black text-white dark:text-white tracking-tight leading-tight">
                 Experience the Audit Journey
               </h1>
-              <p className="mt-4 text-lg text-stone-500 font-medium">
+              <p className="mt-4 text-lg text-stone-400 font-medium">
                 See exactly how we transform operational waste into automated efficiency, from the first click to the final blueprint.
               </p>
             </div>
@@ -75,8 +75,8 @@ function AuditPortalDemo() {
                   onClick={() => setActiveStep(step.id)}
                   className={`w-full text-left p-6 rounded-3xl border-2 transition-all group relative overflow-hidden ${
                     activeStep === step.id
-                      ? "border-emerald-600 bg-white shadow-xl shadow-emerald-100 dark:shadow-none"
-                      : "border-transparent hover:border-stone-200 text-stone-400"
+                      ? "border-emerald-600 bg-stone-950 shadow-xl shadow-emerald-100 dark:shadow-none"
+                      : "border-transparent hover:border-stone-900 text-stone-400"
                   }`}
                 >
                   <div className="relative z-10 flex gap-6">
@@ -87,7 +87,7 @@ function AuditPortalDemo() {
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center justify-between mb-1">
-                        <h3 className={`font-black text-lg ${activeStep === step.id ? "text-stone-900 dark:text-emerald-200" : "text-stone-500"}`}>
+                        <h3 className={`font-black text-lg ${activeStep === step.id ? "text-white dark:text-emerald-200" : "text-stone-500"}`}>
                           {step.title}
                         </h3>
                         {activeStep === step.id && (
@@ -96,7 +96,7 @@ function AuditPortalDemo() {
                           </span>
                         )}
                       </div>
-                      <p className={`text-sm leading-relaxed ${activeStep === step.id ? "text-stone-600 dark:text-stone-400 font-medium" : "text-stone-400"}`}>
+                      <p className={`text-sm leading-relaxed ${activeStep === step.id ? "text-stone-400 dark:text-stone-400 font-medium" : "text-stone-400"}`}>
                         {step.description}
                       </p>
                     </div>
@@ -108,7 +108,7 @@ function AuditPortalDemo() {
             <div className="p-8 bg-emerald-900 rounded-[2rem] text-white">
               <h4 className="text-xl font-bold mb-2">Ready to start?</h4>
               <p className="text-emerald-200 text-sm mb-6">Our average client realizes their first automated workflow in under 21 days.</p>
-              <a href="https://buy.stripe.com/fZufZj2OzdEr6Hh0nm2Fa00" className="inline-block bg-white text-emerald-900 px-8 py-3 rounded-xl font-bold hover:bg-emerald-50 transition-colors">
+              <a href="https://buy.stripe.com/fZufZj2OzdEr6Hh0nm2Fa00" className="inline-block bg-stone-950 text-emerald-900 px-8 py-3 rounded-xl font-bold hover:bg-emerald-50 transition-colors">
                 Book Audit Now
               </a>
             </div>
@@ -121,7 +121,7 @@ function AuditPortalDemo() {
               <div className="absolute -inset-4 bg-emerald-100 dark:bg-emerald-900/20 rounded-[3rem] blur-3xl opacity-50"></div>
               
               {/* The "Screen" */}
-              <div className="relative bg-white dark:bg-stone-900 rounded-[2.5rem] shadow-2xl border-8 border-stone-900 dark:border-stone-800 aspect-[4/3] overflow-hidden flex flex-col">
+              <div className="relative bg-stone-950 dark:bg-stone-900 rounded-[2.5rem] shadow-2xl border-8 border-stone-900 dark:border-stone-800 aspect-[4/3] overflow-hidden flex flex-col">
                 <div className="h-8 bg-stone-900 dark:bg-stone-800 flex items-center px-4 gap-1.5">
                   <div className="w-2.5 h-2.5 rounded-full bg-red-500"></div>
                   <div className="w-2.5 h-2.5 rounded-full bg-yellow-500"></div>
@@ -145,14 +145,14 @@ function AuditPortalDemo() {
                         <span className="font-bold">$2,500.00</span>
                       </div>
                       <div className="space-y-4">
-                        <div className="h-12 bg-stone-50 dark:bg-stone-800 rounded-lg border border-stone-200 dark:border-stone-700 p-3 flex items-center">
+                        <div className="h-12 bg-stone-900 dark:bg-stone-800 rounded-lg border border-stone-900 dark:border-stone-700 p-3 flex items-center">
                           <span className="text-stone-400 text-sm">Card number</span>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                          <div className="h-12 bg-stone-50 dark:bg-stone-800 rounded-lg border border-stone-200 dark:border-stone-700 p-3 flex items-center">
+                          <div className="h-12 bg-stone-900 dark:bg-stone-800 rounded-lg border border-stone-900 dark:border-stone-700 p-3 flex items-center">
                             <span className="text-stone-400 text-sm">MM / YY</span>
                           </div>
-                          <div className="h-12 bg-stone-50 dark:bg-stone-800 rounded-lg border border-stone-200 dark:border-stone-700 p-3 flex items-center">
+                          <div className="h-12 bg-stone-900 dark:bg-stone-800 rounded-lg border border-stone-900 dark:border-stone-700 p-3 flex items-center">
                             <span className="text-stone-400 text-sm">CVC</span>
                           </div>
                         </div>
@@ -169,15 +169,15 @@ function AuditPortalDemo() {
                       </div>
                       <div className="space-y-4">
                         <div className="space-y-1.5">
-                          <label className="text-xs font-bold text-stone-500 uppercase">Email Address</label>
-                          <div className="h-12 bg-stone-50 dark:bg-stone-800 rounded-lg border border-stone-200 dark:border-stone-700 p-3 flex items-center">
-                            <span className="text-stone-900 dark:text-white font-medium">ceo@yourcompany.com</span>
+                          <label className="text-xs font-bold text-stone-400 uppercase">Email Address</label>
+                          <div className="h-12 bg-stone-900 dark:bg-stone-800 rounded-lg border border-stone-900 dark:border-stone-700 p-3 flex items-center">
+                            <span className="text-white dark:text-white font-medium">ceo@yourcompany.com</span>
                           </div>
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-xs font-bold text-stone-500 uppercase">Password</label>
-                          <div className="h-12 bg-stone-50 dark:bg-stone-800 rounded-lg border border-stone-200 dark:border-stone-700 p-3 flex items-center">
-                            <span className="text-stone-900 dark:text-white font-medium">••••••••••••</span>
+                          <label className="text-xs font-bold text-stone-400 uppercase">Password</label>
+                          <div className="h-12 bg-stone-900 dark:bg-stone-800 rounded-lg border border-stone-900 dark:border-stone-700 p-3 flex items-center">
+                            <span className="text-white dark:text-white font-medium">••••••••••••</span>
                           </div>
                         </div>
                       </div>
@@ -193,20 +193,20 @@ function AuditPortalDemo() {
                         <span className="text-[10px] font-bold bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full">LIVE</span>
                       </div>
                       <div className="grid grid-cols-3 gap-4">
-                        <div className="p-4 bg-stone-50 dark:bg-stone-800 rounded-2xl border border-stone-100 dark:border-stone-800">
+                        <div className="p-4 bg-stone-900 dark:bg-stone-800 rounded-2xl border border-stone-100 dark:border-stone-800">
                           <div className="text-xs text-stone-400 font-bold uppercase mb-1">Status</div>
                           <div className="text-emerald-600 font-black">Scanning</div>
                         </div>
-                        <div className="p-4 bg-stone-50 dark:bg-stone-800 rounded-2xl border border-stone-100 dark:border-stone-800">
+                        <div className="p-4 bg-stone-900 dark:bg-stone-800 rounded-2xl border border-stone-100 dark:border-stone-800">
                           <div className="text-xs text-stone-400 font-bold uppercase mb-1">Waste Points</div>
-                          <div className="text-stone-900 dark:text-white font-black">Calculating</div>
+                          <div className="text-white dark:text-white font-black">Calculating</div>
                         </div>
-                        <div className="p-4 bg-stone-50 dark:bg-stone-800 rounded-2xl border border-stone-100 dark:border-stone-800">
+                        <div className="p-4 bg-stone-900 dark:bg-stone-800 rounded-2xl border border-stone-100 dark:border-stone-800">
                           <div className="text-xs text-stone-400 font-bold uppercase mb-1">Analyst</div>
-                          <div className="text-stone-900 dark:text-white font-black">AI Lead</div>
+                          <div className="text-white dark:text-white font-black">AI Lead</div>
                         </div>
                       </div>
-                      <div className="bg-white dark:bg-stone-800 rounded-2xl border border-stone-100 dark:border-stone-700 p-6 shadow-sm">
+                      <div className="bg-stone-950 dark:bg-stone-800 rounded-2xl border border-stone-100 dark:border-stone-700 p-6 shadow-sm">
                         <div className="flex justify-between items-center mb-4">
                           <span className="text-sm font-bold">Workflow Ingestion</span>
                           <span className="text-xs text-emerald-600 font-bold">75% Complete</span>
@@ -223,7 +223,7 @@ function AuditPortalDemo() {
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                             Manual Intake Forms Indexed
                           </div>
-                          <div className="flex items-center gap-3 text-xs text-stone-500 italic">
+                          <div className="flex items-center gap-3 text-xs text-stone-400 italic">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                             Identifying Redundancies...
                           </div>
@@ -262,14 +262,14 @@ function AuditPortalDemo() {
 
                       <div className="space-y-3">
                         <h4 className="text-xs font-black uppercase text-stone-400 tracking-widest">Recommended Agents</h4>
-                        <div className="p-4 bg-white dark:bg-stone-800 rounded-xl border border-stone-100 dark:border-stone-700 flex items-center justify-between">
+                        <div className="p-4 bg-stone-950 dark:bg-stone-800 rounded-xl border border-stone-100 dark:border-stone-700 flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <span className="text-xl">📄</span>
                             <span className="text-sm font-bold">Document Intake AI</span>
                           </div>
                           <span className="text-[10px] font-black text-emerald-600">High Impact</span>
                         </div>
-                        <div className="p-4 bg-white dark:bg-stone-800 rounded-xl border border-stone-100 dark:border-stone-700 flex items-center justify-between">
+                        <div className="p-4 bg-stone-950 dark:bg-stone-800 rounded-xl border border-stone-100 dark:border-stone-700 flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <span className="text-xl">💰</span>
                             <span className="text-sm font-bold">Reconciliation Agent</span>
@@ -284,7 +284,7 @@ function AuditPortalDemo() {
               </div>
 
               {/* Floaties */}
-              <div className="absolute -bottom-6 -right-6 bg-white dark:bg-stone-800 p-4 rounded-2xl shadow-xl border border-stone-100 dark:border-stone-700 animate-bounce duration-[3000ms]">
+              <div className="absolute -bottom-6 -right-6 bg-stone-950 dark:bg-stone-800 p-4 rounded-2xl shadow-xl border border-stone-100 dark:border-stone-700 animate-bounce duration-[3000ms]">
                 <div className="flex items-center gap-3">
                   <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
                   <span className="text-[10px] font-black uppercase tracking-widest text-stone-500">Analyst assigned</span>
