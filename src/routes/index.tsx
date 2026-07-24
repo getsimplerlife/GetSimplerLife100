@@ -336,6 +336,14 @@ function Home() {
                 Describe your worst operational bottleneck in English. Our AI analyzes, maps, and compiles a custom automation blueprint instantly.
               </p>
 
+              {/* Stats Bar */}
+              <div className="flex flex-wrap gap-4 text-[10px] font-mono text-stone-400">
+                <span className="bg-stone-900 border border-stone-800 px-3 py-1.5 rounded-lg"><span className="text-emerald-400 font-bold">180+</span> Integrations</span>
+                <span className="bg-stone-900 border border-stone-800 px-3 py-1.5 rounded-lg"><span className="text-emerald-400 font-bold">14</span> Portal Tools</span>
+                <span className="bg-stone-900 border border-stone-800 px-3 py-1.5 rounded-lg"><span className="text-emerald-400 font-bold">23</span> Industries</span>
+                <span className="bg-stone-900 border border-stone-800 px-3 py-1.5 rounded-lg"><span className="text-emerald-400 font-bold">🔐</span> Real Credential Validation</span>
+              </div>
+
               {/* Prompt Compiler Widget */}
               <div className="bg-stone-900 border border-stone-900 rounded-3xl p-5 sm:p-6 space-y-4 shadow-sm">
                 <div>
@@ -561,13 +569,36 @@ function Home() {
           </div>
         </section>
 
-        {/* Problems Section */}
+        {/* What's Inside Your Portal Section */}
         <section className="px-6 py-16 sm:py-32 bg-stone-900">
-          <div className="max-w-4xl mx-auto text-center space-y-6">
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">Your team shouldn't spend hours copying data between systems.</h2>
-            <p className="text-lg text-stone-400 leading-relaxed">
-              Most operations teams are buried in manual work that software should already be doing: quoting, scheduling, CRM updates, invoicing, and document processing. We build AI coworkers that handle the repetitive parts so your people can focus on work that actually requires a human.
-            </p>
+          <div className="max-w-7xl mx-auto">
+            <div className="text-center mb-16 space-y-4">
+              <span className="inline-block px-3 py-1 text-xs font-mono font-bold tracking-wider rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase">
+                YOUR COMMAND CENTER
+              </span>
+              <h2 className="text-4xl lg:text-6xl font-black text-white tracking-tight">What's Inside Your Portal</h2>
+              <p className="text-xl text-stone-400 max-w-2xl mx-auto">
+                Every Simpler Life 100 deployment comes with a full-featured operations portal — your team's command center for AI workforce management.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {[
+                { icon: "🛒", title: "AI Marketplace", desc: "Browse & deploy AI employees with real Stripe payment links" },
+                { icon: "🔌", title: "180+ Integrations", desc: "Connect any business tool with credential-validated connections" },
+                { icon: "🔗", title: "Connected Accounts", desc: "Monitor, edit credentials, test connections per integration" },
+                { icon: "✅", title: "Task Queue", desc: "Track all AI employee work with status filtering" },
+                { icon: "📚", title: "Knowledge Base", desc: "Self-serve docs and guides for your team" },
+                { icon: "👑", title: "Admin Panel", desc: "Full platform analytics, user management, audit logs (owner only)" },
+                { icon: "🔐", title: "Purchase Gating", desc: "Workflows & AI deployments require purchase or owner assignment" },
+                { icon: "📥", title: "Approvals", desc: "AI actions wait for human review before execution" },
+              ].map((feat) => (
+                <div key={feat.title} className="bg-stone-950 p-8 rounded-2xl border border-stone-800 hover:border-emerald-500/30 transition-all group">
+                  <span className="text-3xl mb-5 block">{feat.icon}</span>
+                  <h3 className="text-lg font-black text-white mb-2 group-hover:text-emerald-400 transition-colors">{feat.title}</h3>
+                  <p className="text-sm text-stone-400 leading-relaxed">{feat.desc}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 
@@ -578,9 +609,14 @@ function Home() {
               <h2 className="text-3xl lg:text-4xl font-black mb-4">Calculate Your Potential Savings</h2>
               <p className="text-emerald-100 text-lg font-medium">Use our simple ROI tool to see how many hours your team could reclaim.</p>
             </div>
-            <Link to="/roi-calculator" className="bg-stone-950 text-emerald-400 px-10 py-4 rounded-2xl font-black text-xl hover:bg-emerald-500/10 transition-all shadow-xl whitespace-nowrap min-h-[50px] flex items-center justify-center">
-              Open ROI Calculator →
-            </Link>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Link to="/roi-calculator" className="bg-stone-950 text-emerald-400 px-10 py-4 rounded-2xl font-black text-xl hover:bg-emerald-500/10 transition-all shadow-xl whitespace-nowrap min-h-[50px] flex items-center justify-center">
+                Open ROI Calculator →
+              </Link>
+              <Link to="/build" className="bg-stone-950/50 text-white border border-white/20 px-10 py-4 rounded-2xl font-black text-xl hover:bg-stone-950 hover:border-emerald-400/50 transition-all shadow-xl whitespace-nowrap min-h-[50px] flex items-center justify-center">
+                Browse Marketplace →
+              </Link>
+            </div>
           </div>
         </section>
 
@@ -772,24 +808,34 @@ function Home() {
             </div>
             
             <div className="grid lg:grid-cols-2 gap-12">
-              {/* Implementations */}
+              {/* Implementation Packages */}
               <div className="bg-stone-900 rounded-[3rem] p-12 border border-stone-900">
-                <h3 className="text-xl font-bold text-emerald-400 mb-8 uppercase tracking-widest">Implementations</h3>
+                <h3 className="text-xl font-bold text-emerald-400 mb-8 uppercase tracking-widest">Implementation Packages</h3>
                 <div className="space-y-4">
                   <div className="p-6 bg-stone-950 rounded-2xl border border-stone-800 flex justify-between items-center">
                     <div>
-                      <div className="font-black text-white text-xl">Small Team</div>
-                      <div className="text-sm text-stone-400 font-bold">2 AI Agents • 3 workflows</div>
+                      <div className="font-black text-white text-xl">Blueprint</div>
+                      <div className="text-sm text-stone-400 font-bold">Audit & Strategy • Credited toward build</div>
                     </div>
                     <div className="text-right">
-                      <div className="font-black text-emerald-400 text-2xl">Starting at $7,500</div>
+                      <div className="font-black text-emerald-400 text-2xl">$2,500</div>
                       <div className="text-[10px] text-stone-400 font-bold uppercase tracking-tighter">One-Time</div>
                     </div>
                   </div>
                   <div className="p-6 bg-stone-950 rounded-2xl border border-stone-800 flex justify-between items-center">
                     <div>
-                      <div className="font-black text-white text-xl">Growing Business</div>
-                      <div className="text-sm text-stone-400 font-bold">5 AI Agents • Cross-department</div>
+                      <div className="font-black text-white text-xl">Small Team</div>
+                      <div className="text-sm text-stone-400 font-bold">2 AI Agents • 3 Workflows</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-black text-emerald-400 text-2xl">$7,500</div>
+                      <div className="text-[10px] text-stone-400 font-bold uppercase tracking-tighter">One-Time</div>
+                    </div>
+                  </div>
+                  <div className="p-6 bg-stone-950 rounded-2xl border border-stone-800 flex justify-between items-center">
+                    <div>
+                      <div className="font-black text-white text-xl">Growth</div>
+                      <div className="text-sm text-stone-400 font-bold">5 AI Agents • Cross-Department</div>
                     </div>
                     <div className="text-right">
                       <div className="font-black text-emerald-400 text-2xl">$15,000</div>
@@ -798,28 +844,46 @@ function Home() {
                   </div>
                   <div className="p-6 bg-emerald-600 rounded-2xl flex justify-between items-center text-white shadow-xl shadow-emerald-900/30">
                     <div>
-                      <div className="font-black text-xl">Enterprise</div>
-                      <div className="text-sm text-emerald-100 font-bold">Custom workflows • Unlimited scale</div>
+                      <div className="font-black text-xl">Scale</div>
+                      <div className="text-sm text-emerald-100 font-bold">Unlimited Agents • Custom Modeling</div>
                     </div>
                     <div className="text-right">
-                      <div className="font-black text-2xl">$30k+</div>
-                      <div className="text-[10px] text-emerald-200 font-bold uppercase tracking-tighter">Custom</div>
+                      <div className="font-black text-2xl">$30,000</div>
+                      <div className="text-[10px] text-emerald-200 font-bold uppercase tracking-tighter">One-Time</div>
                     </div>
                   </div>
                 </div>
                 <div className="mt-8">
-                  <p className="text-sm text-stone-400 font-medium italic">*The $2,500 blueprint fee is credited toward any implementation.</p>
+                  <p className="text-sm text-stone-400 font-medium italic">*The $2,500 Blueprint fee is credited toward any implementation package.</p>
                 </div>
               </div>
 
-              {/* Monthly Ops */}
+              {/* Monthly Add-Ons */}
               <div className="bg-stone-900 rounded-[3rem] p-12 border border-stone-900">
-                <h3 className="text-xl font-bold text-emerald-400 mb-8 uppercase tracking-widest">Managed Operations</h3>
+                <h3 className="text-xl font-bold text-emerald-400 mb-8 uppercase tracking-widest">Monthly Add-Ons</h3>
                 <div className="space-y-4">
                   <div className="p-6 bg-stone-950 rounded-2xl border border-stone-800 flex justify-between items-center">
                     <div>
-                      <div className="font-black text-white text-xl">Essential Ops</div>
-                      <div className="text-sm text-stone-400 font-bold">Monitoring • Bug fixes</div>
+                      <div className="font-black text-white text-xl">CRM Integration</div>
+                      <div className="text-sm text-stone-400 font-bold">Salesforce, HubSpot, Dynamics — full sync</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-black text-emerald-400 text-2xl">$2,000/mo</div>
+                    </div>
+                  </div>
+                  <div className="p-6 bg-stone-950 rounded-2xl border border-stone-800 flex justify-between items-center">
+                    <div>
+                      <div className="font-black text-white text-xl">ERP Integration</div>
+                      <div className="text-sm text-stone-400 font-bold">SAP, NetSuite, Dynamics — deep integration</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-black text-emerald-400 text-2xl">$3,500/mo</div>
+                    </div>
+                  </div>
+                  <div className="p-6 bg-stone-950 rounded-2xl border border-stone-800 flex justify-between items-center">
+                    <div>
+                      <div className="font-black text-white text-xl">Managed Operations</div>
+                      <div className="text-sm text-stone-400 font-bold">Monitoring • Bug fixes • Model updates</div>
                     </div>
                     <div className="text-right">
                       <div className="font-black text-emerald-400 text-2xl">$750/mo</div>
@@ -828,19 +892,10 @@ function Home() {
                   <div className="p-6 bg-stone-950 rounded-2xl border border-stone-800 flex justify-between items-center">
                     <div>
                       <div className="font-black text-white text-xl">Professional Ops</div>
-                      <div className="text-sm text-stone-400 font-bold">New automations • Strategy call</div>
+                      <div className="text-sm text-stone-400 font-bold">New automations • Strategy calls • Priority</div>
                     </div>
                     <div className="text-right">
                       <div className="font-black text-emerald-400 text-2xl">$2,000/mo</div>
-                    </div>
-                  </div>
-                  <div className="p-6 bg-stone-950 rounded-2xl border border-stone-800 flex justify-between items-center">
-                    <div>
-                      <div className="font-black text-white text-xl">Enterprise Ops</div>
-                      <div className="text-sm text-stone-400 font-bold">Dedicated AI engineer • Priority</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-black text-emerald-400 text-2xl">$5,000/mo+</div>
                     </div>
                   </div>
                 </div>
@@ -848,10 +903,10 @@ function Home() {
             </div>
 
             <div className="mt-20 text-center space-y-4">
-              <Link to="/contact" className="inline-flex items-center justify-center bg-emerald-600 text-white px-12 py-5 rounded-2xl font-bold text-2xl hover:bg-emerald-700 transition-all shadow-lg min-h-[56px]">
-                Stop Copy-Pasting. Start Your Plan ➜
+              <Link to="/build" className="inline-flex items-center justify-center bg-emerald-600 text-white px-12 py-5 rounded-2xl font-bold text-2xl hover:bg-emerald-700 transition-all shadow-lg min-h-[56px]">
+                Stop Copy-Pasting. Start Your Build ➜
               </Link>
-              <p className="text-stone-400 font-medium">Identify your best opportunities before you commit to a build.</p>
+              <p className="text-stone-400 font-medium">Choose your package and deploy AI coworkers in weeks, not months.</p>
             </div>
           </div>
         </section>
