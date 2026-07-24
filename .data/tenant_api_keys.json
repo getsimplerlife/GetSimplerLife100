@@ -1,0 +1,22 @@
+{
+  "mathewortiz97@gmail.com": [
+    {
+      "id": "key-001",
+      "name": "Production API Key",
+      "key": "sl_live_905231929f5ce95207c24fb6263c1bea",
+      "masked": "sl_live_••••••••••••••••••••••a7f2",
+      "created": "2026-06-15T00:00:00Z",
+      "lastUsed": "2026-07-24T06:20:20.464Z",
+      "calls": 2847
+    },
+    {
+      "id": "key-002",
+      "name": "Staging API Key",
+      "key": "sl_test_76e117b24c83be774f1c380fc07b2bc0",
+      "masked": "sl_test_••••••••••••••••••••••b3e8",
+      "created": "2026-06-15T00:00:00Z",
+      "lastUsed": "2026-07-19T08:20:20.464Z",
+      "calls": 412
+    }
+  ]
+}

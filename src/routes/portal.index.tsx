@@ -446,6 +446,57 @@ function ActivityHubDashboard() {
               </Link>
             </div>
 
+            {/* Inbox Preview */}
+            <div className="bg-stone-950 border border-stone-900 rounded-xl p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-black text-white">📨 Inbox</h3>
+                <Link to="/portal/inbox" className="text-[9px] font-mono text-blue-400 hover:text-blue-300 font-bold">View All →</Link>
+              </div>
+              <div className="space-y-2">
+                <div className="bg-stone-900/50 rounded-lg p-3 text-[10px] text-stone-400">
+                  <span className="text-amber-400 font-bold">⏳</span> 2 workflow approvals awaiting review
+                </div>
+                <div className="bg-stone-900/50 rounded-lg p-3 text-[10px] text-stone-400">
+                  <span className="text-blue-400 font-bold">📄</span> 5 documents processed today
+                </div>
+                <div className="bg-stone-900/50 rounded-lg p-3 text-[10px] text-stone-400">
+                  <span className="text-emerald-400 font-bold">✓</span> All integrations healthy
+                </div>
+              </div>
+            </div>
+
+            {/* Billing Overview */}
+            <div className="bg-stone-950 border border-stone-900 rounded-xl p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-black text-white">💳 Billing</h3>
+                <span className="text-[9px] font-mono text-emerald-400 font-bold">Active</span>
+              </div>
+              <div className="space-y-3">
+                <div className="flex justify-between text-[10px]">
+                  <span className="text-stone-400">Plan</span>
+                  <span className="font-bold text-white">Growth</span>
+                </div>
+                <div className="flex justify-between text-[10px]">
+                  <span className="text-stone-400">Next Payment</span>
+                  <span className="text-stone-300">Jul 15, 2026</span>
+                </div>
+                <div className="flex justify-between text-[10px]">
+                  <span className="text-stone-400">Payment Method</span>
+                  <span className="text-stone-300">•••• 4242</span>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Link to="/portal/settings"
+                  className="flex-1 text-center text-[10px] font-bold bg-stone-800 hover:bg-stone-700 text-stone-200 py-2 rounded-lg border border-stone-700 transition-all">
+                  Edit Card →
+                </Link>
+                <Link to="/portal/billing"
+                  className="flex-1 text-center text-[10px] font-bold bg-stone-800 hover:bg-stone-700 text-stone-200 py-2 rounded-lg border border-stone-700 transition-all">
+                  Manage Plan →
+                </Link>
+              </div>
+            </div>
+
             {/* Onboarding progress (returning users with incomplete setup) */}
             {!isNewUser && onboardingProgress < 4 && (
               <div className="bg-stone-950 border border-stone-900 rounded-xl p-5 space-y-3">

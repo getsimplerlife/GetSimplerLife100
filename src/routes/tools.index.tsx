@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { analyzeDescription } from "../tools/automation-analyzer";
 
 export const Route = createFileRoute("/tools/")({
@@ -21,8 +21,13 @@ function ToolsHub() {
 
   return (
     <div className="min-h-screen bg-stone-950 text-stone-100">
+      <header className="max-w-5xl mx-auto px-6 pt-6">
+        <Link to="/" className="text-xs font-bold text-stone-400 hover:text-white transition-colors uppercase tracking-widest border border-stone-800 hover:border-stone-700 px-4 py-2 rounded-xl inline-block">
+          ← Home
+        </Link>
+      </header>
       {/* Header */}
-      <section className="max-w-5xl mx-auto px-6 pt-20 pb-12 text-center">
+      <section className="max-w-5xl mx-auto px-6 pt-8 pb-12 text-center">
         <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-4">
           AI <span className="text-emerald-400">Productivity</span> Tools
         </h1>

@@ -184,12 +184,16 @@ function PortalLayout() {
   const navLinks = [
     { name: "Dashboard", subtitle: "Metrics · Billing · Approvals", path: "/portal", icon: "🏠", section: "Overview" },
     { name: "AI Employees", subtitle: "Workforce · Marketplace", path: "/portal/employees", icon: "🤖", section: "AI Workforce" },
+    { name: "Marketplace", subtitle: "Browse · Buy AI Agents", path: "/portal/marketplace", icon: "🛒", section: "AI Workforce" },
     { name: "Documents", subtitle: "Upload · Process · Export", path: "/portal/documents", icon: "📁", section: "Operations" },
+    { name: "Tasks", subtitle: "Queue · Monitor", path: "/portal/tasks", icon: "✅", section: "Operations" },
     { name: "Workflows", subtitle: "Builder · Management", path: "/portal/workflows", icon: "⚡", section: "Operations" },
     { name: "AI Chat", subtitle: "Advisor · Assistant", path: "/portal/chat", icon: "💬", section: "Communications" },
     { name: "Reports", subtitle: "Analytics · Inbox · Alerts", path: "/portal/reports", icon: "📊", section: "Communications" },
     { name: "Integrations", subtitle: "All 180+ Connections", path: "/portal/integrations", icon: "🔌", section: "Integrations & Data" },
+    { name: "Connected Accounts", subtitle: "Manage Credentials · Monitor", path: "/portal/connections", icon: "🔗", section: "Integrations & Data" },
     { name: "CRM / ERP", subtitle: "Salesforce · SAP · NetSuite", path: "/portal/crm", icon: "👥", section: "Integrations & Data" },
+    { name: "Knowledge Base", subtitle: "Guides · Tutorials", path: "/portal/knowledge-base", icon: "📚", section: "Resources" },
     { name: "API Keys", subtitle: "Developer Access", path: "/portal/api", icon: "🔑", section: "Admin & Settings" },
     { name: "Settings", subtitle: "Account · Brand · Billing", path: "/portal/settings", icon: "⚙️", section: "Admin & Settings" },
   ];

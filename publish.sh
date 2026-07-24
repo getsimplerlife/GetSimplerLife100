@@ -2,8 +2,7 @@
 # Rebuild the site and (re)start the production server on port 3000.
 # Build runs in the foreground so errors surface; the server is launched in a new
 # session (setsid) so it keeps running after this script — and your shell — exits.
-# serve.ts frees the port (across user boundaries, retrying on races) before
-# binding, so this is safe to re-run no matter who started the current server.
+# prod-server.ts starts Nitro on 3002 internally, then binds port 3000.
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -11,6 +10,15 @@ cd "$(dirname "$0")"
 umask 002
 mkdir -p .run
 
+# Kill any existing servers on ports 3000 and 3002
+sudo lsof -t -iTCP:3000 -sTCP:LISTEN 2>/dev/null | xargs -r kill 2>/dev/null || true
+sudo lsof -t -iTCP:3002 -sTCP:LISTEN 2>/dev/null | xargs -r kill 2>/dev/null || true
+sleep 0.5
+
+# The workspace starts as sources only (the coming-soon placeholder serves from
+# the image's pre-built copy), so the first publish installs deps here. No-op
+# once node_modules is current.
+bun install
 bun run build
 setsid nohup bun run start > .run/server.log 2>&1 < /dev/null &
 

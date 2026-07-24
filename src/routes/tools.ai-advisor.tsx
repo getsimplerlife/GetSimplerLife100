@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { analyzeDescription, getFollowUpQuestions } from "../tools/automation-analyzer";
 
 export const Route = createFileRoute("/tools/ai-advisor")({
@@ -163,8 +163,13 @@ function AIAdvisor() {
 
   return (
     <div className="min-h-screen bg-stone-950 text-stone-100">
+      <header className="max-w-3xl mx-auto px-6 pt-6">
+        <Link to="/" className="text-xs font-bold text-stone-400 hover:text-white transition-colors uppercase tracking-widest border border-stone-800 hover:border-stone-700 px-4 py-2 rounded-xl inline-block">
+          ← Home
+        </Link>
+      </header>
       {/* Hero */}
-      <section className="max-w-3xl mx-auto px-6 pt-16 pb-8 text-center">
+      <section className="max-w-3xl mx-auto px-6 pt-8 pb-8 text-center">
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-900/30 border border-emerald-800/50 text-emerald-400 text-xs font-mono font-bold tracking-wider mb-6">
           🎯 FREE CONSULTATION
         </div>

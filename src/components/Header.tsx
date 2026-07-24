@@ -9,6 +9,7 @@ interface HeaderProps {
 export function Header({ businessName, user }: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
+  const [mobileFaqOpen, setMobileFaqOpen] = useState(false);
   const location = useLocation();
 
   const isActive = (path: string) => location.pathname === path;
@@ -37,6 +38,14 @@ export function Header({ businessName, user }: HeaderProps) {
     { to: "/roi-calculator", label: "📊 ROI Calculator" },
   ];
 
+  const faqLinks = [
+    { to: "/faq", label: "❓ FAQ" },
+    { to: "/about", label: "ℹ️ About" },
+    { to: "/contact", label: "📬 Contact" },
+    { to: "/how-it-works", label: "🔧 How It Works" },
+    { to: "/support", label: "🛟 Support" },
+  ];
+
   return (
     <header className="px-6 py-4 bg-stone-950/80 backdrop-blur-md sticky top-0 z-50 border-b border-stone-900">
       <div className="max-w-7xl mx-auto flex justify-between items-center">
@@ -47,12 +56,7 @@ export function Header({ businessName, user }: HeaderProps) {
 
         {/* Desktop Nav */}
         <nav className="hidden md:flex gap-8 items-center">
-          <a href="#examples" className="text-sm font-bold text-stone-400 hover:text-white transition-colors">
-            Solutions
-          </a>
-          <Link to="/how-it-works" className={navLinkClass("/how-it-works")}>
-            How It Works
-          </Link>
+          <Link to="/industries" className={navLinkClass("/industries", false)}>Industries</Link>
 
           {/* Tools Dropdown (Desktop) */}
           <div className="relative group">
@@ -85,11 +89,38 @@ export function Header({ businessName, user }: HeaderProps) {
             </div>
           </div>
 
-          <Link to="/about" className={navLinkClass("/about")}>About</Link>
-          <Link to="/faq" className={navLinkClass("/faq")}>FAQ</Link>
-          <Link to="/tools" className={navLinkClass("/tools")}>Tools</Link>
-          <a href="#pricing" className="text-sm font-bold text-stone-400 hover:text-white transition-colors">Pricing</a>
-          <a href="#contact" className="text-sm font-bold text-stone-400 hover:text-white transition-colors">Contact</a>
+          <Link to="/build" className={navLinkClass("/build")}>Builder</Link>
+
+          {/* FAQ Dropdown (Desktop) */}
+          <div className="relative group">
+            <button className={`text-sm font-bold transition-colors flex items-center gap-1 cursor-pointer ${
+              ["/faq", "/about", "/contact", "/how-it-works", "/support"].some(p => location.pathname === p)
+                ? "text-emerald-500"
+                : "text-stone-400 hover:text-white"
+            }`}>
+              FAQ
+              <svg className="w-3 h-3 mt-0.5 transition-transform group-hover:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+              <div className="bg-stone-900 border border-stone-800 rounded-xl shadow-xl shadow-black/30 p-2 min-w-[180px] space-y-0.5">
+                {faqLinks.map((link) => (
+                  <Link
+                    key={link.to}
+                    to={link.to}
+                    className={`block px-3.5 py-2 text-sm font-bold rounded-lg transition-colors ${
+                      isActive(link.to)
+                        ? "text-emerald-400 bg-emerald-500/10"
+                        : "text-stone-300 hover:text-white hover:bg-stone-800"
+                    }`}
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
 
           {user ? (
             <Link
@@ -99,15 +130,7 @@ export function Header({ businessName, user }: HeaderProps) {
               Dashboard
             </Link>
           ) : (
-            <>
-              <Link to="/login" className="text-sm font-bold text-emerald-400 hover:text-emerald-300">Login</Link>
-              <Link
-                to="/contact"
-                className="bg-emerald-500 hover:bg-emerald-400 text-black px-5 py-2.5 rounded-xl font-bold transition-all shadow-md text-xs min-h-[44px] flex items-center justify-center"
-              >
-                Stop Copy-Pasting. Start Free Plan ➜
-              </Link>
-            </>
+            <Link to="/login" className="text-sm font-bold text-emerald-400 hover:text-emerald-300">Login</Link>
           )}
         </nav>
 
@@ -151,19 +174,12 @@ export function Header({ businessName, user }: HeaderProps) {
             </div>
 
             <div className="px-3 py-4 space-y-1">
-              <a
-                href="#examples"
-                onClick={() => setMenuOpen(false)}
-                className="block px-4 py-3 text-sm font-bold text-stone-400 hover:text-white hover:bg-stone-900 rounded-lg transition-colors"
-              >
-                Solutions
-              </a>
               <Link
-                to="/how-it-works"
+                to="/industries"
                 onClick={() => setMenuOpen(false)}
-                className={mobileNavLinkClass("/how-it-works")}
+                className={mobileNavLinkClass("/industries", false)}
               >
-                How It Works
+                Industries
               </Link>
 
               {/* Mobile Tools (click to toggle) */}
@@ -207,33 +223,51 @@ export function Header({ businessName, user }: HeaderProps) {
               </div>
 
               <Link
-                to="/about"
+                to="/build"
                 onClick={() => setMenuOpen(false)}
-                className={mobileNavLinkClass("/about")}
+                className={mobileNavLinkClass("/build")}
               >
-                About
+                Builder
               </Link>
-              <Link
-                to="/faq"
-                onClick={() => setMenuOpen(false)}
-                className={mobileNavLinkClass("/faq")}
-              >
-                FAQ
-              </Link>
-              <a
-                href="#pricing"
-                onClick={() => setMenuOpen(false)}
-                className="block px-4 py-3 text-sm font-bold text-stone-400 hover:text-white hover:bg-stone-900 rounded-lg transition-colors"
-              >
-                Pricing
-              </a>
-              <a
-                href="#contact"
-                onClick={() => setMenuOpen(false)}
-                className="block px-4 py-3 text-sm font-bold text-stone-400 hover:text-white hover:bg-stone-900 rounded-lg transition-colors"
-              >
-                Contact
-              </a>
+              {/* Mobile FAQ (click to toggle) */}
+              <div>
+                <button
+                  onClick={() => setMobileFaqOpen(!mobileFaqOpen)}
+                  className={`w-full flex items-center justify-between px-4 py-3 text-sm font-bold rounded-lg transition-colors ${
+                    mobileFaqOpen || ["/faq", "/about", "/contact", "/how-it-works", "/support"].some(p => location.pathname === p)
+                      ? "text-emerald-400 bg-emerald-500/10"
+                      : "text-stone-400 hover:text-white hover:bg-stone-900"
+                  }`}
+                >
+                  <span>FAQ</span>
+                  <svg
+                    className={`w-4 h-4 transition-transform ${mobileFaqOpen ? "rotate-180" : ""}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {mobileFaqOpen && (
+                  <div className="ml-4 mt-1 mb-2 space-y-0.5 border-l-2 border-emerald-500/30 pl-3">
+                    {faqLinks.map((link) => (
+                      <Link
+                        key={link.to}
+                        to={link.to}
+                        onClick={() => setMenuOpen(false)}
+                        className={`block px-3 py-2 text-sm font-bold rounded-lg transition-colors ${
+                          isActive(link.to)
+                            ? "text-emerald-400 bg-emerald-500/10"
+                            : "text-stone-400 hover:text-white hover:bg-stone-900"
+                        }`}
+                      >
+                        {link.label}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="border-t border-stone-900 px-3 py-4 space-y-2">
@@ -246,22 +280,13 @@ export function Header({ businessName, user }: HeaderProps) {
                   Dashboard
                 </Link>
               ) : (
-                <>
-                  <Link
-                    to="/login"
-                    onClick={() => setMenuOpen(false)}
-                    className="block w-full text-center bg-stone-800 text-stone-200 px-5 py-3 rounded-xl font-bold hover:bg-stone-700 transition-all"
-                  >
-                    Login
-                  </Link>
-                  <Link
-                    to="/contact"
-                    onClick={() => setMenuOpen(false)}
-                    className="block w-full text-center bg-emerald-500 hover:bg-emerald-400 text-black px-5 py-3 rounded-xl font-bold transition-all shadow-md"
-                  >
-                    Stop Copy-Pasting. Start Free Plan ➜
-                  </Link>
-                </>
+                <Link
+                  to="/login"
+                  onClick={() => setMenuOpen(false)}
+                  className="block w-full text-center bg-stone-800 text-stone-200 px-5 py-3 rounded-xl font-bold hover:bg-stone-700 transition-all"
+                >
+                  Login
+                </Link>
               )}
             </div>
           </div>

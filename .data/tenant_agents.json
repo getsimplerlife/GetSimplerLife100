@@ -1,0 +1,40 @@
+{
+  "mathewortiz97@gmail.com": [
+    {
+      "id": "agent-001",
+      "type": "document_intake",
+      "name": "Document Intake AI",
+      "status": "Active",
+      "industry": "Universal",
+      "deployedAt": "2026-06-20T10:30:00Z",
+      "lastActive": "2026-07-24T08:20:20.463Z"
+    },
+    {
+      "id": "agent-002",
+      "type": "sales_outreach",
+      "name": "Sales Outreach Coordinator AI",
+      "status": "Active",
+      "industry": "Universal",
+      "deployedAt": "2026-06-22T14:15:00Z",
+      "lastActive": "2026-07-24T07:20:20.463Z"
+    },
+    {
+      "id": "agent-003",
+      "type": "support_agent",
+      "name": "AI Customer Support Agent",
+      "status": "Active",
+      "industry": "Universal",
+      "deployedAt": "2026-07-01T09:00:00Z",
+      "lastActive": "2026-07-24T08:10:20.463Z"
+    },
+    {
+      "id": "agent-004",
+      "type": "invoice_ledger",
+      "name": "Invoice & Ledger AI",
+      "status": "Active",
+      "industry": "Universal",
+      "deployedAt": "2026-07-10T11:45:00Z",
+      "lastActive": "2026-07-24T07:50:20.463Z"
+    }
+  ]
+}

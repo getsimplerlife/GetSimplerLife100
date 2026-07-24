@@ -1,0 +1,20 @@
+{
+  "mathewortiz97@gmail.com": {
+    "email": "mathewortiz97@gmail.com",
+    "password": "$2b$10$jngXgiJM7lIViZ0FGIO0TOhZCG9caocDMzyK6iN7UKrm54ovuncha",
+    "role": "admin",
+    "createdAt": 1721769600000
+  },
+  "demo@test.com": {
+    "email": "demo@test.com",
+    "password": "af9cdf17a5196c9c2e36d94413e23a4ce4ccfd5942929d6ae9b2fe29fc172204",
+    "role": "user",
+    "createdAt": 1721769600000
+  },
+  "newclient@test.com": {
+    "email": "newclient@test.com",
+    "password": "0cbecfbfc32bb1f42fbcca78c2af7b7197743e9249b47199e05508b37f71888e",
+    "role": "client",
+    "createdAt": 1784863318000
+  }
+}

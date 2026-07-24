@@ -1,0 +1,54 @@
+{
+  "demo@test.com": [
+    {
+      "id": "wf-001",
+      "name": "Invoice Processing",
+      "agentType": "invoice_ledger",
+      "steps": 5,
+      "status": "active",
+      "active": true
+    },
+    {
+      "id": "wf-002",
+      "name": "Lead Qualification",
+      "agentType": "sales_outreach",
+      "steps": 4,
+      "status": "active",
+      "active": true
+    },
+    {
+      "id": "wf-003",
+      "name": "Support Triage",
+      "agentType": "support_agent",
+      "steps": 6,
+      "status": "active",
+      "active": true
+    }
+  ],
+  "mathewortiz97@gmail.com": [
+    {
+      "id": "wf-001",
+      "name": "Invoice Processing",
+      "agentType": "invoice_ledger",
+      "steps": 5,
+      "status": "active",
+      "active": true
+    },
+    {
+      "id": "wf-002",
+      "name": "Lead Qualification",
+      "agentType": "sales_outreach",
+      "steps": 4,
+      "status": "active",
+      "active": true
+    },
+    {
+      "id": "wf-003",
+      "name": "Support Triage",
+      "agentType": "support_agent",
+      "steps": 6,
+      "status": "active",
+      "active": true
+    }
+  ]
+}

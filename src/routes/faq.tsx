@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 import { readFile } from 'node:fs/promises';
+import { Header } from "~/components/Header";
 import { getUser } from '~/db/queries';
 
 const getPageData = createServerFn({ method: 'GET' }).handler(async () => {
@@ -74,25 +75,39 @@ const faqCategories = [
 ];
 
 function FaqPage() {
-  const { businessName } = Route.useLoaderData();
+  const { businessName, user } = Route.useLoaderData();
+
+  const quickLinks = [
+    {
+      to: "/about",
+      icon: "ℹ️",
+      title: "About",
+      description: "Learn about our mission and the team behind Simpler Life 100."
+    },
+    {
+      to: "/contact",
+      icon: "📬",
+      title: "Contact",
+      description: "Get in touch with our team for questions or partnership inquiries."
+    },
+    {
+      to: "/how-it-works",
+      icon: "🔧",
+      title: "How It Works",
+      description: "Understand our process from audit to deployment and managed ops."
+    },
+    {
+      to: "/support",
+      icon: "🛟",
+      title: "Support",
+      description: "Get help with your AI operations team, troubleshooting, and resources."
+    },
+  ];
 
   return (
-    <div className="flex flex-col min-h-screen selection:bg-emerald-100 selection:text-emerald-900 bg-stone-50">
-      <header className="px-6 py-6 bg-stone-950 sticky top-0 z-50 border-b border-stone-800 backdrop-blur-md bg-white/80">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <Link to="/" className="text-2xl font-black text-emerald-400 tracking-tight">
-            {businessName}
-          </Link>
-          <nav className="flex gap-8 items-center">
-            <Link to="/" className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">Home</Link>
-            <Link to="/how-it-works" className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">How It Works</Link>
-            <Link to="/faq" className="text-sm font-bold text-emerald-400 transition-colors">FAQ</Link>
-            <Link to="/about" className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">About</Link>
-            <Link to="/contact" className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">Contact</Link>
-          </nav>
-        </div>
-      </header>
+    <div className="flex flex-col min-h-screen selection:bg-emerald-500/30 selection:text-emerald-200 bg-stone-950">
 
+      <Header businessName={businessName} user={user} />
       <main className="flex-1 py-16 lg:py-24 px-6">
         <div className="max-w-5xl mx-auto space-y-16">
           
@@ -109,6 +124,25 @@ function FaqPage() {
             </p>
           </div>
 
+          {/* Quick Links Card Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {quickLinks.map((link) => (
+              <Link
+                key={link.to}
+                to={link.to}
+                className="group bg-stone-900 border border-stone-800 rounded-2xl p-6 hover:border-emerald-500/30 transition-all"
+              >
+                <span className="text-3xl mb-4 block">{link.icon}</span>
+                <h3 className="text-lg font-black text-white mb-2 group-hover:text-emerald-400 transition-colors">
+                  {link.title}
+                </h3>
+                <p className="text-sm text-stone-400 leading-relaxed">
+                  {link.description}
+                </p>
+              </Link>
+            ))}
+          </div>
+
           {/* Grid of Categories */}
           <div className="space-y-12">
             {faqCategories.map((cat, idx) => (
@@ -118,7 +152,7 @@ function FaqPage() {
                 </h3>
                 <div className="grid md:grid-cols-2 gap-6">
                   {cat.items.map((item, itemIdx) => (
-                    <div key={itemIdx} className="p-8 bg-stone-950 border border-stone-800 rounded-3xl space-y-3 hover:border-emerald-200 transition-colors shadow-sm">
+                    <div key={itemIdx} className="p-8 bg-stone-900 border border-stone-800 rounded-3xl space-y-3 hover:border-emerald-500/30 transition-colors">
                       <h4 className="text-lg lg:text-xl font-black text-white leading-snug">
                         {item.q}
                       </h4>
@@ -133,13 +167,13 @@ function FaqPage() {
           </div>
 
           {/* Fallback Objections Section */}
-          <div className="bg-stone-950 text-white rounded-[2.5rem] p-10 lg:p-14 text-center space-y-6">
+          <div className="bg-stone-900 text-white rounded-[2.5rem] p-10 lg:p-14 text-center space-y-6 border border-stone-800">
             <h3 className="text-2xl lg:text-3xl font-black">Have a specific technical question?</h3>
             <p className="text-stone-400 max-w-xl mx-auto text-sm leading-relaxed">
               We build custom integrations for high-security healthcare, logistics, and financial environments. Let's discuss your specific API requirements.
             </p>
             <div className="flex justify-center">
-              <Link to="/contact" className="bg-stone-950 text-stone-100 font-black text-sm px-8 py-3.5 rounded-xl hover:bg-stone-900 transition-all">
+              <Link to="/contact" className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm px-8 py-3.5 rounded-xl transition-all">
                 Talk to an Integration Engineer
               </Link>
             </div>
@@ -148,18 +182,18 @@ function FaqPage() {
         </div>
       </main>
 
-      <footer className="px-6 py-12 border-t border-stone-900 bg-stone-950 text-stone-500">
+      <footer className="px-6 py-12 border-t border-stone-800 bg-stone-950">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
           <div>
             <div className="text-2xl font-black text-emerald-400 mb-2">{businessName}</div>
             <p className="text-sm text-stone-400">AI coworkers for operations teams. Work less, live more.</p>
           </div>
           <div className="text-sm font-bold flex gap-6">
-            <Link to="/" className="hover:text-emerald-600">Home</Link>
-            <Link to="/how-it-works" className="hover:text-emerald-600">How It Works</Link>
-            <Link to="/faq" className="hover:text-emerald-600">FAQ</Link>
-            <Link to="/about" className="hover:text-emerald-600">About</Link>
-            <Link to="/contact" className="hover:text-emerald-600">Contact</Link>
+            <Link to="/" className="text-stone-400 hover:text-emerald-400">Home</Link>
+            <Link to="/how-it-works" className="text-stone-400 hover:text-emerald-400">How It Works</Link>
+            <Link to="/faq" className="text-stone-400 hover:text-emerald-400">FAQ</Link>
+            <Link to="/about" className="text-stone-400 hover:text-emerald-400">About</Link>
+            <Link to="/contact" className="text-stone-400 hover:text-emerald-400">Contact</Link>
           </div>
           <div className="text-xs text-stone-400">&copy; {new Date().getFullYear()} {businessName}. All rights reserved.</div>
         </div>
