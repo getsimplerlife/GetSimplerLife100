@@ -518,6 +518,107 @@ export const industries: IndustryHub[] = [
       "Financial services firms achieve 100% audit pass rates and cut client onboarding from 5 days to 14 hours.",
   },
   {
+    id: "finance",
+    name: "Financial Services",
+    icon: "💰",
+    accent: "#15803d",
+    bgLight: "bg-green-50",
+    tagline: "Meet every regulatory requirement — automatically",
+    hook: "Financial services face the heaviest compliance burden of any industry.",
+    description:
+      "Banks, fintechs, and investment firms operate under a microscope of regulatory scrutiny. Non-compliance is not an option, yet compliance teams spend weeks manually collecting evidence, reconciling transactions, and preparing for exams. Simpler Life 100 deploys AI agents that continuously monitor regulatory changes, map controls to requirements, generate audit-ready evidence packages, and automate KYC/AML workflows — passing every exam with zero findings.",
+    painPoints: [
+      {
+        title: "Manual Audit Evidence Collection",
+        description:
+          "Compliance teams spend weeks pulling screenshots, emails, and logs to prove controls are operating effectively. Each exam cycle costs 200+ person-hours of evidence gathering.",
+        hoursPerWeek: 30,
+      },
+      {
+        title: "KYC/AML Onboarding Delays",
+        description:
+          "Client onboarding requires identity verification, background checks, and document collection. Each new client takes 3-5 business days and $150+ in manual processing costs.",
+        hoursPerWeek: 20,
+      },
+      {
+        title: "Regulatory Reporting Fragmentation",
+        description:
+          "Reporting requirements vary by jurisdiction. Data must be pulled from 4+ systems, normalized manually, and formatted differently for each regulator.",
+        hoursPerWeek: 15,
+      },
+      {
+        title: "Transaction Alert Overload",
+        description:
+          "Monitoring systems generate 10,000+ alerts monthly. 97% are false positives that analysts manually review and dismiss — wasting hundreds of hours.",
+        hoursPerWeek: 35,
+      },
+      {
+        title: "Policy Attestation Tracking",
+        description:
+          "Employee policy acknowledgments, training completions, and conflict-of-interest disclosures are tracked in separate spreadsheets. Gaps aren't visible until audit time.",
+        hoursPerWeek: 8,
+      },
+    ],
+    kpis: [
+      { value: "100%", label: "Audit pass rate achieved" },
+      { value: "80%", label: "Faster regulatory reporting" },
+      { value: "14 days", label: "Client onboarding time" },
+      { value: "3.5x", label: "Compliance team productivity" },
+    ],
+    workflows: [
+      "compliance-reporting",
+      "client-intake",
+      "onboarding",
+      "document-processing",
+      "data-entry-automation",
+      "contract-review",
+      "invoice-automation",
+      "ap-ar-automation",
+      "payroll-processing",
+      "benefits-administration",
+    ],
+    integrations: [
+      "salesforce",
+      "hubspot",
+      "oracle-netsuite",
+      "quickbooks",
+      "xero",
+      "workday",
+      "adp",
+      "tableau",
+      "power-bi",
+      "jira",
+    ],
+    auditPackages: {
+      efficiency: {
+        price: "Free",
+        features: [
+          "Regulatory compliance gap analysis",
+          "Audit trail quality assessment",
+          "Security posture review",
+          "24-hour executive summary with risk score",
+        ],
+      },
+      deepDive: {
+        price: "$2,500",
+        features: [
+          "Full regulatory compliance audit",
+          "KYC/AML onboarding workflow analysis",
+          "Transaction monitoring effectiveness assessment",
+          "Audit trail completeness verification",
+          "Custom automation roadmap with ROI projections",
+        ],
+      },
+    },
+    relatedCaseStudies: [
+      "meridian-trust-bank",
+      "pacific-capital-group",
+      "horizon-wealth-management",
+    ],
+    resultsHeadline:
+      "Financial services firms achieve 100% audit pass rates and cut client onboarding from 5 days to 14 hours.",
+  },
+  {
     id: "energy",
     name: "Energy",
     icon: "⚡",
