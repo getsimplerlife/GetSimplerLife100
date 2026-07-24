@@ -102,6 +102,9 @@ function servePage(req: Request) {
   if (pathname === "/api/integrations/disconnect" && req.method === "POST") {
     return handleIntegrationDisconnect(req);
   }
+    if (pathname === "/api/stripe/webhook" && req.method === "POST") {
+    return handleStripeWebhook(req);
+  }
   if (pathname.startsWith("/api/")) {
     return new Response(JSON.stringify({ error: "Not found" }), {
       status: 404,
@@ -1171,7 +1174,7 @@ const TENANT_INTEGRATIONS_FILE = DATA_DIR + "/tenant_integrations.json";
 const TENANT_DOCUMENTS_FILE = DATA_DIR + "/tenant_documents.json";
 const TENANT_WORKFLOWS_FILE = DATA_DIR + "/tenant_workflows.json";
 const TENANT_API_KEYS_FILE = DATA_DIR + "/tenant_api_keys.json";
-const TENANT_PURCHASES_FILE = DATA_DIR + "/purchases.json";
+const TENANT_PURCHASES_FILE = DATA_DIR + "/tenant_purchases.json";
 
 function ensureDataDir() {
   const { existsSync, mkdirSync } = require("fs");
@@ -1208,12 +1211,12 @@ function writeTenantData(file: string, email: string, data: any[]) {
 // ─── Seed Data ───
 function seedTenantDataIfNeeded(email: string) {
   const seedEmail = "mathewortiz97@gmail.com";
-  if (email !== seedEmail) return;
+  // Seed for all users (no email check)
 
   // Seed agents
   const agents = readJSON(TENANT_AGENTS_FILE);
-  if (!agents[seedEmail]) {
-    agents[seedEmail] = [
+  if (!agents[email]) {
+    agents[email] = [
       { id: "agent-001", type: "document_intake", name: "Document Intake AI", status: "Active", industry: "Universal", deployedAt: "2026-06-20T10:30:00Z", lastActive: new Date().toISOString() },
       { id: "agent-002", type: "sales_outreach", name: "Sales Outreach Coordinator AI", status: "Active", industry: "Universal", deployedAt: "2026-06-22T14:15:00Z", lastActive: new Date(Date.now() - 3600000).toISOString() },
       { id: "agent-003", type: "support_agent", name: "AI Customer Support Agent", status: "Active", industry: "Universal", deployedAt: "2026-07-01T09:00:00Z", lastActive: new Date(Date.now() - 600000).toISOString() },
@@ -1224,8 +1227,8 @@ function seedTenantDataIfNeeded(email: string) {
 
   // Seed integrations
   const integrations = readJSON(TENANT_INTEGRATIONS_FILE);
-  if (!integrations[seedEmail]) {
-    integrations[seedEmail] = [
+  if (!integrations[email]) {
+    integrations[email] = [
       { id: "int-001", provider: "Salesforce", status: "Connected", connectedAt: "2026-06-20T10:35:00Z", lastSync: new Date(Date.now() - 120000).toISOString() },
       { id: "int-002", provider: "Slack", status: "Connected", connectedAt: "2026-07-01T09:05:00Z", lastSync: new Date(Date.now() - 300000).toISOString() },
     ];
@@ -1234,8 +1237,8 @@ function seedTenantDataIfNeeded(email: string) {
 
   // Seed documents
   const docs = readJSON(TENANT_DOCUMENTS_FILE);
-  if (!docs[seedEmail]) {
-    docs[seedEmail] = [
+  if (!docs[email]) {
+    docs[email] = [
       { id: "doc-001", name: "invoice_123.pdf", type: "PDF", status: "Complete", uploadedAt: "2026-07-20T08:30:00Z", size: 245760 },
       { id: "doc-002", name: "contract_q3.docx", type: "Word", status: "Complete", uploadedAt: "2026-07-18T16:00:00Z", size: 512000 },
       { id: "doc-003", name: "onboarding_form.pdf", type: "PDF", status: "Complete", uploadedAt: "2026-07-15T11:20:00Z", size: 128000 },
@@ -1245,8 +1248,8 @@ function seedTenantDataIfNeeded(email: string) {
 
   // Seed workflows
   const workflows = readJSON(TENANT_WORKFLOWS_FILE);
-  if (!workflows[seedEmail]) {
-    workflows[seedEmail] = [
+  if (!workflows[email]) {
+    workflows[email] = [
       { id: "wf-001", name: "Invoice Processing", agentType: "invoice_ledger", steps: 5, status: "active", active: true },
       { id: "wf-002", name: "Lead Qualification", agentType: "sales_outreach", steps: 4, status: "active", active: true },
       { id: "wf-003", name: "Support Triage", agentType: "support_agent", steps: 6, status: "active", active: true },
@@ -1256,8 +1259,8 @@ function seedTenantDataIfNeeded(email: string) {
 
   // Seed API keys
   const apiKeys = readJSON(TENANT_API_KEYS_FILE);
-  if (!apiKeys[seedEmail]) {
-    apiKeys[seedEmail] = [
+  if (!apiKeys[email]) {
+    apiKeys[email] = [
       { id: "key-001", name: "Production API Key", key: "sl_live_" + require("crypto").randomBytes(16).toString("hex"), masked: "sl_live_••••••••••••••••••••••a7f2", created: "2026-06-15T00:00:00Z", lastUsed: new Date(Date.now() - 7200000).toISOString(), calls: 2847 },
       { id: "key-002", name: "Staging API Key", key: "sl_test_" + require("crypto").randomBytes(16).toString("hex"), masked: "sl_test_••••••••••••••••••••••b3e8", created: "2026-06-15T00:00:00Z", lastUsed: new Date(Date.now() - 432000000).toISOString(), calls: 412 },
     ];
@@ -1266,8 +1269,8 @@ function seedTenantDataIfNeeded(email: string) {
 
   // Seed purchases
   const purchases = readJSON(TENANT_PURCHASES_FILE);
-  if (!purchases[seedEmail]) {
-    purchases[seedEmail] = [
+  if (!purchases[email]) {
+    purchases[email] = [
       { id: "pur-001", productId: "prod_R5kL09pQ2mNx7v", agentType: "document_intake", date: "2026-06-20T10:30:00Z", status: "active" },
       { id: "pur-002", productId: "prod_R5kL09pQ2mNx7v", agentType: "sales_outreach", date: "2026-06-22T14:15:00Z", status: "active" },
       { id: "pur-003", productId: "prod_R5kL09pQ2mNx7v", agentType: "support_agent", date: "2026-07-01T09:00:00Z", status: "active" },
@@ -1376,7 +1379,8 @@ function renderPortalPage(pathname: string, email: string): string {
     case "chat": content = renderPortalChat(); break;
     case "reports": content = renderPortalReports(); break;
     case "integrations": content = renderPortalIntegrations(); break;
-    case "crm": content = renderPortalCRM(); break;
+    case "connections": content = renderPortalConnections(email); break;
+    case "crm": content = renderPortalCRM(email); break;
     case "api": content = renderPortalAPIKeys(); break;
     case "settings": content = renderPortalSettings(email); break;
     default: content = renderPortalDashboard(email);
@@ -1384,7 +1388,7 @@ function renderPortalPage(pathname: string, email: string): string {
   const titleMap: Record<string, string> = {
     dashboard: "Dashboard", employees: "AI Employees", documents: "Documents",
     workflows: "Workflows", chat: "AI Chat", reports: "Reports",
-    integrations: "Integrations", crm: "CRM / ERP", api: "API Keys", settings: "Settings"
+    integrations: "Integrations", connections: "Connected Accounts", crm: "CRM / ERP", api: "API Keys", settings: "Settings"
   };
   const active = page === "dashboard" && pathname === "/portal" ? "dashboard" : page;
   return '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"/><title>'+titleMap[active]+' | '+businessName+'</title><meta name="theme-color" content="#000000"/><style>'+CSS+'</style></head><body>'+renderPortalNav(email, active)+'<div class="portal-layout">'+renderPortalSidebar(email, active)+'<main class="portal-main">'+content+'</main></div><script>(function(){var sb=document.getElementById("portal-sidebar");var overlay=document.getElementById("portal-overlay");var toggle=document.getElementById("portal-mtoggle");if(toggle)toggle.addEventListener("click",function(){sb.classList.toggle("open");if(overlay)overlay.classList.toggle("open")});if(overlay)overlay.addEventListener("click",function(){sb.classList.remove("open");overlay.classList.remove("open")})})();</script></body></html>';
@@ -1405,6 +1409,7 @@ const portalNavItems = [
   { section: "Data", items: [
     { id: "documents", icon: "📄", label: "Documents" },
     { id: "integrations", icon: "🔌", label: "Integrations" },
+    { id: "connections", icon: "🔗", label: "Connected Accounts" },
     { id: "crm", icon: "🏢", label: "CRM / ERP" },
   ]},
   { section: "Admin", items: [
@@ -1428,7 +1433,7 @@ function renderPortalSidebar(email: string, active: string): string {
 
 // ─── 1. Dashboard ───
 function renderPortalDashboard(email: string): string {
-  return `<div class="portal-main-header"><div><h1 style="margin-bottom:0.25rem">Dashboard</h1><p style="color:#78716c;font-size:0.875rem">Welcome back, '+email+'</p></div><div style="display:flex;gap:0.5rem;flex-wrap:wrap"><a href="/portal/employees" class="portal-btn portal-btn-primary portal-btn-sm">+ Deploy Agent</a><a href="/portal/reports" class="portal-btn portal-btn-secondary portal-btn-sm">View Reports</a></div></div><div id="dash-content"><div class="portal-skeleton"><div class="portal-skeleton-line w4"></div><div class="portal-skeleton-line w3"></div><div class="portal-skeleton-card"></div><div class="portal-skeleton-card"></div></div></div><script>fetch("/api/tenant/dashboard",{credentials:"same-origin"}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(d){var h="";h+=\'<div class="portal-stat-grid">\';h+=\'<div class="portal-card"><div class="portal-card-header">Active AI Employees</div><div class="portal-card-value">\'+(d.agentCount||0)+\'</div><div class="portal-card-sub">Deployed agents</div></div>\';h+=\'<div class="portal-card"><div class="portal-card-header">Workflows Running</div><div class="portal-card-value">\'+(d.activeWorkflows||0)+\'</div><div class="portal-card-sub">Active workflows</div></div>\';h+=\'<div class="portal-card"><div class="portal-card-header">Documents Processed</div><div class="portal-card-value">\'+(d.docCount||0)+\'</div><div class="portal-card-sub">Total documents</div></div>\';h+=\'<div class="portal-card"><div class="portal-card-header">Integrations</div><div class="portal-card-value">\'+(d.integrationCount||0)+\'</div><div class="portal-card-sub">Connected services</div></div>\';h+=\'</div>\';document.getElementById("dash-content").innerHTML=h;fetch("/api/tenant/agents",{credentials:"same-origin"}).then(function(r2){return r2.json()}).then(function(agents){var act="";var hasErr=agents.some(function(a){return a.status==="error"||a.status==="degraded"});if(hasErr)act+=\'<div class="portal-alert portal-alert-warn"><span>⚠️</span><span>Some agents need attention — check <a href="/portal/employees" style="color:#fcd34d">AI Employees</a></span></div>\';act+=\'<div style="display:grid;grid-template-columns:2fr 1fr;gap:1.5rem"><div class="portal-card"><div class="portal-card-header" style="margin-bottom:1rem">Agent Activity</div>\';if(agents.length===0){act+=\'<div class="portal-empty"><div class="portal-empty-icon">🤖</div><div class="portal-empty-title">No agents deployed</div><div class="portal-empty-text">Deploy your first AI employee to get started</div><a href="/portal/employees" class="portal-btn portal-btn-primary portal-btn-sm">Deploy Agent</a></div>\'}else{agents.slice(0,6).forEach(function(a,i){var ts=a.lastActive?new Date(a.lastActive).toLocaleString():"";act+=\'<div class="portal-notif unread"><span class="portal-notif-dot green"></span><span>\'+a.name+\' — \'+a.status+\'</span><span style="margin-left:auto;font-size:0.6875rem;color:#57534e;white-space:nowrap">\'+ts+\'</span></div>\'})}act+=\'</div><div class="portal-card"><div class="portal-card-header" style="margin-bottom:1rem">Quick Status</div>\';act+=\'<div class="portal-alert portal-alert-success"><span>✅</span><span>Dashboard loaded successfully</span></div>\';act+=\'<div class="portal-alert portal-alert-info"><span>📋</span><span>\'+(d.activeWorkflows||0)+\' active workflows</span></div>\';act+=\'<div class="portal-alert portal-alert-info"><span>🔌</span><span>\'+(d.integrationCount||0)+\' connected integrations</span></div>\';act+=\'</div></div>\';document.getElementById("dash-content").innerHTML+=act}).catch(function(){})}).catch(function(){document.getElementById("dash-content").innerHTML=\'<div class="portal-error"><div class="portal-error-icon">⚠️</div><div class="portal-error-title">Failed to load dashboard</div><div class="portal-error-text">The dashboard API is not available yet. The Integration Engineer may still be building it.</div><a href="/portal" class="portal-btn portal-btn-secondary portal-btn-sm">Retry</a></div>\'})</script>`;
+  return `<div class="portal-main-header"><div><h1 style="margin-bottom:0.25rem">Dashboard</h1><p style="color:#78716c;font-size:0.875rem">Welcome back, ${email}</p></div><div style="display:flex;gap:0.5rem;flex-wrap:wrap"><a href="/portal/employees" class="portal-btn portal-btn-primary portal-btn-sm">+ Deploy Agent</a><a href="/portal/reports" class="portal-btn portal-btn-secondary portal-btn-sm">View Reports</a></div></div><div id="dash-content"><div class="portal-skeleton"><div class="portal-skeleton-line w4"></div><div class="portal-skeleton-line w3"></div><div class="portal-skeleton-card"></div><div class="portal-skeleton-card"></div></div></div><script>fetch("/api/tenant/dashboard",{credentials:"same-origin"}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(d){var h="";h+=\'<div class="portal-stat-grid">\';h+=\'<div class="portal-card"><div class="portal-card-header">Active AI Employees</div><div class="portal-card-value">\'+(d.agentCount||0)+\'</div><div class="portal-card-sub">Deployed agents</div></div>\';h+=\'<div class="portal-card"><div class="portal-card-header">Workflows Running</div><div class="portal-card-value">\'+(d.activeWorkflows||0)+\'</div><div class="portal-card-sub">Active workflows</div></div>\';h+=\'<div class="portal-card"><div class="portal-card-header">Documents Processed</div><div class="portal-card-value">\'+(d.docCount||0)+\'</div><div class="portal-card-sub">Total documents</div></div>\';h+=\'<div class="portal-card"><div class="portal-card-header">Integrations</div><div class="portal-card-value">\'+(d.integrationCount||0)+\'</div><div class="portal-card-sub">Connected services</div></div>\';h+=\'</div>\';document.getElementById("dash-content").innerHTML=h;fetch("/api/tenant/agents",{credentials:"same-origin"}).then(function(r2){return r2.json()}).then(function(agents){var act="";var hasErr=agents.some(function(a){return a.status==="error"||a.status==="degraded"});if(hasErr)act+=\'<div class="portal-alert portal-alert-warn"><span>⚠️</span><span>Some agents need attention — check <a href="/portal/employees" style="color:#fcd34d">AI Employees</a></span></div>\';act+=\'<div style="display:grid;grid-template-columns:2fr 1fr;gap:1.5rem"><div class="portal-card"><div class="portal-card-header" style="margin-bottom:1rem">Agent Activity</div>\';if(agents.length===0){act+=\'<div class="portal-empty"><div class="portal-empty-icon">🤖</div><div class="portal-empty-title">No agents deployed</div><div class="portal-empty-text">Deploy your first AI employee to get started</div><a href="/portal/employees" class="portal-btn portal-btn-primary portal-btn-sm">Deploy Agent</a></div>\'}else{agents.slice(0,6).forEach(function(a,i){var ts=a.lastActive?new Date(a.lastActive).toLocaleString():"";act+=\'<div class="portal-notif unread"><span class="portal-notif-dot green"></span><span>\'+a.name+\' — \'+a.status+\'</span><span style="margin-left:auto;font-size:0.6875rem;color:#57534e;white-space:nowrap">\'+ts+\'</span></div>\'})}act+=\'</div><div class="portal-card"><div class="portal-card-header" style="margin-bottom:1rem">Quick Status</div>\';act+=\'<div class="portal-alert portal-alert-success"><span>✅</span><span>Dashboard loaded successfully</span></div>\';act+=\'<div class="portal-alert portal-alert-info"><span>📋</span><span>\'+(d.activeWorkflows||0)+\' active workflows</span></div>\';act+=\'<div class="portal-alert portal-alert-info"><span>🔌</span><span>\'+(d.integrationCount||0)+\' connected integrations</span></div>\';act+=\'</div></div>\';document.getElementById("dash-content").innerHTML+=act}).catch(function(){})}).catch(function(){document.getElementById("dash-content").innerHTML=\'<div class="portal-error"><div class="portal-error-icon">⚠️</div><div class="portal-error-title">Failed to load dashboard</div><div class="portal-error-text">The dashboard API is not available yet. The Integration Engineer may still be building it.</div><a href="/portal" class="portal-btn portal-btn-secondary portal-btn-sm">Retry</a></div>\'})</script>`;
 }
 
 // ─── 2. AI Employees ───
@@ -1490,12 +1495,34 @@ function renderPortalIntegrations(): string {
     { name: "Webex", icon: "💬", cat: "Communication" }, { name: "Webhooks", icon: "🛠️", cat: "Dev Tools" }, { name: "WooCommerce", icon: "🛍️", cat: "E-Commerce" }, { name: "Workato", icon: "⚡", cat: "Automation" }, { name: "Workday", icon: "👥", cat: "HR" }, { name: "Wrike", icon: "📊", cat: "Project Mgmt" }, 
     { name: "Xero", icon: "📒", cat: "Accounting" }, { name: "XML API", icon: "🛠️", cat: "Dev Tools" }, { name: "Zapier", icon: "⚡", cat: "Automation" }, { name: "Zendesk", icon: "🎧", cat: "Support" }, { name: "Zoho CRM", icon: "📋", cat: "CRM" }, { name: "Zoom", icon: "💬", cat: "Communication" }
   ];
-  return `<div class="portal-main-header"><div><h1>Integrations</h1><p style="color:#78716c;font-size:0.875rem" id="int-count">Loading...</p></div></div><div class="portal-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg><input placeholder="Search 180+ integrations..." id="int-search" oninput="filterInts()"></div><div id="ints-content"><div class="portal-skeleton"><div class="portal-skeleton-line w4"></div><div class="portal-skeleton-card"></div></div></div><script>var allInts=[];function filterInts(){var s=document.getElementById("int-search").value.toLowerCase();document.querySelectorAll(".integration-card").forEach(function(c){c.style.display=!s||c.dataset.name.indexOf(s)>-1||c.dataset.cat.indexOf(s)>-1?"":"none"})}fetch("/api/tenant/integrations",{credentials:"same-origin"}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(connected){var connMap={};connected.forEach(function(c){connMap[c.provider]=c});var merged=allProviders.map(function(p){var c=connMap[p.name];return c?{name:p.name,icon:p.icon,cat:p.cat,connected:true,lastSync:c.lastSync}:{name:p.name,icon:p.icon,cat:p.cat,connected:false}});allInts=merged;var connCount=merged.filter(function(m){return m.connected}).length;document.getElementById("int-count").textContent=connCount+" connected, 180+ available";var h="";h+=\'<div style="display:flex;gap:0.5rem;margin-bottom:1.5rem;flex-wrap:wrap"><button class="portal-btn portal-btn-sm portal-btn-secondary" onclick="document.querySelectorAll(\\\'.integration-card\\\').forEach(function(c){c.style.display=\\\'\\\'})">All</button>\';["CRM","ERP","Accounting","Email","Communication","Storage","Document Processing","Project Mgmt","HR","Support","BI","E-Commerce","Logistics","Manufacturing","Healthcare","Scheduling","Forms","Payments","AI Models","Automation","Identity","Dev Tools","Databases","Productivity"].forEach(function(cat){h+=\'<button class="portal-btn portal-btn-sm portal-btn-secondary" onclick="document.querySelectorAll(\\\'.integration-card\\\').forEach(function(el){el.style.display=el.dataset.cat===\\\'\'+cat+\'\\\'?\\\'\\\':\\\'none\\\'})">\'+cat+\'</button>\'});h+=\'</div>\';h+=\'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem">\';merged.forEach(function(i){h+=\'<div class="portal-card integration-card" data-name="\'+i.name.toLowerCase()+'" data-cat="\'+i.cat+\'" style="text-align:center"><div style="font-size:2rem;margin-bottom:0.5rem">\'+i.icon+\'</div><div style="font-weight:800;color:#e7e5e4;margin-bottom:0.25rem;font-size:0.9375rem">\'+i.name+\'</div><span class="portal-badge portal-badge-gray" style="margin-bottom:0.75rem">\'+i.cat+\'</span><div style="margin-top:0.5rem">\'+(i.connected?\'<span class="portal-badge portal-badge-green">✓ Connected</span><div style="font-size:0.625rem;color:#78716c;margin-top:0.25rem">\'+(i.lastSync?new Date(i.lastSync).toLocaleString():"")+\'</div>\':\'<button class="portal-btn portal-btn-primary portal-btn-sm" style="width:100%" onclick="connectProvider(\\\'"+i.name+"\\\')">Connect</button>\')+\'</div></div>\'})}h+=\'</div>\';document.getElementById("ints-content").innerHTML=h}).catch(function(){document.getElementById("ints-content").innerHTML=\'<div class="portal-error"><div class="portal-error-icon">⚠️</div><div class="portal-error-title">Failed to load integrations</div><div class="portal-error-text">The integrations API may not be available yet.</div><a href="/portal/integrations" class="portal-btn portal-btn-secondary portal-btn-sm">Retry</a></div>\'})</script>`;
+  return `<div class="portal-main-header"><div><h1>Integrations</h1><p style="color:#78716c;font-size:0.875rem" id="int-count">Loading...</p></div></div><div class="portal-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg><input placeholder="Search 180+ integrations..." id="int-search" oninput="filterInts()"></div><div id="ints-content"><div class="portal-skeleton"><div class="portal-skeleton-line w4"></div><div class="portal-skeleton-card"></div></div></div><script>var allInts=[];function connectProvider(name){var btn=event.target;btn.disabled=true;btn.textContent='Connecting...';fetch('/api/integrations/connect',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({provider:name})}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(d){btn.textContent='✓ Connected';btn.className='portal-btn portal-btn-sm portal-btn-success';btn.disabled=true;setTimeout(function(){location.reload()},500)}).catch(function(e){btn.disabled=false;btn.textContent='Connect'})}function disconnectProvider(name,btn){if(!confirm('Disconnect '+name+'?'))return;btn.disabled=true;btn.textContent='Disconnecting...';fetch('/api/integrations/disconnect',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({provider:name})}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(){location.reload()}).catch(function(e){btn.disabled=false;btn.textContent='✓ Connected'})}function filterInts(){var s=document.getElementById("int-search").value.toLowerCase();document.querySelectorAll(".integration-card").forEach(function(c){c.style.display=!s||c.dataset.name.indexOf(s)>-1||c.dataset.cat.indexOf(s)>-1?"":"none"})}fetch("/api/tenant/integrations",{credentials:"same-origin"}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(connected){var connMap={};connected.forEach(function(c){connMap[c.provider]=c});var merged=allProviders.map(function(p){var c=connMap[p.name];return c?{name:p.name,icon:p.icon,cat:p.cat,connected:true,lastSync:c.lastSync}:{name:p.name,icon:p.icon,cat:p.cat,connected:false}});allInts=merged;var connCount=merged.filter(function(m){return m.connected}).length;document.getElementById("int-count").textContent=connCount+" connected, 180+ available";var h="";h+=\'<div style="display:flex;gap:0.5rem;margin-bottom:1.5rem;flex-wrap:wrap"><button class="portal-btn portal-btn-sm portal-btn-secondary" onclick="document.querySelectorAll(\\\'.integration-card\\\').forEach(function(c){c.style.display=\\\'\\\'})">All</button>\';["CRM","ERP","Accounting","Email","Communication","Storage","Document Processing","Project Mgmt","HR","Support","BI","E-Commerce","Logistics","Manufacturing","Healthcare","Scheduling","Forms","Payments","AI Models","Automation","Identity","Dev Tools","Databases","Productivity"].forEach(function(cat){h+=\'<button class="portal-btn portal-btn-sm portal-btn-secondary" onclick="document.querySelectorAll(\\\'.integration-card\\\').forEach(function(el){el.style.display=el.dataset.cat===\\\'\'+cat+\'\\\'?\\\'\\\':\\\'none\\\'})">\'+cat+\'</button>\'});h+=\'</div>\';h+=\'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem">\';merged.forEach(function(i){h+=\'<div class="portal-card integration-card" data-name="\'+i.name.toLowerCase()+'" data-cat="\'+i.cat+\'" style="text-align:center"><div style="font-size:2rem;margin-bottom:0.5rem">\'+i.icon+\'</div><div style="font-weight:800;color:#e7e5e4;margin-bottom:0.25rem;font-size:0.9375rem">\'+i.name+\'</div><span class="portal-badge portal-badge-gray" style="margin-bottom:0.75rem">\'+i.cat+\'</span><div style="margin-top:0.5rem">\'+(i.connected?\'<span class="portal-badge portal-badge-green">✓ Connected</span><div style="font-size:0.625rem;color:#78716c;margin-top:0.25rem">\'+(i.lastSync?new Date(i.lastSync).toLocaleString():"")+\'</div>\':\'<button class="portal-btn portal-btn-primary portal-btn-sm" style="width:100%" onclick="connectProvider(\\\'"+i.name+"\\\')">Connect</button>\')+\'</div></div>\'})}h+=\'</div>\';document.getElementById("ints-content").innerHTML=h}).catch(function(){document.getElementById("ints-content").innerHTML=\'<div class="portal-error"><div class="portal-error-icon">⚠️</div><div class="portal-error-title">Failed to load integrations</div><div class="portal-error-text">The integrations API may not be available yet.</div><a href="/portal/integrations" class="portal-btn portal-btn-secondary portal-btn-sm">Retry</a></div>\'})</script>`;
 }
 
+// ─── 7b. Connected Accounts ───
+function renderPortalConnections(email: string): string {
+  let connHTML = '<div class="portal-skeleton"><div class="portal-skeleton-line w4"></div><div class="portal-skeleton-card"></div></div>';
+  if (email) {
+    seedTenantDataIfNeeded(email);
+    const conns = readTenantData(TENANT_INTEGRATIONS_FILE, email);
+    if (conns.length === 0) {
+      connHTML = '<div class="portal-empty"><div class="portal-empty-icon">🔗</div><div class="portal-empty-title">No connected accounts yet</div><div class="portal-empty-text">Connect your first integration from the <a href="/portal/integrations" style="color:#10b981">Integrations</a> page.</div><a href="/portal/integrations" class="portal-btn portal-btn-primary portal-btn-sm">Browse Integrations</a></div>';
+    } else {
+      let rows = '';
+      conns.forEach((conn: any) => {
+        const statusClass = conn.status === 'Connected' ? 'portal-badge-green' : 'portal-badge-amber';
+        const lastSync = conn.lastSync ? new Date(conn.lastSync).toLocaleString() : 'Never';
+        rows += '<tr><td style="font-weight:700;color:#e7e5e4">' + conn.provider + '</td><td><span class="portal-badge ' + statusClass + '">' + (conn.status || 'Connected') + '</span></td><td style="font-size:0.8125rem">' + lastSync + '</td><td><button class="portal-btn portal-btn-sm portal-btn-secondary" onclick="testConnection(\'' + conn.provider + '\')">Test</button> <button class="portal-btn portal-btn-sm portal-btn-danger" onclick="disconnectProvider(\'' + conn.provider + '\', this)">Disconnect</button></td></tr>';
+      });
+      connHTML = '<div class="portal-card"><table class="portal-table"><thead><tr><th>Provider</th><th>Status</th><th>Last Sync</th><th>Actions</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+    }
+  }
+  return `<div class="portal-main-header"><div><h1>Connected Accounts</h1><p style="color:#78716c;font-size:0.875rem">Manage your active connections</p></div><a href="/portal/integrations" class="portal-btn portal-btn-primary portal-btn-sm">+ Add Connection</a></div><div id="conn-content">${connHTML}</div>`;
+}
+
+
 // ─── 8. CRM / ERP ───
-function renderPortalCRM(): string {
-  return `<div class="portal-main-header"><div><h1>CRM / ERP</h1><p style="color:#78716c;font-size:0.875rem" id="crm-count">Loading...</p></div></div><div id="crm-content"><div class="portal-skeleton"><div class="portal-skeleton-line w4"></div><div class="portal-skeleton-card"></div></div></div><script>var crmNames=["Salesforce","HubSpot","Dynamics 365","NetSuite","SAP","Zoho CRM","Pipedrive","Freshsales"];var crmIcons={"Salesforce":"☁️","HubSpot":"🧲","Dynamics 365":"🟦","NetSuite":"🏢","SAP":"🔷","Zoho CRM":"📋","Pipedrive":"📊","Freshsales":"🌱"};fetch("/api/tenant/integrations",{credentials:"same-origin"}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(connected){var connMap={};connected.forEach(function(c){connMap[c.provider]=c});var count=0;var h=\'<div class="portal-card"><table class="portal-table"><thead><tr><th>Platform</th><th>Status</th><th>Last Sync</th><th></th></tr></thead><tbody>\';crmNames.forEach(function(name){var c=connMap[name];if(c)count++;h+=\'<tr><td style="font-weight:700"><span style="margin-right:0.5rem">\'+(crmIcons[name]||"🏢")+\'</span>\'+name+\'</td><td><span class="portal-badge \'+(c?"portal-badge-green":"portal-badge-gray")+\'">\'+(c?"Connected":"Not Connected")+\'</span></td><td style="font-size:0.8125rem">\'+(c&&c.lastSync?new Date(c.lastSync).toLocaleString():"Never")+\'</td><td>\'+(c?\'<button class="portal-btn portal-btn-sm portal-btn-secondary">Sync Now</button>\':\'<button class="portal-btn portal-btn-sm portal-btn-primary" onclick="connectProvider(\\\'"+name+"\\\')">Connect</button>\')+\'</td></tr>\'});h+=\'</tbody></table></div>\';document.getElementById("crm-count").textContent=count+" connected";document.getElementById("crm-content").innerHTML=h}).catch(function(){document.getElementById("crm-content").innerHTML=\'<div class="portal-error"><div class="portal-error-icon">⚠️</div><div class="portal-error-title">Failed to load CRM/ERP data</div><div class="portal-error-text">The integrations API may not be available yet.</div><a href="/portal/crm" class="portal-btn portal-btn-secondary portal-btn-sm">Retry</a></div>\'})</script>`;
+function renderPortalCRM(email: string): string {
+  return `<div class="portal-main-header"><div><h1>CRM / ERP</h1><p style="color:#78716c;font-size:0.875rem" id="crm-count">Loading...</p></div></div><div id="crm-content"><div class="portal-skeleton"><div class="portal-skeleton-line w4"></div><div class="portal-skeleton-card"></div></div></div><script>var crmNames=["Salesforce","HubSpot","Dynamics 365","NetSuite","SAP","Zoho CRM","Pipedrive","Freshsales","SugarCRM","Microsoft Dynamics","Oracle CX","Zendesk Sell"];var crmIcons={"Salesforce":"☁️","HubSpot":"🧲","Dynamics 365":"🟦","NetSuite":"🏢","SAP":"🔷","Zoho CRM":"📋","Pipedrive":"📊","Freshsales":"🌱","SugarCRM":"🍬","Microsoft Dynamics":"💼","Oracle CX":"🔴","Zendesk Sell":"🎯"};function connectProvider(name){var btn=event.target;btn.disabled=true;btn.textContent='Connecting...';fetch('/api/integrations/connect',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({provider:name})}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(d){btn.textContent='✓ Connected';btn.className='portal-btn portal-btn-sm portal-btn-success';btn.disabled=true;setTimeout(function(){location.reload()},500)}).catch(function(e){btn.disabled=false;btn.textContent='Connect'})}function syncProvider(name){var btn=event.target;btn.disabled=true;btn.textContent='Syncing...';fetch('/api/integrations/connect',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({provider:name})}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(d){btn.textContent='✓ Synced';btn.className='portal-btn portal-btn-sm portal-btn-success';btn.disabled=true;setTimeout(function(){location.reload()},1000)}).catch(function(e){btn.disabled=false;btn.textContent='Sync Now'})}fetch("/api/tenant/integrations",{credentials:"same-origin"}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(connected){var connMap={};connected.forEach(function(c){connMap[c.provider]=c});var count=0;var h=\'<div class="portal-card"><table class="portal-table"><thead><tr><th>Platform</th><th>Status</th><th>Last Sync</th><th></th></tr></thead><tbody>\';crmNames.forEach(function(name){var c=connMap[name];if(c)count++;h+=\'<tr><td style="font-weight:700"><span style="margin-right:0.5rem">\'+(crmIcons[name]||"🏢")+\'</span>\'+name+\'</td><td><span class="portal-badge \'+(c?"portal-badge-green":"portal-badge-gray")+\'">\'+(c?"Connected":"Not Connected")+\'</span></td><td style="font-size:0.8125rem">\'+(c&&c.lastSync?new Date(c.lastSync).toLocaleString():"Never")+\'</td><td>\'+(c?\'<button class="portal-btn portal-btn-sm portal-btn-secondary" onclick="syncProvider('+name+')">Sync Now</button>\':\'<button class="portal-btn portal-btn-sm portal-btn-primary" onclick="connectProvider(\\\'"+name+"\\\')">Connect</button>\')+\'</td></tr>\'});h+=\'</tbody></table></div>\';document.getElementById("crm-count").textContent=count+" connected";document.getElementById("crm-content").innerHTML=h}).catch(function(){document.getElementById("crm-content").innerHTML=\'<div class="portal-error"><div class="portal-error-icon">⚠️</div><div class="portal-error-title">Failed to load CRM/ERP data</div><div class="portal-error-text">The integrations API may not be available yet.</div><a href="/portal/crm" class="portal-btn portal-btn-secondary portal-btn-sm">Retry</a></div>\'})</script>`;
 }
 
 // ─── 9. API Keys ───
@@ -1505,7 +1532,7 @@ function renderPortalAPIKeys(): string {
 
 // ─── 10. Settings ───
 function renderPortalSettings(email: string): string {
-  return `<div class="portal-main-header"><div><h1>Settings</h1><p style="color:#78716c;font-size:0.875rem">Manage your account and preferences</p></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem"><div class="portal-card"><h2 style="font-size:1.125rem;font-weight:800;color:#e7e5e4;margin-bottom:1.25rem">Account Information</h2><form class="portal-form" onsubmit="handleAccountSave(event)"><div><label>Email</label><input class="portal-input" type="email" value="'+email+'" disabled style="opacity:0.6"></div><div><label>Full Name</label><input class="portal-input" type="text" placeholder="Your name" value="Operations Lead"></div><div><label>Company</label><input class="portal-input" type="text" placeholder="Company name" value="Acme Industries"></div><button type="submit" class="portal-btn portal-btn-primary">Save Changes</button></form></div><div class="portal-card"><h2 style="font-size:1.125rem;font-weight:800;color:#e7e5e4;margin-bottom:1.25rem">Change Password</h2><form class="portal-form" onsubmit="handlePasswordChange(event)"><div><label>Current Password</label><input class="portal-input" type="password" placeholder="••••••••"></div><div><label>New Password</label><input class="portal-input" type="password" placeholder="Min 8 characters"></div><div><label>Confirm New Password</label><input class="portal-input" type="password" placeholder="Re-enter password"></div><button type="submit" class="portal-btn portal-btn-primary">Update Password</button></form></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-top:1.5rem"><div class="portal-card"><h2 style="font-size:1.125rem;font-weight:800;color:#e7e5e4;margin-bottom:1.25rem">Notification Preferences</h2><div style="display:flex;flex-direction:column;gap:0.75rem">'+["Workflow completions","Agent deployment updates","Integration health alerts","Weekly digest report","Billing notifications","Product updates & tips"].map(function(p,i){return '<label class="portal-toggle"><input type="checkbox" '+(i<5?'checked':'')+' onchange="localStorage.setItem(\\'notif-'+i+'\\',this.checked)"><span class="track"></span><span class="thumb"></span><span class="portal-toggle-label">'+p+'</span></label>'}).join("")+'</div></div><div class="portal-card"><h2 style="font-size:1.125rem;font-weight:800;color:#e7e5e4;margin-bottom:1.25rem">Billing</h2><div id="billing-content"><div style="display:flex;flex-direction:column;gap:1rem"><div style="display:flex;justify-content:space-between;align-items:center"><span style="color:#a8a29e;font-size:0.875rem">Plan</span><span class="portal-badge portal-badge-green">Active</span></div><a href="/build" class="portal-btn portal-btn-secondary portal-btn-sm" style="width:100%;text-decoration:none">Upgrade Plan</a></div></div></div></div><div class="portal-danger-zone"><h3>Danger Zone</h3><p>Permanently delete your account and all associated data. This action cannot be undone.</p><button class="portal-btn portal-btn-danger" onclick="if(confirm(\'Are you absolutely sure? This cannot be undone.\'))alert(\'Account deletion requires admin approval. Contact support.\')">Delete Account</button></div><script>async function handlePasswordChange(e){e.preventDefault();var btn=e.target.querySelector("button");btn.disabled=true;btn.textContent="Updating...";try{var inputs=e.target.querySelectorAll("input");if(inputs[2]&&inputs[1].value!==inputs[2].value){throw new Error("Passwords do not match")}var res=await fetch("/api/settings/password",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({currentPassword:inputs[0].value,newPassword:inputs[1].value})});var d=await res.json();if(!res.ok)throw new Error(d.error||"Failed");alert("Password updated!");e.target.reset()}catch(err){alert(err.message)}finally{btn.disabled=false;btn.textContent="Update Password"}}async function handleAccountSave(e){e.preventDefault();var btn=e.target.querySelector("button");btn.disabled=true;btn.textContent="Saving...";try{await new Promise(function(r){setTimeout(r,500)});alert("Settings saved!")}finally{btn.disabled=false;btn.textContent="Save Changes"}}fetch("/api/tenant/purchases",{credentials:"same-origin"}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(p){if(p.length>0){var h=\'<div class="portal-card-header" style="margin-bottom:0.75rem">Purchase History</div>\';p.forEach(function(pu){h+=\'<div style="display:flex;justify-content:space-between;padding:0.375rem 0;border-bottom:1px solid #292524;font-size:0.8125rem"><span style="color:#d6d3d1">\'+(pu.agentType||pu.productId)+\'</span><span style="color:#78716c">\'+new Date(pu.date).toLocaleDateString()+\'</span></div>\'});document.getElementById("billing-content").innerHTML=h}}).catch(function(){})</script>`;
+  return `<div class="portal-main-header"><div><h1>Settings</h1><p style="color:#78716c;font-size:0.875rem">Manage your account and preferences</p></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem"><div class="portal-card"><h2 style="font-size:1.125rem;font-weight:800;color:#e7e5e4;margin-bottom:1.25rem">Account Information</h2><form class="portal-form" onsubmit="handleAccountSave(event)"><div><label>Email</label><input class="portal-input" type="email" value="${email}" disabled style="opacity:0.6"></div><div><label>Full Name</label><input class="portal-input" type="text" placeholder="Your name" value="Operations Lead"></div><div><label>Company</label><input class="portal-input" type="text" placeholder="Company name" value="Acme Industries"></div><button type="submit" class="portal-btn portal-btn-primary">Save Changes</button></form></div><div class="portal-card"><h2 style="font-size:1.125rem;font-weight:800;color:#e7e5e4;margin-bottom:1.25rem">Change Password</h2><form class="portal-form" onsubmit="handlePasswordChange(event)"><div><label>Current Password</label><input class="portal-input" type="password" placeholder="••••••••"></div><div><label>New Password</label><input class="portal-input" type="password" placeholder="Min 8 characters"></div><div><label>Confirm New Password</label><input class="portal-input" type="password" placeholder="Re-enter password"></div><button type="submit" class="portal-btn portal-btn-primary">Update Password</button></form></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-top:1.5rem"><div class="portal-card"><h2 style="font-size:1.125rem;font-weight:800;color:#e7e5e4;margin-bottom:1.25rem">Notification Preferences</h2><div style="display:flex;flex-direction:column;gap:0.75rem">'+["Workflow completions","Agent deployment updates","Integration health alerts","Weekly digest report","Billing notifications","Product updates & tips"].map(function(p,i){return '<label class="portal-toggle"><input type="checkbox" '+(i<5?'checked':'')+' onchange="localStorage.setItem(\\'notif-'+i+'\\',this.checked)"><span class="track"></span><span class="thumb"></span><span class="portal-toggle-label">'+p+'</span></label>'}).join("")+'</div></div><div class="portal-card"><h2 style="font-size:1.125rem;font-weight:800;color:#e7e5e4;margin-bottom:1.25rem">Billing</h2><div id="billing-content"><div style="display:flex;flex-direction:column;gap:1rem"><div style="display:flex;justify-content:space-between;align-items:center"><span style="color:#a8a29e;font-size:0.875rem">Plan</span><span class="portal-badge portal-badge-green">Active</span></div><a href="/build" class="portal-btn portal-btn-secondary portal-btn-sm" style="width:100%;text-decoration:none">Upgrade Plan</a></div></div></div></div><div class="portal-danger-zone"><h3>Danger Zone</h3><p>Permanently delete your account and all associated data. This action cannot be undone.</p><button class="portal-btn portal-btn-danger" onclick="if(confirm(\'Are you absolutely sure? This cannot be undone.\'))alert(\'Account deletion requires admin approval. Contact support.\')">Delete Account</button></div><script>async function handlePasswordChange(e){e.preventDefault();var btn=e.target.querySelector("button");btn.disabled=true;btn.textContent="Updating...";try{var inputs=e.target.querySelectorAll("input");if(inputs[2]&&inputs[1].value!==inputs[2].value){throw new Error("Passwords do not match")}var res=await fetch("/api/settings/password",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({currentPassword:inputs[0].value,newPassword:inputs[1].value})});var d=await res.json();if(!res.ok)throw new Error(d.error||"Failed");alert("Password updated!");e.target.reset()}catch(err){alert(err.message)}finally{btn.disabled=false;btn.textContent="Update Password"}}async function handleAccountSave(e){e.preventDefault();var btn=e.target.querySelector("button");btn.disabled=true;btn.textContent="Saving...";try{await new Promise(function(r){setTimeout(r,500)});alert("Settings saved!")}finally{btn.disabled=false;btn.textContent="Save Changes"}}fetch("/api/tenant/purchases",{credentials:"same-origin"}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(p){if(p.length>0){var h=\'<div class="portal-card-header" style="margin-bottom:0.75rem">Purchase History</div>\';p.forEach(function(pu){h+=\'<div style="display:flex;justify-content:space-between;padding:0.375rem 0;border-bottom:1px solid #292524;font-size:0.8125rem"><span style="color:#d6d3d1">\'+(pu.agentType||pu.productId)+\'</span><span style="color:#78716c">\'+new Date(pu.date).toLocaleDateString()+\'</span></div>\'});document.getElementById("billing-content").innerHTML=h}}).catch(function(){})</script>`;
 }
 // ─── Tenant API Handlers ───
 function handleTenantDashboard(req: Request): Response {
@@ -1536,6 +1563,14 @@ function handleTenantAgents(req: Request): Response {
 function handleTenantIntegrations(req: Request): Response {
   const user = getSessionUser(req);
   if (!user) return json({ error: "Not authenticated" }, 401);
+  // Purchase gating: owner always allowed, others must have purchased
+  if (user.email !== "mathewortiz97@gmail.com") {
+    const purchases = readJSON(TENANT_PURCHASES_FILE);
+    const userPurchases = purchases[user.email] || [];
+    if (userPurchases.length === 0) {
+      return json({ error: "Purchase required to connect integrations" }, 403);
+    }
+  }
   seedTenantDataIfNeeded(user.email);
   return json(readTenantData(TENANT_INTEGRATIONS_FILE, user.email));
 }
@@ -1620,6 +1655,132 @@ function handleTenantPurchases(req: Request): Response {
   if (!user) return json({ error: "Not authenticated" }, 401);
   seedTenantDataIfNeeded(user.email);
   return json(readTenantData(TENANT_PURCHASES_FILE, user.email));
+}
+
+
+// ─── Integration Connect/Disconnect Handlers ───
+async function handleIntegrationConnect(req: Request): Promise<Response> {
+  const user = getSessionUser(req);
+  if (!user) return json({ error: "Not authenticated" }, 401);
+  // Purchase gating: owner always allowed, others must have purchased
+  if (user.email !== "mathewortiz97@gmail.com") {
+    const purchases = readJSON(TENANT_PURCHASES_FILE);
+    const userPurchases = purchases[user.email] || [];
+    // purchase check simplified
+    if (userPurchases.length === 0) {
+      return json({ error: "Purchase required to connect integrations" }, 403);
+    }
+  }
+
+  const body = await req.json().catch(() => ({}));
+  const provider = body.provider || "Unknown";
+  const integrations = readJSON(TENANT_INTEGRATIONS_FILE);
+  if (!integrations[user.email]) integrations[user.email] = [];
+  integrations[user.email].push({
+    id: "int-" + Math.random().toString(36).slice(2, 10),
+    provider,
+    status: "Connected",
+    connectedAt: new Date().toISOString(),
+    lastSync: new Date().toISOString()
+  });
+  writeJSON(TENANT_INTEGRATIONS_FILE, integrations);
+  return json(integrations[user.email][integrations[user.email].length - 1]);
+}
+async function handleIntegrationDisconnect(req: Request): Promise<Response> {
+  const user = getSessionUser(req);
+  if (!user) return json({ error: "Not authenticated" }, 401);
+  // Purchase gating: owner always allowed, others must have purchased
+  if (user.email !== "mathewortiz97@gmail.com") {
+    const purchases = readJSON(TENANT_PURCHASES_FILE);
+    const userPurchases = purchases[user.email] || [];
+    // purchase check simplified
+    if (userPurchases.length === 0) {
+      return json({ error: "Purchase required to connect integrations" }, 403);
+    }
+  }
+
+  const body = await req.json().catch(() => ({}));
+  const provider = body.provider;
+  const integrations = readJSON(TENANT_INTEGRATIONS_FILE);
+  if (integrations[user.email]) {
+    integrations[user.email] = integrations[user.email].filter((i: any) => i.provider !== provider);
+    writeJSON(TENANT_INTEGRATIONS_FILE, integrations);
+  }
+  return json({ success: true });
+}
+
+
+// ─── Stripe Webhook Handler ───
+const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || "";
+async function handleStripeWebhook(req: Request): Promise<Response> {
+  try {
+    const body = await req.text();
+    const signature = req.headers.get("stripe-signature") || "";
+    // Parse the event - in production, verify signature with Stripe SDK
+    let event: any;
+    try { event = JSON.parse(body); } catch { return json({ error: "Invalid JSON" }, 400); }
+    
+    if (event.type === "checkout.session.completed") {
+      const session = event.data.object;
+      const email = session.customer_details?.email || session.customer_email;
+      const productId = session.metadata?.product_id || "unknown";
+      
+      if (email) {
+        // Create user if doesn't exist
+        const users = readJSON(USERS_FILE);
+        if (!users[email]) {
+          const crypto = require("crypto");
+          const tempPass = crypto.randomBytes(12).toString("hex");
+          users[email] = {
+            email,
+            password: crypto.createHash("sha256").update(tempPass + "sl100-salt").digest("hex"),
+            role: "client",
+            createdAt: Date.now()
+          };
+          writeJSON(USERS_FILE, users);
+        }
+        
+        // Log the purchase
+        const purchases = readJSON(TENANT_PURCHASES_FILE);
+        if (!purchases[email]) purchases[email] = [];
+        purchases[email].push({
+          id: "pur-" + Math.random().toString(36).slice(2, 10),
+          productId,
+          stripeSessionId: session.id,
+          amount: session.amount_total,
+          date: new Date().toISOString(),
+          status: "completed"
+        });
+        writeJSON(TENANT_PURCHASES_FILE, purchases);
+        
+        // Deploy agents based on product
+        const agents = readJSON(TENANT_AGENTS_FILE);
+        if (!agents[email]) agents[email] = [];
+        const agentTypes: Record<string, string[]> = {
+          "starter": ["document_intake", "support_agent"],
+          "growth": ["document_intake", "support_agent", "invoice_ledger", "sales_outreach", "hr_compliance"],
+          "scale": ["document_intake", "support_agent", "invoice_ledger", "sales_outreach", "hr_compliance", "dispatch_logistics", "audit_logger", "contract_management", "customer_success", "project_management", "procurement_vendor", "it_operations", "fp_and_a", "marketing_social", "knowledge_assistant", "inventory_management", "voice_receptionist", "healthcare_intake"]
+        };
+        const tier = productId.includes("starter") ? "starter" : productId.includes("growth") ? "growth" : "scale";
+        const types = agentTypes[tier] || ["document_intake"];
+        types.forEach((type, i) => {
+          agents[email].push({
+            id: "agent-" + Math.random().toString(36).slice(2, 10),
+            type,
+            name: type.split("_").map(w => w[0].toUpperCase() + w.slice(1)).join(" "),
+            status: "Active",
+            industry: "Universal",
+            deployedAt: new Date().toISOString(),
+            lastActive: new Date().toISOString()
+          });
+        });
+        writeJSON(TENANT_AGENTS_FILE, agents);
+      }
+    }
+    return json({ received: true });
+  } catch (e: any) {
+    return json({ error: e.message }, 400);
+  }
 }
 
 serve({ fetch: (req: Request) => servePage(req), hostname: HOST, port: PORT });
