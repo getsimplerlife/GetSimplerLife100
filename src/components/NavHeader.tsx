@@ -1,12 +1,23 @@
 import { useState } from "react";
 import { Link, useLocation } from "@tanstack/react-router";
 
-interface HeaderProps {
-  businessName: string;
-  user?: any;
-}
+const toolLinks = [
+  { to: "/tools", label: "🛠️ Tools Hub" },
+  { to: "/tools/can-we-automate-this", label: "🔍 Can We Automate This?" },
+  { to: "/tools/ai-advisor", label: "🤖 AI Operations Advisor" },
+  { to: "/tools/assessment", label: "📋 AI Automation Assessment" },
+  { to: "/roi-calculator", label: "📊 ROI Calculator" },
+];
 
-export function Header({ businessName, user }: HeaderProps) {
+const faqLinks = [
+  { to: "/faq", label: "❓ FAQ" },
+  { to: "/about", label: "ℹ️ About" },
+  { to: "/contact", label: "📬 Contact" },
+  { to: "/how-it-works", label: "🔧 How It Works" },
+  { to: "/support", label: "🛟 Support" },
+];
+
+export function NavHeader({ businessName = "Simpler Life 100" }: { businessName?: string }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
   const [mobileFaqOpen, setMobileFaqOpen] = useState(false);
@@ -14,124 +25,54 @@ export function Header({ businessName, user }: HeaderProps) {
 
   const isActive = (path: string) => location.pathname === path;
 
-  const navLinkClass = (path: string, exact = true) => {
-    const active = exact ? isActive(path) : location.pathname.startsWith(path);
-    return `text-sm font-bold transition-colors ${
-      active ? "text-emerald-500" : "text-stone-400 hover:text-white"
-    }`;
-  };
-
-  const mobileNavLinkClass = (path: string, exact = true) => {
-    const active = exact ? isActive(path) : location.pathname.startsWith(path);
-    return `block px-4 py-3 text-sm font-bold rounded-lg transition-colors ${
-      active
-        ? "text-emerald-400 bg-emerald-500/10"
-        : "text-stone-400 hover:text-white hover:bg-stone-900"
-    }`;
-  };
-
-  const toolLinks = [
-    { to: "/tools", label: "🛠️ Tools Hub" },
-    { to: "/tools/can-we-automate-this", label: "🔍 Can We Automate This?" },
-    { to: "/tools/ai-advisor", label: "🤖 AI Operations Advisor" },
-    { to: "/tools/assessment", label: "📋 AI Automation Assessment" },
-    { to: "/roi-calculator", label: "📊 ROI Calculator" },
-  ];
-
-  const faqLinks = [
-    { to: "/faq", label: "❓ FAQ" },
-    { to: "/about", label: "ℹ️ About" },
-    { to: "/contact", label: "📬 Contact" },
-    { to: "/how-it-works", label: "🔧 How It Works" },
-    { to: "/support", label: "🛟 Support" },
-  ];
-
   return (
     <header className="px-6 py-4 bg-stone-950/80 backdrop-blur-md sticky top-0 z-50 border-b border-stone-900">
       <div className="max-w-7xl mx-auto flex justify-between items-center">
-        {/* Logo */}
         <Link to="/" className="text-2xl font-black text-emerald-500 tracking-tight">
           {businessName}
         </Link>
 
         {/* Desktop Nav */}
         <nav className="hidden md:flex gap-8 items-center">
-          <Link to="/industries" className={navLinkClass("/industries", false)}>Industries</Link>
+          <Link to="/industries" className="text-sm font-bold text-stone-400 hover:text-white transition-colors">Industries</Link>
 
           {/* Tools Dropdown (Desktop) */}
           <div className="relative group">
-            <button className={`text-sm font-bold transition-colors flex items-center gap-1 cursor-pointer ${
-              location.pathname.startsWith("/tools") || location.pathname === "/roi-calculator"
-                ? "text-emerald-500"
-                : "text-stone-400 hover:text-white"
-            }`}>
+            <button className="text-sm font-bold text-stone-400 hover:text-white transition-colors flex items-center gap-1 cursor-pointer">
               Tools
               <svg className="w-3 h-3 mt-0.5 transition-transform group-hover:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
             </button>
-            <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+            <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
               <div className="bg-stone-900 border border-stone-800 rounded-xl shadow-xl shadow-black/30 p-2 min-w-[210px] space-y-0.5">
                 {toolLinks.map((link) => (
-                  <Link
-                    key={link.to}
-                    to={link.to}
-                    className={`block px-3.5 py-2 text-sm font-bold rounded-lg transition-colors ${
-                      isActive(link.to)
-                        ? "text-emerald-400 bg-emerald-500/10"
-                        : "text-stone-300 hover:text-white hover:bg-stone-800"
-                    }`}
-                  >
-                    {link.label}
-                  </Link>
+                  <Link key={link.to} to={link.to} className="block px-3.5 py-2 text-sm font-bold rounded-lg text-stone-300 hover:text-white hover:bg-stone-800 transition-colors">{link.label}</Link>
                 ))}
               </div>
             </div>
           </div>
 
-          <Link to="/build" className={navLinkClass("/build")}>Builder</Link>
+          <Link to="/build" className="text-sm font-bold text-stone-400 hover:text-white transition-colors">Builder</Link>
 
           {/* FAQ Dropdown (Desktop) */}
           <div className="relative group">
-            <button className={`text-sm font-bold transition-colors flex items-center gap-1 cursor-pointer ${
-              ["/faq", "/about", "/contact", "/how-it-works", "/support"].some(p => location.pathname === p)
-                ? "text-emerald-500"
-                : "text-stone-400 hover:text-white"
-            }`}>
+            <button className="text-sm font-bold text-stone-400 hover:text-white transition-colors flex items-center gap-1 cursor-pointer">
               FAQ
               <svg className="w-3 h-3 mt-0.5 transition-transform group-hover:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
             </button>
-            <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+            <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
               <div className="bg-stone-900 border border-stone-800 rounded-xl shadow-xl shadow-black/30 p-2 min-w-[180px] space-y-0.5">
                 {faqLinks.map((link) => (
-                  <Link
-                    key={link.to}
-                    to={link.to}
-                    className={`block px-3.5 py-2 text-sm font-bold rounded-lg transition-colors ${
-                      isActive(link.to)
-                        ? "text-emerald-400 bg-emerald-500/10"
-                        : "text-stone-300 hover:text-white hover:bg-stone-800"
-                    }`}
-                  >
-                    {link.label}
-                  </Link>
+                  <Link key={link.to} to={link.to} className="block px-3.5 py-2 text-sm font-bold rounded-lg text-stone-300 hover:text-white hover:bg-stone-800 transition-colors">{link.label}</Link>
                 ))}
               </div>
             </div>
           </div>
 
-          {user ? (
-            <Link
-              to="/portal"
-              className="bg-emerald-500 hover:bg-emerald-400 text-black px-5 py-2.5 rounded-xl font-bold transition-all shadow-md text-sm"
-            >
-              Dashboard
-            </Link>
-          ) : (
-            <Link to="/login" className="text-sm font-bold text-emerald-400 hover:text-emerald-300">Login</Link>
-          )}
+          <Link to="/login" className="text-sm font-bold text-emerald-400 hover:text-emerald-300">Login</Link>
         </nav>
 
         {/* Mobile Hamburger */}
@@ -177,7 +118,7 @@ export function Header({ businessName, user }: HeaderProps) {
               <Link
                 to="/industries"
                 onClick={() => setMenuOpen(false)}
-                className={mobileNavLinkClass("/industries", false)}
+                className="block px-4 py-3 text-sm font-bold rounded-lg text-stone-400 hover:text-white hover:bg-stone-900 transition-colors"
               >
                 Industries
               </Link>
@@ -186,11 +127,7 @@ export function Header({ businessName, user }: HeaderProps) {
               <div>
                 <button
                   onClick={() => setMobileToolsOpen(!mobileToolsOpen)}
-                  className={`w-full flex items-center justify-between px-4 py-3 text-sm font-bold rounded-lg transition-colors ${
-                    mobileToolsOpen || location.pathname.startsWith("/tools") || location.pathname === "/roi-calculator"
-                      ? "text-emerald-400 bg-emerald-500/10"
-                      : "text-stone-400 hover:text-white hover:bg-stone-900"
-                  }`}
+                  className="w-full flex items-center justify-between px-4 py-3 text-sm font-bold rounded-lg text-stone-400 hover:text-white hover:bg-stone-900 transition-colors"
                 >
                   <span>Tools</span>
                   <svg
@@ -209,11 +146,7 @@ export function Header({ businessName, user }: HeaderProps) {
                         key={link.to}
                         to={link.to}
                         onClick={() => setMenuOpen(false)}
-                        className={`block px-3 py-2 text-sm font-bold rounded-lg transition-colors ${
-                          isActive(link.to)
-                            ? "text-emerald-400 bg-emerald-500/10"
-                            : "text-stone-400 hover:text-white hover:bg-stone-900"
-                        }`}
+                        className="block px-3 py-2 text-sm font-bold rounded-lg text-stone-400 hover:text-white hover:bg-stone-900 transition-colors"
                       >
                         {link.label}
                       </Link>
@@ -225,19 +158,16 @@ export function Header({ businessName, user }: HeaderProps) {
               <Link
                 to="/build"
                 onClick={() => setMenuOpen(false)}
-                className={mobileNavLinkClass("/build")}
+                className="block px-4 py-3 text-sm font-bold rounded-lg text-stone-400 hover:text-white hover:bg-stone-900 transition-colors"
               >
                 Builder
               </Link>
+
               {/* Mobile FAQ (click to toggle) */}
               <div>
                 <button
                   onClick={() => setMobileFaqOpen(!mobileFaqOpen)}
-                  className={`w-full flex items-center justify-between px-4 py-3 text-sm font-bold rounded-lg transition-colors ${
-                    mobileFaqOpen || ["/faq", "/about", "/contact", "/how-it-works", "/support"].some(p => location.pathname === p)
-                      ? "text-emerald-400 bg-emerald-500/10"
-                      : "text-stone-400 hover:text-white hover:bg-stone-900"
-                  }`}
+                  className="w-full flex items-center justify-between px-4 py-3 text-sm font-bold rounded-lg text-stone-400 hover:text-white hover:bg-stone-900 transition-colors"
                 >
                   <span>FAQ</span>
                   <svg
@@ -256,11 +186,7 @@ export function Header({ businessName, user }: HeaderProps) {
                         key={link.to}
                         to={link.to}
                         onClick={() => setMenuOpen(false)}
-                        className={`block px-3 py-2 text-sm font-bold rounded-lg transition-colors ${
-                          isActive(link.to)
-                            ? "text-emerald-400 bg-emerald-500/10"
-                            : "text-stone-400 hover:text-white hover:bg-stone-900"
-                        }`}
+                        className="block px-3 py-2 text-sm font-bold rounded-lg text-stone-400 hover:text-white hover:bg-stone-900 transition-colors"
                       >
                         {link.label}
                       </Link>
@@ -271,23 +197,13 @@ export function Header({ businessName, user }: HeaderProps) {
             </div>
 
             <div className="border-t border-stone-900 px-3 py-4 space-y-2">
-              {user ? (
-                <Link
-                  to="/portal"
-                  onClick={() => setMenuOpen(false)}
-                  className="block w-full text-center bg-emerald-500 hover:bg-emerald-400 text-black px-5 py-3 rounded-xl font-bold transition-all shadow-md"
-                >
-                  Dashboard
-                </Link>
-              ) : (
-                <Link
-                  to="/login"
-                  onClick={() => setMenuOpen(false)}
-                  className="block w-full text-center bg-stone-800 text-stone-200 px-5 py-3 rounded-xl font-bold hover:bg-stone-700 transition-all"
-                >
-                  Login
-                </Link>
-              )}
+              <Link
+                to="/login"
+                onClick={() => setMenuOpen(false)}
+                className="block w-full text-center bg-stone-800 text-stone-200 px-5 py-3 rounded-xl font-bold hover:bg-stone-700 transition-all"
+              >
+                Login
+              </Link>
             </div>
           </div>
         </div>
