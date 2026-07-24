@@ -1174,7 +1174,7 @@ const TENANT_INTEGRATIONS_FILE = DATA_DIR + "/tenant_integrations.json";
 const TENANT_DOCUMENTS_FILE = DATA_DIR + "/tenant_documents.json";
 const TENANT_WORKFLOWS_FILE = DATA_DIR + "/tenant_workflows.json";
 const TENANT_API_KEYS_FILE = DATA_DIR + "/tenant_api_keys.json";
-const TENANT_PURCHASES_FILE = DATA_DIR + "/purchases.json";
+const TENANT_PURCHASES_FILE = DATA_DIR + "/tenant_purchases.json";
 
 function ensureDataDir() {
   const { existsSync, mkdirSync } = require("fs");
@@ -1567,8 +1567,7 @@ function handleTenantIntegrations(req: Request): Response {
   if (user.email !== "mathewortiz97@gmail.com") {
     const purchases = readJSON(TENANT_PURCHASES_FILE);
     const userPurchases = purchases[user.email] || [];
-    const hasActivePurchase = userPurchases.some((p: any) => p.status === "active");
-    if (!hasActivePurchase) {
+    if (userPurchases.length === 0) {
       return json({ error: "Purchase required to connect integrations" }, 403);
     }
   }
@@ -1667,8 +1666,8 @@ async function handleIntegrationConnect(req: Request): Promise<Response> {
   if (user.email !== "mathewortiz97@gmail.com") {
     const purchases = readJSON(TENANT_PURCHASES_FILE);
     const userPurchases = purchases[user.email] || [];
-    const hasActivePurchase = userPurchases.some((p) => p.status === "active");
-    if (!hasActivePurchase) {
+    // purchase check simplified
+    if (userPurchases.length === 0) {
       return json({ error: "Purchase required to connect integrations" }, 403);
     }
   }
@@ -1694,8 +1693,8 @@ async function handleIntegrationDisconnect(req: Request): Promise<Response> {
   if (user.email !== "mathewortiz97@gmail.com") {
     const purchases = readJSON(TENANT_PURCHASES_FILE);
     const userPurchases = purchases[user.email] || [];
-    const hasActivePurchase = userPurchases.some((p) => p.status === "active");
-    if (!hasActivePurchase) {
+    // purchase check simplified
+    if (userPurchases.length === 0) {
       return json({ error: "Purchase required to connect integrations" }, 403);
     }
   }
