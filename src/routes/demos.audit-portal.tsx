@@ -108,7 +108,7 @@ function AuditPortalDemo() {
             <div className="p-8 bg-emerald-900 rounded-[2rem] text-white">
               <h4 className="text-xl font-bold mb-2">Ready to start?</h4>
               <p className="text-emerald-200 text-sm mb-6">Our average client realizes their first automated workflow in under 21 days.</p>
-              <a href="https://buy.stripe.com/fZufZj2OzdEr6Hh0nm2Fa00" className="inline-block bg-stone-950 text-emerald-900 px-8 py-3 rounded-xl font-bold hover:bg-emerald-50 transition-colors">
+              <a href="https://buy.stripe.com/14A8wRgFp0RFd5Feec2Fa1a" className="inline-block bg-stone-950 text-emerald-900 px-8 py-3 rounded-xl font-bold hover:bg-emerald-50 transition-colors">
                 Book Audit Now
               </a>
             </div>

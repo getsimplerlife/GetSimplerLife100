@@ -1,0 +1,80 @@
+{
+  "mathewortiz97@gmail.com": [
+    {
+      "id": "pur-001",
+      "productId": "prod_R5kL09pQ2mNx7v",
+      "agentType": "document_intake",
+      "date": "2026-06-20T10:30:00Z",
+      "status": "active"
+    },
+    {
+      "id": "pur-002",
+      "productId": "prod_R5kL09pQ2mNx7v",
+      "agentType": "sales_outreach",
+      "date": "2026-06-22T14:15:00Z",
+      "status": "active"
+    },
+    {
+      "id": "pur-003",
+      "productId": "prod_R5kL09pQ2mNx7v",
+      "agentType": "support_agent",
+      "date": "2026-07-01T09:00:00Z",
+      "status": "active"
+    },
+    {
+      "id": "pur-004",
+      "productId": "prod_R5kL09pQ2mNx7v",
+      "agentType": "invoice_ledger",
+      "date": "2026-07-10T11:45:00Z",
+      "status": "active"
+    }
+  ],
+  "demo@test.com": [
+    {
+      "id": "pur-001",
+      "productId": "prod_R5kL09pQ2mNx7v",
+      "agentType": "document_intake",
+      "date": "2026-06-20T10:30:00Z",
+      "status": "active"
+    },
+    {
+      "id": "pur-002",
+      "productId": "prod_R5kL09pQ2mNx7v",
+      "agentType": "sales_outreach",
+      "date": "2026-06-22T14:15:00Z",
+      "status": "active"
+    },
+    {
+      "id": "pur-003",
+      "productId": "prod_R5kL09pQ2mNx7v",
+      "agentType": "support_agent",
+      "date": "2026-07-01T09:00:00Z",
+      "status": "active"
+    },
+    {
+      "id": "pur-004",
+      "productId": "prod_R5kL09pQ2mNx7v",
+      "agentType": "invoice_ledger",
+      "date": "2026-07-10T11:45:00Z",
+      "status": "active"
+    }
+  ],
+  "newclient@test.com": [
+    {
+      "id": "pur-hoeqlmpu",
+      "productId": "starter",
+      "stripeSessionId": "cs_test_123",
+      "amount": 750000,
+      "date": "2026-07-24T03:21:58.000Z",
+      "status": "completed"
+    },
+    {
+      "id": "pur-bsthhj1s",
+      "productId": "starter",
+      "stripeSessionId": "cs_test_123",
+      "amount": 750000,
+      "date": "2026-07-24T03:22:04.302Z",
+      "status": "completed"
+    }
+  ]
+}

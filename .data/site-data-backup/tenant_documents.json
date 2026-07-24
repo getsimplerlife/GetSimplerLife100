@@ -1,0 +1,54 @@
+{
+  "demo@test.com": [
+    {
+      "id": "doc-001",
+      "name": "invoice_123.pdf",
+      "type": "PDF",
+      "status": "Complete",
+      "uploadedAt": "2026-07-20T08:30:00Z",
+      "size": 245760
+    },
+    {
+      "id": "doc-002",
+      "name": "contract_q3.docx",
+      "type": "Word",
+      "status": "Complete",
+      "uploadedAt": "2026-07-18T16:00:00Z",
+      "size": 512000
+    },
+    {
+      "id": "doc-003",
+      "name": "onboarding_form.pdf",
+      "type": "PDF",
+      "status": "Complete",
+      "uploadedAt": "2026-07-15T11:20:00Z",
+      "size": 128000
+    }
+  ],
+  "mathewortiz97@gmail.com": [
+    {
+      "id": "doc-001",
+      "name": "invoice_123.pdf",
+      "type": "PDF",
+      "status": "Complete",
+      "uploadedAt": "2026-07-20T08:30:00Z",
+      "size": 245760
+    },
+    {
+      "id": "doc-002",
+      "name": "contract_q3.docx",
+      "type": "Word",
+      "status": "Complete",
+      "uploadedAt": "2026-07-18T16:00:00Z",
+      "size": 512000
+    },
+    {
+      "id": "doc-003",
+      "name": "onboarding_form.pdf",
+      "type": "PDF",
+      "status": "Complete",
+      "uploadedAt": "2026-07-15T11:20:00Z",
+      "size": 128000
+    }
+  ]
+}

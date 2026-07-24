@@ -1,5 +1,7 @@
+import { MinimalHeader } from "~/components/MinimalHeader";
 import { useState } from 'react';
 import { Link, createFileRoute } from '@tanstack/react-router';
+import { Header } from "~/components/Header";
 import { getUser } from '~/db/queries';
 
 export const Route = createFileRoute('/audit')({
@@ -460,26 +462,12 @@ function AuditChecklist() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-white">
+    <div className="flex flex-col min-h-screen bg-stone-950">
       {/* Nav */}
-      <header className="px-6 py-4 border-b bg-stone-950 dark:bg-stone-900">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <Link to="/" className="text-2xl font-bold text-emerald-400 tracking-tight">
-            Simpler Life 100
-          </Link>
-          <div className="flex items-center gap-6">
-            <Link to="/" className="text-sm font-medium hover:text-emerald-400 transition-colors">
-              Home
-            </Link>
-            {user ? (
-              <Link to="/portal" className="text-sm font-bold text-emerald-400 border border-emerald-600 px-4 py-1.5 rounded-lg hover:bg-emerald-500/10 transition-colors">Dashboard</Link>
-            ) : (
-              <Link to="/login" className="text-sm font-medium hover:text-emerald-400 transition-colors">Login</Link>
-            )}
-          </div>
-        </div>
-      </header>
+      <Header businessName="Simpler Life 100" user={user} />
 
+      
+      <MinimalHeader />
       <main className="flex-1 py-12 md:py-20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
 
@@ -590,7 +578,7 @@ function AuditChecklist() {
                             View Industry Page <ArrowRightIcon />
                           </Link>
                           <a
-                            href="https://buy.stripe.com/fZufZj2OzdEr6Hh0nm2Fa00"
+                            href="https://buy.stripe.com/14A8wRgFp0RFd5Feec2Fa1a"
                             className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-400 hover:text-emerald-400 transition bg-emerald-50/60 hover:bg-emerald-100 px-3 py-1.5 rounded-lg border border-emerald-100"
                           >
                             Get Deep-Dive Audit <ArrowRightIcon />
@@ -625,7 +613,7 @@ function AuditChecklist() {
               </div>
               <div className="flex flex-col sm:flex-row gap-4">
                 <a
-                  href="https://buy.stripe.com/fZufZj2OzdEr6Hh0nm2Fa00"
+                  href="https://buy.stripe.com/14A8wRgFp0RFd5Feec2Fa1a"
                   className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-bold rounded-xl text-emerald-900 bg-stone-950 hover:bg-emerald-500/10 transition shadow-lg shrink-0"
                 >
                   Secure Your Deep-Dive Audit <ArrowRightIcon />

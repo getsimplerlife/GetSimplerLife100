@@ -1,0 +1,42 @@
+{
+  "mathewortiz97@gmail.com": [
+    {
+      "id": "key-001",
+      "name": "Production API Key",
+      "key": "sl_live_99428fe7c330a8fa14453d622382c878",
+      "masked": "sl_live_••••••••••••••••••••••a7f2",
+      "created": "2026-06-15T00:00:00Z",
+      "lastUsed": "2026-07-24T00:52:58.292Z",
+      "calls": 2847
+    },
+    {
+      "id": "key-002",
+      "name": "Staging API Key",
+      "key": "sl_test_1825fa3935bf91a9cc33506ae65b135b",
+      "masked": "sl_test_••••••••••••••••••••••b3e8",
+      "created": "2026-06-15T00:00:00Z",
+      "lastUsed": "2026-07-19T02:52:58.292Z",
+      "calls": 412
+    }
+  ],
+  "demo@test.com": [
+    {
+      "id": "key-001",
+      "name": "Production API Key",
+      "key": "sl_live_64175ecd2ae2eb5ec9c2f095e87441ec",
+      "masked": "sl_live_••••••••••••••••••••••a7f2",
+      "created": "2026-06-15T00:00:00Z",
+      "lastUsed": "2026-07-24T00:53:15.916Z",
+      "calls": 2847
+    },
+    {
+      "id": "key-002",
+      "name": "Staging API Key",
+      "key": "sl_test_15b5195e95190d5da2a8b74ba15374ef",
+      "masked": "sl_test_••••••••••••••••••••••b3e8",
+      "created": "2026-06-15T00:00:00Z",
+      "lastUsed": "2026-07-19T02:53:15.916Z",
+      "calls": 412
+    }
+  ]
+}

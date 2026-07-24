@@ -1,0 +1,48 @@
+{
+  "demo@test.com": [
+    {
+      "id": "int-001",
+      "provider": "Salesforce",
+      "status": "Connected",
+      "connectedAt": "2026-06-20T10:35:00Z",
+      "lastSync": "2026-07-24T02:51:22.121Z"
+    },
+    {
+      "id": "int-002",
+      "provider": "Slack",
+      "status": "Connected",
+      "connectedAt": "2026-07-01T09:05:00Z",
+      "lastSync": "2026-07-24T02:48:22.121Z"
+    },
+    {
+      "id": "int-u29hydgq",
+      "provider": "TestProvider",
+      "status": "Connected",
+      "connectedAt": "2026-07-24T03:02:04.348Z",
+      "lastSync": "2026-07-24T03:02:04.348Z"
+    },
+    {
+      "id": "int-i86d8y0g",
+      "provider": "Salesforce",
+      "status": "Connected",
+      "connectedAt": "2026-07-24T03:02:09.647Z",
+      "lastSync": "2026-07-24T03:02:09.647Z"
+    }
+  ],
+  "mathewortiz97@gmail.com": [
+    {
+      "id": "int-001",
+      "provider": "Salesforce",
+      "status": "Connected",
+      "connectedAt": "2026-06-20T10:35:00Z",
+      "lastSync": "2026-07-24T03:05:07.584Z"
+    },
+    {
+      "id": "int-002",
+      "provider": "Slack",
+      "status": "Connected",
+      "connectedAt": "2026-07-01T09:05:00Z",
+      "lastSync": "2026-07-24T03:02:07.584Z"
+    }
+  ]
+}

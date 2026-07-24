@@ -1,6 +1,8 @@
+import { MinimalHeader } from "~/components/MinimalHeader";
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 import { readFile } from 'node:fs/promises';
+import { Header } from "~/components/Header";
 import { getUser } from '~/db/queries';
 
 const getPageData = createServerFn({ method: 'GET' }).handler(async () => {
@@ -24,25 +26,14 @@ export const Route = createFileRoute('/about')({
 });
 
 function AboutPage() {
-  const { businessName } = Route.useLoaderData();
+  const { businessName, user } = Route.useLoaderData();
 
   return (
-    <div className="flex flex-col min-h-screen selection:bg-emerald-100 selection:text-emerald-900 bg-stone-50">
-      <header className="px-6 py-6 bg-stone-950 sticky top-0 z-50 border-b border-stone-800 backdrop-blur-md bg-white/80">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <Link to="/" className="text-2xl font-black text-emerald-400 tracking-tight">
-            {businessName}
-          </Link>
-          <nav className="flex gap-8 items-center">
-            <Link to="/" className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">Home</Link>
-            <Link to="/how-it-works" className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">How It Works</Link>
-            <Link to="/faq" className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">FAQ</Link>
-            <Link to="/about" className="text-sm font-bold text-emerald-400 transition-colors">About</Link>
-            <Link to="/contact" className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">Contact</Link>
-          </nav>
-        </div>
-      </header>
+    <div className="flex flex-col min-h-screen selection:bg-emerald-500/30 selection:text-emerald-200 bg-stone-950">
+      <Header businessName="Simpler Life 100" user={user} />
 
+      
+      <MinimalHeader />
       <main className="flex-1 py-16 lg:py-24 px-6">
         <div className="max-w-4xl mx-auto space-y-16">
           
@@ -70,7 +61,7 @@ function AboutPage() {
                 <p>
                   We started Simpler Life 100 because we saw operations teams buried in manual work that software should have solved a decade ago. Copying data between tabs, manually reviewing documents, and chasing status updates isn't "work"—it's waste.
                 </p>
-                <p className="font-bold text-stone-900">
+                <p className="font-bold text-white">
                   We don't sell generic software. We build AI employees that work inside the systems you already own.
                 </p>
                 <p>
@@ -114,8 +105,8 @@ function AboutPage() {
                   desc: "Businesses change, APIs update, and systems evolve. Through our managed operations support, we ensure your automations remain perfectly adaptive, responsive, and reliable over time."
                 }
               ].map((val, idx) => (
-                <div key={idx} className="p-8 bg-stone-950 border border-stone-800 rounded-3xl space-y-2 hover:border-emerald-200 transition-colors shadow-sm">
-                  <h4 className="text-lg font-black text-stone-900">{val.title}</h4>
+                <div key={idx} className="p-8 bg-stone-900 border border-stone-800 rounded-3xl space-y-2 hover:border-emerald-500/30 transition-colors">
+                  <h4 className="text-lg font-black text-white">{val.title}</h4>
                   <p className="text-sm text-stone-400 leading-relaxed">{val.desc}</p>
                 </div>
               ))}
@@ -125,18 +116,18 @@ function AboutPage() {
         </div>
       </main>
 
-      <footer className="px-6 py-12 border-t border-stone-900 bg-stone-950 text-stone-500">
+      <footer className="px-6 py-12 border-t border-stone-800 bg-stone-950">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
           <div>
             <div className="text-2xl font-black text-emerald-400 mb-2">{businessName}</div>
             <p className="text-sm text-stone-400">AI coworkers for operations teams. Work less, live more.</p>
           </div>
           <div className="text-sm font-bold flex gap-6">
-            <Link to="/" className="hover:text-emerald-600">Home</Link>
-            <Link to="/how-it-works" className="hover:text-emerald-600">How It Works</Link>
-            <Link to="/faq" className="hover:text-emerald-600">FAQ</Link>
-            <Link to="/about" className="hover:text-emerald-600">About</Link>
-            <Link to="/contact" className="hover:text-emerald-600">Contact</Link>
+            <Link to="/" className="text-stone-400 hover:text-emerald-400">Home</Link>
+            <Link to="/how-it-works" className="text-stone-400 hover:text-emerald-400">How It Works</Link>
+            <Link to="/faq" className="text-stone-400 hover:text-emerald-400">FAQ</Link>
+            <Link to="/about" className="text-stone-400 hover:text-emerald-400">About</Link>
+            <Link to="/contact" className="text-stone-400 hover:text-emerald-400">Contact</Link>
           </div>
           <div className="text-xs text-stone-400">&copy; {new Date().getFullYear()} {businessName}. All rights reserved.</div>
         </div>

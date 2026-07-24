@@ -1,6 +1,8 @@
+import { MinimalHeader } from "~/components/MinimalHeader";
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 import { readFile } from 'node:fs/promises';
+import { Header } from "~/components/Header";
 import { getUser } from '~/db/queries';
 
 const getPageData = createServerFn({ method: 'GET' }).handler(async () => {
@@ -27,22 +29,11 @@ function HowItWorksPage() {
   const { businessName, user } = Route.useLoaderData();
 
   return (
-    <div className="flex flex-col min-h-screen selection:bg-emerald-100 selection:text-emerald-900 bg-stone-50">
-      <header className="px-6 py-6 bg-stone-950 sticky top-0 z-50 border-b border-stone-800 backdrop-blur-md bg-white/80">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <Link to="/" className="text-2xl font-black text-emerald-400 tracking-tight">
-            {businessName}
-          </Link>
-          <nav className="flex gap-8 items-center">
-            <Link to="/" className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">Home</Link>
-            <Link to="/how-it-works" className="text-sm font-bold text-emerald-400 transition-colors">How It Works</Link>
-            <Link to="/faq" className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">FAQ</Link>
-            <Link to="/about" className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">About</Link>
-            <Link to="/contact" className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">Contact</Link>
-          </nav>
-        </div>
-      </header>
+    <div className="flex flex-col min-h-screen selection:bg-emerald-500/30 selection:text-emerald-200 bg-stone-950">
+            <Header businessName={businessName} user={user} />
 
+      
+      <MinimalHeader />
       <main className="flex-1">
         {/* Hero */}
         <section className="px-6 py-20 lg:py-28 bg-stone-950 border-b border-stone-800 text-center">
@@ -161,21 +152,21 @@ function HowItWorksPage() {
           <div className="grid md:grid-cols-3 gap-8">
             <div className="p-8 bg-stone-950 border border-stone-800 rounded-3xl space-y-4">
               <div className="text-3xl">🛡️</div>
-              <h4 className="text-lg font-black text-stone-900">Data Stays Local</h4>
+              <h4 className="text-lg font-black text-white">Data Stays Local</h4>
               <p className="text-sm text-stone-400 leading-relaxed">
                 Our agents connect directly within your existing systems (Salesforce, Google, etc.). We never store or resell your operational credentials.
               </p>
             </div>
             <div className="p-8 bg-stone-950 border border-stone-800 rounded-3xl space-y-4">
               <div className="text-3xl">👥</div>
-              <h4 className="text-lg font-black text-stone-900">Human-In-The-Loop</h4>
+              <h4 className="text-lg font-black text-white">Human-In-The-Loop</h4>
               <p className="text-sm text-stone-400 leading-relaxed">
                 High-stakes financial or logistical decisions can be routed to an approval dashboard. Your human employees maintain final authority where it counts.
               </p>
             </div>
             <div className="p-8 bg-stone-950 border border-stone-800 rounded-3xl space-y-4">
               <div className="text-3xl">🔄</div>
-              <h4 className="text-lg font-black text-stone-900">Operational Redundancy</h4>
+              <h4 className="text-lg font-black text-white">Operational Redundancy</h4>
               <p className="text-sm text-stone-400 leading-relaxed">
                 If an external API is down or model latency surges, our platform retries and auto-scales to ensure zero transaction drop-outs.
               </p>
@@ -199,18 +190,18 @@ function HowItWorksPage() {
         </section>
       </main>
 
-      <footer className="px-6 py-12 border-t border-stone-900 bg-stone-950 text-stone-500">
+      <footer className="px-6 py-12 border-t border-stone-800 bg-stone-950">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
           <div>
             <div className="text-2xl font-black text-emerald-400 mb-2">{businessName}</div>
             <p className="text-sm text-stone-400">AI coworkers for operations teams. Work less, live more.</p>
           </div>
           <div className="text-sm font-bold flex gap-6">
-            <Link to="/" className="hover:text-emerald-600">Home</Link>
-            <Link to="/how-it-works" className="hover:text-emerald-600">How It Works</Link>
-            <Link to="/faq" className="hover:text-emerald-600">FAQ</Link>
-            <Link to="/about" className="hover:text-emerald-600">About</Link>
-            <Link to="/contact" className="hover:text-emerald-600">Contact</Link>
+            <Link to="/" className="text-stone-400 hover:text-emerald-400">Home</Link>
+            <Link to="/how-it-works" className="text-stone-400 hover:text-emerald-400">How It Works</Link>
+            <Link to="/faq" className="text-stone-400 hover:text-emerald-400">FAQ</Link>
+            <Link to="/about" className="text-stone-400 hover:text-emerald-400">About</Link>
+            <Link to="/contact" className="text-stone-400 hover:text-emerald-400">Contact</Link>
           </div>
           <div className="text-xs text-stone-400">&copy; {new Date().getFullYear()} {businessName}. All rights reserved.</div>
         </div>

@@ -331,6 +331,127 @@ function AIEmployeesWorkspaceHub() {
         </div>
       )}
 
+      {/* ── Approvals, Communications & Monitoring ─────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Pending Approvals */}
+        <div className="bg-stone-950 border border-stone-900 rounded-2xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-black text-white">📥 Pending Approvals</h3>
+            <span className="text-[9px] font-mono text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">3 pending</span>
+          </div>
+          <div className="space-y-3">
+            {[
+              { action: "Send invoice batch", agent: "Invoice AI", impact: "42 invoices · $18,400", time: "2 min ago" },
+              { action: "Update vendor records", agent: "Procurement AI", impact: "12 vendors · ERP sync", time: "12 min ago" },
+              { action: "Reply to customer", agent: "Support Agent", impact: "Ticket #1847", time: "28 min ago" },
+            ].map((app, i) => (
+              <div key={i} className="bg-stone-900/50 border border-stone-800 rounded-xl p-3 space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-xs font-bold text-white">{app.action}</span>
+                  <span className="text-[9px] text-stone-500 font-mono">{app.time}</span>
+                </div>
+                <div className="flex items-center gap-2 text-[10px] text-stone-400">
+                  <span className="text-blue-400">🤖 {app.agent}</span>
+                  <span>·</span>
+                  <span>{app.impact}</span>
+                </div>
+                <div className="flex gap-2">
+                  <button className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold py-1.5 rounded-lg transition-all">Approve</button>
+                  <button className="flex-1 bg-stone-800 hover:bg-stone-700 text-stone-300 text-[10px] font-bold py-1.5 rounded-lg transition-all">Reject</button>
+                  <button className="bg-stone-800 hover:bg-stone-700 text-stone-400 text-[10px] font-bold px-3 py-1.5 rounded-lg transition-all">↗</button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <Link to="/portal/approvals" className="block text-center text-[10px] font-mono text-blue-400 hover:text-blue-300 mt-4 pt-3 border-t border-stone-900">
+            View All Approvals →
+          </Link>
+        </div>
+
+        {/* Communications Log */}
+        <div className="bg-stone-950 border border-stone-900 rounded-2xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-black text-white">📡 Communications Log</h3>
+            <span className="text-[9px] font-mono text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20">Live</span>
+          </div>
+          <div className="space-y-3 max-h-[360px] overflow-y-auto">
+            {[
+              { type: "📧", agent: "Sales Outreach", to: "client@acme.com", subject: "Follow-up: Q3 Proposal", time: "3 min ago" },
+              { type: "💬", agent: "Support Agent", to: "Ticket #1847", subject: "Updated status to 'Resolved'", time: "8 min ago" },
+              { type: "📧", agent: "Invoice AI", to: "ap@vendor.com", subject: "Payment confirmation #INV-442", time: "15 min ago" },
+              { type: "📱", agent: "Voice Receptionist", to: "+1 (555) 123-4567", subject: "Missed call — callback scheduled", time: "22 min ago" },
+              { type: "📧", agent: "HR Intake", to: "hr@company.com", subject: "New hire docs processed", time: "35 min ago" },
+            ].map((comm, i) => (
+              <div key={i} className="flex gap-3 p-2 rounded-lg hover:bg-stone-900/50 transition-colors">
+                <span className="text-lg shrink-0 mt-0.5">{comm.type}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="text-[10px] font-bold text-white truncate">{comm.agent}</span>
+                    <span className="text-[8px] text-stone-600">→</span>
+                    <span className="text-[10px] text-stone-400 truncate">{comm.to}</span>
+                  </div>
+                  <p className="text-[9px] text-stone-500 truncate">{comm.subject}</p>
+                </div>
+                <span className="text-[8px] text-stone-600 font-mono shrink-0">{comm.time}</span>
+              </div>
+            ))}
+          </div>
+          <Link to="/portal/communications" className="block text-center text-[10px] font-mono text-blue-400 hover:text-blue-300 mt-4 pt-3 border-t border-stone-900">
+            Full Communication Log →
+          </Link>
+        </div>
+      </div>
+
+      {/* Per-Employee Connections & Tasks */}
+      <div className="bg-stone-950 border border-stone-900 rounded-2xl p-6">
+        <h3 className="text-sm font-black text-white mb-4">🔗 Employee Connections & Active Tasks</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {employees.slice(0, 6).map((emp: any) => {
+            const empTasks = [] as any[]; // Will populate from API
+            const empConns = (emp.connections || []).slice(0, 3);
+            return (
+              <div key={getAgentId(emp)} className="bg-stone-900/50 border border-stone-800 rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-lg">{emp.emoji || "🤖"}</span>
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold text-white truncate">{emp.name}</div>
+                    <div className="text-[9px] text-stone-500 font-mono">{emp.status || "Idle"}</div>
+                  </div>
+                </div>
+                {/* Connections */}
+                <div className="mb-3">
+                  <div className="text-[8px] font-mono text-stone-500 uppercase tracking-wider mb-1">Connected To</div>
+                  <div className="flex flex-wrap gap-1">
+                    {(empConns.length > 0 ? empConns : ["CRM", "Email", "Storage"]).map((conn: string, i: number) => (
+                      <span key={i} className="text-[8px] bg-stone-800 text-stone-300 px-2 py-0.5 rounded-md font-mono">{typeof conn === "string" ? conn : (conn as any).name || conn}</span>
+                    ))}
+                    <button className="text-[8px] text-blue-400 hover:text-blue-300 font-bold">+ Add</button>
+                  </div>
+                </div>
+                {/* Active Tasks */}
+                <div>
+                  <div className="text-[8px] font-mono text-stone-500 uppercase tracking-wider mb-1">Active Tasks</div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 text-[9px]">
+                      <span className="w-1 h-1 rounded-full bg-emerald-500 shrink-0" />
+                      <span className="text-stone-400 truncate">Monitoring {emp.dept || "operations"} workflows</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[9px]">
+                      <span className="w-1 h-1 rounded-full bg-blue-500 animate-pulse shrink-0" />
+                      <span className="text-stone-400 truncate">Processing documents</span>
+                    </div>
+                  </div>
+                </div>
+                <button onClick={() => setEditPanel({ emp })}
+                  className="w-full mt-3 text-[10px] font-bold bg-stone-800 hover:bg-stone-700 text-stone-300 py-1.5 rounded-lg transition-all">
+                  Edit Connections & Tasks
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {/* ── Feedback Toast ─────────────────────────────────────── */}
       {feedback && (
         <div className="fixed bottom-6 right-6 bg-stone-900 border border-stone-800 text-white px-5 py-3 rounded-xl shadow-xl z-50 flex items-center gap-3 animate-slideUp font-mono text-xs">

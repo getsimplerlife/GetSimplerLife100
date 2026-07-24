@@ -161,7 +161,7 @@ export default function IndustryHub({ data }: { data: IndustryHubType }) {
                   </ul>
                 </div>
                 <a
-                  href="https://buy.stripe.com/fZufZj2OzdEr6Hh0nm2Fa00"
+                  href="https://buy.stripe.com/14A8wRgFp0RFd5Feec2Fa1a"
                   target="_blank"
                   rel="noreferrer"
                   className="w-full bg-white hover:bg-stone-200 text-stone-950 text-center py-3 rounded-xl text-sm font-bold transition-all"

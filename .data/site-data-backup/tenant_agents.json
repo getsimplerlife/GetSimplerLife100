@@ -1,0 +1,116 @@
+{
+  "demo@test.com": [
+    {
+      "id": "agent-001",
+      "type": "document_intake",
+      "name": "Document Intake AI",
+      "status": "Active",
+      "industry": "Universal",
+      "deployedAt": "2026-06-20T10:30:00Z",
+      "lastActive": "2026-07-24T02:53:22.121Z"
+    },
+    {
+      "id": "agent-002",
+      "type": "sales_outreach",
+      "name": "Sales Outreach Coordinator AI",
+      "status": "Active",
+      "industry": "Universal",
+      "deployedAt": "2026-06-22T14:15:00Z",
+      "lastActive": "2026-07-24T01:53:22.121Z"
+    },
+    {
+      "id": "agent-003",
+      "type": "support_agent",
+      "name": "AI Customer Support Agent",
+      "status": "Active",
+      "industry": "Universal",
+      "deployedAt": "2026-07-01T09:00:00Z",
+      "lastActive": "2026-07-24T02:43:22.121Z"
+    },
+    {
+      "id": "agent-004",
+      "type": "invoice_ledger",
+      "name": "Invoice & Ledger AI",
+      "status": "Active",
+      "industry": "Universal",
+      "deployedAt": "2026-07-10T11:45:00Z",
+      "lastActive": "2026-07-24T02:23:22.121Z"
+    }
+  ],
+  "mathewortiz97@gmail.com": [
+    {
+      "id": "agent-001",
+      "type": "document_intake",
+      "name": "Document Intake AI",
+      "status": "Active",
+      "industry": "Universal",
+      "deployedAt": "2026-06-20T10:30:00Z",
+      "lastActive": "2026-07-24T03:07:07.584Z"
+    },
+    {
+      "id": "agent-002",
+      "type": "sales_outreach",
+      "name": "Sales Outreach Coordinator AI",
+      "status": "Active",
+      "industry": "Universal",
+      "deployedAt": "2026-06-22T14:15:00Z",
+      "lastActive": "2026-07-24T02:07:07.584Z"
+    },
+    {
+      "id": "agent-003",
+      "type": "support_agent",
+      "name": "AI Customer Support Agent",
+      "status": "Active",
+      "industry": "Universal",
+      "deployedAt": "2026-07-01T09:00:00Z",
+      "lastActive": "2026-07-24T02:57:07.584Z"
+    },
+    {
+      "id": "agent-004",
+      "type": "invoice_ledger",
+      "name": "Invoice & Ledger AI",
+      "status": "Active",
+      "industry": "Universal",
+      "deployedAt": "2026-07-10T11:45:00Z",
+      "lastActive": "2026-07-24T02:37:07.584Z"
+    }
+  ],
+  "newclient@test.com": [
+    {
+      "id": "agent-z5ijmcib",
+      "type": "document_intake",
+      "name": "Document Intake",
+      "status": "Active",
+      "industry": "Universal",
+      "deployedAt": "2026-07-24T03:21:58.000Z",
+      "lastActive": "2026-07-24T03:21:58.000Z"
+    },
+    {
+      "id": "agent-ru4ydptf",
+      "type": "support_agent",
+      "name": "Support Agent",
+      "status": "Active",
+      "industry": "Universal",
+      "deployedAt": "2026-07-24T03:21:58.000Z",
+      "lastActive": "2026-07-24T03:21:58.000Z"
+    },
+    {
+      "id": "agent-5zs6dzzg",
+      "type": "document_intake",
+      "name": "Document Intake",
+      "status": "Active",
+      "industry": "Universal",
+      "deployedAt": "2026-07-24T03:22:04.303Z",
+      "lastActive": "2026-07-24T03:22:04.303Z"
+    },
+    {
+      "id": "agent-4wlzzr4v",
+      "type": "support_agent",
+      "name": "Support Agent",
+      "status": "Active",
+      "industry": "Universal",
+      "deployedAt": "2026-07-24T03:22:04.303Z",
+      "lastActive": "2026-07-24T03:22:04.303Z"
+    }
+  ]
+}

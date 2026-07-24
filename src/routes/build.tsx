@@ -1,7 +1,9 @@
+import { MinimalHeader } from "~/components/MinimalHeader";
 import { useState } from 'react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 import { readFile } from 'node:fs/promises';
+import { Header } from "~/components/Header";
 import { getUser } from '~/db/queries';
 
 const getPageData = createServerFn({ method: 'GET' }).handler(async () => {
@@ -32,7 +34,7 @@ const packages = [
     price: 7500,
     agentLimit: 2,
     features: ['2 AI employees', '3 automated workflows', 'CRM integration', '30 days support'],
-    paymentLink: 'https://buy.stripe.com/00w28tcp97g37Llc642Fa17',
+    paymentLink: 'https://buy.stripe.com/4gM14p88TfMze9J7PO2Fa1b',
     description: 'Perfect for small teams ready to automate their highest-friction process.',
   },
   {
@@ -41,7 +43,7 @@ const packages = [
     price: 15000,
     agentLimit: 5,
     features: ['5 AI employees', 'Cross-dept workflows', 'CRM + ERP integrations', 'Custom dashboards', '60 days support'],
-    paymentLink: 'https://buy.stripe.com/5kQ14pah11VJfdN6LK2Fa18',
+    paymentLink: 'https://buy.stripe.com/9B628tbl57g31mXb202Fa1c',
     description: 'For growing teams that need automation across multiple departments.',
   },
   {
@@ -50,7 +52,7 @@ const packages = [
     price: 30000,
     agentLimit: 18,
     features: ['Up to 18 AI employees', 'Unlimited workflows', 'Custom agent training', 'Advanced integrations', '90 days support'],
-    paymentLink: 'https://buy.stripe.com/3cIfZj74PbwjfdNda82Fa19',
+    paymentLink: 'https://buy.stripe.com/dRm8wRdtd6bZ6Hhgmk2Fa1d',
     description: 'Enterprise-grade AI workforce for organizations ready to transform operations.',
   },
 ];
@@ -80,7 +82,7 @@ const allAgents = [
 type Step = 'package' | 'agents' | 'info' | 'review' | 'success';
 
 function BuildBuilder() {
-  const { businessName } = Route.useLoaderData();
+  const { businessName, user } = Route.useLoaderData();
   const [step, setStep] = useState<Step>('package');
   const [selectedPackage, setSelectedPackage] = useState(packages[0]);
   const [selectedAgents, setSelectedAgents] = useState<string[]>([]);
@@ -151,12 +153,10 @@ function BuildBuilder() {
   if (step === 'success') {
     return (
       <div className="flex flex-col min-h-screen bg-stone-950">
-        <header className="px-6 py-4 bg-stone-950/95 backdrop-blur-md sticky top-0 z-50 border-b border-stone-900">
-          <div className="max-w-7xl mx-auto flex justify-between items-center">
-            <Link to="/" className="text-2xl font-black text-emerald-400 tracking-tight">{businessName}</Link>
-          </div>
-        </header>
-        <main className="flex-1 flex items-center justify-center p-6">
+              <Header businessName="Simpler Life 100" user={user} />
+        
+      <MinimalHeader />
+      <main className="flex-1 flex items-center justify-center p-6">
           <div className="max-w-xl w-full bg-stone-900 p-12 rounded-[3rem] shadow-2xl text-center border border-stone-800">
             <div className="w-20 h-20 bg-emerald-500/10 text-emerald-400 rounded-full flex items-center justify-center text-4xl mx-auto mb-8">
               ✅
@@ -179,19 +179,10 @@ function BuildBuilder() {
 
   return (
     <div className="flex flex-col min-h-screen bg-stone-950">
-      <header className="px-6 py-4 bg-stone-950/95 backdrop-blur-md sticky top-0 z-50 border-b border-stone-900">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <Link to="/" className="text-2xl font-black text-emerald-400 tracking-tight">
-            {businessName}
-          </Link>
-          <nav className="flex gap-6 items-center">
-            <Link to="/" className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">Home</Link>
-            <Link to="/faq" className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">FAQ</Link>
-            <Link to="/support" className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">Support</Link>
-          </nav>
-        </div>
-      </header>
+      <Header businessName={businessName} user={user} />
 
+      
+      <MinimalHeader />
       <main className="flex-1 py-16 px-6">
         <div className="max-w-5xl mx-auto">
           {/* Header */}

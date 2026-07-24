@@ -14,6 +14,9 @@ cd "$(dirname "$0")"
 umask 002
 
 echo "[1/3] vite build (light — safe under the sandbox memory cap)"
+# The workspace starts as sources only (deps live with the image's pre-built
+# placeholder copy); no-op once node_modules is current.
+bun install
 bun run build
 
 echo "[2/3] assemble .vercel/output (Build Output API v3)"
