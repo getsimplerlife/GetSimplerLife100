@@ -1527,7 +1527,7 @@ var allInts=[];function filterInts(){var s=document.getElementById("int-search")
 
 // ─── 8. CRM / ERP ───
 function renderPortalCRM(): string {
-  return `<div class="portal-main-header"><div><h1>CRM / ERP</h1><p style="color:#78716c;font-size:0.875rem" id="crm-count">Loading...</p></div></div><div id="crm-content"><div class="portal-skeleton"><div class="portal-skeleton-line w4"></div><div class="portal-skeleton-card"></div></div></div><script>var crmNames=["Salesforce","HubSpot","Dynamics 365","NetSuite","SAP","Zoho CRM","Pipedrive","Freshsales"];var crmIcons={"Salesforce":"☁️","HubSpot":"🧲","Dynamics 365":"🟦","NetSuite":"🏢","SAP":"🔷","Zoho CRM":"📋","Pipedrive":"📊","Freshsales":"🌱"};function connectProvider(name){var btn=event.target;btn.disabled=true;btn.textContent='Connecting...';fetch('/api/integrations/connect',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({provider:name})}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(d){btn.textContent='✓ Connected';btn.className='portal-btn portal-btn-sm portal-btn-success';btn.disabled=true;setTimeout(function(){location.reload()},500)}).catch(function(e){btn.disabled=false;btn.textContent='Connect'})}function disconnectProvider(name,btn){if(!confirm('Disconnect '+name+'?'))return;btn.disabled=true;btn.textContent='Disconnecting...';fetch('/api/integrations/disconnect',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({provider:name})}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(){location.reload()}).catch(function(e){btn.disabled=false;btn.textContent='✓ Connected'})}fetch("/api/tenant/integrations",{credentials:"same-origin"}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(connected){var connMap={};connected.forEach(function(c){connMap[c.provider]=c});var count=0;var h=\'<div class="portal-card"><table class="portal-table"><thead><tr><th>Platform</th><th>Status</th><th>Last Sync</th><th></th></tr></thead><tbody>\';crmNames.forEach(function(name){var c=connMap[name];if(c)count++;h+=\'<tr><td style="font-weight:700"><span style="margin-right:0.5rem">\'+(crmIcons[name]||"🏢")+\'</span>\'+name+\'</td><td><span class="portal-badge \'+(c?"portal-badge-green":"portal-badge-gray")+\'">\'+(c?"Connected":"Not Connected")+\'</span></td><td style="font-size:0.8125rem">\'+(c&&c.lastSync?new Date(c.lastSync).toLocaleString():"Never")+\'</td><td>\'+(c?\'<button class="portal-btn portal-btn-sm portal-btn-secondary" onclick=\"connectProvider(\'+name+\)\">Sync Now</button>\':\'<button class="portal-btn portal-btn-sm portal-btn-primary" onclick="connectProvider(\\\'"+name+"\\\')">Connect</button>\')+\'</td></tr>\'});h+=\'</tbody></table></div>\';document.getElementById("crm-count").textContent=count+" connected";document.getElementById("crm-content").innerHTML=h}).catch(function(){document.getElementById("crm-content").innerHTML=\'<div class="portal-error"><div class="portal-error-icon">⚠️</div><div class="portal-error-title">Failed to load CRM/ERP data</div><div class="portal-error-text">The integrations API may not be available yet.</div><a href="/portal/crm" class="portal-btn portal-btn-secondary portal-btn-sm">Retry</a></div>\'})</script>`;
+  return `<div class="portal-main-header"><div><h1>CRM / ERP</h1><p style="color:#78716c;font-size:0.875rem" id="crm-count">Loading...</p></div></div><div id="crm-content"><div class="portal-skeleton"><div class="portal-skeleton-line w4"></div><div class="portal-skeleton-card"></div></div></div><script>var crmNames=["Salesforce","HubSpot","Dynamics 365","NetSuite","SAP","Zoho CRM","Pipedrive","Freshsales"];var crmIcons={"Salesforce":"☁️","HubSpot":"🧲","Dynamics 365":"🟦","NetSuite":"🏢","SAP":"🔷","Zoho CRM":"📋","Pipedrive":"📊","Freshsales":"🌱"};function connectProvider(name){var btn=event.target;btn.disabled=true;btn.textContent='Connecting...';fetch('/api/integrations/connect',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({provider:name})}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(d){btn.textContent='✓ Connected';btn.className='portal-btn portal-btn-sm portal-btn-success';btn.disabled=true;setTimeout(function(){location.reload()},500)}).catch(function(e){btn.disabled=false;btn.textContent='Connect'})}function disconnectProvider(name,btn){if(!confirm('Disconnect '+name+'?'))return;btn.disabled=true;btn.textContent='Disconnecting...';fetch('/api/integrations/disconnect',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({provider:name})}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(){location.reload()}).catch(function(e){btn.disabled=false;btn.textContent='✓ Connected'})}function syncProvider(name){var btn=event.target;btn.disabled=true;btn.textContent='Syncing...';fetch('/api/integrations/connect',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({provider:name})}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(d){btn.textContent='✓ Synced';btn.className='portal-btn portal-btn-sm portal-btn-success';btn.disabled=true;setTimeout(function(){location.reload()},1000)}).catch(function(e){btn.disabled=false;btn.textContent='Sync Now'})}fetch("/api/tenant/integrations",{credentials:"same-origin"}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(connected){var connMap={};connected.forEach(function(c){connMap[c.provider]=c});var count=0;var h=\'<div class="portal-card"><table class="portal-table"><thead><tr><th>Platform</th><th>Status</th><th>Last Sync</th><th></th></tr></thead><tbody>\';crmNames.forEach(function(name){var c=connMap[name];if(c)count++;h+=\'<tr><td style="font-weight:700"><span style="margin-right:0.5rem">\'+(crmIcons[name]||"🏢")+\'</span>\'+name+\'</td><td><span class="portal-badge \'+(c?"portal-badge-green":"portal-badge-gray")+\'">\'+(c?"Connected":"Not Connected")+\'</span></td><td style="font-size:0.8125rem">\'+(c&&c.lastSync?new Date(c.lastSync).toLocaleString():"Never")+\'</td><td>\'+(c?\'<button class="portal-btn portal-btn-sm portal-btn-secondary" onclick=\"connectProvider(\'+name+\)\" onclick=\"syncProvider('+name+')\">Sync Now</button>\':\'<button class="portal-btn portal-btn-sm portal-btn-primary" onclick="connectProvider(\\\'"+name+"\\\')">Connect</button>\')+\'</td></tr>\'});h+=\'</tbody></table></div>\';document.getElementById("crm-count").textContent=count+" connected";document.getElementById("crm-content").innerHTML=h}).catch(function(){document.getElementById("crm-content").innerHTML=\'<div class="portal-error"><div class="portal-error-icon">⚠️</div><div class="portal-error-title">Failed to load CRM/ERP data</div><div class="portal-error-text">The integrations API may not be available yet.</div><a href="/portal/crm" class="portal-btn portal-btn-secondary portal-btn-sm">Retry</a></div>\'})</script>`;
 }
 
 // ─── 9. API Keys ───
@@ -1652,6 +1652,53 @@ function handleTenantPurchases(req: Request): Response {
   if (!user) return json({ error: "Not authenticated" }, 401);
   seedTenantDataIfNeeded(user.email);
   return json(readTenantData(TENANT_PURCHASES_FILE, user.email));
+}
+
+
+async function handleIntegrationConnect(req: Request): Promise<Response> {
+  const user = getSessionUser(req);
+  if (!user) return json({ error: "Not authenticated" }, 401);
+  try {
+    const buf = await req.arrayBuffer();
+    const body = JSON.parse(new TextDecoder().decode(buf));
+    const provider = body.provider;
+    if (!provider) return json({ error: "provider is required" }, 400);
+    seedTenantDataIfNeeded(user.email);
+    const integrations = readTenantData(TENANT_INTEGRATIONS_FILE, user.email);
+    const existing = integrations.find((i: any) => i.provider === provider);
+    if (existing) return json({ ...existing, alreadyConnected: true });
+    const newConn = {
+      id: "int-" + require("crypto").randomBytes(4).toString("hex"),
+      provider,
+      status: "Connected",
+      connectedAt: new Date().toISOString(),
+      lastSync: new Date().toISOString(),
+    };
+    integrations.push(newConn);
+    writeTenantData(TENANT_INTEGRATIONS_FILE, user.email, integrations);
+    return json(newConn, 201);
+  } catch (e: any) {
+    return json({ error: e.message || "Invalid request" }, 400);
+  }
+}
+
+async function handleIntegrationDisconnect(req: Request): Promise<Response> {
+  const user = getSessionUser(req);
+  if (!user) return json({ error: "Not authenticated" }, 401);
+  try {
+    const buf = await req.arrayBuffer();
+    const body = JSON.parse(new TextDecoder().decode(buf));
+    const provider = body.provider;
+    if (!provider) return json({ error: "provider is required" }, 400);
+    const integrations = readTenantData(TENANT_INTEGRATIONS_FILE, user.email);
+    const idx = integrations.findIndex((i: any) => i.provider === provider);
+    if (idx === -1) return json({ error: "Integration not found" }, 404);
+    integrations.splice(idx, 1);
+    writeTenantData(TENANT_INTEGRATIONS_FILE, user.email, integrations);
+    return json({ success: true });
+  } catch (e: any) {
+    return json({ error: e.message || "Invalid request" }, 400);
+  }
 }
 
 
