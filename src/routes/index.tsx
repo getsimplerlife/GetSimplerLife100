@@ -1,29 +1,10 @@
-import { NavHeader } from "~/components/NavHeader";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { createServerFn } from "@tanstack/react-start";
-import { readFile } from "node:fs/promises";
 import { useState } from "react";
-import { getUser } from "~/db/queries";
 import { workflows } from "~/content/workflows";
 import { Header } from "~/components/Header";
-
-const getPageData = createServerFn({ method: "GET" }).handler(async () => {
-  let businessName = "Simpler Life 100";
-  try {
-    const cfg = JSON.parse(await readFile("site.json", "utf8")) as {
-      businessName?: string;
-    };
-    businessName = cfg.businessName?.trim() ?? "Simpler Life 100";
-  } catch (_err) {
-    // Ignore error
-  }
-
-  const user = await getUser();
-  return { businessName, user };
-});
+import { NavHeader } from "~/components/NavHeader";
 
 export const Route = createFileRoute("/")({
-  loader: () => getPageData(),
   component: Home,
 });
 
@@ -97,7 +78,7 @@ const journeySteps = [
     description: "We build a technical roadmap and workflow that fits your business, showing exactly how the agents will work.",
     price: "$2,500",
     cta: "Get Your Custom Blueprint",
-    link: "https://buy.stripe.com/14A8wRgFp0RFd5Feec2Fa1a"
+    link: "https://buy.stripe.com/aFa8wRdtd0RF5Dd8TS2Fa1t"
   },
   {
     step: "03",
@@ -159,7 +140,7 @@ const blueprintTemplates = {
 };
 
 function Home() {
-  const { businessName, user } = Route.useLoaderData();
+  const businessName = 'Simpler Life 100';
 
   // Prompt compiler state
   const [promptText, setPromptText] = useState("Auto-read scanned invoice PDFs, extract line-items, update QuickBooks and notify Slack");
@@ -204,11 +185,10 @@ function Home() {
   return (
     <div className="flex flex-col min-h-screen bg-stone-950">
       
-      {/* ─── Header ─── */}
-      <Header businessName={businessName} user={user} />
-
-      
-      <NavHeader />
+      <Header businessName={businessName} />
+      <div className="lg:hidden">
+        <NavHeader businessName={businessName} />
+      </div>
       <main className="flex-1">
         
         {/* ─── Interactive Hero Section ─── */}
@@ -478,7 +458,7 @@ function Home() {
                 { icon: "🔌", title: "180+ Integrations", desc: "Connect any business tool with credential-validated connections" },
                 { icon: "🔗", title: "Connected Accounts", desc: "Monitor, edit credentials, test connections per integration" },
                 { icon: "✅", title: "Task Queue", desc: "Track all AI employee work with status filtering" },
-                { icon: "📚", title: "Knowledge Base", desc: "Self-serve docs and guides for your team" },
+                { icon: "⚡", title: "Workflows", desc: "8 pre-built automation templates ready to deploy across your stack" },
                 { icon: "👑", title: "Admin Panel", desc: "Full platform analytics, user management, audit logs (owner only)" },
                 { icon: "🔐", title: "Purchase Gating", desc: "Workflows & AI deployments require purchase or owner assignment" },
                 { icon: "📥", title: "Approvals", desc: "AI actions wait for human review before execution" },

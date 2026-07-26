@@ -76,24 +76,24 @@ function UnifiedSettingsHub() {
   const [activeTab, setActiveTab] = useState<"profile" | "connections" | "billing" | "keys">("profile");
 
   // 1. Business Profile states
-  const [companyName, setCompanyName] = useState("Simpler Life Operations");
-  const [logoUrl, setLogoUrl] = useState("https://simplerlife100.ctonew.app/logo.png");
-  const [industry, setIndustry] = useState("Logistics & Supply Chain");
-  const [address, setAddress] = useState("100 Operations Way, Chicago, IL");
-  const [phone, setPhone] = useState("(555) 000-1939");
-  const [website, setWebsite] = useState("www.wayne.com");
-  const [timezone, setTimezone] = useState("America/New_York");
+  const [companyName, setCompanyName] = useState("");
+  const [logoUrl, setLogoUrl] = useState("");
+  const [industry, setIndustry] = useState("");
+  const [address, setAddress] = useState("");
+  const [phone, setPhone] = useState("");
+  const [website, setWebsite] = useState("");
+  const [timezone, setTimezone] = useState("");
   const [language, setLanguage] = useState("en");
 
   // AI & Security states (saved under profile/model section)
-  const [aiModel, setAIModel] = useState("openai-gpt4o");
-  const [temperature, setTemperature] = useState(0.4);
-  const [dataRetention, setDataRetention] = useState("30-days");
-  const [mfaEnabled, setMfaEnabled] = useState(true);
-  const [sessionTimeout, setSessionTimeout] = useState("120-mins");
-  const [notifyEmail, setNotifyEmail] = useState(true);
+  const [aiModel, setAIModel] = useState("");
+  const [temperature, setTemperature] = useState(0);
+  const [dataRetention, setDataRetention] = useState("");
+  const [mfaEnabled, setMfaEnabled] = useState(false);
+  const [sessionTimeout, setSessionTimeout] = useState("");
+  const [notifyEmail, setNotifyEmail] = useState(false);
   const [notifySMS, setNotifySMS] = useState(false);
-  const [notifySlack, setNotifySlack] = useState(true);
+  const [notifySlack, setNotifySlack] = useState(false);
 
   // 2. Connected Accounts states
   const [providers, setProviders] = useState<ProviderItem[]>([]);
@@ -101,8 +101,8 @@ function UnifiedSettingsHub() {
   const [loadingConns, setLoadingConns] = useState(false);
 
   // 3. Plan & Billing states
-  const [activePlan, setActivePlan] = useState("Starter Build Package");
-  const [planDesc, setPlanDesc] = useState("Includes 2 active AI employees, 3 operational workflows, and 30 days of standard tech support.");
+  const [activePlan, setActivePlan] = useState("");
+  const [planDesc, setPlanDesc] = useState("");
   const [invoices, setInvoices] = useState<InvoiceItem[]>([]);
   const [loadingBilling, setLoadingBilling] = useState(false);
 
@@ -157,8 +157,8 @@ function UnifiedSettingsHub() {
       ]);
       const provsData = await providersRes.json();
       const connsData = await connsRes.json();
-      setProviders(provsData || []);
-      setConnections(connsData || []);
+      setProviders(provsData.data || provsData || []);
+      setConnections(connsData.data || connsData || []);
     } catch (err) {
       console.error("Error fetching integrations:", err);
     } finally {
@@ -279,6 +279,20 @@ function UnifiedSettingsHub() {
     }
   };
 
+  // Save a single toggle/key-value setting immediately (no section button needed)
+  const saveToggleSetting = async (key: string, value: any) => {
+    try {
+      await fetch("/api/data/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ section: "toggles", key, value }),
+      });
+    } catch (err) {
+      console.error("Toggle save error:", err);
+    }
+  };
+
   // Sync / Health Trigger for connection
   const handleSyncConnection = async (connectionId: string, displayName: string) => {
     try {
@@ -329,38 +343,50 @@ function UnifiedSettingsHub() {
   // API Developer Action (Generate or Revoke keys)
   const handleKeyAction = async (name: string, action: string) => {
     try {
-      setFeedback(`Executing developer request: ${action}...`);
-      const res = await fetch("/api/action", {
+      setFeedback(`${action === "generate" ? "Generating" : "Revoking"} key "${name}"...`);
+      const res = await fetch("/api/data/api", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ action: "api_" + action.toLowerCase(), resource: name }),
+        body: JSON.stringify({ name, action }),
       });
-      await res.json();
-      setFeedback(`Success: Token successfully ${action === "generate_key" ? "generated" : "revoked"}`);
-      fetchDeveloperKeys();
-      setTimeout(() => setFeedback(""), 3000);
+      const data = await res.json();
+      if (res.ok) {
+        setFeedback(`Success: Key ${action === "generate" ? "created" : "revoked"} — ${data.key || data.message || "done"}`);
+        fetchDeveloperKeys(); // refresh the list
+      } else {
+        setFeedback(`Error: ${data.error || "Key action failed"}`);
+      }
     } catch (err) {
-      console.error("Developer gateway key action error:", err);
-      setFeedback("Error: Failed to process key request.");
+      console.error("Key action error:", err);
+      setFeedback("Error: Failed to process key action.");
     }
+    setTimeout(() => setFeedback(""), 4000);
   };
 
-  // Stripe Portal trigger
+  // Stripe Portal trigger — redirects to real Stripe Customer Portal
   const handleStripePortal = async () => {
     try {
-      setFeedback("Preparing secure Stripe Customer Portal access...");
-      await fetch("/api/action", {
+      setFeedback("Opening Stripe Customer Portal...");
+      const res = await fetch("/api/stripe/portal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ action: "invoice_download", resource: "stripe_portal" }),
       });
-      setFeedback("Stripe Billing Portal launched. Check your support contact.");
-      setTimeout(() => setFeedback(""), 4000);
-    } catch (err) {
-      console.error(err);
+      const data = await res.json();
+      if (data.url) {
+        window.open(data.url, "_blank");
+        setFeedback("Stripe Billing Portal opened in new tab.");
+      } else if (res.ok) {
+        setFeedback("Redirecting to Stripe dashboard...");
+        setTimeout(() => setFeedback(""), 4000);
+      } else {
+        setFeedback("Visit your Stripe dashboard to manage subscriptions.");
+      }
+    } catch {
+      setFeedback("Visit dashboard.stripe.com to manage your subscriptions.");
     }
+    setTimeout(() => setFeedback(""), 5000);
   };
 
   if (loadingSettings) {
@@ -633,7 +659,7 @@ function UnifiedSettingsHub() {
                       <div className="text-[10px] text-stone-500">Require secondary OTP codes on administrative logins.</div>
                     </div>
                     <button
-                      onClick={() => setMfaEnabled(!mfaEnabled)}
+                      onClick={() => { setMfaEnabled(!mfaEnabled); saveToggleSetting("mfaEnabled", !mfaEnabled); }}
                       className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
                         mfaEnabled ? "bg-emerald-600" : "bg-stone-800"
                       }`}
@@ -682,7 +708,7 @@ function UnifiedSettingsHub() {
                       <div className="text-[10px] text-stone-500">Primary dashboard inbox messages.</div>
                     </div>
                     <button
-                      onClick={() => setNotifyEmail(!notifyEmail)}
+                      onClick={() => { setNotifyEmail(!notifyEmail); saveToggleSetting("notifyEmail", !notifyEmail); }}
                       className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
                         notifyEmail ? "bg-emerald-600" : "bg-stone-800"
                       }`}
@@ -699,7 +725,7 @@ function UnifiedSettingsHub() {
                       <div className="text-[10px] text-stone-500">Receive system failures as text alerts.</div>
                     </div>
                     <button
-                      onClick={() => setNotifySMS(!notifySMS)}
+                      onClick={() => { setNotifySMS(!notifySMS); saveToggleSetting("notifySMS", !notifySMS); }}
                       className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
                         notifySMS ? "bg-emerald-600" : "bg-stone-800"
                       }`}
@@ -716,7 +742,7 @@ function UnifiedSettingsHub() {
                       <div className="text-[10px] text-stone-500">Post system task updates directly to Slack.</div>
                     </div>
                     <button
-                      onClick={() => setNotifySlack(!notifySlack)}
+                      onClick={() => { setNotifySlack(!notifySlack); saveToggleSetting("notifySlack", !notifySlack); }}
                       className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
                         notifySlack ? "bg-emerald-600" : "bg-stone-800"
                       }`}
@@ -904,7 +930,7 @@ function UnifiedSettingsHub() {
                   <div className="shrink-0 text-right space-y-1.5">
                     <span className="font-black text-emerald-400 text-sm block">$15,000</span>
                     <a
-                      href="https://buy.stripe.com/00wdRb4WH57V7Ll9XW2Fa15"
+                      href="https://buy.stripe.com/fZu14p2Oz7g3d5F9XW2Fa1v"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-block bg-stone-900 hover:bg-stone-800 text-white font-bold px-3 py-1.5 rounded-lg text-[10px] border border-stone-800"
@@ -922,7 +948,7 @@ function UnifiedSettingsHub() {
                   <div className="shrink-0 text-right space-y-1.5">
                     <span className="font-black text-emerald-400 text-sm block">$30,000</span>
                     <a
-                      href="https://buy.stripe.com/cNi5kFexh1VJaXxc642Fa16"
+                      href="https://buy.stripe.com/aFabJ31KveIv1mX2vu2Fa1w"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-block bg-stone-900 hover:bg-stone-800 text-white font-bold px-3 py-1.5 rounded-lg text-[10px] border border-stone-800"

@@ -283,7 +283,7 @@ function AIAdvisor() {
               </div>
               <div className="flex gap-3">
                 <a
-                  href="https://buy.stripe.com/eVq14p74P43RaXxfig2Fa0k"
+                  href="https://buy.stripe.com/4gMfZj88TfMz6Hh8TS2Fa1K"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-sm py-3 rounded-xl text-center transition-all"

@@ -150,7 +150,7 @@ export default function IndustryLanding({ config }: { config: IndustryConfig }) 
                 ))}
               </ul>
               <a
-                href="https://buy.stripe.com/fZufZj2OzdEr6Hh0nm2Fa00"
+                href="https://buy.stripe.com/aFa8wRdtd0RF5Dd8TS2Fa1t"
                 className="w-full text-center text-white py-3 rounded-lg font-bold hover:opacity-90 transition-opacity"
                 style={{ backgroundColor: c.accent }}
               >

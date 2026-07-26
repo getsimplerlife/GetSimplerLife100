@@ -60,9 +60,9 @@ function AutomationLibraryPage() {
 
   // Pricing mapped to standard checkout links
   const getStripeLink = (difficulty: string) => {
-    if (difficulty === "easy") return "https://buy.stripe.com/aFa3cxah18k7aXx0nm2Fa01"; // Starter
-    if (difficulty === "medium") return "https://buy.stripe.com/5kQdRbah1asf1mX7PO2Fa02"; // Growth
-    return "https://buy.stripe.com/4gM9AV74P1VJ9Tt9XW2Fa03"; // Scale
+    if (difficulty === "easy") return "https://buy.stripe.com/bJebJ3bl5eIv2r19XW2Fa1u"; // Starter
+    if (difficulty === "medium") return "https://buy.stripe.com/fZu14p2Oz7g3d5F9XW2Fa1v"; // Growth
+    return "https://buy.stripe.com/aFabJ31KveIv1mX2vu2Fa1w"; // Scale
   };
 
   const getTierPrice = (difficulty: string) => {
