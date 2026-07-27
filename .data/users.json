@@ -1,7 +1,7 @@
 {
   "mathewortiz97@gmail.com": {
     "email": "mathewortiz97@gmail.com",
-    "password": "$2b$10$/U9JdfgJR4TN1hNEHGAjXOzK0McaahbHCYrwn77vL6lWuPnYKl8OW",
+    "password": "$2b$10$sRqg1Y44UoGcEBdsbGeVPuKcCbbd5D1044Ic.zbHuXRNEz3ZK00fq",
     "role": "admin",
     "createdAt": 1785135766984
   },
@@ -10,5 +10,41 @@
     "password": "$2b$10$0/231Q2SQknGvjD4eGjTsuKkWvj7wljKNejBwVAjxw4R2WDGAQ9NK",
     "role": "user",
     "createdAt": 1785135913973
+  },
+  "audit-test-1785144096@test.com": {
+    "email": "audit-test-1785144096@test.com",
+    "password": "$2b$10$KL0QP.NrkRd2CtFxEqT91uRkEkLVkFVctcsuR5y9720C/WhkRv63W",
+    "role": "user",
+    "createdAt": 1785144096579
+  },
+  "test402@test.com": {
+    "email": "test402@test.com",
+    "password": "$2b$10$fuXu0L1XsoBenLBrzB2mMulGgNWqsmu8v0duCm31OChoUCWfFgZpe",
+    "role": "user",
+    "createdAt": 1785144876320
+  },
+  "nobody@test.com": {
+    "email": "nobody@test.com",
+    "password": "$2b$10$UVmWecGw72BdBTvIXSTveuOETeBmKZvcxQzcuradfryw1ETH1D6xO",
+    "role": "user",
+    "createdAt": 1785145371452
+  },
+  "nopurchase@test.com": {
+    "email": "nopurchase@test.com",
+    "password": "$2b$10$Dw/lF2ykklRRi/zYmoRPq.eLg2EtaokpWXZ4LUFzFuBjAPfeF943C",
+    "role": "user",
+    "createdAt": 1785148043663
+  },
+  "freshcheck@test.com": {
+    "email": "freshcheck@test.com",
+    "password": "$2b$10$CV6W1LiJlM3Y4S1NkrULoOeEx4wuaIH5K7DpiGf7xVJ7..tnJJxZ.",
+    "role": "user",
+    "createdAt": 1785148586572
+  },
+  "verify2@test.com": {
+    "email": "verify2@test.com",
+    "password": "$2b$10$UHB6wZAQGEUxB66wv0ZS1.slx4yOyq2RH28tiyvJdiFxbtOH5oqFy",
+    "role": "user",
+    "createdAt": 1785148658219
   }
 }

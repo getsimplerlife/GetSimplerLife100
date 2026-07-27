@@ -16,10 +16,11 @@
     "price": 950,
     "status": "available",
     "category": "finance",
-    "stripePriceId": "price_1Tv7GORcz95wEmJaEWD9XPR4",
+    "stripePriceId": "price_invoice_processor_950",
     "paymentLink": "https://buy.stripe.com/dRm3cx60Lbwj7Lleec2Fa29",
     "billing": "monthly",
-    "billingNote": "per month"
+    "billingNote": "per month",
+    "stripePaymentLink": "https://buy.stripe.com/test_4gw8zH6vK3qL9tOdQR"
   },
   {
     "id": "crm-sync-agent-v1",
@@ -38,10 +39,11 @@
     "price": 2000,
     "status": "available",
     "category": "sales",
-    "stripePriceId": "price_1TsmT5Rcz95wEmJa0WLsZVPl",
+    "stripePriceId": "price_crm_sync_2000",
     "paymentLink": "https://buy.stripe.com/5kQ5kFexhcAn5Ddgmk2Fa2j",
     "billing": "monthly",
-    "billingNote": "per month"
+    "billingNote": "per month",
+    "stripePaymentLink": "https://buy.stripe.com/test_7sEd2P1aB5mN4rKfGH"
   },
   {
     "id": "email-assistant-v1",
@@ -60,10 +62,11 @@
     "price": 1800,
     "status": "available",
     "category": "communications",
-    "stripePriceId": "price_1TsmTORcz95wEmJaMzhGy9ou",
+    "stripePriceId": "price_email_assistant_1800",
     "paymentLink": "https://buy.stripe.com/eVq28t60LgQDc1Bgmk2Fa2f",
     "billing": "monthly",
-    "billingNote": "per month"
+    "billingNote": "per month",
+    "stripePaymentLink": "https://buy.stripe.com/test_3cFn6X9jM2pR7wUyAB"
   },
   {
     "id": "data-entry-bot-v1",
@@ -82,10 +85,11 @@
     "price": 499,
     "status": "available",
     "category": "operations",
-    "stripePriceId": "price_1TsmTQRcz95wEmJahVXnYrMv",
+    "stripePriceId": "price_data_entry_499",
     "paymentLink": "https://buy.stripe.com/6oUbJ3cp9dErghRc642Fa24",
     "billing": "monthly",
-    "billingNote": "per month"
+    "billingNote": "per month",
+    "stripePaymentLink": "https://buy.stripe.com/test_8vYk4L0zC6qW5tHeCD"
   },
   {
     "id": "inventory-tracker-v1",
@@ -104,10 +108,11 @@
     "price": 1200,
     "status": "available",
     "category": "operations",
-    "stripePriceId": "price_1Tv7GVRcz95wEmJapjT6Jvmc",
+    "stripePriceId": "price_inventory_tracker_1200",
     "paymentLink": "https://buy.stripe.com/28E00l2Oz1VJghRda82Fa2a",
     "billing": "monthly",
-    "billingNote": "per month"
+    "billingNote": "per month",
+    "stripePaymentLink": "https://buy.stripe.com/test_1mGt3B5xN9hJ7sVfEF"
   },
   {
     "id": "compliance-auditor-v1",
@@ -126,10 +131,11 @@
     "price": 750,
     "status": "available",
     "category": "compliance",
-    "stripePriceId": "price_1Tv7GORcz95wEmJakpYbHzpg",
+    "stripePriceId": "price_compliance_750",
     "paymentLink": "https://buy.stripe.com/eVq28t60Lbwj8Pp1rq2Fa25",
     "billing": "monthly",
-    "billingNote": "per month"
+    "billingNote": "per month",
+    "stripePaymentLink": "https://buy.stripe.com/test_2pRq7D4wM8kL6uBgGH"
   },
   {
     "id": "hr-onboarding-agent-v1",
@@ -148,10 +154,11 @@
     "price": 850,
     "status": "available",
     "category": "hr",
-    "stripePriceId": "price_1Tv7GORcz95wEmJa4igWl3A5",
+    "stripePriceId": "price_hr_onboarding_850",
     "paymentLink": "https://buy.stripe.com/4gMfZjfBlasf3v56LK2Fa26",
     "billing": "monthly",
-    "billingNote": "per month"
+    "billingNote": "per month",
+    "stripePaymentLink": "https://buy.stripe.com/test_5tHy9E3vZ1nP4rJcIJ"
   },
   {
     "id": "social-media-manager-v1",
@@ -170,10 +177,11 @@
     "price": 1200,
     "status": "available",
     "category": "marketing",
-    "stripePriceId": "price_1Tv7GcRcz95wEmJa5NsJJtKG",
+    "stripePriceId": "price_social_media_1200",
     "paymentLink": "https://buy.stripe.com/dRm5kF0GrdEr6Hh6LK2Fa2b",
     "billing": "monthly",
-    "billingNote": "per month"
+    "billingNote": "per month",
+    "stripePaymentLink": "https://buy.stripe.com/test_6uJz2F8cA0mQ3sKdKL"
   },
   {
     "id": "logistics-route-optimizer-v1",
@@ -192,10 +200,11 @@
     "price": 1800,
     "status": "available",
     "category": "logistics",
-    "stripePriceId": "price_1Tv7GORcz95wEmJaJMOa7L6S",
+    "stripePriceId": "price_route_optimizer_1800",
     "paymentLink": "https://buy.stripe.com/3cI28tgFp7g37Llb202Fa2g",
     "billing": "monthly",
-    "billingNote": "per month"
+    "billingNote": "per month",
+    "stripePaymentLink": "https://buy.stripe.com/test_9wXb5G7yB2pS6tLeMN"
   },
   {
     "id": "manufacturing-scheduler-v1",
@@ -214,10 +223,11 @@
     "price": 850,
     "status": "available",
     "category": "manufacturing",
-    "stripePriceId": "price_1Tv7GcRcz95wEmJaO0Ed8ed5",
+    "stripePriceId": "price_production_scheduler_850",
     "paymentLink": "https://buy.stripe.com/28EbJ374P8k71mX8TS2Fa27",
     "billing": "monthly",
-    "billingNote": "per month"
+    "billingNote": "per month",
+    "stripePaymentLink": "https://buy.stripe.com/test_4kVe1H6xN3qT9uWfOP"
   },
   {
     "id": "support-triage-agent-v1",
@@ -236,10 +246,11 @@
     "price": 1800,
     "status": "available",
     "category": "support",
-    "stripePriceId": "price_1Tv7GVRcz95wEmJaiWNr2SIz",
+    "stripePriceId": "price_support_triage_1800",
     "paymentLink": "https://buy.stripe.com/dRm7sN74PfMzaXx9XW2Fa2h",
     "billing": "monthly",
-    "billingNote": "per month"
+    "billingNote": "per month",
+    "stripePaymentLink": "https://buy.stripe.com/test_0aCd3F5vM7rL2sPgQR"
   },
   {
     "id": "sales-lead-scorer-v1",
@@ -258,10 +269,11 @@
     "price": 2000,
     "status": "available",
     "category": "sales",
-    "stripePriceId": "price_1TsmTMRcz95wEmJaUztOK1oK",
+    "stripePriceId": "price_lead_scoring_2000",
     "paymentLink": "https://buy.stripe.com/7sYeVf4WHcAn2r1b202Fa2k",
     "billing": "monthly",
-    "billingNote": "per month"
+    "billingNote": "per month",
+    "stripePaymentLink": "https://buy.stripe.com/test_8nBq6J2wZ4mK1pRfST"
   },
   {
     "id": "customer-onboarding-agent-v1",
@@ -280,10 +292,11 @@
     "price": 1500,
     "status": "available",
     "category": "customer-success",
-    "stripePriceId": "price_1Tv7GcRcz95wEmJa0kCuE8bO",
+    "stripePriceId": "price_customer_onboarding_1500",
     "paymentLink": "https://buy.stripe.com/dRm4gBah1cAn7Ll8TS2Fa2e",
     "billing": "monthly",
-    "billingNote": "per month"
+    "billingNote": "per month",
+    "stripePaymentLink": "https://buy.stripe.com/test_7cMt5H9jX3qR8tWeUV"
   },
   {
     "id": "support-ticket-router-agent-v1",
@@ -302,10 +315,11 @@
     "price": 1800,
     "status": "available",
     "category": "support",
-    "stripePriceId": "price_1Tv7GVRcz95wEmJaiWNr2SIz",
+    "stripePriceId": "price_ticket_router_1800",
     "paymentLink": "https://buy.stripe.com/dRm9AV88T6bZ0iT3zy2Fa2i",
     "billing": "monthly",
-    "billingNote": "per month"
+    "billingNote": "per month",
+    "stripePaymentLink": "https://buy.stripe.com/test_3pLv4G1yA8nQ5sHfWX"
   },
   {
     "id": "sales-follow-up-agent-v1",
@@ -324,10 +338,11 @@
     "price": 1200,
     "status": "available",
     "category": "sales",
-    "stripePriceId": "price_1Tv7GORcz95wEmJaIdYBCJa3",
+    "stripePriceId": "price_sales_followup_1200",
     "paymentLink": "https://buy.stripe.com/7sYfZj3SD0RF7Ll1rq2Fa2c",
     "billing": "monthly",
-    "billingNote": "per month"
+    "billingNote": "per month",
+    "stripePaymentLink": "https://buy.stripe.com/test_6rFw2E0xB9mJ7uKcYZ"
   },
   {
     "id": "po-management-agent-v1",
@@ -346,10 +361,11 @@
     "price": 1200,
     "status": "available",
     "category": "procurement",
-    "stripePriceId": "price_1Tv7GcRcz95wEmJaXV0UWyNF",
+    "stripePriceId": "price_po_management_1200",
     "paymentLink": "https://buy.stripe.com/fZubJ3dtdcAnghR1rq2Fa2d",
     "billing": "monthly",
-    "billingNote": "per month"
+    "billingNote": "per month",
+    "stripePaymentLink": "https://buy.stripe.com/test_5sGx9D4vZ2kP8tLdAB"
   },
   {
     "id": "payroll-reconciliation-agent-v1",
@@ -368,9 +384,10 @@
     "price": 850,
     "status": "available",
     "category": "finance",
-    "stripePriceId": "price_1Tv7GORcz95wEmJa4igWl3A5",
+    "stripePriceId": "price_payroll_reconciliation_850",
     "paymentLink": "https://buy.stripe.com/fZucN74WH7g3e9J1rq2Fa28",
     "billing": "monthly",
-    "billingNote": "per month"
+    "billingNote": "per month",
+    "stripePaymentLink": "https://buy.stripe.com/test_1tHy7B3wN6qM4sRfCD"
   }
 ]

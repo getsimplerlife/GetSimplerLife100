@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 
-export const Route = createFileRoute("/portal/crm/")({
-  component: CRMERPPortal,
+export const Route = createFileRoute("/portal/erp/")({
+  component: ERPPortal,
 });
 
 interface ProviderItem {
@@ -20,9 +20,8 @@ interface ConnectionItem {
   status: string;
 }
 
-function CRMERPPortal() {
+function ERPPortal() {
   const [search, setSearch] = useState("");
-  const [category, setCategory] = useState<"all" | "CRM" | "ERP">("all");
   const [connecting, setConnecting] = useState<string | null>(null);
   const [providers, setProviders] = useState<ProviderItem[]>([]);
   const [connections, setConnections] = useState<ConnectionItem[]>([]);
@@ -51,16 +50,16 @@ function CRMERPPortal() {
         const provsData = await providersRes.json();
         const connsData = await connsRes.json();
         const allProviders: ProviderItem[] = provsData.data || provsData || [];
-        // Filter to CRM/ERP categories
-        const crmErp = allProviders.filter(p => {
+        // Filter to ERP/accounting only (no CRM)
+        const erpOnly = allProviders.filter(p => {
           const cat = (p.category || "").toLowerCase();
-          return cat.includes("crm") || cat.includes("erp") || cat.includes("accounting");
+          return cat.includes("erp") || cat.includes("accounting") || cat.includes("finance");
         });
-        setProviders(crmErp);
+        setProviders(erpOnly);
         setConnections(connsData.data || connsData || []);
       } catch (err) {
-        console.error("Error fetching CRM/ERP data:", err);
-        setError("Failed to load CRM/ERP providers. Please try again.");
+        console.error("Error fetching ERP data:", err);
+        setError("Failed to load ERP providers. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -68,18 +67,34 @@ function CRMERPPortal() {
     fetchData();
   }, []);
 
+  if (purchaseGated) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-center space-y-6">
+        <div className="text-5xl">🔐</div>
+        <h2 className="text-2xl font-black text-white">ERP Access Requires Purchase</h2>
+        <p className="text-stone-400 max-w-md">
+          ERP integrations require an active AI employee or builder package. Browse our marketplace to get started.
+        </p>
+        <Link
+          to="/portal/marketplace"
+          className="inline-flex items-center bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-bold text-sm transition-all"
+        >
+          Browse Marketplace →
+        </Link>
+      </div>
+    );
+  }
+
   const filtered = providers.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
-    const matchesCat = category === "all" ||
-      p.category.toLowerCase().includes(category.toLowerCase());
-    return matchesSearch && matchesCat;
+    return matchesSearch;
   });
 
   const connectedCount = connections.filter(c => {
     const provider = providers.find(p => p.id === c.providerId);
     if (!provider) return false;
     const cat = (provider.category || "").toLowerCase();
-    return cat.includes("crm") || cat.includes("erp") || cat.includes("accounting");
+    return cat.includes("erp") || cat.includes("accounting") || cat.includes("finance");
   }).length;
 
   const handleConnect = async (providerId: string) => {
@@ -129,36 +144,18 @@ function CRMERPPortal() {
     );
   }
 
-  if (purchaseGated) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] text-center space-y-6">
-        <div className="text-5xl">🔐</div>
-        <h2 className="text-2xl font-black text-white">CRM Access Requires Purchase</h2>
-        <p className="text-stone-400 max-w-md">
-          CRM integrations require an active AI employee or builder package. Browse our marketplace to get started.
-        </p>
-        <Link
-          to="/portal/marketplace"
-          className="inline-flex items-center bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-bold text-sm transition-all"
-        >
-          Browse Marketplace →
-        </Link>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-black text-white tracking-tight">CRM & ERP Connections</h1>
-        <p className="text-stone-400 mt-1">Connect your customer and enterprise resource planning systems for AI-powered automation.</p>
+        <h1 className="text-2xl font-black text-white tracking-tight">ERP & Accounting Connections</h1>
+        <p className="text-stone-400 mt-1">Connect your enterprise resource planning and accounting systems for AI-powered financial automation.</p>
       </div>
 
       {/* Quick Stats */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {[
-          { label: "CRM/ERP Providers", value: String(providers.length), color: "text-blue-400" },
+          { label: "ERP Providers", value: String(providers.length), color: "text-amber-400" },
           { label: "Connected", value: String(connectedCount), color: "text-white" },
           { label: "Total Connections", value: String(connections.length), color: "text-emerald-400" },
         ].map(s => (
@@ -169,44 +166,29 @@ function CRMERPPortal() {
         ))}
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
+      {/* Search */}
+      <div>
         <input
           type="text"
-          placeholder="Search providers..."
+          placeholder="Search ERP providers..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="flex-1 bg-stone-900 border border-stone-800 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-emerald-500 transition-colors placeholder:text-stone-600"
+          className="w-full bg-stone-900 border border-stone-800 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-emerald-500 transition-colors placeholder:text-stone-600"
         />
-        <div className="flex gap-2">
-          {(["all", "CRM", "ERP"] as const).map(c => (
-            <button
-              key={c}
-              onClick={() => setCategory(c)}
-              className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
-                category === c
-                  ? "bg-emerald-600 text-white"
-                  : "bg-stone-900 text-stone-400 hover:bg-stone-800 border border-stone-800"
-              }`}
-            >
-              {c === "all" ? "All" : c}
-            </button>
-          ))}
-        </div>
       </div>
 
       {/* Provider Grid */}
       {providers.length === 0 ? (
         <div className="text-center py-16 text-stone-500">
           <div className="text-4xl mb-4">🔌</div>
-          <p className="font-bold">No CRM or ERP providers available</p>
+          <p className="font-bold">No ERP or accounting providers available</p>
           <p className="text-sm mt-1">Check your connection or browse all integrations.</p>
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-16 text-stone-500">
           <div className="text-4xl mb-4">🔍</div>
           <p className="font-bold">No providers match your search</p>
-          <p className="text-sm mt-1">Try a different search or filter.</p>
+          <p className="text-sm mt-1">Try a different search term.</p>
         </div>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -248,9 +230,9 @@ function CRMERPPortal() {
 
       {/* Support Note */}
       <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 text-center">
-        <h3 className="text-white font-bold mb-2">Don't see your CRM or ERP?</h3>
+        <h3 className="text-white font-bold mb-2">Don't see your ERP or accounting system?</h3>
         <p className="text-stone-400 text-sm mb-4">
-          We integrate with 180+ business platforms. If your system isn't listed here, it may be available through our universal connector.
+          We integrate with 180+ business platforms including SAP, NetSuite, QuickBooks, Xero, and more. If your system isn't listed here, it may be available through our universal connector.
         </p>
         <Link to="/portal/integrations" className="inline-block text-emerald-400 font-bold text-sm hover:text-emerald-300">
           Browse All Integrations →

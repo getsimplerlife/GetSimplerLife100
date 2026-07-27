@@ -1,1 +1,58 @@
-{}
+{
+  "mathewortiz97@gmail.com": [
+    {
+      "id": "chat-8xwy5a5cr",
+      "title": "Hello, can you help me?",
+      "createdAt": "2026-07-27T09:30:56.528Z",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Hello, can you help me?",
+          "timestamp": "2026-07-27T09:30:56.529Z"
+        },
+        {
+          "role": "assistant",
+          "content": "I'm your AI assistant at Simpler Life 100. You don't have any integrations connected yet — I can help you set those up. Our platform has 17 AI employees available for deployment across 23 industries. How can I help you optimize your operations today?",
+          "timestamp": "2026-07-27T09:30:56.529Z"
+        }
+      ],
+      "updatedAt": "2026-07-27T09:30:56.529Z"
+    },
+    {
+      "id": "chat-4x9lin2fg",
+      "title": "How do I use the Invoice Processor?",
+      "createdAt": "2026-07-27T09:34:20.832Z",
+      "messages": [
+        {
+          "role": "user",
+          "content": "How do I use the Invoice Processor?",
+          "timestamp": "2026-07-27T09:34:20.832Z"
+        },
+        {
+          "role": "assistant",
+          "content": "I'm your AI assistant at Simpler Life 100. You don't have any integrations connected yet — I can help you set those up. Our platform has 17 AI employees available for deployment across 23 industries. How can I help you optimize your operations today?",
+          "timestamp": "2026-07-27T09:34:20.832Z"
+        }
+      ],
+      "updatedAt": "2026-07-27T09:34:20.833Z"
+    },
+    {
+      "id": "chat-ko38fg3pc",
+      "title": "test",
+      "createdAt": "2026-07-27T10:02:06.549Z",
+      "messages": [
+        {
+          "role": "user",
+          "content": "test",
+          "timestamp": "2026-07-27T10:02:06.549Z"
+        },
+        {
+          "role": "assistant",
+          "content": "I'm your AI assistant at Simpler Life 100. You don't have any integrations connected yet — I can help you set those up. Our platform has 17 AI employees available for deployment across 23 industries. How can I help you optimize your operations today?",
+          "timestamp": "2026-07-27T10:02:06.549Z"
+        }
+      ],
+      "updatedAt": "2026-07-27T10:02:06.549Z"
+    }
+  ]
+}
