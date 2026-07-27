@@ -1,1 +1,11 @@
-{}
+{
+  "test@test.com": [
+    {
+      "toolName": "can-we-automate-this",
+      "result": {
+        "topMatch": "Invoice AI"
+      },
+      "timestamp": "2026-07-27T04:37:47.908Z"
+    }
+  ]
+}

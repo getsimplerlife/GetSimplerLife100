@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-export const Route = createFileRoute("/demos/")({ component: DemosHub });
+export const Route = createFileRoute("/demos")({ component: DemosHub });
 function DemosHub() {
   return (
     <div className="min-h-screen bg-stone-950 text-stone-100">
