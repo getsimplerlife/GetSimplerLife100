@@ -1,0 +1,468 @@
+{
+  "Manufacturing": {
+    "sections": [
+      {
+        "name": "Production Efficiency",
+        "items": [
+          "Work order sequencing audit",
+          "Machine downtime analysis",
+          "Material waste tracking",
+          "Quality control bottlenecks",
+          "Shift scheduling optimization"
+        ]
+      },
+      {
+        "name": "Supply Chain",
+        "items": [
+          "Supplier lead time analysis",
+          "Inventory turnover review",
+          "Freight cost optimization",
+          "Vendor consolidation opportunities",
+          "Just-in-time feasibility"
+        ]
+      },
+      {
+        "name": "Compliance",
+        "items": [
+          "OSHA reporting gaps",
+          "EPA emissions tracking",
+          "ISO certification readiness",
+          "Safety incident patterns",
+          "Equipment maintenance logs"
+        ]
+      },
+      {
+        "name": "Technology Stack",
+        "items": [
+          "ERP integration audit",
+          "MES system evaluation",
+          "IoT sensor coverage",
+          "PLC data utilization",
+          "Legacy system migration plan"
+        ]
+      }
+    ],
+    "painPoints": [
+      "Manual production scheduling causes 15-20% idle time",
+      "Inventory discrepancies between ERP and physical counts",
+      "Quality issues not caught until final inspection"
+    ],
+    "recommendedWorkflows": [
+      "production-scheduling",
+      "inventory-tracking"
+    ],
+    "integrations": [
+      "sap",
+      "netsuite",
+      "monday-com"
+    ]
+  },
+  "Logistics": {
+    "sections": [
+      {
+        "name": "Route Optimization",
+        "items": [
+          "Last-mile delivery efficiency",
+          "Fleet utilization rates",
+          "Fuel consumption patterns",
+          "Driver schedule optimization",
+          "Multi-stop route planning"
+        ]
+      },
+      {
+        "name": "Warehouse Operations",
+        "items": [
+          "Pick-pack-ship cycle time",
+          "Cross-docking feasibility",
+          "Returns processing bottleneck",
+          "Space utilization audit",
+          "Automation ROI assessment"
+        ]
+      },
+      {
+        "name": "Tracking & Visibility",
+        "items": [
+          "Real-time shipment tracking gaps",
+          "Customer notification delays",
+          "Proof of delivery process",
+          "Cold chain monitoring",
+          "Exception handling workflow"
+        ]
+      },
+      {
+        "name": "Technology Stack",
+        "items": [
+          "TMS system evaluation",
+          "WMS integration audit",
+          "API connectivity gaps",
+          "Mobile device utilization",
+          "Data synchronization issues"
+        ]
+      }
+    ],
+    "painPoints": [
+      "Dispatch takes 2+ hours daily with manual routing",
+      "30% of customer inquiries are 'where is my order'",
+      "Seasonal volume spikes cause fulfillment delays"
+    ],
+    "recommendedWorkflows": [
+      "route-optimization",
+      "inventory-tracking"
+    ],
+    "integrations": [
+      "google-maps",
+      "onfleet",
+      "netsuite",
+      "shipstation"
+    ]
+  },
+  "Healthcare": {
+    "sections": [
+      {
+        "name": "Patient Experience",
+        "items": [
+          "Appointment scheduling efficiency",
+          "Check-in process audit",
+          "Patient communication gaps",
+          "Wait time analysis",
+          "Follow-up compliance tracking"
+        ]
+      },
+      {
+        "name": "Clinical Operations",
+        "items": [
+          "EHR data entry burden",
+          "Lab result turnaround time",
+          "Medication reconciliation errors",
+          "Referral management process",
+          "Discharge planning workflow"
+        ]
+      },
+      {
+        "name": "Compliance",
+        "items": [
+          "HIPAA audit readiness",
+          "Patient consent management",
+          "Data access logging",
+          "Breach notification process",
+          "BA agreement tracking"
+        ]
+      },
+      {
+        "name": "Revenue Cycle",
+        "items": [
+          "Claims denial patterns",
+          "Coding accuracy audit",
+          "Prior authorization bottlenecks",
+          "Patient billing experience",
+          "Payment posting delays"
+        ]
+      }
+    ],
+    "painPoints": [
+      "Clinicians spend 30% of time on documentation",
+      "Claims denials cost 3-5% of revenue",
+      "Patient no-show rate exceeds industry average"
+    ],
+    "recommendedWorkflows": [
+      "compliance-audit",
+      "email-automation"
+    ],
+    "integrations": [
+      "servicenow",
+      "jira",
+      "zendesk"
+    ]
+  },
+  "Retail": {
+    "sections": [
+      {
+        "name": "Inventory Management",
+        "items": [
+          "Stockout frequency analysis",
+          "Overstock carrying costs",
+          "Seasonal forecasting accuracy",
+          "Supplier reliability scoring",
+          "Shrinkage investigation process"
+        ]
+      },
+      {
+        "name": "Customer Experience",
+        "items": [
+          "Omnichannel consistency audit",
+          "Return process efficiency",
+          "Loyalty program engagement",
+          "Personalization capability gap",
+          "Customer service response time"
+        ]
+      },
+      {
+        "name": "Operations",
+        "items": [
+          "Store labor scheduling",
+          "Price change execution speed",
+          "Planogram compliance",
+          "POS system integration",
+          "Loss prevention workflows"
+        ]
+      },
+      {
+        "name": "E-Commerce",
+        "items": [
+          "Site search effectiveness",
+          "Cart abandonment analysis",
+          "Product data quality",
+          "Order fulfillment speed",
+          "Marketplace integration audit"
+        ]
+      }
+    ],
+    "painPoints": [
+      "Inventory accuracy below 95% across channels",
+      "Manual price changes take 3+ days chain-wide",
+      "Returns processing costs 2x forward logistics"
+    ],
+    "recommendedWorkflows": [
+      "inventory-tracking",
+      "data-entry"
+    ],
+    "integrations": [
+      "shopify",
+      "netsuite",
+      "zoho"
+    ]
+  },
+  "Financial Services": {
+    "sections": [
+      {
+        "name": "Compliance & Risk",
+        "items": [
+          "KYC/AML process audit",
+          "Transaction monitoring gaps",
+          "Regulatory reporting timeliness",
+          "Audit trail completeness",
+          "Third-party risk assessment"
+        ]
+      },
+      {
+        "name": "Operations",
+        "items": [
+          "Account opening cycle time",
+          "Loan processing bottlenecks",
+          "Reconciliation exception rate",
+          "Document management efficiency",
+          "Vendor management workflow"
+        ]
+      },
+      {
+        "name": "Customer Service",
+        "items": [
+          "Inquiry resolution time",
+          "Channel switching friction",
+          "Self-service capability gap",
+          "Complaint handling process",
+          "Onboarding completion rate"
+        ]
+      },
+      {
+        "name": "Technology",
+        "items": [
+          "Core system integration audit",
+          "Data quality assessment",
+          "API strategy evaluation",
+          "Cloud migration readiness",
+          "Cybersecurity posture review"
+        ]
+      }
+    ],
+    "painPoints": [
+      "Manual reconciliation takes 15+ hours per week",
+      "KYC onboarding causes 40% customer drop-off",
+      "Regulatory change implementation lags by months"
+    ],
+    "recommendedWorkflows": [
+      "compliance-audit",
+      "data-entry",
+      "crm-sync"
+    ],
+    "integrations": [
+      "salesforce",
+      "hubspot",
+      "quickbooks"
+    ]
+  },
+  "Construction": {
+    "sections": [
+      {
+        "name": "Project Management",
+        "items": [
+          "Schedule variance analysis",
+          "Change order processing time",
+          "Subcontractor coordination gaps",
+          "RFI response efficiency",
+          "Daily report automation"
+        ]
+      },
+      {
+        "name": "Cost Control",
+        "items": [
+          "Budget vs actual tracking",
+          "Invoice processing speed",
+          "Material cost variance",
+          "Labor productivity metrics",
+          "Equipment utilization rate"
+        ]
+      },
+      {
+        "name": "Safety & Compliance",
+        "items": [
+          "Incident reporting workflow",
+          "OSHA inspection readiness",
+          "Site safety audit frequency",
+          "Training compliance tracking",
+          "Permit management process"
+        ]
+      },
+      {
+        "name": "Technology",
+        "items": [
+          "Project management software audit",
+          "Mobile field data capture",
+          "BIM utilization assessment",
+          "Document control system",
+          "ERP integration gaps"
+        ]
+      }
+    ],
+    "painPoints": [
+      "Change orders cause 10-15% budget overrun",
+      "Field-to-office data sync takes 24+ hours",
+      "Subcontractor invoice reconciliation is 100% manual"
+    ],
+    "recommendedWorkflows": [
+      "invoice-processing",
+      "data-entry"
+    ],
+    "integrations": [
+      "sap",
+      "quickbooks",
+      "monday-com"
+    ]
+  },
+  "Technology": {
+    "sections": [
+      {
+        "name": "Development Operations",
+        "items": [
+          "CI/CD pipeline audit",
+          "Code review process efficiency",
+          "Deployment frequency analysis",
+          "Incident response time",
+          "Technical debt assessment"
+        ]
+      },
+      {
+        "name": "Infrastructure",
+        "items": [
+          "Cloud cost optimization",
+          "Service uptime audit",
+          "Capacity planning process",
+          "Disaster recovery readiness",
+          "Monitoring coverage gaps"
+        ]
+      },
+      {
+        "name": "Security",
+        "items": [
+          "Vulnerability scanning cadence",
+          "Access control audit",
+          "Secrets management practice",
+          "Penetration testing schedule",
+          "Compliance framework alignment"
+        ]
+      },
+      {
+        "name": "Team & Process",
+        "items": [
+          "Agile maturity assessment",
+          "Documentation completeness",
+          "On-call burden analysis",
+          "Knowledge sharing effectiveness",
+          "Tool sprawl audit"
+        ]
+      }
+    ],
+    "painPoints": [
+      "Manual deployment processes cause 2+ hour release cycles",
+      "Unplanned work consumes 40% of sprint capacity",
+      "Cloud costs growing 20% month-over-month"
+    ],
+    "recommendedWorkflows": [
+      "compliance-audit",
+      "email-automation"
+    ],
+    "integrations": [
+      "jira",
+      "slack",
+      "github"
+    ]
+  },
+  "Hospitality": {
+    "sections": [
+      {
+        "name": "Guest Experience",
+        "items": [
+          "Check-in efficiency audit",
+          "Room readiness tracking",
+          "Guest request response time",
+          "Loyalty program integration",
+          "Feedback collection process"
+        ]
+      },
+      {
+        "name": "Operations",
+        "items": [
+          "Housekeeping scheduling",
+          "Maintenance request workflow",
+          "Inventory management (F&B)",
+          "Vendor management process",
+          "Energy consumption audit"
+        ]
+      },
+      {
+        "name": "Revenue Management",
+        "items": [
+          "Rate optimization process",
+          "Channel management efficiency",
+          "Forecasting accuracy",
+          "Group booking workflow",
+          "Upsell automation opportunity"
+        ]
+      },
+      {
+        "name": "Staff Management",
+        "items": [
+          "Shift scheduling optimization",
+          "Training compliance tracking",
+          "Performance review process",
+          "Overtime cost analysis",
+          "Turnover impact assessment"
+        ]
+      }
+    ],
+    "painPoints": [
+      "Manual housekeeping assignment takes 1+ hour daily",
+      "OTA channel updates lag by hours",
+      "Guest requests lost between shifts"
+    ],
+    "recommendedWorkflows": [
+      "hr-onboarding",
+      "data-entry"
+    ],
+    "integrations": [
+      "bamboohr",
+      "workday",
+      "slack"
+    ]
+  }
+}
