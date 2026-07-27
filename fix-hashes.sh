@@ -16,12 +16,30 @@ if [ ! -f "$SERVER" ]; then exit 0; fi
 
 mkdir -p "$CLIENT_ASSETS"
 
-# Step 1: Remove stale client assets (not in server/assets)
+# Step 1: Remove stale client assets — only if newer version exists in server/assets
+# First, collect SSR-referenced hashes from live pages (to preserve bridges)
+SSR_SAFELIST="/tmp/ssr_safelist.txt"
+> "$SSR_SAFELIST"
+for page in "" "login" "register" "about" "contact" "faq" "demo" "how-it-works" "build" "case-studies" "support" "portal" "portal/dashboard" "portal/marketplace"; do
+  curl -s "http://localhost:3000/$page" 2>/dev/null | strings | grep -oP '[a-zA-Z0-9_.-]+-[A-Za-z0-9_]{8,}\.(js|css)' >> "$SSR_SAFELIST"
+done
+sort -u "$SSR_SAFELIST" -o "$SSR_SAFELIST"
+
 stale=0
 for f in "$CLIENT_ASSETS"/*.js "$CLIENT_ASSETS"/*.css; do
   [ ! -f "$f" ] && continue
   name=$(basename "$f")
-  if [ ! -f "$SERVER_ASSETS/$name" ]; then
+  if [ -f "$SERVER_ASSETS/$name" ]; then
+    continue  # canonical file, keep
+  fi
+  # Keep if referenced by live SSR HTML
+  if grep -qF "$name" "$SSR_SAFELIST" 2>/dev/null; then
+    continue
+  fi
+  # Check if a newer version exists in server/assets with same base name
+  base=$(echo "$name" | sed -E 's/-[A-Za-z0-9_]{8,}\.(js|css)$//')
+  ext=$(echo "$name" | sed 's/.*\.//')
+  if ls "$SERVER_ASSETS/${base}-"*".${ext}" >/dev/null 2>&1; then
     rm "$f"
     stale=$((stale + 1))
   fi
