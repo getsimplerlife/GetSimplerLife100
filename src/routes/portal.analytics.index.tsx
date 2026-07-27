@@ -24,17 +24,10 @@ interface DepartmentShare {
 
 function PerformanceAnalytics() {
   const [metrics, setMetrics] = useState<AnalyticsMetric[]>([]);
+  const [departments, setDepartments] = useState<DepartmentShare[]>([]);
   const [loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState("");
   const [activeTab, setActiveTab] = useState<"all" | "executive" | "coworker" | "bottleneck">("all");
-
-  const departments: DepartmentShare[] = [
-    { name: "Finance Operations", percentage: 38, hours: 179.5, color: "bg-blue-500" },
-    { name: "Sales Outreach", percentage: 22, hours: 104.0, color: "bg-purple-500" },
-    { name: "Customer Support", percentage: 18, hours: 85.0, color: "bg-emerald-500" },
-    { name: "Logistics & Dispatch", percentage: 14, hours: 66.2, color: "bg-amber-500" },
-    { name: "HR Compliance", percentage: 8, hours: 37.8, color: "bg-stone-700" }
-  ];
 
   useEffect(() => {
     (async () => {
@@ -42,8 +35,17 @@ function PerformanceAnalytics() {
         const res = await fetch("/api/data/analytics", { credentials: "include" });
         const d = await res.json();
         
-        if (d.data && d.data.length > 0) {
-          setMetrics(d.data);
+        if (d.data) {
+          // Handle both array (old format) and object (new format) responses
+          if (Array.isArray(d.data)) {
+            setMetrics(d.data);
+          } else {
+            // New format: { totalUsers, totalAgents, ..., departments }
+            setMetrics([]);
+            if (Array.isArray(d.data.departments)) {
+              setDepartments(d.data.departments);
+            }
+          }
         } else {
           setMetrics([]);
         }
@@ -168,6 +170,7 @@ function PerformanceAnalytics() {
       </div>
 
       {/* ─── Segmented Department Share Breakdown ─── */}
+      {departments.length > 0 && (
       <div className="bg-stone-950 border border-stone-900 p-6 rounded-2xl space-y-6">
         <div>
           <h2 className="text-lg font-black text-white">Labor Allocation Share</h2>
@@ -201,6 +204,7 @@ function PerformanceAnalytics() {
           ))}
         </div>
       </div>
+      )}
     </>
   )}
 

@@ -43,38 +43,10 @@ const OUTPUT_TEMPLATES: IntegrationCategory[] = [
 ];
 
 function AdminWorkflowBuilder() {
-  const [nodes, setNodes] = useState<WorkflowNodeInstance[]>([
-    {
-      id: "node_1",
-      componentId: "t_upload",
-      name: "File Upload Trigger",
-      type: "trigger",
-      icon: "📁",
-      description: "Fires when user uploads PDFs, CSVs, or handwriting scans to the portal.",
-      config: { allowedTypes: "PDF, CSV, JPEG", maxBytes: "10485760" },
-    },
-    {
-      id: "node_2",
-      componentId: "a_ai",
-      name: "Run AI Employee",
-      type: "action",
-      icon: "🤖",
-      description: "Executes autonomous LLM reasoning engine with a selected prompt blueprint.",
-      config: { model: "gemini-3.5-flash", temperature: "0.2", prompt: "Energy carrier dispatch comparison" },
-    },
-    {
-      id: "node_3",
-      componentId: "o_db",
-      name: "Save Results Storage",
-      type: "output",
-      icon: "💾",
-      description: "Saves structured datasets into SQLite/Turso or Amazon S3.",
-      config: { targetTable: "agent_runs", primaryKey: "id" },
-    },
-  ]);
+  const [nodes, setNodes] = useState<WorkflowNodeInstance[]>([]);
 
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>("node_2");
-  const [workflowName, setWorkflowName] = useState("Carrier Dispatch Reconciliation Pipeline");
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [workflowName, setWorkflowName] = useState("");
   const [activeTab, setActiveTab] = useState<"visual" | "json" | "code">("visual");
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [draggedTemplate, setDraggedTemplate] = useState<IntegrationCategory | null>(null);

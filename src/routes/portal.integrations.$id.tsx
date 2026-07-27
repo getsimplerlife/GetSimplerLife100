@@ -37,7 +37,7 @@ function ConnectionDetailPage() {
         if (found) {
           setConnection(found);
           setDisplayName(found.displayName);
-          generateMockLogs(found);
+          fetchLogs(found);
         } else {
           setFeedback("Connection not found.");
         }
@@ -48,58 +48,22 @@ function ConnectionDetailPage() {
       setLoading(false);
     }
   };
-
-  const generateMockLogs = (conn: Connection) => {
-    const isError = conn.status === "error" || conn.status === "expired";
-    const baseLogs: ActivityLog[] = [
-      {
-        timestamp: new Date(Date.now() - 3 * 3600000).toISOString(),
-        type: "info",
-        message: `Connection initialized for provider ${conn.provider}`,
-      },
-      {
-        timestamp: new Date(Date.now() - 2.5 * 3600000).toISOString(),
-        type: "success",
-        message: "OAuth flow completed and secure tokens cached on general ledger database",
-      },
-      {
-        timestamp: new Date(Date.now() - 2 * 3600000).toISOString(),
-        type: "success",
-        message: "Primary inventory and invoice schema mappings verified (200 OK)",
-        duration: "1.4s",
-      },
-    ];
-
-    if (isError) {
-      baseLogs.push(
-        {
-          timestamp: new Date(Date.now() - 45 * 60000).toISOString(),
-          type: "warning",
-          message: "API authentication session renewal triggered automatically",
-        },
-        {
-          timestamp: new Date(Date.now() - 10 * 60000).toISOString(),
-          type: "error",
-          message: conn.errorMsg || "API Access Token Expired (401 Unauthorized) — Re-auth needed",
+  const fetchLogs = async (conn: Connection) => {
+    try {
+      const res = await fetch(`/api/integrations/${conn.id}/logs`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.data)) {
+          setLogs(data.data.reverse());
+          return;
         }
-      );
-    } else {
-      baseLogs.push(
-        {
-          timestamp: new Date(Date.now() - 45 * 60000).toISOString(),
-          type: "success",
-          message: "OAuth Access Token auto-refreshed successfully",
-          duration: "340ms",
-        },
-        {
-          timestamp: new Date(Date.now() - 15 * 60000).toISOString(),
-          type: "success",
-          message: "Incremental customer accounts and pipelines sync run completed successfully",
-          duration: "2.1s",
-        }
-      );
+      }
+      // Fallback: empty logs
+      setLogs([]);
+    } catch (err) {
+      console.error("Failed to fetch integration logs:", err);
+      setLogs([]);
     }
-    setLogs(baseLogs.reverse());
   };
 
   useEffect(() => {

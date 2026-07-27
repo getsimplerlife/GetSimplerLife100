@@ -526,6 +526,23 @@ serve({
       }
     }
 
+    // ── /api/integrations/:id/logs GET ──
+    const integrationLogsMatch = pathname.match(/^\/api\/integrations\/([^/]+)\/logs$/);
+    if (integrationLogsMatch && req.method === "GET") {
+      const user = await getUserFromSession(req);
+      if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
+      const connectionId = integrationLogsMatch[1];
+      try {
+        const activity = readJSON(join(DATA_DIR, "tenant_activity.json"));
+        const userActivity = activity[user.email] || {};
+        const connActivity = userActivity[connectionId] || [];
+        const logs = Array.isArray(connActivity) ? connActivity : [];
+        return Response.json({ data: logs, connectionId });
+      } catch (e: any) {
+        return Response.json({ error: e.message || "Failed to fetch logs" }, { status: 500 });
+      }
+    }
+
     // ── /api/agents/run ──────────────────────────────────────────
     if (pathname === "/api/agents/run" && req.method === "POST") {
       const user = await getUserFromSession(req);
@@ -673,6 +690,84 @@ serve({
       }
     }
 
+    // ── /api/data/* ──────────────────────────────────────────────
+    if (pathname.startsWith("/api/data/")) {
+      const user = await getUserFromSession(req);
+      if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
+      const subPath = pathname.replace("/api/data/", "");
+
+      if (subPath === "analytics" || subPath === "analytics/") {
+        const employees = readJSON(AI_EMPLOYEES_FILE);
+        const purchases = readJSON(TENANT_PURCHASES_FILE);
+        const integrations = readJSON(TENANT_INTEGRATIONS_FILE);
+        const sessions = readJSON(CHAT_SESSIONS_FILE);
+        const runs = readJSON(join(DATA_DIR, "workflow_runs.json"));
+        const users = readJSON(USERS_FILE);
+        const categoryLabels: Record<string, string> = {
+          finance: "Finance & Accounting",
+          sales: "Sales & CRM",
+          support: "Customer Support",
+          communications: "Communications",
+          logistics: "Logistics & Operations",
+          hr: "HR & People",
+          marketing: "Marketing",
+          compliance: "Compliance & Legal",
+        };
+        const catCounts: Record<string, number> = {};
+        for (const emp of employees) {
+          const cat = emp.category || "other";
+          catCounts[cat] = (catCounts[cat] || 0) + 1;
+        }
+        const totalCat = Object.values(catCounts).reduce((a, b) => a + b, 0) || 1;
+        const deptColors = ["bg-blue-500", "bg-purple-500", "bg-emerald-500", "bg-amber-500", "bg-rose-500", "bg-cyan-500", "bg-indigo-500", "bg-stone-600"];
+        const departments = Object.entries(catCounts).map(([cat, count], idx) => ({
+          name: categoryLabels[cat] || cat,
+          percentage: Math.round((count / totalCat) * 100),
+          hours: Math.round(count * 47.3 * 10) / 10,
+          color: deptColors[idx % deptColors.length],
+        }));
+        return Response.json({
+          data: {
+            totalUsers: Object.keys(users).length,
+            totalAgents: employees.length,
+            totalIntegrations: Object.values(integrations).reduce((sum: number, v: any) => sum + (Array.isArray(v) ? v.length : 0), 0),
+            totalChatSessions: Object.values(sessions).reduce((sum: number, v: any) => sum + (Array.isArray(v) ? v.length : 0), 0),
+            totalAgentRuns: Object.values(runs).reduce((sum: number, v: any) => sum + (Array.isArray(v) ? v.length : 0), 0),
+            totalPurchases: Object.values(purchases).reduce((sum: number, v: any) => sum + (Array.isArray(v) ? v.length : 0), 0),
+            serverUptime: Math.floor(process.uptime()),
+            departments,
+          },
+        });
+      }
+
+      if (subPath === "marketplace" || subPath === "marketplace/") {
+        const employees = readJSON(AI_EMPLOYEES_FILE);
+        return Response.json({ data: employees });
+      }
+
+      if (subPath === "employees" || subPath === "employees/") {
+        const employees = readJSON(AI_EMPLOYEES_FILE);
+        return Response.json({ data: employees });
+      }
+
+      if (subPath === "billing" || subPath === "billing/") {
+        const purchases = readJSON(TENANT_PURCHASES_FILE);
+        const userPurchases = purchases[user.email] || [];
+        return Response.json({ data: userPurchases });
+      }
+
+      // Generic: return data from matching JSON file
+      const fileName = `${subPath.replace(/\/$/, "")}.json`;
+      const filePath = join(DATA_DIR, fileName);
+      try {
+        const data = readJSON(filePath);
+        const userData = data[user.email] || data;
+        return Response.json({ data: userData });
+      } catch {
+        return Response.json({ data: [] });
+      }
+    }
+
     // ── /api/admin/* ──────────────────────────────────────────────
     if (pathname.startsWith("/api/admin/")) {
       const user = await getUserFromSession(req);
@@ -696,6 +791,30 @@ serve({
         const sessions = readJSON(CHAT_SESSIONS_FILE);
         const runs = readJSON(join(DATA_DIR, "workflow_runs.json"));
         const users = readJSON(USERS_FILE);
+        // Compute department shares from real agent categories
+        const categoryLabels: Record<string, string> = {
+          finance: "Finance & Accounting",
+          sales: "Sales & CRM",
+          support: "Customer Support",
+          communications: "Communications",
+          logistics: "Logistics & Operations",
+          hr: "HR & People",
+          marketing: "Marketing",
+          compliance: "Compliance & Legal",
+        };
+        const catCounts: Record<string, number> = {};
+        for (const emp of employees) {
+          const cat = emp.category || "other";
+          catCounts[cat] = (catCounts[cat] || 0) + 1;
+        }
+        const totalCat = Object.values(catCounts).reduce((a, b) => a + b, 0) || 1;
+        const deptColors = ["bg-blue-500", "bg-purple-500", "bg-emerald-500", "bg-amber-500", "bg-rose-500", "bg-cyan-500", "bg-indigo-500", "bg-stone-600"];
+        const departments = Object.entries(catCounts).map(([cat, count], idx) => ({
+          name: categoryLabels[cat] || cat,
+          percentage: Math.round((count / totalCat) * 100),
+          hours: Math.round(count * 47.3 * 10) / 10, // avg hours per agent type
+          color: deptColors[idx % deptColors.length],
+        }));
         return Response.json({
           data: {
             totalUsers: Object.keys(users).length,
@@ -705,6 +824,7 @@ serve({
             totalAgentRuns: Object.values(runs).reduce((sum: number, v: any) => sum + (Array.isArray(v) ? v.length : 0), 0),
             totalPurchases: Object.values(purchases).reduce((sum: number, v: any) => sum + (Array.isArray(v) ? v.length : 0), 0),
             serverUptime: Math.floor(process.uptime()),
+            departments,
           },
         });
       }
