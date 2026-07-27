@@ -1,15 +1,3 @@
 {
-  "mathewortiz97@gmail.com": [
-    {
-      "id": "int-oa4pebn03",
-      "provider": "hubspot",
-      "providerId": "hubspot",
-      "status": "Connected",
-      "connectedAt": "2026-07-27T10:02:27.907Z",
-      "lastSync": "2026-07-27T10:02:27.907Z",
-      "credentials": {
-        "apiKey": "test123"
-      }
-    }
-  ]
+  "mathewortiz97@gmail.com": []
 }
