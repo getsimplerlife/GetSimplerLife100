@@ -8,10 +8,16 @@ export default defineConfig({
   server: {
     port: 3000,
     host: true,
-    // The site is reverse-proxied behind <label>.<PUBLIC_SITE_DOMAIN>; the proxy
-    // masks the Host to localhost:3000, but accept any host so a dev server never
-    // rejects a proxied request with "Blocked request".
     allowedHosts: true,
+  },
+  resolve: {
+    dedupe: ["react", "react-dom"],
+    alias: {
+      // Fix bare "react/jsx-runtime" imports in dynamically-loaded chunks
+      // by resolving to the actual CJS file that Vite can pre-bundle
+      "react/jsx-runtime": "react/jsx-runtime",
+      "react/jsx-dev-runtime": "react/jsx-dev-runtime",
+    },
   },
   plugins: [
     tailwindcss(),
