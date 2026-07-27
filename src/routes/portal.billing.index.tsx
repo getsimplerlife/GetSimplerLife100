@@ -177,14 +177,14 @@ function PlanAndBilling() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
               { name: "Additional AI Agent", desc: "Deploy an extra dedicated agent loop tailored for unique operational tasks.", price: "$1,500 one-time + monthly agent fee", link: "https://buy.stripe.com/00w14pcp957VghR4DC2Fa1x", icon: "🤖" },
-              { name: "CRM Integration", desc: "Sync your digital coworkers directly into Salesforce, HubSpot, or Zoho.", price: "$2,000 one-time", link: "https://buy.stripe.com/3cI6oJexh1VJ3v55HG2Fa1y", icon: "🔌" },
+              { name: "CRM Integration", desc: "Sync your digital coworkers directly into Salesforce, HubSpot, or Zoho.", price: "$2,000 one-time", link: "https://buy.stripe.com/5kQ5kFexhcAn5Ddgmk2Fa2j", icon: "🔌" },
               { name: "ERP Integration", desc: "Wire advanced inventory and resource data into SAP, NetSuite, or Oracle.", price: "$3,500 one-time", link: "https://buy.stripe.com/9B6bJ39cX8k79Tteec2Fa1z", icon: "🏭" },
-              { name: "Voice AI Receptionist", desc: "Deploy high-fidelity, autonomous voice lines handling inbound call reception.", price: "$2,500/mo", link: "https://buy.stripe.com/6oU9AV88TgQDfdN6LK2Fa1A", icon: "📞" },
-              { name: "AI Sales Assistant", desc: "Automatically draft outreach, sync pipelines, and follow up warm leads.", price: "$2,000/mo", link: "https://buy.stripe.com/eVqdRb0Gr6bZ7Ll0nm2Fa1B", icon: "📈" },
-              { name: "AI Customer Support Agent", desc: "Provide real-time email, ticket, and chat resolutions under 5 minutes.", price: "$1,800/mo", link: "https://buy.stripe.com/eVq9AVgFpasffdN2vu2Fa1C", icon: "🤝" },
+              { name: "Voice AI Receptionist", desc: "Deploy high-fidelity, autonomous voice lines handling inbound call reception.", price: "$2,500/mo", link: "https://buy.stripe.com/5kQ5kFexhcAn5Ddgmk2Fa2j", icon: "📞" },
+              { name: "AI Sales Assistant", desc: "Automatically draft outreach, sync pipelines, and follow up warm leads.", price: "$2,000/mo", link: "https://buy.stripe.com/7sYfZj3SD0RF7Ll1rq2Fa2c", icon: "📈" },
+              { name: "AI Customer Support Agent", desc: "Provide real-time email, ticket, and chat resolutions under 5 minutes.", price: "$1,800/mo", link: "https://buy.stripe.com/dRm7sN74PfMzaXx9XW2Fa2h", icon: "🤝" },
               { name: "Custom Dashboard", desc: "Gain real-time executive analytics, ROI calculators, and system health status.", price: "$1,500 one-time", link: "https://buy.stripe.com/cNibJ31Kv2ZN0iT6LK2Fa1D", icon: "📊" },
-              { name: "Document AI System", desc: "Extract unstructured invoice, fax, or contract data with 100% precision.", price: "$2,500/mo", link: "https://buy.stripe.com/14A3cxfBl1VJfdN2vu2Fa1E", icon: "📄" },
-              { name: "Internal Knowledge Assistant", desc: "Empower your workforce with immediate search across full internal company wiki.", price: "$1,500", link: "https://buy.stripe.com/aFadRb4WH6bZ2r11rq2Fa1F", icon: "🧠" },
+              { name: "Document AI System", desc: "Extract unstructured invoice, fax, or contract data with 100% precision.", price: "$2,500/mo", link: "https://buy.stripe.com/eVq28t60LgQDc1Bgmk2Fa2f", icon: "📄" },
+              { name: "Internal Knowledge Assistant", desc: "Empower your workforce with immediate search across full internal company wiki.", price: "$1,500", link: "https://buy.stripe.com/7sYeVf4WHcAn2r1b202Fa2k", icon: "🧠" },
               { name: "Employee Training", desc: "Custom training workflows mapping company compliance and handbook details.", price: "$1,200", link: "https://buy.stripe.com/eVqfZjdtd6bZaXx2vu2Fa1G", icon: "🏫" },
               { name: "Additional Dept Automation", desc: "Extend automations across other vertical department operational tasks.", price: "$2,500", link: "https://buy.stripe.com/00w3cx2Oz1VJc1Bc642Fa1H", icon: "🏢" }
             ].map((item) => (
