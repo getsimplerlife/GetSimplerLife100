@@ -1,0 +1,48 @@
+#!/usr/bin/env python3
+"""Post-build patch for TanStack Router v1.158.x null-safety bug.
+
+The bundle has: ..._.filter( which crashes when _ is null (e.g. M===0 in
+TanStack Router's match resolution). Replace with: ...(_||[]).filter(
+to add a null-guard.
+
+Run after 'bun run build' and before 'bun run publish'.
+
+This script auto-discovers the main index bundle by finding the largest
+index-*.js file in dist/client/assets/.
+"""
+import glob
+import os
+import sys
+
+ASSETS_DIR = 'dist/client/assets'
+
+if not os.path.isdir(ASSETS_DIR):
+    print(f'[patch] {ASSETS_DIR} not found — skipping')
+    sys.exit(0)
+
+# Find all index-*.js files, pick the largest (main entry bundle)
+files = glob.glob(f'{ASSETS_DIR}/index-*.js')
+if not files:
+    print(f'[patch] No index-*.js files found in {ASSETS_DIR} — skipping')
+    sys.exit(0)
+
+target = max(files, key=lambda f: os.path.getsize(f))
+
+with open(target, 'rb') as f:
+    content = f.read()
+
+old = b'..._.filter('
+new = b'...(_||[]).filter('
+
+count = content.count(old)
+if count > 0:
+    content = content.replace(old, new)
+    with open(target, 'wb') as f:
+        f.write(content)
+    print(f'[patch] Applied null-guard fix to {target} ({count} occurrence(s))')
+else:
+    # Check if already patched
+    if content.count(new) > 0:
+        print(f'[patch] Already patched: {target}')
+    else:
+        print(f'[patch] Pattern not found in {target} — may be a different TanStack Router version')
