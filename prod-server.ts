@@ -169,6 +169,29 @@ serve({
       return Response.json({ user: { email: user.email, role: user.role || "user" } });
     }
 
+    if (pathname === "/api/check-user-exists" && req.method === "POST") {
+      try {
+        const { email } = await req.json();
+        if (!email) return Response.json({ error: "Email required" }, { status: 400 });
+        const users = readJSON(USERS_FILE);
+        return Response.json({ exists: !!users[email] });
+      } catch { return Response.json({ error: "Invalid request" }, { status: 400 }); }
+    }
+
+    if (pathname === "/api/set-password" && req.method === "POST") {
+      try {
+        const { email, password } = await req.json();
+        if (!email || !password) return Response.json({ error: "Email and password required" }, { status: 400 });
+        if (password.length < 6) return Response.json({ error: "Password must be at least 6 characters" }, { status: 400 });
+        const { hash } = await import("bcryptjs");
+        const hashedPassword = await hash(password, 10);
+        const users = readJSON(USERS_FILE);
+        users[email] = { email, password: hashedPassword, role: users[email]?.role || "user", createdAt: users[email]?.createdAt || Date.now() };
+        writeJSON(USERS_FILE, users);
+        return Response.json({ success: true });
+      } catch { return Response.json({ error: "Invalid request" }, { status: 400 }); }
+    }
+
     // ── Purchase Verification ─────────────────────────────────────
     if (pathname === "/api/purchases") {
       const user = await getUserFromSession(req);
