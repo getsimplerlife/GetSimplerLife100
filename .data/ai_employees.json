@@ -14,7 +14,7 @@
       "ERP sync"
     ],
     "price": 950,
-    "status": "Active",
+    "status": "Paused",
     "category": "finance",
     "stripePriceId": "price_invoice_processor_950",
     "paymentLink": "https://buy.stripe.com/dRm3cx60Lbwj7Lleec2Fa29",
