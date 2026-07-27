@@ -430,6 +430,99 @@ serve({
       } catch { return Response.json({ success: false }, { status: 400 }); }
     }
 
+    // ── /api/data/* Generic Tenant Data Handler ──────────────────
+    if (pathname.startsWith("/api/data/") && (req.method === "GET" || req.method === "POST" || req.method === "DELETE")) {
+      const user = await getUserFromSession(req);
+      if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
+      const resource = pathname.replace("/api/data/", "").split("/")[0];
+      const id = pathname.split("/").pop() !== resource ? pathname.split("/").pop() : null;
+      
+      const DATA_FILES: Record<string, string> = {
+        employees: "ai_employees.json",
+        workflows: "workflow_templates.json",
+        workflow_runs: "workflow_runs.json",
+        documents: "tenant_documents.json",
+        billing: "tenant_purchases.json",
+        settings: "tenant_settings.json",
+        api: "tenant_api_keys.json",
+        tasks: "tenant_tasks.json",
+        approvals: "tenant_approvals.json",
+        communications: "tenant_communications.json",
+        notifications: "tenant_notifications.json",
+        analytics: "tenant_analytics.json",
+        inbox: "tenant_inbox.json",
+        reports: "tenant_reports.json",
+        marketplace: "ai_employees.json",
+        industries: "tenant_industries.json",
+        training: "tenant_training.json",
+        users: "users.json",
+        "knowledge-base": "tenant_knowledge_base.json",
+        audits: "tenant_audits.json",
+      };
+      
+      const fileName = DATA_FILES[resource];
+      if (!fileName) {
+        return Response.json({ error: "Unknown resource: " + resource }, { status: 404 });
+      }
+      
+      if (req.method === "DELETE" && id) {
+        const data = readJSON(join(DATA_DIR, fileName));
+        if (Array.isArray(data)) {
+          writeJSON(join(DATA_DIR, fileName), data.filter((item: any) => item.id !== id && item._id !== id));
+        } else {
+          const arr = data[user.email] || [];
+          data[user.email] = arr.filter((item: any) => item.id !== id && item._id !== id);
+          writeJSON(join(DATA_DIR, fileName), data);
+        }
+        return Response.json({ success: true });
+      }
+      
+      if (req.method === "POST") {
+        try {
+          const body = await req.json();
+          const data = readJSON(join(DATA_DIR, fileName));
+          const tenantFiles = ["tenant_documents.json","tenant_purchases.json","tenant_settings.json","tenant_api_keys.json",
+            "tenant_tasks.json","tenant_approvals.json","tenant_communications.json","tenant_notifications.json",
+            "tenant_analytics.json","tenant_inbox.json","tenant_reports.json","tenant_industries.json",
+            "tenant_training.json","tenant_knowledge_base.json","tenant_audits.json"];
+          if (tenantFiles.includes(fileName)) {
+            data[user.email] = body;
+            writeJSON(join(DATA_DIR, fileName), data);
+          } else {
+            Object.assign(data, body);
+            writeJSON(join(DATA_DIR, fileName), data);
+          }
+          return Response.json({ success: true, data: body });
+        } catch {
+          return Response.json({ error: "Invalid JSON body" }, { status: 400 });
+        }
+      }
+      
+      // GET
+      const data = readJSON(join(DATA_DIR, fileName));
+      const tenantFiles = ["tenant_documents.json","tenant_purchases.json","tenant_settings.json","tenant_api_keys.json",
+        "tenant_tasks.json","tenant_approvals.json","tenant_communications.json","tenant_notifications.json",
+        "tenant_analytics.json","tenant_inbox.json","tenant_reports.json","tenant_industries.json",
+        "tenant_training.json","tenant_knowledge_base.json","tenant_audits.json"];
+      if (tenantFiles.includes(fileName)) {
+        return Response.json({ data: data[user.email] || [] });
+      }
+      if (fileName === "workflow_templates.json") {
+        const runs = readJSON(join(DATA_DIR, "workflow_runs.json"));
+        return Response.json({ data, runs: runs[user.email] || [] });
+      }
+      if (Array.isArray(data)) {
+        return Response.json({ data });
+      }
+      if (fileName === "users.json") {
+        if (user.role !== "admin" && user.email !== "mathewortiz97@gmail.com") {
+          return Response.json({ data: { [user.email]: data[user.email] } });
+        }
+        return Response.json({ data: Object.values(data).map((u: any) => ({ email: u.email, role: u.role, createdAt: u.createdAt })) });
+      }
+      return Response.json({ data });
+    }
+
     if (pathname.startsWith("/assets/") || pathname.startsWith("/_build/") ||
         pathname === "/manifest.json" || pathname === "/sw.js" || pathname.startsWith("/icon-") ||
         pathname === "/robots.txt" || pathname === "/sitemap.xml") {

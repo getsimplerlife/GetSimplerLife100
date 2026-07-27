@@ -1,10 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
 
 export const Route = createFileRoute("/portal/admin/analytics")({
   component: AdminAnalyticsPage,
 });
 
 function AdminAnalyticsPage() {
+  const [stats, setStats] = useState<Record<string, string>>({});
+  useEffect(() => {
+    fetch("/api/data/analytics", { credentials: "include" })
+      .then(r => r.json()).then(d => setStats(d.data || {})).catch(() => {});
+  }, []);
   return (
     <div className="space-y-8">
       <div>
@@ -15,10 +21,10 @@ function AdminAnalyticsPage() {
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Total API Calls", value: "847,291", color: "text-white" },
-          { label: "Active AI Agents", value: "24", color: "text-emerald-400" },
-          { label: "Documents Processed", value: "12,403", color: "text-blue-400" },
-          { label: "Uptime", value: "99.97%", color: "text-amber-400" },
+          { label: "Total API Calls", value: stats.totalCalls || "—", color: "text-white" },
+          { label: "Active AI Agents", value: stats.activeAgents || "—", color: "text-emerald-400" },
+          { label: "Documents Processed", value: stats.documents || "—", color: "text-blue-400" },
+          { label: "Uptime", value: stats.uptime || "—", color: "text-amber-400" },
         ].map(s => (
           <div key={s.label} className="bg-stone-900 border border-stone-800 rounded-xl p-4">
             <div className={`text-2xl font-black ${s.color}`}>{s.value}</div>

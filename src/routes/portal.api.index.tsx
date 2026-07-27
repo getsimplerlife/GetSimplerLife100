@@ -23,7 +23,7 @@ function DeveloperPortal() {
   const handleAction = async (name: string, action: string) => {
     try {
       setFeedback(`Processing developer gateway action: ${action}...`);
-      const res = await fetch("/api/action", {
+      const res = await fetch("/api/data/api", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

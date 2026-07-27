@@ -1,8 +1,14 @@
 {
   "mathewortiz97@gmail.com": {
     "email": "mathewortiz97@gmail.com",
-    "password": "$2b$10$h.i8Y56roX3pG9dEdhoe3OlTtDTTVTXI49Ck42J7OEUI5CYdGLUme",
+    "password": "$2b$10$/U9JdfgJR4TN1hNEHGAjXOzK0McaahbHCYrwn77vL6lWuPnYKl8OW",
     "role": "admin",
     "createdAt": 1785135766984
+  },
+  "testuser@test.com": {
+    "email": "testuser@test.com",
+    "password": "$2b$10$0/231Q2SQknGvjD4eGjTsuKkWvj7wljKNejBwVAjxw4R2WDGAQ9NK",
+    "role": "user",
+    "createdAt": 1785135913973
   }
 }

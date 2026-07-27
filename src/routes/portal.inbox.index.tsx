@@ -77,7 +77,7 @@ function UnifiedInbox() {
       });
 
       // Trigger audit log action
-      await fetch("/api/action", {
+      await fetch("/api/data/inbox", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -103,7 +103,7 @@ function UnifiedInbox() {
 
     try {
       // Simulate/Trigger active response pipeline
-      await fetch("/api/action", {
+      await fetch("/api/data/inbox", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

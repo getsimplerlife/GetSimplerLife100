@@ -31,7 +31,7 @@ function TasksQueue() {
   const handleAction = async (id: string, action: string) => {
     try {
       setFeedback("Triggering task action " + action + " on " + id + "...");
-      const res = await fetch("/api/action", {
+      const res = await fetch("/api/data/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -85,7 +85,7 @@ function TasksQueue() {
           onClick={async () => {
             try {
               setFeedback("Initializing queue purging sequence...");
-              await fetch("/api/action", {
+              await fetch("/api/data/tasks", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 credentials: "include",

@@ -58,8 +58,8 @@ function PerformanceAnalytics() {
 
   const handleAction = async (action: string) => {
     try {
-      setFeedback(`Re-generating calculations...`);
-      await fetch("/api/action", {
+      setFeedback(`Updating analytics data...`);
+      await fetch("/api/data/analytics", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

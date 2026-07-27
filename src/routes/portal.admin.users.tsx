@@ -1,10 +1,24 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
 
 export const Route = createFileRoute("/portal/admin/users")({
   component: AdminUsersPage,
 });
 
 function AdminUsersPage() {
+  const [stats, setStats] = useState<Record<string, number>>({});
+  useEffect(() => {
+    fetch("/api/data/users", { credentials: "include" })
+      .then(r => r.json()).then(d => {
+        const users = d.data || [];
+        setStats({
+          total: users.length,
+          active: users.length,
+          admins: users.filter((u: any) => u.role === "admin").length,
+          clients: users.filter((u: any) => u.role !== "admin").length,
+        });
+      }).catch(() => {});
+  }, []);
   return (
     <div className="space-y-8">
       <div>
@@ -15,10 +29,10 @@ function AdminUsersPage() {
       {/* Stats Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Total Users", value: "3", color: "text-white" },
-          { label: "Active", value: "3", color: "text-emerald-400" },
-          { label: "Admins", value: "1", color: "text-amber-400" },
-          { label: "Clients", value: "2", color: "text-blue-400" },
+          { label: "Total Users", value: String(stats.total || "—"), color: "text-white" },
+          { label: "Active", value: String(stats.active || "—"), color: "text-emerald-400" },
+          { label: "Admins", value: String(stats.admins || "—"), color: "text-amber-400" },
+          { label: "Clients", value: String(stats.clients || "—"), color: "text-blue-400" },
         ].map(s => (
           <div key={s.label} className="bg-stone-900 border border-stone-800 rounded-xl p-4">
             <div className={`text-2xl font-black ${s.color}`}>{s.value}</div>

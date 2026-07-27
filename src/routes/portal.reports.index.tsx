@@ -23,7 +23,7 @@ function ReportsCenter() {
   const handleAction = async (name: string, action: string) => {
     try {
       setFeedback(`Processing report: ${action}...`);
-      const res = await fetch("/api/action", {
+      const res = await fetch("/api/data/reports", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
