@@ -674,14 +674,36 @@ serve({
       // Build OAuth redirect URL (generic pattern)
       const redirectUri = `http://localhost:3000/api/oauth/callback?provider=${encodeURIComponent(provider)}`;
       const oauthUrls: Record<string, string> = {
-        salesforce: `https://login.salesforce.com/services/oauth2/authorize?response_type=code&client_id=sf_client&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`,
-        hubspot: `https://app.hubspot.com/oauth/authorize?client_id=hs_client&redirect_uri=${encodeURIComponent(redirectUri)}&scope=contacts%20content&state=${state}`,
-        gmail: `https://accounts.google.com/o/oauth2/v2/auth?client_id=google_client&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=https://www.googleapis.com/auth/gmail.readonly&state=${state}`,
-        outlook: `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=ms_client&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=Mail.Read&state=${state}`,
-        slack: `https://slack.com/oauth/v2/authorize?client_id=slack_client&redirect_uri=${encodeURIComponent(redirectUri)}&scope=channels:read,chat:write&state=${state}`,
-        zendesk: `https://${provider}.zendesk.com/oauth/authorizations/new?response_type=code&client_id=zd_client&redirect_uri=${encodeURIComponent(redirectUri)}&scope=read%20write&state=${state}`,
-        quickbooks: `https://appcenter.intuit.com/connect/oauth2?client_id=qb_client&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=com.intuit.quickbooks.accounting&state=${state}`,
-        xero: `https://login.xero.com/identity/connect/authorize?client_id=xero_client&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=accounting.transactions&state=${state}`,
+        salesforce: `https://login.salesforce.com/services/oauth2/authorize?response_type=code&client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`,
+        hubspot: `https://app.hubspot.com/oauth/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&scope=contacts+content&state=${state}`,
+        pipedrive: `https://oauth.pipedrive.com/oauth/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&scope=deals:read+contacts:read&state=${state}`,
+        zoho: `https://accounts.zoho.com/oauth/v2/auth?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=ZohoCRM.modules.ALL&state=${state}`,
+        google: `https://accounts.google.com/o/oauth2/v2/auth?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=email+profile&state=${state}`,
+        gmail: `https://accounts.google.com/o/oauth2/v2/auth?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=https://www.googleapis.com/auth/gmail.readonly&state=${state}`,
+        microsoft: `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=offline_access+user.read&state=${state}`,
+        outlook: `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=Mail.Read&state=${state}`,
+        slack: `https://slack.com/oauth/v2/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&scope=channels:read+chat:write&state=${state}`,
+        quickbooks: `https://appcenter.intuit.com/connect/oauth2?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=com.intuit.quickbooks.accounting&state=${state}`,
+        xero: `https://login.xero.com/identity/connect/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=accounting.transactions+accounting.contacts&state=${state}`,
+        netsuite: `https://system.netsuite.com/app/login/oauth2/authorize.nl?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=restlets+rest_webservices&state=${state}`,
+        sap: `https://accounts.sap.com/oauth2/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=openid&state=${state}`,
+        servicenow: `https://instance.service-now.com/oauth_auth.do?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=useraccount&state=${state}`,
+        jira: `https://auth.atlassian.com/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=read:jira-work+write:jira-work&state=${state}`,
+        linkedin: `https://www.linkedin.com/oauth/v2/authorization?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=openid+profile+email&state=${state}`,
+        github: `https://github.com/login/oauth/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&scope=repo+user&state=${state}`,
+        dropbox: `https://www.dropbox.com/oauth2/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&token_access_type=offline&state=${state}`,
+        box: `https://account.box.com/api/oauth2/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${state}`,
+        shopify: `https://shop.myshopify.com/admin/oauth/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&scope=read_orders+read_products&state=${state}`,
+        stripe: `https://connect.stripe.com/oauth/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=read_write&state=${state}`,
+        intercom: `https://app.intercom.com/oauth?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`,
+        freshdesk: `https://domain.freshdesk.com/oauth/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${state}`,
+        monday: `https://auth.monday.com/oauth2/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${state}`,
+        asana: `https://app.asana.com/-/oauth_authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${state}`,
+        trello: `https://trello.com/1/OAuthAuthorizeToken?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=read+write&state=${state}`,
+        zendesk: `https://subdomain.zendesk.com/oauth/authorizations/new?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=read+write&state=${state}`,
+        bamboohr: `https://api.bamboohr.com/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${state}`,
+        workday: `https://impl.workday.com/ccx/oauth2/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${state}`,
+        mailchimp: `https://login.mailchimp.com/oauth2/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${state}`,
       };
       const authUrl = oauthUrls[provider.toLowerCase()];
       if (authUrl) {
@@ -864,12 +886,34 @@ serve({
       const oauthUrls: Record<string, string> = {
         salesforce: `https://login.salesforce.com/services/oauth2/authorize?response_type=code&client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent("http://localhost:3000/api/oauth/callback")}&state=${state}`,
         hubspot: `https://app.hubspot.com/oauth/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent("http://localhost:3000/api/oauth/callback")}&scope=contacts+content&state=${state}`,
-        slack: `https://slack.com/oauth/v2/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent("http://localhost:3000/api/oauth/callback")}&scope=channels:read+chat:write&state=${state}`,
-        google: `https://accounts.google.com/o/oauth2/v2/auth?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent("http://localhost:3000/api/oauth/callback")}&response_type=code&scope=email+profile&state=${state}`,
-        microsoft: `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent("http://localhost:3000/api/oauth/callback")}&response_type=code&scope=offline_access+user.read&state=${state}`,
-        quickbooks: `https://appcenter.intuit.com/connect/oauth2?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent("http://localhost:3000/api/oauth/callback")}&response_type=code&scope=com.intuit.quickbooks.accounting&state=${state}`,
+        pipedrive: `https://oauth.pipedrive.com/oauth/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent("http://localhost:3000/api/oauth/callback")}&scope=deals:read+contacts:read&state=${state}`,
         zoho: `https://accounts.zoho.com/oauth/v2/auth?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent("http://localhost:3000/api/oauth/callback")}&response_type=code&scope=ZohoCRM.modules.ALL&state=${state}`,
+        google: `https://accounts.google.com/o/oauth2/v2/auth?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent("http://localhost:3000/api/oauth/callback")}&response_type=code&scope=email+profile&state=${state}`,
+        gmail: `https://accounts.google.com/o/oauth2/v2/auth?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent("http://localhost:3000/api/oauth/callback")}&response_type=code&scope=https://www.googleapis.com/auth/gmail.readonly&state=${state}`,
+        microsoft: `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent("http://localhost:3000/api/oauth/callback")}&response_type=code&scope=offline_access+user.read&state=${state}`,
+        outlook: `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent("http://localhost:3000/api/oauth/callback")}&response_type=code&scope=Mail.Read&state=${state}`,
+        slack: `https://slack.com/oauth/v2/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent("http://localhost:3000/api/oauth/callback")}&scope=channels:read+chat:write&state=${state}`,
+        quickbooks: `https://appcenter.intuit.com/connect/oauth2?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent("http://localhost:3000/api/oauth/callback")}&response_type=code&scope=com.intuit.quickbooks.accounting&state=${state}`,
         xero: `https://login.xero.com/identity/connect/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent("http://localhost:3000/api/oauth/callback")}&response_type=code&scope=accounting.transactions+accounting.contacts&state=${state}`,
+        netsuite: `https://system.netsuite.com/app/login/oauth2/authorize.nl?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent("http://localhost:3000/api/oauth/callback")}&response_type=code&scope=restlets+rest_webservices&state=${state}`,
+        sap: `https://accounts.sap.com/oauth2/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent("http://localhost:3000/api/oauth/callback")}&response_type=code&scope=openid&state=${state}`,
+        servicenow: `https://instance.service-now.com/oauth_auth.do?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent("http://localhost:3000/api/oauth/callback")}&response_type=code&scope=useraccount&state=${state}`,
+        jira: `https://auth.atlassian.com/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent("http://localhost:3000/api/oauth/callback")}&response_type=code&scope=read:jira-work+write:jira-work&state=${state}`,
+        linkedin: `https://www.linkedin.com/oauth/v2/authorization?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent("http://localhost:3000/api/oauth/callback")}&response_type=code&scope=openid+profile+email&state=${state}`,
+        github: `https://github.com/login/oauth/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent("http://localhost:3000/api/oauth/callback")}&scope=repo+user&state=${state}`,
+        dropbox: `https://www.dropbox.com/oauth2/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent("http://localhost:3000/api/oauth/callback")}&response_type=code&token_access_type=offline&state=${state}`,
+        box: `https://account.box.com/api/oauth2/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent("http://localhost:3000/api/oauth/callback")}&response_type=code&state=${state}`,
+        shopify: `https://shop.myshopify.com/admin/oauth/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent("http://localhost:3000/api/oauth/callback")}&scope=read_orders+read_products&state=${state}`,
+        stripe: `https://connect.stripe.com/oauth/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent("http://localhost:3000/api/oauth/callback")}&response_type=code&scope=read_write&state=${state}`,
+        intercom: `https://app.intercom.com/oauth?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent("http://localhost:3000/api/oauth/callback")}&state=${state}`,
+        freshdesk: `https://domain.freshdesk.com/oauth/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent("http://localhost:3000/api/oauth/callback")}&response_type=code&state=${state}`,
+        monday: `https://auth.monday.com/oauth2/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent("http://localhost:3000/api/oauth/callback")}&response_type=code&state=${state}`,
+        asana: `https://app.asana.com/-/oauth_authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent("http://localhost:3000/api/oauth/callback")}&response_type=code&state=${state}`,
+        trello: `https://trello.com/1/OAuthAuthorizeToken?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent("http://localhost:3000/api/oauth/callback")}&response_type=code&scope=read+write&state=${state}`,
+        zendesk: `https://subdomain.zendesk.com/oauth/authorizations/new?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent("http://localhost:3000/api/oauth/callback")}&response_type=code&scope=read+write&state=${state}`,
+        bamboohr: `https://api.bamboohr.com/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent("http://localhost:3000/api/oauth/callback")}&response_type=code&state=${state}`,
+        workday: `https://impl.workday.com/ccx/oauth2/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent("http://localhost:3000/api/oauth/callback")}&response_type=code&state=${state}`,
+        mailchimp: `https://login.mailchimp.com/oauth2/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent("http://localhost:3000/api/oauth/callback")}&response_type=code&state=${state}`,
       };
       const oauthUrl = oauthUrls[provider.toLowerCase()];
       if (!oauthUrl) {
@@ -908,6 +952,9 @@ serve({
         users: "users.json",
         "knowledge-base": "tenant_knowledge_base.json",
         audits: "tenant_audits.json",
+        integrations: "tenant_integrations.json",
+        activity: "tenant_activity.json",
+        onboarding: "tenant_onboarding.json",
       };
       
       const fileName = DATA_FILES[resource];
@@ -934,7 +981,8 @@ serve({
           const tenantFiles = ["tenant_documents.json","tenant_purchases.json","tenant_settings.json","tenant_api_keys.json",
             "tenant_tasks.json","tenant_approvals.json","tenant_communications.json","tenant_notifications.json",
             "tenant_analytics.json","tenant_inbox.json","tenant_reports.json","tenant_industries.json",
-            "tenant_training.json","tenant_knowledge_base.json","tenant_audits.json"];
+            "tenant_training.json","tenant_knowledge_base.json","tenant_audits.json",
+            "tenant_integrations.json","tenant_activity.json","tenant_onboarding.json"];
           if (tenantFiles.includes(fileName)) {
             data[user.email] = body;
             writeJSON(join(DATA_DIR, fileName), data);
@@ -953,7 +1001,8 @@ serve({
       const tenantFiles = ["tenant_documents.json","tenant_purchases.json","tenant_settings.json","tenant_api_keys.json",
         "tenant_tasks.json","tenant_approvals.json","tenant_communications.json","tenant_notifications.json",
         "tenant_analytics.json","tenant_inbox.json","tenant_reports.json","tenant_industries.json",
-        "tenant_training.json","tenant_knowledge_base.json","tenant_audits.json"];
+        "tenant_training.json","tenant_knowledge_base.json","tenant_audits.json",
+        "tenant_integrations.json","tenant_activity.json","tenant_onboarding.json"];
       if (tenantFiles.includes(fileName)) {
         return Response.json({ data: data[user.email] || [] });
       }
@@ -988,6 +1037,30 @@ serve({
           status: 302,
           headers: { "Location": "/login" },
         });
+      }
+    }
+
+    // Purchase gate: CRM/ERP pages require a purchase (owner bypasses)
+    if ((pathname === "/portal/crm" || pathname === "/portal/erp") && req.method === "GET") {
+      const user = await getUserFromSession(req);
+      if (user && user.email !== "mathewortiz97@gmail.com") {
+        const purchases = readJSON(TENANT_PURCHASES_FILE);
+        const userPurchases = purchases[user.email] || [];
+        const crmErpAgents = ["crm-sync-agent","email-assistant","lead-scoring-agent","customer-onboarding","sales-follow-up",
+          "support-triage-agent","support-ticket-router","invoice-processor","po-management","payroll-reconciliation"];
+        const hasCrmErpPurchase = userPurchases.some((p: any) => {
+          if (p.agents) return p.agents.some((a: any) => crmErpAgents.includes(a));
+          if (p.agentId) return crmErpAgents.includes(p.agentId);
+          if (p.type === "builder" || p.package) return true; // builder packages include CRM/ERP
+          return false;
+        });
+        if (!hasCrmErpPurchase) {
+          return Response.json({
+            error: "Purchase required",
+            message: "CRM & ERP integrations require an active AI employee or builder package purchase.",
+            cta: "/portal/marketplace",
+          }, { status: 402 });
+        }
       }
     }
 

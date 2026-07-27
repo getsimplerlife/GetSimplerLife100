@@ -1,0 +1,44 @@
+{
+  "mathewortiz97@gmail.com": [
+    {
+      "id": "act-1",
+      "type": "agent_run",
+      "title": "Invoice Processor executed",
+      "description": "Processed 12 invoices through QuickBooks integration",
+      "timestamp": "2026-07-27T09:30:00.000Z",
+      "agent": "invoice-processor"
+    },
+    {
+      "id": "act-2",
+      "type": "workflow",
+      "title": "Invoice Processing Workflow completed",
+      "description": "Automated invoice processing pipeline finished",
+      "timestamp": "2026-07-27T09:15:00.000Z",
+      "workflow": "invoice-processing"
+    },
+    {
+      "id": "act-3",
+      "type": "connection",
+      "title": "HubSpot connected",
+      "description": "CRM integration established",
+      "timestamp": "2026-07-27T10:02:27.907Z",
+      "provider": "hubspot"
+    },
+    {
+      "id": "act-4",
+      "type": "purchase",
+      "title": "Purchased Invoice Processor",
+      "description": "AI employee deployed and ready",
+      "timestamp": "2026-07-26T14:00:00.000Z",
+      "agent": "invoice-processor"
+    },
+    {
+      "id": "act-5",
+      "type": "onboarding",
+      "title": "Onboarding step completed",
+      "description": "Connected first integration",
+      "timestamp": "2026-07-27T10:02:27.907Z",
+      "step": "connect-first-integration"
+    }
+  ]
+}
