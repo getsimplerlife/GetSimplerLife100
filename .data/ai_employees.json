@@ -17,7 +17,7 @@
     "status": "available",
     "category": "finance",
     "stripePriceId": "price_1Tv7GORcz95wEmJaEWD9XPR4",
-    "paymentLink": "https://buy.stripe.com/eVq3cxfBlcAn9Ttda82Fa1f",
+    "paymentLink": "https://buy.stripe.com/dRm3cx60Lbwj7Lleec2Fa29",
     "billing": "monthly",
     "billingNote": "per month"
   },
@@ -39,7 +39,7 @@
     "status": "available",
     "category": "sales",
     "stripePriceId": "price_1TsmT5Rcz95wEmJa0WLsZVPl",
-    "paymentLink": "https://buy.stripe.com/7sYcN74WHeIvghR0nm2Fa1g",
+    "paymentLink": "https://buy.stripe.com/5kQ5kFexhcAn5Ddgmk2Fa2j",
     "billing": "monthly",
     "billingNote": "per month"
   },
@@ -61,7 +61,7 @@
     "status": "available",
     "category": "communications",
     "stripePriceId": "price_1TsmTORcz95wEmJaMzhGy9ou",
-    "paymentLink": "https://buy.stripe.com/cNifZjdtdasf3v59XW2Fa1h",
+    "paymentLink": "https://buy.stripe.com/eVq28t60LgQDc1Bgmk2Fa2f",
     "billing": "monthly",
     "billingNote": "per month"
   },
@@ -83,7 +83,7 @@
     "status": "available",
     "category": "operations",
     "stripePriceId": "price_1TsmTQRcz95wEmJahVXnYrMv",
-    "paymentLink": "https://buy.stripe.com/cNiaEZbl5dErghRb2022Fa1i",
+    "paymentLink": "https://buy.stripe.com/6oUbJ3cp9dErghRc642Fa24",
     "billing": "monthly",
     "billingNote": "per month"
   },
@@ -105,7 +105,7 @@
     "status": "available",
     "category": "operations",
     "stripePriceId": "price_1Tv7GVRcz95wEmJapjT6Jvmc",
-    "paymentLink": "https://buy.stripe.com/5kQ4gB74P6bZ8Pp7PO2Fa1j",
+    "paymentLink": "https://buy.stripe.com/28E00l2Oz1VJghRda82Fa2a",
     "billing": "monthly",
     "billingNote": "per month"
   },
@@ -127,7 +127,7 @@
     "status": "available",
     "category": "compliance",
     "stripePriceId": "price_1Tv7GORcz95wEmJakpYbHzpg",
-    "paymentLink": "https://buy.stripe.com/4gM5kF3SD7g39Tt8TS2Fa1k",
+    "paymentLink": "https://buy.stripe.com/eVq28t60Lbwj8Pp1rq2Fa25",
     "billing": "monthly",
     "billingNote": "per month"
   },
@@ -149,7 +149,7 @@
     "status": "available",
     "category": "hr",
     "stripePriceId": "price_1Tv7GORcz95wEmJa4igWl3A5",
-    "paymentLink": "https://buy.stripe.com/5kQ7sN74P9obaXx5HG2Fa1l",
+    "paymentLink": "https://buy.stripe.com/4gMfZjfBlasf3v56LK2Fa26",
     "billing": "monthly",
     "billingNote": "per month"
   },
@@ -171,7 +171,7 @@
     "status": "available",
     "category": "marketing",
     "stripePriceId": "price_1Tv7GcRcz95wEmJa5NsJJtKG",
-    "paymentLink": "https://buy.stripe.com/6oU9AVexh1VJ7Ll9XW2Fa1m",
+    "paymentLink": "https://buy.stripe.com/dRm5kF0GrdEr6Hh6LK2Fa2b",
     "billing": "monthly",
     "billingNote": "per month"
   },
@@ -193,7 +193,7 @@
     "status": "available",
     "category": "logistics",
     "stripePriceId": "price_1Tv7GORcz95wEmJaJMOa7L6S",
-    "paymentLink": "https://buy.stripe.com/aFaaEZ88T9obc1Bgmk2Fa1n",
+    "paymentLink": "https://buy.stripe.com/3cI28tgFp7g37Llb202Fa2g",
     "billing": "monthly",
     "billingNote": "per month"
   },
@@ -215,7 +215,7 @@
     "status": "available",
     "category": "manufacturing",
     "stripePriceId": "price_1Tv7GcRcz95wEmJaO0Ed8ed5",
-    "paymentLink": "https://buy.stripe.com/dRmdRbbl5fMz7Ll7PO2Fa1o",
+    "paymentLink": "https://buy.stripe.com/28EbJ374P8k71mX8TS2Fa27",
     "billing": "monthly",
     "billingNote": "per month"
   },
@@ -237,7 +237,7 @@
     "status": "available",
     "category": "support",
     "stripePriceId": "price_1Tv7GVRcz95wEmJaiWNr2SIz",
-    "paymentLink": "https://buy.stripe.com/cNifZjdtdasf3v59XW2Fa1h",
+    "paymentLink": "https://buy.stripe.com/dRm7sN74PfMzaXx9XW2Fa2h",
     "billing": "monthly",
     "billingNote": "per month"
   },
@@ -259,7 +259,7 @@
     "status": "available",
     "category": "sales",
     "stripePriceId": "price_1TsmTMRcz95wEmJaUztOK1oK",
-    "paymentLink": "https://buy.stripe.com/8x26oJ88TdEr3v51rq2Fa1p",
+    "paymentLink": "https://buy.stripe.com/7sYeVf4WHcAn2r1b202Fa2k",
     "billing": "monthly",
     "billingNote": "per month"
   },
@@ -281,7 +281,7 @@
     "status": "available",
     "category": "customer-success",
     "stripePriceId": "price_1Tv7GcRcz95wEmJa0kCuE8bO",
-    "paymentLink": "https://buy.stripe.com/8x26oJah1eIv1mX0nm2Fa1q",
+    "paymentLink": "https://buy.stripe.com/dRm4gBah1cAn7Ll8TS2Fa2e",
     "billing": "monthly",
     "billingNote": "per month"
   },
@@ -303,7 +303,7 @@
     "status": "available",
     "category": "support",
     "stripePriceId": "price_1Tv7GVRcz95wEmJaiWNr2SIz",
-    "paymentLink": "https://buy.stripe.com/cNifZjdtdasf3v59XW2Fa1h",
+    "paymentLink": "https://buy.stripe.com/dRm9AV88T6bZ0iT3zy2Fa2i",
     "billing": "monthly",
     "billingNote": "per month"
   },
@@ -325,7 +325,7 @@
     "status": "available",
     "category": "sales",
     "stripePriceId": "price_1Tv7GORcz95wEmJaIdYBCJa3",
-    "paymentLink": "https://buy.stripe.com/bJebJ3cp9fMzghR0nm2Fa1r",
+    "paymentLink": "https://buy.stripe.com/7sYfZj3SD0RF7Ll1rq2Fa2c",
     "billing": "monthly",
     "billingNote": "per month"
   },
@@ -347,7 +347,7 @@
     "status": "available",
     "category": "procurement",
     "stripePriceId": "price_1Tv7GcRcz95wEmJaXV0UWyNF",
-    "paymentLink": "https://buy.stripe.com/9B614p1KvgQDd5F8TS2Fa1s",
+    "paymentLink": "https://buy.stripe.com/fZubJ3dtdcAnghR1rq2Fa2d",
     "billing": "monthly",
     "billingNote": "per month"
   },
@@ -369,7 +369,7 @@
     "status": "available",
     "category": "finance",
     "stripePriceId": "price_1Tv7GORcz95wEmJa4igWl3A5",
-    "paymentLink": "https://buy.stripe.com/5kQ7sN74P9obaXx5HG2Fa1l",
+    "paymentLink": "https://buy.stripe.com/fZucN74WH7g3e9J1rq2Fa28",
     "billing": "monthly",
     "billingNote": "per month"
   }
