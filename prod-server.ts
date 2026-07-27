@@ -376,6 +376,36 @@ serve({
         return Response.json({ error: "Invalid request" }, { status: 400 });
       }
     }
+    if (pathname === "/api/tools/analyze" && req.method === "POST") {
+      try {
+        const body = await req.json();
+        const desc = (body.description || "").toLowerCase();
+        const employees = readJSON(AI_EMPLOYEES_FILE);
+        const matches = employees.filter((e: any) => 
+          e.name.toLowerCase().includes(desc.split(" ")[0]) || 
+          desc.includes(e.name.toLowerCase().split(" ")[0])
+        );
+        const top = matches[0] || employees[0];
+        return Response.json({ analysis: {
+          topMatch: top?.name || "Automation AI",
+          allMatches: matches.slice(0,5).map((m: any) => ({ name: m.name, match: m === top ? "high" : "medium" })),
+          industryGuess: "General Business",
+          savingsSummary: "20 hours/week",
+          suggestedAgentPriceId: top?.priceId || "",
+          suggestedAgentName: top?.name || "Automation AI",
+          paymentLink: top?.paymentLink || ""
+        }});
+      } catch { return Response.json({ analysis: { topMatch: "Automation AI", allMatches: [] } }); }
+    }
+    if (pathname === "/api/tools/capture-lead" && req.method === "POST") {
+      try {
+        const body = await req.json();
+        const leads = readJSON(LEADS_FILE) || {};
+        leads[body.email] = { email: body.email, toolName: body.toolName, result: body.result || {}, capturedAt: new Date().toISOString() };
+        writeJSON(LEADS_FILE, leads);
+        return Response.json({ success: true });
+      } catch { return Response.json({ success: false }, { status: 400 }); }
+    }
 
     if (pathname.startsWith("/assets/") || pathname.startsWith("/_build/") ||
         pathname === "/manifest.json" || pathname === "/sw.js" || pathname.startsWith("/icon-") ||
