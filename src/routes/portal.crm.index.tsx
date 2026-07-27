@@ -28,7 +28,6 @@ function CRMERPPortal() {
   const [connections, setConnections] = useState<ConnectionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [purchaseGated, setPurchaseGated] = useState(false);
 
   // Fetch real providers and connections
   useEffect(() => {
@@ -40,14 +39,6 @@ function CRMERPPortal() {
           fetch("/api/integrations/providers"),
           fetch("/api/integrations")
         ]);
-
-        // Handle 402 purchase gating
-        if (providersRes.status === 402 || connsRes.status === 402) {
-          setPurchaseGated(true);
-          setLoading(false);
-          return;
-        }
-
         const provsData = await providersRes.json();
         const connsData = await connsRes.json();
         const allProviders: ProviderItem[] = provsData.data || provsData || [];
@@ -125,24 +116,6 @@ function CRMERPPortal() {
         <button onClick={() => window.location.reload()} className="text-emerald-400 font-bold text-sm hover:text-emerald-300">
           Try Again
         </button>
-      </div>
-    );
-  }
-
-  if (purchaseGated) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] text-center space-y-6">
-        <div className="text-5xl">🔐</div>
-        <h2 className="text-2xl font-black text-white">CRM Access Requires Purchase</h2>
-        <p className="text-stone-400 max-w-md">
-          CRM integrations require an active AI employee or builder package. Browse our marketplace to get started.
-        </p>
-        <Link
-          to="/portal/marketplace"
-          className="inline-flex items-center bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-bold text-sm transition-all"
-        >
-          Browse Marketplace →
-        </Link>
       </div>
     );
   }

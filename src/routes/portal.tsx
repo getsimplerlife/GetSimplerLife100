@@ -182,37 +182,28 @@ function PortalLayout() {
   };
 
   const navLinks = [
-    { name: "Dashboard", subtitle: "Metrics · Billing · Approvals", path: "/portal", icon: "🏠", section: "Overview" },
-    { name: "AI Employees", subtitle: "Workforce · Marketplace", path: "/portal/employees", icon: "🤖", section: "AI Workforce" },
+    { name: "Dashboard", subtitle: "Tasks · Reports · Approvals", path: "/portal", icon: "🏠", section: "Overview" },
+    { name: "AI Employees", subtitle: "Your AI Workforce", path: "/portal/employees", icon: "🤖", section: "AI Workforce" },
     { name: "Marketplace", subtitle: "Discover AI Agents", path: "/portal/marketplace", icon: "🛒", section: "AI Workforce" },
-    { name: "Documents", subtitle: "Upload · Process · Export", path: "/portal/documents", icon: "📁", section: "Operations" },
     { name: "Workflows", subtitle: "Builder · Management", path: "/portal/workflows", icon: "⚡", section: "Operations" },
-    { name: "Tasks", subtitle: "Queue · Automation", path: "/portal/tasks", icon: "✅", section: "Operations" },
+    { name: "Documents", subtitle: "Upload · Process · Export", path: "/portal/documents", icon: "📁", section: "Operations" },
     { name: "Approvals", subtitle: "Review · Authorize", path: "/portal/approvals", icon: "📋", section: "Operations" },
     { name: "AI Chat", subtitle: "Advisor · Assistant", path: "/portal/chat", icon: "💬", section: "Communications" },
-    { name: "Reports", subtitle: "Analytics · Inbox · Alerts", path: "/portal/reports", icon: "📊", section: "Communications" },
-    { name: "Inbox", subtitle: "Messages · Alerts", path: "/portal/inbox", icon: "📬", section: "Communications" },
-    { name: "Notifications", subtitle: "Activity Feed", path: "/portal/notifications", icon: "🔔", section: "Communications" },
-    { name: "Training", subtitle: "Learn · Certify", path: "/portal/training", icon: "🎓", section: "Communications" },
-    { name: "Integrations", subtitle: "All 180+ Connections", path: "/portal/integrations", icon: "🔌", section: "Integrations & Data" },
-    { name: "CRM / ERP", subtitle: "Salesforce · SAP · NetSuite", path: "/portal/crm", icon: "👥", section: "Integrations & Data" },
-    { name: "Connections", subtitle: "Manage Providers", path: "/portal/connections", icon: "🔗", section: "Integrations & Data" },
-    { name: "Customers", subtitle: "CRM Records", path: "/portal/customers", icon: "👤", section: "Integrations & Data" },
-    { name: "API Keys", subtitle: "Developer Access", path: "/portal/api", icon: "🔑", section: "Admin & Settings" },
-    { name: "Settings", subtitle: "Account · Brand · Billing", path: "/portal/settings", icon: "⚙️", section: "Admin & Settings" },
-    { name: "Billing", subtitle: "Plans · Invoices", path: "/portal/billing", icon: "💳", section: "Admin & Settings" },
-    { name: "Admin Panel", subtitle: "Users · Health · Audit", path: "/portal/admin", icon: "🛡️", section: "Admin & Settings", adminOnly: true },
+    { name: "Communications", subtitle: "Messages · Log", path: "/portal/communications", icon: "📡", section: "Communications" },
+    { name: "Integrations", subtitle: "Full 180+ Catalog", path: "/portal/integrations", icon: "🔌", section: "Connect" },
+    { name: "CRM", subtitle: "Salesforce · HubSpot · Pipedrive", path: "/portal/crm", icon: "👥", section: "Connect" },
+    { name: "ERP", subtitle: "SAP · NetSuite · QuickBooks", path: "/portal/erp", icon: "🏢", section: "Connect" },
+    { name: "Settings", subtitle: "Account · Billing · API Keys", path: "/portal/settings", icon: "⚙️", section: "Settings" },
+    { name: "Admin", subtitle: "Users · Health · Audit", path: "/portal/admin", icon: "🛡️", section: "Settings", adminOnly: true },
   ];
 
   const mobileLinks = [
     { name: "Dashboard", path: "/portal", icon: "🏠" },
     { name: "Employees", path: "/portal/employees", icon: "🤖" },
     { name: "Marketplace", path: "/portal/marketplace", icon: "🛒" },
-    { name: "Tasks", path: "/portal/tasks", icon: "✅" },
     { name: "AI Chat", path: "/portal/chat", icon: "💬" },
-    { name: "Reports", path: "/portal/reports", icon: "📊" },
-    { name: "Inbox", path: "/portal/inbox", icon: "📬" },
-    { name: "Billing", path: "/portal/billing", icon: "💳" },
+    { name: "CRM", path: "/portal/crm", icon: "👥" },
+    { name: "ERP", path: "/portal/erp", icon: "🏢" },
     { name: "Settings", path: "/portal/settings", icon: "⚙️", badge: unreadCount },
   ];
 

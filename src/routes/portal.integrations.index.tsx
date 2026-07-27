@@ -152,6 +152,7 @@ function ConnectedServices() {
   const [providers, setProviders] = useState<ProviderItem[]>([]);
   const [connections, setConnections] = useState<ConnectionItem[]>([]);
   const [loadingConns, setLoadingConns] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedProviderDetails, setSelectedProviderDetails] = useState<ProviderItem | null>(null);
@@ -221,18 +222,23 @@ function ConnectedServices() {
   // Fetch Providers and Connections
   const fetchConnectionsData = async () => {
     try {
+      setFetchError(null);
       setLoadingConns(true);
       const [providersRes, connsRes] = await Promise.all([
         fetch("/api/integrations/providers"),
         fetch("/api/integrations")
       ]);
+      if (!providersRes.ok || !connsRes.ok) {
+        throw new Error(`Server error (${providersRes.status}/${connsRes.status}). Please try again.`);
+      }
       const provsData = await providersRes.json();
       const connsData = await connsRes.json();
       
       setProviders(provsData || []);
       setConnections(connsData || []);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error fetching integrations:", err);
+      setFetchError(err.message || "Failed to load integrations. Check your connection.");
     } finally {
       setLoadingConns(false);
     }
@@ -541,6 +547,20 @@ function ConnectedServices() {
             <div className="flex flex-col items-center justify-center min-h-[300px]">
               <div className="w-10 h-10 border-2 border-stone-850 border-t-emerald-500 rounded-full animate-spin mb-4" />
               <p className="text-stone-500 text-[10px] font-mono tracking-widest uppercase animate-pulse">Decrypting Integration Schema Matrices...</p>
+            </div>
+          ) : fetchError ? (
+            <div className="bg-red-950/30 border border-red-900/50 rounded-2xl p-10 text-center max-w-xl mx-auto space-y-5">
+              <span className="text-4xl block">⚠️</span>
+              <h3 className="text-sm font-bold text-red-300">Failed to Load Integrations</h3>
+              <p className="text-[12px] text-red-400/70 leading-relaxed max-w-sm mx-auto">
+                {fetchError}
+              </p>
+              <button
+                onClick={() => fetchConnectionsData()}
+                className="inline-flex items-center gap-2 bg-red-900/40 hover:bg-red-900/60 text-red-200 border border-red-800/50 px-5 py-2.5 rounded-xl text-xs font-bold transition-all"
+              >
+                <span>🔄</span> Retry
+              </button>
             </div>
           ) : filteredProviders.length === 0 ? (
             <div className="bg-stone-950 rounded-2xl border border-stone-900 p-12 text-center max-w-xl mx-auto space-y-4">

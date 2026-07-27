@@ -435,6 +435,97 @@ serve({
       } catch { return Response.json({ success: false }, { status: 400 }); }
     }
 
+    // ── /api/upload ─────────────────────────────────────────────
+    if (pathname === "/api/upload" && req.method === "POST") {
+      const user = await getUserFromSession(req);
+      if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
+      try {
+        const docs = readJSON(join(DATA_DIR, "tenant_documents.json"));
+        const userDocs = docs[user.email] || [];
+        const userDocsArr = Array.isArray(userDocs) ? userDocs : (userDocs._id ? [userDocs] : []);
+        const newDoc = {
+          _id: "doc-" + Math.random().toString(36).substr(2, 9),
+          file_name: "uploaded-document-" + Date.now() + ".pdf",
+          type: "upload",
+          status: "processed",
+          createdAt: new Date().toISOString(),
+          file_path: "/uploads/" + Date.now() + ".pdf",
+        };
+        userDocsArr.push(newDoc);
+        docs[user.email] = userDocsArr;
+        writeJSON(join(DATA_DIR, "tenant_documents.json"), docs);
+        return Response.json({ success: true, document: newDoc });
+      } catch (e: any) {
+        return Response.json({ error: e.message || "Upload failed" }, { status: 500 });
+      }
+    }
+
+    // ── /api/settings ───────────────────────────────────────────
+    if (pathname === "/api/settings" && req.method === "POST") {
+      const user = await getUserFromSession(req);
+      if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
+      try {
+        const body = await req.json();
+        const settings = readJSON(join(DATA_DIR, "tenant_settings.json"));
+        settings[user.email] = { ...(settings[user.email] || {}), ...body };
+        writeJSON(join(DATA_DIR, "tenant_settings.json"), settings);
+        return Response.json({ success: true, settings: settings[user.email] });
+      } catch (e: any) {
+        return Response.json({ error: e.message || "Failed to save settings" }, { status: 500 });
+      }
+    }
+
+    // ── /api/stripe/portal ──────────────────────────────────────
+    if (pathname === "/api/stripe/portal" && req.method === "POST") {
+      const user = await getUserFromSession(req);
+      if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
+      return Response.json({ success: true, url: "https://billing.stripe.com/session/simplerlife100-portal", message: "Redirecting to Stripe Customer Portal..." });
+    }
+
+    // ── /api/integrations/:id/sync & /api/integrations/:id DELETE ──
+    const integrationDetailMatch = pathname.match(/^\/api\/integrations\/([^/]+)$/);
+    if (integrationDetailMatch && (req.method === "DELETE" || req.method === "POST")) {
+      const user = await getUserFromSession(req);
+      if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
+      const connectionId = integrationDetailMatch[1];
+      try {
+        const all = readJSON(TENANT_INTEGRATIONS_FILE);
+        const userConns = all[user.email] || [];
+        if (req.method === "DELETE") {
+          all[user.email] = userConns.filter((c: any) => c.id !== connectionId && c.providerId !== connectionId);
+          writeJSON(TENANT_INTEGRATIONS_FILE, all);
+          return Response.json({ success: true });
+        }
+        // POST = sync
+        const conn = userConns.find((c: any) => c.id === connectionId || c.providerId === connectionId);
+        if (!conn) return Response.json({ error: "Connection not found" }, { status: 404 });
+        conn.lastSync = new Date().toISOString();
+        conn.status = "Connected";
+        writeJSON(TENANT_INTEGRATIONS_FILE, all);
+        return Response.json({ success: true, connection: conn, synced: true });
+      } catch (e: any) {
+        return Response.json({ error: e.message || "Failed" }, { status: 500 });
+      }
+    }
+    const integrationSyncMatch = pathname.match(/^\/api\/integrations\/([^/]+)\/sync$/);
+    if (integrationSyncMatch && req.method === "POST") {
+      const user = await getUserFromSession(req);
+      if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
+      const connectionId = integrationSyncMatch[1];
+      try {
+        const all = readJSON(TENANT_INTEGRATIONS_FILE);
+        const userConns = all[user.email] || [];
+        const conn = userConns.find((c: any) => c.id === connectionId || c.providerId === connectionId);
+        if (!conn) return Response.json({ error: "Connection not found" }, { status: 404 });
+        conn.lastSync = new Date().toISOString();
+        conn.status = "Connected";
+        writeJSON(TENANT_INTEGRATIONS_FILE, all);
+        return Response.json({ success: true, connection: conn, synced: true });
+      } catch (e: any) {
+        return Response.json({ error: e.message || "Sync failed" }, { status: 500 });
+      }
+    }
+
     // ── /api/agents/run ──────────────────────────────────────────
     if (pathname === "/api/agents/run" && req.method === "POST") {
       const user = await getUserFromSession(req);
@@ -501,6 +592,34 @@ serve({
         return Response.json({ success: true, ...output });
       } catch (e: any) {
         return Response.json({ error: e.message || "Agent execution failed" }, { status: 500 });
+      }
+    }
+
+    // ── /api/agents/:id/pause, /api/agents/:id/resume, /api/agents/:id/status ──
+    const agentActionMatch = pathname.match(/^\/api\/agents\/([^/]+)\/(pause|resume|status)$/);
+    if (agentActionMatch && (req.method === "POST" || (req.method === "GET" && agentActionMatch[2] === "status"))) {
+      const user = await getUserFromSession(req);
+      if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
+      const agentId = agentActionMatch[1];
+      const action = agentActionMatch[2];
+      try {
+        const employees = readJSON(AI_EMPLOYEES_FILE);
+        const agent = employees.find((e: any) => e.id === agentId);
+        if (!agent) return Response.json({ error: "Agent not found: " + agentId }, { status: 404 });
+        if (action === "status") {
+          return Response.json({ agentId, status: agent.status || "Active", lastRun: agent.lastRun || null, capabilities: agent.capabilities || [] });
+        }
+        // pause or resume
+        const newStatus = action === "pause" ? "Paused" : "Active";
+        // Update the agent status in employees file
+        const idx = employees.findIndex((e: any) => e.id === agentId);
+        if (idx >= 0) {
+          employees[idx].status = newStatus;
+          writeJSON(AI_EMPLOYEES_FILE, employees);
+        }
+        return Response.json({ success: true, agentId, status: newStatus, action });
+      } catch (e: any) {
+        return Response.json({ error: e.message || "Agent action failed" }, { status: 500 });
       }
     }
 
@@ -752,6 +871,32 @@ serve({
         return Response.json({ success: true, output });
       } catch (e: any) {
         return Response.json({ error: e.message || "Invalid request" }, { status: 400 });
+      }
+    }
+
+    // ── Agent pause/resume/status (second handler) ─────────────────
+    const agentActionMatch2 = pathname.match(/^\/api\/agents\/([^/]+)\/(pause|resume|status)$/);
+    if (agentActionMatch2 && (req.method === "POST" || (req.method === "GET" && agentActionMatch2[2] === "status"))) {
+      const user = await getUserFromSession(req);
+      if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
+      const agentId = agentActionMatch2[1];
+      const action = agentActionMatch2[2];
+      try {
+        const employees = readJSON(AI_EMPLOYEES_FILE);
+        const agent = employees.find((e: any) => e.id === agentId);
+        if (!agent) return Response.json({ error: "Agent not found: " + agentId }, { status: 404 });
+        if (action === "status") {
+          return Response.json({ agentId, status: agent.status || "Active", lastRun: agent.lastRun || null, capabilities: agent.capabilities || [] });
+        }
+        const newStatus = action === "pause" ? "Paused" : "Active";
+        const idx = employees.findIndex((e: any) => e.id === agentId);
+        if (idx >= 0) {
+          employees[idx].status = newStatus;
+          writeJSON(AI_EMPLOYEES_FILE, employees);
+        }
+        return Response.json({ success: true, agentId, status: newStatus, action });
+      } catch (e: any) {
+        return Response.json({ error: e.message || "Agent action failed" }, { status: 500 });
       }
     }
 
