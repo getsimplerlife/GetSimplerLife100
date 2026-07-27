@@ -182,12 +182,7 @@ function ChatAssistant() {
     setActiveSessionId("");
   };
 
-  const suggestedPrompts = [
-    "Show me failed workflows from this week",
-    "Which AI coworker saved the most hours?",
-    "Build a dispatch notification workflow",
-    "How much money did we save?",
-  ];
+  const suggestedPrompts: string[] = [];
 
   return (
     <div className="flex h-[calc(100vh-10rem)] max-w-6xl mx-auto bg-stone-950 border border-stone-900 rounded-2xl overflow-hidden text-stone-100">

@@ -110,7 +110,7 @@ function DocumentManagement() {
 
     const timers = steps.map((step) => {
       return setTimeout(() => {
-        setUploadStep(step.text);
+        setUploadStep("Processing...");
       }, step.t);
     });
 
@@ -136,7 +136,6 @@ function DocumentManagement() {
       console.error("Upload error:", err);
       showToast(`Upload Failed: ${err.message || "Unrecognized document structure"}`, "error");
     } finally {
-      timers.forEach(t => clearTimeout(t));
       setUploading(false);
       setUploadStep("");
     }
