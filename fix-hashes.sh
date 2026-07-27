@@ -1,41 +1,59 @@
 #!/bin/bash
 # Fix hash mismatches between SSR HTML and actual dist files
 # Run after build, before starting server
-# 
+#
 # Strategy:
-# 1. Copy real files to match hash names referenced in current SSR build
-# 2. Also create fallback copies for common stale CDN hash patterns
+# 1. Clean client/assets of stale files from previous builds
+# 2. Mirror server/assets → client/assets (canonical from current build)
+# 3. Bridge any SSR-referenced hashes not in the canonical set
 
 DIST="/home/team/shared/site/dist"
 SERVER="$DIST/server/server.js"
-ASSETS="$DIST/client/assets"
+SERVER_ASSETS="$DIST/server/assets"
+CLIENT_ASSETS="$DIST/client/assets"
 
 if [ ! -f "$SERVER" ]; then exit 0; fi
 
-# Step 1: Get all JS/CSS files referenced in SSR output and link them
-strings "$SERVER" | grep -oP '[a-zA-Z0-9_.-]+-[A-Za-z0-9_]{8,}\.(js|css)' | sort -u | while read f; do
-  if [ -f "$ASSETS/$f" ]; then
+mkdir -p "$CLIENT_ASSETS"
+
+# Step 1: Remove stale client assets (not in server/assets)
+stale=0
+for f in "$CLIENT_ASSETS"/*.js "$CLIENT_ASSETS"/*.css; do
+  [ ! -f "$f" ] && continue
+  name=$(basename "$f")
+  if [ ! -f "$SERVER_ASSETS/$name" ]; then
+    rm "$f"
+    stale=$((stale + 1))
+  fi
+done
+echo "  Cleaned $stale stale files"
+
+# Step 2: Mirror server/assets → client/assets
+copied=0
+for f in "$SERVER_ASSETS"/*.js "$SERVER_ASSETS"/*.css; do
+  [ ! -f "$f" ] && continue
+  name=$(basename "$f")
+  if [ ! -f "$CLIENT_ASSETS/$name" ]; then
+    cp "$f" "$CLIENT_ASSETS/$name"
+    copied=$((copied + 1))
+  fi
+done
+echo "  Synced $copied files server→client"
+
+# Step 3: Bridge SSR-referenced hashes that don't match server/assets
+bridged=0
+strings "$SERVER" | grep -oP '[a-zA-Z0-9_.-]+-[A-Za-z0-9_]{8,}\.(js|css)' | sort -u | while read hash; do
+  if [ -f "$CLIENT_ASSETS/$hash" ]; then
     continue
   fi
-  # Find matching file by base name pattern (strip hash suffix)
-  base=$(echo "$f" | sed -E 's/-[A-Za-z0-9_]{8,}\.(js|css)$//')
-  ext=$(echo "$f" | sed 's/.*\.//')
-  real=$(find "$DIST" -maxdepth 3 -name "${base}-*.${ext}" -type f 2>/dev/null | head -1)
+  base=$(echo "$hash" | sed -E 's/-[A-Za-z0-9_]{8,}\.(js|css)$//')
+  ext=$(echo "$hash" | sed 's/.*\.//')
+  real=$(ls "$CLIENT_ASSETS/${base}-"*".${ext}" 2>/dev/null | head -1)
   if [ -n "$real" ]; then
-    mkdir -p "$ASSETS"
-    cp "$real" "$ASSETS/$f"
-    echo "  Linked (SSR): $f -> $(basename $real)"
+    cp "$real" "$CLIENT_ASSETS/$hash"
+    echo "  Bridged: $hash → $(basename $real)"
+    bridged=$((bridged + 1))
   fi
 done
 
-# Step 2: For every real file in dist, ensure it's in client/assets
-find "$DIST" -maxdepth 3 -name "*.js" -o -name "*.css" | while read real; do
-  name=$(basename "$real")
-  if [ ! -f "$ASSETS/$name" ]; then
-    mkdir -p "$ASSETS"
-    cp "$real" "$ASSETS/$name"
-    echo "  Copied to assets: $name"
-  fi
-done
-
-echo "Hash fix complete"
+echo "  Hash fix complete (clean=$stale sync=$copied bridged=$bridged)"
