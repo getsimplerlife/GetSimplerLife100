@@ -617,6 +617,33 @@ function AssessmentPage() {
               </div>
             </div>
 
+            {/* Upgrade to Deep-Dive Audit */}
+            <div className="bg-gradient-to-br from-emerald-950/40 to-stone-900/80 border border-emerald-900/50 rounded-3xl p-8 text-center mt-6">
+              <h3 className="text-xl font-black text-emerald-400 mb-2">Upgrade to Deep-Dive Audit</h3>
+              <p className="text-sm text-stone-400 mb-6 max-w-md mx-auto">
+                Get a comprehensive audit with industry-specific checklists, AI agent recommendations, and a personalized implementation roadmap.
+              </p>
+              <div className="grid grid-cols-2 gap-4 mb-6 text-left max-w-md mx-auto">
+                <div className="space-y-1">
+                  <div className="text-xs font-bold text-stone-300">Free Assessment</div>
+                  <div className="text-[10px] text-stone-500">• Estimated savings<br/>• Top 5 workflows<br/>• Basic report</div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-xs font-bold text-emerald-400">Paid Audit ($2,500)</div>
+                  <div className="text-[10px] text-stone-500">• 26-industry checklist<br/>• AI agent matching<br/>• Integration roadmap<br/>• PDF blueprint<br/>• 100% credited to build</div>
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Link to="/audit" className="bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-sm px-6 py-3 rounded-xl transition-all">
+                  🔍 Start Deep-Dive Audit →
+                </Link>
+                <a href="https://buy.stripe.com/fZufZj2OzdEr6Hh0nm2Fa00" target="_blank" rel="noopener"
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm px-6 py-3 rounded-xl transition-all">
+                  💳 Purchase Audit — $2,500
+                </a>
+              </div>
+            </div>
+
             <div className="text-center pt-4">
               <button
                 onClick={() => {
