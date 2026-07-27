@@ -1,6 +1,5 @@
 import { useState, useRef } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { jsPDF } from "jspdf";
 import { assessmentQuestions, runAssessment, generateReportText, type AssessmentAnswers, type AssessmentReport } from "../tools/assessment-engine";
 import { workflows } from "../content/workflows";
 
@@ -79,8 +78,9 @@ function AutomationAssessment() {
     }, 800);
   };
 
-  const downloadPDF = () => {
+  const downloadPDF = async () => {
     if (!report) return;
+    const { jsPDF } = await import("jspdf");
     const pdf = new jsPDF("p", "mm", "a4");
     const pageWidth = pdf.internal.pageSize.getWidth();
     let y = 20;
@@ -503,6 +503,12 @@ function AutomationAssessment() {
                 >
                   🚀 Deploy Now — $750/mo
                 </a>
+                <Link
+                  to="/build"
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm px-6 py-3 rounded-xl transition-all"
+                >
+                  🛠️ Build My AI Team →
+                </Link>
                 <a
                   href="/contact"
                   className="bg-stone-800 hover:bg-stone-700 text-stone-200 text-sm font-bold px-6 py-3 rounded-xl transition-all"

@@ -1,0 +1,6 @@
+nohup: ignoring input
+$ PORT=3002 bun run dist/server/server.js & sleep 2 && bun run prod-server.ts
+Started development server: http://localhost:3002
+[prod-server] Port 3000 -> Nitro on 3002 | API: /api/login, /api/register, /api/logout, /api/me
+Invalid DOM property `http-equiv`. Did you mean `httpEquiv`?
+[Bun.serve]: request timed out after 10 seconds. Pass `idleTimeout` to configure.

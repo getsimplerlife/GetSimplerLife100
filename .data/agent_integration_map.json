@@ -1,0 +1,19 @@
+{
+  "invoice-processor-v1": [],
+  "crm-sync-agent-v1": [],
+  "email-assistant-v1": [],
+  "data-entry-bot-v1": [],
+  "inventory-tracker-v1": [],
+  "compliance-auditor-v1": [],
+  "hr-onboarding-agent-v1": [],
+  "social-media-manager-v1": [],
+  "logistics-route-optimizer-v1": [],
+  "manufacturing-scheduler-v1": [],
+  "support-triage-agent-v1": [],
+  "sales-lead-scorer-v1": [],
+  "customer-onboarding-agent-v1": [],
+  "support-ticket-router-agent-v1": [],
+  "sales-follow-up-agent-v1": [],
+  "po-management-agent-v1": [],
+  "payroll-reconciliation-agent-v1": []
+}

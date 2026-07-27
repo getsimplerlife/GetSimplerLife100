@@ -2,7 +2,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { workflows } from "~/content/workflows";
 import { Header } from "~/components/Header";
-import { NavHeader } from "~/components/NavHeader";
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -186,9 +185,6 @@ function Home() {
     <div className="flex flex-col min-h-screen bg-stone-950">
       
       <Header businessName={businessName} />
-      <div className="lg:hidden">
-        <NavHeader businessName={businessName} />
-      </div>
       <main className="flex-1">
         
         {/* ─── Interactive Hero Section ─── */}

@@ -1,6 +1,5 @@
 import { useState, useRef } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { jsPDF } from "jspdf";
 import { 
   assessmentQuestions, 
   runAssessment, 
@@ -82,8 +81,9 @@ function AssessmentPage() {
     }, 1500);
   };
 
-  const downloadPDF = () => {
+  const downloadPDF = async () => {
     if (!report) return;
+    const { jsPDF } = await import("jspdf");
     const pdf = new jsPDF("p", "mm", "a4");
     const pageWidth = pdf.internal.pageSize.getWidth();
     let y = 20;

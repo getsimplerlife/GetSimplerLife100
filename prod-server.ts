@@ -378,7 +378,8 @@ serve({
     }
 
     if (pathname.startsWith("/assets/") || pathname.startsWith("/_build/") ||
-        pathname === "/manifest.json" || pathname === "/sw.js" || pathname.startsWith("/icon-")) {
+        pathname === "/manifest.json" || pathname === "/sw.js" || pathname.startsWith("/icon-") ||
+        pathname === "/robots.txt" || pathname === "/sitemap.xml") {
       const f = Bun.file(join(DIST_CLIENT, pathname));
       if (await f.exists()) return new Response(f);
     }
