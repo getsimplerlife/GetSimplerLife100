@@ -23,7 +23,7 @@ function UserManagement() {
   const handleAction = async (email: string, action: string) => {
     try {
       setFeedback(`Processing user action: ${action}...`);
-      await fetch("/api/action", {
+      await fetch("/api/data/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

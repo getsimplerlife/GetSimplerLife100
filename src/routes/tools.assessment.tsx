@@ -1,6 +1,5 @@
 import { useState, useRef } from "react";
-import { createFileRoute } from "@tanstack/react-router";
-import { jsPDF } from "jspdf";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { assessmentQuestions, runAssessment, generateReportText, type AssessmentAnswers, type AssessmentReport } from "../tools/assessment-engine";
 import { workflows } from "../content/workflows";
 
@@ -79,8 +78,9 @@ function AutomationAssessment() {
     }, 800);
   };
 
-  const downloadPDF = () => {
+  const downloadPDF = async () => {
     if (!report) return;
+    const { jsPDF } = await import("jspdf");
     const pdf = new jsPDF("p", "mm", "a4");
     const pageWidth = pdf.internal.pageSize.getWidth();
     let y = 20;
@@ -212,6 +212,9 @@ function AutomationAssessment() {
 
   return (
     <div className="min-h-screen bg-stone-950 text-stone-100">
+      <div className="max-w-5xl mx-auto px-6 pt-6">
+        <Link to="/" className="text-xs text-stone-400 hover:text-stone-300 font-mono transition-all">← Back to Home</Link>
+      </div>
       {/* Header */}
       <section className="max-w-3xl mx-auto px-6 pt-16 pb-6 text-center">
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-900/30 border border-emerald-800/50 text-emerald-400 text-xs font-mono font-bold tracking-wider mb-4">
@@ -493,13 +496,19 @@ function AutomationAssessment() {
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <a
-                  href="https://buy.stripe.com/eVq14p74P43RaXxfig2Fa0k"
+                  href="https://buy.stripe.com/4gMfZj88TfMz6Hh8TS2Fa1K"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-sm px-6 py-3 rounded-xl transition-all"
                 >
                   🚀 Deploy Now — $750/mo
                 </a>
+                <Link
+                  to="/build"
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm px-6 py-3 rounded-xl transition-all"
+                >
+                  🛠️ Build My AI Team →
+                </Link>
                 <a
                   href="/contact"
                   className="bg-stone-800 hover:bg-stone-700 text-stone-200 text-sm font-bold px-6 py-3 rounded-xl transition-all"

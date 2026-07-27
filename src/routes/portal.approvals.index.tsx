@@ -22,8 +22,8 @@ function HumanApprovalCenter() {
 
   const handleAction = async (id: string, action: string) => {
     try {
-      setFeedback("Processing approval action: " + action + "...");
-      await fetch("/api/action", {
+      setFeedback("Processing approval: " + action + "...");
+      await fetch("/api/data/approvals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

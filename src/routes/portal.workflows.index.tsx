@@ -122,7 +122,7 @@ function WorkflowManager() {
   const handleRunTest = async (wf: Workflow) => {
     try {
       setFeedback(`Triggering test run for "${wf.name}"...`);
-      await fetch("/api/action", {
+      await fetch("/api/data/workflows", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

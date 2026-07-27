@@ -1,6 +1,5 @@
 import { useState, useRef } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { jsPDF } from "jspdf";
 import { 
   assessmentQuestions, 
   runAssessment, 
@@ -82,8 +81,9 @@ function AssessmentPage() {
     }, 1500);
   };
 
-  const downloadPDF = () => {
+  const downloadPDF = async () => {
     if (!report) return;
+    const { jsPDF } = await import("jspdf");
     const pdf = new jsPDF("p", "mm", "a4");
     const pageWidth = pdf.internal.pageSize.getWidth();
     let y = 20;
@@ -595,7 +595,7 @@ function AssessmentPage() {
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
                 <a
-                  href="https://buy.stripe.com/eVq14p74P43RaXxfig2Fa0k"
+                  href="https://buy.stripe.com/4gMfZj88TfMz6Hh8TS2Fa1K"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full sm:w-auto px-7 py-3.5 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-bold text-sm rounded-xl transition-all shadow-lg hover:shadow-[0_0_25px_rgba(99,102,241,0.4)]"
@@ -614,6 +614,33 @@ function AssessmentPage() {
                 >
                   📄 DOWNLOAD PDF BLUEPRINT
                 </button>
+              </div>
+            </div>
+
+            {/* Upgrade to Deep-Dive Audit */}
+            <div className="bg-gradient-to-br from-emerald-950/40 to-stone-900/80 border border-emerald-900/50 rounded-3xl p-8 text-center mt-6">
+              <h3 className="text-xl font-black text-emerald-400 mb-2">Upgrade to Deep-Dive Audit</h3>
+              <p className="text-sm text-stone-400 mb-6 max-w-md mx-auto">
+                Get a comprehensive audit with industry-specific checklists, AI agent recommendations, and a personalized implementation roadmap.
+              </p>
+              <div className="grid grid-cols-2 gap-4 mb-6 text-left max-w-md mx-auto">
+                <div className="space-y-1">
+                  <div className="text-xs font-bold text-stone-300">Free Assessment</div>
+                  <div className="text-[10px] text-stone-500">• Estimated savings<br/>• Top 5 workflows<br/>• Basic report</div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-xs font-bold text-emerald-400">Paid Audit ($2,500)</div>
+                  <div className="text-[10px] text-stone-500">• 26-industry checklist<br/>• AI agent matching<br/>• Integration roadmap<br/>• PDF blueprint<br/>• 100% credited to build</div>
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Link to="/audit" className="bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-sm px-6 py-3 rounded-xl transition-all">
+                  🔍 Start Deep-Dive Audit →
+                </Link>
+                <a href="https://buy.stripe.com/fZufZj2OzdEr6Hh0nm2Fa00" target="_blank" rel="noopener"
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm px-6 py-3 rounded-xl transition-all">
+                  💳 Purchase Audit — $2,500
+                </a>
               </div>
             </div>
 

@@ -1,27 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { createServerFn } from "@tanstack/react-start";
-import { readFile } from "node:fs/promises";
 import { useState } from "react";
-import { getUser } from "~/db/queries";
 import { workflows } from "~/content/workflows";
-
-const getPageData = createServerFn({ method: "GET" }).handler(async () => {
-  let businessName = "Simpler Life 100";
-  try {
-    const cfg = JSON.parse(await readFile("site.json", "utf8")) as {
-      businessName?: string;
-    };
-    businessName = cfg.businessName?.trim() ?? "Simpler Life 100";
-  } catch (_err) {
-    // Ignore error
-  }
-
-  const user = await getUser();
-  return { businessName, user };
-});
+import { Header } from "~/components/Header";
 
 export const Route = createFileRoute("/")({
-  loader: () => getPageData(),
   component: Home,
 });
 
@@ -86,7 +68,7 @@ const journeySteps = [
     description: "In 30 minutes, we'll identify your top automation opportunities, estimate the time and cost savings, and recommend the best next step. If we don't find a meaningful opportunity, we'll tell you.",
     price: "FREE",
     cta: "Stop Copy-Pasting. Get Your Blueprint ➜",
-    link: "/contact"
+    link: "/audit"
   },
   {
     step: "02",
@@ -95,7 +77,7 @@ const journeySteps = [
     description: "We build a technical roadmap and workflow that fits your business, showing exactly how the agents will work.",
     price: "$2,500",
     cta: "Get Your Custom Blueprint",
-    link: "https://buy.stripe.com/fZufZj2OzdEr6Hh0nm2Fa00"
+    link: "https://buy.stripe.com/aFa8wRdtd0RF5Dd8TS2Fa1t"
   },
   {
     step: "03",
@@ -157,14 +139,11 @@ const blueprintTemplates = {
 };
 
 function Home() {
-  const { businessName, user } = Route.useLoaderData();
+  const businessName = 'Simpler Life 100';
 
   // Prompt compiler state
   const [promptText, setPromptText] = useState("Auto-read scanned invoice PDFs, extract line-items, update QuickBooks and notify Slack");
   const [compilingState, setCompilingState] = useState<'idle' | 'analyzing' | 'mapping' | 'done'>('done');
-
-  // Mobile menu state
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // ROI Calculator sliders state
   const [teamSize, setTeamSize] = useState(10);
@@ -205,119 +184,7 @@ function Home() {
   return (
     <div className="flex flex-col min-h-screen bg-stone-950">
       
-      {/* ─── Header ─── */}
-      <header className="px-6 py-4 bg-stone-950/95 backdrop-blur-md sticky top-0 z-50 border-b border-stone-900">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <Link to="/" className="text-2xl font-black text-emerald-400 tracking-tight">
-            {businessName}
-          </Link>
-
-          {/* Desktop Nav */}
-          <nav className="hidden md:flex gap-6 items-center">
-            {/* INDUSTRY Dropdown */}
-            <div className="relative group">
-              <button className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors flex items-center gap-1 cursor-pointer">
-                Industries
-                <svg className="w-3 h-3 mt-0.5 transition-transform group-hover:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-              <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                <div className="bg-stone-900 border border-stone-800 rounded-xl shadow-xl shadow-black/30 p-2 min-w-[220px] max-h-[60vh] overflow-y-auto space-y-0.5">
-                  {allIndustries.map((ind) => (
-                    <Link
-                      key={ind.id}
-                      to={`/industries/${ind.id}`}
-                      className="block px-3.5 py-2 text-sm font-bold rounded-lg text-stone-300 hover:text-white hover:bg-stone-800 transition-colors"
-                    >
-                      {ind.icon} {ind.name}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* TOOLS Dropdown */}
-            <div className="relative group">
-              <button className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors flex items-center gap-1 cursor-pointer">
-                Tools
-                <svg className="w-3 h-3 mt-0.5 transition-transform group-hover:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-              <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                <div className="bg-stone-900 border border-stone-800 rounded-xl shadow-xl shadow-black/30 p-2 min-w-[220px] space-y-0.5">
-                  <Link to="/tools/ai-advisor" className="block px-3.5 py-2 text-sm font-bold rounded-lg text-stone-300 hover:text-white hover:bg-stone-800 transition-colors">🤖 AI Advisor</Link>
-                  <Link to="/tools/can-we-automate-this" className="block px-3.5 py-2 text-sm font-bold rounded-lg text-stone-300 hover:text-white hover:bg-stone-800 transition-colors">🔍 Can We Automate This?</Link>
-                  <Link to="/tools/assessment" className="block px-3.5 py-2 text-sm font-bold rounded-lg text-stone-300 hover:text-white hover:bg-stone-800 transition-colors">📋 AI Automation Assessment</Link>
-                  <Link to="/roi-calculator" className="block px-3.5 py-2 text-sm font-bold rounded-lg text-stone-300 hover:text-white hover:bg-stone-800 transition-colors">📊 ROI Calculator</Link>
-                </div>
-              </div>
-            </div>
-
-            <Link to="/build" className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">Builder</Link>
-            <Link to="/faq" className="text-sm font-bold text-stone-400 hover:text-emerald-400 transition-colors">FAQ</Link>
-            {user ? (
-              <Link to="/portal" className="bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-emerald-700 transition-all shadow-md">Dashboard</Link>
-            ) : (
-              <Link to="/login" className="text-sm font-bold text-emerald-400 hover:text-emerald-700">Login</Link>
-            )}
-          </nav>
-
-          {/* Mobile Hamburger */}
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden text-stone-400 hover:text-emerald-400 transition-colors p-2"
-            aria-label="Toggle navigation menu"
-          >
-            {mobileMenuOpen ? (
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            ) : (
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            )}
-          </button>
-        </div>
-
-        {/* Mobile Nav Overlay */}
-        {mobileMenuOpen && (
-          <div className="md:hidden border-t border-stone-800 mt-4 pt-4 pb-2 space-y-1">
-            <div className="text-xs font-mono font-bold tracking-wider text-stone-500 uppercase px-1 mb-2">Industries</div>
-            <div className="max-h-[45vh] overflow-y-auto space-y-0.5">
-              {allIndustries.map((ind) => (
-                <Link
-                  key={ind.id}
-                  to={`/industries/${ind.id}`}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="block px-3 py-2 text-sm font-bold rounded-lg text-stone-300 hover:text-white hover:bg-stone-800 transition-colors"
-                >
-                  {ind.icon} {ind.name}
-                </Link>
-              ))}
-            </div>
-            <div className="border-t border-stone-800 mt-3 pt-3 space-y-1">
-              <div className="text-xs font-mono font-bold tracking-wider text-stone-500 uppercase px-1 mb-2">Tools</div>
-              <Link to="/tools/ai-advisor" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-sm font-bold rounded-lg text-stone-300 hover:text-white hover:bg-stone-800 transition-colors">🤖 AI Advisor</Link>
-              <Link to="/tools/can-we-automate-this" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-sm font-bold rounded-lg text-stone-300 hover:text-white hover:bg-stone-800 transition-colors">🔍 Can We Automate This?</Link>
-              <Link to="/tools/assessment" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-sm font-bold rounded-lg text-stone-300 hover:text-white hover:bg-stone-800 transition-colors">📋 AI Automation Assessment</Link>
-              <Link to="/roi-calculator" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-sm font-bold rounded-lg text-stone-300 hover:text-white hover:bg-stone-800 transition-colors">📊 ROI Calculator</Link>
-            </div>
-            <div className="border-t border-stone-800 mt-3 pt-3 space-y-1">
-              <Link to="/build" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-sm font-bold rounded-lg text-stone-300 hover:text-white hover:bg-stone-800 transition-colors">🔨 Builder</Link>
-              <Link to="/faq" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-sm font-bold rounded-lg text-stone-300 hover:text-white hover:bg-stone-800 transition-colors">❓ FAQ</Link>
-              {user ? (
-                <Link to="/portal" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-sm font-bold rounded-lg text-emerald-400 hover:text-emerald-300 hover:bg-stone-800 transition-colors">📊 Dashboard</Link>
-              ) : (
-                <Link to="/login" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-sm font-bold rounded-lg text-emerald-400 hover:text-emerald-300 hover:bg-stone-800 transition-colors">🔐 Login</Link>
-              )}
-            </div>
-          </div>
-        )}
-      </header>
-
+      <Header businessName={businessName} />
       <main className="flex-1">
         
         {/* ─── Interactive Hero Section ─── */}
@@ -587,7 +454,7 @@ function Home() {
                 { icon: "🔌", title: "180+ Integrations", desc: "Connect any business tool with credential-validated connections" },
                 { icon: "🔗", title: "Connected Accounts", desc: "Monitor, edit credentials, test connections per integration" },
                 { icon: "✅", title: "Task Queue", desc: "Track all AI employee work with status filtering" },
-                { icon: "📚", title: "Knowledge Base", desc: "Self-serve docs and guides for your team" },
+                { icon: "⚡", title: "Workflows", desc: "8 pre-built automation templates ready to deploy across your stack" },
                 { icon: "👑", title: "Admin Panel", desc: "Full platform analytics, user management, audit logs (owner only)" },
                 { icon: "🔐", title: "Purchase Gating", desc: "Workflows & AI deployments require purchase or owner assignment" },
                 { icon: "📥", title: "Approvals", desc: "AI actions wait for human review before execution" },

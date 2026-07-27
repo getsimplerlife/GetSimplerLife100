@@ -45,7 +45,7 @@ const DEFAULT_MARKETPLACE_ITEMS: MarketplaceItem[] = [
     rating: 4.9,
     runsMonth: "14.2k",
     icon: "🏥",
-    paymentLink: "https://buy.stripe.com/fZu3cx2Oz8k7d5Fgmk2Fa0t",
+    paymentLink: "https://buy.stripe.com/6oUbJ3cp9dErghRc642Fa24",
     setupRequirements: null,
     badges: ["Needs EHR", "Needs documents"],
     agentType: "healthcare_intake",
@@ -60,7 +60,7 @@ const DEFAULT_MARKETPLACE_ITEMS: MarketplaceItem[] = [
     rating: 4.8,
     runsMonth: "42.8k",
     icon: "💸",
-    paymentLink: "https://buy.stripe.com/00wfZj0Grbwj7Llda82Fa0u",
+    paymentLink: "https://buy.stripe.com/dRm3cx60Lbwj7Lleec2Fa29",
     setupRequirements: null,
     badges: ["Needs accounting", "Needs documents"],
     agentType: "invoice_ledger",
@@ -75,7 +75,7 @@ const DEFAULT_MARKETPLACE_ITEMS: MarketplaceItem[] = [
     rating: 4.7,
     runsMonth: "8.9k",
     icon: "🚀",
-    paymentLink: "https://buy.stripe.com/00weVfexh57V3v5b202Fa0v",
+    paymentLink: "https://buy.stripe.com/7sYfZj3SD0RF7Ll1rq2Fa2c",
     setupRequirements: null,
     badges: ["Needs CRM", "Needs email"],
     agentType: "sales_outreach",
@@ -90,7 +90,7 @@ const DEFAULT_MARKETPLACE_ITEMS: MarketplaceItem[] = [
     rating: 4.6,
     runsMonth: "5.1k",
     icon: "👤",
-    paymentLink: "https://buy.stripe.com/4gM7sN0GreIvghRda82Fa0w",
+    paymentLink: "https://buy.stripe.com/4gMfZjfBlasf3v56LK2Fa26",
     setupRequirements: null,
     badges: ["Needs HR system", "Needs documents"],
     agentType: "hr_compliance",
@@ -105,7 +105,7 @@ const DEFAULT_MARKETPLACE_ITEMS: MarketplaceItem[] = [
     rating: 4.9,
     runsMonth: "25.4k",
     icon: "📦",
-    paymentLink: "https://buy.stripe.com/aFa8wR0Gr9ob7Llb202Fa0x",
+    paymentLink: "https://buy.stripe.com/3cI28tgFp7g37Llb202Fa2g",
     setupRequirements: null,
     badges: ["Needs communication"],
     agentType: "dispatch_logistics",
@@ -120,7 +120,7 @@ const DEFAULT_MARKETPLACE_ITEMS: MarketplaceItem[] = [
     rating: 4.8,
     runsMonth: "19.3k",
     icon: "⚙️",
-    paymentLink: "https://buy.stripe.com/6oUfZj4WH57V9Tt6LK2Fa0y",
+    paymentLink: "https://buy.stripe.com/eVq28t60Lbwj8Pp1rq2Fa25",
     setupRequirements: null,
     badges: ["Works out of box"],
     agentType: "audit_logger",
@@ -135,7 +135,7 @@ const DEFAULT_MARKETPLACE_ITEMS: MarketplaceItem[] = [
     rating: 4.9,
     runsMonth: "35.7k",
     icon: "📄",
-    paymentLink: "https://buy.stripe.com/3cI4gBdtd8k7aXxc642Fa0z",
+    paymentLink: "https://buy.stripe.com/eVq28t60LgQDc1Bgmk2Fa2f",
     setupRequirements: null,
     badges: ["Works out of box"],
     agentType: "document_intake",
@@ -150,7 +150,7 @@ const DEFAULT_MARKETPLACE_ITEMS: MarketplaceItem[] = [
     rating: 4.7,
     runsMonth: "12.1k",
     icon: "🎧",
-    paymentLink: "https://buy.stripe.com/cNi00lfBldEr8Pp0nm2Fa0A",
+    paymentLink: "https://buy.stripe.com/dRm7sN74PfMzaXx9XW2Fa2h",
     setupRequirements: null,
     badges: ["Needs ticketing", "Needs email"],
     agentType: "support_agent",
@@ -165,7 +165,7 @@ const DEFAULT_MARKETPLACE_ITEMS: MarketplaceItem[] = [
     rating: 4.8,
     runsMonth: "8.5k",
     icon: "🧠",
-    paymentLink: "https://buy.stripe.com/6oU3cx74P57V8Pp1rq2Fa0B",
+    paymentLink: "https://buy.stripe.com/7sYeVf4WHcAn2r1b202Fa2k",
     setupRequirements: null,
     badges: ["Needs documents"],
     agentType: "knowledge_assistant",
@@ -180,7 +180,7 @@ const DEFAULT_MARKETPLACE_ITEMS: MarketplaceItem[] = [
     rating: 4.6,
     runsMonth: "6.3k",
     icon: "📞",
-    paymentLink: "https://buy.stripe.com/5kQ14p3SDdEr8Pp4DC2Fa0C",
+    paymentLink: "https://buy.stripe.com/5kQ5kFexhcAn5Ddgmk2Fa2j",
     setupRequirements: null,
     badges: ["Needs Twilio"],
     agentType: "voice_receptionist",
@@ -195,7 +195,7 @@ const DEFAULT_MARKETPLACE_ITEMS: MarketplaceItem[] = [
     rating: 4.8,
     runsMonth: "18.9k",
     icon: "📦",
-    paymentLink: "https://buy.stripe.com/aFa00l2OzeIve9J3zy2Fa0D",
+    paymentLink: "https://buy.stripe.com/28E00l2Oz1VJghRda82Fa2a",
     setupRequirements: null,
     badges: ["Needs ERP", "Needs inventory system"],
     agentType: "inventory_management",
@@ -210,7 +210,7 @@ const DEFAULT_MARKETPLACE_ITEMS: MarketplaceItem[] = [
     rating: 4.7,
     runsMonth: "9.2k",
     icon: "📋",
-    paymentLink: "https://buy.stripe.com/bJeeVfcp9fMzd5Feec2Fa0E",
+    paymentLink: "https://buy.stripe.com/fZubJ3dtdcAnghR1rq2Fa2d",
     setupRequirements: null,
     badges: ["Needs documents"],
     agentType: "contract_management",
@@ -225,7 +225,7 @@ const DEFAULT_MARKETPLACE_ITEMS: MarketplaceItem[] = [
     rating: 4.8,
     runsMonth: "11.4k",
     icon: "🌟",
-    paymentLink: "https://buy.stripe.com/28E14p3SD1VJc1B3zy2Fa0F",
+    paymentLink: "https://buy.stripe.com/dRm4gBah1cAn7Ll8TS2Fa2e",
     setupRequirements: null,
     badges: ["Needs CRM", "Needs email"],
     agentType: "customer_success",
@@ -240,7 +240,7 @@ const DEFAULT_MARKETPLACE_ITEMS: MarketplaceItem[] = [
     rating: 4.6,
     runsMonth: "7.8k",
     icon: "📊",
-    paymentLink: "https://buy.stripe.com/9B6fZj3SDgQD9Ttc642Fa0G",
+    paymentLink: "https://buy.stripe.com/28EbJ374P8k71mX8TS2Fa27",
     setupRequirements: null,
     badges: ["Needs PM tool"],
     agentType: "project_management",
@@ -255,7 +255,7 @@ const DEFAULT_MARKETPLACE_ITEMS: MarketplaceItem[] = [
     rating: 4.7,
     runsMonth: "6.1k",
     icon: "🏗️",
-    paymentLink: "https://buy.stripe.com/8x228t1Kv7g31mX8TS2Fa0H",
+    paymentLink: "https://buy.stripe.com/dRm9AV88T6bZ0iT3zy2Fa2i",
     setupRequirements: null,
     badges: ["Needs ERP", "Needs documents"],
     agentType: "procurement_vendor",
@@ -270,7 +270,7 @@ const DEFAULT_MARKETPLACE_ITEMS: MarketplaceItem[] = [
     rating: 4.8,
     runsMonth: "22.3k",
     icon: "🖥️",
-    paymentLink: "https://buy.stripe.com/3cIaEZdtd0RFfdN8TS2Fa0I",
+    paymentLink: "https://buy.stripe.com/eVq28t60Lbwj8Pp1rq2Fa25",
     setupRequirements: null,
     badges: ["Needs monitoring", "Needs communication"],
     agentType: "it_operations",
@@ -285,7 +285,7 @@ const DEFAULT_MARKETPLACE_ITEMS: MarketplaceItem[] = [
     rating: 4.9,
     runsMonth: "5.5k",
     icon: "📈",
-    paymentLink: "https://buy.stripe.com/cNi14p3SDcAn5Dd5HG2Fa0J",
+    paymentLink: "https://buy.stripe.com/fZucN74WH7g3e9J1rq2Fa28",
     setupRequirements: null,
     badges: ["Needs accounting", "Needs ERP"],
     agentType: "fp_and_a",
@@ -300,7 +300,7 @@ const DEFAULT_MARKETPLACE_ITEMS: MarketplaceItem[] = [
     rating: 4.7,
     runsMonth: "15.9k",
     icon: "📱",
-    paymentLink: "https://buy.stripe.com/dRm3cx3SD43R3v5c642Fa0K",
+    paymentLink: "https://buy.stripe.com/dRm5kF0GrdEr6Hh6LK2Fa2b",
     setupRequirements: null,
     badges: ["Needs social media", "Needs CRM", "Needs email"],
     agentType: "marketing_social",
@@ -353,15 +353,20 @@ function MarketplaceHub() {
         }
       }
 
-      // Map deployed counts and installed flags based on active employees database
+      // Map deployed counts, installed flags, and payment links from employee catalog
       const mapped = marketplaceItemsList.map((item) => {
         const deployedInstances = emps.filter(
           (emp: any) => emp.agentType === item.agentType || emp.type === item.agentType
+        );
+        // Find matching employee in catalog to get real paymentLink
+        const catalogMatch = emps.find(
+          (emp: any) => emp.agentType === item.agentType || emp.name === item.name
         );
         return {
           ...item,
           deployedCount: deployedInstances.length,
           installed: deployedInstances.length > 0,
+          paymentLink: catalogMatch?.paymentLink || item.paymentLink,
           chainsWith: item.agentType ? getAgentChainPartners(item.agentType) : [],
         };
       });
@@ -390,17 +395,17 @@ function MarketplaceHub() {
     setSimulatingLog([]);
   };
 
-  // Simulate Stripe payment flow
+  // Stripe checkout — redirect to real payment link
   const handleSimulatePayment = () => {
+    if (!checkoutItem?.paymentLink) {
+      setFeedback("Payment link not available. Visit /build to purchase.");
+      setTimeout(() => setFeedback(""), 3000);
+      return;
+    }
+    setFeedback("Redirecting to Stripe Checkout...");
+    window.open(checkoutItem.paymentLink, "_blank");
     setCheckoutStep("processing");
-    setSimulatingLog(["Contacting Stripe Checkout gateway...", "Generating session token..."]);
-    
-    setTimeout(() => {
-      setSimulatingLog(prev => [...prev, "Stripe security handshake complete.", "Card payment authorized successfully!"]);
-      setTimeout(() => {
-        setCheckoutStep("confirm");
-      }, 1000);
-    }, 1500);
+    setSimulatingLog(["Stripe Checkout opened in new tab...", "Complete payment to continue."]);
   };
 
   // Deploy Employee - creates records in Database and logs purchase
@@ -453,28 +458,25 @@ function MarketplaceHub() {
 
       setSimulatingLog(prev => [...prev, "SLA billing contract created.", "SendGrid onboarding dispatch triggered."]);
 
-      // 3. Post Audit Action log
-      await fetch("/api/action", {
+      // Record purchase and trigger agent provisioning
+      const provRes = await fetch("/api/purchases", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          action: "marketplace_purchase",
-          resource: checkoutItem.id,
-          details: { id: checkoutItem.id, agentType: checkoutItem.agentType, name: customName, txId: simulatedTxId },
+          productName: checkoutItem.name,
+          agentId: checkoutItem.id,
+          agentType: checkoutItem.agentType,
+          amount: checkoutItem.price,
+          txId: simulatedTxId,
         }),
       });
-
-      // Map to purchaseProvisioner trigger
-      await fetch("/api/action", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          action: "provision_purchase_simulation",
-          details: { email: "tenant-owner@simplerlife100.com", productName: checkoutItem.name, amount: parseInt(checkoutItem.price.replace(/[^0-9]/g, "")) || 1000 }
-        })
-      }).catch(() => {});
+      const provData = await provRes.json().catch(() => ({}));
+      if (provRes.ok) {
+        setSimulatingLog(prev => [...prev, `Agent "${checkoutItem.name}" provisioned successfully.`]);
+      } else {
+        setSimulatingLog(prev => [...prev, `Provisioning note: ${provData.error || "will activate after webhook"}`]);
+      }
 
       setTimeout(() => {
         setSimulatingLog(prev => [...prev, "✓ Cognitive Workspace Provisioned Successfully!"]);

@@ -40,7 +40,7 @@ function EmployeeProfile() {
     if (!employee) return;
     try {
       setActionFeedback(`Triggering ${actionName} for ${employee.name}...`);
-      const res = await fetch("/api/action", {
+      const res = await fetch("/api/data/employees", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

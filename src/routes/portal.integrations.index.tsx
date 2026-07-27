@@ -151,7 +151,8 @@ function ConnectedServices() {
   // Connections Tab States
   const [providers, setProviders] = useState<ProviderItem[]>([]);
   const [connections, setConnections] = useState<ConnectionItem[]>([]);
-  const [loadingConns, setLoadingConns] = useState(false);
+  const [loadingConns, setLoadingConns] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedProviderDetails, setSelectedProviderDetails] = useState<ProviderItem | null>(null);
@@ -164,9 +165,6 @@ function ConnectedServices() {
   const [documentsHistory, setDocumentsHistory] = useState<DocumentItem[]>([]);
   const [loadingDocs, setLoadingDocs] = useState(false);
   const [selectedDocDetails, setSelectedDocDetails] = useState<DocumentItem | null>(null);
-
-  // Error state
-  const [fetchError, setFetchError] = useState<string | null>(null);
 
   // Common Feedback State
   const [feedback, setFeedback] = useState("");
@@ -190,18 +188,16 @@ function ConnectedServices() {
     setManualSaving(true);
     setManualError(null);
     try {
-      const res = await fetch("/api/integrations/connect", {
+      const res = await fetch("/api/integrations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          providerId: credentialProvider.id,
-          providerName: credentialProvider.name,
-          credentials: {
-            apiKey: manualApiKey.trim(),
-            apiSecret: manualApiSecret.trim() || undefined,
-            subdomain: manualSubdomain.trim() || undefined,
-          },
+          provider: credentialProvider.id,
+          apiKey: manualApiKey.trim(),
+          apiSecret: manualApiSecret.trim() || undefined,
+          subdomain: manualSubdomain.trim() || undefined,
+          displayName: credentialProvider.name,
         }),
       });
       if (!res.ok) {
@@ -225,21 +221,24 @@ function ConnectedServices() {
 
   // Fetch Providers and Connections
   const fetchConnectionsData = async () => {
-    setFetchError(null);
     try {
+      setFetchError(null);
       setLoadingConns(true);
       const [providersRes, connsRes] = await Promise.all([
         fetch("/api/integrations/providers"),
         fetch("/api/integrations")
       ]);
+      if (!providersRes.ok || !connsRes.ok) {
+        throw new Error(`Server error (${providersRes.status}/${connsRes.status}). Please try again.`);
+      }
       const provsData = await providersRes.json();
       const connsData = await connsRes.json();
       
-      setProviders(provsData.data || provsData || []);
-      setConnections(connsData.data || connsData || []);
-    } catch (err) {
+      setProviders(provsData || []);
+      setConnections(connsData || []);
+    } catch (err: any) {
       console.error("Error fetching integrations:", err);
-      setFetchError(err instanceof Error ? err.message : "Failed to load integrations");
+      setFetchError(err.message || "Failed to load integrations. Check your connection.");
     } finally {
       setLoadingConns(false);
     }
@@ -543,65 +542,35 @@ function ConnectedServices() {
             </div>
           </div>
 
-          {/* Error State */}
-          {fetchError && (
-            <div className="bg-red-950/30 rounded-2xl border border-red-900/50 p-8 text-center max-w-xl mx-auto space-y-4">
-              <span className="text-4xl block">⚠️</span>
-              <h3 className="text-sm font-bold text-red-400">Connection Error</h3>
-              <p className="text-[11px] text-red-300/70 leading-relaxed">{fetchError}</p>
-              <button
-                onClick={() => { setFetchError(null); fetchConnectionsData(); }}
-                className="px-4 py-2 bg-red-900/50 hover:bg-red-800/50 text-red-300 rounded-lg text-xs font-bold transition-colors"
-              >
-                Retry
-              </button>
-            </div>
-          )}
-
-          {/* Loading Spinner */}
-          {loadingConns && !fetchError && (
+          {/* Main Grid View */}
+          {loadingConns ? (
             <div className="flex flex-col items-center justify-center min-h-[300px]">
-              <div className="w-10 h-10 border-2 border-stone-850 border-t-emerald-500 rounded-full animate-spin mb-4"></div>
-              <p className="text-stone-500 text-[10px] font-mono tracking-widest uppercase animate-pulse">Loading integrations...</p>
+              <div className="w-10 h-10 border-2 border-stone-850 border-t-emerald-500 rounded-full animate-spin mb-4" />
+              <p className="text-stone-500 text-[10px] font-mono tracking-widest uppercase animate-pulse">Decrypting Integration Schema Matrices...</p>
             </div>
-          )}
-
-          {/* Empty State — No providers match filters */}
-          {!loadingConns && !fetchError && providers.length > 0 && filteredProviders.length === 0 && (
-            <div className="text-center py-16 space-y-4">
-              <span className="text-4xl block">🔍</span>
-              <h3 className="text-sm font-bold text-stone-400">No providers match your search</h3>
-              <p className="text-[10px] text-stone-500 max-w-sm mx-auto leading-relaxed">
-                Try adjusting your search terms or category filter to find what you're looking for.
-              </p>
-              <button
-                onClick={() => { setSearchQuery(""); setSelectedCategory("all"); }}
-                className="px-4 py-2 bg-stone-900 border border-stone-800 text-stone-300 rounded-xl text-xs font-bold hover:bg-stone-800 transition-colors"
-              >
-                Clear Filters
-              </button>
-            </div>
-          )}
-
-          {/* Empty State — No providers loaded at all */}
-          {!loadingConns && !fetchError && providers.length === 0 && (
-            <div className="text-center py-16 space-y-4">
-              <span className="text-4xl block">🔌</span>
-              <h3 className="text-sm font-bold text-stone-400">No integration providers available</h3>
-              <p className="text-[10px] text-stone-500 max-w-sm mx-auto leading-relaxed">
-                We're unable to load the provider catalog right now. Please try again or contact support.
+          ) : fetchError ? (
+            <div className="bg-red-950/30 border border-red-900/50 rounded-2xl p-10 text-center max-w-xl mx-auto space-y-5">
+              <span className="text-4xl block">⚠️</span>
+              <h3 className="text-sm font-bold text-red-300">Failed to Load Integrations</h3>
+              <p className="text-[12px] text-red-400/70 leading-relaxed max-w-sm mx-auto">
+                {fetchError}
               </p>
               <button
                 onClick={() => fetchConnectionsData()}
-                className="px-4 py-2 bg-stone-900 border border-stone-800 text-stone-300 rounded-xl text-xs font-bold hover:bg-stone-800 transition-colors"
+                className="inline-flex items-center gap-2 bg-red-900/40 hover:bg-red-900/60 text-red-200 border border-red-800/50 px-5 py-2.5 rounded-xl text-xs font-bold transition-all"
               >
-                Retry
+                <span>🔄</span> Retry
               </button>
             </div>
-          )}
-
-          {/* Main Grid View */}
-          {!loadingConns && !fetchError && filteredProviders.length > 0 && (
+          ) : filteredProviders.length === 0 ? (
+            <div className="bg-stone-950 rounded-2xl border border-stone-900 p-12 text-center max-w-xl mx-auto space-y-4">
+              <span className="text-4xl block">🔍</span>
+              <h3 className="text-sm font-bold text-white">No integrations matching filter</h3>
+              <p className="text-[11px] text-stone-500 leading-relaxed">
+                We couldn't find any third-party providers matching "{searchQuery}" in category "{selectedCategory}". Try updating your queries.
+              </p>
+            </div>
+          ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredProviders.map((prov) => {
                 // Check if there's a connected channel

@@ -23,7 +23,7 @@ function CommsInbox() {
   const handleAction = async (from: string, action: string) => {
     try {
       setFeedback(`Processing communication action: ${action}...`);
-      await fetch("/api/action", {
+      await fetch("/api/data/communications", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

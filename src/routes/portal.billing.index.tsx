@@ -46,19 +46,8 @@ function PlanAndBilling() {
   }, []);
 
   const handleDownload = async (id: string) => {
-    try {
-      setFeedback(`Initiating download for invoice ${id}...`);
-      await fetch("/api/action", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ action: "invoice_download", resource: id }),
-      });
-      setFeedback("Success: Invoice download ready");
-      setTimeout(() => setFeedback(""), 3000);
-    } catch (err) {
-      console.error(err);
-    }
+    setFeedback("Check your real purchase records at /api/data/billing.");
+    setTimeout(() => setFeedback(""), 4000);
   };
 
   return (
@@ -123,8 +112,8 @@ function PlanAndBilling() {
             </h3>
             <div className="space-y-4">
               {[
-                { name: "Growth Build Package", desc: "5 AI Employees, cross-dept, full system integrations.", price: "$15,000", link: "https://buy.stripe.com/5kQdRbah1asf1mX7PO2Fa02" },
-                { name: "Scale Build Package", desc: "Unlimited AI Employees, customized modeling, priority tech support.", price: "$30,000", link: "https://buy.stripe.com/4gM9AV74P1VJ9Tt9XW2Fa03" },
+                { name: "Growth Build Package", desc: "5 AI Employees, cross-dept, full system integrations.", price: "$15,000", link: "https://buy.stripe.com/fZu14p2Oz7g3d5F9XW2Fa1v" },
+                { name: "Scale Build Package", desc: "Unlimited AI Employees, customized modeling, priority tech support.", price: "$30,000", link: "https://buy.stripe.com/aFabJ31KveIv1mX2vu2Fa1w" },
               ].map((item) => (
                 <div key={item.name} className="p-4 bg-white dark:bg-stone-900/50 border border-stone-200 dark:border-stone-800 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="space-y-1">
@@ -154,9 +143,9 @@ function PlanAndBilling() {
             </h3>
             <div className="space-y-4">
               {[
-                { name: "Essential Operations Support", desc: "Routine health checks, API adjustments, and basic uptime monitoring.", price: "$750/mo", link: "https://buy.stripe.com/28E4gAens20AfRcbkp3Ru04" },
-                { name: "Professional Operations Support", desc: "Includes alignment calls, workflow expansion, and new templates.", price: "$2,000/mo", link: "https://buy.stripe.com/cNieVe7Z4ax6fRc0FL3Ru05" },
-                { name: "Enterprise Operations Support", desc: "Sub-hour priority SLA support and dedicated engineering resource.", price: "$5,000/mo", link: "https://buy.stripe.com/fZubJ2a7cax67kG9ch3Ru06" },
+                { name: "Essential Operations Support", desc: "Routine health checks, API adjustments, and basic uptime monitoring.", price: "$750/mo", link: "https://buy.stripe.com/8x24gB3SD2ZNd5Fc642Fa1I" },
+                { name: "Professional Operations Support", desc: "Includes alignment calls, workflow expansion, and new templates.", price: "$2,000/mo", link: "https://buy.stripe.com/aFaaEZexhasf3v50nm2Fa1J" },
+                { name: "Enterprise Operations Support", desc: "Sub-hour priority SLA support and dedicated engineering resource.", price: "$5,000/mo", link: "https://buy.stripe.com/14A14pfBlbwjc1B8TS2Fa1L" },
               ].map((item) => (
                 <div key={item.name} className="p-4 bg-white dark:bg-stone-900/50 border border-stone-200 dark:border-stone-800 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="space-y-1">
@@ -187,17 +176,17 @@ function PlanAndBilling() {
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
-              { name: "Additional AI Agent", desc: "Deploy an extra dedicated agent loop tailored for unique operational tasks.", price: "$1,500", link: "https://buy.stripe.com/3cI6oJ2Oz43R9Ttb202Fa04", icon: "🤖" },
-              { name: "CRM Integration", desc: "Sync your digital coworkers directly into Salesforce, HubSpot, or Zoho.", price: "$2,000", link: "https://buy.stripe.com/6oUcN788T8k71mX2vu2Fa05", icon: "🔌" },
-              { name: "ERP Integration", desc: "Wire advanced inventory and resource data into SAP, NetSuite, or Oracle.", price: "$3,500", link: "https://buy.stripe.com/6oU8wRbl5bwjc1B4DC2Fa06", icon: "🏭" },
-              { name: "Voice AI Receptionist", desc: "Deploy high-fidelity, autonomous voice lines handling inbound call reception.", price: "$2,500", link: "https://buy.stripe.com/5kQ9AV0Gr6bZd5F2vu2Fa07", icon: "📞" },
-              { name: "AI Sales Assistant", desc: "Automatically draft outreach, sync pipelines, and follow up warm leads.", price: "$2,000", link: "https://buy.stripe.com/28EbJ34WH57VfdNc642Fa08", icon: "📈" },
-              { name: "AI Customer Support Agent", desc: "Provide real-time email, ticket, and chat resolutions under 5 minutes.", price: "$1,800", link: "https://buy.stripe.com/6oU3cx4WH6bZ4z97PO2Fa09", icon: "🤝" },
-              { name: "Custom Dashboard", desc: "Gain real-time executive analytics, ROI calculators, and system health status.", price: "$1,500", link: "https://buy.stripe.com/5kQ00lcp9dEre9Jda82Fa0a", icon: "📊" },
-              { name: "Document AI System", desc: "Extract unstructured invoice, fax, or contract data with 100% precision.", price: "$2,500", link: "https://buy.stripe.com/dRm28t9cX7g3c1B3zy2Fa0b", icon: "📄" },
-              { name: "Internal Knowledge Assistant", desc: "Empower your workforce with immediate search across full internal company wiki.", price: "$1,500", link: "https://buy.stripe.com/3cIeVf60Lasfe9J8TS2Fa0c", icon: "🧠" },
-              { name: "Employee Training", desc: "Custom training workflows mapping company compliance and handbook details.", price: "$1,200", link: "https://buy.stripe.com/cNicN7cp92ZNc1B6LK2Fa0d", icon: "🏫" },
-              { name: "Additional Dept Automation", desc: "Extend automations across other vertical department operational tasks.", price: "$2,500", link: "https://buy.stripe.com/cNi7sNah1fMzd5F7PO2Fa0e", icon: "🏢" }
+              { name: "Additional AI Agent", desc: "Deploy an extra dedicated agent loop tailored for unique operational tasks.", price: "$1,500 one-time + monthly agent fee", link: "https://buy.stripe.com/00w14pcp957VghR4DC2Fa1x", icon: "🤖" },
+              { name: "CRM Integration", desc: "Sync your digital coworkers directly into Salesforce, HubSpot, or Zoho.", price: "$2,000 one-time", link: "https://buy.stripe.com/5kQ5kFexhcAn5Ddgmk2Fa2j", icon: "🔌" },
+              { name: "ERP Integration", desc: "Wire advanced inventory and resource data into SAP, NetSuite, or Oracle.", price: "$3,500 one-time", link: "https://buy.stripe.com/9B6bJ39cX8k79Tteec2Fa1z", icon: "🏭" },
+              { name: "Voice AI Receptionist", desc: "Deploy high-fidelity, autonomous voice lines handling inbound call reception.", price: "$2,500/mo", link: "https://buy.stripe.com/5kQ5kFexhcAn5Ddgmk2Fa2j", icon: "📞" },
+              { name: "AI Sales Assistant", desc: "Automatically draft outreach, sync pipelines, and follow up warm leads.", price: "$2,000/mo", link: "https://buy.stripe.com/7sYfZj3SD0RF7Ll1rq2Fa2c", icon: "📈" },
+              { name: "AI Customer Support Agent", desc: "Provide real-time email, ticket, and chat resolutions under 5 minutes.", price: "$1,800/mo", link: "https://buy.stripe.com/dRm7sN74PfMzaXx9XW2Fa2h", icon: "🤝" },
+              { name: "Custom Dashboard", desc: "Gain real-time executive analytics, ROI calculators, and system health status.", price: "$1,500 one-time", link: "https://buy.stripe.com/cNibJ31Kv2ZN0iT6LK2Fa1D", icon: "📊" },
+              { name: "Document AI System", desc: "Extract unstructured invoice, fax, or contract data with 100% precision.", price: "$2,500/mo", link: "https://buy.stripe.com/eVq28t60LgQDc1Bgmk2Fa2f", icon: "📄" },
+              { name: "Internal Knowledge Assistant", desc: "Empower your workforce with immediate search across full internal company wiki.", price: "$1,500", link: "https://buy.stripe.com/7sYeVf4WHcAn2r1b202Fa2k", icon: "🧠" },
+              { name: "Employee Training", desc: "Custom training workflows mapping company compliance and handbook details.", price: "$1,200", link: "https://buy.stripe.com/eVqfZjdtd6bZaXx2vu2Fa1G", icon: "🏫" },
+              { name: "Additional Dept Automation", desc: "Extend automations across other vertical department operational tasks.", price: "$2,500", link: "https://buy.stripe.com/00w3cx2Oz1VJc1Bc642Fa1H", icon: "🏢" }
             ].map((item) => (
               <div key={item.name} className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 p-6 rounded-2xl flex flex-col justify-between gap-4 hover:border-emerald-500/20 hover:shadow-sm transition-all">
                 <div>

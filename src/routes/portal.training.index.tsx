@@ -23,7 +23,7 @@ function ModelTraining() {
   const handleAction = async (name: string, action: string) => {
     try {
       setFeedback(`Processing model action: ${action}...`);
-      const res = await fetch("/api/action", {
+      const res = await fetch("/api/data/training", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

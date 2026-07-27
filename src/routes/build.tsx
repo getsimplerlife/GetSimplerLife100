@@ -1,26 +1,8 @@
 import { useState } from 'react';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { createServerFn } from '@tanstack/react-start';
-import { readFile } from 'node:fs/promises';
-import { getUser } from '~/db/queries';
-
-const getPageData = createServerFn({ method: 'GET' }).handler(async () => {
-  let businessName = 'Simpler Life 100';
-  try {
-    const cfg = JSON.parse(await readFile('site.json', 'utf8')) as {
-      businessName?: string;
-    };
-    businessName = cfg.businessName?.trim() ?? 'Simpler Life 100';
-  } catch (_err) {
-    // Ignore error
-  }
-
-  const user = await getUser();
-  return { businessName, user };
-});
+import { Header } from '~/components/Header';
 
 export const Route = createFileRoute('/build')({
-  loader: () => getPageData(),
   component: BuildBuilder,
 });
 
@@ -32,7 +14,7 @@ const packages = [
     price: 7500,
     agentLimit: 2,
     features: ['2 AI employees', '3 automated workflows', 'CRM integration', '30 days support'],
-    paymentLink: 'https://buy.stripe.com/00w28tcp97g37Llc642Fa17',
+    paymentLink: 'https://buy.stripe.com/bJebJ3bl5eIv2r19XW2Fa1u',
     description: 'Perfect for small teams ready to automate their highest-friction process.',
   },
   {
@@ -41,7 +23,7 @@ const packages = [
     price: 15000,
     agentLimit: 5,
     features: ['5 AI employees', 'Cross-dept workflows', 'CRM + ERP integrations', 'Custom dashboards', '60 days support'],
-    paymentLink: 'https://buy.stripe.com/5kQ14pah11VJfdN6LK2Fa18',
+    paymentLink: 'https://buy.stripe.com/fZu14p2Oz7g3d5F9XW2Fa1v',
     description: 'For growing teams that need automation across multiple departments.',
   },
   {
@@ -50,7 +32,7 @@ const packages = [
     price: 30000,
     agentLimit: 18,
     features: ['Up to 18 AI employees', 'Unlimited workflows', 'Custom agent training', 'Advanced integrations', '90 days support'],
-    paymentLink: 'https://buy.stripe.com/3cIfZj74PbwjfdNda82Fa19',
+    paymentLink: 'https://buy.stripe.com/aFabJ31KveIv1mX2vu2Fa1w',
     description: 'Enterprise-grade AI workforce for organizations ready to transform operations.',
   },
 ];
@@ -80,7 +62,7 @@ const allAgents = [
 type Step = 'package' | 'agents' | 'info' | 'review' | 'success';
 
 function BuildBuilder() {
-  const { businessName } = Route.useLoaderData();
+  const businessName = 'Simpler Life 100';
   const [step, setStep] = useState<Step>('package');
   const [selectedPackage, setSelectedPackage] = useState(packages[0]);
   const [selectedAgents, setSelectedAgents] = useState<string[]>([]);

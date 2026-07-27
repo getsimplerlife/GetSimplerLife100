@@ -1,0 +1,20 @@
+{
+  "test@test.com": [
+    {
+      "toolName": "can-we-automate-this",
+      "result": {
+        "topMatch": "Invoice AI"
+      },
+      "timestamp": "2026-07-27T04:37:47.908Z"
+    }
+  ],
+  "roi-test@test.com": [
+    {
+      "toolName": "roi-calculator",
+      "result": {
+        "savings": 50000
+      },
+      "timestamp": "2026-07-27T04:49:13.159Z"
+    }
+  ]
+}

@@ -22,29 +22,29 @@ interface DemoActivity {
 }
 
 const MOCK_AGENTS: DemoAgent[] = [
-  { name: "Ivy Invoice", type: "Invoice & Ledger AI", status: "Active", purpose: "Invoice processing, PO matching, payment reconciliation", performance: 99, icon: "💸" },
-  { name: "Charlie CRM", type: "Sales Outreach AI", status: "Active", purpose: "Lead enrichment, deal tracking, email sequencing", performance: 97, icon: "🚀" },
-  { name: "Quentin Quote", type: "Dispatch Logistics AI", status: "Active", purpose: "Carrier bid matching, route optimization, ETA tracking", performance: 98, icon: "📦" },
-  { name: "Caleb Collections", type: "Invoice & Ledger AI", status: "Idle", purpose: "Dunning, past-due follow-ups, payment reminders", performance: 95, icon: "💸" },
+  { name: "Invoice Processor", type: "Invoice Processor", status: "Active", purpose: "Invoice processing, PO matching, payment reconciliation", performance: 99, icon: "💸" },
+  { name: "CRM Sync Agent", type: "Sales Follow-Up Agent", status: "Active", purpose: "Lead enrichment, deal tracking, email sequencing", performance: 97, icon: "🚀" },
+  { name: "Route Optimizer", type: "Route Optimizer", status: "Active", purpose: "Carrier bid matching, route optimization, ETA tracking", performance: 98, icon: "📦" },
+  { name: "PO Management Agent", type: "Invoice Processor", status: "Idle", purpose: "Dunning, past-due follow-ups, payment reminders", performance: 95, icon: "💸" },
   { name: "Sarah Jenkins", type: "Operations Audit AI", status: "Paused", purpose: "Operational audit logging, anomaly detection, report generation", performance: 93, icon: "⚙️" },
 ];
 
 const MOCK_ACTIVITIES: DemoActivity[] = [
-  { agent: "Ivy Invoice", action: "Processed invoice INV-2026-442 from Acme Corp — $12,440.00", time: "2 min ago", status: "success" },
-  { agent: "Charlie CRM", action: "Enriched 14 new leads from LinkedIn — 3 matched to existing contacts", time: "5 min ago", status: "success" },
-  { agent: "Quentin Quote", action: "Matched 8 carrier bids to load L-9923 — optimal rate found", time: "8 min ago", status: "success" },
-  { agent: "Ivy Invoice", action: "Flagged PO-10229 mismatch — $450 variance requires review", time: "12 min ago", status: "warning" },
-  { agent: "Charlie CRM", action: "Sent 32 follow-up emails in sequence 'Q3 Outreach — Batch 2'", time: "18 min ago", status: "success" },
-  { agent: "Caleb Collections", action: "Scheduled 5 payment reminders for accounts 60+ days overdue", time: "25 min ago", status: "pending" },
+  { agent: "Invoice Processor", action: "Processed invoice INV-2026-442 from Acme Corp — $12,440.00", time: "2 min ago", status: "success" },
+  { agent: "CRM Sync Agent", action: "Enriched 14 new leads from LinkedIn — 3 matched to existing contacts", time: "5 min ago", status: "success" },
+  { agent: "Route Optimizer", action: "Matched 8 carrier bids to load L-9923 — optimal rate found", time: "8 min ago", status: "success" },
+  { agent: "Invoice Processor", action: "Flagged PO-10229 mismatch — $450 variance requires review", time: "12 min ago", status: "warning" },
+  { agent: "CRM Sync Agent", action: "Sent 32 follow-up emails in sequence 'Q3 Outreach — Batch 2'", time: "18 min ago", status: "success" },
+  { agent: "PO Management Agent", action: "Scheduled 5 payment reminders for accounts 60+ days overdue", time: "25 min ago", status: "pending" },
 ];
 
 const MOCK_MARKETPLACE = [
-  { name: "Invoice & Ledger AI", price: "$950/mo", rating: 4.8, tasks: "42.8k/mo", icon: "💸", category: "Finance" },
-  { name: "Sales Outreach AI", price: "$1,200/mo", rating: 4.7, tasks: "8.9k/mo", icon: "🚀", category: "Sales" },
-  { name: "Dispatch Logistics AI", price: "$1,800/mo", rating: 4.9, tasks: "25.4k/mo", icon: "📦", category: "Logistics" },
-  { name: "Document AI System", price: "$499/mo", rating: 4.9, tasks: "35.7k/mo", icon: "📄", category: "Operations" },
-  { name: "Customer Support AI", price: "$1,800/mo", rating: 4.7, tasks: "12.1k/mo", icon: "🎧", category: "Operations" },
-  { name: "HR Compliance AI", price: "$850/mo", rating: 4.6, tasks: "5.1k/mo", icon: "👤", category: "HR" },
+  { name: "Invoice Processor", price: "$950/mo", rating: 4.8, tasks: "42.8k/mo", icon: "💸", category: "Finance" },
+  { name: "Sales Follow-Up Agent", price: "$1,200/mo", rating: 4.7, tasks: "8.9k/mo", icon: "🚀", category: "Sales" },
+  { name: "Route Optimizer", price: "$1,800/mo", rating: 4.9, tasks: "25.4k/mo", icon: "📦", category: "Logistics" },
+  { name: "Data Entry Bot", price: "$499/mo", rating: 4.9, tasks: "35.7k/mo", icon: "📄", category: "Operations" },
+  { name: "Support Triage Agent", price: "$1,800/mo", rating: 4.7, tasks: "12.1k/mo", icon: "🎧", category: "Operations" },
+  { name: "HR Onboarding Agent", price: "$850/mo", rating: 4.6, tasks: "5.1k/mo", icon: "👤", category: "HR" },
 ];
 
 function PortalDemoPage() {

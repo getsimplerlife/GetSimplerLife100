@@ -1,25 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { createServerFn } from '@tanstack/react-start';
-import { readFile } from 'node:fs/promises';
-import { getUser } from '~/db/queries';
-
-const getPageData = createServerFn({ method: 'GET' }).handler(async () => {
-  let businessName = 'Simpler Life 100';
-  try {
-    const cfg = JSON.parse(await readFile('site.json', 'utf8')) as {
-      businessName?: string;
-    };
-    businessName = cfg.businessName?.trim() ?? 'Simpler Life 100';
-  } catch (_err) {
-    // Ignore error
-  }
-
-  const user = await getUser();
-  return { businessName, user };
-});
+import { Header } from '~/components/Header';
 
 export const Route = createFileRoute('/support')({
-  loader: () => getPageData(),
   component: SupportPage,
 });
 
@@ -37,7 +19,7 @@ const supportTiers = [
       '12-hour response time',
     ],
     cta: 'Buy Essential Ops',
-    link: 'https://buy.stripe.com/28E4gAens20AfRcbkp3Ru04',
+    link: 'https://buy.stripe.com/8x24gB3SD2ZNd5Fc642Fa1I',
     popular: false,
   },
   {
@@ -54,7 +36,7 @@ const supportTiers = [
       '4-hour response time',
     ],
     cta: 'Buy Professional Ops',
-    link: 'https://buy.stripe.com/cNieVe7Z4ax6fRc0FL3Ru05',
+    link: 'https://buy.stripe.com/aFaaEZexhasf3v50nm2Fa1J',
     popular: true,
   },
   {
@@ -77,7 +59,7 @@ const supportTiers = [
 ];
 
 function SupportPage() {
-  const { businessName } = Route.useLoaderData();
+  const businessName = 'Simpler Life 100';
 
   return (
     <div className="flex flex-col min-h-screen selection:bg-emerald-100 selection:text-emerald-900">

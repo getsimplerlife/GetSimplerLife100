@@ -1,0 +1,83 @@
+{
+  "invoice-processor-v1": [
+    "quickbooks",
+    "xero",
+    "netsuite"
+  ],
+  "crm-sync-agent-v1": [
+    "salesforce",
+    "hubspot",
+    "pipedrive"
+  ],
+  "email-assistant-v1": [
+    "gmail",
+    "outlook",
+    "slack"
+  ],
+  "data-entry-bot-v1": [
+    "googlesheets",
+    "airtable"
+  ],
+  "inventory-tracker-v1": [
+    "netsuite",
+    "shopify",
+    "zoho-books"
+  ],
+  "compliance-auditor-v1": [
+    "jira",
+    "servicenow"
+  ],
+  "hr-onboarding-agent-v1": [
+    "bamboohr",
+    "workday",
+    "rippling"
+  ],
+  "social-media-manager-v1": [
+    "linkedin",
+    "meta",
+    "hootsuite"
+  ],
+  "logistics-route-optimizer-v1": [
+    "google-maps",
+    "onfleet"
+  ],
+  "manufacturing-scheduler-v1": [
+    "sap",
+    "monday-com"
+  ],
+  "support-triage-agent-v1": [
+    "zendesk",
+    "intercom",
+    "freshdesk"
+  ],
+  "sales-lead-scorer-v1": [
+    "salesforce",
+    "hubspot",
+    "marketo"
+  ],
+  "customer-onboarding-agent-v1": [
+    "hubspot",
+    "salesforce",
+    "intercom"
+  ],
+  "support-ticket-router-agent-v1": [
+    "zendesk",
+    "jira",
+    "servicenow"
+  ],
+  "sales-follow-up-agent-v1": [
+    "salesforce",
+    "hubspot",
+    "outreach"
+  ],
+  "po-management-agent-v1": [
+    "sap-ariba",
+    "coupa",
+    "quickbooks"
+  ],
+  "payroll-reconciliation-agent-v1": [
+    "adp",
+    "gusto",
+    "quickbooks-payroll"
+  ]
+}

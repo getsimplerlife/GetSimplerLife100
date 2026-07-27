@@ -99,7 +99,7 @@ function ActivityHubDashboard() {
   const handleApprovalAction = async (id: string, action: string) => {
     try {
       setFeedback(`Processing: ${action}...`);
-      await fetch("/api/action", {
+      await fetch("/api/data/approvals", {
         method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
         body: JSON.stringify({ action: "approval_" + action.toLowerCase(), resource: id }),
       });

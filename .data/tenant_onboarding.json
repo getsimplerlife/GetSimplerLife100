@@ -1,0 +1,50 @@
+{
+  "mathewortiz97@gmail.com": {
+    "completed": ["welcome", "connect-first-integration"],
+    "steps": [
+      {
+        "id": "welcome",
+        "title": "Welcome to Simpler Life 100",
+        "description": "Learn how your AI operations team works",
+        "status": "completed",
+        "completedAt": "2026-07-26T10:00:00.000Z"
+      },
+      {
+        "id": "connect-first-integration",
+        "title": "Connect Your First Integration",
+        "description": "Link your business tools (CRM, ERP, email)",
+        "status": "completed",
+        "completedAt": "2026-07-27T10:02:27.907Z"
+      },
+      {
+        "id": "deploy-first-agent",
+        "title": "Deploy Your First AI Employee",
+        "description": "Choose an AI agent from the marketplace and deploy it",
+        "status": "pending",
+        "cta": "/portal/marketplace"
+      },
+      {
+        "id": "run-first-workflow",
+        "title": "Run Your First Workflow",
+        "description": "Execute an automation workflow with your AI agent",
+        "status": "pending",
+        "cta": "/portal/workflows"
+      },
+      {
+        "id": "review-reports",
+        "title": "Review Performance Reports",
+        "description": "Check your AI team's activity and savings reports",
+        "status": "pending",
+        "cta": "/portal/reports"
+      },
+      {
+        "id": "invite-team",
+        "title": "Invite Your Team",
+        "description": "Add team members to collaborate on automations",
+        "status": "pending",
+        "cta": "/portal/settings"
+      }
+    ],
+    "progress": 33
+  }
+}

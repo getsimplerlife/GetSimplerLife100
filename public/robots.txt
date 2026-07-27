@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://simplerlife100.ctonew.app/sitemap.xml

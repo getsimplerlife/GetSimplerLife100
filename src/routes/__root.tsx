@@ -62,6 +62,14 @@ function RootComponent() {
     };
   }, []);
 
+  // Remove duplicate headers if any
+  useEffect(() => {
+    const headers = document.querySelectorAll('header');
+    if (headers.length > 1) {
+      for (let i = 1; i < headers.length; i++) headers[i].remove();
+    }
+  }, []);
+
   return (
     <RootDocument>
       <Outlet />
