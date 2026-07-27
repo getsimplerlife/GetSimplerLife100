@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export const Route = createFileRoute("/portal/workflows/builder")({
   component: WorkflowBuilderPage,
@@ -17,11 +17,9 @@ interface WorkflowStep {
 
 function WorkflowBuilderPage() {
   const navigate = useNavigate();
-  const [prompt, setPrompt] = useState(
-    "When a new invoice PDF is uploaded, extract the line items and total amount. If the total is greater than $5,000, send it to Sarah Jenkins for manual manager approval. Otherwise, trigger Charlie CRM to update the HubSpot deal state and notify the #ops channel on Slack."
-  );
-  
-  const [operatorId, setOperatorId] = useState("emp-1"); // Assigned default AI employee
+  const [prompt, setPrompt] = useState("");
+  const [operators, setOperators] = useState<any[]>([]);
+  const [operatorId, setOperatorId] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [generatedWorkflow, setGeneratedWorkflow] = useState<{
@@ -32,61 +30,24 @@ function WorkflowBuilderPage() {
 
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
 
-  const mockGeneratedPipeline: {
-    name: string;
-    description: string;
-    steps: WorkflowStep[];
-  } = {
-    name: "Automated Invoice & CRM Escalation Pipeline",
-    description: "Multi-layered cognitive workflow handling automated receipt parsing, Stripe verification, HubSpot CRM deal updates, and Slack triggers with conditional human escalation gates.",
-    steps: [
-      {
-        id: "step-1",
-        name: "Invoice Intake Trigger",
-        type: "trigger" as const,
-        icon: "📥",
-        description: "Monitors client portal file uploads and incoming support email attachments.",
-        assignedEmployee: "Sarah Jenkins (Ops Manager)",
-        config: { allowedTypes: "PDF, JPG, PNG", pollCooldown: "Instant (Real-time Webhook)" }
-      },
-      {
-        id: "step-2",
-        name: "RAG & OCR Document Analysis",
-        type: "action" as const,
-        icon: "🧠",
-        description: "Extracts table grids, metadata items, and calculates invoice verification totals.",
-        assignedEmployee: "Ivy Invoice (Billing Coordinator)",
-        config: { extractHandwriting: "Enabled", confidenceThreshold: "97.5%" }
-      },
-      {
-        id: "step-3",
-        name: "Financial Mismatch Evaluator",
-        type: "condition" as const,
-        icon: "🎛️",
-        description: "Evaluates extracted invoice total vs budget threshold.",
-        assignedEmployee: "Caleb Collections (Accounts Rep)",
-        config: { limitThreshold: "$5,000.00", checkHistoricalAverage: "True" }
-      },
-      {
-        id: "step-4",
-        name: "HubSpot Deal Pipeline Sync",
-        type: "integration" as const,
-        icon: "🔌",
-        description: "Pushes transaction references and maps line items directly to CRM contact deals.",
-        assignedEmployee: "Charlie CRM (Sales Operator)",
-        config: { endpoint: "/crm/v3/deals", retryOnRateLimit: "True (Max 3 attempts)" }
-      },
-      {
-        id: "step-5",
-        name: "Operations Slack Alert",
-        type: "integration" as const,
-        icon: "💬",
-        description: "Dispatches status trace logs and alert summaries to #billing-alerts channel.",
-        assignedEmployee: "Quentin Quote (Logistics Specialist)",
-        config: { channel: "#billing-alerts", reportTracePayload: "True" }
+  // Fetch real AI employees for the operator dropdown
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/data/employees", { credentials: "include" });
+        if (res.ok) {
+          const data = await res.json();
+          const emps = data.data || data || [];
+          if (Array.isArray(emps) && emps.length > 0) {
+            setOperators(emps);
+            setOperatorId(emps[0].id);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch employees for workflow builder:", err);
       }
-    ]
-  };
+    })();
+  }, []);
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
@@ -112,14 +73,12 @@ function WorkflowBuilderPage() {
         }
       }
     } catch (err) {
-      console.warn("Backend generate API is not fully deployed yet. Falling back to dynamic client-side visualizer.", err);
+      console.warn("Backend generate API unavailable:", err);
     }
 
-    // High fidelity simulator fallback
-    setTimeout(() => {
-      setGeneratedWorkflow(mockGeneratedPipeline);
-      setIsGenerating(false);
-    }, 2000);
+    // No fallback — show error state
+    setFeedback("Workflow generation is not available yet. The API endpoint is being deployed.");
+    setIsGenerating(false);
   };
 
   const handleSave = async () => {
@@ -196,11 +155,13 @@ function WorkflowBuilderPage() {
                 onChange={(e) => setOperatorId(e.target.value)}
                 className="w-full bg-stone-900 border border-stone-800 rounded-xl px-4 py-3 text-xs outline-none focus:border-stone-700 font-bold text-stone-200"
               >
-                <option value="emp-1">Sarah Jenkins — Operations Manager</option>
-                <option value="emp-2">Charlie CRM — CRM Operator</option>
-                <option value="emp-3">Quentin Quote — Logistics Agent</option>
-                <option value="emp-4">Ivy Invoice — Finance Auditor</option>
-                <option value="emp-5">Caleb Collections — Accounts Officer</option>
+                {operators.length === 0 ? (
+                  <option value="">Loading employees...</option>
+                ) : (
+                  operators.map((emp: any) => (
+                    <option key={emp.id} value={emp.id}>{emp.name} — {emp.purpose || emp.agentType || "AI Agent"}</option>
+                  ))
+                )}
               </select>
             </div>
 
@@ -220,7 +181,7 @@ function WorkflowBuilderPage() {
             <div className="p-3 bg-stone-900/30 rounded-xl border border-stone-900/50">
               <span className="text-[9px] font-mono tracking-wide text-stone-500 uppercase block mb-1">PROMPT SUGGESTIONS</span>
               <p className="text-[10px] text-stone-400 font-medium leading-normal">
-                "When a document matches our SOP, run Caleb to process billing terms, then update CRM deal state to Complete."
+                Describe your automation workflow in plain English — include triggers, conditions, and desired outcomes.
               </p>
             </div>
           </div>
