@@ -5,38 +5,120 @@ export const Route = createFileRoute("/portal/crm/")({
   component: CRMERPPortal,
 });
 
-const crmProviders = [
-  { id: "salesforce", name: "Salesforce", icon: "☁️", category: "CRM", status: "available" },
-  { id: "hubspot", name: "HubSpot", icon: "🧲", category: "CRM", status: "available" },
-  { id: "ms-dynamics-365", name: "Microsoft Dynamics 365", icon: "🔷", category: "CRM+ERP", status: "available" },
-  { id: "zoho", name: "Zoho CRM", icon: "📋", category: "CRM", status: "available" },
-  { id: "pipedrive", name: "Pipedrive", icon: "📌", category: "CRM", status: "available" },
-  { id: "freshsales", name: "Freshsales", icon: "🌿", category: "CRM", status: "available" },
-  { id: "oracle-netsuite", name: "Oracle NetSuite", icon: "🔴", category: "ERP", status: "available" },
-  { id: "sap", name: "SAP", icon: "💎", category: "ERP", status: "available" },
-  { id: "workday", name: "Workday", icon: "👔", category: "ERP", status: "available" },
-  { id: "quickbooks", name: "QuickBooks", icon: "📗", category: "ERP", status: "available" },
-  { id: "xero", name: "Xero", icon: "💷", category: "ERP", status: "available" },
-  { id: "sage", name: "Sage", icon: "🧮", category: "ERP", status: "available" },
-];
+interface ProviderItem {
+  id: string;
+  name: string;
+  category: string;
+  icon?: string;
+  description?: string;
+}
+
+interface ConnectionItem {
+  id: string;
+  provider: string;
+  providerId: string;
+  status: string;
+}
 
 function CRMERPPortal() {
   const [search, setSearch] = useState("");
-  const [category, setCategory] = useState<"all" | "CRM" | "ERP" | "CRM+ERP">("all");
+  const [category, setCategory] = useState<"all" | "CRM" | "ERP">("all");
   const [connecting, setConnecting] = useState<string | null>(null);
+  const [providers, setProviders] = useState<ProviderItem[]>([]);
+  const [connections, setConnections] = useState<ConnectionItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const filtered = crmProviders.filter(p => {
+  // Fetch real providers and connections
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const [providersRes, connsRes] = await Promise.all([
+          fetch("/api/integrations/providers"),
+          fetch("/api/integrations")
+        ]);
+        const provsData = await providersRes.json();
+        const connsData = await connsRes.json();
+        const allProviders: ProviderItem[] = provsData.data || provsData || [];
+        // Filter to CRM/ERP categories
+        const crmErp = allProviders.filter(p => {
+          const cat = (p.category || "").toLowerCase();
+          return cat.includes("crm") || cat.includes("erp") || cat.includes("accounting");
+        });
+        setProviders(crmErp);
+        setConnections(connsData.data || connsData || []);
+      } catch (err) {
+        console.error("Error fetching CRM/ERP data:", err);
+        setError("Failed to load CRM/ERP providers. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const filtered = providers.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
-    const matchesCat = category === "all" || p.category === category || (category === "CRM" && p.category === "CRM+ERP") || (category === "ERP" && p.category === "CRM+ERP");
+    const matchesCat = category === "all" ||
+      p.category.toLowerCase().includes(category.toLowerCase());
     return matchesSearch && matchesCat;
   });
 
+  const connectedCount = connections.filter(c => {
+    const provider = providers.find(p => p.id === c.providerId);
+    if (!provider) return false;
+    const cat = (provider.category || "").toLowerCase();
+    return cat.includes("crm") || cat.includes("erp") || cat.includes("accounting");
+  }).length;
+
   const handleConnect = async (providerId: string) => {
     setConnecting(providerId);
-    // Simulate OAuth flow
-    await new Promise(r => setTimeout(r, 1500));
-    setConnecting(null);
+    try {
+      const provider = providers.find(p => p.id === providerId);
+      const res = await fetch("/api/integrations/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          providerId,
+          providerName: provider?.name || providerId,
+          credentials: { apiKey: prompt(`Enter API key for ${provider?.name || providerId}:`) || "" },
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setConnections(prev => [...prev, data.connection]);
+      } else {
+        alert(data.error || "Connection failed");
+      }
+    } catch (err) {
+      console.error("Connect error:", err);
+      alert("Connection failed. Please try again.");
+    } finally {
+      setConnecting(null);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="w-8 h-8 border-2 border-stone-800 border-t-white rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-center space-y-4">
+        <div className="text-4xl">⚠️</div>
+        <p className="text-stone-400 font-bold">{error}</p>
+        <button onClick={() => window.location.reload()} className="text-emerald-400 font-bold text-sm hover:text-emerald-300">
+          Try Again
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -47,12 +129,11 @@ function CRMERPPortal() {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {[
-          { label: "CRM Providers", value: "6", color: "text-blue-400" },
-          { label: "ERP Providers", value: "6", color: "text-emerald-400" },
-          { label: "Connected", value: "0", color: "text-white" },
-          { label: "Actions Available", value: "54+", color: "text-amber-400" },
+          { label: "CRM/ERP Providers", value: String(providers.length), color: "text-blue-400" },
+          { label: "Connected", value: String(connectedCount), color: "text-white" },
+          { label: "Total Connections", value: String(connections.length), color: "text-emerald-400" },
         ].map(s => (
           <div key={s.label} className="bg-stone-900 border border-stone-800 rounded-xl p-4">
             <div className={`text-2xl font-black ${s.color}`}>{s.value}</div>
@@ -88,44 +169,53 @@ function CRMERPPortal() {
       </div>
 
       {/* Provider Grid */}
-      {filtered.length === 0 ? (
+      {providers.length === 0 ? (
         <div className="text-center py-16 text-stone-500">
           <div className="text-4xl mb-4">🔌</div>
-          <p className="font-bold">No providers found</p>
+          <p className="font-bold">No CRM or ERP providers available</p>
+          <p className="text-sm mt-1">Check your connection or browse all integrations.</p>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-16 text-stone-500">
+          <div className="text-4xl mb-4">🔍</div>
+          <p className="font-bold">No providers match your search</p>
           <p className="text-sm mt-1">Try a different search or filter.</p>
         </div>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map(provider => (
-            <div
-              key={provider.id}
-              className="bg-stone-900 border border-stone-800 rounded-2xl p-6 hover:border-stone-700 transition-all group"
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl">{provider.icon}</span>
-                  <div>
-                    <div className="font-bold text-white text-sm">{provider.name}</div>
-                    <span className={`text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                      provider.category === "CRM" ? "bg-blue-500/10 text-blue-400" :
-                      provider.category === "ERP" ? "bg-emerald-500/10 text-emerald-400" :
-                      "bg-amber-500/10 text-amber-400"
-                    }`}>
-                      {provider.category}
-                    </span>
-                  </div>
-                </div>
-                <div className="w-2 h-2 rounded-full bg-stone-600 group-hover:bg-emerald-500 transition-colors" title="Available" />
-              </div>
-              <button
-                onClick={() => handleConnect(provider.id)}
-                disabled={connecting === provider.id}
-                className="w-full py-2.5 rounded-xl bg-stone-800 text-stone-300 font-bold text-sm hover:bg-emerald-600 hover:text-white transition-all disabled:opacity-50"
+          {filtered.map(provider => {
+            const isConnected = connections.some(c => c.providerId === provider.id);
+            return (
+              <div
+                key={provider.id}
+                className="bg-stone-900 border border-stone-800 rounded-2xl p-6 hover:border-stone-700 transition-all group"
               >
-                {connecting === provider.id ? "Connecting..." : "Connect"}
-              </button>
-            </div>
-          ))}
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">{provider.icon || "🔌"}</span>
+                    <div>
+                      <div className="font-bold text-white text-sm">{provider.name}</div>
+                      <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-stone-800 text-stone-400">
+                        {provider.category}
+                      </span>
+                    </div>
+                  </div>
+                  <div className={`w-2 h-2 rounded-full transition-colors ${isConnected ? "bg-emerald-500" : "bg-stone-600 group-hover:bg-emerald-500"}`} title={isConnected ? "Connected" : "Available"} />
+                </div>
+                <button
+                  onClick={() => handleConnect(provider.id)}
+                  disabled={connecting === provider.id || isConnected}
+                  className={`w-full py-2.5 rounded-xl font-bold text-sm transition-all ${
+                    isConnected
+                      ? "bg-emerald-600/20 text-emerald-400 cursor-default"
+                      : "bg-stone-800 text-stone-300 hover:bg-emerald-600 hover:text-white"
+                  } disabled:opacity-50`}
+                >
+                  {isConnected ? "✓ Connected" : connecting === provider.id ? "Connecting..." : "Connect"}
+                </button>
+              </div>
+            );
+          })}
         </div>
       )}
 
