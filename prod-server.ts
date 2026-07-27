@@ -1,6 +1,6 @@
 import { serve } from "bun";
-import { join } from "path";
-import { readFileSync, writeFileSync, existsSync } from "fs";
+import { join, basename } from "path";
+import { readFileSync, writeFileSync, existsSync, readdirSync } from "fs";
 import { compare } from "bcryptjs";
 import { createHash, randomBytes } from "crypto";
 
@@ -528,6 +528,17 @@ serve({
         pathname === "/robots.txt" || pathname === "/sitemap.xml") {
       const f = Bun.file(join(DIST_CLIENT, pathname));
       if (await f.exists()) return new Response(f);
+      // CDN cache fallback: serve latest matching file when hash 404s
+      try {
+        const fileName = pathname.split('/').pop() || '';
+        const base = fileName.replace(/-[A-Za-z0-9_]{8,}\.(js|css)$/, '');
+        const ext = fileName.split('.').pop();
+        const assetsDir = join(DIST_CLIENT, 'assets');
+        const entries = readdirSync(assetsDir).filter(e => e.startsWith(base + '-') && e.endsWith('.' + ext)).sort();
+        if (entries.length > 0) {
+          return new Response(Bun.file(join(assetsDir, entries[entries.length - 1])));
+        }
+      } catch (_) {}
     }
 
     // Auth guard: redirect unauthenticated portal requests to /login
