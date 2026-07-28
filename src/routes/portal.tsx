@@ -1,5 +1,5 @@
 import { createFileRoute, Link, Outlet, useNavigate, useLocation } from "@tanstack/react-router";
-import { useState, useEffect, useRef } from "react";
+import { useState, useLayoutEffect, useRef } from "react";
 import { PortalContext } from "./portal.context";
 import type { SystemNotification, PortalContextType } from "./portal.context";
 export { PortalContext, usePortalContext } from "./portal.context";
@@ -15,8 +15,9 @@ function PortalLayout() {
   const location = useLocation();
 
   // User data is injected by prod-server as window.__PORTAL_USER__
-  // in the HTML <head>. We read it in useEffect AFTER hydration to avoid
-  // hydration mismatches between SSR (which doesn't have window) and client.
+  // in the HTML <head>. SSR always renders the spinner (no window),
+  // then useLayoutEffect fires BEFORE browser paint to swap in the
+  // real portal — user never sees the spinner.
   const getInjectedUser = (): { email: string } | null => {
     if (typeof window !== "undefined" && (window as any).__PORTAL_USER__) {
       return (window as any).__PORTAL_USER__;
@@ -24,8 +25,6 @@ function PortalLayout() {
     return null;
   };
 
-  // SSR always starts with loading=true and no user — this keeps the SSR
-  // rendering consistent (shows the spinner) and avoids hydration mismatches.
   const [user, setUser] = useState<{ email: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -56,7 +55,7 @@ function PortalLayout() {
     }
   };
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     (async () => {
       try {
         // Check if prod-server injected user data into the HTML <head>.
