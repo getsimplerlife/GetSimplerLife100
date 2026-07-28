@@ -117,13 +117,13 @@ function RootDocument({ children, pageMeta }: { children: ReactNode; pageMeta: {
   return (
     <html lang="en" className="dark">
       <head>
+        <HeadContent />
         {pageMeta && (
           <>
             <title>{pageMeta.title}</title>
             <meta name="description" content={pageMeta.description} />
           </>
         )}
-        <HeadContent />
       </head>
       <body>
         {children}
