@@ -1058,27 +1058,6 @@ serve({
       }
     }
 
-    // Static fallback for pages where SSR asset manifest may be stale
-    const staticPages: Record<string, string> = {
-      "/about": "About Simpler Life 100 — We build industry-specific AI Operations Teams that replace manual work with intelligent automation, deployed instantly and connected to 180+ tools.",
-      "/contact": "Contact Simpler Life 100 — Get in touch with our team to discuss how AI employees can transform your operations.",
-      "/faq": "Frequently Asked Questions — Learn how AI employees work, pricing, integrations, deployment, and more.",
-      "/how-it-works": "How It Works — Purchase AI employees, deploy instantly, and connect to 180+ integration providers via OAuth or API key.",
-    };
-    if (req.method === "GET" && staticPages[pathname]) {
-      const title = staticPages[pathname].split(" — ")[0];
-      const desc = staticPages[pathname].split(" — ")[1] || staticPages[pathname];
-      const html = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Simpler Life 100 | ${title}</title><meta name="description" content="${desc}"/><style>body{font-family:system-ui,sans-serif;background:#0a0a0a;color:#f0f0f0;margin:0;padding:2rem;line-height:1.6}a{color:#7c3aed;text-decoration:none}nav{margin-bottom:2rem}nav a{margin-right:1.5rem}.container{max-width:800px;margin:0 auto}h1{font-size:2rem}</style></head><body><div class="container"><nav><a href="/">← Home</a><a href="/build">Build</a><a href="/case-studies">Case Studies</a><a href="/pricing">Pricing</a></nav><h1>${title}</h1><p>${desc}</p><p style="margin-top:2rem;color:#888">This static fallback is served when the SSR build is unavailable. <a href="/">Return home</a> for the full experience.</p></div></body></html>`;
-      return new Response(html, {
-        status: 200,
-        headers: {
-          "Content-Type": "text/html",
-          "Cache-Control": "no-store, must-revalidate",
-          "ETag": `"${Date.now().toString(36)}"`,
-        },
-      });
-      }
-
       // Serve React ESM shims directly — Nitro doesn't route root files
       if (pathname === "/react.js" || pathname === "/react-jsx-runtime.js") {
         const shimPath = join(DIST_CLIENT, pathname.slice(1));
