@@ -74,4 +74,27 @@ strings "$SERVER" | grep -oP '[a-zA-Z0-9_.-]+-[A-Za-z0-9_]{8,}\.(js|css)' | sort
   fi
 done
 
-echo "  Hash fix complete (clean=$stale sync=$copied bridged=$bridged)"
+# Step 4: Bridge manifest-referenced hashes (client build hashes used for preloading)
+# The manifest is separate from server.js — it contains client-build hashes
+# that the SSR may use for `<link rel="modulepreload">` tags
+# Use process substitution to avoid subshell variable scoping
+manifest_bridged=0
+MANIFEST=$(ls "$SERVER_ASSETS/_tanstack-start-manifest_v-"*.js 2>/dev/null | head -1)
+if [ -n "$MANIFEST" ]; then
+  while read -r hash; do
+    [ -z "$hash" ] && continue
+    if [ -f "$CLIENT_ASSETS/$hash" ]; then
+      continue
+    fi
+    base=$(echo "$hash" | sed -E 's/-[A-Za-z0-9_]{8,}\.(js|css)$//')
+    ext=$(echo "$hash" | sed 's/.*\.//')
+    real=$(ls "$CLIENT_ASSETS/${base}-"*".${ext}" 2>/dev/null | head -1)
+    if [ -n "$real" ]; then
+      cp "$real" "$CLIENT_ASSETS/$hash"
+      echo "  Bridged (manifest): $hash → $(basename $real)"
+      manifest_bridged=$((manifest_bridged + 1))
+    fi
+  done < <(strings "$MANIFEST" | grep -oP '/assets/[a-zA-Z0-9_.-]+-[A-Za-z0-9_]{8,}\.(js|css)' | sed 's|/assets/||' | sort -u)
+fi
+
+echo "  Hash fix complete (clean=$stale sync=$copied bridged=$bridged manifest_bridged=$manifest_bridged)"
