@@ -20,10 +20,16 @@ export default defineConfig({
     },
   },
   ssr: {
-    // Force @tanstack/* packages to be bundled in client builds instead of
-    // being externalized. TanStack Start externalizes them by default, but
-    // client bundles can't resolve bare specifier imports in the browser.
+    // Force these packages to be bundled in client builds instead of
+    // being externalized. When externalized, chunks import from "react"
+    // and "react/jsx-runtime" as bare specifiers, which the importmap
+    // resolves to our /react.js shim. The shim has a SEPARATE copy of
+    // ReactSharedInternals from the bundled ReactDOM — H stays null
+    // and hooks crash with "Cannot read properties of null (reading 'useState')".
     noExternal: [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
       "@tanstack/react-router",
       "@tanstack/history",
       "@tanstack/router-core",

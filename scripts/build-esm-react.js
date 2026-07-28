@@ -12,6 +12,20 @@ const JSXRUNTIME_CJS = path.join(SITE, "node_modules/react/cjs/react-jsx-runtime
 function cjsToEsm(cjsPath, exportNames) {
   let cjs = fs.readFileSync(cjsPath, "utf-8");
   
+  // CRITICAL FIX: React creates a local `ReactSharedInternals = { H: null, ... }` 
+  // and all hooks read from `ReactSharedInternals.H`. ReactDOM sets `H` to the 
+  // actual hooks dispatcher during render. If this shim is loaded as a SEPARATE 
+  // module from the bundled ReactDOM, they have different `ReactSharedInternals`
+  // instances — the shim's H stays null, and hooks crash with "Cannot read 
+  // properties of null (reading 'useState')".
+  //
+  // Fix: Store ReactSharedInternals on a window-level singleton so the bundled 
+  // ReactDOM and this shim share the same object.
+  cjs = cjs.replace(
+    "var ReactSharedInternals = { H: null, A: null, T: null, S: null }",
+    "var ReactSharedInternals = window.__REACT_SHARED_INTERNALS__ = window.__REACT_SHARED_INTERNALS__ || { H: null, A: null, T: null, S: null }"
+  );
+  
   // The CJS files use `exports.X = ...` and reference `require("...")` internally
   // We need to handle the internal requires. React's CJS files require from:
   // - "react" (circular, for ReactSharedInternals)
