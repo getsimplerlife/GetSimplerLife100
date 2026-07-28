@@ -475,6 +475,7 @@ function BuildBuilder() {
           </div>
         </div>
       </footer>
+    <Footer />
     </div>
   );
 }

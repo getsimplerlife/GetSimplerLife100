@@ -1,9 +1,13 @@
 import { useState, useRef } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { Header } from "~/components/Header";
+import { Footer } from "~/components/Footer";
 import { assessmentQuestions, runAssessment, generateReportText, type AssessmentAnswers, type AssessmentReport } from "../tools/assessment-engine";
 import { workflows } from "../content/workflows";
 
 export const Route = createFileRoute("/tools/assessment")({
+  head: () => ({ meta: [{ title: "AI Automation Assessment | Simpler Life 100" }, { name: "description", content: "Discover which AI agents can automate your workflows. Free assessment, no signup." }] }),
+
   component: AutomationAssessment,
 });
 
@@ -212,6 +216,7 @@ function AutomationAssessment() {
 
   return (
     <div className="min-h-screen bg-stone-950 text-stone-100">
+      <Header businessName="Simpler Life 100" />
       <div className="max-w-5xl mx-auto px-6 pt-6">
         <Link to="/" className="text-xs text-stone-400 hover:text-stone-300 font-mono transition-all">← Back to Home</Link>
       </div>
@@ -535,6 +540,7 @@ function AutomationAssessment() {
           </section>
         </>
       )}
+    <Footer />
     </div>
   );
 }

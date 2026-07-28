@@ -2,6 +2,7 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 import { readFile } from 'node:fs/promises';
 import { Header } from "~/components/Header";
+import { Footer } from "~/components/Footer";
 import { getUser } from '~/db/queries';
 
 const getPageData = createServerFn({ method: 'GET' }).handler(async () => {
@@ -198,6 +199,7 @@ function FaqPage() {
           <div className="text-xs text-stone-400">&copy; {new Date().getFullYear()} {businessName}. All rights reserved.</div>
         </div>
       </footer>
+    <Footer />
     </div>
   );
 }

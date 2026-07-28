@@ -110,6 +110,7 @@ function CaseStudiesIndexPage() {
           <div className="text-xs text-stone-400">&copy; {new Date().getFullYear()} Simpler Life 100. All rights reserved.</div>
         </div>
       </footer>
+    <Footer />
     </div>
   );
 }

@@ -1,7 +1,11 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { Header } from "~/components/Header";
+import { Footer } from "~/components/Footer";
 
 export const Route = createFileRoute("/tools/can-we-automate-this")({
+  head: () => ({ meta: [{ title: "Can We Automate This? | Simpler Life 100" }, { name: "description", content: "Describe any repetitive workflow and our AI will match it to the right automation agent. Free tool, no signup." }] }),
+
   component: CanWeAutomateThis,
 });
 
@@ -77,6 +81,7 @@ function CanWeAutomateThis() {
 
   return (
     <div className="min-h-screen bg-stone-950 text-stone-100">
+      <Header businessName="Simpler Life 100" />
       <div className="max-w-4xl mx-auto px-6 pt-6">
         <Link to="/" className="text-xs text-stone-400 hover:text-stone-300 font-mono transition-all">← Back to Home</Link>
       </div>
@@ -174,6 +179,7 @@ function CanWeAutomateThis() {
           </div>
         </section>
       )}
+    <Footer />
     </div>
   );
 }

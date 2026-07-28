@@ -2,8 +2,11 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { workflows } from "~/content/workflows";
 import { Header } from "~/components/Header";
+import { Footer } from "~/components/Footer";
 
 export const Route = createFileRoute("/")({
+  head: () => ({ meta: [{ title: "Simpler Life 100 | AI Operations Teams" }, { name: "description", content: "Replace hours of manual work with AI coworkers that integrate into your existing tools. Industry-specific AI employees — deploy in minutes." }] }),
+
   component: Home,
 });
 
@@ -866,6 +869,7 @@ function Home() {
           </div>
         </div>
       </footer>
+    <Footer />
     </div>
   );
 }

@@ -158,6 +158,7 @@ function SupportPage() {
           <div>&copy; {new Date().getFullYear()} {businessName}. All rights reserved.</div>
         </div>
       </footer>
+    <Footer />
     </div>
   );
 }

@@ -1,8 +1,16 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { analyzeDescription } from "../tools/automation-analyzer";
+import { Header } from "~/components/Header";
+import { Footer } from "~/components/Footer";
 
 export const Route = createFileRoute("/tools/")({
+  head: () => ({
+    meta: [
+      { title: "Free AI Productivity Tools | Simpler Life 100" },
+      { name: "description", content: "Free AI-powered tools for operations teams. Analyze workflows, estimate savings, and discover automation opportunities — no signup required." },
+    ],
+  }),
   component: ToolsHub,
 });
 
@@ -21,6 +29,7 @@ function ToolsHub() {
 
   return (
     <div className="min-h-screen bg-stone-950 text-stone-100">
+      <Header businessName="Simpler Life 100" />
       {/* Header */}
       <section className="max-w-5xl mx-auto px-6 pt-20 pb-12 text-center">
         <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-4">
@@ -174,6 +183,7 @@ function ToolsHub() {
           )}
         </div>
       </section>
+      <Footer />
     </div>
   );
 }

@@ -1,8 +1,12 @@
 import { useState, useRef } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { Header } from "~/components/Header";
+import { Footer } from "~/components/Footer";
 import { analyzeDescription, getFollowUpQuestions } from "../tools/automation-analyzer";
 
 export const Route = createFileRoute("/tools/ai-advisor")({
+  head: () => ({ meta: [{ title: "AI Operations Advisor | Simpler Life 100" }, { name: "description", content: "Tell us about your team's pain points. Our AI identifies automation opportunities and estimates your savings." }] }),
+
   component: AIAdvisor,
 });
 
@@ -163,6 +167,7 @@ function AIAdvisor() {
 
   return (
     <div className="min-h-screen bg-stone-950 text-stone-100">
+      <Header businessName="Simpler Life 100" />
       <div className="max-w-4xl mx-auto px-6 pt-6">
         <Link to="/" className="text-xs text-stone-400 hover:text-stone-300 font-mono transition-all">← Back to Home</Link>
       </div>
@@ -313,6 +318,7 @@ function AIAdvisor() {
           </div>
         )}
       </section>
+      <Footer />
     </div>
   );
 }
