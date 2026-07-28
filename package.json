@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
+    "prebuild": "rm -rf .tanstack .vinxi node_modules/.vite dist",
     "build": "NITRO_PRESET=bun vite build",
+    "postbuild": "bash fix-hashes.sh && bash verify-build.sh",
     "start": "PORT=3002 bun run dist/server/server.js & sleep 2 && bun run prod-server.ts",
     "publish": "bun run publish.ts",
     "format": "prettier --write .",
