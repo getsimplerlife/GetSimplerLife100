@@ -2,6 +2,12 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { Header } from '~/components/Header';
 
 export const Route = createFileRoute('/support')({
+  head: () => ({
+    meta: [
+      { title: "Support | Simpler Life 100" },
+      { name: "description", content: "Get help with your AI Operations Team. Contact support, browse documentation, or schedule a consultation with our team." },
+    ],
+  }),
   component: SupportPage,
 });
 

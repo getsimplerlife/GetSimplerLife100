@@ -19,6 +19,12 @@ const getPageData = createServerFn({ method: 'GET' }).handler(async () => {
 });
 
 export const Route = createFileRoute('/how-it-works')({
+  head: () => ({
+    meta: [
+      { title: "How It Works | Simpler Life 100" },
+      { name: "description", content: "Purchase AI employees, deploy instantly, and connect to 180+ integration providers via OAuth or API key. See how Simpler Life 100 works." },
+    ],
+  }),
   loader: () => getPageData(),
   component: HowItWorksPage,
 });

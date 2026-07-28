@@ -19,6 +19,12 @@ const getPageData = createServerFn({ method: 'GET' }).handler(async () => {
 });
 
 export const Route = createFileRoute('/about')({
+  head: () => ({
+    meta: [
+      { title: "About Simpler Life 100 | Our Mission" },
+      { name: "description", content: "We build AI operations teams to liberate people from repetitive manual work. Learn about our mission, principles, and approach to AI automation." },
+    ],
+  }),
   loader: () => getPageData(),
   component: AboutPage,
 });

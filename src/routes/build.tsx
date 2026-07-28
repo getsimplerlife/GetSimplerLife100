@@ -3,6 +3,12 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { Header } from '~/components/Header';
 
 export const Route = createFileRoute('/build')({
+  head: () => ({
+    meta: [
+      { title: "Build Your AI Team | Simpler Life 100" },
+      { name: "description", content: "Build your custom AI Operations Team. Choose from 17 AI agents across 3 builder packages with instant deployment and 180+ integrations." },
+    ],
+  }),
   component: BuildBuilder,
 });
 

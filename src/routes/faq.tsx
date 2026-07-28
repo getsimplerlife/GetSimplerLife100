@@ -21,6 +21,12 @@ const getPageData = createServerFn({ method: 'GET' }).handler(async () => {
 });
 
 export const Route = createFileRoute('/faq')({
+  head: () => ({
+    meta: [
+      { title: "FAQ | Simpler Life 100 AI Employees" },
+      { name: "description", content: "Frequently asked questions about AI employees, pricing, integrations, deployment, and how Simpler Life 100 automates your operations." },
+    ],
+  }),
   loader: () => getPageData(),
   component: FaqPage,
 });

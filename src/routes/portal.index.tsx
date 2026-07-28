@@ -107,12 +107,50 @@ function ActivityHubDashboard() {
     return "🔴";
   };
 
-  // ── Loading ───────────────────────────────────────────────────────
+  // ── Loading (skeleton) ─────────────────────────────────────────────
+
+  const SkeletonBox = ({ className = "" }: { className?: string }) => (
+    <div className={`bg-stone-900/60 rounded-lg animate-pulse ${className}`} />
+  );
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="w-8 h-8 border-2 border-stone-800 border-t-white rounded-full animate-spin" />
+      <div className="space-y-8 text-stone-100 max-w-6xl mx-auto">
+        {/* Header skeleton */}
+        <div className="space-y-4">
+          <SkeletonBox className="w-32 h-3 rounded" />
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+            <div className="space-y-2">
+              <SkeletonBox className="w-72 h-8 rounded" />
+              <SkeletonBox className="w-96 h-4 rounded" />
+            </div>
+          </div>
+        </div>
+
+        {/* Stat cards skeleton */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="bg-stone-950 border border-stone-900 rounded-2xl p-5 space-y-3">
+              <SkeletonBox className="w-20 h-3 rounded" />
+              <SkeletonBox className="w-16 h-8 rounded" />
+              <SkeletonBox className="w-28 h-3 rounded" />
+            </div>
+          ))}
+        </div>
+
+        {/* Activity feed skeleton */}
+        <div className="bg-stone-950 border border-stone-900 rounded-2xl p-6 space-y-4">
+          <SkeletonBox className="w-32 h-4 rounded" />
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-4 py-3 border-b border-stone-900/50 last:border-0">
+              <SkeletonBox className="w-8 h-8 rounded-full shrink-0" />
+              <div className="flex-1 space-y-1.5">
+                <SkeletonBox className="w-3/4 h-3 rounded" />
+                <SkeletonBox className="w-1/2 h-2.5 rounded" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
