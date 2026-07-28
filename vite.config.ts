@@ -20,10 +20,17 @@ export default defineConfig({
     },
   },
   ssr: {
-    // Force @tanstack/* packages to be bundled in both client and SSR builds
-    // instead of being externalized. TanStack Start externalizes them by default,
-    // but client bundles can't resolve bare specifier imports.
-    noExternal: [/@tanstack/],
+    // Force @tanstack/* packages to be bundled in client builds instead of
+    // being externalized. TanStack Start externalizes them by default, but
+    // client bundles can't resolve bare specifier imports in the browser.
+    noExternal: [
+      "@tanstack/react-router",
+      "@tanstack/history",
+      "@tanstack/router-core",
+      "@tanstack/react-router/ssr/server",
+      "@tanstack/router-core/ssr/client",
+      "@tanstack/router-core/ssr/server",
+    ],
   },
   plugins: [
     tailwindcss(),
