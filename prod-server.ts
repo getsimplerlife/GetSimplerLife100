@@ -967,7 +967,9 @@ serve({
           headers: { "Cache-Control": cacheControl },
         });
       }
-      // CDN cache fallback: serve latest matching file when hash 404s
+      // CDN cache fallback: redirect old hashes to current file
+      // Using 301 so browsers that cached old broken content (with
+      // immutable) will re-fetch the correct file at the new URL.
       try {
         const fileName = pathname.split('/').pop() || '';
         const base = fileName.replace(/-[A-Za-z0-9_]{8,}\.(js|css)$/, '');
@@ -975,8 +977,13 @@ serve({
         const assetsDir = join(DIST_CLIENT, 'assets');
         const entries = readdirSync(assetsDir).filter(e => e.startsWith(base + '-') && e.endsWith('.' + ext)).sort();
         if (entries.length > 0) {
-          return new Response(Bun.file(join(assetsDir, entries[entries.length - 1])), {
-            headers: { "Cache-Control": "public, max-age=31536000, immutable" },
+          const newFile = entries[entries.length - 1];
+          return new Response(null, {
+            status: 301,
+            headers: {
+              "Location": "/assets/" + newFile,
+              "Cache-Control": "no-store",
+            },
           });
         }
       } catch (_) {}
