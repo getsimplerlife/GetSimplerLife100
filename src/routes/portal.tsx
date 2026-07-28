@@ -14,10 +14,13 @@ function PortalLayout() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // User data is injected by prod-server as window.__PORTAL_USER__
-  // in the HTML <head>. SSR always renders the spinner (no window),
-  // then useLayoutEffect fires BEFORE browser paint to swap in the
-  // real portal — user never sees the spinner.
+  // Stable ref for navigate — avoids useLayoutEffect re-running when
+  // TanStack Router creates a new navigate reference each render.
+  const navigateRef = useRef(navigate);
+  navigateRef.current = navigate;
+
+  // Read injected user synchronously on the client. SSR has no window
+  // so this always returns null during SSR (spinner renders correctly).
   const getInjectedUser = (): { email: string } | null => {
     if (typeof window !== "undefined" && (window as any).__PORTAL_USER__) {
       return (window as any).__PORTAL_USER__;
@@ -58,32 +61,27 @@ function PortalLayout() {
   useLayoutEffect(() => {
     (async () => {
       try {
-        // Check if prod-server injected user data into the HTML <head>.
-        // This runs AFTER hydration, avoiding SSR/client state mismatches.
-        // On hydration, the injectedUser is available synchronously, so
-        // this useEffect fires before the browser paints the spinner.
+        // Read injected user synchronously — prod-server placed it in a
+        // <script> tag before </head>. This fires once on mount, before paint.
         const injected = getInjectedUser();
         if (injected) {
-          // User data was injected — use it immediately, no API call needed
           setUser(injected);
           setLoading(false);
         } else {
-          // No injected data — fall back to API call
           const rMe = await fetch("/api/me", { credentials: "include" });
           if (!rMe.ok) {
-            navigate({ to: "/login" as any });
+            navigateRef.current({ to: "/login" as any });
             return;
           }
           const userData = await rMe.json();
           setUser(userData);
           setLoading(false);
         }
-
-        // Load notifications (non-blocking — don't hold spinner on this)
+        // Load notifications non-blocking
         loadNotifications();
       } catch (err) {
         console.error("Auth check failed:", err);
-        navigate({ to: "/login" as any });
+        navigateRef.current({ to: "/login" as any });
       } finally {
         setLoading(false);
       }
@@ -118,7 +116,7 @@ function PortalLayout() {
       document.removeEventListener("mousedown", handleOutsideClick);
       clearInterval(interval);
     };
-  }, [navigate]);
+  }, []);
 
   const handleLogout = async () => {
     await fetch("/api/logout", { method: "POST" });
