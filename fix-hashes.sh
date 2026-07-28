@@ -75,12 +75,38 @@ while read -r hash; do
   fi
 done < <(strings "$SERVER" | grep -oP '[a-zA-Z0-9_.-]+-[A-Za-z0-9_]{8,}\.(js|css)' | sort -u)
 
-# Step 4: Bridge manifest-referenced hashes (client build hashes used for preloading)
+# Step 4: Patch the server manifest itself — replace stale hashes inline BEFORE bridging.
+# The SSR loads this manifest at runtime and embeds hashes in HTML.
+# MUST run before Step 5 so that old hashes that don't have matching files
+# are replaced with the current canonical hashes in the manifest text.
+manifest_patched=0
+MANIFEST=$(ls "$SERVER_ASSETS/_tanstack-start-manifest_v-"*.js 2>/dev/null | head -1)
+if [ -n "$MANIFEST" ]; then
+  while read -r oldhash; do
+    [ -z "$oldhash" ] && continue
+    # Skip if the referenced file already exists with the correct content
+    if [ -f "$CLIENT_ASSETS/$oldhash" ]; then continue; fi
+    base=$(echo "$oldhash" | sed -E 's/-[A-Za-z0-9_]{8,}\.(js|css)$//')
+    ext=$(echo "$oldhash" | sed 's/.*\.//')
+    # Look for a newer version in server/assets first (canonical), then client
+    newhash_name=$(ls "$SERVER_ASSETS/${base}-"*".${ext}" 2>/dev/null | head -1 | xargs basename 2>/dev/null)
+    if [ -z "$newhash_name" ]; then
+      newhash_name=$(ls "$CLIENT_ASSETS/${base}-"*".${ext}" 2>/dev/null | head -1 | xargs basename 2>/dev/null)
+    fi
+    if [ -n "$newhash_name" ]; then
+      sed -i "s|$oldhash|$newhash_name|g" "$MANIFEST"
+      echo "  Patched (server manifest): $oldhash → $newhash_name"
+      manifest_patched=$((manifest_patched + 1))
+    fi
+  done < <(strings "$MANIFEST" | grep -oP '/assets/[a-zA-Z0-9_.-]+-[A-Za-z0-9_]{8,}\.(js|css)' | sed 's|/assets/||' | sort -u)
+fi
+
+# Step 5: Bridge manifest-referenced hashes (client build hashes used for preloading)
 # The manifest is separate from server.js — it contains client-build hashes
 # that the SSR may use for `<link rel="modulepreload">` tags
+# Run AFTER Step 4 so that remaining old hashes (that weren't patched) are bridged
 # Use process substitution to avoid subshell variable scoping
 manifest_bridged=0
-MANIFEST=$(ls "$SERVER_ASSETS/_tanstack-start-manifest_v-"*.js 2>/dev/null | head -1)
 if [ -n "$MANIFEST" ]; then
   while read -r hash; do
     [ -z "$hash" ] && continue
@@ -94,26 +120,6 @@ if [ -n "$MANIFEST" ]; then
       cp "$real" "$CLIENT_ASSETS/$hash"
       echo "  Bridged (manifest): $hash → $(basename $real)"
       manifest_bridged=$((manifest_bridged + 1))
-    fi
-  done < <(strings "$MANIFEST" | grep -oP '/assets/[a-zA-Z0-9_.-]+-[A-Za-z0-9_]{8,}\.(js|css)' | sed 's|/assets/||' | sort -u)
-fi
-
-# Step 5: Patch the server manifest itself — replace stale hashes inline
-# The SSR loads this manifest at runtime and embeds hashes in HTML.
-# Bridging client files (Step 4) isn't enough — the manifest text must change too.
-manifest_patched=0
-if [ -n "$MANIFEST" ]; then
-  while read -r oldhash; do
-    [ -z "$oldhash" ] && continue
-    # Skip if the referenced file actually exists
-    if [ -f "$CLIENT_ASSETS/$oldhash" ]; then continue; fi
-    base=$(echo "$oldhash" | sed -E 's/-[A-Za-z0-9_]{8,}\.(js|css)$//')
-    ext=$(echo "$oldhash" | sed 's/.*\.//')
-    newhash_name=$(ls "$CLIENT_ASSETS/${base}-"*".${ext}" 2>/dev/null | head -1 | xargs basename 2>/dev/null)
-    if [ -n "$newhash_name" ] && [ -f "$CLIENT_ASSETS/$newhash_name" ]; then
-      sed -i "s|$oldhash|$newhash_name|g" "$MANIFEST"
-      echo "  Patched (server manifest): $oldhash → $newhash_name"
-      manifest_patched=$((manifest_patched + 1))
     fi
   done < <(strings "$MANIFEST" | grep -oP '/assets/[a-zA-Z0-9_.-]+-[A-Za-z0-9_]{8,}\.(js|css)' | sed 's|/assets/||' | sort -u)
 fi

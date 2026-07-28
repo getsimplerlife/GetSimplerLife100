@@ -4,6 +4,7 @@ import { readFileSync, writeFileSync, existsSync, readdirSync } from "fs";
 import { compare } from "bcryptjs";
 import { createHash, randomBytes } from "crypto";
 
+const BUILD_ID = Date.now().toString(36);
 const DIST_CLIENT = "/home/team/shared/site/dist/client";
 const DATA_DIR = "/home/team/shared/site/.data";
 const USERS_FILE = join(DATA_DIR, "users.json");
@@ -1102,7 +1103,11 @@ serve({
       if (contentType.includes("text/html")) {
         cacheControl = "no-store, must-revalidate";
       } else if (isHashedAsset) {
-        cacheControl = "public, max-age=31536000, immutable";
+        // Use no-cache to force CDN revalidation on every request.
+        // Hashed assets are still cached by the browser, but the CDN
+        // must check the origin each time. This prevents stale JS/CSS
+        // from being served indefinitely when a CDN ignores max-age.
+        cacheControl = "public, no-cache";
       } else {
         cacheControl = "no-store";
       }
@@ -1117,6 +1122,8 @@ serve({
       // Inject import map for HTML responses so browsers can resolve
       // bare "react/jsx-runtime" imports in SSR-built chunks.
       // Also inject form attributes on /login for non-JS fallback.
+      // Also add cache-busting query params to asset URLs to bypass
+      // CDN caches that ignore Cache-Control headers.
       let body = nitroRes.body;
       if (contentType.includes("text/html") && body) {
         let html = await new Response(body).text();
@@ -1125,6 +1132,28 @@ serve({
         // Inject method/action on login form for no-JS fallback
         if (pathname === "/login") {
           html = html.replace('<form class="mt-8 space-y-5"', '<form class="mt-8 space-y-5" method="post" action="/login"');
+        }
+        // Cache-bust all /assets/ URLs to force CDN revalidation
+        // Append ?_v=BUILD_ID to every script src and link href pointing to /assets/
+        html = html.replace(
+          /(src|href)="(\/assets\/[^"]+)"/g,
+          `$1="$2?_v=${BUILD_ID}"`
+        );
+        // Inject portal user data so the client skips /api/me fetch
+        // and shows the dashboard immediately without "Initializing platform..."
+        if (pathname.startsWith("/portal") && req) {
+          try {
+            const cookieHeader = req.headers.get("cookie") || "";
+            const match = cookieHeader.match(/session=([^;]+)/);
+            if (match) {
+              const sessions = readJSON(SESSIONS_FILE);
+              const session = sessions[match[1]];
+              if (session?.email) {
+                const userScript = `<script>window.__PORTAL_USER__=${JSON.stringify({email:session.email})};window.__PORTAL_READY__=true;</script>`;
+                html = html.replace("</head>", userScript + "</head>");
+              }
+            }
+          } catch {}
         }
         return new Response(html, {
           status: nitroRes.status,

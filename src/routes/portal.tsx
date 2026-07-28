@@ -13,8 +13,24 @@ function PortalLayout() {
   const TypedOutlet = Outlet as any;
   const navigate = useNavigate();
   const location = useLocation();
-  const [user, setUser] = useState<{ email: string } | null>(null);
-  const [loading, setLoading] = useState(true);
+
+  // User data is injected by prod-server as window.__PORTAL_USER__
+  // during SSR HTML processing. This eliminates the "Initializing platform..."
+  // spinner by providing auth data before hydration even starts.
+  const getInjectedUser = (): { email: string } | null => {
+    if (typeof window !== "undefined" && (window as any).__PORTAL_USER__) {
+      return (window as any).__PORTAL_USER__;
+    }
+    return null;
+  };
+
+  const injectedUser = getInjectedUser();
+  const [user, setUser] = useState<{ email: string } | null>(injectedUser);
+  // During SSR, window.__PORTAL_USER__ is not set yet, so injectedUser is null
+  // and useUser will be null. The SSR will render null (fall through the spinner
+  // to the !user check). On hydration, window.__PORTAL_USER__ is available, so
+  // injectedUser is set and the portal renders immediately with no spinner flash.
+  const [loading, setLoading] = useState(typeof window !== "undefined" && !injectedUser);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
   const [notifications, setNotifications] = useState<SystemNotification[]>([]);
@@ -46,33 +62,23 @@ function PortalLayout() {
   useEffect(() => {
     (async () => {
       try {
-        // Parallelize auth check + notifications fetch (was 2 serial → 1 parallel)
-        const [rMe, rNotif] = await Promise.allSettled([
-          fetch("/api/me", { credentials: "include" }),
-          fetch("/api/data/system_notifications", { credentials: "include" }),
-        ]);
-
-        // Auth check — redirect if failed
-        if (rMe.status !== "fulfilled" || !rMe.value.ok) {
-          navigate({ to: "/login" as any });
-          return;
-        }
-        const userData = await rMe.value.json();
-        setUser(userData);
-
-        // Notifications — process if successful
-        if (rNotif.status === "fulfilled" && rNotif.value.ok) {
-          const json = await rNotif.value.json();
-          if (json.data && json.data.length > 0) {
-            const sorted = [...json.data].sort(
-              (a: SystemNotification, b: SystemNotification) =>
-                new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-            );
-            setNotifications(sorted);
-          } else {
-            setNotifications([]);
+        // If prod-server injected user data into the HTML, skip /api/me
+        if (injectedUser) {
+          setUser(injectedUser);
+          setLoading(false);
+        } else {
+          const rMe = await fetch("/api/me", { credentials: "include" });
+          if (!rMe.ok) {
+            navigate({ to: "/login" as any });
+            return;
           }
+          const userData = await rMe.json();
+          setUser(userData);
+          setLoading(false);
         }
+
+        // Load notifications (non-blocking — don't hold spinner on this)
+        loadNotifications();
       } catch (err) {
         console.error("Auth check failed:", err);
         navigate({ to: "/login" as any });
