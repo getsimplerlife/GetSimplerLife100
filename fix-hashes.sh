@@ -60,7 +60,8 @@ echo "  Synced $copied files server→client"
 
 # Step 3: Bridge SSR-referenced hashes that don't match server/assets
 bridged=0
-strings "$SERVER" | grep -oP '[a-zA-Z0-9_.-]+-[A-Za-z0-9_]{8,}\.(js|css)' | sort -u | while read hash; do
+while read -r hash; do
+  [ -z "$hash" ] && continue
   if [ -f "$CLIENT_ASSETS/$hash" ]; then
     continue
   fi
@@ -72,7 +73,7 @@ strings "$SERVER" | grep -oP '[a-zA-Z0-9_.-]+-[A-Za-z0-9_]{8,}\.(js|css)' | sort
     echo "  Bridged: $hash → $(basename $real)"
     bridged=$((bridged + 1))
   fi
-done
+done < <(strings "$SERVER" | grep -oP '[a-zA-Z0-9_.-]+-[A-Za-z0-9_]{8,}\.(js|css)' | sort -u)
 
 # Step 4: Bridge manifest-referenced hashes (client build hashes used for preloading)
 # The manifest is separate from server.js — it contains client-build hashes
