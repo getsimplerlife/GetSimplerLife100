@@ -117,10 +117,12 @@ if [ -n "$MANIFEST" ]; then
   done < <(strings "$MANIFEST" | grep -oP '/assets/[a-zA-Z0-9_.-]+-[A-Za-z0-9_]{8,}\.(js|css)' | sed 's|/assets/||' | sort -u)
 fi
 
-# Step 6: Copy shim to dist/client so prod-server can serve /react-jsx-runtime.js
-if [ -f "/home/team/shared/site/public/react-jsx-runtime.js" ]; then
-  cp /home/team/shared/site/public/react-jsx-runtime.js "$DIST/client/react-jsx-runtime.js"
-  echo "  Copied react-jsx-runtime.js shim to dist/client/"
-fi
+# Step 6: Copy React ESM shims to dist/client so prod-server can serve them
+for shim in react.js react-jsx-runtime.js; do
+  if [ -f "/home/team/shared/site/public/$shim" ]; then
+    cp "/home/team/shared/site/public/$shim" "$DIST/client/$shim"
+    echo "  Copied $shim to dist/client/"
+  fi
+done
 
 echo "  Hash fix complete (clean=$stale sync=$copied bridged=$bridged manifest_bridged=$manifest_bridged manifest_patched=$manifest_patched)"

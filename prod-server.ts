@@ -1045,9 +1045,9 @@ serve({
       });
       }
 
-      // Serve react-jsx-runtime shim directly — Nitro doesn't route root files
-      if (pathname === "/react-jsx-runtime.js") {
-        const shimPath = join(DIST_CLIENT, "react-jsx-runtime.js");
+      // Serve React ESM shims directly — Nitro doesn't route root files
+      if (pathname === "/react.js" || pathname === "/react-jsx-runtime.js") {
+        const shimPath = join(DIST_CLIENT, pathname.slice(1));
         if (existsSync(shimPath)) {
           return new Response(readFileSync(shimPath, "utf-8"), {
             headers: { "Content-Type": "application/javascript", "Cache-Control": "public, max-age=31536000, immutable" },
@@ -1089,7 +1089,7 @@ serve({
       let body = nitroRes.body;
       if (contentType.includes("text/html") && body) {
         const html = await new Response(body).text();
-        const importMap = '<script type="importmap">{"imports":{"react/jsx-runtime":"/react-jsx-runtime.js"}}</script>';
+        const importMap = '<script type="importmap">{"imports":{"react":"/react.js","react/jsx-runtime":"/react-jsx-runtime.js"}}</script>';
         const injected = html.replace("<head>", "<head>" + importMap);
         return new Response(injected, {
           status: nitroRes.status,
