@@ -1,67 +1,85 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { createServerFn } from "@tanstack/react-start";
 import { useState, useEffect } from "react";
 import { AnimatedNumber } from "~/components/ui";
+import { usePortalContext } from "./portal.context";
+
+// SSR preload: fetch all dashboard data server-side in parallel
+const getDashboardData = createServerFn({ method: "GET" }).handler(async () => {
+  const { getCookie, getEvent } = await import("vinxi/http");
+  const event = getEvent();
+  const sessionCookie = getCookie(event, "session") || "";
+  const cookieHeader = sessionCookie ? `session=${sessionCookie}` : "";
+
+  const API_BASE = `http://localhost:${process.env.PORT || 3000}`;
+  const headers = cookieHeader ? { cookie: cookieHeader } : {};
+
+  const [empRes, taskRes, appRes, bilRes, conRes] = await Promise.allSettled([
+    fetch(`${API_BASE}/api/data/employees`, { headers }).catch(() => null),
+    fetch(`${API_BASE}/api/data/tasks`, { headers }).catch(() => null),
+    fetch(`${API_BASE}/api/data/approvals`, { headers }).catch(() => null),
+    fetch(`${API_BASE}/api/data/billing`, { headers }).catch(() => null),
+    fetch(`${API_BASE}/api/integrations`, { headers }).catch(() => null),
+  ]);
+
+  const safeJson = async (r: any) => { try { return r ? await r.json() : null; } catch { return null; } };
+
+  return {
+    employees: empRes.status === "fulfilled" && empRes.value?.ok ? ((await safeJson(empRes.value))?.data || []) : [],
+    tasks: taskRes.status === "fulfilled" && taskRes.value?.ok ? ((await safeJson(taskRes.value))?.data || []) : [],
+    approvals: appRes.status === "fulfilled" && appRes.value?.ok ? ((await safeJson(appRes.value))?.data || []) : [],
+    billing: bilRes.status === "fulfilled" && bilRes.value?.ok ? ((await safeJson(bilRes.value))?.data || []) : [],
+    connectedCount: conRes.status === "fulfilled" && conRes.value?.ok ? ((await safeJson(conRes.value))?.data?.length || 0) : 0,
+  };
+});
 
 export const Route = createFileRoute("/portal/")({
+  loader: () => getDashboardData(),
   component: ActivityHubDashboard,
 });
 
 type TimeFilter = "24h" | "7d" | "30d";
 
 function ActivityHubDashboard() {
-  const [employees, setEmployees] = useState<any[]>([]);
-  const [tasks, setTasks] = useState<any[]>([]);
-  const [approvals, setApprovals] = useState<any[]>([]);
-  const [userEmail, setUserEmail] = useState("");
-  const [integrationsCount, setIntegrationsCount] = useState(0);
-  const [connectedCount, setConnectedCount] = useState(0);
-  const [billing, setBilling] = useState<any[]>([]);
+  const { userEmail } = usePortalContext();
+  const ssrData = Route.useLoaderData() as any;
 
-  const [loading, setLoading] = useState(true);
+  const [employees, setEmployees] = useState<any[]>(ssrData?.employees || []);
+  const [tasks, setTasks] = useState<any[]>(ssrData?.tasks || []);
+  const [approvals, setApprovals] = useState<any[]>(ssrData?.approvals || []);
+  const [integrationsCount, setIntegrationsCount] = useState(180);
+  const [connectedCount, setConnectedCount] = useState(ssrData?.connectedCount || 0);
+  const [billing, setBilling] = useState<any[]>(ssrData?.billing || []);
+
+  const [loading, setLoading] = useState(false);
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("24h");
   const [feedback, setFeedback] = useState("");
 
+  // Client-side refresh for subsequent navigations (SSR covers initial load)
   const fetchDashboardData = async () => {
     try {
-      try {
-        const rMe = await fetch("/api/me", { credentials: "include" });
-        if (rMe.ok) { const dMe = await rMe.json(); setUserEmail(dMe.email || ""); }
-      } catch {}
-
-      const rEmp = await fetch("/api/data/employees", { credentials: "include" });
-      const dEmp = await rEmp.json();
-      setEmployees(dEmp.data || []);
-
-      const rTasks = await fetch("/api/data/tasks", { credentials: "include" });
-      const dTasks = await rTasks.json();
-      setTasks(dTasks.data || []);
-
-      const rApp = await fetch("/api/data/approvals", { credentials: "include" });
-      const dApp = await rApp.json();
-      setApprovals(dApp.data || []);
-
-      try {
-        const rBil = await fetch("/api/data/billing", { credentials: "include" });
-        if (rBil.ok) { const dBil = await rBil.json(); setBilling(dBil.data || []); }
-      } catch {}
-
-      try {
-        const rInt = await fetch("/api/integrations/providers", { credentials: "include" });
-        if (rInt.ok) { const dInt = await rInt.json(); setIntegrationsCount(dInt.data?.length || dInt.length || 180); }
-      } catch { setIntegrationsCount(180); }
-
-      try {
-        const rCon = await fetch("/api/integrations", { credentials: "include" });
-        if (rCon.ok) { const dCon = await rCon.json(); setConnectedCount(dCon.data?.length || dCon.length || 0); }
-      } catch {}
-
-      setLoading(false);
-    } catch {
-      setLoading(false);
-    }
+      const [rEmp, rTasks, rApp, rBil, rCon] = await Promise.allSettled([
+        fetch("/api/data/employees", { credentials: "include" }).then(r => r.ok ? r.json() : null),
+        fetch("/api/data/tasks", { credentials: "include" }).then(r => r.ok ? r.json() : null),
+        fetch("/api/data/approvals", { credentials: "include" }).then(r => r.ok ? r.json() : null),
+        fetch("/api/data/billing", { credentials: "include" }).then(r => r.ok ? r.json() : null),
+        fetch("/api/integrations", { credentials: "include" }).then(r => r.ok ? r.json() : null),
+      ]);
+      if (rEmp.status === "fulfilled" && rEmp.value) setEmployees(rEmp.value.data || []);
+      if (rTasks.status === "fulfilled" && rTasks.value) setTasks(rTasks.value.data || []);
+      if (rApp.status === "fulfilled" && rApp.value) setApprovals(rApp.value.data || []);
+      if (rBil.status === "fulfilled" && rBil.value) setBilling(rBil.value.data || []);
+      if (rCon.status === "fulfilled" && rCon.value) setConnectedCount(rCon.value.data?.length || rCon.value.length || 0);
+    } catch { /* keep SSR data */ }
   };
 
-  useEffect(() => { fetchDashboardData(); }, []);
+  // Only fetch client-side if SSR didn't provide data (e.g., after hard refresh)
+  useEffect(() => {
+    if (!ssrData || employees.length === 0 && tasks.length === 0 && approvals.length === 0) {
+      setLoading(true);
+      fetchDashboardData().finally(() => setLoading(false));
+    }
+  }, []);
 
   // ── Derived data ──────────────────────────────────────────────────
 

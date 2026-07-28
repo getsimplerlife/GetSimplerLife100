@@ -19,6 +19,12 @@ export default defineConfig({
       "react/jsx-dev-runtime": "react/jsx-dev-runtime",
     },
   },
+  ssr: {
+    // Force @tanstack/* packages to be bundled in both client and SSR builds
+    // instead of being externalized. TanStack Start externalizes them by default,
+    // but client bundles can't resolve bare specifier imports.
+    noExternal: [/@tanstack/],
+  },
   plugins: [
     tailwindcss(),
     tsConfigPaths({

@@ -12,6 +12,7 @@ export interface SystemNotification {
 }
 
 export interface PortalContextType {
+  userEmail: string;
   notifications: SystemNotification[];
   unreadCount: number;
   markAsRead: (id: string) => Promise<void>;

@@ -259,8 +259,8 @@ function ConnectedServices() {
   };
 
   useEffect(() => {
-    fetchConnectionsData();
-    fetchDocumentsData();
+    // Parallel: fetch connections and documents simultaneously
+    Promise.all([fetchConnectionsData(), fetchDocumentsData()]);
   }, []);
 
   // Connect Redirect Handler

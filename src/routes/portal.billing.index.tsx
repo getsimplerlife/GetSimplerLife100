@@ -13,36 +13,30 @@ function PlanAndBilling() {
   const [_planDesc, setPlanDesc] = useState("No package deployed yet. Please choose an implementation package or monthly operations plan below to deploy your AI workforce.");
 
   useEffect(() => {
-    fetch("/api/data/billing", { credentials: "include" })
-      .then(r => r.json())
-      .then(d => {
-        setInvoices(d.data || []);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-
-    // Fetch user audits to determine real purchased plan
-    fetch("/api/data/audits", { credentials: "include" })
-      .then(r => r.json())
-      .then(d => {
-        const audits = d.data || [];
-        if (audits.length > 0) {
-          const latest = audits[audits.length - 1];
-          setActivePlan(latest.type || "Starter Implementation");
-          if (latest.type.includes("Starter")) {
-            setPlanDesc("Includes 2 active AI employees, 3 operational workflows, 30 days of standard tech support.");
-          } else if (latest.type.includes("Growth")) {
-            setPlanDesc("Includes 5 active AI employees, cross-department automations, 60 days of standard tech support.");
-          } else if (latest.type.includes("Scale")) {
-            setPlanDesc("Includes unlimited AI employees, custom integrations, 90 days of standard tech support.");
-          } else if (latest.type.includes("Audit")) {
-            setPlanDesc("Your Deep-Dive AI Opportunity Audit blueprint package is active.");
-          } else {
-            setPlanDesc("Your custom AI workforce package is active and deployed.");
-          }
+    // Parallel: fetch billing and audits simultaneously
+    Promise.all([
+      fetch("/api/data/billing", { credentials: "include" }).then(r => r.ok ? r.json() : null),
+      fetch("/api/data/audits", { credentials: "include" }).then(r => r.ok ? r.json() : null),
+    ]).then(([billingData, auditsData]) => {
+      if (billingData) setInvoices(billingData.data || []);
+      const audits = auditsData?.data || [];
+      if (audits.length > 0) {
+        const latest = audits[audits.length - 1];
+        setActivePlan(latest.type || "Starter Implementation");
+        if (latest.type.includes("Starter")) {
+          setPlanDesc("Includes 2 active AI employees, 3 operational workflows, 30 days of standard tech support.");
+        } else if (latest.type.includes("Growth")) {
+          setPlanDesc("Includes 5 active AI employees, cross-department automations, 60 days of standard tech support.");
+        } else if (latest.type.includes("Scale")) {
+          setPlanDesc("Includes unlimited AI employees, custom integrations, 90 days of standard tech support.");
+        } else if (latest.type.includes("Audit")) {
+          setPlanDesc("Your Deep-Dive AI Opportunity Audit blueprint package is active.");
+        } else {
+          setPlanDesc("Your custom AI workforce package is active and deployed.");
         }
-      })
-      .catch(err => console.error(err));
+      }
+    }).catch(() => { /* keep defaults */ })
+      .finally(() => setLoading(false));
   }, []);
 
   const handleDownload = async (id: string) => {

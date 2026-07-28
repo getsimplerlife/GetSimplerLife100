@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export const Route = createFileRoute("/login")({
   component: Login,
@@ -11,6 +11,17 @@ function Login() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  // Display server-side redirect error (e.g. /login?error=Invalid+credentials)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const err = params.get("error");
+    if (err) {
+      setError(err);
+      // Clean URL without reloading
+      window.history.replaceState({}, "", "/login");
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,7 +70,7 @@ function Login() {
             </Link>
           </p>
         </div>
-        <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
+        <form className="mt-8 space-y-5" method="post" action="/login" onSubmit={handleSubmit}>
           {error && (
             <div className="bg-red-50 border border-red-200/60 text-red-700 px-4 py-3 rounded-2xl text-sm font-medium animate-shake">
               {error}

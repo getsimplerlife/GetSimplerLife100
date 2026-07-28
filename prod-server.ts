@@ -159,6 +159,36 @@ serve({
     const url = new URL(req.url);
     const pathname = url.pathname;
 
+    // Server-side form POST fallback for /login — works without JS hydration
+    if (pathname === "/login" && req.method === "POST") {
+      try {
+        const formData = await req.formData();
+        const email = formData.get("email")?.toString() || "";
+        const password = formData.get("password")?.toString() || "";
+        if (!email || !password) {
+          return new Response(null, { status: 302, headers: { Location: "/login?error=Email+and+password+required" } });
+        }
+        const users = readJSON(USERS_FILE);
+        const user = users[email];
+        if (!user || !(await compare(password, user.password))) {
+          return new Response(null, { status: 302, headers: { Location: "/login?error=Invalid+credentials" } });
+        }
+        const token = generateSessionToken();
+        const sessions = readJSON(SESSIONS_FILE);
+        sessions[token] = { email, createdAt: Date.now() };
+        writeJSON(SESSIONS_FILE, sessions);
+        return new Response(null, {
+          status: 302,
+          headers: {
+            Location: "/portal",
+            "Set-Cookie": "session=" + token + "; Path=/; HttpOnly; SameSite=Lax; Max-Age=" + (60 * 60 * 24 * 7),
+          },
+        });
+      } catch {
+        return new Response(null, { status: 302, headers: { Location: "/login?error=Something+went+wrong" } });
+      }
+    }
+
     if (pathname === "/api/login" && req.method === "POST") {
       try { const body = await req.json(); return await handleLogin(body); }
       catch { return Response.json({ error: "Invalid request" }, { status: 400 }); }
@@ -1086,12 +1116,17 @@ serve({
 
       // Inject import map for HTML responses so browsers can resolve
       // bare "react/jsx-runtime" imports in SSR-built chunks.
+      // Also inject form attributes on /login for non-JS fallback.
       let body = nitroRes.body;
       if (contentType.includes("text/html") && body) {
-        const html = await new Response(body).text();
+        let html = await new Response(body).text();
         const importMap = '<script type="importmap">{"imports":{"react":"/react.js","react/jsx-runtime":"/react-jsx-runtime.js"}}</script>';
-        const injected = html.replace("<head>", "<head>" + importMap);
-        return new Response(injected, {
+        html = html.replace("<head>", "<head>" + importMap);
+        // Inject method/action on login form for no-JS fallback
+        if (pathname === "/login") {
+          html = html.replace('<form class="mt-8 space-y-5"', '<form class="mt-8 space-y-5" method="post" action="/login"');
+        }
+        return new Response(html, {
           status: nitroRes.status,
           statusText: nitroRes.statusText,
           headers,

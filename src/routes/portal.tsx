@@ -46,14 +46,33 @@ function PortalLayout() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("/api/me", { credentials: "include" });
-        if (!res.ok) {
+        // Parallelize auth check + notifications fetch (was 2 serial → 1 parallel)
+        const [rMe, rNotif] = await Promise.allSettled([
+          fetch("/api/me", { credentials: "include" }),
+          fetch("/api/data/system_notifications", { credentials: "include" }),
+        ]);
+
+        // Auth check — redirect if failed
+        if (rMe.status !== "fulfilled" || !rMe.value.ok) {
           navigate({ to: "/login" as any });
           return;
         }
-        const data = await res.json();
-        setUser(data);
-        await loadNotifications();
+        const userData = await rMe.value.json();
+        setUser(userData);
+
+        // Notifications — process if successful
+        if (rNotif.status === "fulfilled" && rNotif.value.ok) {
+          const json = await rNotif.value.json();
+          if (json.data && json.data.length > 0) {
+            const sorted = [...json.data].sort(
+              (a: SystemNotification, b: SystemNotification) =>
+                new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            );
+            setNotifications(sorted);
+          } else {
+            setNotifications([]);
+          }
+        }
       } catch (err) {
         console.error("Auth check failed:", err);
         navigate({ to: "/login" as any });
@@ -223,7 +242,7 @@ function PortalLayout() {
   if (!user) return null;
 
   return (
-    <PortalContext.Provider value={{ notifications, unreadCount, markAsRead, markAllAsRead, addNotification }}>
+    <PortalContext.Provider value={{ userEmail: user?.email || "", notifications, unreadCount, markAsRead, markAllAsRead, addNotification }}>
       <div className="min-h-screen bg-black text-stone-100 font-sans antialiased selection:bg-stone-800 selection:text-white pb-16 lg:pb-0">
       
       {/* Mobile Top Header */}
