@@ -956,7 +956,17 @@ serve({
         pathname === "/manifest.json" || pathname === "/sw.js" || pathname.startsWith("/icon-") ||
         pathname === "/robots.txt" || pathname === "/sitemap.xml") {
       const f = Bun.file(join(DIST_CLIENT, pathname));
-      if (await f.exists()) return new Response(f);
+      if (await f.exists()) {
+        // Hashed assets (fingerprinted JS/CSS): cache long-term
+        // Non-hashed (manifest, sw, robots): no-store to prevent staleness
+        const isHashed = /-[A-Za-z0-9_]{8,}\.(js|css)$/.test(pathname);
+        const cacheControl = isHashed
+          ? "public, max-age=31536000, immutable"
+          : "no-store";
+        return new Response(f, {
+          headers: { "Cache-Control": cacheControl },
+        });
+      }
       // CDN cache fallback: serve latest matching file when hash 404s
       try {
         const fileName = pathname.split('/').pop() || '';
@@ -965,7 +975,9 @@ serve({
         const assetsDir = join(DIST_CLIENT, 'assets');
         const entries = readdirSync(assetsDir).filter(e => e.startsWith(base + '-') && e.endsWith('.' + ext)).sort();
         if (entries.length > 0) {
-          return new Response(Bun.file(join(assetsDir, entries[entries.length - 1])));
+          return new Response(Bun.file(join(assetsDir, entries[entries.length - 1])), {
+            headers: { "Cache-Control": "public, max-age=31536000, immutable" },
+          });
         }
       } catch (_) {}
     }
@@ -1016,18 +1028,53 @@ serve({
       const title = staticPages[pathname].split(" — ")[0];
       const desc = staticPages[pathname].split(" — ")[1] || staticPages[pathname];
       const html = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Simpler Life 100 | ${title}</title><meta name="description" content="${desc}"/><style>body{font-family:system-ui,sans-serif;background:#0a0a0a;color:#f0f0f0;margin:0;padding:2rem;line-height:1.6}a{color:#7c3aed;text-decoration:none}nav{margin-bottom:2rem}nav a{margin-right:1.5rem}.container{max-width:800px;margin:0 auto}h1{font-size:2rem}</style></head><body><div class="container"><nav><a href="/">← Home</a><a href="/build">Build</a><a href="/case-studies">Case Studies</a><a href="/pricing">Pricing</a></nav><h1>${title}</h1><p>${desc}</p><p style="margin-top:2rem;color:#888">This static fallback is served when the SSR build is unavailable. <a href="/">Return home</a> for the full experience.</p></div></body></html>`;
-      return new Response(html, { status: 200, headers: { "Content-Type": "text/html" } });
-    }
+      return new Response(html, {
+        status: 200,
+        headers: {
+          "Content-Type": "text/html",
+          "Cache-Control": "no-store, must-revalidate",
+          "ETag": `"${Date.now().toString(36)}"`,
+        },
+      });
+      }
 
-    try {
-      return await fetch("http://localhost:3002" + pathname + url.search, {
+      try {
+      const nitroRes = await fetch("http://localhost:3002" + pathname + url.search, {
         method: req.method,
         headers: req.headers,
         body: req.method !== "GET" && req.method !== "HEAD" ? await req.text() : undefined,
       });
-    } catch {
+
+      // Add Cache-Control headers based on content type
+      // - HTML: no-store to prevent CDN from serving stale pages
+      // - Hashed assets: immutable long-term cache
+      const contentType = nitroRes.headers.get("content-type") || "";
+      const isHashedAsset = /-[A-Za-z0-9_]{8,}\.(js|css)$/.test(pathname);
+
+      let cacheControl: string;
+      if (contentType.includes("text/html")) {
+        cacheControl = "no-store, must-revalidate";
+      } else if (isHashedAsset) {
+        cacheControl = "public, max-age=31536000, immutable";
+      } else {
+        cacheControl = "no-store";
+      }
+
+      // Build new response with cache headers merged in
+      const headers = new Headers(nitroRes.headers);
+      headers.set("Cache-Control", cacheControl);
+      if (contentType.includes("text/html")) {
+        headers.set("ETag", `"${Date.now().toString(36)}"`);
+      }
+
+      return new Response(nitroRes.body, {
+        status: nitroRes.status,
+        statusText: nitroRes.statusText,
+        headers,
+      });
+      } catch {
       return new Response("Server error", { status: 500 });
-    }
+      }
   },
 });
 console.log("[prod-server] Port 3000 -> Nitro on 3002 | API: /api/login, /api/register, /api/logout, /api/me");
