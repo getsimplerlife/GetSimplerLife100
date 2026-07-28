@@ -1,0 +1,79 @@
+[1mdiff --git a/prod-server.ts b/prod-server.ts[m
+[1mindex 510e7a7..6a8ffcd 100644[m
+[1m--- a/prod-server.ts[m
+[1m+++ b/prod-server.ts[m
+[36m@@ -159,6 +159,36 @@[m [mserve({[m
+     const url = new URL(req.url);[m
+     const pathname = url.pathname;[m
+ [m
+[32m+[m[32m    // Server-side form POST fallback for /login — works without JS hydration[m
+[32m+[m[32m    if (pathname === "/login" && req.method === "POST") {[m
+[32m+[m[32m      try {[m
+[32m+[m[32m        const formData = await req.formData();[m
+[32m+[m[32m        const email = formData.get("email")?.toString() || "";[m
+[32m+[m[32m        const password = formData.get("password")?.toString() || "";[m
+[32m+[m[32m        if (!email || !password) {[m
+[32m+[m[32m          return new Response(null, { status: 302, headers: { Location: "/login?error=Email+and+password+required" } });[m
+[32m+[m[32m        }[m
+[32m+[m[32m        const users = readJSON(USERS_FILE);[m
+[32m+[m[32m        const user = users[email];[m
+[32m+[m[32m        if (!user || !(await compare(password, user.password))) {[m
+[32m+[m[32m          return new Response(null, { status: 302, headers: { Location: "/login?error=Invalid+credentials" } });[m
+[32m+[m[32m        }[m
+[32m+[m[32m        const token = generateSessionToken();[m
+[32m+[m[32m        const sessions = readJSON(SESSIONS_FILE);[m
+[32m+[m[32m        sessions[token] = { email, createdAt: Date.now() };[m
+[32m+[m[32m        writeJSON(SESSIONS_FILE, sessions);[m
+[32m+[m[32m        return new Response(null, {[m
+[32m+[m[32m          status: 302,[m
+[32m+[m[32m          headers: {[m
+[32m+[m[32m            Location: "/portal",[m
+[32m+[m[32m            "Set-Cookie": "session=" + token + "; Path=/; HttpOnly; SameSite=Lax; Max-Age=" + (60 * 60 * 24 * 7),[m
+[32m+[m[32m          },[m
+[32m+[m[32m        });[m
+[32m+[m[32m      } catch {[m
+[32m+[m[32m        return new Response(null, { status: 302, headers: { Location: "/login?error=Something+went+wrong" } });[m
+[32m+[m[32m      }[m
+[32m+[m[32m    }[m
+[32m+[m
+     if (pathname === "/api/login" && req.method === "POST") {[m
+       try { const body = await req.json(); return await handleLogin(body); }[m
+       catch { return Response.json({ error: "Invalid request" }, { status: 400 }); }[m
+[36m@@ -1086,12 +1116,17 @@[m [mserve({[m
+ [m
+       // Inject import map for HTML responses so browsers can resolve[m
+       // bare "react/jsx-runtime" imports in SSR-built chunks.[m
+[32m+[m[32m      // Also inject form attributes on /login for non-JS fallback.[m
+       let body = nitroRes.body;[m
+       if (contentType.includes("text/html") && body) {[m
+[31m-        const html = await new Response(body).text();[m
+[32m+[m[32m        let html = await new Response(body).text();[m
+         const importMap = '<script type="importmap">{"imports":{"react":"/react.js","react/jsx-runtime":"/react-jsx-runtime.js"}}</script>';[m
+[31m-        const injected = html.replace("<head>", "<head>" + importMap);[m
+[31m-        return new Response(injected, {[m
+[32m+[m[32m        html = html.replace("<head>", "<head>" + importMap);[m
+[32m+[m[32m        // Inject method/action on login form for no-JS fallback[m
+[32m+[m[32m        if (pathname === "/login") {[m
+[32m+[m[32m          html = html.replace('<form class="mt-8 space-y-5"', '<form class="mt-8 space-y-5" method="post" action="/login"');[m
+[32m+[m[32m        }[m
+[32m+[m[32m        return new Response(html, {[m
+           status: nitroRes.status,[m
+           statusText: nitroRes.statusText,[m
+           headers,[m
+[1mdiff --git a/vite.config.ts b/vite.config.ts[m
+[1mindex 92be093..69a6638 100644[m
+[1m--- a/vite.config.ts[m
+[1m+++ b/vite.config.ts[m
+[36m@@ -19,6 +19,12 @@[m [mexport default defineConfig({[m
+       "react/jsx-dev-runtime": "react/jsx-dev-runtime",[m
+     },[m
+   },[m
+[32m+[m[32m  ssr: {[m
+[32m+[m[32m    // Force @tanstack/* packages to be bundled in both client and SSR builds[m
+[32m+[m[32m    // instead of being externalized. TanStack Start externalizes them by default,[m
+[32m+[m[32m    // but client bundles can't resolve bare specifier imports.[m
+[32m+[m[32m    noExternal: [/@tanstack/],[m
+[32m+[m[32m  },[m
+   plugins: [[m
+     tailwindcss(),[m
+     tsConfigPaths({[m

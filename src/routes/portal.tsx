@@ -15,8 +15,8 @@ function PortalLayout() {
   const location = useLocation();
 
   // User data is injected by prod-server as window.__PORTAL_USER__
-  // during SSR HTML processing. This eliminates the "Initializing platform..."
-  // spinner by providing auth data before hydration even starts.
+  // in the HTML <head>. We read it in useEffect AFTER hydration to avoid
+  // hydration mismatches between SSR (which doesn't have window) and client.
   const getInjectedUser = (): { email: string } | null => {
     if (typeof window !== "undefined" && (window as any).__PORTAL_USER__) {
       return (window as any).__PORTAL_USER__;
@@ -24,13 +24,10 @@ function PortalLayout() {
     return null;
   };
 
-  const injectedUser = getInjectedUser();
-  const [user, setUser] = useState<{ email: string } | null>(injectedUser);
-  // During SSR, window.__PORTAL_USER__ is not set yet, so injectedUser is null
-  // and useUser will be null. The SSR will render null (fall through the spinner
-  // to the !user check). On hydration, window.__PORTAL_USER__ is available, so
-  // injectedUser is set and the portal renders immediately with no spinner flash.
-  const [loading, setLoading] = useState(typeof window !== "undefined" && !injectedUser);
+  // SSR always starts with loading=true and no user — this keeps the SSR
+  // rendering consistent (shows the spinner) and avoids hydration mismatches.
+  const [user, setUser] = useState<{ email: string } | null>(null);
+  const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
   const [notifications, setNotifications] = useState<SystemNotification[]>([]);
@@ -62,11 +59,17 @@ function PortalLayout() {
   useEffect(() => {
     (async () => {
       try {
-        // If prod-server injected user data into the HTML, skip /api/me
-        if (injectedUser) {
-          setUser(injectedUser);
+        // Check if prod-server injected user data into the HTML <head>.
+        // This runs AFTER hydration, avoiding SSR/client state mismatches.
+        // On hydration, the injectedUser is available synchronously, so
+        // this useEffect fires before the browser paints the spinner.
+        const injected = getInjectedUser();
+        if (injected) {
+          // User data was injected — use it immediately, no API call needed
+          setUser(injected);
           setLoading(false);
         } else {
+          // No injected data — fall back to API call
           const rMe = await fetch("/api/me", { credentials: "include" });
           if (!rMe.ok) {
             navigate({ to: "/login" as any });

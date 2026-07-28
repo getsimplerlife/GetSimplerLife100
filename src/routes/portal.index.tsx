@@ -1,40 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { createServerFn } from "@tanstack/react-start";
 import { useState, useEffect } from "react";
 import { AnimatedNumber } from "~/components/ui";
 import { usePortalContext } from "./portal.context";
 
-// SSR preload: fetch all dashboard data server-side in parallel
-const getDashboardData = createServerFn({ method: "GET" }).handler(async () => {
-  const { getCookie, getEvent } = await import("vinxi/http");
-  const event = getEvent();
-  const sessionCookie = getCookie(event, "session") || "";
-  const cookieHeader = sessionCookie ? `session=${sessionCookie}` : "";
-
-  const API_BASE = `http://localhost:${process.env.PORT || 3000}`;
-  const headers = cookieHeader ? { cookie: cookieHeader } : {};
-
-  const [empRes, taskRes, appRes, bilRes, conRes] = await Promise.allSettled([
-    fetch(`${API_BASE}/api/data/employees`, { headers }).catch(() => null),
-    fetch(`${API_BASE}/api/data/tasks`, { headers }).catch(() => null),
-    fetch(`${API_BASE}/api/data/approvals`, { headers }).catch(() => null),
-    fetch(`${API_BASE}/api/data/billing`, { headers }).catch(() => null),
-    fetch(`${API_BASE}/api/integrations`, { headers }).catch(() => null),
-  ]);
-
-  const safeJson = async (r: any) => { try { return r ? await r.json() : null; } catch { return null; } };
-
-  return {
-    employees: empRes.status === "fulfilled" && empRes.value?.ok ? ((await safeJson(empRes.value))?.data || []) : [],
-    tasks: taskRes.status === "fulfilled" && taskRes.value?.ok ? ((await safeJson(taskRes.value))?.data || []) : [],
-    approvals: appRes.status === "fulfilled" && appRes.value?.ok ? ((await safeJson(appRes.value))?.data || []) : [],
-    billing: bilRes.status === "fulfilled" && bilRes.value?.ok ? ((await safeJson(bilRes.value))?.data || []) : [],
-    connectedCount: conRes.status === "fulfilled" && conRes.value?.ok ? ((await safeJson(conRes.value))?.data?.length || 0) : 0,
-  };
-});
+// Dashboard data is loaded client-side via useEffect.
+// (createServerFn was removed because it crashes during SSR
+//  with "globalThis.app.config" — vinxi/http requires the Vinxi
+//  context which isn't available in the SSR environment.)
 
 export const Route = createFileRoute("/portal/")({
-  loader: () => getDashboardData(),
   component: ActivityHubDashboard,
 });
 
@@ -42,16 +16,15 @@ type TimeFilter = "24h" | "7d" | "30d";
 
 function ActivityHubDashboard() {
   const { userEmail } = usePortalContext();
-  const ssrData = Route.useLoaderData() as any;
 
-  const [employees, setEmployees] = useState<any[]>(ssrData?.employees || []);
-  const [tasks, setTasks] = useState<any[]>(ssrData?.tasks || []);
-  const [approvals, setApprovals] = useState<any[]>(ssrData?.approvals || []);
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [approvals, setApprovals] = useState<any[]>([]);
   const [integrationsCount, setIntegrationsCount] = useState(180);
-  const [connectedCount, setConnectedCount] = useState(ssrData?.connectedCount || 0);
-  const [billing, setBilling] = useState<any[]>(ssrData?.billing || []);
+  const [connectedCount, setConnectedCount] = useState(0);
+  const [billing, setBilling] = useState<any[]>([]);
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("24h");
   const [feedback, setFeedback] = useState("");
 
@@ -73,12 +46,9 @@ function ActivityHubDashboard() {
     } catch { /* keep SSR data */ }
   };
 
-  // Only fetch client-side if SSR didn't provide data (e.g., after hard refresh)
+  // Always fetch dashboard data on mount since we don't use SSR preload
   useEffect(() => {
-    if (!ssrData || employees.length === 0 && tasks.length === 0 && approvals.length === 0) {
-      setLoading(true);
-      fetchDashboardData().finally(() => setLoading(false));
-    }
+    fetchDashboardData().finally(() => setLoading(false));
   }, []);
 
   // ── Derived data ──────────────────────────────────────────────────

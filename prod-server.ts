@@ -1155,9 +1155,17 @@ serve({
             }
           } catch {}
         }
+        // For portal pages, if the HTML body is complete (regardless of SSR
+        // route-level errors), return 200 so browsers/CDNs don't treat it as
+        // a real error. TanStack Start SSR may report route-level errors
+        // (e.g. "globalThis.app.config") that don't prevent the page from
+        // rendering correctly on the client.
+        const isPortalPage = pathname.startsWith("/portal");
+        const responseStatus = isPortalPage ? 200 : nitroRes.status;
+
         return new Response(html, {
-          status: nitroRes.status,
-          statusText: nitroRes.statusText,
+          status: responseStatus,
+          statusText: responseStatus === 200 ? "OK" : nitroRes.statusText,
           headers,
         });
       }

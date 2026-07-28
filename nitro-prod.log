@@ -1,0 +1,16 @@
+nohup: ignoring input
+151 |     // Allow the connection but mark it as untested
+152 |     return { success: true };
+153 |   }
+154 | }
+155 | 
+156 | serve({
+      ^
+error: Failed to start server. Is port 3000 in use?
+ syscall: "listen",
+   errno: 0,
+    code: "EADDRINUSE"
+
+      at /home/team/shared/site/prod-server.ts:156:1
+
+Bun v1.3.14 (Linux x64)
