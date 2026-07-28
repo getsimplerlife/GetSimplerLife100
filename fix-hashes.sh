@@ -97,4 +97,30 @@ if [ -n "$MANIFEST" ]; then
   done < <(strings "$MANIFEST" | grep -oP '/assets/[a-zA-Z0-9_.-]+-[A-Za-z0-9_]{8,}\.(js|css)' | sed 's|/assets/||' | sort -u)
 fi
 
-echo "  Hash fix complete (clean=$stale sync=$copied bridged=$bridged manifest_bridged=$manifest_bridged)"
+# Step 5: Patch the server manifest itself — replace stale hashes inline
+# The SSR loads this manifest at runtime and embeds hashes in HTML.
+# Bridging client files (Step 4) isn't enough — the manifest text must change too.
+manifest_patched=0
+if [ -n "$MANIFEST" ]; then
+  while read -r oldhash; do
+    [ -z "$oldhash" ] && continue
+    # Skip if the referenced file actually exists
+    if [ -f "$CLIENT_ASSETS/$oldhash" ]; then continue; fi
+    base=$(echo "$oldhash" | sed -E 's/-[A-Za-z0-9_]{8,}\.(js|css)$//')
+    ext=$(echo "$oldhash" | sed 's/.*\.//')
+    newhash_name=$(ls "$CLIENT_ASSETS/${base}-"*".${ext}" 2>/dev/null | head -1 | xargs basename 2>/dev/null)
+    if [ -n "$newhash_name" ] && [ -f "$CLIENT_ASSETS/$newhash_name" ]; then
+      sed -i "s|$oldhash|$newhash_name|g" "$MANIFEST"
+      echo "  Patched (server manifest): $oldhash → $newhash_name"
+      manifest_patched=$((manifest_patched + 1))
+    fi
+  done < <(strings "$MANIFEST" | grep -oP '/assets/[a-zA-Z0-9_.-]+-[A-Za-z0-9_]{8,}\.(js|css)' | sed 's|/assets/||' | sort -u)
+fi
+
+# Step 6: Copy shim to dist/client so prod-server can serve /react-jsx-runtime.js
+if [ -f "/home/team/shared/site/public/react-jsx-runtime.js" ]; then
+  cp /home/team/shared/site/public/react-jsx-runtime.js "$DIST/client/react-jsx-runtime.js"
+  echo "  Copied react-jsx-runtime.js shim to dist/client/"
+fi
+
+echo "  Hash fix complete (clean=$stale sync=$copied bridged=$bridged manifest_bridged=$manifest_bridged manifest_patched=$manifest_patched)"
