@@ -24,31 +24,51 @@ const PAGE_TITLES: Record<string, { title: string; description: string }> = {
   "/demo": { title: "Request a Demo | Simpler Life 100", description: "See Simpler Life 100 in action. Request a personalized demo." },
   "/login": { title: "Login | Simpler Life 100", description: "Login to your Simpler Life 100 account." },
   "/register": { title: "Register | Simpler Life 100", description: "Create your Simpler Life 100 account." },
+  "/set-password": { title: "Set Password | Simpler Life 100", description: "Set your account password." },
   "/tools": { title: "AI Operations Tools | Simpler Life 100", description: "Interactive tools to assess and plan your AI automation." },
   "/roi-calculator": { title: "ROI Calculator | Simpler Life 100", description: "Calculate your ROI from AI operations automation." },
-  "/set-password": { title: "Set Password | Simpler Life 100", description: "Set your account password." },
 };
 
+function resolvePageMeta(pathname: string) {
+  if (!pathname) return null;
+  if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname];
+  for (const [prefix, meta] of Object.entries(PAGE_TITLES)) {
+    if (pathname.startsWith(prefix + "/") || pathname.startsWith(prefix + "?")) {
+      return meta;
+    }
+  }
+  return null;
+}
+
 export const Route = createRootRoute({
-  head: () => ({
-    meta: [
-      { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" },
-      { title: "Simpler Life 100 | AI Operations Teams" },
-      { name: "description", content: "Replace hours of manual work with AI coworkers that integrate into your existing tools. Real results, no complexity." },
-      { name: "theme-color", content: "#000000" },
-      { name: "apple-mobile-web-app-capable", content: "yes" },
-      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
-      { name: "apple-mobile-web-app-title", content: "Simpler Life" }
-    ],
-    links: [
-      { rel: "stylesheet", href: appCss },
-      { rel: "dns-prefetch", href: "https://js.stripe.com" },
-      { rel: "preconnect", href: "https://js.stripe.com" },
-      { rel: "manifest", href: "/manifest.json" },
-      { rel: "apple-touch-icon", href: "/icon-192.png" }
-    ],
-  }),
+  head: ({ matches }: { matches?: any[] }) => {
+    let pageMeta = null;
+    if (matches && matches.length > 0) {
+      const lastMatch = matches[matches.length - 1];
+      const pathname = lastMatch?.pathname || "";
+      if (pathname) pageMeta = resolvePageMeta(pathname);
+    }
+
+    return {
+      meta: [
+        { charSet: "utf-8" },
+        { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" },
+        { title: pageMeta?.title || "Simpler Life 100 | AI Operations Teams" },
+        { name: "description", content: pageMeta?.description || "Replace hours of manual work with AI coworkers that integrate into your existing tools. Real results, no complexity." },
+        { name: "theme-color", content: "#000000" },
+        { name: "apple-mobile-web-app-capable", content: "yes" },
+        { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+        { name: "apple-mobile-web-app-title", content: "Simpler Life" }
+      ],
+      links: [
+        { rel: "stylesheet", href: appCss },
+        { rel: "dns-prefetch", href: "https://js.stripe.com" },
+        { rel: "preconnect", href: "https://js.stripe.com" },
+        { rel: "manifest", href: "/manifest.json" },
+        { rel: "apple-touch-icon", href: "/icon-192.png" }
+      ],
+    };
+  },
   notFoundComponent: () => <div>Page not found</div>,
   component: RootComponent,
 });
@@ -56,18 +76,7 @@ export const Route = createRootRoute({
 function usePageMeta() {
   const routerState = useRouterState();
   const pathname = routerState.location?.pathname || "/";
-
-  // Try exact match first
-  if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname];
-
-  // Try prefix match (e.g. /tools/ai-advisor → /tools)
-  for (const [prefix, meta] of Object.entries(PAGE_TITLES)) {
-    if (pathname.startsWith(prefix + "/") || pathname.startsWith(prefix + "?")) {
-      return meta;
-    }
-  }
-
-  return null;
+  return resolvePageMeta(pathname);
 }
 
 function RootComponent() {
