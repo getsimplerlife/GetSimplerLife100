@@ -234,18 +234,13 @@ function PortalLayout() {
 
   const currentPath = location.pathname;
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-10 h-10 border-2 border-stone-800 border-t-white rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-stone-400 text-xs font-mono tracking-widest uppercase">Initializing platform...</p>
-        </div>
-      </div>
-    );
-  }
+  // Never show a full-page spinner. During SSR or brief client loading,
+  // render the portal shell immediately — sidebar, header, and all. Only
+  // the user email shows a placeholder until useLayoutEffect fills it in.
+  // This eliminates the "stuck on Initializing platform..." problem entirely.
+  const displayEmail = user?.email || (loading ? "..." : "");
 
-  if (!user) return null;
+  if (!user && !loading) return null;
 
   return (
     <PortalContext.Provider value={{ userEmail: user?.email || "", notifications, unreadCount, markAsRead, markAllAsRead, addNotification }}>
@@ -298,7 +293,7 @@ function PortalLayout() {
             return sections.map(section => (
               <div key={section} className="mb-4">
                 <p className="text-[9px] font-bold text-stone-600 uppercase tracking-widest px-3 mb-1.5">{section}</p>
-                {navLinks.filter(l => l.section === section && (!(l as any).adminOnly || user.email === "mathewortiz97@gmail.com")).map((link) => {
+                {navLinks.filter(l => l.section === section && (!(l as any).adminOnly || user?.email === "mathewortiz97@gmail.com")).map((link) => {
                   const isActive = currentPath === link.path || (link.path === "/portal" && currentPath === "/portal/");
                   const isIntegrations = link.name === "Integrations";
                   return (
@@ -335,7 +330,7 @@ function PortalLayout() {
 
           <div className="pt-4 mt-4 border-t border-stone-900 space-y-1">
             <p className="text-[9px] font-bold text-stone-600 uppercase tracking-widest px-3 mb-2">Controls</p>
-            {user.email === "mathewortiz97@gmail.com" && (
+            {user?.email === "mathewortiz97@gmail.com" && (
               <Link
                 to="/portal/admin"
                 className="flex items-center gap-3 px-3 py-2 rounded-lg font-bold text-xs text-stone-400 hover:bg-stone-900/50 hover:text-stone-200 border-l-2 border-transparent"
@@ -358,7 +353,7 @@ function PortalLayout() {
         <div className="p-4 border-t border-stone-900 bg-stone-950 shrink-0 mb-16 lg:mb-0">
           <div className="px-3 py-1.5 mb-2 rounded-lg bg-stone-900/30">
             <p className="text-[8px] text-stone-600 font-bold uppercase tracking-wider">Identity</p>
-            <p className="text-xs font-bold text-stone-400 truncate">{user.email}</p>
+            <p className="text-xs font-bold text-stone-400 truncate">{displayEmail}</p>
           </div>
           <button
             onClick={handleLogout}
