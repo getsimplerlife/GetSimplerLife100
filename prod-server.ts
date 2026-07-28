@@ -353,7 +353,7 @@ serve({
           }
         }
         if (search) filtered = filtered.filter((p: any) => p.name.toLowerCase().includes(search.toLowerCase()));
-        if (category) filtered = filtered.filter((p: any) => p.category === category);
+        if (category) filtered = filtered.filter((p: any) => p.category?.toLowerCase() === category.toLowerCase());
         const total = filtered.length;
         const slice = filtered.slice(page * limit, (page + 1) * limit);
         return Response.json({ data: slice, total, page, limit });
@@ -377,15 +377,18 @@ serve({
 
       try {
         const body = await req.json();
-        const { providerId, providerName, credentials } = body;
-        // Require credentials for connection
-        if (!credentials || !credentials.apiKey || !credentials.apiKey.trim()) {
+        // Accept flexible field names: providerId/provider, providerName/name, credentials.apiKey or flat apiKey
+        const providerId = body.providerId || body.provider || "";
+        const providerName = body.providerName || body.provider || body.name || providerId;
+        const creds = body.credentials || body;
+        const apiKey = creds.apiKey || creds.api_key || creds.key || "";
+        if (!apiKey || !apiKey.trim()) {
           return Response.json({ error: "API credentials required. Please provide at least an API key." }, { status: 400 });
         }
-        // Validate credentials - at minimum they must have content
-        if (credentials.apiKey.trim().length < 4) {
+        if (apiKey.trim().length < 4) {
           return Response.json({ error: "Invalid API key — too short." }, { status: 400 });
         }
+        const credentials = { apiKey: apiKey.trim() };
         // Test the connection before saving
         const testResult = await testProviderConnection(providerId, providerName, credentials);
         if (!testResult.success) {
