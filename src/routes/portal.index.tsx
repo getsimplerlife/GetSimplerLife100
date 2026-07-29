@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { AnimatedNumber } from "~/components/ui";
 import { usePortalContext } from "./portal.context";
+import { AGENTS } from "~/data/agents";
 
 // Dashboard data is loaded client-side via useEffect.
 // (createServerFn was removed because it crashes during SSR
@@ -17,14 +18,14 @@ type TimeFilter = "24h" | "7d" | "30d";
 function ActivityHubDashboard() {
   const { userEmail } = usePortalContext();
 
-  const [employees, setEmployees] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<any[]>(AGENTS); // preloaded for SSR
   const [tasks, setTasks] = useState<any[]>([]);
   const [approvals, setApprovals] = useState<any[]>([]);
   const [integrationsCount, setIntegrationsCount] = useState(180);
   const [connectedCount, setConnectedCount] = useState(0);
   const [billing, setBilling] = useState<any[]>([]);
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // dashboard renders immediately
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("24h");
   const [feedback, setFeedback] = useState("");
 
