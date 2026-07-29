@@ -957,7 +957,10 @@ serve({
       const filePath = join(DATA_DIR, fileName);
       try {
         const data = readJSON(filePath);
-        const userData = data[user.email] || data;
+        // Tenant-scoped files store data as { "email": [...] }. 
+        // Non-tenant files store data as a plain array.
+        // Always return an array so the client can safely call .filter(), .map(), etc.
+        const userData = Array.isArray(data) ? data : (data[user.email] || []);
         return Response.json({ data: userData });
       } catch {
         return Response.json({ data: [] });
