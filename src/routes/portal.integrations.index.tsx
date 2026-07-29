@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { PROVIDERS, type ProviderData } from "~/data/providers";
 
 export const Route = createFileRoute("/portal/integrations/")({
   component: ConnectedServices,
@@ -149,10 +148,10 @@ const categoryLabels: Record<string, string> = {
 function ConnectedServices() {
   const [activeTab, setActiveTab] = useState<"connections" | "intake">("connections");
   
-  // Connections Tab States — providers preloaded from static data for SSR
-  const [providers, setProviders] = useState<ProviderItem[]>(PROVIDERS as any[]);
+  // Connections Tab States
+  const [providers, setProviders] = useState<ProviderItem[]>([]);
   const [connections, setConnections] = useState<ConnectionItem[]>([]);
-  const [loadingConns, setLoadingConns] = useState(false); // providers are static; connections still load client-side
+  const [loadingConns, setLoadingConns] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
