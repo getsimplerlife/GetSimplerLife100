@@ -124,8 +124,14 @@ if [ -n "$MANIFEST" ]; then
   done < <(strings "$MANIFEST" | grep -oP '/assets/[a-zA-Z0-9_.-]+-[A-Za-z0-9_]{8,}\.(js|css)' | sed 's|/assets/||' | sort -u)
 fi
 
-# Step 6: Copy React ESM shims to dist/client so prod-server can serve them
-for shim in react.js react-jsx-runtime.js; do
+# Step 6: Copy ESM shims to dist/client so prod-server can serve them
+# These shims resolve bare imports in client bundles for server-only modules
+ALL_SHIMS=(
+  react.js react-jsx-runtime.js
+  h3-v2.js node-async-hooks.js seroval.js seroval-plugins-web.js
+  libsql-client.js drizzle-orm.js drizzle-orm-libsql.js drizzle-orm-sqlite-core.js
+)
+for shim in "${ALL_SHIMS[@]}"; do
   if [ -f "/home/team/shared/site/public/$shim" ]; then
     cp "/home/team/shared/site/public/$shim" "$DIST/client/$shim"
     echo "  Copied $shim to dist/client/"

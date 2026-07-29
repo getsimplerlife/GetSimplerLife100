@@ -1058,8 +1058,13 @@ serve({
       }
     }
 
-      // Serve React ESM shims directly — Nitro doesn't route root files
-      if (pathname === "/react.js" || pathname === "/react-jsx-runtime.js") {
+      // Serve ESM shims directly — Nitro doesn't route root files
+      const SHIM_FILES = [
+        "react.js", "react-jsx-runtime.js",
+        "h3-v2.js", "node-async-hooks.js", "seroval.js", "seroval-plugins-web.js",
+        "libsql-client.js", "drizzle-orm.js", "drizzle-orm-libsql.js", "drizzle-orm-sqlite-core.js",
+      ];
+      if (SHIM_FILES.some(f => pathname === "/" + f)) {
         const shimPath = join(DIST_CLIENT, pathname.slice(1));
         if (existsSync(shimPath)) {
           return new Response(readFileSync(shimPath, "utf-8"), {
@@ -1109,7 +1114,18 @@ serve({
       let body = nitroRes.body;
       if (contentType.includes("text/html") && body) {
         let html = await new Response(body).text();
-        const importMap = '<script type="importmap">{"imports":{"react":"/react.js","react/jsx-runtime":"/react-jsx-runtime.js"}}</script>';
+        const importMap = '<script type="importmap">{"imports":{' +
+          '"react":"/react.js",' +
+          '"react/jsx-runtime":"/react-jsx-runtime.js",' +
+          '"h3-v2":"/h3-v2.js",' +
+          '"node:async_hooks":"/node-async-hooks.js",' +
+          '"seroval":"/seroval.js",' +
+          '"seroval-plugins/web":"/seroval-plugins-web.js",' +
+          '"@libsql/client":"/libsql-client.js",' +
+          '"drizzle-orm":"/drizzle-orm.js",' +
+          '"drizzle-orm/libsql":"/drizzle-orm-libsql.js",' +
+          '"drizzle-orm/sqlite-core":"/drizzle-orm-sqlite-core.js"' +
+          '}}</script>';
         html = html.replace("<head>", "<head>" + importMap);
         // Inject method/action on login form for no-JS fallback
         if (pathname === "/login") {

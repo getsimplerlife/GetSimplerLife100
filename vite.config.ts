@@ -36,6 +36,7 @@ export default defineConfig({
       "@tanstack/react-router/ssr/server",
       "@tanstack/router-core/ssr/client",
       "@tanstack/router-core/ssr/server",
+      /^h3/,
     ],
   },
   plugins: [

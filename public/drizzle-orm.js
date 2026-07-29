@@ -1,0 +1,19 @@
+// Stub for drizzle-orm — no-op in browser
+export const eq = () => ({});
+export const and = () => ({});
+export const or = () => ({});
+export const sql = () => ({});
+export const relations = () => ({});
+export const asc = () => ({});
+export const desc = () => ({});
+export const count = () => ({});
+export const sqliteTable = () => ({});
+export const text = () => ({});
+export const integer = () => ({});
+export const real = () => ({});
+export const blob = () => ({});
+export const numeric = () => ({});
+export const primaryKey = () => ({});
+export const uniqueIndex = () => ({});
+export const index = () => ({});
+export const foreignKey = () => ({});
