@@ -45,7 +45,7 @@ function MarketplaceHub() {
     name: a.name,
     description: a.description,
     category: (a.category === 'healthcare' ? 'Healthcare' : a.category === 'finance' ? 'Finance' : a.category === 'sales' ? 'Sales' : a.category === 'logistics' ? 'Logistics' : a.category === 'hr' ? 'HR' : a.category === 'it' ? 'IT' : a.category === 'marketing' || a.category === 'communications' ? 'Marketing' : 'Operations'),
-    price: '$499/mo',
+    price: `${a.price}/mo`,
     installed: false,
     deployedCount: 0,
     rating: 4.8,
@@ -120,26 +120,44 @@ function MarketplaceHub() {
         };
       });
 
-      // Prepend CRM/ERP Connection Pack to marketplace items
-      const crmErpPack: MarketplaceItem = {
-        id: "crm-erp-connection-pack",
-        name: "CRM/ERP Connection Pack",
-        description: "Unlock 3 connection slots for CRM and ERP platforms. Connect Salesforce, HubSpot, NetSuite, QuickBooks, SAP, and more. Each slot supports one provider connection.",
+      // Prepend CRM and ERP Connection Packs to marketplace items
+      const crmPack: MarketplaceItem = {
+        id: "crm-connection-pack",
+        name: "CRM Connection Pack",
+        description: "Unlock 5 connection slots for CRM platforms. Connect Salesforce, HubSpot, Zoho, Pipedrive, and more. Each slot supports one provider connection.",
         category: "Operations",
-        price: "$1,500",
+        price: "$2,500",
         installed: false,
         deployedCount: 0,
         rating: 4.9,
         runsMonth: "unlimited",
-        icon: "🔗",
-        paymentLink: "https://buy.stripe.com/test_crm_erp_pack_3slots",
+        icon: "💼",
+        paymentLink: "https://buy.stripe.com/test_crm_pack_5slots",
         setupRequirements: null,
-        badges: ["3 CRM/ERP Slots", "Works Out of Box", "Slack Integration"],
-        chainsWith: ["CRM Sync Agent", "Email Assistant", "Invoice Processor"],
+        badges: ["5 CRM Slots", "Works Out of Box", "Slack Integration"],
+        chainsWith: ["CRM Sync Agent", "Lead Scoring Agent", "Sales Follow-Up Agent"],
         agentType: "crm-pack",
       };
 
-      setItems([crmErpPack, ...mapped]);
+      const erpPack: MarketplaceItem = {
+        id: "erp-connection-pack",
+        name: "ERP Connection Pack",
+        description: "Unlock 5 connection slots for ERP and accounting platforms. Connect NetSuite, QuickBooks, SAP, Xero, Sage Intacct, and more. Each slot supports one provider connection.",
+        category: "Operations",
+        price: "$2,500",
+        installed: false,
+        deployedCount: 0,
+        rating: 4.9,
+        runsMonth: "unlimited",
+        icon: "🏢",
+        paymentLink: "https://buy.stripe.com/test_erp_pack_5slots",
+        setupRequirements: null,
+        badges: ["5 ERP Slots", "Works Out of Box", "Slack Integration"],
+        chainsWith: ["Invoice Processor", "PO Management Agent", "Payroll Reconciliation Agent"],
+        agentType: "erp-pack",
+      };
+
+      setItems([crmPack, erpPack, ...mapped]);
       setLoading(false);
     } catch (err) {
       console.error("Marketplace fetch error:", err);

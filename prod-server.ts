@@ -162,10 +162,10 @@ function isCrmErpCategory(category: string): boolean {
   return CRM_ERP_CATEGORIES.some(c => cat.includes(c.toLowerCase()));
 }
 
-function consumeCrmErpSlot(email: string): boolean {
+function consumeCrmErpSlot(email: string, packType: "crm-pack" | "erp-pack"): boolean {
   const purchases = readJSON(TENANT_PURCHASES_FILE);
   const userPurchases = purchases[email] || [];
-  const crmPack = userPurchases.find((p: any) => p.type === "crm-pack" && p.status === "active");
+  const crmPack = userPurchases.find((p: any) => p.type === packType && p.status === "active");
   if (!crmPack) return false;
   const usedSlots = crmPack.usedSlots || 0;
   const totalSlots = crmPack.slots || 0;
@@ -176,15 +176,22 @@ function consumeCrmErpSlot(email: string): boolean {
   return true;
 }
 
-function freeCrmErpSlot(email: string): void {
+function freeCrmErpSlot(email: string, packType: "crm-pack" | "erp-pack"): void {
   const purchases = readJSON(TENANT_PURCHASES_FILE);
   const userPurchases = purchases[email] || [];
-  const crmPack = userPurchases.find((p: any) => p.type === "crm-pack" && p.status === "active");
+  const crmPack = userPurchases.find((p: any) => p.type === packType && p.status === "active");
   if (crmPack && (crmPack.usedSlots || 0) > 0) {
     crmPack.usedSlots = Math.max(0, (crmPack.usedSlots || 0) - 1);
     purchases[email] = userPurchases;
     writeJSON(TENANT_PURCHASES_FILE, purchases);
   }
+}
+
+function getPackTypeForCategory(category: string): "crm-pack" | "erp-pack" | null {
+  const cat = (category || "").toLowerCase();
+  if (cat.includes("crm")) return "crm-pack";
+  if (cat.includes("erp") || cat.includes("accounting") || cat.includes("finance")) return "erp-pack";
+  return null;
 }
 
 function getProviderCategory(providerId: string): string {
@@ -304,18 +311,23 @@ serve({
     }
 
     // ── CRM/ERP Slot API ──────────────────────────────────────────
-    if (pathname === "/api/data/crm-slots") {
+    if (pathname === "/api/data/crm-slots" || pathname === "/api/data/erp-slots") {
       const user = await getUserFromSession(req);
       if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
+      // Determine pack type from path or query param
+      let packType: "crm-pack" | "erp-pack" = pathname === "/api/data/erp-slots" ? "erp-pack" : "crm-pack";
+      const typeParam = url.searchParams.get("type");
+      if (typeParam === "erp") packType = "erp-pack";
+      else if (typeParam === "crm") packType = "crm-pack";
       // Owner always has unlimited slots
       if (user.email === "mathewortiz97@gmail.com") {
         return Response.json({ totalSlots: 999, usedSlots: 0, remainingSlots: 999, isOwner: true });
       }
       const purchases = readJSON(TENANT_PURCHASES_FILE);
       const userPurchases = purchases[user.email] || [];
-      const crmPacks = userPurchases.filter((p: any) => p.type === "crm-pack" && p.status === "active");
-      const totalSlots = crmPacks.reduce((sum: number, p: any) => sum + (p.slots || 0), 0);
-      const usedSlots = crmPacks.reduce((sum: number, p: any) => sum + (p.usedSlots || 0), 0);
+      const packs = userPurchases.filter((p: any) => p.type === packType && p.status === "active");
+      const totalSlots = packs.reduce((sum: number, p: any) => sum + (p.slots || 0), 0);
+      const usedSlots = packs.reduce((sum: number, p: any) => sum + (p.usedSlots || 0), 0);
       const remainingSlots = Math.max(0, totalSlots - usedSlots);
       return Response.json({ totalSlots, usedSlots, remainingSlots, isOwner: false });
     }
@@ -483,20 +495,26 @@ serve({
 
         // CRM/ERP slot check — only for non-owner users connecting CRM/ERP/Accounting providers
         if (user.email !== "mathewortiz97@gmail.com" && isCrmErpCategory(providerCategory)) {
+          const packType = getPackTypeForCategory(providerCategory);
+          if (!packType) {
+            return Response.json({
+              error: "Could not determine slot type for provider",
+            }, { status: 400 });
+          }
           const purchases = readJSON(TENANT_PURCHASES_FILE);
           const userPurchases = purchases[user.email] || [];
-          const crmPack = userPurchases.find((p: any) => p.type === "crm-pack" && p.status === "active");
-          if (!crmPack) {
+          const pack = userPurchases.find((p: any) => p.type === packType && p.status === "active");
+          if (!pack) {
             return Response.json({
-              error: "CRM/ERP connections require a Connection Pack purchase",
+              error: `This provider requires a ${packType === "crm-pack" ? "CRM" : "ERP"} Connection Pack purchase`,
               requiresPurchase: true,
               upgradeUrl: "/portal/marketplace",
             }, { status: 402 });
           }
-          const remainingSlots = (crmPack.slots || 0) - (crmPack.usedSlots || 0);
+          const remainingSlots = (pack.slots || 0) - (pack.usedSlots || 0);
           if (remainingSlots <= 0) {
             return Response.json({
-              error: `No CRM/ERP connection slots remaining (${crmPack.slots || 0}/${crmPack.slots || 0} used). Purchase more slots.`,
+              error: `No ${packType === "crm-pack" ? "CRM" : "ERP"} connection slots remaining (${pack.slots || 0}/${pack.slots || 0} used). Purchase more slots.`,
               requiresPurchase: true,
               upgradeUrl: "/portal/marketplace",
             }, { status: 402 });
@@ -512,8 +530,9 @@ serve({
 
         // Consume a CRM/ERP slot if applicable (non-owner)
         if (user.email !== "mathewortiz97@gmail.com" && isCrmErpCategory(providerCategory)) {
-          if (!consumeCrmErpSlot(user.email)) {
-            return Response.json({ error: "Failed to reserve CRM/ERP slot. Please try again." }, { status: 500 });
+          const packType = getPackTypeForCategory(providerCategory);
+          if (packType && !consumeCrmErpSlot(user.email, packType)) {
+            return Response.json({ error: "Failed to reserve slot. Please try again." }, { status: 500 });
           }
         }
 
@@ -561,7 +580,8 @@ serve({
         if (conn && user.email !== "mathewortiz97@gmail.com") {
           const connCategory = conn.category || getProviderCategory(conn.providerId || "") || "";
           if (isCrmErpCategory(connCategory)) {
-            freeCrmErpSlot(user.email);
+            const packType = getPackTypeForCategory(connCategory);
+            if (packType) freeCrmErpSlot(user.email, packType);
           }
         }
         all[user.email] = userConns.filter((c: any) => c.id !== body.connectionId && c.providerId !== body.providerId);
@@ -664,7 +684,8 @@ serve({
           if (conn && user.email !== "mathewortiz97@gmail.com") {
             const connCategory = conn.category || getProviderCategory(conn.providerId || "") || "";
             if (isCrmErpCategory(connCategory)) {
-              freeCrmErpSlot(user.email);
+              const packType = getPackTypeForCategory(connCategory);
+              if (packType) freeCrmErpSlot(user.email, packType);
             }
           }
           all[user.email] = userConns.filter((c: any) => c.id !== connectionId && c.providerId !== connectionId);
@@ -1026,28 +1047,52 @@ serve({
           const paymentLink = session.payment_link || "";
           const amountTotal = session.amount_total || 0;
 
-          // Check for CRM/ERP Connection Pack purchase
-          const CRM_PACK_PAYMENT_LINK = "https://buy.stripe.com/test_crm_erp_pack_3slots";
-          const isCrmPack = paymentLink.includes("crm_erp_pack") || paymentLink.includes("crm-pack") ||
+          // Check for CRM or ERP Connection Pack purchase
+          const CRM_PACK_PAYMENT_LINK = "https://buy.stripe.com/test_crm_pack_5slots";
+          const ERP_PACK_PAYMENT_LINK = "https://buy.stripe.com/test_erp_pack_5slots";
+          const isCrmPack = paymentLink.includes("crm_pack") || paymentLink.includes("crm-pack") ||
                             (session.metadata?.productType === "crm-pack");
+          const isErpPack = paymentLink.includes("erp_pack") || paymentLink.includes("erp-pack") ||
+                            (session.metadata?.productType === "erp-pack") ||
+                            // Legacy combined pack detection
+                            paymentLink.includes("crm_erp_pack");
 
-          if (isCrmPack && customerEmail) {
+          if ((isCrmPack || isErpPack) && customerEmail) {
             const purchases = readJSON(TENANT_PURCHASES_FILE);
             const userPurchases = purchases[customerEmail] || [];
-            userPurchases.push({
-              id: "purchase-" + Math.random().toString(36).substr(2, 9),
-              type: "crm-pack",
-              productName: "CRM/ERP Connection Pack",
-              slots: 3,
-              usedSlots: 0,
-              amount: amountTotal,
-              stripeSessionId: session.id || "unknown",
-              status: "active",
-              purchasedAt: new Date().toISOString(),
-            });
+
+            if (isCrmPack) {
+              userPurchases.push({
+                id: "purchase-" + Math.random().toString(36).substr(2, 9),
+                type: "crm-pack",
+                productName: "CRM Connection Pack",
+                slots: 5,
+                usedSlots: 0,
+                amount: amountTotal,
+                stripeSessionId: session.id || "unknown",
+                status: "active",
+                purchasedAt: new Date().toISOString(),
+              });
+              console.log(`[webhook] Provisioned CRM Connection Pack (5 slots) for ${customerEmail}`);
+            }
+
+            if (isErpPack) {
+              userPurchases.push({
+                id: "purchase-" + Math.random().toString(36).substr(2, 9),
+                type: "erp-pack",
+                productName: "ERP Connection Pack",
+                slots: 5,
+                usedSlots: 0,
+                amount: amountTotal,
+                stripeSessionId: session.id || "unknown",
+                status: "active",
+                purchasedAt: new Date().toISOString(),
+              });
+              console.log(`[webhook] Provisioned ERP Connection Pack (5 slots) for ${customerEmail}`);
+            }
+
             purchases[customerEmail] = userPurchases;
             writeJSON(TENANT_PURCHASES_FILE, purchases);
-            console.log(`[webhook] Provisioned CRM/ERP Connection Pack (3 slots) for ${customerEmail}`);
             return Response.json({ received: true });
           }
 
@@ -1207,10 +1252,12 @@ serve({
       if (user && user.email !== "mathewortiz97@gmail.com") {
         const purchases = readJSON(TENANT_PURCHASES_FILE);
         const userPurchases = purchases[user.email] || [];
+        // Per-portal pack type check: CRM portal needs crm-pack, ERP portal needs erp-pack
+        const requiredPackType = pathname === "/portal/crm" ? "crm-pack" : "erp-pack";
         const crmErpAgents = ["crm-sync-agent","email-assistant","lead-scoring-agent","customer-onboarding","sales-follow-up",
           "support-triage-agent","support-ticket-router","invoice-processor","po-management","payroll-reconciliation"];
         const hasCrmErpPurchase = userPurchases.some((p: any) => {
-          if (p.type === "crm-pack") return true; // CRM/ERP Connection Pack grants access
+          if (p.type === requiredPackType) return true; // CRM or ERP Connection Pack grants access
           if (p.agents) return p.agents.some((a: any) => crmErpAgents.includes(a));
           if (p.agentId) return crmErpAgents.includes(p.agentId);
           if (p.type === "builder" || p.package) return true; // builder packages include CRM/ERP
@@ -1219,7 +1266,7 @@ serve({
         if (!hasCrmErpPurchase) {
           return Response.json({
             error: "Purchase required",
-            message: "CRM & ERP integrations require an active AI employee or builder package purchase.",
+            message: `${pathname === "/portal/crm" ? "CRM" : "ERP"} integrations require an active AI employee, builder package, or Connection Pack purchase.`,
             cta: "/portal/marketplace",
           }, { status: 402 });
         }
