@@ -1,11 +1,11 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
-import { readFile } from 'node:fs/promises';
 import { getUser } from '~/db/queries';
 
 const getPageData = createServerFn({ method: 'GET' }).handler(async () => {
   let businessName = 'Simpler Life 100';
   try {
+    const { readFile } = await import('node:fs/promises');
     const cfg = JSON.parse(await readFile('site.json', 'utf8')) as {
       businessName?: string;
     };
