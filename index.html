@@ -16,6 +16,31 @@
 </head>
 <body>
   <div id="root"></div>
+  <script>
+    window.__errors = [];
+    window.__logs = [];
+    function showError(msg) {
+      window.__errors.push(msg);
+      var el = document.getElementById('root');
+      if(el) el.innerHTML = '<pre style="color:red;padding:20px;font-size:14px;background:#111;white-space:pre-wrap">'+msg+'</pre>';
+    }
+    window.onerror = function(m,s,l,c,e) {
+      showError('ERROR: '+m+' @ '+s+':'+l+'\n'+((e&&e.stack)||''));
+    };
+    window.addEventListener('error', function(ev) {
+      if(ev.target !== window) {
+        showError('RESOURCE ERROR: '+ev.target.src||ev.target.href||'unknown');
+      }
+    }, true);
+    window.addEventListener('unhandledrejection', function(ev) {
+      showError('PROMISE REJECTION: '+String(ev.reason)+'\n'+(ev.reason&&ev.reason.stack||''));
+    });
+    // Monitor root for changes
+    new MutationObserver(function(muts) {
+      window.__logs.push('Root mutated: ' + document.getElementById('root').innerHTML.substring(0,100));
+    }).observe(document.getElementById('root'), {childList:true, subtree:true});
+    console.log('Error handler installed');
+  </script>
   <script type="module" src="/src/main.tsx"></script>
 </body>
 </html>
