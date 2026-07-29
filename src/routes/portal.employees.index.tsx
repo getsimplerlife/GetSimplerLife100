@@ -1,37 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { createServerFn } from "@tanstack/react-start";
 import { useState, useEffect } from "react";
 
-// SSR preload: fetch employee catalog server-side
-const getEmployeesData = createServerFn({ method: "GET" }).handler(async () => {
-  const { getCookie, getEvent } = await import("vinxi/http");
-  const event = getEvent();
-  const sessionCookie = getCookie(event, "session") || "";
-  const cookieHeader = sessionCookie ? `session=${sessionCookie}` : "";
-  const API_BASE = `http://localhost:${process.env.PORT || 3000}`;
-  
-  try {
-    const res = await fetch(`${API_BASE}/api/data/employees`, {
-      headers: cookieHeader ? { cookie: cookieHeader } : {},
-    });
-    if (res.ok) {
-      const d = await res.json();
-      return { employees: d.data || [] };
-    }
-  } catch {}
-  return { employees: [] };
-});
-
 export const Route = createFileRoute("/portal/employees/")({
-  loader: () => getEmployeesData(),
   component: AIEmployeesWorkspaceHub,
 });
 
 function AIEmployeesWorkspaceHub() {
-  const ssrData = Route.useLoaderData() as any;
-
-  const [employees, setEmployees] = useState<any[]>(ssrData?.employees || []);
-  const [loading, setLoading] = useState(!ssrData?.employees?.length);
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [feedback, setFeedback] = useState("");
@@ -69,29 +45,7 @@ function AIEmployeesWorkspaceHub() {
   };
 
   useEffect(() => {
-    // Fire status fetches for SSR-loaded employees immediately
-    const emps = ssrData?.employees || employees;
-    if (emps.length > 0) {
-      const statusPromises = emps
-        .map((emp: any) => emp.id || emp._id)
-        .filter(Boolean)
-        .map((agentId: string) =>
-          fetch(`/api/agents/${agentId}/status`, { credentials: "include" })
-            .then(r => r.json())
-            .then(s => ({ agentId, s }))
-            .catch(() => null)
-        );
-      Promise.all(statusPromises).then(results => {
-        const statusMap: Record<string, any> = {};
-        for (const r of results) {
-          if (r) statusMap[r.agentId] = r.s;
-        }
-        setAgentStatuses(statusMap);
-      });
-      setLoading(false);
-    } else {
-      fetchEmployees();
-    }
+    fetchEmployees();
   }, []);
 
   const handleAgentAction = async (emp: any, action: "pause" | "resume" | "run") => {

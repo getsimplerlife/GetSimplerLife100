@@ -1,114 +1,21 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { createServerFn } from "@tanstack/react-start";
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { integrations } from "../content/integrations";
 import { getAuthMethod, AGENT_TYPES } from "../content/integration-auth-map";
-import { db } from "../db/index";
-import { integrations as integrationsTable } from "../db/schema";
-import { eq, and } from "drizzle-orm";
-import { getUser } from "../db/queries";
+
+// Data loaded client-side via fetch() — server functions removed because
+// they crash SSR with "globalThis.app.config" (vinxi/http context unavailable).
 
 export const Route = createFileRoute("/portal/customers/")({
   component: CRMERPConnectorPage,
 });
 
 // ── Types ──────────────────────────────────────────────────────────
-interface ConnectionRow {
-  id: string; provider: string; displayName: string;
-  status: string; config: string; healthAt: string | null; errorMsg: string | null;
-  createdAt: string; updatedAt: string;
-}
-
 interface ConnConnection {
   id: string; provider: string; displayName: string;
   status: "active" | "expired" | "error" | "pending";
   assignedAgent: string | null; healthAt: string | null; errorMsg: string | null;
 }
-
-// ── Server Functions ───────────────────────────────────────────────
-const getCRMERPData = createServerFn({ method: "GET" }).handler(async () => {
-  const user = await getUser();
-  if (!user) return { connections: [] as ConnConnection[] };
-
-  const rows = await db.query.integrations.findMany({
-    where: eq(integrationsTable.userId, user.id),
-    orderBy: (integrationsTable, { desc }) => [desc(integrationsTable.updatedAt)],
-  });
-
-  const connections: ConnConnection[] = rows.map((r) => {
-    let cfg: Record<string, any> = {};
-    try { cfg = JSON.parse(r.config); } catch { /* */ }
-    return {
-      id: r.id, provider: r.provider, displayName: r.displayName,
-      status: r.status as ConnConnection["status"],
-      assignedAgent: cfg.assigned_agent ?? null,
-      healthAt: r.healthAt?.toISOString?.() ?? null,
-      errorMsg: r.errorMsg ?? null,
-    };
-  });
-
-  return { connections };
-});
-
-const connectCRMERP = createServerFn()
-  .validator((d: { provider: string; displayName: string; apiKey: string; subdomain?: string }) => d)
-  .handler(async ({ data }) => {
-    const user = await getUser(); if (!user) throw new Error("Unauthorized");
-    const id = crypto.randomUUID(); const now = new Date();
-    await db.insert(integrationsTable).values({
-      id, userId: user.id, provider: data.provider, displayName: data.displayName,
-      config: JSON.stringify({ apiKey: data.apiKey, subdomain: data.subdomain }),
-      status: "active", createdAt: now, updatedAt: now,
-    });
-    return { success: true, connectionId: id };
-  });
-
-const disconnectCRMERP = createServerFn()
-  .validator((connectionId: string) => connectionId)
-  .handler(async ({ data: cid }) => {
-    const user = await getUser(); if (!user) throw new Error("Unauthorized");
-    await db.delete(integrationsTable).where(and(eq(integrationsTable.id, cid), eq(integrationsTable.userId, user.id)));
-    return { success: true };
-  });
-
-const setAgentRouting = createServerFn()
-  .validator((d: { connectionId: string; agentType: string | null }) => d)
-  .handler(async ({ data }) => {
-    const user = await getUser(); if (!user) throw new Error("Unauthorized");
-    const row = await db.query.integrations.findFirst({
-      where: and(eq(integrationsTable.id, data.connectionId), eq(integrationsTable.userId, user.id)),
-    });
-    if (!row) throw new Error("Connection not found");
-    let cfg: Record<string, any> = {};
-    try { cfg = JSON.parse(row.config); } catch { /* */ }
-    if (data.agentType === null) delete cfg.assigned_agent;
-    else cfg.assigned_agent = data.agentType;
-    await db.update(integrationsTable).set({ config: JSON.stringify(cfg), updatedAt: new Date() })
-      .where(and(eq(integrationsTable.id, data.connectionId), eq(integrationsTable.userId, user.id)));
-    return { success: true };
-  });
-
-const testConnection = createServerFn()
-  .validator((connectionId: string) => connectionId)
-  .handler(async ({ data: cid }) => {
-    const user = await getUser(); if (!user) throw new Error("Unauthorized");
-    const row = await db.query.integrations.findFirst({
-      where: and(eq(integrationsTable.id, cid), eq(integrationsTable.userId, user.id)),
-    });
-    if (!row) throw new Error("Connection not found");
-    let cfg: Record<string, any> = {};
-    try { cfg = JSON.parse(row.config); } catch { /* */ }
-    const hasCreds = !!(cfg.apiKey || cfg.accessToken);
-    const now = new Date();
-    if (hasCreds) {
-      await db.update(integrationsTable).set({ status: "active", healthAt: now, errorMsg: null, updatedAt: now })
-        .where(and(eq(integrationsTable.id, cid), eq(integrationsTable.userId, user.id)));
-      return { success: true, status: "active", healthAt: now.toISOString() };
-    }
-    await db.update(integrationsTable).set({ status: "error", healthAt: now, errorMsg: "No valid credentials", updatedAt: now })
-      .where(and(eq(integrationsTable.id, cid), eq(integrationsTable.userId, user.id)));
-    return { success: false, status: "error", healthAt: now.toISOString(), error: "No valid credentials" };
-  });
 
 // ── Constants ──────────────────────────────────────────────────────
 const CRM_ERP_CATEGORIES = ["CRM", "ERP"];
