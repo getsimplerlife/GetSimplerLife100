@@ -40,6 +40,20 @@
       window.__logs.push('Root mutated: ' + document.getElementById('root').innerHTML.substring(0,100));
     }).observe(document.getElementById('root'), {childList:true, subtree:true});
     console.log('Error handler installed');
+    // SW update handling: reload page when new SW takes over
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', function(ev) {
+        if (ev.data && ev.data.type === 'SW_UPDATED') {
+          console.log('SW updated to v' + ev.data.version + ' — reloading for fresh content');
+          window.location.reload();
+        }
+      });
+      // Also listen for controllerchange (fires when new SW claims this page)
+      navigator.serviceWorker.addEventListener('controllerchange', function() {
+        console.log('SW controller changed — reloading');
+        window.location.reload();
+      });
+    }
   </script>
   <script type="module" src="/src/main.tsx"></script>
 </body>
