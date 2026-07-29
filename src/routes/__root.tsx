@@ -8,8 +8,6 @@ import {
 import { useEffect } from "react";
 import type { ReactNode } from "react";
 
-import appCss from "~/styles/app.css?url";
-
 // Page-specific titles (path prefix → title)
 const PAGE_TITLES: Record<string, { title: string; description: string }> = {
   "/about": { title: "About Simpler Life 100 | Our Mission", description: "We build AI operations teams to liberate people from repetitive manual work." },
