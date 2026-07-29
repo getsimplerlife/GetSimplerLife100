@@ -53,7 +53,7 @@ function ERPPortal() {
       const [providersRes, connsRes, slotsRes] = await Promise.all([
         fetch("/api/integrations/providers"),
         fetch("/api/integrations"),
-        fetch("/api/data/crm-slots"),
+        fetch("/api/data/erp-slots"),
       ]);
 
       const provsData = await providersRes.json();
@@ -115,7 +115,7 @@ function ERPPortal() {
 
       if (res.ok) {
         setConnections(prev => [...prev, data.connection]);
-        const slotsRes = await fetch("/api/data/crm-slots");
+        const slotsRes = await fetch("/api/data/erp-slots");
         setSlots(await slotsRes.json());
       } else if (res.status === 402) {
         alert(data.error || "Purchase required. Visit the marketplace to buy ERP connection slots.");
@@ -141,7 +141,7 @@ function ERPPortal() {
       });
       if (res.ok) {
         setConnections(prev => prev.filter(c => c.id !== connectionId));
-        const slotsRes = await fetch("/api/data/crm-slots");
+        const slotsRes = await fetch("/api/data/erp-slots");
         setSlots(await slotsRes.json());
       } else {
         const data = await res.json();
