@@ -8,7 +8,7 @@ import {
 import { useEffect } from "react";
 import type { ReactNode } from "react";
 
-import appCss from "~/styles/app.css?url";
+import "~/styles/app.css";
 
 // Page-specific titles (path prefix → title)
 const PAGE_TITLES: Record<string, { title: string; description: string }> = {
