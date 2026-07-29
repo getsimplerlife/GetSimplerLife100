@@ -38,10 +38,28 @@ interface MarketplaceItem {
 
 function MarketplaceHub() {
   const [activeTab, setActiveTab] = useState<"catalog" | "history">("catalog");
-  const [items, setItems] = useState<MarketplaceItem[]>([]);
+
+  // Pre-map AGENTS to MarketplaceItem format for SSR rendering
+  const initialItems: MarketplaceItem[] = AGENTS.map((a: any) => ({
+    id: a.id,
+    name: a.name,
+    description: a.description,
+    category: a.category || "Operations",
+    price: a.price ? `${a.price}` : "$499",
+    installed: false,
+    deployedCount: 0,
+    rating: 4.5,
+    runsMonth: "24/7",
+    icon: a.agentType === "Document AI" ? "📄" : a.agentType === "Integration AI" ? "🔗" : "🤖",
+    paymentLink: a.paymentLink || a.stripePaymentLink,
+    agentType: a.agentType,
+    chainsWith: a.agentType ? getAgentChainPartners(a.agentType) : [],
+  }));
+
+  const [items, setItems] = useState<MarketplaceItem[]>(initialItems); // preloaded for SSR
   const [employees, setEmployees] = useState<any[]>(AGENTS); // preloaded for SSR
   const [invoices, setInvoices] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false); // employees render immediately
+  const [loading, setLoading] = useState(false); // items render immediately
   const [feedback, setFeedback] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [activeCategory, setActiveCategory] = useState<string>("all");
