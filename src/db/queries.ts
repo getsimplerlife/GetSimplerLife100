@@ -1,4 +1,4 @@
-import { createServerFn } from "@tanstack/react-start";
+import { createServerFn } from '~/lib/server-fn-polyfill';
 import { db } from "./index";
 import { users, audits } from "./schema";
 import { eq, and } from "drizzle-orm";

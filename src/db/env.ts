@@ -1,4 +1,4 @@
-import { createServerFn } from "@tanstack/react-start";
+import { createServerFn } from '~/lib/server-fn-polyfill';
 
 export const getCreds = createServerFn()
   .handler(async () => {

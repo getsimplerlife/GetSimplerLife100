@@ -300,6 +300,38 @@ function ActivityHubDashboard() {
         </div>
       )}
 
+      {/* ── Weekly Agent Performance Reports ─────────────────── */}
+      {!isNewUser && activeEmployees.length > 0 && (
+        <div className="bg-stone-950 border border-stone-900 rounded-2xl p-6 space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-sm font-black text-white">📊 Weekly Agent Performance</h2>
+            <span className="text-[10px] font-mono text-stone-500">Last 7 days</span>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="bg-stone-900/60 border border-stone-800 rounded-xl p-4 text-center">
+              <div className="text-2xl font-black text-emerald-400">{activeEmployees.length}</div>
+              <div className="text-[10px] font-mono text-stone-500 mt-1">Active Agents</div>
+            </div>
+            <div className="bg-stone-900/60 border border-stone-800 rounded-xl p-4 text-center">
+              <div className="text-2xl font-black text-blue-400">{filteredTasks.filter((t: any) => t.status === 'Completed').length}</div>
+              <div className="text-[10px] font-mono text-stone-500 mt-1">Tasks Completed</div>
+            </div>
+            <div className="bg-stone-900/60 border border-stone-800 rounded-xl p-4 text-center">
+              <div className="text-2xl font-black text-rose-400">{errorEmployees.length}</div>
+              <div className="text-[10px] font-mono text-stone-500 mt-1">Alerts</div>
+            </div>
+            <div className="bg-stone-900/60 border border-stone-800 rounded-xl p-4 text-center">
+              <div className="text-2xl font-black text-purple-400">{hoursSaved}</div>
+              <div className="text-[10px] font-mono text-stone-500 mt-1">Hours Saved</div>
+            </div>
+            <div className="bg-stone-900/60 border border-stone-800 rounded-xl p-4 text-center">
+              <div className="text-2xl font-black text-amber-400">{Math.round(totalFilteredTasks * 0.15 * 45)}</div>
+              <div className="text-[10px] font-mono text-stone-500 mt-1">Est. ROI ($)</div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Main Grid ───────────────────────────────────────────── */}
       {!isNewUser && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -370,9 +402,25 @@ function ActivityHubDashboard() {
                           <span className="text-stone-400 text-[11px] truncate">{task.result}</span>
                         </div>
                       </div>
-                      <span className="text-stone-600 shrink-0 text-[10px] font-mono">
-                        {task.timestamp ? new Date(task.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"}
-                      </span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {task.status !== 'Completed' && (
+                          <button
+                            onClick={async (e) => {
+                              e.preventDefault();
+                              try {
+                                await fetch('/api/data/tasks', { method: 'POST', headers: {'Content-Type':'application/json'}, credentials: 'include', body: JSON.stringify({ action: 'complete', resource: task.id || task._id }) });
+                                fetchDashboardData();
+                              } catch {}
+                            }}
+                            className="text-[9px] font-bold text-emerald-400 hover:text-emerald-300 bg-emerald-950/20 border border-emerald-900/40 px-2 py-1 rounded-lg"
+                          >
+                            ✓ Complete
+                          </button>
+                        )}
+                        <span className="text-stone-600 text-[10px] font-mono">
+                          {task.timestamp ? new Date(task.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"}
+                        </span>
+                      </div>
                     </div>
                   ))
                 )}

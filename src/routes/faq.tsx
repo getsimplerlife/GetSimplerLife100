@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { createServerFn } from '@tanstack/react-start';
+import { createServerFn } from '~/lib/server-fn-polyfill';
 import { Header } from "~/components/Header";
 import { Footer } from "~/components/Footer";
 import { getUser } from '~/db/queries';

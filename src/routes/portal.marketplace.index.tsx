@@ -120,7 +120,26 @@ function MarketplaceHub() {
         };
       });
 
-      setItems(mapped);
+      // Prepend CRM/ERP Connection Pack to marketplace items
+      const crmErpPack: MarketplaceItem = {
+        id: "crm-erp-connection-pack",
+        name: "CRM/ERP Connection Pack",
+        description: "Unlock 3 connection slots for CRM and ERP platforms. Connect Salesforce, HubSpot, NetSuite, QuickBooks, SAP, and more. Each slot supports one provider connection.",
+        category: "Operations",
+        price: "$1,500",
+        installed: false,
+        deployedCount: 0,
+        rating: 4.9,
+        runsMonth: "unlimited",
+        icon: "🔗",
+        paymentLink: "https://buy.stripe.com/test_crm_erp_pack_3slots",
+        setupRequirements: null,
+        badges: ["3 CRM/ERP Slots", "Works Out of Box", "Slack Integration"],
+        chainsWith: ["CRM Sync Agent", "Email Assistant", "Invoice Processor"],
+        agentType: "crm-pack",
+      };
+
+      setItems([crmErpPack, ...mapped]);
       setLoading(false);
     } catch (err) {
       console.error("Marketplace fetch error:", err);

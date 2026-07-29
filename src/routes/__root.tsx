@@ -41,34 +41,6 @@ function resolvePageMeta(pathname: string) {
 }
 
 export const Route = createRootRoute({
-  head: ({ matches }: { matches?: any[] }) => {
-    let pageMeta = null;
-    if (matches && matches.length > 0) {
-      const lastMatch = matches[matches.length - 1];
-      const pathname = lastMatch?.pathname || "";
-      if (pathname) pageMeta = resolvePageMeta(pathname);
-    }
-
-    return {
-      meta: [
-        { charSet: "utf-8" },
-        { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" },
-        { title: pageMeta?.title || "Simpler Life 100 | AI Operations Teams" },
-        { name: "description", content: pageMeta?.description || "Replace hours of manual work with AI coworkers that integrate into your existing tools. Real results, no complexity." },
-        { name: "theme-color", content: "#000000" },
-        { name: "apple-mobile-web-app-capable", content: "yes" },
-        { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
-        { name: "apple-mobile-web-app-title", content: "Simpler Life" }
-      ],
-      links: [
-        { rel: "stylesheet", href: appCss },
-        { rel: "dns-prefetch", href: "https://js.stripe.com" },
-        { rel: "preconnect", href: "https://js.stripe.com" },
-        { rel: "manifest", href: "/manifest.json" },
-        { rel: "apple-touch-icon", href: "/icon-192.png" }
-      ],
-    };
-  },
   notFoundComponent: () => <div>Page not found</div>,
   component: RootComponent,
 });
@@ -81,6 +53,20 @@ function usePageMeta() {
 
 function RootComponent() {
   const pageMeta = usePageMeta();
+
+  // Set document title client-side (CSR mode — no SSR head export)
+  useEffect(() => {
+    document.title = pageMeta?.title || "Simpler Life 100 | AI Operations Teams";
+    // Update meta description
+    const desc = pageMeta?.description || "Replace hours of manual work with AI coworkers that integrate into your existing tools. Real results, no complexity.";
+    let metaDesc = document.querySelector('meta[name="description"]');
+    if (!metaDesc) {
+      metaDesc = document.createElement("meta");
+      metaDesc.setAttribute("name", "description");
+      document.head.appendChild(metaDesc);
+    }
+    metaDesc.setAttribute("content", desc);
+  }, [pageMeta]);
 
   useEffect(() => {
     if (typeof window !== "undefined" && "serviceWorker" in navigator) {
@@ -123,21 +109,14 @@ function RootComponent() {
 }
 
 function RootDocument({ children, pageMeta }: { children: ReactNode; pageMeta: { title: string; description: string } | null }) {
+  // In CSR mode, we render into a <div id="root"> inside the HTML shell.
+  // We do NOT render <html>/<head>/<body> — those are in the static index.html.
+  // TanStack Router handles <head> mgmt via HeadContent.
   return (
-    <html lang="en" className="dark">
-      <head>
-        <HeadContent />
-        {pageMeta && (
-          <>
-            <title>{pageMeta.title}</title>
-            <meta name="description" content={pageMeta.description} />
-          </>
-        )}
-      </head>
-      <body>
-        {children}
-        <Scripts />
-      </body>
-    </html>
+    <>
+      <HeadContent />
+      <Scripts />
+      {children}
+    </>
   );
 }

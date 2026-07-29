@@ -5,7 +5,7 @@ import { compare } from "bcryptjs";
 import { createHash, randomBytes } from "crypto";
 
 const BUILD_ID = Date.now().toString(36);
-const DIST_CLIENT = "/home/team/shared/site/dist/client";
+const DIST_CLIENT = "/home/team/shared/site/dist";
 const DATA_DIR = "/home/team/shared/site/.data";
 const USERS_FILE = join(DATA_DIR, "users.json");
 const SESSIONS_FILE = join(DATA_DIR, "sessions.json");
@@ -154,6 +154,51 @@ async function testProviderConnection(providerId: string, providerName: string, 
   }
 }
 
+// CRM/ERP/Accounting category detection — these categories require slot purchases
+const CRM_ERP_CATEGORIES = ["CRM", "ERP", "Accounting"];
+
+function isCrmErpCategory(category: string): boolean {
+  const cat = (category || "").toLowerCase();
+  return CRM_ERP_CATEGORIES.some(c => cat.includes(c.toLowerCase()));
+}
+
+function consumeCrmErpSlot(email: string): boolean {
+  const purchases = readJSON(TENANT_PURCHASES_FILE);
+  const userPurchases = purchases[email] || [];
+  const crmPack = userPurchases.find((p: any) => p.type === "crm-pack" && p.status === "active");
+  if (!crmPack) return false;
+  const usedSlots = crmPack.usedSlots || 0;
+  const totalSlots = crmPack.slots || 0;
+  if (usedSlots >= totalSlots) return false;
+  crmPack.usedSlots = usedSlots + 1;
+  purchases[email] = userPurchases;
+  writeJSON(TENANT_PURCHASES_FILE, purchases);
+  return true;
+}
+
+function freeCrmErpSlot(email: string): void {
+  const purchases = readJSON(TENANT_PURCHASES_FILE);
+  const userPurchases = purchases[email] || [];
+  const crmPack = userPurchases.find((p: any) => p.type === "crm-pack" && p.status === "active");
+  if (crmPack && (crmPack.usedSlots || 0) > 0) {
+    crmPack.usedSlots = Math.max(0, (crmPack.usedSlots || 0) - 1);
+    purchases[email] = userPurchases;
+    writeJSON(TENANT_PURCHASES_FILE, purchases);
+  }
+}
+
+function getProviderCategory(providerId: string): string {
+  // Quick lookup for known CRM/ERP/Accounting providers
+  const id = providerId.toLowerCase();
+  if (["salesforce","hubspot","zoho","pipedrive","copper","creatio","freshsales","insightly","nimble","close",
+       "caspio","salesmate","freshworks","agilecrm","nutshell","sugarcrm"].includes(id)) return "CRM";
+  if (["netsuite","sage","sap","infor","acumatica","dynamics-365","oracle","epicor","syspro","odoo","microsoft-dynamics",
+       "ifs","deltek","qad","ramco","unit4","ifs-applications"].includes(id)) return "ERP";
+  if (["quickbooks-online","quickbooks","quickbooks-desktop","xero","freshbooks","wave","sage-intacct","netsuite",
+       "blackline","floqast","bill.com"].includes(id)) return "Accounting";
+  return "";
+}
+
 serve({
   port: 3000,
   async fetch(req) {
@@ -258,6 +303,23 @@ serve({
       }
     }
 
+    // ── CRM/ERP Slot API ──────────────────────────────────────────
+    if (pathname === "/api/data/crm-slots") {
+      const user = await getUserFromSession(req);
+      if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
+      // Owner always has unlimited slots
+      if (user.email === "mathewortiz97@gmail.com") {
+        return Response.json({ totalSlots: 999, usedSlots: 0, remainingSlots: 999, isOwner: true });
+      }
+      const purchases = readJSON(TENANT_PURCHASES_FILE);
+      const userPurchases = purchases[user.email] || [];
+      const crmPacks = userPurchases.filter((p: any) => p.type === "crm-pack" && p.status === "active");
+      const totalSlots = crmPacks.reduce((sum: number, p: any) => sum + (p.slots || 0), 0);
+      const usedSlots = crmPacks.reduce((sum: number, p: any) => sum + (p.usedSlots || 0), 0);
+      const remainingSlots = Math.max(0, totalSlots - usedSlots);
+      return Response.json({ totalSlots, usedSlots, remainingSlots, isOwner: false });
+    }
+
     // ── Integration APIs ──────────────────────────────────────────
     if (pathname === "/api/integrations") {
       const user = await getUserFromSession(req);
@@ -354,9 +416,38 @@ serve({
         }
         if (search) filtered = filtered.filter((p: any) => p.name.toLowerCase().includes(search.toLowerCase()));
         if (category) filtered = filtered.filter((p: any) => p.category?.toLowerCase() === category.toLowerCase());
+
+        // Inject connection requirements for CRM/ERP/Accounting providers
+        const connectionRequirements: Record<string, any> = {
+          salesforce: { authType: "OAuth2", scopes: ["api", "refresh_token", "offline_access"], apiKeyType: "Connected App credentials", prerequisites: ["Salesforce admin account", "Connected App configured"] },
+          hubspot: { authType: "OAuth2", scopes: ["contacts", "content", "oauth"], apiKeyType: "Private App access token", prerequisites: ["HubSpot developer account"] },
+          zoho: { authType: "OAuth2", scopes: ["ZohoCRM.modules.ALL"], apiKeyType: "Self Client credentials", prerequisites: ["Zoho developer console account"] },
+          pipedrive: { authType: "OAuth2", scopes: ["deals:read", "contacts:read"], apiKeyType: "API token (Settings > Personal preferences > API)", prerequisites: ["Pipedrive admin account"] },
+          copper: { authType: "API Key", scopes: [], apiKeyType: "API key from Settings > Integrations > API Keys", prerequisites: ["Copper admin account"] },
+          creatio: { authType: "OAuth2", scopes: ["read", "write"], apiKeyType: "OAuth2 app credentials", prerequisites: ["Creatio system administrator account"] },
+          netsuite: { authType: "OAuth2", scopes: ["restlets", "rest_webservices"], apiKeyType: "SuiteApp client credentials", prerequisites: ["NetSuite administrator account", "SuiteApp enabled"] },
+          sage: { authType: "API Key", scopes: [], apiKeyType: "Sage ID API credentials", prerequisites: ["Sage Business Cloud subscription", "Developer account"] },
+          sap: { authType: "OAuth2", scopes: ["openid"], apiKeyType: "Cloud Platform service key", prerequisites: ["SAP Cloud Platform account", "S/4HANA or Business One instance"] },
+          "microsoft-dynamics": { authType: "OAuth2", scopes: ["user_impersonation"], apiKeyType: "Azure AD application registration", prerequisites: ["Azure AD admin account", "Dynamics 365 license"] },
+          acumatica: { authType: "OAuth2", scopes: ["api", "offline_access"], apiKeyType: "Client secret + client ID", prerequisites: ["Acumatica ERP instance", "System administrator access"] },
+          odoo: { authType: "API Key", scopes: [], apiKeyType: "API key from user profile", prerequisites: ["Odoo admin account", "API access enabled in settings"] },
+          "quickbooks-online": { authType: "OAuth2", scopes: ["com.intuit.quickbooks.accounting"], apiKeyType: "Intuit Developer app credentials", prerequisites: ["Intuit Developer account", "QuickBooks Online subscription"] },
+          "quickbooks": { authType: "OAuth2", scopes: ["com.intuit.quickbooks.accounting"], apiKeyType: "Intuit Developer app credentials", prerequisites: ["Intuit Developer account"] },
+          "quickbooks-desktop": { authType: "API Key", scopes: [], apiKeyType: "QBD Web Connector key", prerequisites: ["QuickBooks Desktop installed", "Web Connector configured"] },
+          xero: { authType: "OAuth2", scopes: ["accounting.transactions", "accounting.contacts", "offline_access"], apiKeyType: "Xero Developer app credentials", prerequisites: ["Xero partner account", "Xero organization"] },
+          freshbooks: { authType: "OAuth2", scopes: ["user:read"], apiKeyType: "FreshBooks app credentials", prerequisites: ["FreshBooks account", "Developer application"] },
+          wave: { authType: "OAuth2", scopes: ["read", "write"], apiKeyType: "Wave API token", prerequisites: ["Wave Business account"] },
+          "sage-intacct": { authType: "API Key", scopes: [], apiKeyType: "Web Services sender credentials", prerequisites: ["Sage Intacct admin account", "Web Services enabled"] },
+        };
+
         const total = filtered.length;
         const slice = filtered.slice(page * limit, (page + 1) * limit);
-        return Response.json({ data: slice, total, page, limit });
+        // Augment with connection requirements
+        const augmented = slice.map((p: any) => ({
+          ...p,
+          connectionRequirements: connectionRequirements[p.id] || null,
+        }));
+        return Response.json({ data: augmented, total, page, limit });
       } catch {
         return Response.json({ data: [], total: 0 });
       }
@@ -380,6 +471,7 @@ serve({
         // Accept flexible field names: providerId/provider, providerName/name, credentials.apiKey or flat apiKey
         const providerId = body.providerId || body.provider || "";
         const providerName = body.providerName || body.provider || body.name || providerId;
+        const providerCategory = body.category || getProviderCategory(providerId) || "";
         const creds = body.credentials || body;
         const apiKey = creds.apiKey || creds.api_key || creds.key || "";
         if (!apiKey || !apiKey.trim()) {
@@ -388,18 +480,50 @@ serve({
         if (apiKey.trim().length < 4) {
           return Response.json({ error: "Invalid API key — too short." }, { status: 400 });
         }
+
+        // CRM/ERP slot check — only for non-owner users connecting CRM/ERP/Accounting providers
+        if (user.email !== "mathewortiz97@gmail.com" && isCrmErpCategory(providerCategory)) {
+          const purchases = readJSON(TENANT_PURCHASES_FILE);
+          const userPurchases = purchases[user.email] || [];
+          const crmPack = userPurchases.find((p: any) => p.type === "crm-pack" && p.status === "active");
+          if (!crmPack) {
+            return Response.json({
+              error: "CRM/ERP connections require a Connection Pack purchase",
+              requiresPurchase: true,
+              upgradeUrl: "/portal/marketplace",
+            }, { status: 402 });
+          }
+          const remainingSlots = (crmPack.slots || 0) - (crmPack.usedSlots || 0);
+          if (remainingSlots <= 0) {
+            return Response.json({
+              error: `No CRM/ERP connection slots remaining (${crmPack.slots || 0}/${crmPack.slots || 0} used). Purchase more slots.`,
+              requiresPurchase: true,
+              upgradeUrl: "/portal/marketplace",
+            }, { status: 402 });
+          }
+        }
+
         const credentials = { apiKey: apiKey.trim() };
         // Test the connection before saving
         const testResult = await testProviderConnection(providerId, providerName, credentials);
         if (!testResult.success) {
           return Response.json({ error: testResult.error || "Connection test failed. Check your credentials." }, { status: 400 });
         }
+
+        // Consume a CRM/ERP slot if applicable (non-owner)
+        if (user.email !== "mathewortiz97@gmail.com" && isCrmErpCategory(providerCategory)) {
+          if (!consumeCrmErpSlot(user.email)) {
+            return Response.json({ error: "Failed to reserve CRM/ERP slot. Please try again." }, { status: 500 });
+          }
+        }
+
         const all = readJSON(TENANT_INTEGRATIONS_FILE);
         const userConns = all[user.email] || [];
         const entry = {
           id: "int-" + Math.random().toString(36).substr(2, 9),
           provider: providerName || providerId,
           providerId,
+          category: providerCategory || getProviderCategory(providerId),
           status: "Connected",
           connectedAt: new Date().toISOString(),
           lastSync: new Date().toISOString(),
@@ -431,6 +555,15 @@ serve({
         const body = await req.json();
         const all = readJSON(TENANT_INTEGRATIONS_FILE);
         const userConns = all[user.email] || [];
+        // Find the connection to check if it's CRM/ERP before removing
+        const conn = userConns.find((c: any) => c.id === body.connectionId || c.providerId === body.providerId);
+        // Free CRM/ERP slot if applicable (non-owner)
+        if (conn && user.email !== "mathewortiz97@gmail.com") {
+          const connCategory = conn.category || getProviderCategory(conn.providerId || "") || "";
+          if (isCrmErpCategory(connCategory)) {
+            freeCrmErpSlot(user.email);
+          }
+        }
         all[user.email] = userConns.filter((c: any) => c.id !== body.connectionId && c.providerId !== body.providerId);
         writeJSON(TENANT_INTEGRATIONS_FILE, all);
         return Response.json({ success: true });
@@ -526,6 +659,14 @@ serve({
         const all = readJSON(TENANT_INTEGRATIONS_FILE);
         const userConns = all[user.email] || [];
         if (req.method === "DELETE") {
+          // Free CRM/ERP slot before removing connection
+          const conn = userConns.find((c: any) => c.id === connectionId || c.providerId === connectionId);
+          if (conn && user.email !== "mathewortiz97@gmail.com") {
+            const connCategory = conn.category || getProviderCategory(conn.providerId || "") || "";
+            if (isCrmErpCategory(connCategory)) {
+              freeCrmErpSlot(user.email);
+            }
+          }
           all[user.email] = userConns.filter((c: any) => c.id !== connectionId && c.providerId !== connectionId);
           writeJSON(TENANT_INTEGRATIONS_FILE, all);
           return Response.json({ success: true });
@@ -884,6 +1025,32 @@ serve({
           const customerEmail = session.customer_details?.email || session.customer_email || "";
           const paymentLink = session.payment_link || "";
           const amountTotal = session.amount_total || 0;
+
+          // Check for CRM/ERP Connection Pack purchase
+          const CRM_PACK_PAYMENT_LINK = "https://buy.stripe.com/test_crm_erp_pack_3slots";
+          const isCrmPack = paymentLink.includes("crm_erp_pack") || paymentLink.includes("crm-pack") ||
+                            (session.metadata?.productType === "crm-pack");
+
+          if (isCrmPack && customerEmail) {
+            const purchases = readJSON(TENANT_PURCHASES_FILE);
+            const userPurchases = purchases[customerEmail] || [];
+            userPurchases.push({
+              id: "purchase-" + Math.random().toString(36).substr(2, 9),
+              type: "crm-pack",
+              productName: "CRM/ERP Connection Pack",
+              slots: 3,
+              usedSlots: 0,
+              amount: amountTotal,
+              stripeSessionId: session.id || "unknown",
+              status: "active",
+              purchasedAt: new Date().toISOString(),
+            });
+            purchases[customerEmail] = userPurchases;
+            writeJSON(TENANT_PURCHASES_FILE, purchases);
+            console.log(`[webhook] Provisioned CRM/ERP Connection Pack (3 slots) for ${customerEmail}`);
+            return Response.json({ received: true });
+          }
+
           // Match payment link to agent
           const employees = readJSON(AI_EMPLOYEES_FILE);
           const matchedAgent = employees.find((e: any) =>
@@ -1043,6 +1210,7 @@ serve({
         const crmErpAgents = ["crm-sync-agent","email-assistant","lead-scoring-agent","customer-onboarding","sales-follow-up",
           "support-triage-agent","support-ticket-router","invoice-processor","po-management","payroll-reconciliation"];
         const hasCrmErpPurchase = userPurchases.some((p: any) => {
+          if (p.type === "crm-pack") return true; // CRM/ERP Connection Pack grants access
           if (p.agents) return p.agents.some((a: any) => crmErpAgents.includes(a));
           if (p.agentId) return crmErpAgents.includes(p.agentId);
           if (p.type === "builder" || p.package) return true; // builder packages include CRM/ERP
@@ -1058,87 +1226,23 @@ serve({
       }
     }
 
-      // Serve ESM shims directly — Nitro doesn't route root files
-      const SHIM_FILES = [
-        "react.js", "react-jsx-runtime.js",
-        "h3-v2.js", "node-async-hooks.js", "seroval.js", "seroval-plugins-web.js",
-        "libsql-client.js", "drizzle-orm.js", "drizzle-orm-libsql.js", "drizzle-orm-sqlite-core.js",
-      ];
-      if (SHIM_FILES.some(f => pathname === "/" + f)) {
-        const shimPath = join(DIST_CLIENT, pathname.slice(1));
-        if (existsSync(shimPath)) {
-          return new Response(readFileSync(shimPath, "utf-8"), {
-            headers: { "Content-Type": "application/javascript", "Cache-Control": "public, max-age=31536000, immutable" },
-          });
-        }
-      }
-
+      // SPA mode: serve index.html for all non-API, non-asset GET requests.
+      // The React router handles routing client-side.
       try {
-      const nitroRes = await fetch("http://localhost:3002" + pathname + url.search, {
-        method: req.method,
-        headers: req.headers,
-        body: req.method !== "GET" && req.method !== "HEAD" ? await req.text() : undefined,
-      });
-
-      // Add Cache-Control headers based on content type
-      // - HTML: no-store to prevent CDN from serving stale pages
-      // - Hashed assets: immutable long-term cache
-      const contentType = nitroRes.headers.get("content-type") || "";
-      const isHashedAsset = /-[A-Za-z0-9_]{8,}\.(js|css)$/.test(pathname);
-
-      let cacheControl: string;
-      if (contentType.includes("text/html")) {
-        cacheControl = "no-store, must-revalidate";
-      } else if (isHashedAsset) {
-        // Use no-cache to force CDN revalidation on every request.
-        // Hashed assets are still cached by the browser, but the CDN
-        // must check the origin each time. This prevents stale JS/CSS
-        // from being served indefinitely when a CDN ignores max-age.
-        cacheControl = "public, no-cache";
-      } else {
-        cacheControl = "no-store";
-      }
-
-      // Build new response with cache headers merged in
-      const headers = new Headers(nitroRes.headers);
-      headers.set("Cache-Control", cacheControl);
-      if (contentType.includes("text/html")) {
-        headers.set("ETag", `"${Date.now().toString(36)}"`);
-      }
-
-      // Inject import map for HTML responses so browsers can resolve
-      // bare "react/jsx-runtime" imports in SSR-built chunks.
-      // Also inject form attributes on /login for non-JS fallback.
-      // Also add cache-busting query params to asset URLs to bypass
-      // CDN caches that ignore Cache-Control headers.
-      let body = nitroRes.body;
-      if (contentType.includes("text/html") && body) {
-        let html = await new Response(body).text();
-        const importMap = '<script type="importmap">{"imports":{' +
-          '"react":"/react.js",' +
-          '"react/jsx-runtime":"/react-jsx-runtime.js",' +
-          '"h3-v2":"/h3-v2.js",' +
-          '"node:async_hooks":"/node-async-hooks.js",' +
-          '"seroval":"/seroval.js",' +
-          '"seroval-plugins/web":"/seroval-plugins-web.js",' +
-          '"@libsql/client":"/libsql-client.js",' +
-          '"drizzle-orm":"/drizzle-orm.js",' +
-          '"drizzle-orm/libsql":"/drizzle-orm-libsql.js",' +
-          '"drizzle-orm/sqlite-core":"/drizzle-orm-sqlite-core.js"' +
-          '}}</script>';
-        html = html.replace("<head>", "<head>" + importMap);
-        // Inject method/action on login form for no-JS fallback
-        if (pathname === "/login") {
-          html = html.replace('<form class="mt-8 space-y-5"', '<form class="mt-8 space-y-5" method="post" action="/login"');
+        const indexPath = join(DIST_CLIENT, "index.html");
+        if (!existsSync(indexPath)) {
+          return new Response("SPA not built — run `bun run build` first", { status: 503 });
         }
-        // Cache-bust all /assets/ URLs to force CDN revalidation
-        // Append ?_v=BUILD_ID to every script src and link href pointing to /assets/
+
+        let html = readFileSync(indexPath, "utf-8");
+
+        // Cache-bust asset URLs to force CDN revalidation on new deploys
         html = html.replace(
           /(src|href)="(\/assets\/[^"]+)"/g,
           `$1="$2?_v=${BUILD_ID}"`
         );
+
         // Inject portal user data so the client skips /api/me fetch
-        // and shows the dashboard immediately without "Initializing platform..."
         if (pathname.startsWith("/portal") && req) {
           try {
             const cookieHeader = req.headers.get("cookie") || "";
@@ -1153,29 +1257,23 @@ serve({
             }
           } catch {}
         }
-        // For portal pages, if the HTML body is complete (regardless of SSR
-        // route-level errors), return 200 so browsers/CDNs don't treat it as
-        // a real error. TanStack Start SSR may report route-level errors
-        // (e.g. "globalThis.app.config") that don't prevent the page from
-        // rendering correctly on the client.
-        const isPortalPage = pathname.startsWith("/portal");
-        const responseStatus = isPortalPage ? 200 : nitroRes.status;
+
+        // Inject method/action on login form for no-JS fallback
+        if (pathname === "/login") {
+          html = html.replace('<form class="mt-8 space-y-5"', '<form class="mt-8 space-y-5" method="post" action="/login"');
+        }
 
         return new Response(html, {
-          status: responseStatus,
-          statusText: responseStatus === 200 ? "OK" : nitroRes.statusText,
-          headers,
+          status: 200,
+          headers: {
+            "Content-Type": "text/html; charset=utf-8",
+            "Cache-Control": "no-store, must-revalidate",
+            "ETag": `"${Date.now().toString(36)}"`,
+          },
         });
-      }
-
-      return new Response(body, {
-        status: nitroRes.status,
-        statusText: nitroRes.statusText,
-        headers,
-      });
       } catch {
-      return new Response("Server error", { status: 500 });
+        return new Response("Server error", { status: 500 });
       }
   },
 });
-console.log("[prod-server] Port 3000 -> Nitro on 3002 | API: /api/login, /api/register, /api/logout, /api/me");
+console.log("[prod-server] Port 3000 — SPA mode: serving dist/index.html | API: /api/login, /api/register, /api/logout, /api/me");

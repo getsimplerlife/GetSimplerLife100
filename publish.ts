@@ -9,7 +9,7 @@ const MAX_POLLS = 50;
 const RUN_DIR = path.join(process.cwd(), ".run");
 const LOG_FILE = path.join(RUN_DIR, "server.log");
 const PUBLIC_DIR = path.join(process.cwd(), "public");
-const CLIENT_DIR = path.join(process.cwd(), "dist", "client");
+const CLIENT_DIR = path.join(process.cwd(), "dist");
 
 function log(message: string) {
   console.log(`[publish] ${message}`);
@@ -23,10 +23,8 @@ function error(message: string) {
 async function main() {
   log("Starting publication process...");
 
-  // Skip build — it hangs on SSR (sandbox memory constraint).
-  // dist/server/server.js is manually authored (hydration-compatible shell).
-  // dist/client/ holds the last successful client build (~795 modules in ~11s).
-  // Run "bun run build:client" manually if client source files change.
+  // CSR-only SPA (2026-07-29): SSR/Nitro removed. Vite builds to dist/ in ~7s.
+  // Run "bun run build" to rebuild client; publish.ts just starts the server.
 
   // Ensure dist/client exists with static files from public/
   if (!existsSync(CLIENT_DIR)) {

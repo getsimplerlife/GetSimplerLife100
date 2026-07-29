@@ -27,6 +27,8 @@ function WorkflowManager() {
   const [workflows, setWorkflows] = useState<Workflow[]>(WORKFLOW_TEMPLATES as any); // preloaded for SSR
   const [loading, setLoading] = useState(false); // workflow templates render immediately
   const [editingWorkflow, setEditingWorkflow] = useState<Workflow | null>(null);
+  const [purchasedAgents, setPurchasedAgents] = useState<any[]>([]);
+  const [selectedAgentId, setSelectedAgentId] = useState("");
 
   const fetchWorkflows = async () => {
     try {
@@ -44,6 +46,21 @@ function WorkflowManager() {
   useEffect(() => {
     fetchWorkflows();
   }, []);
+
+  const fetchPurchasedAgents = async () => {
+    try {
+      const res = await fetch("/api/purchases", { credentials: "include" });
+      const data = await res.json();
+      const purchases = data.data || [];
+      // Get agent IDs from purchases
+      const agentIds = purchases.map((p: any) => p.agentId || p.agentType).filter(Boolean);
+      // Fetch full agent details
+      const empRes = await fetch("/api/data/employees", { credentials: "include" });
+      const employees = (await empRes.json()).data || [];
+      const purchased = employees.filter((e: any) => agentIds.includes(e.id) || agentIds.includes(e.agentType));
+      setPurchasedAgents(purchased);
+    } catch { /* keep empty */ }
+  };
 
   const handleToggleStatus = async (wf: Workflow) => {
     try {
@@ -293,7 +310,7 @@ function WorkflowManager() {
 
                 <div className="grid grid-cols-4 gap-2">
                   <button
-                    onClick={() => setEditingWorkflow(wf)}
+                    onClick={() => { setEditingWorkflow(wf); fetchPurchasedAgents(); }}
                     className="bg-stone-900 hover:bg-stone-850 text-stone-300 text-[10px] font-mono font-bold py-1.5 rounded-lg border border-stone-800 transition-all cursor-pointer"
                   >
                     Edit
@@ -377,6 +394,31 @@ function WorkflowManager() {
                   <option value="Paused">Paused</option>
                   <option value="Draft">Draft</option>
                   <option value="Failed">Failed</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-mono tracking-wider uppercase text-stone-500 mb-2">
+                  Assigned AI Employee
+                </label>
+                <select
+                  value={selectedAgentId}
+                  onChange={(e) => {
+                    setSelectedAgentId(e.target.value);
+                    setEditingWorkflow({ ...editingWorkflow, assignedAgent: e.target.value });
+                  }}
+                  className="w-full bg-stone-900 border border-stone-850 rounded-xl px-4 py-3 text-xs outline-none focus:border-stone-700 font-bold text-stone-200"
+                >
+                  <option value="">Select AI employee...</option>
+                  {purchasedAgents.length === 0 ? (
+                    <option value="" disabled>No purchased agents — visit Marketplace</option>
+                  ) : (
+                    purchasedAgents.map((agent: any) => (
+                      <option key={agent.id} value={agent.id}>
+                        {agent.name} {agent.capabilities ? `(${agent.capabilities.slice(0, 3).join(', ')})` : ''}
+                      </option>
+                    ))
+                  )}
                 </select>
               </div>
 
