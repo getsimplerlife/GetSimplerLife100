@@ -12,7 +12,7 @@ export default defineConfig({
   build: {
     reportCompressedSize: false,
     rollupOptions: {
-      external: ['@libsql/client', 'drizzle-orm', 'drizzle-orm/libsql'],
+      external: ['@libsql/client', 'drizzle-orm/libsql'],
     },
   },
   resolve: {
