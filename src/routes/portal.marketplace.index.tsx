@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
+import { AGENTS } from "~/data/agents";
 import { AGENT_SETUP_REQUIREMENTS, getSetupBadge } from "~/agents/setupRequirements";
 import { getAgentChainPartners } from "~/agents/agentChains";
 
@@ -38,9 +39,9 @@ interface MarketplaceItem {
 function MarketplaceHub() {
   const [activeTab, setActiveTab] = useState<"catalog" | "history">("catalog");
   const [items, setItems] = useState<MarketplaceItem[]>([]);
-  const [employees, setEmployees] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<any[]>(AGENTS); // preloaded for SSR
   const [invoices, setInvoices] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // employees render immediately
   const [feedback, setFeedback] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [activeCategory, setActiveCategory] = useState<string>("all");

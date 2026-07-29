@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
+import { PROVIDERS } from "~/data/providers";
 
 export const Route = createFileRoute("/portal/erp/")({
   component: ERPPortal,
@@ -23,9 +24,9 @@ interface ConnectionItem {
 function ERPPortal() {
   const [search, setSearch] = useState("");
   const [connecting, setConnecting] = useState<string | null>(null);
-  const [providers, setProviders] = useState<ProviderItem[]>([]);
+  const [providers, setProviders] = useState<ProviderItem[]>(PROVIDERS as any); // preloaded for SSR
   const [connections, setConnections] = useState<ConnectionItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // providers render immediately
   const [error, setError] = useState<string | null>(null);
   const [purchaseGated, setPurchaseGated] = useState(false);
 
