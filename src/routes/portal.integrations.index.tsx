@@ -18,6 +18,12 @@ interface ProviderItem {
   authType: string;
   description: string;
   actions: ProviderAction[];
+  connectionRequirements?: {
+    authType: string;
+    scopes: string[];
+    apiKeyType: string;
+    prerequisites: string[];
+  } | null;
 }
 
 interface ConnectionItem {
@@ -145,6 +151,9 @@ const categoryLabels: Record<string, string> = {
   developer_tools: "Developer Tools",
   databases: "Databases",
 };
+
+// Excluded from general integrations — these are shown on CRM/ERP pages with slot gating
+const CRM_ERP_EXCLUDE = ["CRM", "ERP", "Accounting"];
 
 function ConnectedServices() {
   const [activeTab, setActiveTab] = useState<"connections" | "intake">("connections");
@@ -414,11 +423,14 @@ function ConnectedServices() {
       prov.description.toLowerCase().includes(searchQuery.toLowerCase());
     
     const matchesCategory = selectedCategory === "all" || prov.category === selectedCategory;
-    return matchesSearch && matchesCategory;
+    // Exclude CRM/ERP/Accounting — these have their own portal pages with slot gating
+    const isExcluded = CRM_ERP_EXCLUDE.some(c => (prov.category || "").toLowerCase().includes(c.toLowerCase()));
+    return matchesSearch && matchesCategory && !isExcluded;
   });
 
-  // Extract categories present in registered providers for the filter list
-  const uniqueCategories = Array.from(new Set(providers.map((p) => p.category)));
+  // Extract categories present in registered providers for the filter list (exclude CRM/ERP)
+  const uniqueCategories = Array.from(new Set(providers.map((p) => p.category)))
+    .filter(cat => !CRM_ERP_EXCLUDE.some(c => (cat || "").toLowerCase().includes(c.toLowerCase())));
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto text-stone-100 select-none pb-12">
@@ -662,6 +674,39 @@ function ConnectedServices() {
                             )}
                           </div>
                         </div>
+                      )}
+
+                      {/* Connection Requirements (collapsible) */}
+                      {prov.connectionRequirements && (
+                        <details className="group mt-2">
+                          <summary className="text-[8px] font-mono text-stone-500 hover:text-stone-300 cursor-pointer uppercase tracking-wider">
+                            Connection Requirements
+                          </summary>
+                          <div className="mt-2 bg-stone-900/40 border border-stone-900 rounded-lg p-2 space-y-1 text-[8px] font-mono">
+                            <div className="flex justify-between">
+                              <span className="text-stone-500">AUTH</span>
+                              <span className="text-stone-300 font-bold">{prov.connectionRequirements.authType}</span>
+                            </div>
+                            {prov.connectionRequirements.scopes?.length > 0 && (
+                              <div className="flex justify-between">
+                                <span className="text-stone-500">SCOPES</span>
+                                <span className="text-stone-400 text-right max-w-[60%] truncate">{prov.connectionRequirements.scopes.join(", ")}</span>
+                              </div>
+                            )}
+                            <div className="flex justify-between">
+                              <span className="text-stone-500">KEY TYPE</span>
+                              <span className="text-stone-400 text-right max-w-[60%] truncate">{prov.connectionRequirements.apiKeyType}</span>
+                            </div>
+                            {prov.connectionRequirements.prerequisites?.length > 0 && (
+                              <div>
+                                <span className="text-stone-500 block mb-0.5">REQUIRES</span>
+                                {prov.connectionRequirements.prerequisites.map((p, i) => (
+                                  <div key={i} className="text-stone-400">· {p}</div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </details>
                       )}
 
                     </div>

@@ -1,5 +1,5 @@
 import tailwindcss from "@tailwindcss/vite";
-import { tanstackStart } from "@tanstack/react-start/plugin/vite";
+import { tanstackRouterGenerator } from "@tanstack/router-plugin/vite";
 import viteReact from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import tsConfigPaths from "vite-tsconfig-paths";
@@ -13,42 +13,27 @@ export default defineConfig({
   resolve: {
     dedupe: ["react", "react-dom"],
     alias: {
-      // Fix bare "react/jsx-runtime" imports in dynamically-loaded chunks
-      // by resolving to the actual CJS file that Vite can pre-bundle
-      "react/jsx-runtime": "react/jsx-runtime",
-      "react/jsx-dev-runtime": "react/jsx-dev-runtime",
+      "vinxi/http": "/home/team/shared/site/src/lib/vinxi-stub.ts",
+      "node:async_hooks": "/home/team/shared/site/src/lib/vinxi-stub.ts",
     },
   },
-  ssr: {
-    // Force these packages to be bundled in client builds instead of
-    // being externalized. When externalized, chunks import from "react"
-    // and "react/jsx-runtime" as bare specifiers, which the importmap
-    // resolves to our /react.js shim. The shim has a SEPARATE copy of
-    // ReactSharedInternals from the bundled ReactDOM — H stays null
-    // and hooks crash with "Cannot read properties of null (reading 'useState')".
-    noExternal: [
-      "react",
-      "react-dom",
-      "react/jsx-runtime",
-      "@tanstack/react-router",
-      "@tanstack/history",
-      "@tanstack/router-core",
-      "@tanstack/react-router/ssr/server",
-      "@tanstack/router-core/ssr/client",
-      "@tanstack/router-core/ssr/server",
-      /^h3/,
-      "@libsql/client",
-      "drizzle-orm",
-      "drizzle-orm/libsql",
-      "drizzle-orm/sqlite-core",
-    ],
+  build: {
+    rollupOptions: {
+      // Externalize server-only deps to prevent them from being
+      // bundled into the client JS. The client never actually
+      // calls these (createServerFn is polyfilled to a no-op).
+      external: [
+        "@libsql/client",
+        "drizzle-orm/libsql",
+      ],
+    },
   },
   plugins: [
     tailwindcss(),
     tsConfigPaths({
       projects: ["./tsconfig.json"],
     }),
-    tanstackStart(),
+    tanstackRouterGenerator(),
     viteReact(),
   ],
 });
