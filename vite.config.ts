@@ -37,6 +37,10 @@ export default defineConfig({
       "@tanstack/router-core/ssr/client",
       "@tanstack/router-core/ssr/server",
       /^h3/,
+      "@libsql/client",
+      "drizzle-orm",
+      "drizzle-orm/libsql",
+      "drizzle-orm/sqlite-core",
     ],
   },
   plugins: [
