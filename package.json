@@ -8,7 +8,7 @@
     "prebuild": "rm -rf .tanstack .vinxi node_modules/.vite dist",
     "build": "NITRO_PRESET=bun vite build",
     "postbuild": "bash fix-hashes.sh && bash scripts/inject-globals.sh && bash verify-build.sh",
-    "start": "sudo kill $(lsof -ti:3002) 2>/dev/null; sleep 1; PORT=3002 bun dist/server/server.js & sleep 3 && bun run prod-server.ts",
+    "start": "sudo kill $(lsof -ti:3002) $(lsof -ti:3000) 2>/dev/null; sleep 1; PORT=3002 bun dist/server/server.js & sleep 3 && bun run prod-server.ts",
     "publish": "bun run publish.ts",
     "format": "prettier --write .",
     "lint": "eslint .",
