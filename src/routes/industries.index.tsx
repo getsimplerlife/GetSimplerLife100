@@ -2,6 +2,7 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 import { readFile } from 'node:fs/promises';
 import { Header } from '~/components/Header';
+import { Footer } from '~/components/Footer';
 import { industries } from '~/content/industries';
 import { getUser } from '~/db/queries';
 

@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { caseStudies } from '~/content/case-studies';
 import { Header } from '~/components/Header';
+import { Footer } from '~/components/Footer';
 
 export const Route = createFileRoute('/case-studies/')({
   head: () => ({
