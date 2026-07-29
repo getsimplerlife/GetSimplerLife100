@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
+import { WORKFLOW_TEMPLATES } from "~/data/workflows";
 
 export const Route = createFileRoute("/portal/workflows/")({
   component: WorkflowManager,
@@ -23,8 +24,8 @@ function WorkflowManager() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [feedback, setFeedback] = useState("");
-  const [workflows, setWorkflows] = useState<Workflow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [workflows, setWorkflows] = useState<Workflow[]>(WORKFLOW_TEMPLATES as any); // preloaded for SSR
+  const [loading, setLoading] = useState(false); // workflow templates render immediately
   const [editingWorkflow, setEditingWorkflow] = useState<Workflow | null>(null);
 
   const fetchWorkflows = async () => {
