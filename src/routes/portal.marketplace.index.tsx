@@ -44,7 +44,7 @@ function MarketplaceHub() {
     id: a.id,
     name: a.name,
     description: a.description,
-    category: (a.industry === 'healthcare' ? 'Healthcare' : a.industry === 'finance' ? 'Finance' : a.industry === 'sales' ? 'Sales' : a.industry === 'logistics' ? 'Logistics' : a.industry === 'hr' ? 'HR' : a.industry === 'it' ? 'IT' : a.industry === 'marketing' ? 'Marketing' : 'Operations'),
+    category: (a.category === 'healthcare' ? 'Healthcare' : a.category === 'finance' ? 'Finance' : a.category === 'sales' ? 'Sales' : a.category === 'logistics' ? 'Logistics' : a.category === 'hr' ? 'HR' : a.category === 'it' ? 'IT' : a.category === 'marketing' || a.category === 'communications' ? 'Marketing' : 'Operations'),
     price: '$499/mo',
     installed: false,
     deployedCount: 0,
