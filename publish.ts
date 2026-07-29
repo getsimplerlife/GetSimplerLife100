@@ -46,10 +46,11 @@ async function main() {
     }
   }
 
-  // Kill existing process on port 3000
-  log("Ensuring port 3000 is free...");
+  // Kill existing processes on both ports
+  log("Ensuring ports 3000 and 3002 are free...");
   try {
     execSync(`sudo lsof -t -iTCP:${PORT} -sTCP:LISTEN | xargs -r kill`, { stdio: "ignore" });
+    execSync(`sudo lsof -t -iTCP:3002 -sTCP:LISTEN | xargs -r kill`, { stdio: "ignore" });
   } catch {}
 
   // Start the production server

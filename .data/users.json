@@ -58,5 +58,11 @@
     "password": "$2b$10$.UIS7uVE78pM1POGBZ8KEuw51vdkTAl9O3PwcZjsFDNlVLvyMKoyS",
     "role": "user",
     "createdAt": 1785285206223
+  },
+  "ssr-test@test.com": {
+    "email": "ssr-test@test.com",
+    "password": "$2b$10$bQP.bIeUZWgmPIDiVaxeKeTHf47sqh8NGXMvYcxKkH5WWpSBaVcwS",
+    "role": "user",
+    "createdAt": 1785346161273
   }
 }
