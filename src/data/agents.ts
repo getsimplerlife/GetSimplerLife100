@@ -1,0 +1,254 @@
+// Static agent data for SSR rendering.
+// Source: .data/ai_employees.json
+
+export interface AgentData {
+  id: string;
+  name: string;
+  agentType: string;
+  purpose: string;
+  description: string;
+  industry: string;
+  capabilities: string[];
+  status: string;
+}
+
+export const AGENTS: AgentData[] = [
+  {
+    "id": "invoice-processor-v1",
+    "name": "Invoice Processor",
+    "agentType": "Document AI",
+    "purpose": "Automatically extracts, validates, and processes invoices",
+    "description": "End-to-end invoice automation: captures invoice data via OCR, matches against POs, routes for approval, and syncs to accounting.",
+    "industry": "cross-industry",
+    "capabilities": [
+      "OCR extraction",
+      "PO matching",
+      "GL coding"
+    ],
+    "status": "Idle"
+  },
+  {
+    "id": "crm-sync-agent-v1",
+    "name": "CRM Sync Agent",
+    "agentType": "Integration AI",
+    "purpose": "Keeps customer data synchronized across CRM, email, support, and billing",
+    "description": "Bi-directional sync agent that ensures contacts, companies, deals, and activities stay consistent across Salesforce, HubSpot, and connected tools.",
+    "industry": "cross-industry",
+    "capabilities": [
+      "Contact sync",
+      "Company enrichment",
+      "Deduplication"
+    ],
+    "status": "Idle"
+  },
+  {
+    "id": "email-assistant-v1",
+    "name": "Email Assistant",
+    "agentType": "Communication AI",
+    "purpose": "Drafts, categorizes, and routes emails with context-aware responses",
+    "description": "AI-powered email triage that reads incoming messages, categorizes urgency, drafts replies, and routes to the right team member.",
+    "industry": "cross-industry",
+    "capabilities": [
+      "Email triage",
+      "Auto-drafting",
+      "Urgency detection"
+    ],
+    "status": "Idle"
+  },
+  {
+    "id": "data-entry-bot-v1",
+    "name": "Data Entry Bot",
+    "agentType": "Automation AI",
+    "purpose": "Automates repetitive data entry across spreadsheets, forms, and databases",
+    "description": "Reads from emails, PDFs, and forms, then enters structured data into Google Sheets, Airtable, databases, and CRMs with validation.",
+    "industry": "cross-industry",
+    "capabilities": [
+      "Form reading",
+      "Spreadsheet sync",
+      "Data validation"
+    ],
+    "status": "Idle"
+  },
+  {
+    "id": "inventory-tracker-v1",
+    "name": "Inventory Tracker",
+    "agentType": "Operations AI",
+    "purpose": "Monitors stock levels, predicts reorder points, and syncs across systems",
+    "description": "Real-time inventory monitoring with predictive reorder recommendations. Syncs NetSuite, Shopify, and Zoho inventory counts.",
+    "industry": "logistics",
+    "capabilities": [
+      "Stock monitoring",
+      "Reorder alerts",
+      "Multi-channel sync"
+    ],
+    "status": "Idle"
+  },
+  {
+    "id": "compliance-auditor-v1",
+    "name": "Compliance Auditor",
+    "agentType": "Governance AI",
+    "purpose": "Scans systems for compliance violations and generates audit trails",
+    "description": "Automated compliance scanning across Jira, ServiceNow, and document repositories. Flags HIPAA, SOC2, and GDPR violations with severity ratings.",
+    "industry": "healthcare",
+    "capabilities": [
+      "Policy scanning",
+      "Violation flagging",
+      "Audit trail generation"
+    ],
+    "status": "Idle"
+  },
+  {
+    "id": "hr-onboarding-agent-v1",
+    "name": "HR Onboarding Agent",
+    "agentType": "HR AI",
+    "purpose": "Automates new hire paperwork, system provisioning, and orientation scheduling",
+    "description": "End-to-end employee onboarding: sends offer letters, collects e-signatures, provisions accounts in BambooHR/Workday, schedules orientation.",
+    "industry": "cross-industry",
+    "capabilities": [
+      "Offer letter generation",
+      "E-signature collection",
+      "Account provisioning"
+    ],
+    "status": "Idle"
+  },
+  {
+    "id": "social-media-manager-v1",
+    "name": "Social Media Manager",
+    "agentType": "Marketing AI",
+    "purpose": "Schedules posts, analyzes engagement, and generates content across platforms",
+    "description": "Multi-platform social media management: drafts posts, schedules across LinkedIn/Meta/Hootsuite, analyzes engagement metrics.",
+    "industry": "marketing",
+    "capabilities": [
+      "Post scheduling",
+      "Engagement analytics",
+      "Content generation"
+    ],
+    "status": "Idle"
+  },
+  {
+    "id": "logistics-route-optimizer-v1",
+    "name": "Route Optimizer",
+    "agentType": "Logistics AI",
+    "purpose": "Optimizes delivery routes for time, fuel, and cost efficiency",
+    "description": "Real-time route optimization using Google Maps and Onfleet. Factors traffic, weather, delivery windows, and vehicle capacity.",
+    "industry": "logistics",
+    "capabilities": [
+      "Route planning",
+      "Real-time traffic",
+      "Fuel optimization"
+    ],
+    "status": "Idle"
+  },
+  {
+    "id": "manufacturing-scheduler-v1",
+    "name": "Production Scheduler",
+    "agentType": "Manufacturing AI",
+    "purpose": "Sequences work orders and optimizes production line throughput",
+    "description": "Intelligent production scheduling that sequences work orders by priority, material availability, and machine capacity. Integrates with SAP and Monday.com.",
+    "industry": "manufacturing",
+    "capabilities": [
+      "Work order sequencing",
+      "Capacity planning",
+      "Material checks"
+    ],
+    "status": "Idle"
+  },
+  {
+    "id": "support-triage-agent-v1",
+    "name": "Support Triage Agent",
+    "agentType": "Support AI",
+    "purpose": "Categorizes, prioritizes, and routes support tickets to the right team",
+    "description": "AI-powered ticket triage: reads incoming Zendesk/Intercom tickets, categorizes by urgency and topic, suggests responses, and routes to specialized agents.",
+    "industry": "cross-industry",
+    "capabilities": [
+      "Ticket categorization",
+      "Priority scoring",
+      "Auto-routing"
+    ],
+    "status": "Idle"
+  },
+  {
+    "id": "sales-lead-scorer-v1",
+    "name": "Lead Scoring Agent",
+    "agentType": "Sales AI",
+    "purpose": "Scores and prioritizes leads based on behavior, demographics, and engagement",
+    "description": "ML-powered lead scoring across Salesforce, HubSpot, and Marketo. Prioritizes leads by conversion likelihood and recommends next actions.",
+    "industry": "sales",
+    "capabilities": [
+      "Lead scoring",
+      "Behavior analysis",
+      "Pipeline prioritization"
+    ],
+    "status": "Idle"
+  },
+  {
+    "id": "customer-onboarding-agent-v1",
+    "name": "Customer Onboarding Agent",
+    "agentType": "Customer Success AI",
+    "purpose": "Guides new customers through setup, training, and first-value milestones",
+    "description": "Automated customer onboarding: sends welcome sequences, schedules training, tracks product adoption, and escalates at-risk accounts.",
+    "industry": "cross-industry",
+    "capabilities": [
+      "Welcome sequences",
+      "Training scheduling",
+      "Adoption tracking"
+    ],
+    "status": "Idle"
+  },
+  {
+    "id": "support-ticket-router-agent-v1",
+    "name": "Support Ticket Router",
+    "agentType": "Support AI",
+    "purpose": "Intelligently routes support tickets based on content, customer tier, and agent availability",
+    "description": "Smart ticket routing engine that reads ticket content, checks customer tier, agent skills, and current workload to route optimally.",
+    "industry": "cross-industry",
+    "capabilities": [
+      "Content analysis",
+      "Tier-based routing",
+      "Skills matching"
+    ],
+    "status": "Idle"
+  },
+  {
+    "id": "sales-follow-up-agent-v1",
+    "name": "Sales Follow-Up Agent",
+    "agentType": "Sales AI",
+    "purpose": "Automates multi-channel follow-up sequences for leads and opportunities",
+    "description": "Multi-channel follow-up automation across email, phone, and LinkedIn. Sequences adapt based on prospect engagement signals.",
+    "industry": "sales",
+    "capabilities": [
+      "Multi-channel sequences",
+      "Engagement tracking",
+      "Adaptive timing"
+    ],
+    "status": "Idle"
+  },
+  {
+    "id": "po-management-agent-v1",
+    "name": "PO Management Agent",
+    "agentType": "Procurement AI",
+    "purpose": "Automates purchase order creation, approval routing, and vendor matching",
+    "description": "End-to-end PO automation: generates POs from requisitions, routes for approval based on spend limits, matches against vendor catalogs in SAP Ariba/Coupa.",
+    "industry": "cross-industry",
+    "capabilities": [
+      "PO generation",
+      "Approval routing",
+      "Spend limit checks"
+    ],
+    "status": "Idle"
+  },
+  {
+    "id": "payroll-reconciliation-agent-v1",
+    "name": "Payroll Reconciliation Agent",
+    "agentType": "Finance AI",
+    "purpose": "Reconciles timesheets, benefits, and payroll data across systems",
+    "description": "Automated payroll reconciliation: cross-references ADP/Gusto timesheets against HR records, flags discrepancies, generates adjustment reports.",
+    "industry": "cross-industry",
+    "capabilities": [
+      "Timesheet reconciliation",
+      "Benefits verification",
+      "Discrepancy flagging"
+    ],
+    "status": "Idle"
+  }
+];
