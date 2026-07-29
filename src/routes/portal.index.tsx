@@ -2,8 +2,9 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { AnimatedNumber } from "~/components/ui";
 import { usePortalContext } from "./portal.context";
+import { useSSRData } from "~/lib/useSSRData";
 
-// Dashboard data is loaded client-side via useEffect.
+// Dashboard data is preloaded during SSR via prod-server.ts
 // (createServerFn was removed because it crashes during SSR
 //  with "globalThis.app.config" — vinxi/http requires the Vinxi
 //  context which isn't available in the SSR environment.)
@@ -17,38 +18,57 @@ type TimeFilter = "24h" | "7d" | "30d";
 function ActivityHubDashboard() {
   const { userEmail } = usePortalContext();
 
-  const [employees, setEmployees] = useState<any[]>([]);
-  const [tasks, setTasks] = useState<any[]>([]);
-  const [approvals, setApprovals] = useState<any[]>([]);
-  const [integrationsCount, setIntegrationsCount] = useState(180);
-  const [connectedCount, setConnectedCount] = useState(0);
-  const [billing, setBilling] = useState<any[]>([]);
+  // Use SSR-preloaded data when available, falling back to client fetch
+  const { data: employees, loading: empLoad } = useSSRData<any[]>("employees", async () => {
+    const r = await fetch("/api/data/employees", { credentials: "include" });
+    const j = await r.json();
+    return j.data || [];
+  }, []);
+  const { data: tasks, loading: taskLoad } = useSSRData<any[]>("tasks", async () => {
+    const r = await fetch("/api/data/tasks", { credentials: "include" });
+    const j = await r.json();
+    return j.data || [];
+  }, []);
+  const { data: approvals, loading: appLoad } = useSSRData<any[]>("approvals", async () => {
+    const r = await fetch("/api/data/approvals", { credentials: "include" });
+    const j = await r.json();
+    return j.data || [];
+  }, []);
+  const { data: billing, loading: bilLoad } = useSSRData<any[]>("billing", async () => {
+    const r = await fetch("/api/data/billing", { credentials: "include" });
+    const j = await r.json();
+    return j.data || [];
+  }, []);
+  const { data: integrationsData, loading: intLoad } = useSSRData<any>("integrations", async () => {
+    const r = await fetch("/api/integrations", { credentials: "include" });
+    return await r.json();
+  }, {});
 
-  const [loading, setLoading] = useState(true);
+  const loading = empLoad && taskLoad && appLoad && bilLoad && intLoad;
+
+  const [integrationsCount] = useState(180);
+  const [connectedCount, setConnectedCount] = useState(() => {
+    if (typeof window !== "undefined") {
+      const pd = (window as any).__PORTAL_DATA__;
+      if (pd?.integrations) {
+        const d = pd.integrations;
+        delete pd.integrations;
+        return d.data?.length || d.length || 0;
+      }
+    }
+    return 0;
+  });
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("24h");
   const [feedback, setFeedback] = useState("");
 
-  // Client-side refresh for subsequent navigations (SSR covers initial load)
-  const fetchDashboardData = async () => {
-    try {
-      const [rEmp, rTasks, rApp, rBil, rCon] = await Promise.allSettled([
-        fetch("/api/data/employees", { credentials: "include" }).then(r => r.ok ? r.json() : null),
-        fetch("/api/data/tasks", { credentials: "include" }).then(r => r.ok ? r.json() : null),
-        fetch("/api/data/approvals", { credentials: "include" }).then(r => r.ok ? r.json() : null),
-        fetch("/api/data/billing", { credentials: "include" }).then(r => r.ok ? r.json() : null),
-        fetch("/api/integrations", { credentials: "include" }).then(r => r.ok ? r.json() : null),
-      ]);
-      if (rEmp.status === "fulfilled" && rEmp.value) setEmployees(rEmp.value.data || []);
-      if (rTasks.status === "fulfilled" && rTasks.value) setTasks(rTasks.value.data || []);
-      if (rApp.status === "fulfilled" && rApp.value) setApprovals(rApp.value.data || []);
-      if (rBil.status === "fulfilled" && rBil.value) setBilling(rBil.value.data || []);
-      if (rCon.status === "fulfilled" && rCon.value) setConnectedCount(rCon.value.data?.length || rCon.value.length || 0);
-    } catch { /* keep SSR data */ }
-  };
-
-  // Always fetch dashboard data on mount since we don't use SSR preload
+  // Refresh integrations count on mount if no SSR data
   useEffect(() => {
-    fetchDashboardData().finally(() => setLoading(false));
+    if (!connectedCount) {
+      fetch("/api/integrations", { credentials: "include" })
+        .then(r => r.json())
+        .then(d => setConnectedCount(d.data?.length || d.length || 0))
+        .catch(() => {});
+    }
   }, []);
 
   // ── Derived data ──────────────────────────────────────────────────

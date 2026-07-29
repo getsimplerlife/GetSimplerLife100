@@ -46,5 +46,17 @@
     "password": "$2b$10$UHB6wZAQGEUxB66wv0ZS1.slx4yOyq2RH28tiyvJdiFxbtOH5oqFy",
     "role": "user",
     "createdAt": 1785148658219
+  },
+  "test-check@example.com": {
+    "email": "test-check@example.com",
+    "password": "$2b$10$AgoCOGBJNt7repcwVTN7JebjbPoypDJ1Fz0HiGCzJKpmHFeteY/py",
+    "role": "user",
+    "createdAt": 1785282352347
+  },
+  "existing@test.com": {
+    "email": "existing@test.com",
+    "password": "$2b$10$.UIS7uVE78pM1POGBZ8KEuw51vdkTAl9O3PwcZjsFDNlVLvyMKoyS",
+    "role": "user",
+    "createdAt": 1785285206223
   }
 }

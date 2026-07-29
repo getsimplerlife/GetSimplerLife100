@@ -1069,6 +1069,23 @@ serve({
       }
 
       try {
+      // For portal pages, make the user email available to SSR via a temp file.
+      // React SSR runs in Nitro (separate process) but shares the filesystem,
+      // so we write the email before proxying and Nitro components can read it.
+      if (pathname.startsWith("/portal")) {
+        try {
+          const cookieHeader = req.headers.get("cookie") || "";
+          const match = cookieHeader.match(/session=([^;]+)/);
+          if (match) {
+            const sessions = readJSON(SESSIONS_FILE);
+            const session = sessions[match[1]];
+            if (session?.email) {
+              writeFileSync("/tmp/ssr_user_email.txt", session.email);
+            }
+          }
+        } catch {}
+      }
+
       const nitroRes = await fetch("http://localhost:3002" + pathname + url.search, {
         method: req.method,
         headers: req.headers,
@@ -1133,6 +1150,53 @@ serve({
               if (session?.email) {
                 const userScript = `<script>window.__PORTAL_USER__=${JSON.stringify({email:session.email})};window.__PORTAL_READY__=true;</script>`;
                 html = html.replace("</head>", userScript + "</head>");
+
+                // Pre-fetch portal page data during SSR so pages render
+                // with content instead of loading skeletons.
+                // Read data files directly to avoid HTTP round-trips.
+                const portalData: Record<string, any> = {};
+                try {
+                  const userEmail = session.email;
+
+                  if (pathname === "/portal" || pathname === "/portal/") {
+                    // Dashboard: employees, tasks, approvals, billing, integrations
+                    portalData["employees"] = readJSON(AI_EMPLOYEES_FILE);
+                    portalData["tasks"] = readJSON(join(DATA_DIR, "tenant_tasks.json"))[userEmail] || [];
+                    portalData["approvals"] = readJSON(join(DATA_DIR, "tenant_approvals.json"))[userEmail] || [];
+                    portalData["billing"] = readJSON(join(DATA_DIR, "tenant_purchases.json"))[userEmail] || [];
+                    portalData["integrations"] = readJSON(TENANT_INTEGRATIONS_FILE)[userEmail] || [];
+                  } else if (pathname === "/portal/employees" || pathname === "/portal/employees/") {
+                    portalData["employees"] = readJSON(AI_EMPLOYEES_FILE);
+                  } else if (pathname === "/portal/tasks" || pathname === "/portal/tasks/") {
+                    portalData["tasks"] = readJSON(join(DATA_DIR, "tenant_tasks.json"))[userEmail] || [];
+                  } else if (pathname === "/portal/notifications" || pathname === "/portal/notifications/") {
+                    portalData["notifications"] = readJSON(join(DATA_DIR, "tenant_notifications.json"))[userEmail] || [];
+                  } else if (pathname === "/portal/marketplace" || pathname === "/portal/marketplace/") {
+                    portalData["employees"] = readJSON(AI_EMPLOYEES_FILE);
+                    portalData["billing"] = readJSON(join(DATA_DIR, "tenant_purchases.json"))[userEmail] || [];
+                    portalData["purchases"] = readJSON(TENANT_PURCHASES_FILE)[userEmail] || [];
+                  } else if (pathname === "/portal/approvals" || pathname === "/portal/approvals/") {
+                    portalData["approvals"] = readJSON(join(DATA_DIR, "tenant_approvals.json"))[userEmail] || [];
+                  } else if (pathname === "/portal/reports" || pathname === "/portal/reports/") {
+                    portalData["reports"] = readJSON(join(DATA_DIR, "workflow_runs.json"))[userEmail] || [];
+                  } else if (pathname === "/portal/settings" || pathname === "/portal/settings/") {
+                    portalData["settings"] = readJSON(join(DATA_DIR, "tenant_settings.json"))[userEmail] || {};
+                  } else if (pathname === "/portal/billing" || pathname === "/portal/billing/") {
+                    portalData["billing"] = readJSON(join(DATA_DIR, "tenant_purchases.json"))[userEmail] || [];
+                  } else if (pathname === "/portal/documents" || pathname === "/portal/documents/") {
+                    portalData["documents"] = readJSON(join(DATA_DIR, "tenant_documents.json"))[userEmail] || [];
+                  } else if (pathname === "/portal/integrations" || pathname === "/portal/integrations/") {
+                    portalData["integrations"] = readJSON(TENANT_INTEGRATIONS_FILE)[userEmail] || [];
+                    portalData["providers"] = readJSON(join(DATA_DIR, "integrations.json"));
+                  } else if (pathname === "/portal/workflows" || pathname === "/portal/workflows/") {
+                    portalData["workflows"] = readJSON(join(DATA_DIR, "workflow_templates.json"));
+                  }
+                } catch (_) { /* non-critical: page still renders, just without preloaded data */ }
+
+                if (Object.keys(portalData).length > 0) {
+                  const dataScript = `<script>window.__PORTAL_DATA__=${JSON.stringify(portalData)};</script>`;
+                  html = html.replace("</head>", dataScript + "</head>");
+                }
               }
             }
           } catch {}

@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
+import { useSSRData } from "~/lib/useSSRData";
 
 export const Route = createFileRoute("/portal/tasks/")({
   component: TasksQueue,
@@ -9,23 +10,26 @@ function TasksQueue() {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("all");
   const [feedback, setFeedback] = useState("");
-  const [tasks, setTasks] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  const { data: tasks, loading, setData: setTasks } = useSSRData<any[]>("tasks", async () => {
+    const res = await fetch("/api/data/tasks", { credentials: "include" });
+    const d = await res.json();
+    return d.data || [];
+  }, []);
 
   const fetchTasks = async () => {
     try {
       const res = await fetch("/api/data/tasks", { credentials: "include" });
       const d = await res.json();
       setTasks(d.data || []);
-      setLoading(false);
     } catch (err) {
       console.error(err);
-      setLoading(false);
     }
   };
 
+  // Fallback fetch only if SSR didn't provide data
   useEffect(() => {
-    fetchTasks();
+    if (!loading && tasks.length === 0) fetchTasks();
   }, []);
 
   const handleAction = async (id: string, action: string) => {

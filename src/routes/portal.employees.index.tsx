@@ -1,52 +1,48 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
+import { useSSRData } from "~/lib/useSSRData";
 
 export const Route = createFileRoute("/portal/employees/")({
   component: AIEmployeesWorkspaceHub,
 });
 
 function AIEmployeesWorkspaceHub() {
-  const [employees, setEmployees] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [feedback, setFeedback] = useState("");
   const [editPanel, setEditPanel] = useState<{ emp: any } | null>(null);
 
-  // Per-agent status from runtime API
+  // Employees list: preloaded during SSR, fallback to client fetch
+  const { data: employees, loading, setData: setEmployees } = useSSRData<any[]>("employees", async () => {
+    const res = await fetch("/api/data/employees", { credentials: "include" });
+    const d = await res.json();
+    return d.data || [];
+  }, []);
+
+  // Per-agent status from runtime API (always client-side)
   const [agentStatuses, setAgentStatuses] = useState<Record<string, any>>({});
   const [actionLoading, setActionLoading] = useState<Record<string, string>>({});
 
-  const fetchEmployees = async () => {
-    try {
-      const res = await fetch("/api/data/employees", { credentials: "include" });
-      const d = await res.json();
-      const emps = d.data || [];
-      setEmployees(emps);
-
-      // Fire all agent status fetches in parallel
-      const statusPromises = emps
-        .map((emp: any) => emp.id || emp._id)
-        .filter(Boolean)
-        .map((agentId: string) =>
-          fetch(`/api/agents/${agentId}/status`, { credentials: "include" })
-            .then(r => r.json())
-            .then(s => ({ agentId, s }))
-            .catch(() => null)
-        );
-      const results = await Promise.all(statusPromises);
+  // Fetch agent statuses on mount (client-side only)
+  useEffect(() => {
+    if (employees.length === 0) return;
+    const statusPromises = employees
+      .map((emp: any) => emp.id || emp._id)
+      .filter(Boolean)
+      .map((agentId: string) =>
+        fetch(`/api/agents/${agentId}/status`, { credentials: "include" })
+          .then(r => r.json())
+          .then(s => ({ agentId, s }))
+          .catch(() => null)
+      );
+    Promise.all(statusPromises).then(results => {
       const statusMap: Record<string, any> = {};
       for (const r of results) {
         if (r) statusMap[r.agentId] = r.s;
       }
       setAgentStatuses(statusMap);
-    } catch { /* keep SSR/pre-existing data */ }
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    fetchEmployees();
-  }, []);
+    });
+  }, [employees.length]);
 
   const handleAgentAction = async (emp: any, action: "pause" | "resume" | "run") => {
     const agentId = emp.id || emp._id;
