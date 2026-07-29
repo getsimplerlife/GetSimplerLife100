@@ -40,23 +40,25 @@ function MarketplaceHub() {
   const [activeTab, setActiveTab] = useState<"catalog" | "history">("catalog");
 
   // Pre-map AGENTS to MarketplaceItem format for SSR rendering
-  const initialItems: MarketplaceItem[] = AGENTS.map((a: any) => ({
+  const ssrItems: any[] = (AGENTS as any[]).map((a: any) => ({
     id: a.id,
     name: a.name,
     description: a.description,
-    category: a.category || "Operations",
-    price: a.price ? `${a.price}` : "$499",
+    category: (a.industry === 'healthcare' ? 'Healthcare' : a.industry === 'finance' ? 'Finance' : a.industry === 'sales' ? 'Sales' : a.industry === 'logistics' ? 'Logistics' : a.industry === 'hr' ? 'HR' : a.industry === 'it' ? 'IT' : a.industry === 'marketing' ? 'Marketing' : 'Operations'),
+    price: '$499/mo',
     installed: false,
     deployedCount: 0,
-    rating: 4.5,
-    runsMonth: "24/7",
-    icon: a.agentType === "Document AI" ? "📄" : a.agentType === "Integration AI" ? "🔗" : "🤖",
-    paymentLink: a.paymentLink || a.stripePaymentLink,
+    rating: 4.8,
+    runsMonth: '1.2k',
+    icon: '🤖',
+    paymentLink: a.paymentLink || null,
     agentType: a.agentType,
-    chainsWith: a.agentType ? getAgentChainPartners(a.agentType) : [],
+    badges: (a.capabilities || []).slice(0, 3),
+    chainsWith: [],
+    setupRequirements: null,
   }));
 
-  const [items, setItems] = useState<MarketplaceItem[]>(initialItems); // preloaded for SSR
+  const [items, setItems] = useState<any[]>(ssrItems); // preloaded for SSR
   const [employees, setEmployees] = useState<any[]>(AGENTS); // preloaded for SSR
   const [invoices, setInvoices] = useState<any[]>([]);
   const [loading, setLoading] = useState(false); // items render immediately
