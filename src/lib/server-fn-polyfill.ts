@@ -5,17 +5,32 @@ interface ServerFnOptions {
   method?: "GET" | "POST";
 }
 
-export function createServerFn(options?: ServerFnOptions) {
+interface ChainableServerFn {
+  handler: <T>(fn: (...args: any[]) => Promise<T>) => (...args: any[]) => Promise<T>;
+  validator: (fn: (data: any) => any) => ChainableServerFn;
+}
+
+export function createServerFn(options?: ServerFnOptions): ChainableServerFn {
   const method = options?.method || "POST";
-  return {
-    handler: <T>(fn: (...args: any[]) => Promise<T>) => {
-      // Return a function that calls the API endpoint
+
+  // Data that flows through the chain: validator → handler
+  let validatorFn: ((data: any) => any) | null = null;
+
+  const chainable: ChainableServerFn = {
+    validator(fn: (data: any) => any): ChainableServerFn {
+      validatorFn = fn;
+      return chainable;
+    },
+
+    handler<T>(fn: (...args: any[]) => Promise<T>): (...args: any[]) => Promise<T> {
       return async (...args: any[]): Promise<T> => {
-        // Try to fetch from a corresponding API endpoint
-        // For now, just return empty/null data — route loaders will fall back to defaults
+        // In the browser (CSR), server functions cannot execute server-side logic.
+        // Route loaders and components should handle the empty/default response gracefully.
         console.warn("[createServerFn CSR] Server function called client-side — returning empty data. API endpoint needed.");
         return {} as T;
       };
     },
   };
+
+  return chainable;
 }
