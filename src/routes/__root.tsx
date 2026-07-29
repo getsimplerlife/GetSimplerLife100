@@ -45,7 +45,7 @@ export const Route = createRootRoute({
     let pageMeta = null;
     if (matches && matches.length > 0) {
       const lastMatch = matches[matches.length - 1];
-      const pathname = lastMatch?.pathname || lastMatch?.routeId || "";
+      const pathname = lastMatch?.pathname || "";
       if (pathname) pageMeta = resolvePageMeta(pathname);
     }
 
@@ -126,13 +126,13 @@ function RootDocument({ children, pageMeta }: { children: ReactNode; pageMeta: {
   return (
     <html lang="en" className="dark">
       <head>
+        <HeadContent />
         {pageMeta && (
           <>
             <title>{pageMeta.title}</title>
             <meta name="description" content={pageMeta.description} />
           </>
         )}
-        <HeadContent />
       </head>
       <body>
         {children}
