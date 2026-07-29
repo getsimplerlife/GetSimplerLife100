@@ -3,7 +3,6 @@ import { tanstackRouterGenerator } from "@tanstack/router-plugin/vite";
 import viteReact from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import tsConfigPaths from "vite-tsconfig-paths";
-
 export default defineConfig({
   server: {
     port: 3000,
@@ -12,6 +11,9 @@ export default defineConfig({
   },
   build: {
     reportCompressedSize: false,
+    rollupOptions: {
+      external: ['@libsql/client', 'drizzle-orm', 'drizzle-orm/libsql'],
+    },
   },
   resolve: {
     dedupe: ["react", "react-dom"],
