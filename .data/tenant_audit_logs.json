@@ -1,0 +1,49 @@
+{
+  "mathewortiz97@gmail.com": [
+    {
+      "id": "log-odlt8a3mg",
+      "timestamp": "2026-07-30T05:56:49.927Z",
+      "user": "mathewortiz97@gmail.com",
+      "action": "agent.run",
+      "resource": "Invoice Processor",
+      "detail": "Agent executed: Agent \"Invoice Processor\" executed. None of the 3 required integrations are connected. Connect them to unlock full functionality. Processed 0 records total.",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "log-xgdw0hlpo",
+      "timestamp": "2026-07-30T05:57:04.613Z",
+      "user": "mathewortiz97@gmail.com",
+      "action": "agent.run",
+      "resource": "CRM Sync Agent",
+      "detail": "Agent executed: Agent \"CRM Sync Agent\" executed. 1 connected integration queried but unavailable with test credentials. Processed 0 records total.",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "log-03k7h5gyp",
+      "timestamp": "2026-07-30T05:57:04.628Z",
+      "user": "mathewortiz97@gmail.com",
+      "action": "agent.run",
+      "resource": "Support Triage Agent",
+      "detail": "Agent executed: Agent \"Support Triage Agent\" executed. None of the 3 required integrations are connected. Connect them to unlock full functionality. Processed 0 records total.",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "log-fyse9myg9",
+      "timestamp": "2026-07-30T05:57:04.741Z",
+      "user": "mathewortiz97@gmail.com",
+      "action": "agent.run",
+      "resource": "Lead Scoring Agent",
+      "detail": "Agent executed: Agent \"Lead Scoring Agent\" executed. 1 connected integration queried but unavailable with test credentials. Processed 0 records total.",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "log-x44zk0sxj",
+      "timestamp": "2026-07-30T05:57:11.362Z",
+      "user": "mathewortiz97@gmail.com",
+      "action": "agent.run",
+      "resource": "CRM Sync Agent",
+      "detail": "Agent executed: Agent \"CRM Sync Agent\" executed. 1 connected integration queried but unavailable with test credentials. Processed 0 records total.",
+      "ip": "127.0.0.1"
+    }
+  ]
+}

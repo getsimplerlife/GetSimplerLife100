@@ -4,6 +4,9 @@ import { readFileSync, writeFileSync, existsSync, readdirSync } from "fs";
 import { compare } from "bcryptjs";
 import { createHash, randomBytes } from "crypto";
 
+// ── Provider API module (server-side only — never imported in .tsx) ──
+import { executeAgent } from "./src/lib/provider-api";
+
 const BUILD_ID = Date.now().toString(36);
 const DIST_CLIENT = "/home/team/shared/site/dist";
 const DATA_DIR = "/home/team/shared/site/.data";
@@ -15,6 +18,15 @@ const LEADS_FILE = join(DATA_DIR, "leads.json");
 const CHAT_SESSIONS_FILE = join(DATA_DIR, "chat_sessions.json");
 const OAUTH_STATES_FILE = join(DATA_DIR, "oauth_states.json");
 const TENANT_PURCHASES_FILE = join(DATA_DIR, "tenant_purchases.json");
+
+const AUDIT_LOG_FILE = join(DATA_DIR, "tenant_audit_logs.json");
+
+const INDUSTRY_BLUEPRINTS = [
+  { name: "Healthcare Claims Automation", category: "healthcare", description: "End-to-end claims processing pipeline: intake → validation → adjudication → payment. Integrates with Epic, Cerner, and Availity." },
+  { name: "Logistics Last-Mile Optimization", category: "logistics", description: "Real-time delivery route optimization using traffic, weather, and driver availability. Integrates with Onfleet, Samsara, and KeepTruckin." },
+  { name: "Manufacturing Quality Control", category: "manufacturing", description: "Computer vision QC pipeline for assembly line defect detection. Real-time alerts and trend analysis via Power BI dashboards." },
+  { name: "Financial Reconciliation Suite", category: "finance", description: "Automated bank reconciliation, intercompany settlement matching, and audit trail generation across NetSuite, BlackLine, and SAP." },
+];
 
 function readJSON(path: string): any {
   if (!existsSync(path)) return {};
@@ -332,6 +344,285 @@ serve({
       return Response.json({ totalSlots, usedSlots, remainingSlots, isOwner: false });
     }
 
+
+    // ── Connected Accounts API ─────────────────────────────────────
+    if (pathname === "/api/data/connected-accounts") {
+      const user = await getUserFromSession(req);
+      if (user === null || user === undefined) return Response.json({ error: "Not authenticated" }, { status: 401 });
+      const all = readJSON(TENANT_INTEGRATIONS_FILE);
+      const userConns = all[user.email] || [];
+      const crmConns: any[] = [];
+      const erpConns: any[] = [];
+      const otherConns: any[] = [];
+      for (const c of userConns) {
+        const cat = (c.category || "").toLowerCase();
+        if (cat.includes("crm")) {
+          crmConns.push(c);
+        } else if (cat.includes("erp") || cat.includes("accounting")) {
+          erpConns.push(c);
+        } else {
+          otherConns.push(c);
+        }
+      }
+      const getSlotInfo = (packType: string) => {
+        if (user.email === "mathewortiz97@gmail.com") return { totalSlots: 999, usedSlots: 0, remainingSlots: 999, isOwner: true };
+        const purchases = readJSON(TENANT_PURCHASES_FILE);
+        const userPurchases = purchases[user.email] || [];
+        const packs = userPurchases.filter((p: any) => p.type === packType && p.status === "active");
+        const totalSlots = packs.reduce((sum: number, p: any) => sum + (p.slots || 0), 0);
+        const usedSlots = packs.reduce((sum: number, p: any) => sum + (p.usedSlots || 0), 0);
+        return { totalSlots, usedSlots, remainingSlots: Math.max(0, totalSlots - usedSlots), isOwner: false };
+      };
+      return Response.json({
+        crm: crmConns,
+        erp: erpConns,
+        other: otherConns,
+        crmSlots: getSlotInfo("crm-pack"),
+        erpSlots: getSlotInfo("erp-pack"),
+      });
+    }
+
+    // ── Data APIs ─────────────────────────────────────────────────
+    // ── /api/data/approvals (GET + POST) ───────────────────────────
+    if (pathname === "/api/data/approvals") {
+      const user = await getUserFromSession(req);
+      if (user === null || user === undefined) return Response.json({ error: "Not authenticated" }, { status: 401 });
+      const APPROVALS_FILE = join(DATA_DIR, "tenant_approvals.json");
+      if (req.method === "POST") {
+        try {
+          const body = await req.json();
+          console.log(`[approvals] POST by ${user.email}:`, body);
+          return Response.json({ success: true });
+        } catch {
+          return Response.json({ error: "Invalid request" }, { status: 400 });
+        }
+      }
+      const data = readJSON(APPROVALS_FILE);
+      const userData = Array.isArray(data) ? data : (data[user.email] || []);
+      return Response.json({ data: userData });
+    }
+
+    // ── /api/data/communications (GET + POST) ──────────────────────
+    if (pathname === "/api/data/communications") {
+      const user = await getUserFromSession(req);
+      if (user === null || user === undefined) return Response.json({ error: "Not authenticated" }, { status: 401 });
+      const COMMS_FILE = join(DATA_DIR, "tenant_communications.json");
+      if (req.method === "POST") {
+        try {
+          const body = await req.json();
+          console.log(`[communications] POST by ${user.email}:`, body);
+          return Response.json({ success: true });
+        } catch {
+          return Response.json({ error: "Invalid request" }, { status: 400 });
+        }
+      }
+      const data = readJSON(COMMS_FILE);
+      const userData = Array.isArray(data) ? data : (data[user.email] || []);
+      return Response.json({ data: userData });
+    }
+
+    // ── /api/data/inbox (GET + POST) ───────────────────────────────
+    if (pathname === "/api/data/inbox") {
+      const user = await getUserFromSession(req);
+      if (user === null || user === undefined) return Response.json({ error: "Not authenticated" }, { status: 401 });
+      const INBOX_FILE = join(DATA_DIR, "tenant_inbox.json");
+      if (req.method === "POST") {
+        try {
+          const body = await req.json();
+          const { action, resource } = body;
+          if (action && resource) {
+            const all = readJSON(INBOX_FILE);
+            const userMessages = all[user.email] || [];
+            if (action === "mark_read") {
+              const msg = userMessages.find((m: any) => m.id === resource);
+              if (msg) msg.read = true;
+            } else if (action === "archive" || action === "delete") {
+              all[user.email] = userMessages.filter((m: any) => m.id !== resource);
+            }
+            writeJSON(INBOX_FILE, all);
+          }
+          console.log(`[inbox] POST by ${user.email}:`, body);
+          return Response.json({ success: true });
+        } catch {
+          return Response.json({ error: "Invalid request" }, { status: 400 });
+        }
+      }
+      const data = readJSON(INBOX_FILE);
+      const userData = Array.isArray(data) ? data : (data[user.email] || []);
+      return Response.json({ data: userData });
+    }
+
+    // ── /api/data/notifications (GET + POST) ───────────────────────
+    if (pathname === "/api/data/notifications") {
+      const user = await getUserFromSession(req);
+      if (user === null || user === undefined) return Response.json({ error: "Not authenticated" }, { status: 401 });
+      const NOTIFS_FILE = join(DATA_DIR, "tenant_notifications.json");
+      if (req.method === "POST") {
+        try {
+          const body = await req.json();
+          console.log(`[notifications] POST by ${user.email}:`, body);
+          return Response.json({ success: true });
+        } catch {
+          return Response.json({ error: "Invalid request" }, { status: 400 });
+        }
+      }
+      const data = readJSON(NOTIFS_FILE);
+      const userData = Array.isArray(data) ? data : (data[user.email] || []);
+      return Response.json({ data: userData });
+    }
+
+    // ── /api/data/customers (GET) ──────────────────────────────────
+    if (pathname === "/api/data/customers") {
+      const user = await getUserFromSession(req);
+      if (user === null || user === undefined) return Response.json({ error: "Not authenticated" }, { status: 401 });
+      const all = readJSON(TENANT_INTEGRATIONS_FILE);
+      const userConns = all[user.email] || [];
+      const crmErpConns = userConns.filter((c: any) => {
+        const cat = (c.category || "").toLowerCase();
+        return cat.includes("crm") || cat.includes("erp") || cat.includes("accounting");
+      });
+      return Response.json({ data: crmErpConns });
+    }
+
+    // ── /api/data/industries (GET + POST) ──────────────────────────
+    if (pathname === "/api/data/industries") {
+      const user = await getUserFromSession(req);
+      if (user === null || user === undefined) return Response.json({ error: "Not authenticated" }, { status: 401 });
+      const IND_FILE = join(DATA_DIR, "tenant_industries.json");
+      if (req.method === "POST") {
+        try {
+          const body = await req.json();
+          const { action, resource } = body;
+          if (action && resource) {
+            const all = readJSON(IND_FILE);
+            let items = all[user.email] || [];
+            const blueprint = INDUSTRY_BLUEPRINTS.find((b: any) => b.name === resource);
+            if (blueprint) {
+              // Accept both prefixed ("industry_activate") and plain ("activate") forms
+              if (action === "toggle" || action === "activate" || action === "industry_activate") {
+                const existing = items.find((i: any) => i.name === resource);
+                if (existing) {
+                  existing.status = existing.status === "active" ? "paused" : "active";
+                } else {
+                  items.push({
+                    name: blueprint.name,
+                    status: "active",
+                    category: blueprint.category,
+                    description: blueprint.description,
+                    activatedAt: new Date().toISOString(),
+                  });
+                }
+              } else if (action === "deactivate" || action === "industry_deactivate") {
+                items = items.filter((i: any) => i.name !== resource);
+              }
+            }
+            all[user.email] = items;
+            writeJSON(IND_FILE, all);
+          }
+          console.log(`[industries] POST by ${user.email}:`, body);
+          return Response.json({ success: true });
+        } catch {
+          return Response.json({ error: "Invalid request" }, { status: 400 });
+        }
+      }
+      const data = readJSON(IND_FILE);
+      const userActivated = Array.isArray(data) ? data : (data[user.email] || []);
+      // Merge catalog with user's activated blueprints
+      const merged = INDUSTRY_BLUEPRINTS.map((bp) => {
+        const activated = userActivated.find((a: any) => a.name === bp.name);
+        return {
+          name: bp.name,
+          status: activated ? ((activated.status === "active" || activated.status === "Activated") ? "Activated" : "Paused") : "Available",
+          category: bp.category,
+          description: bp.description,
+          activatedAt: activated ? (activated.activatedAt || null) : null,
+        };
+      });
+      return Response.json({ data: merged });
+    }
+
+    // ── /api/data/knowledge-base (GET) ─────────────────────────────
+    if (pathname === "/api/data/knowledge-base") {
+      const user = await getUserFromSession(req);
+      if (user === null || user === undefined) return Response.json({ error: "Not authenticated" }, { status: 401 });
+      const KB_FILE = join(DATA_DIR, "tenant_knowledge_base.json");
+      const data = readJSON(KB_FILE);
+      const userData = Array.isArray(data) ? data : (data[user.email] || []);
+      return Response.json({ data: userData });
+    }
+
+    // ── /api/data/reports (GET + POST) ─────────────────────────────
+    if (pathname === "/api/data/reports") {
+      const user = await getUserFromSession(req);
+      if (user === null || user === undefined) return Response.json({ error: "Not authenticated" }, { status: 401 });
+      const REPORTS_FILE = join(DATA_DIR, "tenant_reports.json");
+      if (req.method === "POST") {
+        try {
+          const body = await req.json();
+          console.log(`[reports] POST by ${user.email}:`, body);
+          return Response.json({ success: true });
+        } catch {
+          return Response.json({ error: "Invalid request" }, { status: 400 });
+        }
+      }
+      const data = readJSON(REPORTS_FILE);
+      const userData = Array.isArray(data) ? data : (data[user.email] || []);
+      return Response.json({ data: userData });
+    }
+
+    // ── /api/data/training (GET + POST) ────────────────────────────
+    if (pathname === "/api/data/training") {
+      const user = await getUserFromSession(req);
+      if (user === null || user === undefined) return Response.json({ error: "Not authenticated" }, { status: 401 });
+      const TRAINING_FILE = join(DATA_DIR, "tenant_training.json");
+      if (req.method === "POST") {
+        try {
+          const body = await req.json();
+          console.log(`[training] POST by ${user.email}:`, body);
+          return Response.json({ success: true });
+        } catch {
+          return Response.json({ error: "Invalid request" }, { status: 400 });
+        }
+      }
+      const data = readJSON(TRAINING_FILE);
+      const userData = Array.isArray(data) ? data : (data[user.email] || []);
+      return Response.json({ data: userData });
+    }
+
+    // ── /api/data/users (GET) ──────────────────────────────────────
+    if (pathname === "/api/data/users") {
+      const user = await getUserFromSession(req);
+      if (user === null || user === undefined) return Response.json({ error: "Not authenticated" }, { status: 401 });
+      const users = readJSON(USERS_FILE);
+      const userList = Object.values(users).map((u: any) => ({
+        email: u.email, role: u.role || "user", createdAt: u.createdAt,
+      }));
+      return Response.json({ data: userList, total: userList.length });
+    }
+
+    // ── /api/audit-logs (GET) ──────────────────────────────────────
+    if (pathname === "/api/audit-logs") {
+      const user = await getUserFromSession(req);
+      if (user === null || user === undefined) return Response.json({ error: "Not authenticated" }, { status: 401 });
+      const AUDIT_FILE = join(DATA_DIR, "tenant_audit_logs.json");
+      const page = parseInt(url.searchParams.get("page") || "1");
+      const limit = parseInt(url.searchParams.get("limit") || "20");
+      const search = (url.searchParams.get("search") || "").toLowerCase();
+      const data = readJSON(AUDIT_FILE);
+      let logs = Array.isArray(data) ? data : (data[user.email] || []);
+      if (search) {
+        logs = logs.filter((l: any) =>
+          (l.action || "").toLowerCase().includes(search) ||
+          (l.resource || "").toLowerCase().includes(search) ||
+          (l.detail || "").toLowerCase().includes(search)
+        );
+      }
+      const total = logs.length;
+      const start = (page - 1) * limit;
+      const paged = logs.slice(start, start + limit);
+      return Response.json({ data: paged, total, page, limit });
+    }
+
     // ── Integration APIs ──────────────────────────────────────────
     if (pathname === "/api/integrations") {
       const user = await getUserFromSession(req);
@@ -551,6 +842,20 @@ serve({
         userConns.push(entry);
         all[user.email] = userConns;
         writeJSON(TENANT_INTEGRATIONS_FILE, all);
+        // Audit log
+        const alogs2 = readJSON(AUDIT_LOG_FILE);
+        const alogUser2 = alogs2[user.email] || [];
+        alogUser2.push({
+          id: "log-" + Math.random().toString(36).substr(2, 9),
+          timestamp: new Date().toISOString(),
+          user: user.email,
+          action: "integration.connect",
+          resource: providerId,
+          detail: "Connected " + (providerName || providerId) + " via API key",
+          ip: "127.0.0.1",
+        });
+        alogs2[user.email] = alogUser2;
+        writeJSON(AUDIT_LOG_FILE, alogs2);
         return Response.json({ success: true, connection: entry, tested: true });
       } catch (e: any) {
         return Response.json({ error: e.message || "Invalid request" }, { status: 400 });
@@ -586,6 +891,20 @@ serve({
         }
         all[user.email] = userConns.filter((c: any) => c.id !== body.connectionId && c.providerId !== body.providerId);
         writeJSON(TENANT_INTEGRATIONS_FILE, all);
+        // Audit log
+        const alogs3 = readJSON(AUDIT_LOG_FILE);
+        const alogUser3 = alogs3[user.email] || [];
+        alogUser3.push({
+          id: "log-" + Math.random().toString(36).substr(2, 9),
+          timestamp: new Date().toISOString(),
+          user: user.email,
+          action: "integration.disconnect",
+          resource: body.connectionId || body.providerId || "",
+          detail: "Disconnected " + ((conn && conn.provider) || body.providerId || "integration"),
+          ip: "127.0.0.1",
+        });
+        alogs3[user.email] = alogUser3;
+        writeJSON(AUDIT_LOG_FILE, alogs3);
         return Response.json({ success: true });
       } catch {
         return Response.json({ error: "Invalid request" }, { status: 400 });
@@ -641,6 +960,20 @@ serve({
         userDocsArr.push(newDoc);
         docs[user.email] = userDocsArr;
         writeJSON(join(DATA_DIR, "tenant_documents.json"), docs);
+        // Audit log
+        const alogs4 = readJSON(AUDIT_LOG_FILE);
+        const alogUser4 = alogs4[user.email] || [];
+        alogUser4.push({
+          id: "log-" + Math.random().toString(36).substr(2, 9),
+          timestamp: new Date().toISOString(),
+          user: user.email,
+          action: "document.upload",
+          resource: newDoc.file_name,
+          detail: "Uploaded document: " + newDoc.file_name,
+          ip: "127.0.0.1",
+        });
+        alogs4[user.email] = alogUser4;
+        writeJSON(AUDIT_LOG_FILE, alogs4);
         return Response.json({ success: true, document: newDoc });
       } catch (e: any) {
         return Response.json({ error: e.message || "Upload failed" }, { status: 500 });
@@ -766,27 +1099,15 @@ serve({
             }, { status: 402 });
           }
         }
-        // Execute agent — return realistic output
+        // Execute agent — real API calls to connected integrations
         const integrationMap = readJSON(join(DATA_DIR, "agent_integration_map.json"));
         const agentIntegrations = integrationMap[agent.id] || [];
-        const output = {
-          agentId: agent.id,
-          agentName: agent.name,
-          status: "completed",
-          startedAt: new Date().toISOString(),
-          completedAt: new Date().toISOString(),
-          summary: `Agent "${agent.name}" executed successfully. Processed tasks using connected integrations.`,
-          details: {
-            tasksProcessed: Math.floor(Math.random() * 50) + 5,
-            integrationsUsed: agentIntegrations,
-            dataPointsAnalyzed: Math.floor(Math.random() * 200) + 20,
-          },
-          integrations: agentIntegrations.map((pid: string) => ({
-            providerId: pid,
-            status: "connected",
-            callsMade: Math.floor(Math.random() * 10) + 1,
-          })),
-        };
+        // Get user's connected integrations
+        const tenantInts = readJSON(TENANT_INTEGRATIONS_FILE);
+        const userConnections = tenantInts[user.email] || [];
+        // Execute with real queries
+        const agentResult = await executeAgent(agent.id, agent.name, agentIntegrations, userConnections);
+        const output = { ...agentResult };
         // Log run in workflow_runs
         const runs = readJSON(join(DATA_DIR, "workflow_runs.json"));
         const userRuns = runs[user.email] || [];
@@ -802,6 +1123,20 @@ serve({
         });
         runs[user.email] = userRuns;
         writeJSON(join(DATA_DIR, "workflow_runs.json"), runs);
+        // Audit log
+        const alogs1 = readJSON(AUDIT_LOG_FILE);
+        const alogUser1 = alogs1[user.email] || [];
+        alogUser1.push({
+          id: "log-" + Math.random().toString(36).substr(2, 9),
+          timestamp: new Date().toISOString(),
+          user: user.email,
+          action: "agent.run",
+          resource: agent.name,
+          detail: "Agent executed: " + output.summary,
+          ip: "127.0.0.1",
+        });
+        alogs1[user.email] = alogUser1;
+        writeJSON(AUDIT_LOG_FILE, alogs1);
         return Response.json({ success: true, ...output });
       } catch (e: any) {
         return Response.json({ error: e.message || "Agent execution failed" }, { status: 500 });

@@ -173,7 +173,7 @@ export const integrations: Integration[] = [
     id: "epicor-kinetic",
     name: "Epicor Kinetic",
     icon: "epicor-kinetic",
-    category: "Manufacturing",
+    category: "ERP",
     description: "Connect with Epicor Kinetic cloud ERP for next-gen manufacturing automation — leveraging the Kinetic API for real-time production tracking, supply chain orchestration, and financial process automation.",
     capabilities: [
       "Real-time production data collection from shop floor IoT and operator inputs",
@@ -207,7 +207,7 @@ export const integrations: Integration[] = [
     id: "sage-intacct",
     name: "Sage Intacct",
     icon: "sage-intacct",
-    category: "Finance",
+    category: "ERP",
     description: "Connect with Sage Intacct for automated financial management — accounts payable, accounts receivable, revenue recognition, and consolidation via the Intacct Web Services API.",
     capabilities: [
       "Automated AP invoice processing with 2-way and 3-way matching",
@@ -258,7 +258,7 @@ export const integrations: Integration[] = [
     id: "quickbooks-enterprise",
     name: "QuickBooks Enterprise",
     icon: "quickbooks",
-    category: "Finance",
+    category: "Accounting",
     description: "Enterprise-grade integration with QuickBooks Enterprise for advanced inventory, pricing, and reporting automation — leveraging the QBXML and REST APIs for high-volume transaction processing.",
     capabilities: [
       "Advanced inventory management with automated bin transfers and assemblies",

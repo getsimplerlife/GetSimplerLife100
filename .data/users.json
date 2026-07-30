@@ -1,7 +1,7 @@
 {
   "mathewortiz97@gmail.com": {
     "email": "mathewortiz97@gmail.com",
-    "password": "$2b$10$zsnGwyrTKCFejWqHvvker.ktkPUH1jXjTqvkPFppMrZlJIv8exAQS",
+    "password": "$2b$10$HlQjUzKFbrgOJOPoKoiE9.GPt7Syyz2vzpmINPtQxta15ISAlvEhG",
     "role": "admin",
     "createdAt": 1785135766984
   },
@@ -64,5 +64,29 @@
     "password": "$2b$10$bQP.bIeUZWgmPIDiVaxeKeTHf47sqh8NGXMvYcxKkH5WWpSBaVcwS",
     "role": "user",
     "createdAt": 1785346161273
+  },
+  "test@test.com": {
+    "email": "test@test.com",
+    "password": "$2b$10$rlp61Nkc4PX6Z5cXOjaotuB.Igvd3zl8fLlIlxJM7h.57gUWT4YOO",
+    "role": "user",
+    "createdAt": 1785378564149
+  },
+  "conntest@test.com": {
+    "email": "conntest@test.com",
+    "password": "$2b$10$pi7GzJ54I6tQf.GiijqBqOsmTJ9ES5jnuPo/4rjUBMFct3y0ryt0G",
+    "role": "user",
+    "createdAt": 1785387760980
+  },
+  "verify-integrations@test.com": {
+    "email": "verify-integrations@test.com",
+    "password": "$2b$10$hmGJRzMOO.j5Wot0zTd3Fe5g./pYMbNcnKV39Pp468ytOUD7Z9eQa",
+    "role": "user",
+    "createdAt": 1785388061877
+  },
+  "debug-cat@test.com": {
+    "email": "debug-cat@test.com",
+    "password": "$2b$10$NMM0NkYqz/jvw7xWrg1qnOZTdqQi6o7fLIS/46NgBguDehFUeiBre",
+    "role": "user",
+    "createdAt": 1785388314929
   }
 }

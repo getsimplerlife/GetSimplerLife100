@@ -124,7 +124,7 @@ function MarketplaceHub() {
       const crmPack: MarketplaceItem = {
         id: "crm-connection-pack",
         name: "CRM Connection Pack",
-        description: "Unlock 5 connection slots for CRM platforms. Connect Salesforce, HubSpot, Zoho, Pipedrive, and more. Each slot supports one provider connection.",
+        description: "Unlock 1 connection slot for CRM platforms. Connect Salesforce, HubSpot, Zoho, Pipedrive, and more. Each slot supports one provider connection. Purchase again to add more slots.",
         category: "Operations",
         price: "$2,500",
         installed: false,
@@ -134,7 +134,7 @@ function MarketplaceHub() {
         icon: "💼",
         paymentLink: "https://buy.stripe.com/test_crm_pack_5slots",
         setupRequirements: null,
-        badges: ["5 CRM Slots", "Works Out of Box", "Slack Integration"],
+        badges: ["1 CRM Slot", "Works Out of Box", "Slack Integration"],
         chainsWith: ["CRM Sync Agent", "Lead Scoring Agent", "Sales Follow-Up Agent"],
         agentType: "crm-pack",
       };
@@ -142,7 +142,7 @@ function MarketplaceHub() {
       const erpPack: MarketplaceItem = {
         id: "erp-connection-pack",
         name: "ERP Connection Pack",
-        description: "Unlock 5 connection slots for ERP and accounting platforms. Connect NetSuite, QuickBooks, SAP, Xero, Sage Intacct, and more. Each slot supports one provider connection.",
+        description: "Unlock 1 connection slot for ERP and accounting platforms. Connect NetSuite, QuickBooks, SAP, Xero, Sage Intacct, and more. Each slot supports one provider connection. Purchase again to add more slots.",
         category: "Operations",
         price: "$2,500",
         installed: false,
@@ -152,7 +152,7 @@ function MarketplaceHub() {
         icon: "🏢",
         paymentLink: "https://buy.stripe.com/test_erp_pack_5slots",
         setupRequirements: null,
-        badges: ["5 ERP Slots", "Works Out of Box", "Slack Integration"],
+        badges: ["1 ERP Slot", "Works Out of Box", "Slack Integration"],
         chainsWith: ["Invoice Processor", "PO Management Agent", "Payroll Reconciliation Agent"],
         agentType: "erp-pack",
       };

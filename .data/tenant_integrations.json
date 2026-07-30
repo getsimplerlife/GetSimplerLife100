@@ -9,6 +9,31 @@
       "lastSync": "2026-07-28T20:53:29.181Z",
       "credentials": {
         "apiKey": "test-456"
+      },
+      "category": "CRM"
+    },
+    {
+      "id": "int-xg8vi2yq3",
+      "provider": "zoom",
+      "providerId": "zoom",
+      "category": "",
+      "status": "Connected",
+      "connectedAt": "2026-07-30T01:30:11.064Z",
+      "lastSync": "2026-07-30T01:30:11.064Z",
+      "credentials": {
+        "apiKey": "test-api-key-12345"
+      }
+    },
+    {
+      "id": "int-530bho18b",
+      "provider": "mailchimp",
+      "providerId": "mailchimp",
+      "category": "",
+      "status": "Connected",
+      "connectedAt": "2026-07-30T02:14:17.239Z",
+      "lastSync": "2026-07-30T02:14:17.239Z",
+      "credentials": {
+        "apiKey": "test-mailchimp-key-12345"
       }
     }
   ]

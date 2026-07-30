@@ -63,6 +63,7 @@ function ERPPortal() {
       // Filter to ERP/Accounting/Finance only
       const allProviders: ProviderItem[] = provsData.data || provsData || [];
       const erpProviders = allProviders.filter(p => {
+        if (p == null) return false;
         const cat = (p.category || "").toLowerCase();
         return ERP_CATEGORIES.some(c => cat.includes(c.toLowerCase()));
       });
@@ -80,9 +81,7 @@ function ERPPortal() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const filtered = providers.filter(p => {
-    return p.name.toLowerCase().includes(search.toLowerCase());
-  });
+  const filtered = providers.filter(p => p != null && p.name.toLowerCase().includes(search.toLowerCase()));
 
   const erpConnections = connections.filter(c => {
     const provider = providers.find(p => p.id === c.providerId);
@@ -212,6 +211,23 @@ function ERPPortal() {
         </div>
       </div>
 
+      {/* Connected Accounts Banner */}
+      {erpConnections.length > 0 && (
+        <div className="bg-emerald-950/10 border border-emerald-900/30 rounded-2xl p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="text-emerald-400 font-bold text-sm">
+              ✅ {erpConnections.length} ERP account{erpConnections.length !== 1 ? "s" : ""} connected
+            </span>
+          </div>
+          <Link
+            to="/portal/connected-accounts"
+            className="text-emerald-400 font-bold text-sm hover:text-emerald-300"
+          >
+            Manage in Connected Accounts →
+          </Link>
+        </div>
+      )}
+
       {/* Search */}
       <div>
         <input
@@ -223,93 +239,84 @@ function ERPPortal() {
         />
       </div>
 
-      {/* Provider Grid */}
+      {/* Provider Grid — Available to connect (connected providers are managed in Connected Accounts) */}
       {providers.length === 0 ? (
         <div className="text-center py-16 text-stone-500">
           <div className="text-4xl mb-4">🔌</div>
           <p className="font-bold">No ERP or accounting providers available</p>
           <p className="text-sm mt-1">Check your connection or browse all integrations.</p>
         </div>
-      ) : filtered.length === 0 ? (
-        <div className="text-center py-16 text-stone-500">
-          <div className="text-4xl mb-4">🔍</div>
-          <p className="font-bold">No providers match your search</p>
-          <p className="text-sm mt-1">Try a different search term.</p>
-        </div>
-      ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map(provider => {
-            const isConnected = connections.some(c => c.providerId === provider.id);
-            const conn = connections.find(c => c.providerId === provider.id);
-            const reqs = provider.connectionRequirements;
-            const isExpanded = expandedProvider === provider.id;
+      ) : (() => {
+        const unconnectedProviders = filtered.filter(p => !connections.some(c => c.providerId === p.id));
+        return unconnectedProviders.length === 0 ? (
+          <div className="text-center py-16 text-stone-500">
+            <div className="text-4xl mb-4">✅</div>
+            <p className="font-bold">All available ERP providers are connected</p>
+            <p className="text-sm mt-1">
+              <Link to="/portal/connected-accounts" className="text-emerald-400 hover:text-emerald-300 font-bold">Manage your connections →</Link>
+            </p>
+          </div>
+        ) : (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {unconnectedProviders.map(provider => {
+              const reqs = provider.connectionRequirements;
+              const isExpanded = expandedProvider === provider.id;
 
-            return (
-              <div
-                key={provider.id}
-                className={`bg-stone-900 border rounded-2xl p-6 transition-all group ${
-                  isConnected ? "border-emerald-800" : "border-stone-800 hover:border-stone-700"
-                }`}
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">{provider.icon || "🏢"}</span>
-                    <div>
-                      <div className="font-bold text-white text-sm">{provider.name}</div>
-                      <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-stone-800 text-stone-400">
-                        {provider.category}
-                      </span>
-                    </div>
-                  </div>
-                  <div className={`w-2 h-2 rounded-full transition-colors ${isConnected ? "bg-emerald-500" : "bg-stone-600"}`} title={isConnected ? "Connected" : "Available"} />
-                </div>
-
-                {/* Connection Requirements */}
-                {reqs && (
-                  <div className="mb-4">
-                    <button
-                      onClick={() => setExpandedProvider(isExpanded ? null : provider.id)}
-                      className="text-[10px] font-mono text-stone-500 hover:text-stone-300 underline mb-2"
-                    >
-                      {isExpanded ? "Hide requirements ▲" : "View requirements ▼"}
-                    </button>
-                    {isExpanded && (
-                      <div className="bg-stone-950 rounded-xl p-3 space-y-2 text-[10px] font-mono">
-                        <div>
-                          <span className="text-stone-500">Auth: </span>
-                          <span className="text-stone-300 font-bold">{reqs.authType}</span>
-                        </div>
-                        {reqs.scopes?.length > 0 && (
-                          <div>
-                            <span className="text-stone-500">Scopes: </span>
-                            <span className="text-stone-400">{reqs.scopes.join(", ")}</span>
-                          </div>
-                        )}
-                        <div>
-                          <span className="text-stone-500">Key type: </span>
-                          <span className="text-stone-400">{reqs.apiKeyType}</span>
-                        </div>
-                        {reqs.prerequisites?.length > 0 && (
-                          <div>
-                            <span className="text-stone-500">Required: </span>
-                            <span className="text-stone-400">{reqs.prerequisites.join(" · ")}</span>
-                          </div>
-                        )}
+              return (
+                <div
+                  key={provider.id}
+                  className="bg-stone-900 border border-stone-800 hover:border-stone-700 rounded-2xl p-6 transition-all group"
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">{provider.icon || "🏢"}</span>
+                      <div>
+                        <div className="font-bold text-white text-sm">{provider.name}</div>
+                        <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-stone-800 text-stone-400">
+                          {provider.category}
+                        </span>
                       </div>
-                    )}
+                    </div>
+                    <div className="w-2 h-2 rounded-full bg-stone-600" title="Available" />
                   </div>
-                )}
 
-                {/* Action Button */}
-                {isConnected ? (
-                  <button
-                    onClick={() => handleDisconnect(conn?.id || "", provider.name)}
-                    disabled={disconnecting === conn?.id}
-                    className="w-full py-2.5 rounded-xl font-bold text-sm transition-all bg-rose-600/20 text-rose-400 hover:bg-rose-600 hover:text-white disabled:opacity-50"
-                  >
-                    {disconnecting === conn?.id ? "Disconnecting..." : "✓ Connected — Disconnect"}
-                  </button>
-                ) : (
+                  {/* Connection Requirements */}
+                  {reqs && (
+                    <div className="mb-4">
+                      <button
+                        onClick={() => setExpandedProvider(isExpanded ? null : provider.id)}
+                        className="text-[10px] font-mono text-stone-500 hover:text-stone-300 underline mb-2"
+                      >
+                        {isExpanded ? "Hide requirements ▲" : "View requirements ▼"}
+                      </button>
+                      {isExpanded && (
+                        <div className="bg-stone-950 rounded-xl p-3 space-y-2 text-[10px] font-mono">
+                          <div>
+                            <span className="text-stone-500">Auth: </span>
+                            <span className="text-stone-300 font-bold">{reqs.authType}</span>
+                          </div>
+                          {reqs.scopes?.length > 0 && (
+                            <div>
+                              <span className="text-stone-500">Scopes: </span>
+                              <span className="text-stone-400">{reqs.scopes.join(", ")}</span>
+                            </div>
+                          )}
+                          <div>
+                            <span className="text-stone-500">Key type: </span>
+                            <span className="text-stone-400">{reqs.apiKeyType}</span>
+                          </div>
+                          {reqs.prerequisites?.length > 0 && (
+                            <div>
+                              <span className="text-stone-500">Required: </span>
+                              <span className="text-stone-400">{reqs.prerequisites.join(" · ")}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Action Button */}
                   <button
                     onClick={() => handleConnect(provider.id, provider.category)}
                     disabled={connecting === provider.id || (!slots.isOwner && slots.remainingSlots === 0)}
@@ -321,12 +328,12 @@ function ERPPortal() {
                   >
                     {!canConnect ? "No slots available" : connecting === provider.id ? "Connecting..." : "Connect"}
                   </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {/* Upgrade / Browse All */}
       <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 text-center">

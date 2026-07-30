@@ -186,13 +186,6 @@ export const PROVIDERS: ProviderData[] = [
     "description": "Zoho Mail integration for Email"
   },
   {
-    "id": "mailchimp",
-    "name": "Mailchimp",
-    "category": "Email",
-    "icon": "email",
-    "description": "Mailchimp integration for Email"
-  },
-  {
     "id": "sendgrid",
     "name": "Sendgrid",
     "category": "Email",

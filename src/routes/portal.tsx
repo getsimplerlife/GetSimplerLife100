@@ -218,6 +218,7 @@ function PortalLayout() {
     { name: "Integrations", subtitle: "Full 180+ Catalog", path: "/portal/integrations", icon: "🔌", section: "Connect" },
     { name: "CRM", subtitle: "Salesforce · HubSpot · Pipedrive", path: "/portal/crm", icon: "👥", section: "Connect" },
     { name: "ERP", subtitle: "SAP · NetSuite · QuickBooks", path: "/portal/erp", icon: "🏢", section: "Connect" },
+    { name: "Connected Accounts", subtitle: "Manage All Connections", path: "/portal/connected-accounts", icon: "🔗", section: "Connect" },
     { name: "Settings", subtitle: "Account · Billing · API Keys", path: "/portal/settings", icon: "⚙️", section: "Settings" },
     { name: "Admin", subtitle: "Users · Health · Audit", path: "/portal/admin", icon: "🛡️", section: "Settings", adminOnly: true },
   ];

@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { PROVIDERS } from "~/data/providers";
 
@@ -30,9 +30,11 @@ interface ConnectionItem {
   id: string;
   userId: string;
   provider: string;
+  providerId?: string;
+  category?: string;
   displayName: string;
   config: Record<string, any>;
-  status: "active" | "expired" | "error" | "pending";
+  status: "Connected" | "expired" | "error" | "pending";
   healthAt?: string;
   errorMsg?: string;
   createdAt: string;
@@ -180,7 +182,7 @@ function ConnectedServices() {
   const [feedback, setFeedback] = useState("");
 
   // Manual Credential Modal State
-  const [showCredentialModal, setShowCredentialModal] = useState(false);
+  const [activeApiKeyProvider, setActiveApiKeyProvider] = useState<string | null>(null);
   const [credentialProvider, setCredentialProvider] = useState<ProviderItem | null>(null);
   const [manualApiKey, setManualApiKey] = useState("");
   const [manualApiSecret, setManualApiSecret] = useState("");
@@ -198,7 +200,7 @@ function ConnectedServices() {
     setManualSaving(true);
     setManualError(null);
     try {
-      const res = await fetch("/api/integrations", {
+      const res = await fetch("/api/integrations/connect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -215,7 +217,7 @@ function ConnectedServices() {
         throw new Error(err.error || "Failed to connect");
       }
       setFeedback(`✅ ${credentialProvider.name} connected successfully!`);
-      setShowCredentialModal(false);
+      setActiveApiKeyProvider(null);
       setCredentialProvider(null);
       setManualApiKey("");
       setManualApiSecret("");
@@ -244,8 +246,8 @@ function ConnectedServices() {
       const provsData = await providersRes.json();
       const connsData = await connsRes.json();
       
-      setProviders(provsData || []);
-      setConnections(connsData || []);
+      setProviders(provsData.data || []);
+      setConnections(connsData.data || []);
     } catch (err: any) {
       console.error("Error fetching integrations:", err);
       setFetchError(err.message || "Failed to load integrations. Check your connection.");
@@ -417,10 +419,11 @@ function ConnectedServices() {
   };
 
   // Connections Filtering & Mapping
-  const filteredProviders = providers.filter((prov) => {
+  const filteredProviders = (providers || []).filter((prov) => {
+    if (!prov) return false;
     const matchesSearch =
-      prov.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      prov.description.toLowerCase().includes(searchQuery.toLowerCase());
+      (prov.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (prov.description || "").toLowerCase().includes(searchQuery.toLowerCase());
     
     const matchesCategory = selectedCategory === "all" || prov.category === selectedCategory;
     // Exclude CRM/ERP/Accounting — these have their own portal pages with slot gating
@@ -428,8 +431,18 @@ function ConnectedServices() {
     return matchesSearch && matchesCategory && !isExcluded;
   });
 
+  // Filtered connections — exclude CRM/ERP/Accounting to prevent leakage on integrations page
+  const filteredConnections = (connections || []).filter(c => {
+    if (!c) return false;
+    // Match by providerId (the canonical ID), fall back to provider name
+    const matchId = c.providerId || c.provider;
+    const provider = (providers || []).find(p => p != null && (p.id === matchId || p.name === matchId));
+    if (!provider) return true; // unknown provider, keep it
+    return !CRM_ERP_EXCLUDE.some(cat => (provider.category || "").toLowerCase().includes(cat.toLowerCase()));
+  });
+
   // Extract categories present in registered providers for the filter list (exclude CRM/ERP)
-  const uniqueCategories = Array.from(new Set(providers.map((p) => p.category)))
+  const uniqueCategories = Array.from(new Set((providers||[]).filter(Boolean).map((p) => (p||{}).category)))
     .filter(cat => !CRM_ERP_EXCLUDE.some(c => (cat || "").toLowerCase().includes(c.toLowerCase())));
 
   return (
@@ -456,7 +469,7 @@ function ConnectedServices() {
                 : "text-stone-400 hover:text-white"
             }`}
           >
-            🔌 App Connections ({connections.filter(c => c.status === "active").length}/{providers.length})
+            🔌 App Connections ({(filteredConnections||[]).filter(c => c.status === "Connected").length}/{(providers||[]).length})
           </button>
           <button
             onClick={() => setActiveTab("intake")}
@@ -532,19 +545,19 @@ function ConnectedServices() {
             <div className="bg-stone-950 border border-stone-900 p-4 rounded-2xl flex flex-col justify-between">
               <span className="text-[9px] font-mono font-bold tracking-wider text-stone-500 uppercase">ACTIVE CHANNELS</span>
               <span className="text-2xl font-black text-white mt-1">
-                {connections.filter(c => c.status === "active").length} <span className="text-stone-600 text-sm font-semibold">connected</span>
+                {(filteredConnections||[]).filter(c => c.status === "Connected").length} <span className="text-stone-600 text-sm font-semibold">connected</span>
               </span>
             </div>
             <div className="bg-stone-950 border border-stone-900 p-4 rounded-2xl flex flex-col justify-between">
               <span className="text-[9px] font-mono font-bold tracking-wider text-stone-500 uppercase">AVAILABLE PROVIDERS</span>
               <span className="text-2xl font-black text-white mt-1">
-                {providers.length} <span className="text-stone-600 text-sm font-semibold">platforms</span>
+                {(providers||[]).length} <span className="text-stone-600 text-sm font-semibold">platforms</span>
               </span>
             </div>
             <div className="bg-stone-950 border border-stone-900 p-4 rounded-2xl flex flex-col justify-between">
               <span className="text-[9px] font-mono font-bold tracking-wider text-stone-500 uppercase">ATTENTION NEEDED</span>
               <span className="text-2xl font-black text-amber-400 mt-1">
-                {connections.filter(c => c.status === "error" || c.status === "expired").length} <span className="text-stone-600 text-sm font-semibold">exceptions</span>
+                {(filteredConnections||[]).filter(c => c.status === "error" || c.status === "expired").length} <span className="text-stone-600 text-sm font-semibold">exceptions</span>
               </span>
             </div>
             <div className="bg-stone-950 border border-stone-900 p-4 rounded-2xl flex flex-col justify-between">
@@ -554,6 +567,18 @@ function ConnectedServices() {
               </span>
             </div>
           </div>
+
+          {/* Connected Accounts Banner */}
+          {(connections||[]).length > 0 && (
+            <div className="bg-emerald-950/10 border border-emerald-900/30 rounded-2xl p-4 flex items-center justify-between">
+              <span className="text-emerald-400 font-bold text-sm">
+                ✅ {(connections||[]).filter(c => c && c.status === "Connected").length} connection{(connections||[]).filter(c => c && c.status === "Connected").length !== 1 ? "s" : ""} active
+              </span>
+              <Link to="/portal/connected-accounts" className="text-emerald-400 font-bold text-sm hover:text-emerald-300">
+                Manage connected accounts →
+              </Link>
+            </div>
+          )}
 
           {/* Main Grid View */}
           {loadingConns ? (
@@ -583,22 +608,34 @@ function ConnectedServices() {
                 We couldn't find any third-party providers matching "{searchQuery}" in category "{selectedCategory}". Try updating your queries.
               </p>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredProviders.map((prov) => {
-                // Check if there's a connected channel
-                const activeConn = connections.find((c) => c.provider === prov.id);
-                const hasConnection = !!activeConn;
-                const statusStr = activeConn ? activeConn.status : "disconnected";
+          ) : (() => {
+            // Only show unconnected providers — connected ones are managed in Connected Accounts
+            const unconnectedProviders = filteredProviders.filter(prov => {
+              const activeConn = (filteredConnections||[]).find((c) => 
+                (c.providerId && c.providerId === prov.id) || c.provider === prov.id || c.provider === prov.name
+              );
+              return !activeConn;
+            });
+
+            return unconnectedProviders.length === 0 ? (
+              <div className="bg-stone-950 rounded-2xl border border-stone-900 p-12 text-center max-w-xl mx-auto space-y-4">
+                <span className="text-4xl block">✅</span>
+                <h3 className="text-sm font-bold text-white">All providers connected</h3>
+                <p className="text-[11px] text-stone-500 leading-relaxed">
+                  Every provider in this view is already connected. 
+                </p>
+                <Link to="/portal/connected-accounts" className="text-emerald-400 font-bold text-sm hover:text-emerald-300">
+                  Manage your connections →
+                </Link>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {unconnectedProviders.map((prov) => {
 
                 return (
                   <div
                     key={prov.id}
-                    className={`bg-stone-950 border rounded-2xl p-5 flex flex-col justify-between transition-all duration-300 hover:shadow-lg ${
-                      statusStr === "active" ? "border-emerald-950 hover:border-emerald-900/60" :
-                      statusStr === "error" || statusStr === "expired" ? "border-amber-950/80 hover:border-amber-900/80" :
-                      "border-stone-900 hover:border-stone-850"
-                    }`}
+                    className="bg-stone-950 border border-stone-900 hover:border-stone-850 rounded-2xl p-5 flex flex-col justify-between transition-all duration-300 hover:shadow-lg"
                   >
                     <div className="space-y-4">
                       
@@ -608,17 +645,8 @@ function ConnectedServices() {
                           {getProviderEmoji(prov.id, prov.category)}
                         </div>
 
-                        <span className={`text-[8px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${
-                          statusStr === "active" ? "bg-emerald-950/60 text-emerald-400 border-emerald-900/50" :
-                          statusStr === "error" || statusStr === "expired" ? "bg-amber-950/60 text-amber-400 border-amber-900/50 animate-pulse" :
-                          statusStr === "pending" ? "bg-blue-950/60 text-blue-400 border-blue-900/50 animate-pulse" :
-                          "bg-stone-900 text-stone-500 border-stone-850"
-                        }`}>
-                          {statusStr === "active" ? "Connected" :
-                           statusStr === "error" ? "Needs Attention" :
-                           statusStr === "expired" ? "Token Expired" :
-                           statusStr === "pending" ? "Connecting" :
-                           "Disconnected"}
+                        <span className="text-[8px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded border bg-stone-900 text-stone-500 border-stone-850">
+                          Available
                         </span>
                       </div>
 
@@ -641,21 +669,11 @@ function ConnectedServices() {
                         </div>
                         <div className="flex justify-between">
                           <span>HEALTH CHECK</span>
-                          <span className={`font-bold ${
-                            statusStr === "active" ? "text-emerald-500" :
-                            statusStr === "error" || statusStr === "expired" ? "text-amber-500" :
-                            "text-stone-600"
-                          }`}>
-                            {statusStr === "active" ? "100% Operational" :
-                             statusStr === "error" || statusStr === "expired" ? (activeConn?.errorMsg || "API Exception") :
-                             "Awaiting Connection"}
-                          </span>
+                          <span className="text-stone-600 font-bold">Awaiting Connection</span>
                         </div>
                         <div className="flex justify-between">
                           <span>LAST SYNC RUN</span>
-                          <span className="text-stone-400 font-bold">
-                            {activeConn ? new Date(activeConn.updatedAt).toLocaleTimeString() : "Never"}
-                          </span>
+                          <span className="text-stone-400 font-bold">Never</span>
                         </div>
                       </div>
 
@@ -724,47 +742,84 @@ function ConnectedServices() {
                         )}
                       </div>
 
-                      <div className="flex gap-2">
-                        {hasConnection && (
-                          <>
-                            <button
-                              onClick={() => handleSyncConnection(activeConn.id, activeConn.displayName)}
-                              className="bg-stone-900 hover:bg-stone-850 text-stone-400 hover:text-white border border-stone-800 text-[10px] font-mono font-bold px-2.5 py-1.5 rounded-lg transition-all"
-                              title="Trigger Status Check"
-                            >
-                              🔄
-                            </button>
-                            <button
-                              onClick={() => handleDisconnect(activeConn.id, activeConn.displayName)}
-                              className="bg-stone-900/60 hover:bg-rose-950/20 text-stone-500 hover:text-rose-400 border border-stone-900 hover:border-rose-900/40 text-[9px] font-mono font-bold px-3 py-1.5 rounded-lg transition-all"
-                            >
-                              Disconnect
-                            </button>
-                          </>
-                        )}
-                        {!hasConnection && (
-                          <div className="flex gap-1">
-                            <button
-                              onClick={() => handleConnect(prov.id)}
-                              className="bg-white text-black border-white hover:bg-stone-200 text-[9px] font-mono font-black tracking-wide uppercase px-3 py-1.5 rounded-lg border transition-all"
-                            >
-                              OAuth
-                            </button>
-                            <button
-                              onClick={() => {
-                                setCredentialProvider(prov);
-                                setManualApiKey("");
-                                setManualApiSecret("");
-                                setManualSubdomain("");
-                                setManualError(null);
-                                setShowCredentialModal(true);
-                              }}
-                              className="bg-stone-900 hover:bg-stone-800 text-stone-300 border border-stone-800 hover:text-white text-[9px] font-mono font-bold px-3 py-1.5 rounded-lg transition-all"
-                            >
-                              API Key
-                            </button>
-                          </div>
-                        )}
+                      <div className="flex gap-1">
+                        {activeApiKeyProvider === prov.id ? (
+                              <div className="w-full space-y-2">
+                                {manualError && (
+                                  <div className="bg-rose-950/20 border border-rose-800/30 text-rose-400 p-2 rounded-lg text-[9px] font-bold">
+                                    ⚠️ {manualError}
+                                  </div>
+                                )}
+                                <input
+                                  type="text"
+                                  value={manualApiKey}
+                                  onChange={e => setManualApiKey(e.target.value)}
+                                  placeholder="Paste API key"
+                                  className="w-full bg-stone-900 border border-stone-800 text-white rounded-lg px-3 py-2 text-[10px] font-mono placeholder-stone-700 focus:border-emerald-600 outline-none"
+                                />
+                                <div className="flex gap-1">
+                                  <input
+                                    type="text"
+                                    value={manualApiSecret}
+                                    onChange={e => setManualApiSecret(e.target.value)}
+                                    placeholder="Secret (optional)"
+                                    className="flex-1 bg-stone-900 border border-stone-800 text-white rounded-lg px-3 py-2 text-[10px] font-mono placeholder-stone-700 focus:border-emerald-600 outline-none"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={manualSubdomain}
+                                    onChange={e => setManualSubdomain(e.target.value)}
+                                    placeholder="Subdomain"
+                                    className="w-24 bg-stone-900 border border-stone-800 text-white rounded-lg px-3 py-2 text-[10px] font-mono placeholder-stone-700 focus:border-emerald-600 outline-none"
+                                  />
+                                </div>
+                                <div className="flex gap-1">
+                                  <button
+                                    onClick={() => { setActiveApiKeyProvider(null); setManualError(null); }}
+                                    className="flex-1 bg-stone-900 hover:bg-stone-800 text-stone-400 border border-stone-800 text-[9px] font-mono font-bold px-3 py-1.5 rounded-lg transition-all"
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    onClick={handleConnectManual}
+                                    disabled={manualSaving}
+                                    className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-[9px] font-mono font-bold px-3 py-1.5 rounded-lg transition-all disabled:opacity-50"
+                                  >
+                                    {manualSaving ? "..." : "Connect"}
+                                  </button>
+                                </div>
+                                <div className="flex justify-end">
+                                  <button
+                                    onClick={() => handleConnect(prov.id)}
+                                    className="bg-white text-black border-white hover:bg-stone-200 text-[9px] font-mono font-black tracking-wide uppercase px-3 py-1.5 rounded-lg border transition-all"
+                                  >
+                                    or use OAuth
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex gap-1">
+                                <button
+                                  onClick={() => handleConnect(prov.id)}
+                                  className="bg-white text-black border-white hover:bg-stone-200 text-[9px] font-mono font-black tracking-wide uppercase px-3 py-1.5 rounded-lg border transition-all"
+                                >
+                                  OAuth
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setCredentialProvider(prov);
+                                    setActiveApiKeyProvider(prov.id);
+                                    setManualApiKey("");
+                                    setManualApiSecret("");
+                                    setManualSubdomain("");
+                                    setManualError(null);
+                                  }}
+                                  className="bg-stone-900 hover:bg-stone-800 text-stone-300 border border-stone-800 hover:text-white text-[9px] font-mono font-bold px-3 py-1.5 rounded-lg transition-all"
+                                >
+                                  API Key
+                                </button>
+                              </div>
+                            )}
                       </div>
                     </div>
 
@@ -772,7 +827,8 @@ function ConnectedServices() {
                 );
               })}
             </div>
-          )}
+          );
+        })()}
 
         </div>
       )}
@@ -1066,76 +1122,6 @@ function ConnectedServices() {
                 className="bg-white text-black font-mono font-bold text-[10px] px-4 py-2 rounded-lg hover:bg-stone-200"
               >
                 Done Reviewing
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ─── Manual Credential Modal ─── */}
-      {showCredentialModal && credentialProvider && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={() => setShowCredentialModal(false)}>
-          <div className="bg-stone-950 border border-stone-900 rounded-3xl p-8 w-full max-w-lg mx-4 shadow-2xl" onClick={e => e.stopPropagation()}>
-            <div className="flex justify-between items-start mb-6">
-              <div>
-                <h2 className="text-xl font-black text-white">🔑 {credentialProvider.name}</h2>
-                <p className="text-stone-400 text-xs mt-1">Enter your credentials to connect manually</p>
-              </div>
-              <button onClick={() => setShowCredentialModal(false)} className="text-stone-500 hover:text-white text-xl">&times;</button>
-            </div>
-
-            {manualError && (
-              <div className="bg-rose-950/20 border border-rose-800/30 text-rose-400 p-3 rounded-xl text-xs font-bold mb-4">
-                ⚠️ {manualError}
-              </div>
-            )}
-
-            <div className="space-y-4">
-              <div>
-                <label className="text-[10px] font-black uppercase text-stone-500 tracking-wider block mb-1">API Key *</label>
-                <input
-                  type="text"
-                  value={manualApiKey}
-                  onChange={e => setManualApiKey(e.target.value)}
-                  placeholder="Paste your API key here"
-                  className="w-full bg-stone-900 border border-stone-800 text-white rounded-xl px-4 py-3 text-xs font-mono placeholder-stone-700 focus:border-emerald-600 outline-none"
-                />
-              </div>
-              <div>
-                <label className="text-[10px] font-black uppercase text-stone-500 tracking-wider block mb-1">API Secret (optional)</label>
-                <input
-                  type="password"
-                  value={manualApiSecret}
-                  onChange={e => setManualApiSecret(e.target.value)}
-                  placeholder="Client secret or API secret"
-                  className="w-full bg-stone-900 border border-stone-800 text-white rounded-xl px-4 py-3 text-xs font-mono placeholder-stone-700 focus:border-emerald-600 outline-none"
-                />
-              </div>
-              <div>
-                <label className="text-[10px] font-black uppercase text-stone-500 tracking-wider block mb-1">Subdomain (optional)</label>
-                <input
-                  type="text"
-                  value={manualSubdomain}
-                  onChange={e => setManualSubdomain(e.target.value)}
-                  placeholder="e.g. your-company.salesforce.com"
-                  className="w-full bg-stone-900 border border-stone-800 text-white rounded-xl px-4 py-3 text-xs font-mono placeholder-stone-700 focus:border-emerald-600 outline-none"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 mt-8">
-              <button
-                onClick={() => setShowCredentialModal(false)}
-                className="bg-stone-900 hover:bg-stone-800 text-stone-300 border border-stone-800 px-5 py-2.5 rounded-xl text-xs font-bold transition-all"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleConnectManual}
-                disabled={manualSaving}
-                className="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all disabled:opacity-50"
-              >
-                {manualSaving ? "Connecting..." : "Connect"}
               </button>
             </div>
           </div>

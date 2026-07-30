@@ -1,0 +1,622 @@
+// src/lib/provider-api.ts — SERVER-SIDE ONLY. Do NOT import in any .tsx file.
+// Real API integration for AI agent run logic.
+// Each function attempts a live API call using stored credentials.
+// In test/dev with placeholder keys, calls fail gracefully — but structure
+// and intent are preserved so output reflects real integration wiring.
+
+const TIMEOUT_MS = 8000;
+
+// ────────────────────────────────────────────────────────────────────────
+// Types
+// ────────────────────────────────────────────────────────────────────────
+export interface ProviderConnection {
+  id: string;
+  provider: string;
+  providerId: string;
+  status: string;
+  connectedAt: string;
+  lastSync: string;
+  credentials: { apiKey?: string; accessToken?: string; refreshToken?: string; instanceUrl?: string };
+  category: string;
+}
+
+export interface ProviderResult {
+  providerId: string;
+  provider: string;
+  status: "connected" | "unreachable" | "auth_failed" | "rate_limited" | "ok";
+  recordsFound: number;
+  sampleData: any[];
+  error?: string;
+  endpoint?: string;
+}
+
+export interface AgentIntegrationResult {
+  agentId: string;
+  agentName: string;
+  status: string;
+  startedAt: string;
+  completedAt: string;
+  summary: string;
+  integrationsUsed: ProviderResult[];
+  totalRecordsProcessed: number;
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// Helpers
+// ────────────────────────────────────────────────────────────────────────
+
+async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = TIMEOUT_MS): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { ...options, signal: controller.signal });
+    return res;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// CRM Providers
+// ────────────────────────────────────────────────────────────────────────
+
+async function queryHubSpot(creds: Record<string, string>): Promise<ProviderResult> {
+  const apiKey = creds.apiKey || creds.accessToken || "";
+  // HubSpot private app / API key: hapikey query param
+  try {
+    const res = await fetchWithTimeout(
+      `https://api.hubapi.com/crm/v3/objects/contacts?limit=10&properties=firstname,lastname,email,company`,
+      { headers: { Authorization: `Bearer ${apiKey}` } }
+    );
+    if (res.status === 401) return { providerId: "hubspot", provider: "HubSpot", status: "auth_failed", recordsFound: 0, sampleData: [], error: "Invalid API key" };
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    const results = (json.results || []).map((c: any) => ({
+      id: c.id,
+      firstname: c.properties?.firstname,
+      lastname: c.properties?.lastname,
+      email: c.properties?.email,
+      company: c.properties?.company,
+    }));
+    return { providerId: "hubspot", provider: "HubSpot", status: "ok", recordsFound: json.total || results.length, sampleData: results.slice(0, 5), endpoint: "crm/v3/objects/contacts" };
+  } catch (e: any) {
+    const unreachable = e.name === "TimeoutError" || e.message?.includes("DNS") || e.message?.includes("fetch");
+    return { providerId: "hubspot", provider: "HubSpot", status: unreachable ? "unreachable" : "auth_failed", recordsFound: 0, sampleData: [], error: e.message, endpoint: "crm/v3/objects/contacts" };
+  }
+}
+
+async function querySalesforce(creds: Record<string, string>): Promise<ProviderResult> {
+  const accessToken = creds.accessToken || creds.apiKey || "";
+  const instanceUrl = creds.instanceUrl || "https://login.salesforce.com";
+  const baseUrl = instanceUrl.replace(/\/$/, "");
+  try {
+    const res = await fetchWithTimeout(
+      `${baseUrl}/services/data/v58.0/query?q=SELECT+Id,Name,Industry+FROM+Account+LIMIT+10`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    if (res.status === 401) return { providerId: "salesforce", provider: "Salesforce", status: "auth_failed", recordsFound: 0, sampleData: [], error: "Invalid credentials" };
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    const records = (json.records || []).slice(0, 5).map((r: any) => ({ id: r.Id, name: r.Name, industry: r.Industry }));
+    return { providerId: "salesforce", provider: "Salesforce", status: "ok", recordsFound: json.totalSize || records.length, sampleData: records, endpoint: "services/data/v58.0/query" };
+  } catch (e: any) {
+    const unreachable = e.name === "TimeoutError" || e.message?.includes("DNS") || e.message?.includes("fetch");
+    return { providerId: "salesforce", provider: "Salesforce", status: unreachable ? "unreachable" : "auth_failed", recordsFound: 0, sampleData: [], error: e.message, endpoint: "services/data/v58.0/query" };
+  }
+}
+
+async function queryPipedrive(creds: Record<string, string>): Promise<ProviderResult> {
+  const apiKey = creds.apiKey || "";
+  try {
+    const res = await fetchWithTimeout(
+      `https://api.pipedrive.com/v1/persons?limit=10&api_token=${apiKey}`
+    );
+    if (res.status === 401) return { providerId: "pipedrive", provider: "Pipedrive", status: "auth_failed", recordsFound: 0, sampleData: [], error: "Invalid API token" };
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    const data = (json.data || []).slice(0, 5).map((p: any) => ({ id: p.id, name: p.name, email: p.email?.[0]?.value }));
+    return { providerId: "pipedrive", provider: "Pipedrive", status: "ok", recordsFound: json.additional_data?.pagination?.total_items || data.length, sampleData: data, endpoint: "v1/persons" };
+  } catch (e: any) {
+    const unreachable = e.name === "TimeoutError" || e.message?.includes("DNS") || e.message?.includes("fetch");
+    return { providerId: "pipedrive", provider: "Pipedrive", status: unreachable ? "unreachable" : "auth_failed", recordsFound: 0, sampleData: [], error: e.message, endpoint: "v1/persons" };
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// ERP / Accounting
+// ────────────────────────────────────────────────────────────────────────
+
+async function queryQuickBooks(creds: Record<string, string>): Promise<ProviderResult> {
+  const accessToken = creds.accessToken || creds.apiKey || "";
+  const realmId = creds.realmId || creds.companyId || "";
+  try {
+    const res = await fetchWithTimeout(
+      `https://sandbox-quickbooks.api.intuit.com/v3/company/${realmId}/query?query=select+*+from+Customer+maxresults+10`,
+      { headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" } }
+    );
+    if (res.status === 401) return { providerId: "quickbooks", provider: "QuickBooks", status: "auth_failed", recordsFound: 0, sampleData: [], error: "Invalid token" };
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    const entities = (json.QueryResponse?.Customer || []).slice(0, 5).map((c: any) => ({ id: c.Id, name: c.DisplayName }));
+    return { providerId: "quickbooks", provider: "QuickBooks", status: "ok", recordsFound: entities.length, sampleData: entities, endpoint: "v3/company/{realmId}/query" };
+  } catch (e: any) {
+    const unreachable = e.name === "TimeoutError" || e.message?.includes("DNS") || e.message?.includes("fetch");
+    return { providerId: "quickbooks", provider: "QuickBooks", status: unreachable ? "unreachable" : "auth_failed", recordsFound: 0, sampleData: [], error: e.message, endpoint: "v3/company/{realmId}/query" };
+  }
+}
+
+async function queryXero(creds: Record<string, string>): Promise<ProviderResult> {
+  const accessToken = creds.accessToken || creds.apiKey || "";
+  try {
+    const res = await fetchWithTimeout(
+      `https://api.xero.com/api.xro/2.0/Contacts?pageSize=10`,
+      { headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" } }
+    );
+    if (res.status === 401) return { providerId: "xero", provider: "Xero", status: "auth_failed", recordsFound: 0, sampleData: [], error: "Invalid token" };
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    const contacts = (json.Contacts || []).slice(0, 5).map((c: any) => ({ id: c.ContactID, name: c.Name }));
+    return { providerId: "xero", provider: "Xero", status: "ok", recordsFound: contacts.length, sampleData: contacts, endpoint: "api.xro/2.0/Contacts" };
+  } catch (e: any) {
+    const unreachable = e.name === "TimeoutError" || e.message?.includes("DNS") || e.message?.includes("fetch");
+    return { providerId: "xero", provider: "Xero", status: unreachable ? "unreachable" : "auth_failed", recordsFound: 0, sampleData: [], error: e.message, endpoint: "api.xro/2.0/Contacts" };
+  }
+}
+
+async function queryNetSuite(creds: Record<string, string>): Promise<ProviderResult> {
+  // NetSuite uses SuiteTalk SOAP or REST Web Services; try the REST API
+  const accessToken = creds.accessToken || creds.apiKey || "";
+  const accountId = creds.accountId || "";
+  try {
+    const res = await fetchWithTimeout(
+      `https://${accountId}.suitetalk.api.netsuite.com/services/rest/record/v1/customer?limit=10`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    if (res.status === 401) return { providerId: "netsuite", provider: "NetSuite", status: "auth_failed", recordsFound: 0, sampleData: [], error: "Invalid credentials" };
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    const items = (json.items || []).slice(0, 5).map((c: any) => ({ id: c.id, name: c.companyName }));
+    return { providerId: "netsuite", provider: "NetSuite", status: "ok", recordsFound: json.totalResults || items.length, sampleData: items, endpoint: "record/v1/customer" };
+  } catch (e: any) {
+    const unreachable = e.name === "TimeoutError" || e.message?.includes("DNS") || e.message?.includes("fetch");
+    return { providerId: "netsuite", provider: "NetSuite", status: unreachable ? "unreachable" : "auth_failed", recordsFound: 0, sampleData: [], error: e.message, endpoint: "record/v1/customer" };
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// Support / Ticketing
+// ────────────────────────────────────────────────────────────────────────
+
+async function queryZendesk(creds: Record<string, string>): Promise<ProviderResult> {
+  const apiKey = creds.apiKey || creds.accessToken || "";
+  const subdomain = creds.subdomain || "test";
+  try {
+    const res = await fetchWithTimeout(
+      `https://${subdomain}.zendesk.com/api/v2/tickets.json?per_page=10`,
+      { headers: { Authorization: `Basic ${btoa(`${creds.email || "agent"}/token:${apiKey}`)}` } }
+    );
+    if (res.status === 401) return { providerId: "zendesk", provider: "Zendesk", status: "auth_failed", recordsFound: 0, sampleData: [], error: "Invalid credentials" };
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    const tickets = (json.tickets || []).slice(0, 5).map((t: any) => ({ id: t.id, subject: t.subject, status: t.status }));
+    return { providerId: "zendesk", provider: "Zendesk", status: "ok", recordsFound: json.count || tickets.length, sampleData: tickets, endpoint: "api/v2/tickets" };
+  } catch (e: any) {
+    const unreachable = e.name === "TimeoutError" || e.message?.includes("DNS") || e.message?.includes("fetch");
+    return { providerId: "zendesk", provider: "Zendesk", status: unreachable ? "unreachable" : "auth_failed", recordsFound: 0, sampleData: [], error: e.message, endpoint: "api/v2/tickets" };
+  }
+}
+
+async function queryIntercom(creds: Record<string, string>): Promise<ProviderResult> {
+  const accessToken = creds.accessToken || creds.apiKey || "";
+  try {
+    const res = await fetchWithTimeout(
+      `https://api.intercom.io/contacts?per_page=10`,
+      { headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" } }
+    );
+    if (res.status === 401) return { providerId: "intercom", provider: "Intercom", status: "auth_failed", recordsFound: 0, sampleData: [], error: "Invalid token" };
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    const contacts = (json.data || []).slice(0, 5).map((c: any) => ({ id: c.id, name: c.name, email: c.email }));
+    return { providerId: "intercom", provider: "Intercom", status: "ok", recordsFound: json.total_count || contacts.length, sampleData: contacts, endpoint: "contacts" };
+  } catch (e: any) {
+    const unreachable = e.name === "TimeoutError" || e.message?.includes("DNS") || e.message?.includes("fetch");
+    return { providerId: "intercom", provider: "Intercom", status: unreachable ? "unreachable" : "auth_failed", recordsFound: 0, sampleData: [], error: e.message, endpoint: "contacts" };
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// Marketing
+// ────────────────────────────────────────────────────────────────────────
+
+async function queryMailchimp(creds: Record<string, string>): Promise<ProviderResult> {
+  const apiKey = creds.apiKey || creds.accessToken || "";
+  const dc = creds.datacenter || creds.dc || "us1";
+  try {
+    const res = await fetchWithTimeout(
+      `https://${dc}.api.mailchimp.com/3.0/lists?count=10`,
+      { headers: { Authorization: `Basic ${btoa(`apikey:${apiKey}`)}` } }
+    );
+    if (res.status === 401) return { providerId: "mailchimp", provider: "Mailchimp", status: "auth_failed", recordsFound: 0, sampleData: [], error: "Invalid API key" };
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    const lists = (json.lists || []).slice(0, 5).map((l: any) => ({ id: l.id, name: l.name, memberCount: l.stats?.member_count }));
+    return { providerId: "mailchimp", provider: "Mailchimp", status: "ok", recordsFound: json.total_items || lists.length, sampleData: lists, endpoint: "3.0/lists" };
+  } catch (e: any) {
+    const unreachable = e.name === "TimeoutError" || e.message?.includes("DNS") || e.message?.includes("fetch");
+    return { providerId: "mailchimp", provider: "Mailchimp", status: unreachable ? "unreachable" : "auth_failed", recordsFound: 0, sampleData: [], error: e.message, endpoint: "3.0/lists" };
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// Communication
+// ────────────────────────────────────────────────────────────────────────
+
+async function querySlack(creds: Record<string, string>): Promise<ProviderResult> {
+  const accessToken = creds.accessToken || creds.apiKey || "";
+  try {
+    const res = await fetchWithTimeout(
+      `https://slack.com/api/conversations.list?limit=10`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    if (!json.ok) return { providerId: "slack", provider: "Slack", status: "auth_failed", recordsFound: 0, sampleData: [], error: json.error };
+    const channels = (json.channels || []).slice(0, 5).map((c: any) => ({ id: c.id, name: c.name, members: c.num_members }));
+    return { providerId: "slack", provider: "Slack", status: "ok", recordsFound: channels.length, sampleData: channels, endpoint: "conversations.list" };
+  } catch (e: any) {
+    const unreachable = e.name === "TimeoutError" || e.message?.includes("DNS") || e.message?.includes("fetch");
+    return { providerId: "slack", provider: "Slack", status: unreachable ? "unreachable" : "auth_failed", recordsFound: 0, sampleData: [], error: e.message, endpoint: "conversations.list" };
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// E-Commerce
+// ────────────────────────────────────────────────────────────────────────
+
+async function queryShopify(creds: Record<string, string>): Promise<ProviderResult> {
+  const accessToken = creds.accessToken || creds.apiKey || "";
+  const store = creds.store || creds.shop || "test";
+  try {
+    const res = await fetchWithTimeout(
+      `https://${store}.myshopify.com/admin/api/2024-01/products.json?limit=10`,
+      { headers: { "X-Shopify-Access-Token": accessToken } }
+    );
+    if (res.status === 401) return { providerId: "shopify", provider: "Shopify", status: "auth_failed", recordsFound: 0, sampleData: [], error: "Invalid access token" };
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    const products = (json.products || []).slice(0, 5).map((p: any) => ({ id: p.id, title: p.title, inventory: p.variants?.[0]?.inventory_quantity }));
+    return { providerId: "shopify", provider: "Shopify", status: "ok", recordsFound: products.length, sampleData: products, endpoint: "admin/api/2024-01/products" };
+  } catch (e: any) {
+    const unreachable = e.name === "TimeoutError" || e.message?.includes("DNS") || e.message?.includes("fetch");
+    return { providerId: "shopify", provider: "Shopify", status: unreachable ? "unreachable" : "auth_failed", recordsFound: 0, sampleData: [], error: e.message, endpoint: "admin/api/2024-01/products" };
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// Project Management / ITSM
+// ────────────────────────────────────────────────────────────────────────
+
+async function queryJira(creds: Record<string, string>): Promise<ProviderResult> {
+  const apiToken = creds.apiKey || creds.accessToken || "";
+  const domain = creds.domain || "test";
+  const email = creds.email || "";
+  try {
+    const res = await fetchWithTimeout(
+      `https://${domain}.atlassian.net/rest/api/3/search?maxResults=10`,
+      { headers: { Authorization: `Basic ${btoa(`${email}:${apiToken}`)}` } }
+    );
+    if (res.status === 401) return { providerId: "jira", provider: "Jira", status: "auth_failed", recordsFound: 0, sampleData: [], error: "Invalid credentials" };
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    const issues = (json.issues || []).slice(0, 5).map((i: any) => ({ key: i.key, summary: i.fields?.summary, status: i.fields?.status?.name }));
+    return { providerId: "jira", provider: "Jira", status: "ok", recordsFound: json.total || issues.length, sampleData: issues, endpoint: "rest/api/3/search" };
+  } catch (e: any) {
+    const unreachable = e.name === "TimeoutError" || e.message?.includes("DNS") || e.message?.includes("fetch");
+    return { providerId: "jira", provider: "Jira", status: unreachable ? "unreachable" : "auth_failed", recordsFound: 0, sampleData: [], error: e.message, endpoint: "rest/api/3/search" };
+  }
+}
+
+async function queryServiceNow(creds: Record<string, string>): Promise<ProviderResult> {
+  const apiKey = creds.apiKey || creds.accessToken || "";
+  const instance = creds.instance || creds.subdomain || "test";
+  try {
+    const res = await fetchWithTimeout(
+      `https://${instance}.service-now.com/api/now/table/incident?sysparm_limit=10`,
+      { headers: { Authorization: `Bearer ${apiKey}`, Accept: "application/json" } }
+    );
+    if (res.status === 401) return { providerId: "servicenow", provider: "ServiceNow", status: "auth_failed", recordsFound: 0, sampleData: [], error: "Invalid credentials" };
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    const incidents = (json.result || []).slice(0, 5).map((inc: any) => ({ number: inc.number, short_description: inc.short_description, priority: inc.priority }));
+    return { providerId: "servicenow", provider: "ServiceNow", status: "ok", recordsFound: incidents.length, sampleData: incidents, endpoint: "api/now/table/incident" };
+  } catch (e: any) {
+    const unreachable = e.name === "TimeoutError" || e.message?.includes("DNS") || e.message?.includes("fetch");
+    return { providerId: "servicenow", provider: "ServiceNow", status: unreachable ? "unreachable" : "auth_failed", recordsFound: 0, sampleData: [], error: e.message, endpoint: "api/now/table/incident" };
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// HR
+// ────────────────────────────────────────────────────────────────────────
+
+async function queryBambooHR(creds: Record<string, string>): Promise<ProviderResult> {
+  const apiKey = creds.apiKey || creds.accessToken || "";
+  const subdomain = creds.subdomain || "test";
+  try {
+    const res = await fetchWithTimeout(
+      `https://api.bamboohr.com/api/gateway.php/${subdomain}/v1/employees/directory`,
+      { headers: { Authorization: `Basic ${btoa(`${apiKey}:x`)}`, Accept: "application/json" } }
+    );
+    if (res.status === 401) return { providerId: "bamboohr", provider: "BambooHR", status: "auth_failed", recordsFound: 0, sampleData: [], error: "Invalid API key" };
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    const employees = (json.employees || []).slice(0, 5).map((e: any) => ({ id: e.id, name: `${e.firstName} ${e.lastName}`, department: e.department }));
+    return { providerId: "bamboohr", provider: "BambooHR", status: "ok", recordsFound: employees.length, sampleData: employees, endpoint: "v1/employees/directory" };
+  } catch (e: any) {
+    const unreachable = e.name === "TimeoutError" || e.message?.includes("DNS") || e.message?.includes("fetch");
+    return { providerId: "bamboohr", provider: "BambooHR", status: unreachable ? "unreachable" : "auth_failed", recordsFound: 0, sampleData: [], error: e.message, endpoint: "v1/employees/directory" };
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// Social / Content
+// ────────────────────────────────────────────────────────────────────────
+
+async function queryLinkedIn(creds: Record<string, string>): Promise<ProviderResult> {
+  const accessToken = creds.accessToken || creds.apiKey || "";
+  try {
+    const res = await fetchWithTimeout(
+      `https://api.linkedin.com/v2/me`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    if (res.status === 401) return { providerId: "linkedin", provider: "LinkedIn", status: "auth_failed", recordsFound: 0, sampleData: [], error: "Invalid token" };
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    return { providerId: "linkedin", provider: "LinkedIn", status: "ok", recordsFound: 1, sampleData: [{ id: json.id, name: json.localizedFirstName + " " + json.localizedLastName }], endpoint: "v2/me" };
+  } catch (e: any) {
+    const unreachable = e.name === "TimeoutError" || e.message?.includes("DNS") || e.message?.includes("fetch");
+    return { providerId: "linkedin", provider: "LinkedIn", status: unreachable ? "unreachable" : "auth_failed", recordsFound: 0, sampleData: [], error: e.message, endpoint: "v2/me" };
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// Spreadsheets / Databases
+// ────────────────────────────────────────────────────────────────────────
+
+async function queryGoogleSheets(creds: Record<string, string>): Promise<ProviderResult> {
+  const accessToken = creds.accessToken || creds.apiKey || "";
+  const spreadsheetId = creds.spreadsheetId || creds.sheetId || "";
+  try {
+    const res = await fetchWithTimeout(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Sheet1!A1:D50`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    if (res.status === 401) return { providerId: "googlesheets", provider: "Google Sheets", status: "auth_failed", recordsFound: 0, sampleData: [], error: "Invalid token" };
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    const rows = (json.values || []).slice(0, 5);
+    return { providerId: "googlesheets", provider: "Google Sheets", status: "ok", recordsFound: rows.length, sampleData: rows, endpoint: "v4/spreadsheets/{id}/values" };
+  } catch (e: any) {
+    const unreachable = e.name === "TimeoutError" || e.message?.includes("DNS") || e.message?.includes("fetch");
+    return { providerId: "googlesheets", provider: "Google Sheets", status: unreachable ? "unreachable" : "auth_failed", recordsFound: 0, sampleData: [], error: e.message, endpoint: "v4/spreadsheets/{id}/values" };
+  }
+}
+
+async function queryAirtable(creds: Record<string, string>): Promise<ProviderResult> {
+  const accessToken = creds.accessToken || creds.apiKey || "";
+  const baseId = creds.baseId || "";
+  const tableId = creds.tableId || creds.tableName || "";
+  try {
+    const res = await fetchWithTimeout(
+      `https://api.airtable.com/v0/${baseId}/${tableId}?maxRecords=10`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    if (res.status === 401) return { providerId: "airtable", provider: "Airtable", status: "auth_failed", recordsFound: 0, sampleData: [], error: "Invalid token" };
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    const records = (json.records || []).slice(0, 5).map((r: any) => ({ id: r.id, fields: r.fields }));
+    return { providerId: "airtable", provider: "Airtable", status: "ok", recordsFound: records.length, sampleData: records, endpoint: "v0/{baseId}/{tableId}" };
+  } catch (e: any) {
+    const unreachable = e.name === "TimeoutError" || e.message?.includes("DNS") || e.message?.includes("fetch");
+    return { providerId: "airtable", provider: "Airtable", status: unreachable ? "unreachable" : "auth_failed", recordsFound: 0, sampleData: [], error: e.message, endpoint: "v0/{baseId}/{tableId}" };
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// Maps / Logistics
+// ────────────────────────────────────────────────────────────────────────
+
+async function queryGoogleMaps(creds: Record<string, string>): Promise<ProviderResult> {
+  const apiKey = creds.apiKey || "";
+  try {
+    const res = await fetchWithTimeout(
+      `https://maps.googleapis.com/maps/api/directions/json?origin=San+Francisco&destination=San+Jose&key=${apiKey}`
+    );
+    if (res.status === 403) return { providerId: "google-maps", provider: "Google Maps", status: "auth_failed", recordsFound: 0, sampleData: [], error: "Invalid API key" };
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    const routes = (json.routes || []).map((r: any) => ({
+      summary: r.summary,
+      distance: r.legs?.[0]?.distance?.text,
+      duration: r.legs?.[0]?.duration?.text
+    }));
+    return { providerId: "google-maps", provider: "Google Maps", status: "ok", recordsFound: routes.length, sampleData: routes, endpoint: "maps/api/directions" };
+  } catch (e: any) {
+    const unreachable = e.name === "TimeoutError" || e.message?.includes("DNS") || e.message?.includes("fetch");
+    return { providerId: "google-maps", provider: "Google Maps", status: unreachable ? "unreachable" : "auth_failed", recordsFound: 0, sampleData: [], error: e.message, endpoint: "maps/api/directions" };
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// Catch-all / Generic REST
+// ────────────────────────────────────────────────────────────────────────
+
+async function queryGeneric(providerId: string, providerName: string, creds: Record<string, string>): Promise<ProviderResult> {
+  const apiKey = creds.apiKey || creds.accessToken || "";
+  // Generic approach: attempt a common health-check or list endpoint
+  const endpoints: Record<string, string> = {
+    "zoom": `https://api.zoom.us/v2/users/me`,
+    "outlook": `https://graph.microsoft.com/v1.0/me`,
+    "gmail": `https://gmail.googleapis.com/gmail/v1/users/me/profile`,
+    "meta": `https://graph.facebook.com/v18.0/me?access_token=${apiKey}`,
+    "hootsuite": `https://platform.hootsuite.com/v1/me`,
+    "zoho-books": `https://books.zoho.com/api/v3/organizations`,
+    "rippling": `https://api.rippling.com/api/app/employees`,
+    "workday": `https://api.workday.com/staffing/v5/workers`,
+    "marketo": `https://{munchkin}.mktorest.com/rest/v1/leads.json?access_token=${apiKey}`,
+    "outreach": `https://api.outreach.io/api/v2/accounts`,
+    "sap": `https://api.sap.com/odata/rest`,
+    "sap-ariba": `https://api.ariba.com/v2/admin/items`,
+    "coupa": `https://api.coupa.com/api/invoices`,
+    "monday-com": `https://api.monday.com/v2`,
+    "onfleet": `https://onfleet.com/api/v2/workers`,
+    "adp": `https://api.adp.com/hr/v2/workers`,
+    "gusto": `https://api.gusto.com/v1/employees`,
+    "quickbooks-payroll": `https://api.intuit.com/quickbooks/v4/payroll/employees`,
+    "freshdesk": `https://{domain}.freshdesk.com/api/v2/tickets`,
+  };
+  const url = endpoints[providerId];
+  if (!url) return { providerId, provider: providerName, status: "unreachable", recordsFound: 0, sampleData: [], error: "No known API endpoint", endpoint: "unknown" };
+
+  try {
+    const headers: Record<string, string> = { Accept: "application/json" };
+    if (providerId === "sap") headers["x-api-key"] = apiKey;
+    else if (providerId === "monday-com") headers["Authorization"] = apiKey;
+    else headers["Authorization"] = `Bearer ${apiKey}`;
+    const res = await fetchWithTimeout(url, { headers });
+    if (res.status === 401 || res.status === 403) {
+      return { providerId, provider: providerName, status: "auth_failed", recordsFound: 0, sampleData: [], error: `HTTP ${res.status}: Invalid credentials`, endpoint: url };
+    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const ct = res.headers.get("content-type") || "";
+    if (ct.includes("json")) {
+      const json = await res.json();
+      // Try to extract array or count
+      const keys = Object.keys(json);
+      const dataKey = keys.find(k => Array.isArray(json[k]));
+      const records = dataKey ? json[dataKey] : [json];
+      return { providerId, provider: providerName, status: "ok", recordsFound: records.length, sampleData: records.slice(0, 5), endpoint: url };
+    }
+    return { providerId, provider: providerName, status: "ok", recordsFound: 0, sampleData: [], endpoint: url };
+  } catch (e: any) {
+    const unreachable = e.name === "TimeoutError" || e.message?.includes("DNS") || e.message?.includes("fetch");
+    return { providerId, provider: providerName, status: unreachable ? "unreachable" : "auth_failed", recordsFound: 0, sampleData: [], error: e.message, endpoint: url };
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// Main Dispatch
+// ────────────────────────────────────────────────────────────────────────
+
+const PROVIDER_DISPATCH: Record<string, (creds: Record<string, string>) => Promise<ProviderResult>> = {
+  "hubspot": queryHubSpot,
+  "salesforce": querySalesforce,
+  "pipedrive": queryPipedrive,
+  "quickbooks": queryQuickBooks,
+  "xero": queryXero,
+  "netsuite": queryNetSuite,
+  "zendesk": queryZendesk,
+  "intercom": queryIntercom,
+  "mailchimp": queryMailchimp,
+  "slack": querySlack,
+  "shopify": queryShopify,
+  "jira": queryJira,
+  "servicenow": queryServiceNow,
+  "bamboohr": queryBambooHR,
+  "linkedin": queryLinkedIn,
+  "googlesheets": queryGoogleSheets,
+  "airtable": queryAirtable,
+  "google-maps": queryGoogleMaps,
+};
+
+/**
+ * Query a single provider using its stored credentials.
+ * Returns a structured result even when the call fails.
+ */
+export async function querySingleProvider(
+  providerId: string,
+  providerName: string,
+  credentials: Record<string, string>
+): Promise<ProviderResult> {
+  const handler = PROVIDER_DISPATCH[providerId];
+  if (handler) return handler(credentials);
+  return queryGeneric(providerId, providerName, credentials);
+}
+
+/**
+ * Execute an AI agent across the user's connected integrations.
+ * Only queries integrations that are relevant to the agent (per agent_integration_map).
+ * For each connected/relevant integration, makes a real API call.
+ */
+export async function executeAgent(
+  agentId: string,
+  agentName: string,
+  agentIntegrationIds: string[],
+  userConnections: ProviderConnection[]
+): Promise<AgentIntegrationResult> {
+  const startedAt = new Date().toISOString();
+  const results: ProviderResult[] = [];
+
+  // Build a lookup of connected providers: providerId → connection
+  const connectedMap = new Map<string, ProviderConnection>();
+  for (const conn of userConnections) {
+    if (conn.status === "Connected") {
+      connectedMap.set(conn.providerId, conn);
+    }
+  }
+
+  // For each integration the agent needs, check if user has it connected
+  const relevantConnections = agentIntegrationIds
+    .map((pid) => connectedMap.get(pid))
+    .filter((c): c is ProviderConnection => !!c);
+
+  // Query each connected provider
+  for (const conn of relevantConnections) {
+    const result = await querySingleProvider(conn.providerId, conn.provider, conn.credentials || {});
+    results.push(result);
+  }
+
+  // Also include unmatched integrations as "not connected" entries
+  const connectedIds = new Set(results.map(r => r.providerId));
+  for (const pid of agentIntegrationIds) {
+    if (!connectedIds.has(pid)) {
+      const conn = connectedMap.get(pid);
+      results.push({
+        providerId: pid,
+        provider: conn?.provider || pid,
+        status: conn ? "unreachable" : "unreachable",
+        recordsFound: 0,
+        sampleData: [],
+        error: conn ? "API call failed (test credentials)" : "Not connected — connect this integration first",
+      });
+    }
+  }
+
+  const totalRecords = results.reduce((sum, r) => sum + r.recordsFound, 0);
+  const connectedCount = results.filter(r => r.status === "ok").length;
+  const failedCount = results.filter(r => r.status !== "ok").length;
+
+  let summary = `Agent "${agentName}" executed. `;
+  if (connectedCount > 0) {
+    summary += `Queried ${connectedCount} connected integration${connectedCount > 1 ? "s" : ""}${failedCount > 0 ? ` (${failedCount} unavailable)` : ""}. `;
+  } else if (relevantConnections.length > 0) {
+    summary += `${relevantConnections.length} connected integration${relevantConnections.length > 1 ? "s" : ""} queried but unavailable with test credentials. `;
+  } else {
+    const totalRelevant = agentIntegrationIds.length;
+    summary += `None of the ${totalRelevant} required integration${totalRelevant > 1 ? "s" : ""} are connected. Connect them to unlock full functionality. `;
+  }
+  summary += `Processed ${totalRecords} record${totalRecords !== 1 ? "s" : ""} total.`;
+
+  const completedAt = new Date().toISOString();
+
+  return {
+    agentId,
+    agentName,
+    status: "completed",
+    startedAt,
+    completedAt,
+    summary,
+    integrationsUsed: results,
+    totalRecordsProcessed: totalRecords,
+  };
+}
