@@ -59,8 +59,12 @@ function getOAuthCredentials(provider: string): { clientId: string; clientSecret
   return null;
 }
 
-function getOAuthRedirectUri(provider: string): string {
-  return `http://localhost:3000/api/oauth/callback?provider=${encodeURIComponent(provider)}`;
+function getOAuthRedirectUri(provider: string, req?: Request): string {
+  const host = req?.headers.get("x-forwarded-host") || req?.headers.get("host") || "";
+  const isLocal = host.includes("localhost") || host.includes("127.0.0.1") || host.startsWith("::1");
+  const base = process.env.OAUTH_REDIRECT_BASE
+    || (host ? `${isLocal ? "http" : "https"}://${host}` : "http://localhost:3000");
+  return `${base}/api/oauth/callback?provider=${encodeURIComponent(provider)}`;
 }
 
 // Provider name → canonical key for module lookup (handles hyphens, etc.)
@@ -1762,7 +1766,7 @@ serve({
         return Response.redirect(`/portal/integrations?error=${encodeURIComponent("OAuth not configured for " + authProvider + ". Add credentials in Admin → OAuth Settings.")}`, 302);
       }
       
-      const redirectUri = getOAuthRedirectUri(authProvider);
+      const redirectUri = getOAuthRedirectUri(authProvider, req);
       
       try {
         // Exchange code for tokens using the provider's auth module
@@ -1885,7 +1889,7 @@ serve({
       states[state] = { provider, createdAt: Date.now() };
       writeJSON(OAUTH_STATES_FILE, states);
       // Build OAuth redirect URL dynamically via provider auth modules
-      const redirectUri = getOAuthRedirectUri(provider);
+      const redirectUri = getOAuthRedirectUri(provider, req);
       const canonicalProvider = getCanonicalProvider(provider);
       const creds = getOAuthCredentials(provider);
       
