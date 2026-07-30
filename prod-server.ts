@@ -1414,6 +1414,37 @@ serve({
           timestamp: new Date().toISOString(),
         });
       }
+      if (subPath === "credentials") {
+        const credsFile = join(DATA_DIR, "tenant_oauth_credentials.json");
+        const creds = readJSON(credsFile);
+        const list = Object.entries(creds).map(([providerId, c]) => ({
+          providerId,
+          clientId: c.clientId || "",
+          hasSecret: !!(c.clientSecret && c.clientSecret.length > 0),
+        }));
+        return Response.json(list);
+      }
+      if (subPath.startsWith("credentials/") && req.method === "PUT") {
+        const providerId = subPath.replace("credentials/", "");
+        const body = await req.json().catch(() => ({}));
+        const { clientId, clientSecret } = body;
+        if (!clientId) return Response.json({ error: "clientId required" }, { status: 400 });
+        const credsFile = join(DATA_DIR, "tenant_oauth_credentials.json");
+        const creds = readJSON(credsFile);
+        const existing = creds[providerId] || {};
+        const keepSecret = !clientSecret || clientSecret === "••••••••••••••••" || clientSecret.trim() === "";
+        creds[providerId] = { clientId, clientSecret: keepSecret ? (existing.clientSecret || "") : clientSecret };
+        writeJSON(credsFile, creds);
+        return Response.json({ success: true, providerId });
+      }
+      if (subPath.startsWith("credentials/") && req.method === "DELETE") {
+        const providerId = subPath.replace("credentials/", "");
+        const credsFile = join(DATA_DIR, "tenant_oauth_credentials.json");
+        const creds = readJSON(credsFile);
+        delete creds[providerId];
+        writeJSON(credsFile, creds);
+        return Response.json({ success: true, providerId });
+      }
       return Response.json({ error: "Unknown admin resource: " + subPath }, { status: 404 });
     }
 
