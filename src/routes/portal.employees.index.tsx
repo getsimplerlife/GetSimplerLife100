@@ -1,6 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { AGENTS, type AgentData } from "~/data/agents";
 
 export const Route = createFileRoute("/portal/employees/")({
   component: AIEmployeesWorkspaceHub,
@@ -12,10 +11,8 @@ function AIEmployeesWorkspaceHub() {
   const [feedback, setFeedback] = useState("");
   const [editPanel, setEditPanel] = useState<{ emp: any } | null>(null);
 
-  // Start with static agent data for immediate SSR rendering.
-  // Client-side API fetch refreshes with live data as fallback.
-  const [employees, setEmployees] = useState<any[]>(AGENTS);
-  const [loading, setLoading] = useState(false); // Not loading during SSR — AGENTS is static
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   // Refresh from API on client mount for live status/purchase data
   useEffect(() => {
@@ -23,8 +20,9 @@ function AIEmployeesWorkspaceHub() {
       .then(r => r.json())
       .then(d => {
         if (d.data && d.data.length > 0) setEmployees(d.data);
+        setLoading(false);
       })
-      .catch(() => { /* keep static AGENTS data */ });
+      .catch(() => { setLoading(false); });
   }, []);
 
   // Per-agent status from runtime API (always client-side)
