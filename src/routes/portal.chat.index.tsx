@@ -6,14 +6,16 @@ export const Route = createFileRoute("/portal/chat/")({
 });
 
 interface ChatMessage {
-  sender: "ai" | "user";
-  time: string;
-  text: string;
+  role: "user" | "assistant";
+  content: string;
+  timestamp: string;
 }
 
 interface ChatSession {
   id: string;
   title: string;
+  createdAt: string;
+  updatedAt?: string;
   messages: ChatMessage[];
 }
 
@@ -33,10 +35,16 @@ function ChatAssistant() {
         });
         if (res.ok) {
           const data = await res.json();
-          const loadedSessions: ChatSession[] = (data.sessions || []).map((s: any) => ({
+          const loadedSessions: ChatSession[] = (data.data || []).map((s: any) => ({
             id: s.id,
             title: s.title || "AI Chat",
-            messages: s.messages || [],
+            createdAt: s.createdAt,
+            updatedAt: s.updatedAt,
+            messages: (s.messages || []).map((m: any) => ({
+              role: m.role || "user",
+              content: m.content || "",
+              timestamp: m.timestamp || new Date().toISOString(),
+            })),
           }));
           setSessions(loadedSessions);
           if (loadedSessions.length > 0) {
@@ -77,23 +85,22 @@ function ChatAssistant() {
   const handleSend = async (text: string) => {
     if (!text.trim() || loading) return;
 
-    const timeString = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const now = new Date().toISOString();
     const userMsg: ChatMessage = {
-      sender: "user",
-      time: timeString,
-      text: text,
+      role: "user",
+      content: text,
+      timestamp: now,
     };
 
-    // Determine the active session ID for this send
     const currentSessionId = activeSessionId || "";
 
-    // Append user message to active session (or create temp session for new chats)
     let tempSessionId = currentSessionId;
     if (!tempSessionId) {
       tempSessionId = `temp-${Date.now()}`;
       const newSession: ChatSession = {
         id: tempSessionId,
         title: text.slice(0, 60),
+        createdAt: now,
         messages: [userMsg],
       };
       setSessions(prev => [newSession, ...prev]);
@@ -125,42 +132,40 @@ function ChatAssistant() {
       const data = await res.json();
       
       const aiMsg: ChatMessage = {
-        sender: "ai",
-        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        text: data.reply || "Request processed successfully.",
+        role: "assistant",
+        content: data.reply?.content || "Request processed successfully.",
+        timestamp: new Date().toISOString(),
       };
 
-      // If backend returned a new sessionId, update the local session id
       const backendSessionId = data.sessionId || currentSessionId || tempSessionId;
 
       setSessions((prevSessions) =>
         prevSessions.map((s) => {
           if (s.id === tempSessionId || s.id === currentSessionId || s.id === backendSessionId) {
-            // Get existing messages minus any duplicate user message
             const existingMsgs = s.messages.filter(
-              m => !(m.sender === "user" && m.text === text && m.time === timeString)
+              m => !(m.role === "user" && m.content === text && m.timestamp === now)
             );
             return {
               ...s,
               id: backendSessionId,
               title: s.title || (text.length > 50 ? text.slice(0, 50) + "..." : text),
               messages: [...existingMsgs, aiMsg],
+              updatedAt: new Date().toISOString(),
             };
           }
           return s;
         })
       );
 
-      // Update active session id to the real backend id
       if (backendSessionId !== activeSessionId) {
         setActiveSessionId(backendSessionId);
       }
     } catch (err) {
       console.error(err);
       const errMsg: ChatMessage = {
-        sender: "ai",
-        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        text: "Sorry, I encountered an error communicating with the orchestrator engine.",
+        role: "assistant",
+        content: "Sorry, I encountered an error communicating with the orchestrator engine.",
+        timestamp: new Date().toISOString(),
       };
 
       const sessionIdToUpdate = currentSessionId || tempSessionId;
@@ -256,35 +261,38 @@ function ChatAssistant() {
           ) : (
             // Message Feed
             <div className="space-y-6">
-              {currentMessages.map((msg, idx) => (
-                <div key={idx} className={`flex gap-4 ${msg.sender === "user" ? "flex-row-reverse" : ""}`}>
+              {currentMessages.map((msg, idx) => {
+                const isAi = msg.role === "assistant";
+                const timeStr = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
+                return (
+                <div key={idx} className={`flex gap-4 ${!isAi ? "flex-row-reverse" : ""}`}>
                   
                   {/* Chat Avatar */}
                   <div className={`h-8 w-8 rounded-full border flex items-center justify-center shrink-0 font-mono font-bold text-xs select-none ${
-                    msg.sender === "ai" 
+                    isAi 
                       ? "bg-emerald-950/50 text-emerald-400 border-emerald-900" 
                       : "bg-stone-900 text-stone-300 border-stone-800"
                   }`}>
-                    {msg.sender === "ai" ? "🤖" : "👤"}
+                    {isAi ? "🤖" : "👤"}
                   </div>
 
                   {/* Message Bubble Box */}
                   <div className={`max-w-xl rounded-xl p-4 leading-relaxed space-y-2 border ${
-                    msg.sender === "ai"
+                    isAi
                       ? "bg-stone-950 border-stone-900 text-stone-300"
                       : "bg-stone-900/50 border-stone-800 text-white"
                   }`}>
                     <div className="flex justify-between items-center text-[9px] font-mono text-stone-500">
-                      <span className="font-bold uppercase tracking-wider">{msg.sender === "ai" ? "Orchestrator AI" : "You"}</span>
-                      <span>{msg.time}</span>
+                      <span className="font-bold uppercase tracking-wider">{isAi ? "Orchestrator AI" : "You"}</span>
+                      <span>{timeStr}</span>
                     </div>
                     <div className="text-xs font-medium whitespace-pre-line leading-relaxed">
-                      {msg.text}
+                      {msg.content}
                     </div>
                   </div>
 
                 </div>
-              ))}
+              )})}
 
               {loading && (
                 <div className="flex gap-4">
