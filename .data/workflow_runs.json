@@ -1,1 +1,17 @@
-[]
+{
+  "mathewortiz97@gmail.com": [
+    {
+      "id": "run-ig3rwdzlj",
+      "type": "agent-run",
+      "agentId": "crm-sync-agent-v1",
+      "agentName": "CRM Sync Agent",
+      "status": "completed",
+      "startedAt": "2026-07-30T18:49:43.691Z",
+      "completedAt": "2026-07-30T18:49:43.691Z",
+      "output": "Agent \"CRM Sync Agent\" (sales) completed. Processed 0 records across 0 system(s).",
+      "insightsCount": 1,
+      "actionsCount": 0,
+      "alertsCount": 0
+    }
+  ]
+}

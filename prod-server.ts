@@ -5,7 +5,9 @@ import { compare } from "bcryptjs";
 import { createHash, randomBytes } from "crypto";
 
 // ── Provider API module (server-side only — never imported in .tsx) ──
-import { executeAgent } from "./src/lib/provider-api";
+import { executeAgent, executeProviderAction } from "./src/lib/provider-api";
+// ── Agent processor (post-query pipeline) ──
+import { processAgentResults } from "./src/lib/agent-processor";
 
 const BUILD_ID = Date.now().toString(36);
 const DIST_CLIENT = "/home/team/shared/site/dist";
@@ -1151,8 +1153,85 @@ serve({
         const userConnections = tenantInts[user.email] || [];
         // Execute with real queries
         const agentResult = await executeAgent(agent.id, agent.name, agentIntegrations, userConnections);
-        const output = { ...agentResult };
-        // Log run in workflow_runs
+
+        // ── Post-query processing pipeline ──
+        let processedData: any = {};
+        let processorInsights: any[] = [];
+        let processorAlerts: any[] = [];
+        let actionsTaken: any[] = [];
+        try {
+          const processorResult = processAgentResults(
+            { id: agent.id, name: agent.name, category: agent.category || "general", instructions: agent.instructions || "" },
+            agentResult,
+            userConnections.filter((c: any) => c.status === "Connected")
+          );
+          processedData = processorResult.processedData;
+          processorInsights = processorResult.insights;
+          processorAlerts = processorResult.alerts;
+
+          // Execute write actions the processor recommended
+          for (const action of processorResult.actionsTaken) {
+            const connected = userConnections.find((c: any) =>
+              c.providerId === action.providerId && c.status === "Connected"
+            );
+            if (connected) {
+              const actionPayload = { action: action.action, detail: action.detail, ...(action.payload || {}) };
+              const execResult = await executeProviderAction(
+                action.providerId,
+                action.provider,
+                connected.credentials || {},
+                actionPayload
+              );
+              actionsTaken.push({
+                provider: action.provider,
+                providerId: action.providerId,
+                action: action.action,
+                status: execResult.status,
+                detail: execResult.detail,
+                result: execResult.result || null,
+                error: execResult.error || null,
+              });
+            } else {
+              actionsTaken.push({
+                provider: action.provider,
+                providerId: action.providerId,
+                action: action.action,
+                status: "skipped",
+                detail: `${action.provider} is not connected — write operation skipped`,
+              });
+            }
+          }
+        } catch (procErr: any) {
+          // Processor failed — continue with query results only
+          processorInsights = [{ type: "summary", severity: "info", message: `Agent "${agent.name}" completed. Post-processing skipped: ${procErr.message}` }];
+        }
+
+        // ── Build enhanced response ──
+        const enhancedSummary = processorInsights.length > 0
+          ? processorInsights.find((i: any) => i.type === "summary")?.message || agentResult.summary
+          : agentResult.summary;
+        const summaryWithActions = actionsTaken.length > 0
+          ? `${enhancedSummary} Took ${actionsTaken.filter((a: any) => a.status === "executed").length} action(s).`
+          : enhancedSummary;
+
+        const output = {
+          success: true,
+          agentId: agent.id,
+          status: "completed",
+          summary: summaryWithActions,
+          // Original query results
+          queryResults: agentResult.integrationsUsed,
+          totalRecordsProcessed: agentResult.totalRecordsProcessed,
+          startedAt: agentResult.startedAt,
+          completedAt: agentResult.completedAt,
+          // Processor output
+          processedData,
+          actionsTaken,
+          insights: processorInsights,
+          alerts: processorAlerts.filter((a: any) => a.requiresAttention),
+        };
+
+        // ── Log run in workflow_runs (enriched) ──
         const runs = readJSON(join(DATA_DIR, "workflow_runs.json"));
         const userRuns = runs[user.email] || [];
         userRuns.push({
@@ -1164,10 +1243,32 @@ serve({
           startedAt: output.startedAt,
           completedAt: output.completedAt,
           output: output.summary,
+          insightsCount: processorInsights.length,
+          actionsCount: actionsTaken.filter((a: any) => a.status === "executed").length,
+          alertsCount: processorAlerts.filter((a: any) => a.requiresAttention).length,
         });
         runs[user.email] = userRuns;
         writeJSON(join(DATA_DIR, "workflow_runs.json"), runs);
-        // Audit log
+
+        // ── Log to agent_insights.json ──
+        const insightsFile = join(DATA_DIR, "agent_insights.json");
+        const allInsights = readJSON(insightsFile);
+        const userInsights = allInsights[user.email] || [];
+        userInsights.push({
+          id: "insight-" + Math.random().toString(36).substr(2, 9),
+          timestamp: new Date().toISOString(),
+          agentId: agent.id,
+          agentName: agent.name,
+          category: agent.category,
+          insights: processorInsights,
+          actionsTaken,
+          alerts: processorAlerts,
+        });
+        // Keep last 100 insights per user
+        allInsights[user.email] = userInsights.slice(-100);
+        writeJSON(insightsFile, allInsights);
+
+        // ── Audit log (enriched) ──
         const alogs1 = readJSON(AUDIT_LOG_FILE);
         const alogUser1 = alogs1[user.email] || [];
         alogUser1.push({
@@ -1176,12 +1277,13 @@ serve({
           user: user.email,
           action: "agent.run",
           resource: agent.name,
-          detail: "Agent executed: " + output.summary,
+          detail: "Agent executed with processing: " + output.summary,
           ip: "127.0.0.1",
         });
         alogs1[user.email] = alogUser1;
         writeJSON(AUDIT_LOG_FILE, alogs1);
-        return Response.json({ success: true, ...output });
+
+        return Response.json(output);
       } catch (e: any) {
         return Response.json({ error: e.message || "Agent execution failed" }, { status: 500 });
       }

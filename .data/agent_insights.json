@@ -1,0 +1,109 @@
+{
+  "mathewortiz97@gmail.com": [
+    {
+      "id": "insight-kn595lrrq",
+      "timestamp": "2026-07-30T18:48:26.254Z",
+      "agentId": "crm-sync-agent-v1",
+      "agentName": "CRM Sync Agent",
+      "category": "sales",
+      "insights": [
+        {
+          "type": "summary",
+          "severity": "info",
+          "message": "Agent \"CRM Sync Agent\" (sales) completed. Processed 0 records across 0 system(s).",
+          "source": "agent-processor"
+        }
+      ],
+      "actionsTaken": [],
+      "alerts": []
+    },
+    {
+      "id": "insight-gadmiy09d",
+      "timestamp": "2026-07-30T18:48:35.466Z",
+      "agentId": "support-triage-agent-v1",
+      "agentName": "Support Triage Agent",
+      "category": "support",
+      "insights": [
+        {
+          "type": "summary",
+          "severity": "info",
+          "message": "Agent \"Support Triage Agent\" (support) completed. Processed 0 records across 0 system(s).",
+          "source": "agent-processor"
+        },
+        {
+          "type": "recommendation",
+          "severity": "medium",
+          "message": "Routed 0 tickets to appropriate teams based on urgency."
+        },
+        {
+          "type": "summary",
+          "severity": "info",
+          "message": "0 open tickets across 0 systems."
+        }
+      ],
+      "actionsTaken": [],
+      "alerts": []
+    },
+    {
+      "id": "insight-fg5x9k8gq",
+      "timestamp": "2026-07-30T18:48:49.009Z",
+      "agentId": "compliance-auditor-v1",
+      "agentName": "Compliance Auditor",
+      "category": "compliance",
+      "insights": [
+        {
+          "type": "summary",
+          "severity": "info",
+          "message": "Agent \"Compliance Auditor\" (compliance) completed. Processed 0 records across 0 system(s).",
+          "source": "agent-processor"
+        },
+        {
+          "type": "summary",
+          "severity": "info",
+          "message": "Compliance audit complete: 0 records reviewed across 0 system(s). 0 flagged."
+        }
+      ],
+      "actionsTaken": [],
+      "alerts": []
+    },
+    {
+      "id": "insight-bc8g36ab1",
+      "timestamp": "2026-07-30T18:48:49.028Z",
+      "agentId": "invoice-processor-v1",
+      "agentName": "Invoice Processor",
+      "category": "finance",
+      "insights": [
+        {
+          "type": "summary",
+          "severity": "info",
+          "message": "Agent \"Invoice Processor\" (finance) completed. Processed 0 records across 0 system(s).",
+          "source": "agent-processor"
+        },
+        {
+          "type": "recommendation",
+          "severity": "medium",
+          "message": "Scanned 0 records across finance systems. Consider running invoice matching to detect duplicates."
+        }
+      ],
+      "actionsTaken": [],
+      "alerts": []
+    },
+    {
+      "id": "insight-osx7dvutu",
+      "timestamp": "2026-07-30T18:49:43.692Z",
+      "agentId": "crm-sync-agent-v1",
+      "agentName": "CRM Sync Agent",
+      "category": "sales",
+      "insights": [
+        {
+          "type": "summary",
+          "severity": "info",
+          "message": "Agent \"CRM Sync Agent\" (sales) completed. Processed 0 records across 0 system(s).",
+          "source": "agent-processor"
+        }
+      ],
+      "actionsTaken": [],
+      "alerts": []
+    }
+  ]
+}

@@ -548,6 +548,217 @@ export async function querySingleProvider(
  * Only queries integrations that are relevant to the agent (per agent_integration_map).
  * For each connected/relevant integration, makes a real API call.
  */
+/**
+ * Action result from a provider write operation.
+ */
+export interface ProviderActionResult {
+  providerId: string;
+  provider: string;
+  action: string;
+  status: "executed" | "failed" | "skipped";
+  detail: string;
+  result?: any;
+  error?: string;
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// Write Operation Dispatch
+// ────────────────────────────────────────────────────────────────────────
+
+async function createHubSpotContact(creds: Record<string, string>, payload: Record<string, any>): Promise<ProviderActionResult> {
+  const apiKey = creds.apiKey || creds.accessToken || "";
+  try {
+    const res = await fetchWithTimeout("https://api.hubapi.com/crm/v3/objects/contacts", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ properties: payload }),
+    });
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({}));
+      return { providerId: "hubspot", provider: "HubSpot", action: "create_contact", status: "failed", detail: `HTTP ${res.status}`, error: errBody.message || `HTTP ${res.status}` };
+    }
+    const json = await res.json();
+    return { providerId: "hubspot", provider: "HubSpot", action: "create_contact", status: "executed", detail: `Contact created: ${json.id}`, result: json };
+  } catch (e: any) {
+    return { providerId: "hubspot", provider: "HubSpot", action: "create_contact", status: "failed", detail: e.message, error: e.message };
+  }
+}
+
+async function updateSalesforceAccount(creds: Record<string, string>, payload: Record<string, any>): Promise<ProviderActionResult> {
+  const accessToken = creds.accessToken || creds.apiKey || "";
+  const instanceUrl = creds.instanceUrl || "https://login.salesforce.com";
+  const baseUrl = instanceUrl.replace(/\/$/, "");
+  const accountId = payload.id || payload.accountId;
+  if (!accountId) return { providerId: "salesforce", provider: "Salesforce", action: "update_account", status: "skipped", detail: "No account ID provided" };
+  try {
+    const res = await fetchWithTimeout(`${baseUrl}/services/data/v58.0/sobjects/Account/${accountId}`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify(payload.fields || payload),
+    });
+    if (!res.ok) return { providerId: "salesforce", provider: "Salesforce", action: "update_account", status: "failed", detail: `HTTP ${res.status}`, error: `HTTP ${res.status}` };
+    return { providerId: "salesforce", provider: "Salesforce", action: "update_account", status: "executed", detail: `Account ${accountId} updated` };
+  } catch (e: any) {
+    return { providerId: "salesforce", provider: "Salesforce", action: "update_account", status: "failed", detail: e.message, error: e.message };
+  }
+}
+
+async function createZendeskTicket(creds: Record<string, string>, payload: Record<string, any>): Promise<ProviderActionResult> {
+  const apiKey = creds.apiKey || creds.accessToken || "";
+  const subdomain = creds.subdomain || "test";
+  const email = creds.email || "agent@test.com";
+  const body = { ticket: { subject: payload.subject || "Auto-created ticket", comment: { body: payload.body || payload.detail || "" }, priority: payload.priority || "normal" } };
+  try {
+    const res = await fetchWithTimeout(`https://${subdomain}.zendesk.com/api/v2/tickets.json`, {
+      method: "POST",
+      headers: { Authorization: `Basic ${btoa(`${email}/token:${apiKey}`)}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) return { providerId: "zendesk", provider: "Zendesk", action: "create_ticket", status: "failed", detail: `HTTP ${res.status}`, error: `HTTP ${res.status}` };
+    const json = await res.json();
+    return { providerId: "zendesk", provider: "Zendesk", action: "create_ticket", status: "executed", detail: `Ticket created: ${json.ticket?.id}`, result: json.ticket };
+  } catch (e: any) {
+    return { providerId: "zendesk", provider: "Zendesk", action: "create_ticket", status: "failed", detail: e.message, error: e.message };
+  }
+}
+
+async function sendSlackMessage(creds: Record<string, string>, payload: Record<string, any>): Promise<ProviderActionResult> {
+  const accessToken = creds.accessToken || creds.apiKey || "";
+  const channel = payload.channel || payload.channelId || "general";
+  const text = payload.text || payload.detail || "Automated message from AI agent";
+  try {
+    const res = await fetchWithTimeout("https://slack.com/api/chat.postMessage", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ channel, text }),
+    });
+    const json = await res.json();
+    if (!json.ok) return { providerId: "slack", provider: "Slack", action: "send_message", status: "failed", detail: json.error || "Slack API error", error: json.error };
+    return { providerId: "slack", provider: "Slack", action: "send_message", status: "executed", detail: `Message sent to ${channel}`, result: { ts: json.ts, channel: json.channel } };
+  } catch (e: any) {
+    return { providerId: "slack", provider: "Slack", action: "send_message", status: "failed", detail: e.message, error: e.message };
+  }
+}
+
+async function createJiraIssue(creds: Record<string, string>, payload: Record<string, any>): Promise<ProviderActionResult> {
+  const apiToken = creds.apiKey || creds.accessToken || "";
+  const domain = creds.domain || "test";
+  const email = creds.email || "";
+  const body = {
+    fields: {
+      project: { key: payload.projectKey || "PROJ" },
+      summary: payload.summary || payload.detail || "Auto-created issue",
+      description: payload.description || payload.detail || "",
+      issuetype: { name: payload.issueType || "Task" },
+    },
+  };
+  try {
+    const res = await fetchWithTimeout(`https://${domain}.atlassian.net/rest/api/3/issue`, {
+      method: "POST",
+      headers: { Authorization: `Basic ${btoa(`${email}:${apiToken}`)}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) return { providerId: "jira", provider: "Jira", action: "create_issue", status: "failed", detail: `HTTP ${res.status}`, error: `HTTP ${res.status}` };
+    const json = await res.json();
+    return { providerId: "jira", provider: "Jira", action: "create_issue", status: "executed", detail: `Issue created: ${json.key}`, result: { key: json.key, id: json.id } };
+  } catch (e: any) {
+    return { providerId: "jira", provider: "Jira", action: "create_issue", status: "failed", detail: e.message, error: e.message };
+  }
+}
+
+async function createQuickBooksInvoice(creds: Record<string, string>, payload: Record<string, any>): Promise<ProviderActionResult> {
+  const accessToken = creds.accessToken || creds.apiKey || "";
+  const realmId = creds.realmId || creds.companyId || "";
+  const body = {
+    Line: payload.lines || [{ Amount: payload.amount || 0, DetailType: "SalesItemLineDetail", SalesItemLineDetail: { ItemRef: { value: "1" } } }],
+    CustomerRef: { value: payload.customerId || "1" },
+  };
+  try {
+    const res = await fetchWithTimeout(`https://sandbox-quickbooks.api.intuit.com/v3/company/${realmId}/invoice`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) return { providerId: "quickbooks", provider: "QuickBooks", action: "create_invoice", status: "failed", detail: `HTTP ${res.status}`, error: `HTTP ${res.status}` };
+    const json = await res.json();
+    return { providerId: "quickbooks", provider: "QuickBooks", action: "create_invoice", status: "executed", detail: `Invoice created: ${json.Invoice?.Id}`, result: json.Invoice };
+  } catch (e: any) {
+    return { providerId: "quickbooks", provider: "QuickBooks", action: "create_invoice", status: "failed", detail: e.message, error: e.message };
+  }
+}
+
+// Generic write for providers without specific functions
+async function genericProviderAction(
+  providerId: string,
+  providerName: string,
+  creds: Record<string, string>,
+  payload: Record<string, any>
+): Promise<ProviderActionResult> {
+  const action = payload.action || "generic_write";
+  const detail = payload.detail || `Generic ${action} for ${providerName}`;
+  // Most REST APIs follow similar patterns; attempt POST with Bearer token
+  const apiKey = creds.apiKey || creds.accessToken || "";
+  const knownEndpoints: Record<string, string> = {
+    xero: `https://api.xero.com/api.xro/2.0/Contacts`,
+    netsuite: `https://${creds.accountId || "test"}.suitetalk.api.netsuite.com/services/rest/record/v1/customer`,
+    pipedrive: `https://api.pipedrive.com/v1/persons?api_token=${apiKey}`,
+    intercom: `https://api.intercom.io/contacts`,
+    mailchimp: `https://${creds.datacenter || "us1"}.api.mailchimp.com/3.0/lists`,
+    shopify: `https://${creds.store || "test"}.myshopify.com/admin/api/2024-01/products.json`,
+    servicenow: `https://${creds.instance || "test"}.service-now.com/api/now/table/incident`,
+    bamboohr: `https://api.bamboohr.com/api/gateway.php/${creds.subdomain || "test"}/v1/employees`,
+  };
+  const url = knownEndpoints[providerId] || `https://api.${providerId}.com/v1`;
+  try {
+    const res = await fetchWithTimeout(url, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(payload.data || payload),
+    });
+    if (res.status >= 200 && res.status < 300) {
+      const json = await res.json().catch(() => ({}));
+      return { providerId, provider: providerName, action, status: "executed", detail, result: json };
+    }
+    return { providerId, provider: providerName, action, status: "failed", detail: `HTTP ${res.status}`, error: `HTTP ${res.status}` };
+  } catch (e: any) {
+    const unreachable = e.name === "TimeoutError" || e.message?.includes("DNS") || e.message?.includes("fetch");
+    return { providerId, provider: providerName, action, status: unreachable ? "failed" : "failed", detail: e.message, error: e.message };
+  }
+}
+
+const WRITE_DISPATCH: Record<string, (creds: Record<string, string>, payload: Record<string, any>) => Promise<ProviderActionResult>> = {
+  "hubspot": createHubSpotContact,
+  "salesforce": updateSalesforceAccount,
+  "zendesk": createZendeskTicket,
+  "slack": sendSlackMessage,
+  "jira": createJiraIssue,
+  "quickbooks": createQuickBooksInvoice,
+};
+
+/**
+ * Execute a write action against a specific provider.
+ * Uses stored credentials + payload. Returns structured action result.
+ */
+export async function executeProviderAction(
+  providerId: string,
+  providerName: string,
+  credentials: Record<string, string>,
+  payload: Record<string, any>
+): Promise<ProviderActionResult> {
+  if (!credentials || (!credentials.apiKey && !credentials.accessToken)) {
+    return {
+      providerId,
+      provider: providerName,
+      action: payload.action || "write",
+      status: "skipped",
+      detail: "No valid credentials — write operation requires API key or access token",
+    };
+  }
+  const handler = WRITE_DISPATCH[providerId];
+  if (handler) return handler(credentials, payload);
+  return genericProviderAction(providerId, providerName, credentials, payload);
+}
+
 export async function executeAgent(
   agentId: string,
   agentName: string,
