@@ -20,12 +20,13 @@ function AdminLayout() {
           return;
         }
         const me = await meRes.json();
+        const userData = me.user || me;
         // Only the business owner can access the admin panel
-        if (me.email !== 'mathewortiz97@gmail.com') {
+        if (userData.email !== 'mathewortiz97@gmail.com') {
           navigate({ to: "/portal" as any });
           return;
         }
-        setUser(me);
+        setUser(userData);
       } catch (e) {
         console.error(e);
       }

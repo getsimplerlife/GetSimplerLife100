@@ -622,7 +622,7 @@ serve({
       if (user === null || user === undefined) return Response.json({ error: "Not authenticated" }, { status: 401 });
       const users = readJSON(USERS_FILE);
       const userList = Object.values(users).map((u: any) => ({
-        email: u.email, role: u.role || "user", createdAt: u.createdAt,
+        id: u.email, email: u.email, role: u.role || "user", createdAt: u.createdAt,
       }));
       return Response.json({ data: userList, total: userList.length });
     }
@@ -1350,7 +1350,7 @@ serve({
     if (pathname.startsWith("/api/admin/")) {
       const user = await getUserFromSession(req);
       if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
-      if (user.role !== "admin" && user.email !== "mathewortiz97@gmail.com") {
+      if (user.email !== "mathewortiz97@gmail.com") {
         return Response.json({ error: "Admin access required" }, { status: 403 });
       }
       const subPath = pathname.replace("/api/admin/", "");
@@ -1358,7 +1358,7 @@ serve({
       if (subPath === "users") {
         const users = readJSON(USERS_FILE);
         const userList = Object.values(users).map((u: any) => ({
-          email: u.email, role: u.role || "user", createdAt: u.createdAt,
+          id: u.email, email: u.email, role: u.role || "user", createdAt: u.createdAt,
         }));
         return Response.json({ data: userList, total: userList.length });
       }

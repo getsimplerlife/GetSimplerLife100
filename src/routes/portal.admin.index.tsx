@@ -14,10 +14,19 @@ function AdminIndex() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("/api/admin/users", { credentials: "include" });
-        if (!res.ok) throw new Error("Failed to fetch");
-        const json = await res.json();
-        setData(json);
+        const [usersRes, auditsRes, logsRes] = await Promise.all([
+          fetch("/api/admin/users", { credentials: "include" }),
+          fetch("/api/data/purchases", { credentials: "include" }),
+          fetch("/api/audit-logs", { credentials: "include" }),
+        ]);
+        const usersJson = usersRes.ok ? await usersRes.json() : { data: [] };
+        const auditsJson = auditsRes.ok ? await auditsRes.json() : { data: [] };
+        const logsJson = logsRes.ok ? await logsRes.json() : { data: [] };
+        setData({
+          users: usersJson.data || [],
+          audits: auditsJson.data || [],
+          auditLogs: logsJson.data || [],
+        });
       } catch (e) {
         console.error("Failed to load admin data:", e);
       }
