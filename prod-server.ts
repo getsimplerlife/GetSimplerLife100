@@ -656,15 +656,11 @@ serve({
     if (pathname === "/api/integrations") {
       const user = await getUserFromSession(req);
       if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
-      // Purchase gating: owner always allowed, others must have purchased
-      if (user.email !== "mathewortiz97@gmail.com") {
-        const purchases = readJSON(join(DATA_DIR, "tenant_purchases.json"));
-        const userPurchases = purchases[user.email] || [];
-        const hasActivePurchase = userPurchases.some((p) => p.status === "active");
-        if (!hasActivePurchase) {
-          return Response.json({ error: "Purchase required to connect integrations" }, { status: 403 });
-        }
-      }
+      // Purchase gating: non-owners need active purchases for CRM/ERP/Accounting.
+      // Other integrations (Communication, Marketing, Data, etc.) are ungated.
+      const purchases = readJSON(join(DATA_DIR, "tenant_purchases.json"));
+      const userPurchases = (user.email !== "mathewortiz97@gmail.com") ? (purchases[user.email] || []) : [{ status: "active", type: "owner" }];
+      const hasActivePurchase = userPurchases.some((p: any) => p.status === "active");
 
       const all = readJSON(TENANT_INTEGRATIONS_FILE);
       return Response.json({ data: all[user.email] || [] });
@@ -788,15 +784,11 @@ serve({
     if (pathname === "/api/integrations/connect" && req.method === "POST") {
       const user = await getUserFromSession(req);
       if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
-      // Purchase gating: owner always allowed, others must have purchased
-      if (user.email !== "mathewortiz97@gmail.com") {
-        const purchases = readJSON(join(DATA_DIR, "tenant_purchases.json"));
-        const userPurchases = purchases[user.email] || [];
-        const hasActivePurchase = userPurchases.some((p) => p.status === "active");
-        if (!hasActivePurchase) {
-          return Response.json({ error: "Purchase required to connect integrations" }, { status: 403 });
-        }
-      }
+      // Purchase gating: non-owners need active purchases for CRM/ERP/Accounting.
+      // Other integrations (Communication, Marketing, Data, etc.) are ungated.
+      const purchases = readJSON(join(DATA_DIR, "tenant_purchases.json"));
+      const userPurchases = (user.email !== "mathewortiz97@gmail.com") ? (purchases[user.email] || []) : [{ status: "active", type: "owner" }];
+      const hasActivePurchase = userPurchases.some((p: any) => p.status === "active");
 
       try {
         const body = await req.json();
@@ -804,6 +796,15 @@ serve({
         const providerId = body.providerId || body.provider || "";
         const providerName = body.providerName || body.provider || body.name || providerId;
         const providerCategory = body.category || getProviderCategory(providerId) || "";
+        // Prevent duplicate connections
+        const allConns = readJSON(TENANT_INTEGRATIONS_FILE);
+        const existingConns = allConns[user.email] || [];
+        const alreadyConnected = existingConns.find((c: any) => c.providerId === providerId && c.status === "Connected");
+        if (alreadyConnected) {
+          return Response.json({
+            error: `${providerName || providerId} is already connected (since ${new Date(alreadyConnected.connectedAt).toLocaleDateString()}). Disconnect it first to reconnect with new credentials.`,
+          }, { status: 409 });
+        }
         const creds = body.credentials || body;
         const apiKey = creds.apiKey || creds.api_key || creds.key || "";
         if (!apiKey || !apiKey.trim()) {
@@ -894,15 +895,11 @@ serve({
     if (pathname === "/api/integrations/disconnect" && req.method === "POST") {
       const user = await getUserFromSession(req);
       if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
-      // Purchase gating: owner always allowed, others must have purchased
-      if (user.email !== "mathewortiz97@gmail.com") {
-        const purchases = readJSON(join(DATA_DIR, "tenant_purchases.json"));
-        const userPurchases = purchases[user.email] || [];
-        const hasActivePurchase = userPurchases.some((p) => p.status === "active");
-        if (!hasActivePurchase) {
-          return Response.json({ error: "Purchase required to connect integrations" }, { status: 403 });
-        }
-      }
+      // Purchase gating: non-owners need active purchases for CRM/ERP/Accounting.
+      // Other integrations (Communication, Marketing, Data, etc.) are ungated.
+      const purchases = readJSON(join(DATA_DIR, "tenant_purchases.json"));
+      const userPurchases = (user.email !== "mathewortiz97@gmail.com") ? (purchases[user.email] || []) : [{ status: "active", type: "owner" }];
+      const hasActivePurchase = userPurchases.some((p: any) => p.status === "active");
 
       try {
         const body = await req.json();
