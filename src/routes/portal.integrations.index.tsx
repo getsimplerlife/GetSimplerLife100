@@ -797,14 +797,23 @@ function ConnectedServices() {
                                   </button>
                                 </div>
                               </div>
-                            ) : (
+                            ) : (() => {
+                              const authType = (prov.connectionRequirements?.authType || "").toLowerCase();
+                              const isOAuth = authType.includes("oauth");
+                              const isApiKey = authType.includes("api") || authType.includes("basic") || authType.includes("token");
+                              // Show both if authType has both or is unknown
+                              const showBoth = (isOAuth && isApiKey) || (!isOAuth && !isApiKey);
+                              return (
                               <div className="flex gap-1">
+                                {(isOAuth || showBoth) && (
                                 <button
                                   onClick={() => handleConnect(prov.id)}
                                   className="bg-white text-black border-white hover:bg-stone-200 text-[9px] font-mono font-black tracking-wide uppercase px-3 py-1.5 rounded-lg border transition-all"
                                 >
                                   OAuth
                                 </button>
+                                )}
+                                {(isApiKey || showBoth) && (
                                 <button
                                   onClick={() => {
                                     setCredentialProvider(prov);
@@ -818,8 +827,10 @@ function ConnectedServices() {
                                 >
                                   API Key
                                 </button>
+                                )}
                               </div>
-                            )}
+                              );
+                            })()}
                       </div>
                     </div>
 
