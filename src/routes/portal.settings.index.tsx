@@ -105,6 +105,7 @@ function UnifiedSettingsHub() {
   const [planDesc, setPlanDesc] = useState("");
   const [invoices, setInvoices] = useState<InvoiceItem[]>([]);
   const [loadingBilling, setLoadingBilling] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState(null);
 
   // 4. API Key states
   const [developerKeys, setDeveloperKeys] = useState<DeveloperKey[]>([]);
@@ -178,6 +179,12 @@ function UnifiedSettingsHub() {
       const auditsData = await auditsRes.json();
 
       setInvoices(billingData.data || []);
+      // Fetch payment method
+      try {
+        const pmRes = await fetch("/api/data/payment-method", { credentials: "include" });
+        const pmData = await pmRes.json();
+        if (pmData.data) setPaymentMethod(pmData.data);
+      } catch {}
 
       const audits = auditsData.data || [];
       if (audits.length > 0) {
@@ -364,29 +371,9 @@ function UnifiedSettingsHub() {
     setTimeout(() => setFeedback(""), 4000);
   };
 
-  // Stripe Portal trigger — redirects to real Stripe Customer Portal
-  const handleStripePortal = async () => {
-    try {
-      setFeedback("Opening Stripe Customer Portal...");
-      const res = await fetch("/api/stripe/portal", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-      });
-      const data = await res.json();
-      if (data.url) {
-        window.open(data.url, "_blank");
-        setFeedback("Stripe Billing Portal opened in new tab.");
-      } else if (res.ok) {
-        setFeedback("Redirecting to Stripe dashboard...");
-        setTimeout(() => setFeedback(""), 4000);
-      } else {
-        setFeedback("Visit your Stripe dashboard to manage subscriptions.");
-      }
-    } catch {
-      setFeedback("Visit dashboard.stripe.com to manage your subscriptions.");
-    }
-    setTimeout(() => setFeedback(""), 5000);
+  // Navigate to marketplace for plan upgrades
+  const handleUpgradePlan = () => {
+    window.location.href = "/portal/marketplace";
   };
 
   if (loadingSettings) {
@@ -868,20 +855,47 @@ function UnifiedSettingsHub() {
               {/* Subscription Info Panel */}
               <div className="bg-stone-950 border border-stone-900 rounded-3xl p-6 shadow-xl flex flex-col justify-between gap-6 hover:border-emerald-500/10 transition-all duration-300">
                 <div className="space-y-4">
-                  <span className="text-[9px] font-black uppercase text-emerald-400 bg-emerald-950/40 border border-emerald-800/40 px-3 py-1 rounded-full tracking-wider">Active Workspace Build</span>
-                  <h3 className="text-2xl font-black text-white">{activePlan}</h3>
-                  <p className="text-stone-400 text-xs leading-relaxed font-semibold">{planDesc}</p>
+                  <span className="text-[9px] font-black uppercase text-emerald-400 bg-emerald-950/40 border border-emerald-800/40 px-3 py-1 rounded-full tracking-wider">Current Plan</span>
+                  <h3 className="text-2xl font-black text-white">{activePlan || "Free"}</h3>
+                  <p className="text-stone-400 text-xs leading-relaxed font-semibold">{planDesc || "Basic access with limited AI employee runs and integrations."}</p>
                 </div>
 
                 <button
-                  onClick={handleStripePortal}
+                  onClick={handleUpgradePlan}
                   className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-3.5 rounded-xl shadow-lg shadow-emerald-900/20 hover:shadow-emerald-900/40 transition-all"
                 >
-                  💳 Manage via Stripe Portal
+                  🚀 Upgrade Plan
                 </button>
               </div>
 
-              {/* Invoice History Panel */}
+              {/* Payment Method Card */}
+              <div className="bg-stone-950 border border-stone-900 rounded-3xl p-6 shadow-xl flex flex-col justify-between gap-4 hover:border-emerald-500/10 transition-all duration-300">
+                <div className="space-y-3">
+                  <span className="text-[9px] font-black uppercase text-emerald-400 bg-emerald-950/40 border border-emerald-800/40 px-3 py-1 rounded-full tracking-wider">Payment Method</span>
+                  {paymentMethod ? (
+                    <div className="bg-stone-900/50 border border-stone-800 rounded-2xl p-4 flex items-center gap-4">
+                      <div className="w-12 h-8 bg-gradient-to-br from-stone-700 to-stone-800 rounded-lg border border-stone-600 flex items-center justify-center text-lg shadow-inner">
+                        💳
+                      </div>
+                      <div>
+                        <div className="text-white font-bold text-sm">{paymentMethod.brand} •••• {paymentMethod.last4}</div>
+                        <div className="text-stone-500 text-[10px] font-semibold">Expires {String(paymentMethod.expMonth).padStart(2,"0")}/{String(paymentMethod.expYear).slice(-2)}</div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-stone-500 text-xs py-7 text-center border-2 border-dashed border-stone-900 rounded-2xl">
+                      No payment method on file
+                    </div>
+                  )}
+                </div>
+                <button
+                  className="w-full bg-stone-900 hover:bg-stone-800 text-white font-bold text-xs py-3 rounded-xl border border-stone-800 transition-all"
+                  onClick={() => setFeedback("Payment method updates are managed through Stripe. Visit your Stripe dashboard to update.")}
+                >
+                  {paymentMethod ? "💳 Update Payment Method" : "➕ Add Payment Method"}
+                </button>
+              </div>
+              {/* Purchase History Panel */}
               <div className="lg:col-span-2 bg-stone-950 border border-stone-900 rounded-3xl p-6 shadow-xl space-y-6">
                 <h3 className="text-base font-black text-white">Purchase History</h3>
                 

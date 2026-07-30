@@ -1,11 +1,16 @@
 {
   "mathewortiz97@gmail.com": {
-    "theme": "dark",
-    "section": "AI Model Gateway",
+    "theme": "midnight",
+    "section": "toggles",
     "settings": {
       "aiModel": "",
       "temperature": 0,
       "dataRetention": ""
-    }
+    },
+    "notifications": false,
+    "sidebar": "collapsed",
+    "key": "notifyEmail",
+    "value": false,
+    "companyName": "TestCo"
   }
 }

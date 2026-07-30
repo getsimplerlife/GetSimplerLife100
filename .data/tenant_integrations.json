@@ -1,18 +1,6 @@
 {
   "mathewortiz97@gmail.com": [
     {
-      "id": "int-wx29hwfoq",
-      "provider": "HubSpot",
-      "providerId": "hubspot",
-      "status": "Connected",
-      "connectedAt": "2026-07-28T20:53:29.181Z",
-      "lastSync": "2026-07-28T20:53:29.181Z",
-      "credentials": {
-        "apiKey": "test-456"
-      },
-      "category": "CRM"
-    },
-    {
       "id": "int-xg8vi2yq3",
       "provider": "zoom",
       "providerId": "zoom",
@@ -34,6 +22,30 @@
       "lastSync": "2026-07-30T02:14:17.239Z",
       "credentials": {
         "apiKey": "test-mailchimp-key-12345"
+      }
+    },
+    {
+      "id": "int-eyvfz8ecz",
+      "provider": "jira",
+      "providerId": "jira",
+      "category": "",
+      "status": "Connected",
+      "connectedAt": "2026-07-30T06:10:23.285Z",
+      "lastSync": "2026-07-30T06:10:23.285Z",
+      "credentials": {
+        "apiKey": "this-is-a-fake-jira-api-key-12345678"
+      }
+    },
+    {
+      "id": "int-d7xr2rci7",
+      "provider": "jira",
+      "providerId": "jira",
+      "category": "",
+      "status": "Connected",
+      "connectedAt": "2026-07-30T06:10:59.689Z",
+      "lastSync": "2026-07-30T06:10:59.689Z",
+      "credentials": {
+        "apiKey": "this-is-fake-123456"
       }
     }
   ]

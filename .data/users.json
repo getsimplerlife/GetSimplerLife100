@@ -7,7 +7,7 @@
   },
   "testuser@test.com": {
     "email": "testuser@test.com",
-    "password": "$2b$10$0/231Q2SQknGvjD4eGjTsuKkWvj7wljKNejBwVAjxw4R2WDGAQ9NK",
+    "password": "$2b$10$CLfqqoAsw8Nsns32t4MucOajZAWReM0p.p1pMSvTx9DKXKWlL7IBS",
     "role": "user",
     "createdAt": 1785135913973
   },
@@ -88,5 +88,11 @@
     "password": "$2b$10$NMM0NkYqz/jvw7xWrg1qnOZTdqQi6o7fLIS/46NgBguDehFUeiBre",
     "role": "user",
     "createdAt": 1785388314929
+  },
+  "audit.test@test.com": {
+    "email": "audit.test@test.com",
+    "password": "$2b$10$xyxhg96AiI8Z9sd3B2hzU.TkcJyyRK9AVPfVKt3teIFyvfALjvTz2",
+    "role": "user",
+    "createdAt": 1785391616823
   }
 }

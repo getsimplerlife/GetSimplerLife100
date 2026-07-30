@@ -71,6 +71,24 @@
         }
       ],
       "updatedAt": "2026-07-27T12:05:53.604Z"
+    },
+    {
+      "id": "chat-90q7sykvx",
+      "title": "Hello",
+      "createdAt": "2026-07-30T06:07:17.299Z",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Hello",
+          "timestamp": "2026-07-30T06:07:17.299Z"
+        },
+        {
+          "role": "assistant",
+          "content": "I'm your AI assistant at Simpler Life 100. I can see you have 3 integration(s) connected (zoom, mailchimp, slack). Our platform has 17 AI employees available for deployment across 23 industries. How can I help you optimize your operations today?",
+          "timestamp": "2026-07-30T06:07:17.299Z"
+        }
+      ],
+      "updatedAt": "2026-07-30T06:07:17.299Z"
     }
   ]
 }

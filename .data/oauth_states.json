@@ -150,5 +150,17 @@
   "efc7d5c812d668a1fb28fd4f7f10e2885bdb0904a2cdacb3e90580c7db687164": {
     "provider": "mailchimp",
     "createdAt": 1785377514897
+  },
+  "b15135afca8cbb186302d662d525a15f2bbcda9d32fcdc5c461d2f26742f5875": {
+    "provider": "hubspot",
+    "createdAt": 1785391629148
+  },
+  "bc2c6cf2f0eb3c92e96e076a83542c2990ff8de09512950af6a08d10acf22bbe": {
+    "provider": "hubspot",
+    "createdAt": 1785391637307
+  },
+  "bdf08023cd80140fb569936f69d7fcadd1c7f18e610094e7065235cccb2d76a0": {
+    "provider": "hubspot",
+    "createdAt": 1785391644567
   }
 }

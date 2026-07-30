@@ -44,6 +44,87 @@
       "resource": "CRM Sync Agent",
       "detail": "Agent executed: Agent \"CRM Sync Agent\" executed. 1 connected integration queried but unavailable with test credentials. Processed 0 records total.",
       "ip": "127.0.0.1"
+    },
+    {
+      "id": "log-r1nrssk87",
+      "timestamp": "2026-07-30T06:04:24.259Z",
+      "user": "mathewortiz97@gmail.com",
+      "action": "agent.run",
+      "resource": "CRM Sync Agent",
+      "detail": "Agent executed: Agent \"CRM Sync Agent\" executed. 1 connected integration queried but unavailable with test credentials. Processed 0 records total.",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "log-odrq14s6m",
+      "timestamp": "2026-07-30T06:04:24.557Z",
+      "user": "mathewortiz97@gmail.com",
+      "action": "integration.disconnect",
+      "resource": "int-wx29hwfoq",
+      "detail": "Disconnected HubSpot",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "log-salouvd6o",
+      "timestamp": "2026-07-30T06:06:17.683Z",
+      "user": "mathewortiz97@gmail.com",
+      "action": "agent.run",
+      "resource": "CRM Sync Agent",
+      "detail": "Agent executed: Agent \"CRM Sync Agent\" executed. None of the 3 required integrations are connected. Connect them to unlock full functionality. Processed 0 records total.",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "log-uwagkrhwb",
+      "timestamp": "2026-07-30T06:06:27.818Z",
+      "user": "mathewortiz97@gmail.com",
+      "action": "integration.connect",
+      "resource": "slack",
+      "detail": "Connected slack via API key",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "log-nqoz8eirv",
+      "timestamp": "2026-07-30T06:06:27.944Z",
+      "user": "mathewortiz97@gmail.com",
+      "action": "integration.disconnect",
+      "resource": "nonexistent",
+      "detail": "Disconnected nonexistent",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "log-lbnid6vve",
+      "timestamp": "2026-07-30T06:07:59.831Z",
+      "user": "mathewortiz97@gmail.com",
+      "action": "integration.connect",
+      "resource": "slack",
+      "detail": "Connected slack via API key",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "log-uiid0bm76",
+      "timestamp": "2026-07-30T06:08:07.913Z",
+      "user": "mathewortiz97@gmail.com",
+      "action": "integration.connect",
+      "resource": "notion",
+      "detail": "Connected notion via API key",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "log-7bzmgdfrr",
+      "timestamp": "2026-07-30T06:10:23.285Z",
+      "user": "mathewortiz97@gmail.com",
+      "action": "integration.connect",
+      "resource": "jira",
+      "detail": "Connected jira via API key",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "log-t8t6esun1",
+      "timestamp": "2026-07-30T06:10:59.689Z",
+      "user": "mathewortiz97@gmail.com",
+      "action": "integration.connect",
+      "resource": "jira",
+      "detail": "Connected jira via API key",
+      "ip": "127.0.0.1"
     }
   ]
 }

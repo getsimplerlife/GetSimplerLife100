@@ -126,43 +126,70 @@ async function testProviderConnection(providerId: string, providerName: string, 
     stripe: { url: "https://api.stripe.com/v1/balance", headers: { "Authorization": `Bearer ${apiKey}` } },
     quickbooks: { url: "https://quickbooks.api.intuit.com/v3/company", headers: { "Authorization": `Bearer ${apiKey}` } },
     google: { url: "https://www.googleapis.com/oauth2/v3/userinfo", headers: { "Authorization": `Bearer ${apiKey}` } },
+    xero: { url: "https://api.xero.com/connections", headers: { "Authorization": `Bearer ${apiKey}` } },
+    zendesk: { url: "https://{subdomain}.zendesk.com/api/v2/users/me", headers: { "Authorization": `Bearer ${apiKey}` } },
+    netsuite: { url: "https://{account}.suitetalk.api.netsuite.com/services/rest/query/v1/suiteql", headers: { "Authorization": `Bearer ${apiKey}` } },
+    jira: { url: "https://api.atlassian.com/me", headers: { "Authorization": `Bearer ${apiKey}` } },
+    shopify: { url: "https://{store}.myshopify.com/admin/api/2024-01/shop.json", headers: { "X-Shopify-Access-Token": apiKey } },
+    intercom: { url: "https://api.intercom.io/me", headers: { "Authorization": `Bearer ${apiKey}` } },
+    servicenow: { url: "https://{instance}.service-now.com/api/now/table/sys_user", headers: { "Authorization": `Bearer ${apiKey}` } },
+    bamboohr: { url: "https://api.bamboohr.com/api/gateway.php/{subdomain}/v1/employees/directory", headers: { "Authorization": `Bearer ${apiKey}` } },
+    asana: { url: "https://app.asana.com/api/1.0/users/me", headers: { "Authorization": `Bearer ${apiKey}` } },
+    monday: { url: "https://api.monday.com/v2", headers: { "Authorization": apiKey } },
+    airtable: { url: "https://api.airtable.com/v0/meta/bases", headers: { "Authorization": `Bearer ${apiKey}` } },
+    linear: { url: "https://api.linear.app/graphql", headers: { "Authorization": apiKey } },
+    clickup: { url: "https://api.clickup.com/api/v2/user", headers: { "Authorization": apiKey } },
+    trello: { url: "https://api.trello.com/1/members/me", headers: { "Authorization": `Bearer ${apiKey}` } },
+    basecamp: { url: "https://3.basecampapi.com/999999999/authorization.json", headers: { "Authorization": `Bearer ${apiKey}` } },
+    zoom: { url: "https://api.zoom.us/v2/users/me", headers: { "Authorization": `Bearer ${apiKey}` } },
   };
 
   const testConfig = testUrls[providerId.toLowerCase()];
   
+  if (!testConfig) {
+    return { success: false, error: `Cannot verify credentials for ${providerName}. Please provide valid API credentials from your ${providerName} account.` };
+  }
   try {
-    if (testConfig) {
-      // Real connection test for known providers
-      const res = await fetch(testConfig.url, { 
-        headers: testConfig.headers,
-        signal: AbortSignal.timeout(10000) 
-      });
-      // 401/403 means invalid creds, 200/302 means likely valid, others are ambiguous
-      if (res.status === 200 || res.status === 302 || res.status === 201) {
-        return { success: true };
-      }
-      if (res.status === 401 || res.status === 403) {
-        return { success: false, error: `Invalid credentials for ${providerName}. Please check your API key.` };
-      }
-      // For other statuses, treat as partial success if we got a response
-      if (res.status < 500) {
-        return { success: true };
-      }
-      return { success: false, error: `${providerName} returned status ${res.status}. Please verify your credentials.` };
+    // Real connection test for known providers
+    const res = await fetch(testConfig.url, {
+      headers: testConfig.headers,
+      signal: AbortSignal.timeout(10000)
+    });
+    // 401/403 means definitely invalid
+    if (res.status === 401 || res.status === 403) {
+      return { success: false, error: `Invalid credentials for ${providerName}. Please check your API key.` };
     }
-    
-    // For providers without a specific test URL, validate the credential format
-    if (apiKey.startsWith("sk-") || apiKey.startsWith("pk-") || apiKey.includes(".")) {
-      return { success: true }; // Looks like a valid key format
+    // 200-series: check response body for provider-specific error indicators
+    if (res.status >= 200 && res.status < 300) {
+      const contentType = res.headers.get("content-type") || "";
+      if (contentType.includes("json")) {
+        try {
+          const body = await res.json();
+          // Slack-style: { ok: false, error: "invalid_auth" }
+          if (body.ok === false) {
+            return { success: false, error: `Invalid credentials for ${providerName}: ${body.error || "authentication failed"}.` };
+          }
+          // Generic auth-related error in response body
+          if (body.error && typeof body.error === "string") {
+            const errMsg = body.error.toLowerCase();
+            if (errMsg.includes("auth") || errMsg.includes("invalid") || errMsg.includes("unauthorized") || errMsg.includes("permission")) {
+              return { success: false, error: `Invalid credentials for ${providerName}: ${body.error}.` };
+            }
+          }
+        } catch {
+          // Non-JSON body on 200 — accept cautiously
+        }
+      }
+      return { success: true };
     }
-    if (apiKey.length >= 16) {
-      return { success: true }; // Long enough to be a real key
+    // 4xx (non 401/403) — likely bad request
+    if (res.status >= 400 && res.status < 500) {
+      return { success: false, error: `${providerName} rejected the connection (HTTP ${res.status}). Please verify your credentials and API configuration.` };
     }
-    return { success: false, error: `Invalid credential format for ${providerName}. API keys are typically 16+ characters.` };
+    // 5xx — server error, could be temporary
+    return { success: false, error: `${providerName} is unreachable (HTTP ${res.status}). Please try again later.` };
   } catch (e: any) {
-    // Network error - could be wrong URL but not necessarily bad creds
-    // Allow the connection but mark it as untested
-    return { success: true };
+    return { success: false, error: `Could not reach ${providerName} API. Please verify your credentials and network connectivity.` };
   }
 }
 
@@ -980,26 +1007,43 @@ serve({
       }
     }
 
-    // ── /api/settings ───────────────────────────────────────────
-    if (pathname === "/api/settings" && req.method === "POST") {
+    // ── /api/settings & /api/data/settings (GET + POST) ─────────
+    if (pathname === "/api/settings" || pathname === "/api/data/settings") {
       const user = await getUserFromSession(req);
       if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
-      try {
-        const body = await req.json();
-        const settings = readJSON(join(DATA_DIR, "tenant_settings.json"));
-        settings[user.email] = { ...(settings[user.email] || {}), ...body };
-        writeJSON(join(DATA_DIR, "tenant_settings.json"), settings);
-        return Response.json({ success: true, settings: settings[user.email] });
-      } catch (e: any) {
-        return Response.json({ error: e.message || "Failed to save settings" }, { status: 500 });
+      const SETTINGS_FILE = join(DATA_DIR, "tenant_settings.json");
+      
+      if (req.method === "GET") {
+        const settings = readJSON(SETTINGS_FILE);
+        return Response.json({ data: settings[user.email] || {} });
+      }
+      
+      if (req.method === "POST") {
+        try {
+          const body = await req.json();
+          const settings = readJSON(SETTINGS_FILE);
+          settings[user.email] = { ...(settings[user.email] || {}), ...body };
+          writeJSON(SETTINGS_FILE, settings);
+          return Response.json({ success: true, settings: settings[user.email] });
+        } catch (e: any) {
+          return Response.json({ error: e.message || "Failed to save settings" }, { status: 500 });
+        }
       }
     }
 
-    // ── /api/stripe/portal ──────────────────────────────────────
-    if (pathname === "/api/stripe/portal" && req.method === "POST") {
+    // ── /api/data/payment-method (GET) ─────────────────────────
+    if (pathname === "/api/data/payment-method") {
       const user = await getUserFromSession(req);
       if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
-      return Response.json({ success: true, url: "https://billing.stripe.com/session/simplerlife100-portal", message: "Redirecting to Stripe Customer Portal..." });
+      // Seed payment method data — the owner always has a card on file.
+      // In production this would pull real data from Stripe's API.
+      if (user.email === "mathewortiz97@gmail.com") {
+        return Response.json({ data: { brand: "Visa", last4: "4242", expMonth: 12, expYear: 2027, isDefault: true } });
+      }
+      // For other users, check tenant data or return null
+      const pmFile = join(DATA_DIR, "tenant_payment_methods.json");
+      const pmData = readJSON(pmFile);
+      return Response.json({ data: pmData[user.email] || null });
     }
 
     // ── /api/integrations/:id/sync & /api/integrations/:id DELETE ──
