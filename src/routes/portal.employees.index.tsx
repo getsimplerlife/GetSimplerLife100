@@ -28,6 +28,7 @@ function AIEmployeesWorkspaceHub() {
   // Per-agent status from runtime API (always client-side)
   const [agentStatuses, setAgentStatuses] = useState<Record<string, any>>({});
   const [actionLoading, setActionLoading] = useState<Record<string, string>>({});
+  const [runResults, setRunResults] = useState<Record<string, any>>({});  // pipeline results per agent
 
   // Fetch agent statuses on mount (client-side only)
   useEffect(() => {
@@ -83,9 +84,23 @@ function AIEmployeesWorkspaceHub() {
           const sData = await sRes.json();
           setAgentStatuses(prev => ({ ...prev, [agentId]: sData }));
         }
-        setFeedback(`✓ ${action === "pause" ? "Paused" : action === "resume" ? "Resumed" : "Started"} ${emp.name}`);
+        // For run action, store pipeline results for display
+        if (action === "run") {
+          setRunResults(prev => ({ ...prev, [agentId]: data }));
+          const insightCount = data.insights?.length || 0;
+          const alertCount = data.alerts?.length || 0;
+          const actionCount = data.actionsTaken?.filter((a: any) => a.status === "executed").length || 0;
+          setFeedback(`✓ ${emp.name} ran — ${insightCount} insight${insightCount !== 1 ? "s" : ""}, ${alertCount} alert${alertCount !== 1 ? "s" : ""}, ${actionCount} action${actionCount !== 1 ? "s" : ""}`);
+        } else {
+          setFeedback(`✓ ${action === "pause" ? "Paused" : action === "resume" ? "Resumed" : "Started"} ${emp.name}`);
+        }
       } else {
-        setFeedback(`Failed to ${action} ${emp.name}`);
+        const errData = await res.json().catch(() => ({}));
+        if (res.status === 402) {
+          setFeedback(`🔒 Purchase required to run ${emp.name}`);
+        } else {
+          setFeedback(`Failed to ${action} ${emp.name}: ${errData.error || res.status}`);
+        }
       }
     } catch {
       setFeedback(`Error: Could not ${action} ${emp.name}`);
@@ -264,6 +279,15 @@ function AIEmployeesWorkspaceHub() {
                     </div>
                   </div>
 
+                  {/* Pipeline Results (shown after Run) */}
+                  {runResults[agentId] && (
+                    <PipelineResultsCard
+                      result={runResults[agentId]}
+                      agentName={emp.name}
+                      onDismiss={() => setRunResults(prev => { const n = { ...prev }; delete n[agentId]; return n; })}
+                    />
+                  )}
+
                   {/* Controls */}
                   <div className="flex gap-2 pt-1">
                     {emp.status !== "Active" && emp.status !== "Paused" && (
@@ -349,6 +373,114 @@ function AIEmployeesWorkspaceHub() {
           <span className="text-emerald-400">✓</span>
           <span className="font-bold">{feedback}</span>
         </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Pipeline Results Card ────────────────────────────────────── */
+
+const SEVERITY_COLORS: Record<string, string> = {
+  info: "text-stone-400 bg-stone-900 border-stone-800",
+  low: "text-blue-400 bg-blue-950/40 border-blue-900",
+  medium: "text-amber-400 bg-amber-950/40 border-amber-900",
+  high: "text-orange-400 bg-orange-950/40 border-orange-900",
+  critical: "text-red-400 bg-red-950/40 border-red-900",
+};
+
+const INSIGHT_ICONS: Record<string, string> = {
+  discrepancy: "⚠️", opportunity: "💡", risk: "🔴", trend: "📈",
+  recommendation: "✅", summary: "📋",
+};
+
+function PipelineResultsCard({ result, agentName, onDismiss }: { result: any; agentName: string; onDismiss: () => void }) {
+  const insights = result.insights || [];
+  const alerts = result.alerts || [];
+  const actions = result.actionsTaken || [];
+  const processed = result.processedData || {};
+  const totalRecords = result.totalRecordsProcessed || 0;
+  const executedActions = actions.filter((a: any) => a.status === "executed").length;
+  const failedActions = actions.filter((a: any) => a.status === "failed").length;
+  const hasData = insights.length > 0 || alerts.length > 0 || actions.length > 0;
+
+  // 0 connections = empty state
+  const connectedCount = (result.queryResults || []).filter((r: any) => r.status === "ok").length;
+  const isEmpty = connectedCount === 0 && totalRecords === 0;
+
+  return (
+    <div className="bg-stone-900 border border-stone-800 rounded-xl p-4 space-y-3 mt-2 animate-slideUp">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-sm">🤖</span>
+          <span className="text-[11px] font-bold text-white">Run Results</span>
+          <span className="text-[10px] text-stone-500 font-mono">
+            {totalRecords} record{totalRecords !== 1 ? "s" : ""} · {connectedCount} system{connectedCount !== 1 ? "s" : ""}
+          </span>
+        </div>
+        <button onClick={onDismiss}
+          className="text-stone-500 hover:text-stone-300 text-sm leading-none">&times;</button>
+      </div>
+
+      {isEmpty ? (
+        <div className="text-center py-3 text-stone-500 text-[10px] font-mono">
+          🔌 No integrations connected — connect data sources to unlock processing.
+        </div>
+      ) : !hasData ? (
+        <div className="text-center py-3 text-stone-500 text-[10px] font-mono">
+          Run complete. No notable findings.
+        </div>
+      ) : (
+        <>
+          {/* Summary stats */}
+          <div className="flex gap-3 text-[10px] font-mono">
+            {insights.length > 0 && (
+              <span className="text-stone-400">💡 {insights.length} insight{insights.length !== 1 ? "s" : ""}</span>
+            )}
+            {alerts.length > 0 && (
+              <span className="text-amber-400">🚨 {alerts.length} alert{alerts.length !== 1 ? "s" : ""}</span>
+            )}
+            {executedActions > 0 && (
+              <span className="text-emerald-400">⚡ {executedActions} action{executedActions !== 1 ? "s" : ""}</span>
+            )}
+            {failedActions > 0 && (
+              <span className="text-red-400">❌ {failedActions} failed</span>
+            )}
+          </div>
+
+          {/* Insights list */}
+          {insights.length > 0 && (
+            <div className="space-y-1.5">
+              <span className="text-[9px] font-mono uppercase text-stone-500 font-bold tracking-wider">Insights</span>
+              {insights.slice(0, 5).map((insight: any, i: number) => (
+                <div key={i} className={`flex items-start gap-2 px-2 py-1.5 rounded-lg border text-[10px] ${SEVERITY_COLORS[insight.severity] || SEVERITY_COLORS.info}`}>
+                  <span className="shrink-0 mt-0.5">{INSIGHT_ICONS[insight.type] || "•"}</span>
+                  <span className="leading-relaxed">{insight.message}</span>
+                </div>
+              ))}
+              {insights.length > 5 && (
+                <span className="text-[9px] text-stone-600 font-mono pl-2">+{insights.length - 5} more</span>
+              )}
+            </div>
+          )}
+
+          {/* Actions Taken */}
+          {actions.length > 0 && (
+            <div className="space-y-1">
+              <span className="text-[9px] font-mono uppercase text-stone-500 font-bold tracking-wider">Actions</span>
+              {actions.map((a: any, i: number) => (
+                <div key={i} className={`flex items-center gap-2 px-2 py-1 rounded text-[10px] font-mono ${
+                  a.status === "executed" ? "text-emerald-400 bg-emerald-950/20" :
+                  a.status === "failed" ? "text-red-400 bg-red-950/20" :
+                  "text-stone-500 bg-stone-900"
+                }`}>
+                  <span>{a.status === "executed" ? "✅" : a.status === "failed" ? "❌" : "⏭"}</span>
+                  <span>{a.provider}: {a.detail}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
