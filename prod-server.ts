@@ -39,6 +39,49 @@ function writeJSON(path: string, data: any) {
   writeFileSync(path, JSON.stringify(data, null, 2));
 }
 
+
+// ── OAuth Credential Resolution ────────────────────────────────────
+function getOAuthCredentials(provider: string): { clientId: string; clientSecret: string } | null {
+  // 1. Try environment variables: OAUTH_<PROVIDER>_CLIENT_ID / OAUTH_<PROVIDER>_CLIENT_SECRET
+  const provUpper = provider.replace(/-/g, "_").toUpperCase();
+  const envClientId = process.env[`OAUTH_${provUpper}_CLIENT_ID`];
+  const envClientSecret = process.env[`OAUTH_${provUpper}_CLIENT_SECRET`];
+  if (envClientId && envClientSecret) {
+    return { clientId: envClientId, clientSecret: envClientSecret };
+  }
+  // 2. Fall back to tenant_oauth_credentials.json
+  const credsFile = join(DATA_DIR, "tenant_oauth_credentials.json");
+  const creds = readJSON(credsFile);
+  const key = `${provider}`;
+  if (creds[key] && creds[key].clientId && creds[key].clientSecret) {
+    return { clientId: creds[key].clientId, clientSecret: creds[key].clientSecret };
+  }
+  return null;
+}
+
+function getOAuthRedirectUri(provider: string): string {
+  return `http://localhost:3000/api/oauth/callback?provider=${encodeURIComponent(provider)}`;
+}
+
+// Provider name → canonical key for module lookup (handles hyphens, etc.)
+const PROVIDER_CANONICAL: Record<string, string> = {
+  "quickbooks-online": "quickbooks-enterprise",
+  "quickbooks": "quickbooks-enterprise",
+  "quickbooks-desktop": "quickbooks-enterprise",
+  "zoho": "zoho-crm",
+  "gmail": "google-workspace",
+  "google": "google-workspace",
+  "microsoft": "microsoft-365",
+  "microsoft-dynamics": "dynamics-365",
+  "outlook": "outlook-calendar",
+  "bamboohr": "adp",
+  "sap": "sap-s4hana",
+};
+
+function getCanonicalProvider(provider: string): string {
+  return PROVIDER_CANONICAL[provider.toLowerCase()] || provider.toLowerCase();
+}
+
 function generateSessionToken(): string {
   return createHash("sha256").update(randomBytes(64)).digest("hex");
 }
@@ -1668,6 +1711,164 @@ serve({
       }
     }
 
+
+    // ── /api/oauth/callback ───────────────────────────────────────
+    if (pathname === "/api/oauth/callback") {
+      const code = url.searchParams.get("code");
+      const state = url.searchParams.get("state");
+      const errorParam = url.searchParams.get("error");
+      const errorDesc = url.searchParams.get("error_description");
+      
+      // Provider denied authorization
+      if (errorParam) {
+        const msg = encodeURIComponent(errorDesc || errorParam);
+        return Response.redirect(`/portal/integrations?error=${encodeURIComponent("Authorization denied: " + (errorDesc || errorParam))}`, 302);
+      }
+      
+      if (!code || !state) {
+        return Response.redirect(`/portal/integrations?error=${encodeURIComponent("Missing code or state parameter")}`, 302);
+      }
+      
+      // Validate CSRF state
+      const states = readJSON(OAUTH_STATES_FILE);
+      const stateEntry = states[state];
+      if (!stateEntry) {
+        return Response.redirect(`/portal/integrations?error=${encodeURIComponent("Invalid state — possible CSRF attack or expired session")}`, 302);
+      }
+      
+      // Check TTL (10 minutes)
+      const TEN_MINUTES = 10 * 60 * 1000;
+      if (Date.now() - stateEntry.createdAt > TEN_MINUTES) {
+        delete states[state];
+        writeJSON(OAUTH_STATES_FILE, states);
+        return Response.redirect(`/portal/integrations?error=${encodeURIComponent("OAuth state expired. Please try again.")}`, 302);
+      }
+      
+      const authProvider = stateEntry.provider;
+      const verifier = stateEntry.verifier;
+      
+      // Clean up consumed state
+      delete states[state];
+      writeJSON(OAUTH_STATES_FILE, states);
+      
+      // Get user from session (for connection record)
+      const user = await getUserFromSession(req);
+      if (!user) {
+        return Response.redirect(`/portal/integrations?error=${encodeURIComponent("Session expired. Please login and try again.")}`, 302);
+      }
+      
+      const creds = getOAuthCredentials(authProvider);
+      if (!creds) {
+        return Response.redirect(`/portal/integrations?error=${encodeURIComponent("OAuth not configured for " + authProvider + ". Add credentials in Admin → OAuth Settings.")}`, 302);
+      }
+      
+      const redirectUri = getOAuthRedirectUri(authProvider);
+      
+      try {
+        // Exchange code for tokens using the provider's auth module
+        const canonicalProvider = getCanonicalProvider(authProvider);
+        const authModulePath = `./src/integrations/providers/${canonicalProvider}/auth.ts`;
+        const authMod = await import(authModulePath);
+        
+        // Find handle*Callback function — iterate exports for any matching function
+        const handleCb = Object.keys(authMod).find(k => 
+          k.startsWith("handle") && k.endsWith("Callback")
+        ) ? authMod[Object.keys(authMod).find(k => k.startsWith("handle") && k.endsWith("Callback"))!] : undefined;
+        
+        let tokens: any;
+        if (handleCb) {
+          tokens = await handleCb(
+            { clientId: creds.clientId, clientSecret: creds.clientSecret, redirectUri },
+            code,
+            verifier || "",
+          );
+        } else {
+          // Generic exchange using framework directly
+          const { exchangeCodeForTokens } = await import("./src/integrations/framework/oauth");
+          tokens = await exchangeCodeForTokens(
+            { 
+              clientId: creds.clientId, 
+              clientSecret: creds.clientSecret, 
+              redirectUri, 
+              scopes: ["read"], 
+              authorizeUrl: "", 
+              tokenUrl: `https://${canonicalProvider}.com/oauth/token`, 
+              flowType: "authorization_code" 
+            },
+            code,
+            verifier,
+          );
+        }
+        
+        // Store tokens in tenant_oauth_credentials.json
+        const tokenFile = join(DATA_DIR, "tenant_oauth_credentials.json");
+        const tokenData = readJSON(tokenFile);
+        const tokenKey = `${user.email}:${authProvider}`;
+        tokenData[tokenKey] = {
+          provider: authProvider,
+          email: user.email,
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+          expiresAt: tokens.expiresAt,
+          scope: tokens.scope,
+          tokenType: tokens.tokenType,
+          instanceUrl: tokens.instanceUrl,
+          updatedAt: new Date().toISOString(),
+        };
+        writeJSON(tokenFile, tokenData);
+        
+        // Create connection record in tenant_integrations.json
+        const allConns = readJSON(TENANT_INTEGRATIONS_FILE);
+        const userConns = allConns[user.email] || [];
+        
+        // Check for existing connection
+        const existingIdx = userConns.findIndex((c: any) => c.providerId === authProvider);
+        const entry = {
+          id: "int-" + Math.random().toString(36).substr(2, 9),
+          provider: authProvider,
+          providerId: authProvider,
+          category: getProviderCategory(authProvider) || "Integration",
+          status: "Connected",
+          connectedAt: new Date().toISOString(),
+          lastSync: new Date().toISOString(),
+          credentials: { apiKey: tokens.accessToken, oauth: true },
+        };
+        
+        if (existingIdx >= 0) {
+          // Update existing connection
+          userConns[existingIdx] = { ...userConns[existingIdx], ...entry, id: userConns[existingIdx].id };
+        } else {
+          userConns.push(entry);
+        }
+        allConns[user.email] = userConns;
+        writeJSON(TENANT_INTEGRATIONS_FILE, allConns);
+        
+        // Audit log
+        const alogs = readJSON(AUDIT_LOG_FILE);
+        const alogUser = alogs[user.email] || [];
+        alogUser.push({
+          id: "log-" + Math.random().toString(36).substr(2, 9),
+          timestamp: new Date().toISOString(),
+          user: user.email,
+          action: "integration.connect",
+          resource: authProvider,
+          detail: `Connected ${authProvider} via OAuth`,
+          ip: "127.0.0.1",
+        });
+        alogs[user.email] = alogUser;
+        writeJSON(AUDIT_LOG_FILE, alogs);
+        
+        // Redirect to integrations with success
+        const successMsg = encodeURIComponent(`✅ Connected to ${authProvider} successfully!`);
+        return Response.redirect(`/portal/integrations?success=${successMsg}`, 302);
+        
+      } catch (e: any) {
+        console.error("OAuth callback error:", e);
+        const errMsg = encodeURIComponent(`OAuth failed for ${authProvider}: ${e.message || "Unknown error"}`);
+        return Response.redirect(`/portal/integrations?error=${errMsg}`, 302);
+      }
+    }
+
     // ── /api/oauth/authorize ─────────────────────────────────────
     if (pathname === "/api/oauth/authorize") {
       const provider = url.searchParams.get("provider");
@@ -1683,46 +1884,58 @@ serve({
       const states = readJSON(OAUTH_STATES_FILE);
       states[state] = { provider, createdAt: Date.now() };
       writeJSON(OAUTH_STATES_FILE, states);
-      // Build OAuth redirect URL (generic pattern)
-      const redirectUri = `http://localhost:3000/api/oauth/callback?provider=${encodeURIComponent(provider)}`;
-      const oauthUrls: Record<string, string> = {
-        salesforce: `https://login.salesforce.com/services/oauth2/authorize?response_type=code&client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`,
-        hubspot: `https://app.hubspot.com/oauth/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&scope=contacts+content&state=${state}`,
-        pipedrive: `https://oauth.pipedrive.com/oauth/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&scope=deals:read+contacts:read&state=${state}`,
-        zoho: `https://accounts.zoho.com/oauth/v2/auth?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=ZohoCRM.modules.ALL&state=${state}`,
-        google: `https://accounts.google.com/o/oauth2/v2/auth?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=email+profile&state=${state}`,
-        gmail: `https://accounts.google.com/o/oauth2/v2/auth?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=https://www.googleapis.com/auth/gmail.readonly&state=${state}`,
-        microsoft: `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=offline_access+user.read&state=${state}`,
-        outlook: `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=Mail.Read&state=${state}`,
-        slack: `https://slack.com/oauth/v2/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&scope=channels:read+chat:write&state=${state}`,
-        quickbooks: `https://appcenter.intuit.com/connect/oauth2?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=com.intuit.quickbooks.accounting&state=${state}`,
-        xero: `https://login.xero.com/identity/connect/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=accounting.transactions+accounting.contacts&state=${state}`,
-        netsuite: `https://system.netsuite.com/app/login/oauth2/authorize.nl?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=restlets+rest_webservices&state=${state}`,
-        sap: `https://accounts.sap.com/oauth2/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=openid&state=${state}`,
-        servicenow: `https://instance.service-now.com/oauth_auth.do?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=useraccount&state=${state}`,
-        jira: `https://auth.atlassian.com/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=read:jira-work+write:jira-work&state=${state}`,
-        linkedin: `https://www.linkedin.com/oauth/v2/authorization?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=openid+profile+email&state=${state}`,
-        github: `https://github.com/login/oauth/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&scope=repo+user&state=${state}`,
-        dropbox: `https://www.dropbox.com/oauth2/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&token_access_type=offline&state=${state}`,
-        box: `https://account.box.com/api/oauth2/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${state}`,
-        shopify: `https://shop.myshopify.com/admin/oauth/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&scope=read_orders+read_products&state=${state}`,
-        stripe: `https://connect.stripe.com/oauth/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=read_write&state=${state}`,
-        intercom: `https://app.intercom.com/oauth?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`,
-        freshdesk: `https://domain.freshdesk.com/oauth/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${state}`,
-        monday: `https://auth.monday.com/oauth2/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${state}`,
-        asana: `https://app.asana.com/-/oauth_authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${state}`,
-        trello: `https://trello.com/1/OAuthAuthorizeToken?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=read+write&state=${state}`,
-        zendesk: `https://subdomain.zendesk.com/oauth/authorizations/new?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=read+write&state=${state}`,
-        bamboohr: `https://api.bamboohr.com/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${state}`,
-        workday: `https://impl.workday.com/ccx/oauth2/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${state}`,
-        mailchimp: `https://login.mailchimp.com/oauth2/authorize?client_id=SIMPLERLIFE&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${state}`,
-      };
-      const authUrl = oauthUrls[provider.toLowerCase()];
+      // Build OAuth redirect URL dynamically via provider auth modules
+      const redirectUri = getOAuthRedirectUri(provider);
+      const canonicalProvider = getCanonicalProvider(provider);
+      const creds = getOAuthCredentials(provider);
+      
+      // Try to use a real provider auth module
+      let authUrl: string | null = null;
+      let verifier: string | undefined;
+      
+      try {
+        const authModulePath = `./src/integrations/providers/${canonicalProvider}/auth.ts`;
+        const authMod = await import(authModulePath);
+        // Find build*AuthUrl function — iterate exports for any matching function
+        const buildFn = Object.keys(authMod).find(k => 
+          k.startsWith("build") && k.endsWith("AuthUrl")
+        ) ? authMod[Object.keys(authMod).find(k => k.startsWith("build") && k.endsWith("AuthUrl"))!] : undefined;
+        
+        if (buildFn && creds) {
+          const result = await buildFn({
+            clientId: creds.clientId,
+            clientSecret: creds.clientSecret,
+            redirectUri,
+          });
+          authUrl = typeof result === "string" ? result : result.url;
+          if (result.verifier) verifier = result.verifier;
+          // Store verifier in state entry for callback use
+          if (verifier) {
+            states[state] = { ...states[state], verifier };
+            writeJSON(OAUTH_STATES_FILE, states);
+          }
+        }
+      } catch (_) {
+        // Auth module not available — fall through to env-var-based URL
+      }
+      
       if (authUrl) {
         return Response.redirect(authUrl, 302);
       }
-      // Fallback for any provider not in the explicit list
-      const fallbackUrl = `https://${provider}.com/oauth/authorize?client_id=sl100_client&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${state}`;
+      
+      // No auth module or no credentials: show configuration error
+      if (!creds) {
+        const provUpper = provider.replace(/-/g, "_").toUpperCase();
+        return new Response(
+          `<!DOCTYPE html><html><head><title>OAuth Not Configured</title><meta charset="utf-8"></head><body style="font-family:system-ui;max-width:600px;margin:80px auto;padding:20px;background:#1c1917;color:#f5f5f4;border-radius:12px;border:1px solid #292524;"><h2>🔒 OAuth not configured</h2><p>OAuth is not configured for <strong>${provider}</strong>. Add credentials in Admin → OAuth Settings or set environment variables:</p><pre style="background:#292524;padding:12px;border-radius:8px;overflow-x:auto;">OAUTH_${provUpper}_CLIENT_ID=your_client_id
+OAUTH_${provUpper}_CLIENT_SECRET=your_client_secret</pre><p style="font-size:0.85em;color:#78716c;"><a href="/portal/integrations" style="color:#60a5fa;">← Back to Integrations</a></p></body></html>`,
+          { status: 503, headers: { "Content-Type": "text/html" } }
+        );
+      }
+      
+      // Fallback: construct URL with real client_id
+      const scopes = encodeURIComponent("read");
+      const fallbackUrl = `https://${canonicalProvider.replace(/-/g, "")}.com/oauth/authorize?client_id=${encodeURIComponent(creds.clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scopes}&state=${state}`;
       return Response.redirect(fallbackUrl, 302);
     }
     if (pathname.startsWith("/assets/") || pathname.startsWith("/_build/") ||
