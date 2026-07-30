@@ -129,6 +129,10 @@ function ERPPortal() {
     }
   };
 
+  const handleOAuthConnect = (providerId: string) => {
+    window.location.href = `/api/oauth/authorize?provider=${encodeURIComponent(providerId)}`;
+  };
+
   const handleDisconnect = async (connectionId: string, providerName: string) => {
     if (!confirm(`Disconnect ${providerName}? This will free up an ERP slot.`)) return;
     setDisconnecting(connectionId);
@@ -316,18 +320,41 @@ function ERPPortal() {
                     </div>
                   )}
 
-                  {/* Action Button */}
-                  <button
-                    onClick={() => handleConnect(provider.id, provider.category)}
-                    disabled={connecting === provider.id || (!slots.isOwner && slots.remainingSlots === 0)}
-                    className={`w-full py-2.5 rounded-xl font-bold text-sm transition-all ${
-                      !canConnect
-                        ? "bg-stone-800 text-stone-500 cursor-not-allowed"
-                        : "bg-stone-800 text-stone-300 hover:bg-emerald-600 hover:text-white"
-                    } disabled:opacity-50`}
-                  >
-                    {!canConnect ? "No slots available" : connecting === provider.id ? "Connecting..." : "Connect"}
-                  </button>
+                  {/* Action Buttons */}
+                  {!canConnect ? (
+                    <button
+                      disabled
+                      className="w-full py-2.5 rounded-xl font-bold text-sm bg-stone-800 text-stone-500 cursor-not-allowed disabled:opacity-50"
+                    >
+                      No slots available
+                    </button>
+                  ) : (() => {
+                    const authType = ((provider as any).connectionRequirements?.authType || "").toLowerCase();
+                    const isOAuth = authType.includes("oauth");
+                    const isApiKey = authType.includes("api") || authType.includes("basic") || authType.includes("token");
+                    const showBoth = (isOAuth && isApiKey) || (!isOAuth && !isApiKey);
+                    return (
+                    <div className="flex gap-2">
+                      {(isOAuth || showBoth) && (
+                      <button
+                        onClick={() => handleOAuthConnect(provider.id)}
+                        className="flex-1 py-2.5 rounded-xl font-bold text-sm bg-stone-800 text-stone-300 hover:bg-emerald-600 hover:text-white transition-all"
+                      >
+                        OAuth
+                      </button>
+                      )}
+                      {(isApiKey || showBoth) && (
+                      <button
+                        onClick={() => handleConnect(provider.id, provider.category)}
+                        disabled={connecting === provider.id}
+                        className="flex-1 py-2.5 rounded-xl font-bold text-sm bg-stone-800 text-stone-300 hover:bg-emerald-600 hover:text-white transition-all disabled:opacity-50"
+                      >
+                        {connecting === provider.id ? "Connecting..." : "API Key"}
+                      </button>
+                      )}
+                    </div>
+                    );
+                  })()}
                 </div>
               );
             })}
