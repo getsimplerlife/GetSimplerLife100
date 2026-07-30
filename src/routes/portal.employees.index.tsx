@@ -220,19 +220,26 @@ function AIEmployeesWorkspaceHub() {
                         {emp.agentType?.replace(/_/g, " ") || "AI Agent"} · v{emp.version || "1.0"}
                       </p>
                     </div>
-                    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[9px] font-mono uppercase font-bold shrink-0 ${
-                      emp.status === "Active" ? "bg-emerald-950/40 text-emerald-400 border border-emerald-900" :
-                      emp.status === "Idle" ? "bg-stone-900 text-stone-400 border border-stone-800" :
-                      emp.status === "Paused" ? "bg-amber-950/40 text-amber-400 border border-amber-900" :
-                      "bg-red-950/40 text-red-400 border border-red-900"
-                    }`}>
-                      <span className={`h-1 w-1 rounded-full ${
-                        emp.status === "Active" ? "bg-emerald-400 animate-pulse" :
-                        emp.status === "Paused" ? "bg-amber-400" :
-                        emp.status === "Idle" ? "bg-stone-500" : "bg-red-400"
-                      }`} />
-                      {emp.status}
-                    </span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {emp.purchased === false && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-mono uppercase font-bold bg-violet-950/40 text-violet-400 border border-violet-900">
+                          🔒 Locked
+                        </span>
+                      )}
+                      <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[9px] font-mono uppercase font-bold ${
+                        emp.status === "Active" ? "bg-emerald-950/40 text-emerald-400 border border-emerald-900" :
+                        emp.status === "Idle" ? "bg-stone-900 text-stone-400 border border-stone-800" :
+                        emp.status === "Paused" ? "bg-amber-950/40 text-amber-400 border border-amber-900" :
+                        "bg-red-950/40 text-red-400 border border-red-900"
+                      }`}>
+                        <span className={`h-1 w-1 rounded-full ${
+                          emp.status === "Active" ? "bg-emerald-400 animate-pulse" :
+                          emp.status === "Paused" ? "bg-amber-400" :
+                          emp.status === "Idle" ? "bg-stone-500" : "bg-red-400"
+                        }`} />
+                        {emp.status}
+                      </span>
+                    </div>
                   </div>
 
                   {/* Purpose */}
@@ -264,34 +271,49 @@ function AIEmployeesWorkspaceHub() {
                     </div>
                   </div>
 
-                  {/* Controls */}
+                  {/* Controls — purchase-gated */}
                   <div className="flex gap-2 pt-1">
-                    {emp.status !== "Active" && emp.status !== "Paused" && (
-                      <button onClick={() => handleAgentAction(emp, "run")} disabled={isLoading}
-                        className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] py-2 rounded-lg transition-all disabled:opacity-50">
-                        {isLoading ? "..." : "▶ Start"}
-                      </button>
+                    {emp.purchased === false ? (
+                      <>
+                        <a href={emp.stripePaymentLink || emp.paymentLink || "#"} target="_blank" rel="noopener noreferrer"
+                          className="flex-1 bg-violet-600 hover:bg-violet-500 text-white font-bold text-[10px] py-2 rounded-lg transition-all text-center">
+                          🛒 Buy ${emp.price}
+                        </a>
+                        <Link to="/portal/marketplace"
+                          className="bg-stone-800 hover:bg-stone-700 text-stone-300 font-bold text-[10px] px-3 py-2 rounded-lg transition-all">
+                          Marketplace →
+                        </Link>
+                      </>
+                    ) : (
+                      <>
+                        {emp.status !== "Active" && emp.status !== "Paused" && (
+                          <button onClick={() => handleAgentAction(emp, "run")} disabled={isLoading}
+                            className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] py-2 rounded-lg transition-all disabled:opacity-50">
+                            {isLoading ? "..." : "▶ Start"}
+                          </button>
+                        )}
+                        {emp.status === "Active" && (
+                          <button onClick={() => handleAgentAction(emp, "pause")} disabled={isLoading}
+                            className="flex-1 bg-amber-600 hover:bg-amber-500 text-white font-bold text-[10px] py-2 rounded-lg transition-all disabled:opacity-50">
+                            {isLoading ? "..." : "⏸ Pause"}
+                          </button>
+                        )}
+                        {(emp.status === "Paused" || emp.status === "Idle") && (
+                          <button onClick={() => handleAgentAction(emp, "resume")} disabled={isLoading}
+                            className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold text-[10px] py-2 rounded-lg transition-all disabled:opacity-50">
+                            {isLoading ? "..." : "▶ Resume"}
+                          </button>
+                        )}
+                        <button onClick={() => setEditPanel({ emp })}
+                          className="bg-stone-800 hover:bg-stone-700 text-stone-200 font-bold text-[10px] px-3 py-2 rounded-lg transition-all">
+                          ⚙️ Edit
+                        </button>
+                        <Link to="/portal/employees/$id" params={{ id: agentId }}
+                          className="bg-stone-800 hover:bg-stone-700 text-stone-300 font-bold text-[10px] px-3 py-2 rounded-lg transition-all">
+                          Profile →
+                        </Link>
+                      </>
                     )}
-                    {emp.status === "Active" && (
-                      <button onClick={() => handleAgentAction(emp, "pause")} disabled={isLoading}
-                        className="flex-1 bg-amber-600 hover:bg-amber-500 text-white font-bold text-[10px] py-2 rounded-lg transition-all disabled:opacity-50">
-                        {isLoading ? "..." : "⏸ Pause"}
-                      </button>
-                    )}
-                    {(emp.status === "Paused" || emp.status === "Idle") && (
-                      <button onClick={() => handleAgentAction(emp, "resume")} disabled={isLoading}
-                        className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold text-[10px] py-2 rounded-lg transition-all disabled:opacity-50">
-                        {isLoading ? "..." : "▶ Resume"}
-                      </button>
-                    )}
-                    <button onClick={() => setEditPanel({ emp })}
-                      className="bg-stone-800 hover:bg-stone-700 text-stone-200 font-bold text-[10px] px-3 py-2 rounded-lg transition-all">
-                      ⚙️ Edit
-                    </button>
-                    <Link to="/portal/employees/$id" params={{ id: agentId }}
-                      className="bg-stone-800 hover:bg-stone-700 text-stone-300 font-bold text-[10px] px-3 py-2 rounded-lg transition-all">
-                      Profile →
-                    </Link>
                   </div>
                 </div>
               );

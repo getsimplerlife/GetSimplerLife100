@@ -1322,7 +1322,17 @@ serve({
 
       if (subPath === "employees" || subPath === "employees/") {
         const employees = readJSON(AI_EMPLOYEES_FILE);
-        return Response.json({ data: employees });
+        // Annotate with purchase status — owner always sees purchased
+        const purchases = readJSON(TENANT_PURCHASES_FILE);
+        const userPurchases = purchases[user.email] || [];
+        const isOwner = user.email === "mathewortiz97@gmail.com";
+        const annotated = employees.map((e: any) => {
+          const purchased = isOwner || userPurchases.some((p: any) =>
+            p.agentId === e.id || p.agentType === e.id || p.productId === e.id
+          );
+          return { ...e, purchased };
+        });
+        return Response.json({ data: annotated });
       }
 
       if (subPath === "billing" || subPath === "billing/") {
