@@ -1322,17 +1322,22 @@ serve({
 
       if (subPath === "employees" || subPath === "employees/") {
         const employees = readJSON(AI_EMPLOYEES_FILE);
-        // Annotate with purchase status — owner always sees purchased
-        const purchases = readJSON(TENANT_PURCHASES_FILE);
-        const userPurchases = purchases[user.email] || [];
-        const isOwner = user.email === "mathewortiz97@gmail.com";
-        const annotated = employees.map((e: any) => {
-          const purchased = isOwner || userPurchases.some((p: any) =>
-            p.agentId === e.id || p.agentType === e.id || p.productId === e.id
+        // Only return purchased agents — owner sees all
+        if (user.email !== "mathewortiz97@gmail.com") {
+          const purchases = readJSON(TENANT_PURCHASES_FILE);
+          const userPurchases = purchases[user.email] || [];
+          const purchasedIds = new Set(
+            userPurchases
+              .filter((p: any) => p.agentId)
+              .map((p: any) => p.agentId)
           );
-          return { ...e, purchased };
-        });
-        return Response.json({ data: annotated });
+          const filtered = employees
+            .filter((e: any) => purchasedIds.has(e.id))
+            .map((e: any) => ({ ...e, purchased: true }));
+          return Response.json({ data: filtered });
+        }
+        // Owner: return all, all purchased
+        return Response.json({ data: employees.map((e: any) => ({ ...e, purchased: true })) });
       }
 
       if (subPath === "billing" || subPath === "billing/") {
