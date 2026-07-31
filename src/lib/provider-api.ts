@@ -23,7 +23,7 @@ export interface ProviderConnection {
 export interface ProviderResult {
   providerId: string;
   provider: string;
-  status: "connected" | "unreachable" | "auth_failed" | "rate_limited" | "ok";
+  status: "connected" | "unreachable" | "auth_failed" | "rate_limited" | "ok" | "unsupported" | "not_configured";
   recordsFound: number;
   sampleData: any[];
   error?: string;
@@ -525,7 +525,7 @@ async function queryAirtable(creds: Record<string, string>): Promise<ProviderRes
 
 // ────────────────────────────────────────────────────────────────────────
 // Maps / Logistics
-// ────────────────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────��────────────────────────────
 
 async function queryGoogleMaps(creds: Record<string, string>): Promise<ProviderResult> {
   const apiKey = creds.apiKey || "";
@@ -552,38 +552,74 @@ async function queryGoogleMaps(creds: Record<string, string>): Promise<ProviderR
 // Catch-all / Generic REST
 // ────────────────────────────────────────────────────────────────────────
 
+// Generic read endpoints. FAIL-CLOSED RULES:
+// 1. Only vetted, provider-owned domains may appear here. Never guess a domain.
+// 2. `{placeholder}` segments are resolved from stored credentials; if a
+//    required credential is missing, we return "not_configured" WITHOUT making
+//    any network call (credentials must never travel to an unresolved URL).
+// 3. Providers whose APIs cannot be probed safely/correctly by a generic GET
+//    (wrong method, wrong auth scheme, tenant-specific hosts, nonexistent
+//    endpoints) are marked `unsupported` and never called.
+interface GenericEndpointDef {
+  url?: string;
+  requiredCreds?: string[];
+  unsupported?: string;
+}
+
+const GENERIC_READ_ENDPOINTS: Record<string, GenericEndpointDef> = {
+  "zoom": { url: `https://api.zoom.us/v2/users/me` },
+  "outlook": { url: `https://graph.microsoft.com/v1.0/me` },
+  "gmail": { url: `https://gmail.googleapis.com/gmail/v1/users/me/profile` },
+  "meta": { url: `https://graph.facebook.com/v18.0/me` },
+  "hootsuite": { url: `https://platform.hootsuite.com/v1/me` },
+  "zoho-books": { url: `https://books.zoho.com/api/v3/organizations` },
+  "rippling": { url: `https://api.rippling.com/api/app/employees` },
+  "outreach": { url: `https://api.outreach.io/api/v2/accounts` },
+  "marketo": { url: `https://{munchkin}.mktorest.com/rest/v1/leads.json`, requiredCreds: ["munchkin"] },
+  "freshdesk": { url: `https://{domain}.freshdesk.com/api/v2/tickets`, requiredCreds: ["domain"] },
+  "monday-com": { unsupported: "Monday.com's API is GraphQL-only (POST); a generic GET probe cannot query it. Support is planned — no request was made." },
+  "onfleet": { unsupported: "Onfleet requires HTTP Basic authentication, which the generic read probe does not support. No request was made." },
+  "quickbooks-payroll": { unsupported: "QuickBooks Payroll has no standalone public REST endpoint. No request was made." },
+  "sap": { unsupported: "SAP data APIs are instance-specific; there is no generic endpoint to query. No request was made." },
+  "sap-ariba": { unsupported: "SAP Ariba APIs require a realm-specific host and application key. No request was made." },
+  "coupa": { unsupported: "Coupa APIs are instance-specific ({company}.coupahost.com). No request was made." },
+  "workday": { unsupported: "Workday APIs require a tenant-specific host. No request was made." },
+  "adp": { unsupported: "ADP APIs require certificate-based OAuth, which the generic read probe does not support. No request was made." },
+  "gusto": { unsupported: "Gusto reads are company-scoped and require company configuration. No request was made." },
+};
+
 async function queryGeneric(providerId: string, providerName: string, creds: Record<string, string>): Promise<ProviderResult> {
   const apiKey = creds.apiKey || creds.accessToken || "";
-  // Generic approach: attempt a common health-check or list endpoint
-  const endpoints: Record<string, string> = {
-    "zoom": `https://api.zoom.us/v2/users/me`,
-    "outlook": `https://graph.microsoft.com/v1.0/me`,
-    "gmail": `https://gmail.googleapis.com/gmail/v1/users/me/profile`,
-    "meta": `https://graph.facebook.com/v18.0/me?access_token=${apiKey}`,
-    "hootsuite": `https://platform.hootsuite.com/v1/me`,
-    "zoho-books": `https://books.zoho.com/api/v3/organizations`,
-    "rippling": `https://api.rippling.com/api/app/employees`,
-    "workday": `https://api.workday.com/staffing/v5/workers`,
-    "marketo": `https://{munchkin}.mktorest.com/rest/v1/leads.json?access_token=${apiKey}`,
-    "outreach": `https://api.outreach.io/api/v2/accounts`,
-    "sap": `https://api.sap.com/odata/rest`,
-    "sap-ariba": `https://api.ariba.com/v2/admin/items`,
-    "coupa": `https://api.coupa.com/api/invoices`,
-    "monday-com": `https://api.monday.com/v2`,
-    "onfleet": `https://onfleet.com/api/v2/workers`,
-    "adp": `https://api.adp.com/hr/v2/workers`,
-    "gusto": `https://api.gusto.com/v1/employees`,
-    "quickbooks-payroll": `https://api.intuit.com/quickbooks/v4/payroll/employees`,
-    "freshdesk": `https://{domain}.freshdesk.com/api/v2/tickets`,
-  };
-  const url = endpoints[providerId];
-  if (!url) return { providerId, provider: providerName, status: "unreachable", recordsFound: 0, sampleData: [], error: "No known API endpoint", endpoint: "unknown" };
+  const def = GENERIC_READ_ENDPOINTS[providerId];
+  if (!def) {
+    return { providerId, provider: providerName, status: "unsupported", recordsFound: 0, sampleData: [], error: "No vetted API endpoint for this provider yet — no request was made", endpoint: "none" };
+  }
+  if (def.unsupported || !def.url) {
+    return { providerId, provider: providerName, status: "unsupported", recordsFound: 0, sampleData: [], error: def.unsupported || "Not supported", endpoint: "none" };
+  }
+
+  // Resolve {placeholder} segments strictly from stored credentials.
+  let url = def.url;
+  for (const key of def.requiredCreds || []) {
+    const value = (creds[key] || "").trim();
+    if (!value || !/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(value)) {
+      return { providerId, provider: providerName, status: "not_configured", recordsFound: 0, sampleData: [], error: `Missing or invalid '${key}' in connection settings — no request was made`, endpoint: "none" };
+    }
+    url = url.replaceAll(`{${key}}`, value);
+  }
+  if (url.includes("{")) {
+    // Defensive: never send a request (or credentials) to an unresolved URL.
+    return { providerId, provider: providerName, status: "not_configured", recordsFound: 0, sampleData: [], error: "Endpoint template could not be fully resolved — no request was made", endpoint: "none" };
+  }
 
   try {
     const headers: Record<string, string> = { Accept: "application/json" };
-    if (providerId === "sap") headers["x-api-key"] = apiKey;
-    else if (providerId === "monday-com") headers["Authorization"] = apiKey;
-    else headers["Authorization"] = `Bearer ${apiKey}`;
+    if (providerId === "meta" || providerId === "marketo") {
+      // These providers take the token as a query parameter per their own docs
+      url += (url.includes("?") ? "&" : "?") + `access_token=${encodeURIComponent(apiKey)}`;
+    } else {
+      headers["Authorization"] = `Bearer ${apiKey}`;
+    }
     const res = await fetchWithTimeout(url, { headers });
     if (res.status === 401 || res.status === 403) {
       return { providerId, provider: providerName, status: "auth_failed", recordsFound: 0, sampleData: [], error: `HTTP ${res.status}: Invalid credentials`, endpoint: url };
@@ -788,57 +824,33 @@ async function createQuickBooksInvoice(creds: Record<string, string>, payload: R
   }
 }
 
-// Generic write for providers without specific functions
-async function genericProviderAction(
-  providerId: string,
-  providerName: string,
-  creds: Record<string, string>,
-  payload: Record<string, any>
-): Promise<ProviderActionResult> {
-  const action = payload.action || "generic_write";
-  const detail = payload.detail || `Generic ${action} for ${providerName}`;
-  // Most REST APIs follow similar patterns; attempt POST with Bearer token
-  const apiKey = creds.apiKey || creds.accessToken || "";
-  const knownEndpoints: Record<string, string> = {
-    xero: `https://api.xero.com/api.xro/2.0/Contacts`,
-    netsuite: `https://${creds.accountId || "test"}.suitetalk.api.netsuite.com/services/rest/record/v1/customer`,
-    pipedrive: `https://api.pipedrive.com/v1/persons?api_token=${apiKey}`,
-    intercom: `https://api.intercom.io/contacts`,
-    mailchimp: `https://${creds.datacenter || "us1"}.api.mailchimp.com/3.0/lists`,
-    shopify: `https://${creds.store || "test"}.myshopify.com/admin/api/2024-01/products.json`,
-    servicenow: `https://${creds.instance || "test"}.service-now.com/api/now/table/incident`,
-    bamboohr: `https://api.bamboohr.com/api/gateway.php/${creds.subdomain || "test"}/v1/employees`,
-  };
-  const url = knownEndpoints[providerId] || `https://api.${providerId}.com/v1`;
-  try {
-    const res = await fetchWithTimeout(url, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify(payload.data || payload),
-    });
-    if (res.status >= 200 && res.status < 300) {
-      const json = await res.json().catch(() => ({}));
-      return { providerId, provider: providerName, action, status: "executed", detail, result: json };
-    }
-    return { providerId, provider: providerName, action, status: "failed", detail: `HTTP ${res.status}`, error: `HTTP ${res.status}` };
-  } catch (e: any) {
-    const unreachable = e.name === "TimeoutError" || e.message?.includes("DNS") || e.message?.includes("fetch");
-    return { providerId, provider: providerName, action, status: unreachable ? "failed" : "failed", detail: e.message, error: e.message };
-  }
-}
-
+// ────────────────────────────────────────────────────────────────────────
+// Write allowlist — FAIL CLOSED.
+//
+// A write executes ONLY when the exact (providerId, action) pair is
+// explicitly mapped below to a handler whose behavior matches the action's
+// intent. Anything else — unknown provider, unknown action, or a mismatched
+// pair — is skipped with NO network call and NO credential use.
+//
+// Never add a "generic" fallback here: an unvetted POST can create junk
+// records in a client's live system, and a guessed URL can leak the
+// client's credentials to a domain we do not control.
+// ────────────────────────────────────────────────────────────────────────
 const WRITE_DISPATCH: Record<string, (creds: Record<string, string>, payload: Record<string, any>) => Promise<ProviderActionResult>> = {
-  "hubspot": createHubSpotContact,
-  "salesforce": updateSalesforceAccount,
-  "zendesk": createZendeskTicket,
-  "slack": sendSlackMessage,
-  "jira": createJiraIssue,
-  "quickbooks": createQuickBooksInvoice,
+  "hubspot:create_contact": createHubSpotContact,
+  "salesforce:update_account": updateSalesforceAccount,
+  "zendesk:create_ticket": createZendeskTicket,
+  "slack:send_message": sendSlackMessage,
+  "jira:create_issue": createJiraIssue,
+  // An audit finding is intentionally recorded as a Jira issue — intent matches.
+  "jira:create_audit_finding": createJiraIssue,
+  "quickbooks:create_invoice": createQuickBooksInvoice,
 };
 
 /**
  * Execute a write action against a specific provider.
- * Uses stored credentials + payload. Returns structured action result.
+ * Fail-closed: only explicitly allowlisted (provider, action) pairs run.
+ * Everything else returns "skipped" without any network call.
  */
 export async function executeProviderAction(
   providerId: string,
@@ -846,18 +858,29 @@ export async function executeProviderAction(
   credentials: Record<string, string>,
   payload: Record<string, any>
 ): Promise<ProviderActionResult> {
+  const action = payload.action || "write";
   if (!credentials || (!credentials.apiKey && !credentials.accessToken)) {
     return {
       providerId,
       provider: providerName,
-      action: payload.action || "write",
+      action,
       status: "skipped",
       detail: "No valid credentials — write operation requires API key or access token",
     };
   }
-  const handler = WRITE_DISPATCH[providerId];
-  if (handler) return handler(credentials, payload);
-  return genericProviderAction(providerId, providerName, credentials, payload);
+  const handler = WRITE_DISPATCH[`${providerId}:${action}`];
+  if (!handler) {
+    return {
+      providerId,
+      provider: providerName,
+      action,
+      status: "skipped",
+      detail: `Write skipped: no vetted handler for ${providerName} action '${action}'. No request was made. This action requires a purpose-built integration (planned).`,
+    };
+  }
+  const result = await handler(credentials, payload);
+  // Report the action the caller asked for (handlers may share implementations).
+  return { ...result, action };
 }
 
 export async function executeAgent(

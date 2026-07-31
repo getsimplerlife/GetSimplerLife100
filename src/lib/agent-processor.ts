@@ -389,7 +389,9 @@ function processOperations(
     if (r.status === "ok") {
       totalRecords += r.recordsFound;
       for (const item of r.sampleData) {
-        enriched.push({ ...item, _source: r.provider });
+        // _source is the display name; _providerId is the canonical id used
+        // for connection lookups and write dispatch.
+        enriched.push({ ...item, _source: r.provider, _providerId: r.providerId });
         filtered.push(item);
       }
     }
@@ -408,7 +410,11 @@ function processOperations(
       for (const item of lowStock) {
         actions.push({
           provider: item._source,
-          providerId: item._source,
+          // Canonical provider id (e.g. "shopify"), NOT the display name —
+          // required for the connection lookup and the write allowlist.
+          // Note: create_reorder has no vetted write handler yet, so the
+          // executor will safely skip it (fail closed) until one ships.
+          providerId: item._providerId,
           action: "create_reorder",
           status: "pending",
           detail: `Reorder ${item.title || item.id}: current stock ${item.inventory}`,
