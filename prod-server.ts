@@ -59,12 +59,12 @@ function getOAuthCredentials(provider: string): { clientId: string; clientSecret
   return null;
 }
 
-function getOAuthRedirectUri(provider: string, req?: Request): string {
+function getOAuthRedirectUri(_provider: string, req?: Request): string {
   const host = req?.headers.get("x-forwarded-host") || req?.headers.get("host") || "";
   const isLocal = host.includes("localhost") || host.includes("127.0.0.1") || host.startsWith("::1");
   const base = process.env.OAUTH_REDIRECT_BASE
     || (host ? `${isLocal ? "http" : "https"}://${host}` : "http://localhost:3000");
-  return `${base}/api/oauth/callback?provider=${encodeURIComponent(provider)}`;
+  return `${base}/api/oauth/callback`;
 }
 
 // Provider name → canonical key for module lookup (handles hyphens, etc.)
@@ -1873,6 +1873,7 @@ serve({
       }
     }
 
+
     // ── /api/oauth/authorize ─────────────────────────────────────
     if (pathname === "/api/oauth/authorize") {
       const provider = url.searchParams.get("provider");
@@ -1884,7 +1885,7 @@ serve({
       );
       if (!providerData) return Response.json({ error: "Unknown provider: " + provider }, { status: 404 });
       // Generate CSRF state
-      const state = randomBytes(32).toString("hex");
+      let state = randomBytes(32).toString("hex");
       const states = readJSON(OAUTH_STATES_FILE);
       states[state] = { provider, createdAt: Date.now() };
       writeJSON(OAUTH_STATES_FILE, states);
@@ -1912,12 +1913,21 @@ serve({
             redirectUri,
           });
           authUrl = typeof result === "string" ? result : result.url;
-          if (result.verifier) verifier = result.verifier;
-          // Store verifier in state entry for callback use
-          if (verifier) {
-            states[state] = { ...states[state], verifier };
-            writeJSON(OAUTH_STATES_FILE, states);
+          
+          // Auth modules generate their own state — use it instead to prevent CSRF mismatch
+          if (result.state && result.state !== state) {
+            delete states[state];
+            state = result.state;
+            states[state] = { provider, createdAt: Date.now() };
           }
+          
+          // Store PKCE verifier if the module generated one
+          if (result.verifier) {
+            states[state].verifier = result.verifier;
+            verifier = result.verifier;
+          }
+          
+          writeJSON(OAUTH_STATES_FILE, states);
         }
       } catch (_) {
         // Auth module not available — fall through to env-var-based URL

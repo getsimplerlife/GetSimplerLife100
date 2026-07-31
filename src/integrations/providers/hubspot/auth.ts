@@ -12,6 +12,7 @@ export function getHubSpotOAuthConfig(config: { clientId: string; clientSecret: 
     authorizeUrl: "https://app.hubspot.com/oauth/authorize",
     tokenUrl: "https://api.hubapi.com/oauth/v1/token",
     flowType: "authorization_code",
+    usePKCE: true,
   };
 }
 

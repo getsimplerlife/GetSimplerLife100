@@ -62,26 +62,127 @@ async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = T
 
 async function queryHubSpot(creds: Record<string, string>): Promise<ProviderResult> {
   const apiKey = creds.apiKey || creds.accessToken || "";
-  // HubSpot private app / API key: hapikey query param
+  if (!apiKey) return { providerId: "hubspot", provider: "HubSpot", status: "auth_failed", recordsFound: 0, sampleData: [], error: "No API key or access token" };
+
+  // Query contacts, deals, and companies in parallel — agents get full CRM context
+  const endpoints = [
+    {
+      url: `https://api.hubapi.com/crm/v3/objects/contacts?limit=10&properties=firstname,lastname,email,phone,jobtitle,company,hs_object_id,createdate,lastmodifieddate`,
+      type: "contact" as const,
+      map: (c: any) => ({
+        id: c.id,
+        _objectType: "contact",
+        firstname: c.properties?.firstname,
+        lastname: c.properties?.lastname,
+        email: c.properties?.email,
+        phone: c.properties?.phone,
+        jobtitle: c.properties?.jobtitle,
+        company: c.properties?.company,
+        hs_object_id: c.properties?.hs_object_id,
+        createdate: c.properties?.createdate,
+        lastmodifieddate: c.properties?.lastmodifieddate,
+      }),
+    },
+    {
+      url: `https://api.hubapi.com/crm/v3/objects/deals?limit=10&properties=dealname,dealstage,pipeline,amount,closedate,dealtype,hs_object_id,createdate`,
+      type: "deal" as const,
+      map: (d: any) => ({
+        id: d.id,
+        _objectType: "deal",
+        dealname: d.properties?.dealname,
+        dealstage: d.properties?.dealstage,
+        pipeline: d.properties?.pipeline,
+        amount: d.properties?.amount ? Number(d.properties.amount) : undefined,
+        closedate: d.properties?.closedate,
+        dealtype: d.properties?.dealtype,
+        hs_object_id: d.properties?.hs_object_id,
+        createdate: d.properties?.createdate,
+      }),
+    },
+    {
+      url: `https://api.hubapi.com/crm/v3/objects/companies?limit=10&properties=name,domain,industry,phone,city,state,country,numberofemployees,annualrevenue,hs_object_id,createdate`,
+      type: "company" as const,
+      map: (c: any) => ({
+        id: c.id,
+        _objectType: "company",
+        name: c.properties?.name,
+        domain: c.properties?.domain,
+        industry: c.properties?.industry,
+        phone: c.properties?.phone,
+        city: c.properties?.city,
+        state: c.properties?.state,
+        country: c.properties?.country,
+        numberofemployees: c.properties?.numberofemployees ? Number(c.properties.numberofemployees) : undefined,
+        annualrevenue: c.properties?.annualrevenue ? Number(c.properties.annualrevenue) : undefined,
+        hs_object_id: c.properties?.hs_object_id,
+        createdate: c.properties?.createdate,
+      }),
+    },
+  ];
+
   try {
-    const res = await fetchWithTimeout(
-      `https://api.hubapi.com/crm/v3/objects/contacts?limit=10&properties=firstname,lastname,email,company`,
-      { headers: { Authorization: `Bearer ${apiKey}` } }
+    const responses = await Promise.allSettled(
+      endpoints.map((e) =>
+        fetchWithTimeout(e.url, { headers: { Authorization: `Bearer ${apiKey}` } })
+      )
     );
-    if (res.status === 401) return { providerId: "hubspot", provider: "HubSpot", status: "auth_failed", recordsFound: 0, sampleData: [], error: "Invalid API key" };
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = await res.json();
-    const results = (json.results || []).map((c: any) => ({
-      id: c.id,
-      firstname: c.properties?.firstname,
-      lastname: c.properties?.lastname,
-      email: c.properties?.email,
-      company: c.properties?.company,
-    }));
-    return { providerId: "hubspot", provider: "HubSpot", status: "ok", recordsFound: json.total || results.length, sampleData: results.slice(0, 5), endpoint: "crm/v3/objects/contacts" };
+
+    // Check for auth failure on any endpoint
+    const authFail = responses.find(
+      (r) => r.status === "fulfilled" && r.value.status === 401
+    );
+    if (authFail && authFail.status === "fulfilled") {
+      return {
+        providerId: "hubspot", provider: "HubSpot", status: "auth_failed",
+        recordsFound: 0, sampleData: [], error: "Invalid API key or expired token",
+        endpoint: "crm/v3/objects/*",
+      };
+    }
+
+    // Merge results from all endpoints, labeling each record with its object type
+    const allRecords: any[] = [];
+    let totalRecords = 0;
+    const queriedEndpoints: string[] = [];
+
+    for (let i = 0; i < responses.length; i++) {
+      const r = responses[i];
+      const ep = endpoints[i];
+      if (r.status === "fulfilled" && r.value.ok) {
+        try {
+          const json = await r.value.json();
+          const records = (json.results || []).map(ep.map);
+          allRecords.push(...records);
+          totalRecords += json.total || records.length;
+          queriedEndpoints.push(ep.type);
+        } catch (_) {
+          // JSON parse failed — skip this object type
+        }
+      }
+    }
+
+    if (allRecords.length === 0 && totalRecords === 0) {
+      return {
+        providerId: "hubspot", provider: "HubSpot", status: "ok",
+        recordsFound: 0, sampleData: [], endpoint: queriedEndpoints.join("+") || "crm/v3/objects/*",
+      };
+    }
+
+    return {
+      providerId: "hubspot",
+      provider: "HubSpot",
+      status: "ok",
+      recordsFound: totalRecords,
+      sampleData: allRecords.slice(0, 15), // up to 15 records across all object types
+      endpoint: queriedEndpoints.join("+"),
+    };
   } catch (e: any) {
     const unreachable = e.name === "TimeoutError" || e.message?.includes("DNS") || e.message?.includes("fetch");
-    return { providerId: "hubspot", provider: "HubSpot", status: unreachable ? "unreachable" : "auth_failed", recordsFound: 0, sampleData: [], error: e.message, endpoint: "crm/v3/objects/contacts" };
+    return {
+      providerId: "hubspot", provider: "HubSpot",
+      status: unreachable ? "unreachable" : "auth_failed",
+      recordsFound: 0, sampleData: [], error: e.message,
+      endpoint: "crm/v3/objects/*",
+    };
   }
 }
 

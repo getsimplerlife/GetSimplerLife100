@@ -60,9 +60,12 @@ async function main() {
   const out = openSync(LOG_FILE, "a");
   const errFd = openSync(LOG_FILE, "a");
 
+  // Pass OAUTH_REDIRECT_BASE from parent env so the server always gets the public domain
+  const redirectBase = process.env.OAUTH_REDIRECT_BASE || "https://simplerlife100.ctonew.app";
   const serverProcess = spawn("bun", ["run", "start"], {
     detached: true,
     stdio: ["ignore", out, errFd],
+    env: { ...process.env, OAUTH_REDIRECT_BASE: redirectBase },
   });
   serverProcess.unref();
 
