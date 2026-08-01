@@ -10,7 +10,7 @@
 //  4. Inventory Tracker actions carry the canonical providerId.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { executeProviderAction, querySingleProvider } from "../lib/provider-api";
+import { executeProviderAction, querySingleProvider, getHubSpotTrustedTenantId } from "../lib/provider-api";
 import type { ProviderResult, AgentIntegrationResult } from "../lib/provider-api";
 import { processAgentResults } from "../lib/agent-processor";
 
@@ -85,6 +85,23 @@ describe("write dispatch: explicitly allowlisted pairs still execute", () => {
     expect(String(fetchMock.mock.calls[0][0])).toContain("https://api.hubapi.com/");
   });
 
+  it("single-user tenant guard rejects non-owner users", () => {
+    expect(getHubSpotTrustedTenantId("other-user@example.com", "owner@example.com", { "owner@example.com": {} , "other-user@example.com": {} })).toBeNull();
+    expect(getHubSpotTrustedTenantId("OWNER@example.com", "owner@example.com", { "owner@example.com": {} })).toBe("owner@example.com");
+    expect(getHubSpotTrustedTenantId("owner@example.com", "owner@example.com", {})).toBeNull();
+    expect(getHubSpotTrustedTenantId("owner@example.com", undefined as any, { "owner@example.com": {} })).toBeNull();
+    expect(getHubSpotTrustedTenantId("owner@example.com", "owner@example.com", undefined as any)).toBeNull();
+    expect(getHubSpotTrustedTenantId("owner@example.com", "owner@example.com", { "owner@example.com": null })).toBeNull();
+    expect(getHubSpotTrustedTenantId("owner@example.com", "owner@example.com", { "owner@example.com": "not-a-user" })).toBeNull();
+    expect(getHubSpotTrustedTenantId("owner@example.com", "owner@example.com", [] as any)).toBeNull();
+  });
+  it("rejects missing or blank Bearer accessToken without a request", async () => {
+    for (const credentials of [{}, { accessToken: "" }, { accessToken: "   " }]) {
+      const result = await executeProviderAction("hubspot", "HubSpot", credentials, { action: "create_contact", __trustedTenantId: "tenant-test", email: "a@b.co" });
+      expect(result.status).toBe("skipped");
+      expect(fetchMock).not.toHaveBeenCalled();
+    }
+  });
   it("rejects apiKey-only HubSpot credentials without a request", async () => {
     const result = await executeProviderAction("hubspot", "HubSpot", { apiKey: "legacy-key" }, { action: "create_contact", __trustedTenantId: "tenant-test", email: "a@b.co" });
     expect(result.status).toBe("skipped");
