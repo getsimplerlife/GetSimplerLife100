@@ -710,9 +710,16 @@ export interface ProviderActionResult {
  * single-user tenant owner. Other authenticated users fail closed until a
  * canonical DB-backed tenant membership lookup replaces this guard.
  */
-export function getHubSpotTrustedTenantId(userEmail: string, ownerEmail = process.env.HUBSPOT_SINGLE_USER_TENANT_EMAIL || "mathewortiz97@gmail.com"): string | null {
+export function getHubSpotTrustedTenantId(
+  userEmail: string,
+  ownerEmail = process.env.HUBSPOT_SINGLE_USER_TENANT_EMAIL || "mathewortiz97@gmail.com",
+  knownUsers?: Record<string, unknown>,
+): string | null {
   const email = String(userEmail || "").trim().toLowerCase();
   const owner = String(ownerEmail || "").trim().toLowerCase();
+  // If the live user registry is available, exactly one user must exist. Any
+  // multi-user or ambiguous registry fails closed; email is never a tenant ID.
+  if (knownUsers && Object.keys(knownUsers).length !== 1) return null;
   return email && owner && email === owner ? email : null;
 }
 

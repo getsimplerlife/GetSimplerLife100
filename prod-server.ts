@@ -1220,7 +1220,7 @@ serve({
             );
             if (connected) {
               // Actual launch guard: only the configured single-user tenant owner may execute HubSpot writes. Other users receive no trusted scope and fail closed until DB-backed tenant membership exists.
-              const hubSpotTenant = action.providerId === "hubspot" ? getHubSpotTrustedTenantId(user.email) : null;
+              const hubSpotTenant = action.providerId === "hubspot" ? getHubSpotTrustedTenantId(user.email, undefined, readJSON(USERS_FILE)) : null;
               const actionPayload = { action: action.action, detail: action.detail, ...(action.payload || {}), tenantId: user.email, __trustedTenantId: hubSpotTenant || undefined };
               const execResult = await executeProviderAction(
                 action.providerId,
