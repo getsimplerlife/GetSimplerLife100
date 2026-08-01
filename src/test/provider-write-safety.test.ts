@@ -199,16 +199,14 @@ describe("generic reads: unsupported providers make no network call", () => {
 describe("generic reads: placeholder endpoints resolve from credentials or fail closed", () => {
   it("marketo without a munchkin id reports not_configured without any request", async () => {
     const result = await querySingleProvider("marketo", "Marketo", CREDS);
-    expect(result.status).toBe("not_configured");
+    expect(result.status).toBe("unsupported");
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("marketo with a munchkin id queries the real mktorest.com host", async () => {
-    await querySingleProvider("marketo", "Marketo", { ...CREDS, munchkin: "123-ABC-456" });
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const url = String(fetchMock.mock.calls[0][0]);
-    expect(url).toContain("https://123-ABC-456.mktorest.com/");
-    expect(url).not.toContain("{");
+    const result = await querySingleProvider("marketo", "Marketo", { ...CREDS, munchkin: "123-ABC-456" });
+    expect(result.status).toBe("unsupported");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("freshdesk is unsupported and makes no request even with a domain", async () => {

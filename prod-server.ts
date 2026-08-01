@@ -3,6 +3,7 @@ import { join, basename } from "path";
 import { readFileSync, writeFileSync, existsSync, readdirSync } from "fs";
 import { compare } from "bcryptjs";
 import { createHash, randomBytes } from "crypto";
+import { consumeOAuthState, usableOAuthToken, validateOAuthState } from "./src/lib/oauth-safety";
 
 // ── Provider API module (server-side only — never imported in .tsx) ──
 import { executeAgent, executeProviderAction, getHubSpotTrustedTenantId } from "./src/lib/provider-api";
@@ -199,6 +200,10 @@ async function testProviderConnection(providerId: string, providerName: string, 
     return { success: false, error: `Cannot verify credentials for ${providerName}. Please provide valid API credentials from your ${providerName} account.` };
   }
   try {
+    // Never send credentials to unresolved or customer-supplied host placeholders.
+    if (testConfig.url.includes("{")) {
+      return { success: false, error: `Cannot verify credentials for ${providerName} without an explicit vetted host.` };
+    }
     // Real connection test for known providers
     const res = await fetch(testConfig.url, {
       headers: testConfig.headers,
@@ -1739,6 +1744,22 @@ serve({
       // Validate CSRF state
       const states = readJSON(OAUTH_STATES_FILE);
       const stateEntry = states[state];
+      const callbackUser = await getUserFromSession(req);
+      if (!callbackUser?.email) {
+        return Response.redirect(`/portal/integrations?error=${encodeURIComponent("Session expired. Please login and try again.")}`, 302);
+      }
+      const stateError = validateOAuthState(stateEntry, callbackUser.email);
+      if (stateError === "mismatch") {
+        return Response.redirect(`/portal/integrations?error=${encodeURIComponent("OAuth state belongs to a different tenant")}`, 302);
+      }
+      if (stateError === "expired") {
+        consumeOAuthState(states, state);
+        writeJSON(OAUTH_STATES_FILE, states);
+        return Response.redirect(`/portal/integrations?error=${encodeURIComponent("OAuth state expired. Please try again.")}`, 302);
+      }
+      if (stateError) {
+        return Response.redirect(`/portal/integrations?error=${encodeURIComponent("Invalid OAuth state")}`, 302);
+      }
       if (!stateEntry) {
         return Response.redirect(`/portal/integrations?error=${encodeURIComponent("Invalid state — possible CSRF attack or expired session")}`, 302);
       }
@@ -1754,12 +1775,12 @@ serve({
       const authProvider = stateEntry.provider;
       const verifier = stateEntry.verifier;
       
-      // Clean up consumed state
-      delete states[state];
+      // Clean up consumed state (single-process serialized file update)
+      consumeOAuthState(states, state);
       writeJSON(OAUTH_STATES_FILE, states);
       
       // Get user from session (for connection record)
-      const user = await getUserFromSession(req);
+      const user = callbackUser;
       if (!user) {
         return Response.redirect(`/portal/integrations?error=${encodeURIComponent("Session expired. Please login and try again.")}`, 302);
       }
@@ -1807,6 +1828,7 @@ serve({
           );
         }
         
+        if (!usableOAuthToken(tokens)) throw new Error("OAuth provider returned no usable access token");
         // Store tokens in tenant_oauth_credentials.json
         const tokenFile = join(DATA_DIR, "tenant_oauth_credentials.json");
         const tokenData = readJSON(tokenFile);
@@ -1887,10 +1909,12 @@ serve({
         p.id === provider || p.id?.toLowerCase() === provider.toLowerCase()
       );
       if (!providerData) return Response.json({ error: "Unknown provider: " + provider }, { status: 404 });
-      // Generate CSRF state
+      // Generate CSRF state bound to the authenticated tenant.
+      const initiatingUser = await getUserFromSession(req);
+      if (!initiatingUser?.email) return Response.json({ error: "Not authenticated" }, { status: 401 });
       let state = randomBytes(32).toString("hex");
       const states = readJSON(OAUTH_STATES_FILE);
-      states[state] = { provider, createdAt: Date.now() };
+      states[state] = { provider, email: initiatingUser.email, createdAt: Date.now() };
       writeJSON(OAUTH_STATES_FILE, states);
       // Build OAuth redirect URL dynamically via provider auth modules
       const redirectUri = getOAuthRedirectUri(provider, req);
@@ -1921,7 +1945,7 @@ serve({
           if (result.state && result.state !== state) {
             delete states[state];
             state = result.state;
-            states[state] = { provider, createdAt: Date.now() };
+            states[state] = { provider, email: initiatingUser.email, createdAt: Date.now() };
           }
           
           // Store PKCE verifier if the module generated one
@@ -1950,10 +1974,8 @@ OAUTH_${provUpper}_CLIENT_SECRET=your_client_secret</pre><p style="font-size:0.8
         );
       }
       
-      // Fallback: construct URL with real client_id
-      const scopes = encodeURIComponent("read");
-      const fallbackUrl = `https://${canonicalProvider.replace(/-/g, "")}.com/oauth/authorize?client_id=${encodeURIComponent(creds.clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scopes}&state=${state}`;
-      return Response.redirect(fallbackUrl, 302);
+      // No audited provider module means no guessed OAuth host or token endpoint.
+      return Response.json({ error: `OAuth is not implemented for ${provider}` }, { status: 501 });
     }
     if (pathname.startsWith("/assets/") || pathname.startsWith("/_build/") ||
         pathname === "/manifest.json" || pathname === "/sw.js" || pathname.startsWith("/icon-") ||

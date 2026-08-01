@@ -560,90 +560,9 @@ async function queryGoogleMaps(creds: Record<string, string>): Promise<ProviderR
 // 3. Providers whose APIs cannot be probed safely/correctly by a generic GET
 //    (wrong method, wrong auth scheme, tenant-specific hosts, nonexistent
 //    endpoints) are marked `unsupported` and never called.
-interface GenericEndpointDef {
-  url?: string;
-  requiredCreds?: string[];
-  unsupported?: string;
+async function queryGeneric(providerId: string, providerName: string, _creds: Record<string, string>): Promise<ProviderResult> {
+  return { providerId, provider: providerName, status: "unsupported", recordsFound: 0, sampleData: [], error: "No audited provider read contract; no request was made", endpoint: "none" };
 }
-
-const GENERIC_READ_ENDPOINTS: Record<string, GenericEndpointDef> = {
-  "zoom": { url: `https://api.zoom.us/v2/users/me` },
-  "outlook": { url: `https://graph.microsoft.com/v1.0/me` },
-  "gmail": { url: `https://gmail.googleapis.com/gmail/v1/users/me/profile` },
-  "meta": { url: `https://graph.facebook.com/v18.0/me` },
-  "hootsuite": { url: `https://platform.hootsuite.com/v1/me` },
-  "zoho-books": { url: `https://books.zoho.com/api/v3/organizations` },
-  "rippling": { url: `https://api.rippling.com/api/app/employees` },
-  "outreach": { url: `https://api.outreach.io/api/v2/accounts` },
-  "marketo": { url: `https://{munchkin}.mktorest.com/rest/v1/leads.json`, requiredCreds: ["munchkin"] },
-  // Phase 2a: Freshdesk is not yet backed by an audited live-path handler.
-  // Do not resolve a customer domain and fall through to generic bearer auth;
-  // unsupported providers must return before any network request.
-  "freshdesk": { unsupported: "Freshdesk is not supported by the live write-safe provider path yet — no request was made." },
-  "monday-com": { unsupported: "Monday.com's API is GraphQL-only (POST); a generic GET probe cannot query it. Support is planned — no request was made." },
-  "onfleet": { unsupported: "Onfleet requires HTTP Basic authentication, which the generic read probe does not support. No request was made." },
-  "quickbooks-payroll": { unsupported: "QuickBooks Payroll has no standalone public REST endpoint. No request was made." },
-  "sap": { unsupported: "SAP data APIs are instance-specific; there is no generic endpoint to query. No request was made." },
-  "sap-ariba": { unsupported: "SAP Ariba APIs require a realm-specific host and application key. No request was made." },
-  "coupa": { unsupported: "Coupa APIs are instance-specific ({company}.coupahost.com). No request was made." },
-  "workday": { unsupported: "Workday APIs require a tenant-specific host. No request was made." },
-  "adp": { unsupported: "ADP APIs require certificate-based OAuth, which the generic read probe does not support. No request was made." },
-  "gusto": { unsupported: "Gusto reads are company-scoped and require company configuration. No request was made." },
-};
-
-async function queryGeneric(providerId: string, providerName: string, creds: Record<string, string>): Promise<ProviderResult> {
-  const apiKey = creds.apiKey || creds.accessToken || "";
-  const def = GENERIC_READ_ENDPOINTS[providerId];
-  if (!def) {
-    return { providerId, provider: providerName, status: "unsupported", recordsFound: 0, sampleData: [], error: "No vetted API endpoint for this provider yet — no request was made", endpoint: "none" };
-  }
-  if (def.unsupported || !def.url) {
-    return { providerId, provider: providerName, status: "unsupported", recordsFound: 0, sampleData: [], error: def.unsupported || "Not supported", endpoint: "none" };
-  }
-
-  // Resolve {placeholder} segments strictly from stored credentials.
-  let url = def.url;
-  for (const key of def.requiredCreds || []) {
-    const value = (creds[key] || "").trim();
-    if (!value || !/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(value)) {
-      return { providerId, provider: providerName, status: "not_configured", recordsFound: 0, sampleData: [], error: `Missing or invalid '${key}' in connection settings — no request was made`, endpoint: "none" };
-    }
-    url = url.replaceAll(`{${key}}`, value);
-  }
-  if (url.includes("{")) {
-    // Defensive: never send a request (or credentials) to an unresolved URL.
-    return { providerId, provider: providerName, status: "not_configured", recordsFound: 0, sampleData: [], error: "Endpoint template could not be fully resolved — no request was made", endpoint: "none" };
-  }
-
-  try {
-    const headers: Record<string, string> = { Accept: "application/json" };
-    if (providerId === "meta" || providerId === "marketo") {
-      // These providers take the token as a query parameter per their own docs
-      url += (url.includes("?") ? "&" : "?") + `access_token=${encodeURIComponent(apiKey)}`;
-    } else {
-      headers["Authorization"] = `Bearer ${apiKey}`;
-    }
-    const res = await fetchWithTimeout(url, { headers });
-    if (res.status === 401 || res.status === 403) {
-      return { providerId, provider: providerName, status: "auth_failed", recordsFound: 0, sampleData: [], error: `HTTP ${res.status}: Invalid credentials`, endpoint: url };
-    }
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const ct = res.headers.get("content-type") || "";
-    if (ct.includes("json")) {
-      const json = await res.json();
-      // Try to extract array or count
-      const keys = Object.keys(json);
-      const dataKey = keys.find(k => Array.isArray(json[k]));
-      const records = dataKey ? json[dataKey] : [json];
-      return { providerId, provider: providerName, status: "ok", recordsFound: records.length, sampleData: records.slice(0, 5), endpoint: url };
-    }
-    return { providerId, provider: providerName, status: "ok", recordsFound: 0, sampleData: [], endpoint: url };
-  } catch (e: any) {
-    const unreachable = e.name === "TimeoutError" || e.message?.includes("DNS") || e.message?.includes("fetch");
-    return { providerId, provider: providerName, status: unreachable ? "unreachable" : "auth_failed", recordsFound: 0, sampleData: [], error: e.message, endpoint: url };
-  }
-}
-
 // ────────────────────────────────────────────────────────────────────────
 // Main Dispatch
 // ────────────────────────────────────────────────────────────────────────
