@@ -705,6 +705,28 @@ export interface ProviderActionResult {
 // Write Operation Dispatch
 // ────────────────────────────────────────────────────────────────────────
 
+/**
+ * Temporary launch guard: HubSpot writes are enabled only for the configured
+ * single-user tenant owner. Other authenticated users fail closed until a
+ * canonical DB-backed tenant membership lookup replaces this guard.
+ */
+export function getHubSpotTrustedTenantId(
+  userEmail: string,
+  ownerEmail: string,
+  knownUsers: Record<string, unknown>,
+): string | null {
+  const email = String(userEmail || "").trim().toLowerCase();
+  const owner = String(ownerEmail || "").trim().toLowerCase();
+  // Both explicit owner configuration and the live registry are mandatory.
+  // Missing, malformed, empty, or multi-user registries fail closed.
+  if (!owner || !knownUsers || typeof knownUsers !== "object" || Array.isArray(knownUsers)) return null;
+  const entries = Object.entries(knownUsers);
+  if (entries.length !== 1) return null;
+  const [[registeredEmail, registeredUser]] = entries;
+  if (!registeredEmail.trim() || !registeredUser || typeof registeredUser !== "object" || Array.isArray(registeredUser)) return null;
+  return email && email === owner && email === registeredEmail.trim().toLowerCase() ? email : null;
+}
+
 function hubSpotCredentialToken(creds: Record<string, string>): string {
   return (creds.accessToken || "").trim();
 }
