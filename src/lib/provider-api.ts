@@ -705,25 +705,62 @@ export interface ProviderActionResult {
 // Write Operation Dispatch
 // ────────────────────────────────────────────────────────────────────────
 
-async function createHubSpotContact(creds: Record<string, string>, payload: Record<string, any>): Promise<ProviderActionResult> {
-  const apiKey = creds.apiKey || creds.accessToken || "";
-  try {
-    const res = await fetchWithTimeout("https://api.hubapi.com/crm/v3/objects/contacts", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ properties: payload }),
-    });
-    if (!res.ok) {
-      const errBody = await res.json().catch(() => ({}));
-      return { providerId: "hubspot", provider: "HubSpot", action: "create_contact", status: "failed", detail: `HTTP ${res.status}`, error: errBody.message || `HTTP ${res.status}` };
-    }
-    const json = await res.json();
-    return { providerId: "hubspot", provider: "HubSpot", action: "create_contact", status: "executed", detail: `Contact created: ${json.id}`, result: json };
-  } catch (e: any) {
-    return { providerId: "hubspot", provider: "HubSpot", action: "create_contact", status: "failed", detail: e.message, error: e.message };
-  }
+function hubSpotCredentialToken(creds: Record<string, string>): string {
+  return (creds.accessToken || creds.apiKey || "").trim();
 }
-
+function hubSpotWritePayload(payload: Record<string, any>): Record<string, any> | null {
+  // tenantId is supplied by the authenticated live-path caller; never trust a
+  // tenant identifier from an unscoped external request.
+  if (typeof payload.tenantId !== "string" || !payload.tenantId.trim()) return null;
+  return payload;
+}
+async function hubSpotWrite(
+  action: string,
+  method: "POST" | "PATCH",
+  path: string,
+  creds: Record<string, string>,
+  payload: Record<string, any>,
+  properties: Record<string, any>,
+): Promise<ProviderActionResult> {
+  const token = hubSpotCredentialToken(creds);
+  const scoped = hubSpotWritePayload(payload);
+  if (!token || !scoped) return { providerId: "hubspot", provider: "HubSpot", action, status: "skipped", detail: "HubSpot write requires scoped tenant context and access token; no request was made." };
+  try {
+    const res = await fetchWithTimeout(`https://api.hubapi.com${path}`, { method, headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ properties }) });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) return { providerId: "hubspot", provider: "HubSpot", action, status: "failed", detail: `HTTP ${res.status}`, error: json.message || `HTTP ${res.status}` };
+    return { providerId: "hubspot", provider: "HubSpot", action, status: "executed", detail: `${action} completed for tenant ${scoped.tenantId}`, result: json };
+  } catch (e: any) { return { providerId: "hubspot", provider: "HubSpot", action, status: "failed", detail: e.message, error: e.message }; }
+}
+async function createHubSpotContact(creds: Record<string, string>, payload: Record<string, any>): Promise<ProviderActionResult> {
+  const { action: _a, tenantId: _t, ...properties } = payload;
+  return hubSpotWrite("create_contact", "POST", "/crm/v3/objects/contacts", creds, payload, properties);
+}
+async function updateHubSpotContact(creds: Record<string, string>, payload: Record<string, any>): Promise<ProviderActionResult> {
+  const id = String(payload.contactId || payload.id || "").trim();
+  if (!/^[0-9]+$/.test(id)) return { providerId: "hubspot", provider: "HubSpot", action: "update_contact", status: "skipped", detail: "A numeric HubSpot contact ID is required; no request was made." };
+  const { action: _a, tenantId: _t, contactId: _c, id: _i, ...properties } = payload;
+  return hubSpotWrite("update_contact", "PATCH", `/crm/v3/objects/contacts/${id}`, creds, payload, properties);
+}
+async function createHubSpotTask(creds: Record<string, string>, payload: Record<string, any>): Promise<ProviderActionResult> {
+  const { action: _a, tenantId: _t, ...properties } = payload;
+  return hubSpotWrite("create_task", "POST", "/crm/v3/objects/tasks", creds, payload, properties);
+}
+async function createHubSpotDeal(creds: Record<string, string>, payload: Record<string, any>): Promise<ProviderActionResult> {
+  const { action: _a, tenantId: _t, ...properties } = payload;
+  return hubSpotWrite("create_deal", "POST", "/crm/v3/objects/deals", creds, payload, properties);
+}
+async function createHubSpotCompany(creds: Record<string, string>, payload: Record<string, any>): Promise<ProviderActionResult> {
+  const { action: _a, tenantId: _t, ...properties } = payload;
+  return hubSpotWrite("create_company", "POST", "/crm/v3/objects/companies", creds, payload, properties);
+}
+async function updateHubSpotPipelineStage(creds: Record<string, string>, payload: Record<string, any>): Promise<ProviderActionResult> {
+  const stage = String(payload.dealstage || payload.pipelineStage || "").trim();
+  if (!stage || !/^[A-Za-z0-9_.-]+$/.test(stage)) return { providerId: "hubspot", provider: "HubSpot", action: "update_pipeline_stage", status: "skipped", detail: "A valid pipeline stage is required; no request was made." };
+  const id = String(payload.dealId || payload.id || "").trim();
+  if (!/^[0-9]+$/.test(id)) return { providerId: "hubspot", provider: "HubSpot", action: "update_pipeline_stage", status: "skipped", detail: "A numeric HubSpot deal ID is required; no request was made." };
+  return hubSpotWrite("update_pipeline_stage", "PATCH", `/crm/v3/objects/deals/${id}`, creds, payload, { dealstage: stage });
+}
 async function updateSalesforceAccount(creds: Record<string, string>, payload: Record<string, any>): Promise<ProviderActionResult> {
   const accessToken = creds.accessToken || creds.apiKey || "";
   const instanceUrl = creds.instanceUrl || "https://login.salesforce.com";
@@ -841,6 +878,11 @@ async function createQuickBooksInvoice(creds: Record<string, string>, payload: R
 // ────────────────────────────────────────────────────────────────────────
 const WRITE_DISPATCH: Record<string, (creds: Record<string, string>, payload: Record<string, any>) => Promise<ProviderActionResult>> = {
   "hubspot:create_contact": createHubSpotContact,
+  "hubspot:update_contact": updateHubSpotContact,
+  "hubspot:create_task": createHubSpotTask,
+  "hubspot:create_deal": createHubSpotDeal,
+  "hubspot:create_company": createHubSpotCompany,
+  "hubspot:update_pipeline_stage": updateHubSpotPipelineStage,
   "salesforce:update_account": updateSalesforceAccount,
   "zendesk:create_ticket": createZendeskTicket,
   "slack:send_message": sendSlackMessage,

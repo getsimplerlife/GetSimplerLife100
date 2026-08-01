@@ -76,6 +76,7 @@ describe("write dispatch: explicitly allowlisted pairs still execute", () => {
   it("hubspot × create_contact executes against api.hubapi.com", async () => {
     const result = await executeProviderAction("hubspot", "HubSpot", CREDS, {
       action: "create_contact",
+      tenantId: "tenant-test",
       email: "a@b.co",
     });
     expect(result.status).toBe("executed");
@@ -83,6 +84,23 @@ describe("write dispatch: explicitly allowlisted pairs still execute", () => {
     expect(String(fetchMock.mock.calls[0][0])).toContain("https://api.hubapi.com/");
   });
 
+  it("HubSpot writes fail closed without tenant scope", async () => {
+    const result = await executeProviderAction("hubspot", "HubSpot", CREDS, { action: "create_contact", email: "a@b.co" });
+    expect(result.status).toBe("skipped");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+  it("HubSpot update_contact uses numeric ID and vetted HubSpot host", async () => {
+    const result = await executeProviderAction("hubspot", "HubSpot", CREDS, { action: "update_contact", tenantId: "tenant-test", contactId: "123", email: "updated@b.co" });
+    expect(result.status).toBe("executed");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(String(fetchMock.mock.calls[0][0])).toBe("https://api.hubapi.com/crm/v3/objects/contacts/123");
+    expect((fetchMock.mock.calls[0][1] as any).method).toBe("PATCH");
+  });
+  it("HubSpot invalid object IDs fail closed without network", async () => {
+    const result = await executeProviderAction("hubspot", "HubSpot", CREDS, { action: "update_contact", tenantId: "tenant-test", contactId: "../../evil" });
+    expect(result.status).toBe("skipped");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
   it("jira × create_audit_finding executes (issue creation matches intent) and reports the requested action", async () => {
     const result = await executeProviderAction(
       "jira",

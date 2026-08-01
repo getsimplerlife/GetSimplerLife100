@@ -1219,7 +1219,7 @@ serve({
               c.providerId === action.providerId && c.status === "Connected"
             );
             if (connected) {
-              const actionPayload = { action: action.action, detail: action.detail, ...(action.payload || {}) };
+              const actionPayload = { action: action.action, detail: action.detail, ...(action.payload || {}), tenantId: user.email };
               const execResult = await executeProviderAction(
                 action.providerId,
                 action.provider,
@@ -1322,6 +1322,7 @@ serve({
           action: "agent.run",
           resource: agent.name,
           detail: "Agent executed with processing: " + output.summary,
+          actions: actionsTaken.map((a: any) => ({ providerId: a.providerId, action: a.action, status: a.status, error: a.error || null })),
           ip: "127.0.0.1",
         });
         alogs1[user.email] = alogUser1;
