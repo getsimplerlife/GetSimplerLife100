@@ -576,7 +576,10 @@ const GENERIC_READ_ENDPOINTS: Record<string, GenericEndpointDef> = {
   "rippling": { url: `https://api.rippling.com/api/app/employees` },
   "outreach": { url: `https://api.outreach.io/api/v2/accounts` },
   "marketo": { url: `https://{munchkin}.mktorest.com/rest/v1/leads.json`, requiredCreds: ["munchkin"] },
-  "freshdesk": { url: `https://{domain}.freshdesk.com/api/v2/tickets`, requiredCreds: ["domain"] },
+  // Phase 2a: Freshdesk is not yet backed by an audited live-path handler.
+  // Do not resolve a customer domain and fall through to generic bearer auth;
+  // unsupported providers must return before any network request.
+  "freshdesk": { unsupported: "Freshdesk is not supported by the live write-safe provider path yet — no request was made." },
   "monday-com": { unsupported: "Monday.com's API is GraphQL-only (POST); a generic GET probe cannot query it. Support is planned — no request was made." },
   "onfleet": { unsupported: "Onfleet requires HTTP Basic authentication, which the generic read probe does not support. No request was made." },
   "quickbooks-payroll": { unsupported: "QuickBooks Payroll has no standalone public REST endpoint. No request was made." },

@@ -152,21 +152,16 @@ describe("generic reads: placeholder endpoints resolve from credentials or fail 
     expect(url).not.toContain("{");
   });
 
-  it("freshdesk without a domain reports not_configured without any request", async () => {
-    const result = await querySingleProvider("freshdesk", "Freshdesk", CREDS);
-    expect(result.status).toBe("not_configured");
+  it("freshdesk is unsupported and makes no request even with a domain", async () => {
+    const result = await querySingleProvider("freshdesk", "Freshdesk", { ...CREDS, domain: "acme" });
+    expect(result.status).toBe("unsupported");
+    expect(result.error).toContain("no request was made");
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("freshdesk with a domain queries {domain}.freshdesk.com", async () => {
-    await querySingleProvider("freshdesk", "Freshdesk", { ...CREDS, domain: "acme" });
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(String(fetchMock.mock.calls[0][0])).toContain("https://acme.freshdesk.com/");
-  });
-
-  it("rejects placeholder values that could escape the provider's domain", async () => {
+  it("does not inspect or resolve an untrusted Freshdesk domain", async () => {
     const result = await querySingleProvider("freshdesk", "Freshdesk", { ...CREDS, domain: "evil.com/pwn?x=" });
-    expect(result.status).toBe("not_configured");
+    expect(result.status).toBe("unsupported");
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
