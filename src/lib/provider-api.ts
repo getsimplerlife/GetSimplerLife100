@@ -23,7 +23,7 @@ export interface ProviderConnection {
 export interface ProviderResult {
   providerId: string;
   provider: string;
-  status: "connected" | "unreachable" | "auth_failed" | "rate_limited" | "ok";
+  status: "connected" | "unreachable" | "auth_failed" | "rate_limited" | "ok" | "unsupported" | "not_configured";
   recordsFound: number;
   sampleData: any[];
   error?: string;
@@ -585,8 +585,11 @@ async function queryGeneric(providerId: string, providerName: string, creds: Rec
     "quickbooks-payroll": `https://api.intuit.com/quickbooks/v4/payroll/employees`,
     "freshdesk": `https://{domain}.freshdesk.com/api/v2/tickets`,
   };
-  const url = endpoints[providerId];
-  if (!url) return { providerId, provider: providerName, status: "unreachable", recordsFound: 0, sampleData: [], error: "No known API endpoint", endpoint: "unknown" };
+  if (["freshdesk","monday-com","onfleet","quickbooks-payroll","sap","sap-ariba","coupa","workday","adp","gusto"].includes(providerId)) return { providerId, provider: providerName, status: "unsupported", recordsFound: 0, sampleData: [], error: "Provider is not supported by the live path — no request was made", endpoint: "none" };
+  if (providerId === "marketo") { const munchkin = (creds.munchkin || "").trim(); if (!munchkin || !/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(munchkin)) return { providerId, provider: providerName, status: "not_configured", recordsFound: 0, sampleData: [], error: "Missing or invalid munchkin — no request was made", endpoint: "none" }; }
+  let url = endpoints[providerId];
+  if (!url) return { providerId, provider: providerName, status: "unsupported", recordsFound: 0, sampleData: [], error: "No vetted API endpoint — no request was made", endpoint: "none" };
+  if (providerId === "marketo") url = url.replace("{munchkin}", (creds.munchkin || "").trim());
 
   try {
     const headers: Record<string, string> = { Accept: "application/json" };
