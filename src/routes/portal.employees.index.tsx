@@ -162,7 +162,7 @@ function AIEmployeesWorkspaceHub() {
         <h1 className="text-3xl font-black text-white tracking-tight">🤖 AI Employees</h1>
         <p className="text-stone-400 text-sm max-w-2xl leading-relaxed">
           Monitor, control, and configure your autonomous AI workforce.{" "}
-          <span className="text-blue-400 font-mono text-[10px]">Runtime: src/agents/runtime.ts</span>
+          <span className="text-blue-400 font-mono text-[10px]">Live path: prod-server.ts → provider-api.ts → agent-processor.ts</span>
         </p>
       </div>
 
