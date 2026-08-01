@@ -693,6 +693,32 @@ function processData(
   };
 }
 
+function processProcurement(
+  agent: AgentDefinition,
+  results: ProviderResult[],
+  _connections: ProviderConnection[]
+): ProcessorResult {
+  const filtered: any[] = []; const enriched: any[] = []; const matched: { source: string; target: string; matches: any[] }[] = [];
+  const insights: Insight[] = []; const alerts: Alert[] = [];
+  let total = 0; let approved = 0; let pending = 0; let invalid = 0;
+  for (const r of results) {
+    if (r.status !== "ok") continue;
+    for (const item of r.sampleData) {
+      const id = item.id || item.purchaseOrderId || item.poNumber || item.documentNumber;
+      const vendor = item.vendorId || item.vendorName || item.vendor || item.supplier;
+      const status = String(item.status || item.approvalStatus || "").toLowerCase();
+      const amount = item.total ?? item.totalAmount ?? item.amount;
+      if (!id || !vendor || amount === undefined) { invalid++; continue; }
+      total++; if (["approved", "open", "completed"].includes(status)) approved++; else pending++;
+      const record = { ...item, _source: r.provider, _po: { id: String(id), vendor: String(vendor), amount, status: status || "unknown" } };
+      filtered.push(item); enriched.push(record);
+    }
+  }
+  if (invalid) alerts.push({ level: "warning", message: `${invalid} procurement record(s) omitted because required PO fields were missing.`, requiresAttention: true });
+  insights.push({ type: "summary", severity: "info", message: `Validated ${total} purchase order(s) across ${results.filter(r => r.status === "ok").length} connected procurement system(s).` });
+  if (pending) insights.push({ type: "recommendation", severity: "medium", message: `${pending} purchase order(s) remain pending approval.` });
+  return { processedData: { filtered, enriched, matched, metrics: { totalOrders: total, approvedOrders: approved, pendingOrders: pending, invalidRecords: invalid, systemsQueried: results.filter(r => r.status === "ok").length } }, actionsTaken: [], insights, alerts };
+}
 // Generic processing for uncategorized agents
 function processGeneric(
   agent: AgentDefinition,
@@ -748,7 +774,7 @@ const CATEGORY_PROCESSORS: Record<
   logistics: processGeneric,
   manufacturing: processGeneric,
   "customer-success": processGeneric,
-  procurement: processGeneric,
+  procurement: processProcurement,
 };
 
 // ────────────────────────────────────────────────────────────────────────
