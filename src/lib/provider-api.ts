@@ -712,15 +712,19 @@ export interface ProviderActionResult {
  */
 export function getHubSpotTrustedTenantId(
   userEmail: string,
-  ownerEmail = process.env.HUBSPOT_SINGLE_USER_TENANT_EMAIL,
-  knownUsers?: Record<string, unknown>,
+  ownerEmail: string | undefined,
+  knownUsers: Record<string, unknown> | undefined,
 ): string | null {
   const email = String(userEmail || "").trim().toLowerCase();
   const owner = String(ownerEmail || "").trim().toLowerCase();
-  // If the live user registry is available, exactly one user must exist. Any
-  // multi-user or ambiguous registry fails closed; email is never a tenant ID.
-  if (knownUsers && Object.keys(knownUsers).length !== 1) return null;
-  return email && owner && email === owner ? email : null;
+  // Both explicit owner configuration and the live registry are mandatory.
+  // Missing, malformed, empty, or multi-user registries fail closed.
+  if (!owner || !knownUsers || typeof knownUsers !== "object" || Array.isArray(knownUsers)) return null;
+  const entries = Object.entries(knownUsers);
+  if (entries.length !== 1) return null;
+  const [[registeredEmail, registeredUser]] = entries;
+  if (!registeredEmail.trim() || !registeredUser || typeof registeredUser !== "object" || Array.isArray(registeredUser)) return null;
+  return email && email === owner && email === registeredEmail.trim().toLowerCase() ? email : null;
 }
 
 function hubSpotCredentialToken(creds: Record<string, string>): string {
