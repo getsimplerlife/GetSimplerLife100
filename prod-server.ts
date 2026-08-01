@@ -41,24 +41,19 @@ function writeJSON(path: string, data: any) {
 
 
 // ── OAuth Credential Resolution ────────────────────────────────────
-function getOAuthCredentials(provider: string): { clientId: string; clientSecret: string } | null {
-  // 1. Try environment variables: OAUTH_<PROVIDER>_CLIENT_ID / OAUTH_<PROVIDER>_CLIENT_SECRET
+function getOAuthCredentials(provider: string, tenantEmail?: string): { clientId: string; clientSecret: string } | null {
+  // OAuth app credentials may be configured globally via environment, but persisted credentials
+  // must be tenant-scoped. Never read provider-only client secrets from tenant data.
   const provUpper = provider.replace(/-/g, "_").toUpperCase();
   const envClientId = process.env[`OAUTH_${provUpper}_CLIENT_ID`];
   const envClientSecret = process.env[`OAUTH_${provUpper}_CLIENT_SECRET`];
-  if (envClientId && envClientSecret) {
-    return { clientId: envClientId, clientSecret: envClientSecret };
-  }
-  // 2. Fall back to tenant_oauth_credentials.json
-  const credsFile = join(DATA_DIR, "tenant_oauth_credentials.json");
-  const creds = readJSON(credsFile);
-  const key = `${provider}`;
-  if (creds[key] && creds[key].clientId && creds[key].clientSecret) {
-    return { clientId: creds[key].clientId, clientSecret: creds[key].clientSecret };
-  }
+  if (envClientId && envClientSecret) return { clientId: envClientId, clientSecret: envClientSecret };
+  if (!tenantEmail) return null;
+  const creds = readJSON(join(DATA_DIR, "tenant_oauth_credentials.json"));
+  const tenant = creds[`${tenantEmail}:${provider}`];
+  if (tenant?.clientId && tenant?.clientSecret) return { clientId: tenant.clientId, clientSecret: tenant.clientSecret };
   return null;
 }
-
 function getOAuthRedirectUri(_provider: string, req?: Request): string {
   const host = req?.headers.get("x-forwarded-host") || req?.headers.get("host") || "";
   const isLocal = host.includes("localhost") || host.includes("127.0.0.1") || host.startsWith("::1");
@@ -1751,20 +1746,16 @@ serve({
         return Response.redirect(`/portal/integrations?error=${encodeURIComponent("OAuth state expired. Please try again.")}`, 302);
       }
       
+      const user = await getUserFromSession(req);
+      if (!user) return Response.redirect(`/portal/integrations?error=${encodeURIComponent("Session expired. Please login and try again.")}`, 302);
+      if (stateEntry.email && stateEntry.email !== user.email) return Response.redirect(`/portal/integrations?error=${encodeURIComponent("OAuth state belongs to a different session")}`, 302);
       const authProvider = stateEntry.provider;
       const verifier = stateEntry.verifier;
-      
       // Clean up consumed state
       delete states[state];
       writeJSON(OAUTH_STATES_FILE, states);
-      
-      // Get user from session (for connection record)
-      const user = await getUserFromSession(req);
-      if (!user) {
-        return Response.redirect(`/portal/integrations?error=${encodeURIComponent("Session expired. Please login and try again.")}`, 302);
-      }
-      
-      const creds = getOAuthCredentials(authProvider);
+
+      const creds = getOAuthCredentials(authProvider, user.email);
       if (!creds) {
         return Response.redirect(`/portal/integrations?error=${encodeURIComponent("OAuth not configured for " + authProvider + ". Add credentials in Admin → OAuth Settings.")}`, 302);
       }
@@ -1807,6 +1798,9 @@ serve({
           );
         }
         
+        if (!tokens?.accessToken || typeof tokens.accessToken !== "string" || tokens.accessToken.trim().length < 8) {
+          throw new Error("OAuth provider returned no usable access token");
+        }
         // Store tokens in tenant_oauth_credentials.json
         const tokenFile = join(DATA_DIR, "tenant_oauth_credentials.json");
         const tokenData = readJSON(tokenFile);
@@ -1838,7 +1832,7 @@ serve({
           status: "Connected",
           connectedAt: new Date().toISOString(),
           lastSync: new Date().toISOString(),
-          credentials: { apiKey: tokens.accessToken, oauth: true },
+          credentials: { accessToken: tokens.accessToken, oauth: true },
         };
         
         if (existingIdx >= 0) {
@@ -1887,15 +1881,18 @@ serve({
         p.id === provider || p.id?.toLowerCase() === provider.toLowerCase()
       );
       if (!providerData) return Response.json({ error: "Unknown provider: " + provider }, { status: 404 });
-      // Generate CSRF state
+      // Require an authenticated initiating session and bind OAuth state to that tenant.
+      // This prevents a callback from attaching another user's authorization to the current session.
+      const initiatingUser = await getUserFromSession(req);
+      if (!initiatingUser?.email) return Response.json({ error: "Not authenticated" }, { status: 401 });
       let state = randomBytes(32).toString("hex");
       const states = readJSON(OAUTH_STATES_FILE);
-      states[state] = { provider, createdAt: Date.now() };
+      states[state] = { provider, email: initiatingUser.email, createdAt: Date.now() };
       writeJSON(OAUTH_STATES_FILE, states);
       // Build OAuth redirect URL dynamically via provider auth modules
       const redirectUri = getOAuthRedirectUri(provider, req);
       const canonicalProvider = getCanonicalProvider(provider);
-      const creds = getOAuthCredentials(provider);
+      const creds = getOAuthCredentials(provider, initiatingUser.email);
       
       // Try to use a real provider auth module
       let authUrl: string | null = null;
@@ -1921,7 +1918,7 @@ serve({
           if (result.state && result.state !== state) {
             delete states[state];
             state = result.state;
-            states[state] = { provider, createdAt: Date.now() };
+            states[state] = { provider, email: initiatingUser.email, createdAt: Date.now() };
           }
           
           // Store PKCE verifier if the module generated one
@@ -1950,10 +1947,8 @@ OAUTH_${provUpper}_CLIENT_SECRET=your_client_secret</pre><p style="font-size:0.8
         );
       }
       
-      // Fallback: construct URL with real client_id
-      const scopes = encodeURIComponent("read");
-      const fallbackUrl = `https://${canonicalProvider.replace(/-/g, "")}.com/oauth/authorize?client_id=${encodeURIComponent(creds.clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scopes}&state=${state}`;
-      return Response.redirect(fallbackUrl, 302);
+      // No dedicated provider auth module: fail closed. Never guess an OAuth host.
+      return Response.json({ error: `OAuth is not implemented for ${provider}` }, { status: 501 });
     }
     if (pathname.startsWith("/assets/") || pathname.startsWith("/_build/") ||
         pathname === "/manifest.json" || pathname === "/sw.js" || pathname.startsWith("/icon-") ||

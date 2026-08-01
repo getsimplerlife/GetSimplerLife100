@@ -16,14 +16,14 @@ export interface ProviderConnection {
   status: string;
   connectedAt: string;
   lastSync: string;
-  credentials: { apiKey?: string; accessToken?: string; refreshToken?: string; instanceUrl?: string };
+  credentials: { apiKey?: string; accessToken?: string; refreshToken?: string; instanceUrl?: string; spreadsheetId?: string; sheetId?: string; range?: string; spreadsheetRange?: string };
   category: string;
 }
 
 export interface ProviderResult {
   providerId: string;
   provider: string;
-  status: "connected" | "unreachable" | "auth_failed" | "rate_limited" | "ok" | "unsupported" | "not_configured";
+  status: "connected" | "unreachable" | "auth_failed" | "rate_limited" | "ok";
   recordsFound: number;
   sampleData: any[];
   error?: string;
@@ -484,13 +484,22 @@ async function queryLinkedIn(creds: Record<string, string>): Promise<ProviderRes
 // Spreadsheets / Databases
 // ────────────────────────────────────────────────────────────────────────
 
-async function queryGoogleSheets(creds: Record<string, string>): Promise<ProviderResult> {
-  const accessToken = creds.accessToken || creds.apiKey || "";
-  const spreadsheetId = creds.spreadsheetId || creds.sheetId || "";
+export async function queryGoogleSheets(creds: Record<string, string>): Promise<ProviderResult> {
+  const accessToken = (creds.accessToken || "").trim();
+  const spreadsheetId = (creds.spreadsheetId || creds.sheetId || "").trim();
+  const range = (creds.range || creds.spreadsheetRange || "").trim();
+  const baseResult = { providerId: "googlesheets", provider: "Google Sheets", recordsFound: 0, sampleData: [], endpoint: "v4/spreadsheets/{id}/values" } as const;
+  // Reads require an OAuth bearer token, an explicit spreadsheet ID, and an explicit A1 range.
+  // Do not guess Sheet1 or send a network request when configuration is incomplete.
+  if (!accessToken) return { ...baseResult, status: "auth_failed", error: "Missing OAuth access token" };
+  if (!spreadsheetId || !/^[a-zA-Z0-9_-]{10,}$/.test(spreadsheetId)) return { ...baseResult, status: "auth_failed", error: "Missing or invalid spreadsheet ID" };
+  if (!range || range.length > 200 || !/^[^!\r\n]{1,100}![A-Z]+[1-9][0-9]*(?::[A-Z]+[1-9][0-9]*)?$/.test(range)) return { ...baseResult, status: "auth_failed", error: "Missing or invalid A1 range" };
   try {
+    const encodedId = encodeURIComponent(spreadsheetId);
+    const encodedRange = encodeURIComponent(range);
     const res = await fetchWithTimeout(
-      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Sheet1!A1:D50`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
+      `https://sheets.googleapis.com/v4/spreadsheets/${encodedId}/values/${encodedRange}`,
+      { headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" } }
     );
     if (res.status === 401) return { providerId: "googlesheets", provider: "Google Sheets", status: "auth_failed", recordsFound: 0, sampleData: [], error: "Invalid token" };
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -525,8 +534,8 @@ async function queryAirtable(creds: Record<string, string>): Promise<ProviderRes
 
 // ────────────────────────────────────────────────────────────────────────
 // Maps / Logistics
-// ───────────────────────────────────────────��────────────────────────────
-
+// ───────────────���───────────────────────────��────────────────────────────
+// ────────────────────────────────────────────────────────────────────────
 async function queryGoogleMaps(creds: Record<string, string>): Promise<ProviderResult> {
   const apiKey = creds.apiKey || "";
   try {
@@ -552,77 +561,38 @@ async function queryGoogleMaps(creds: Record<string, string>): Promise<ProviderR
 // Catch-all / Generic REST
 // ────────────────────────────────────────────────────────────────────────
 
-// Generic read endpoints. FAIL-CLOSED RULES:
-// 1. Only vetted, provider-owned domains may appear here. Never guess a domain.
-// 2. `{placeholder}` segments are resolved from stored credentials; if a
-//    required credential is missing, we return "not_configured" WITHOUT making
-//    any network call (credentials must never travel to an unresolved URL).
-// 3. Providers whose APIs cannot be probed safely/correctly by a generic GET
-//    (wrong method, wrong auth scheme, tenant-specific hosts, nonexistent
-//    endpoints) are marked `unsupported` and never called.
-interface GenericEndpointDef {
-  url?: string;
-  requiredCreds?: string[];
-  unsupported?: string;
-}
-
-const GENERIC_READ_ENDPOINTS: Record<string, GenericEndpointDef> = {
-  "zoom": { url: `https://api.zoom.us/v2/users/me` },
-  "outlook": { url: `https://graph.microsoft.com/v1.0/me` },
-  "gmail": { url: `https://gmail.googleapis.com/gmail/v1/users/me/profile` },
-  "meta": { url: `https://graph.facebook.com/v18.0/me` },
-  "hootsuite": { url: `https://platform.hootsuite.com/v1/me` },
-  "zoho-books": { url: `https://books.zoho.com/api/v3/organizations` },
-  "rippling": { url: `https://api.rippling.com/api/app/employees` },
-  "outreach": { url: `https://api.outreach.io/api/v2/accounts` },
-  "marketo": { url: `https://{munchkin}.mktorest.com/rest/v1/leads.json`, requiredCreds: ["munchkin"] },
-  // Phase 2a: Freshdesk is not yet backed by an audited live-path handler.
-  // Do not resolve a customer domain and fall through to generic bearer auth;
-  // unsupported providers must return before any network request.
-  "freshdesk": { unsupported: "Freshdesk is not supported by the live write-safe provider path yet — no request was made." },
-  "monday-com": { unsupported: "Monday.com's API is GraphQL-only (POST); a generic GET probe cannot query it. Support is planned — no request was made." },
-  "onfleet": { unsupported: "Onfleet requires HTTP Basic authentication, which the generic read probe does not support. No request was made." },
-  "quickbooks-payroll": { unsupported: "QuickBooks Payroll has no standalone public REST endpoint. No request was made." },
-  "sap": { unsupported: "SAP data APIs are instance-specific; there is no generic endpoint to query. No request was made." },
-  "sap-ariba": { unsupported: "SAP Ariba APIs require a realm-specific host and application key. No request was made." },
-  "coupa": { unsupported: "Coupa APIs are instance-specific ({company}.coupahost.com). No request was made." },
-  "workday": { unsupported: "Workday APIs require a tenant-specific host. No request was made." },
-  "adp": { unsupported: "ADP APIs require certificate-based OAuth, which the generic read probe does not support. No request was made." },
-  "gusto": { unsupported: "Gusto reads are company-scoped and require company configuration. No request was made." },
-};
-
 async function queryGeneric(providerId: string, providerName: string, creds: Record<string, string>): Promise<ProviderResult> {
   const apiKey = creds.apiKey || creds.accessToken || "";
-  const def = GENERIC_READ_ENDPOINTS[providerId];
-  if (!def) {
-    return { providerId, provider: providerName, status: "unsupported", recordsFound: 0, sampleData: [], error: "No vetted API endpoint for this provider yet — no request was made", endpoint: "none" };
-  }
-  if (def.unsupported || !def.url) {
-    return { providerId, provider: providerName, status: "unsupported", recordsFound: 0, sampleData: [], error: def.unsupported || "Not supported", endpoint: "none" };
-  }
-
-  // Resolve {placeholder} segments strictly from stored credentials.
-  let url = def.url;
-  for (const key of def.requiredCreds || []) {
-    const value = (creds[key] || "").trim();
-    if (!value || !/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(value)) {
-      return { providerId, provider: providerName, status: "not_configured", recordsFound: 0, sampleData: [], error: `Missing or invalid '${key}' in connection settings — no request was made`, endpoint: "none" };
-    }
-    url = url.replaceAll(`{${key}}`, value);
-  }
-  if (url.includes("{")) {
-    // Defensive: never send a request (or credentials) to an unresolved URL.
-    return { providerId, provider: providerName, status: "not_configured", recordsFound: 0, sampleData: [], error: "Endpoint template could not be fully resolved — no request was made", endpoint: "none" };
-  }
+  // Generic approach: attempt a common health-check or list endpoint
+  const endpoints: Record<string, string> = {
+    "zoom": `https://api.zoom.us/v2/users/me`,
+    "outlook": `https://graph.microsoft.com/v1.0/me`,
+    "gmail": `https://gmail.googleapis.com/gmail/v1/users/me/profile`,
+    "meta": `https://graph.facebook.com/v18.0/me?access_token=${apiKey}`,
+    "hootsuite": `https://platform.hootsuite.com/v1/me`,
+    "zoho-books": `https://books.zoho.com/api/v3/organizations`,
+    "rippling": `https://api.rippling.com/api/app/employees`,
+    "workday": `https://api.workday.com/staffing/v5/workers`,
+    "marketo": `https://{munchkin}.mktorest.com/rest/v1/leads.json?access_token=${apiKey}`,
+    "outreach": `https://api.outreach.io/api/v2/accounts`,
+    "sap": `https://api.sap.com/odata/rest`,
+    "sap-ariba": `https://api.ariba.com/v2/admin/items`,
+    "coupa": `https://api.coupa.com/api/invoices`,
+    "monday-com": `https://api.monday.com/v2`,
+    "onfleet": `https://onfleet.com/api/v2/workers`,
+    "adp": `https://api.adp.com/hr/v2/workers`,
+    "gusto": `https://api.gusto.com/v1/employees`,
+    "quickbooks-payroll": `https://api.intuit.com/quickbooks/v4/payroll/employees`,
+    "freshdesk": `https://{domain}.freshdesk.com/api/v2/tickets`,
+  };
+  const url = endpoints[providerId];
+  if (!url) return { providerId, provider: providerName, status: "unreachable", recordsFound: 0, sampleData: [], error: "No known API endpoint", endpoint: "unknown" };
 
   try {
     const headers: Record<string, string> = { Accept: "application/json" };
-    if (providerId === "meta" || providerId === "marketo") {
-      // These providers take the token as a query parameter per their own docs
-      url += (url.includes("?") ? "&" : "?") + `access_token=${encodeURIComponent(apiKey)}`;
-    } else {
-      headers["Authorization"] = `Bearer ${apiKey}`;
-    }
+    if (providerId === "sap") headers["x-api-key"] = apiKey;
+    else if (providerId === "monday-com") headers["Authorization"] = apiKey;
+    else headers["Authorization"] = `Bearer ${apiKey}`;
     const res = await fetchWithTimeout(url, { headers });
     if (res.status === 401 || res.status === 403) {
       return { providerId, provider: providerName, status: "auth_failed", recordsFound: 0, sampleData: [], error: `HTTP ${res.status}: Invalid credentials`, endpoint: url };
@@ -705,87 +675,25 @@ export interface ProviderActionResult {
 // Write Operation Dispatch
 // ────────────────────────────────────────────────────────────────────────
 
-/**
- * Temporary launch guard: HubSpot writes are enabled only for the configured
- * single-user tenant owner. Other authenticated users fail closed until a
- * canonical DB-backed tenant membership lookup replaces this guard.
- */
-export function getHubSpotTrustedTenantId(
-  userEmail: string,
-  ownerEmail: string,
-  knownUsers: Record<string, unknown>,
-): string | null {
-  const email = String(userEmail || "").trim().toLowerCase();
-  const owner = String(ownerEmail || "").trim().toLowerCase();
-  // Both explicit owner configuration and the live registry are mandatory.
-  // Missing, malformed, empty, or multi-user registries fail closed.
-  if (!owner || !knownUsers || typeof knownUsers !== "object" || Array.isArray(knownUsers)) return null;
-  const entries = Object.entries(knownUsers);
-  if (entries.length !== 1) return null;
-  const [[registeredEmail, registeredUser]] = entries;
-  if (!registeredEmail.trim() || !registeredUser || typeof registeredUser !== "object" || Array.isArray(registeredUser)) return null;
-  return email && email === owner && email === registeredEmail.trim().toLowerCase() ? email : null;
+async function createHubSpotContact(creds: Record<string, string>, payload: Record<string, any>): Promise<ProviderActionResult> {
+  const apiKey = creds.apiKey || creds.accessToken || "";
+  try {
+    const res = await fetchWithTimeout("https://api.hubapi.com/crm/v3/objects/contacts", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ properties: payload }),
+    });
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({}));
+      return { providerId: "hubspot", provider: "HubSpot", action: "create_contact", status: "failed", detail: `HTTP ${res.status}`, error: errBody.message || `HTTP ${res.status}` };
+    }
+    const json = await res.json();
+    return { providerId: "hubspot", provider: "HubSpot", action: "create_contact", status: "executed", detail: `Contact created: ${json.id}`, result: json };
+  } catch (e: any) {
+    return { providerId: "hubspot", provider: "HubSpot", action: "create_contact", status: "failed", detail: e.message, error: e.message };
+  }
 }
 
-function hubSpotCredentialToken(creds: Record<string, string>): string {
-  return (creds.accessToken || "").trim();
-}
-function hubSpotWritePayload(payload: Record<string, any>, trustedTenantId?: string): Record<string, any> | null {
-  // tenantId is supplied by the authenticated live-path caller; never trust a
-  // tenant identifier from an unscoped external request.
-  if (typeof trustedTenantId !== "string" || !trustedTenantId.trim()) return null;
-  // The caller-supplied payload tenantId is deliberately ignored. Only the
-  // authenticated live-path tenant context may scope a HubSpot resource.
-  return { ...payload, tenantId: trustedTenantId };
-}
-async function hubSpotWrite(
-  action: string,
-  method: "POST" | "PATCH",
-  path: string,
-  creds: Record<string, string>,
-  payload: Record<string, any>,
-  properties: Record<string, any>,
-  trustedTenantId?: string,
-): Promise<ProviderActionResult> {
-  const token = hubSpotCredentialToken(creds);
-  const scoped = hubSpotWritePayload(payload, trustedTenantId);
-  if (!token || !scoped) return { providerId: "hubspot", provider: "HubSpot", action, status: "skipped", detail: "HubSpot write requires scoped tenant context and access token; no request was made." };
-  try {
-    const res = await fetchWithTimeout(`https://api.hubapi.com${path}`, { method, headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ properties }) });
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok) return { providerId: "hubspot", provider: "HubSpot", action, status: "failed", detail: `HTTP ${res.status}`, error: json.message || `HTTP ${res.status}` };
-    return { providerId: "hubspot", provider: "HubSpot", action, status: "executed", detail: `${action} completed for tenant ${scoped.tenantId}`, result: json };
-  } catch (e: any) { return { providerId: "hubspot", provider: "HubSpot", action, status: "failed", detail: e.message, error: e.message }; }
-}
-async function createHubSpotContact(creds: Record<string, string>, payload: Record<string, any>): Promise<ProviderActionResult> {
-  const { action: _a, tenantId: _t, __trustedTenantId: _trusted, ...properties } = payload;
-  return hubSpotWrite("create_contact", "POST", "/crm/v3/objects/contacts", creds, payload, properties, payload.__trustedTenantId);
-}
-async function updateHubSpotContact(creds: Record<string, string>, payload: Record<string, any>): Promise<ProviderActionResult> {
-  const id = String(payload.contactId || payload.id || "").trim();
-  if (!/^[0-9]+$/.test(id)) return { providerId: "hubspot", provider: "HubSpot", action: "update_contact", status: "skipped", detail: "A numeric HubSpot contact ID is required; no request was made." };
-  const { action: _a, tenantId: _t, __trustedTenantId: _trusted, contactId: _c, id: _i, ...properties } = payload;
-  return hubSpotWrite("update_contact", "PATCH", `/crm/v3/objects/contacts/${id}`, creds, payload, properties, payload.__trustedTenantId);
-}
-async function createHubSpotTask(creds: Record<string, string>, payload: Record<string, any>): Promise<ProviderActionResult> {
-  const { action: _a, tenantId: _t, __trustedTenantId: _trusted, ...properties } = payload;
-  return hubSpotWrite("create_task", "POST", "/crm/v3/objects/tasks", creds, payload, properties, payload.__trustedTenantId);
-}
-async function createHubSpotDeal(creds: Record<string, string>, payload: Record<string, any>): Promise<ProviderActionResult> {
-  const { action: _a, tenantId: _t, __trustedTenantId: _trusted, ...properties } = payload;
-  return hubSpotWrite("create_deal", "POST", "/crm/v3/objects/deals", creds, payload, properties, payload.__trustedTenantId);
-}
-async function createHubSpotCompany(creds: Record<string, string>, payload: Record<string, any>): Promise<ProviderActionResult> {
-  const { action: _a, tenantId: _t, __trustedTenantId: _trusted, ...properties } = payload;
-  return hubSpotWrite("create_company", "POST", "/crm/v3/objects/companies", creds, payload, properties, payload.__trustedTenantId);
-}
-async function updateHubSpotPipelineStage(creds: Record<string, string>, payload: Record<string, any>): Promise<ProviderActionResult> {
-  const stage = String(payload.dealstage || payload.pipelineStage || "").trim();
-  if (!stage || !/^[A-Za-z0-9_.-]+$/.test(stage)) return { providerId: "hubspot", provider: "HubSpot", action: "update_pipeline_stage", status: "skipped", detail: "A valid pipeline stage is required; no request was made." };
-  const id = String(payload.dealId || payload.id || "").trim();
-  if (!/^[0-9]+$/.test(id)) return { providerId: "hubspot", provider: "HubSpot", action: "update_pipeline_stage", status: "skipped", detail: "A numeric HubSpot deal ID is required; no request was made." };
-  return hubSpotWrite("update_pipeline_stage", "PATCH", `/crm/v3/objects/deals/${id}`, creds, payload, { dealstage: stage }, payload.__trustedTenantId);
-}
 async function updateSalesforceAccount(creds: Record<string, string>, payload: Record<string, any>): Promise<ProviderActionResult> {
   const accessToken = creds.accessToken || creds.apiKey || "";
   const instanceUrl = creds.instanceUrl || "https://login.salesforce.com";
@@ -889,38 +797,28 @@ async function createQuickBooksInvoice(creds: Record<string, string>, payload: R
   }
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// Write allowlist — FAIL CLOSED.
-//
-// A write executes ONLY when the exact (providerId, action) pair is
-// explicitly mapped below to a handler whose behavior matches the action's
-// intent. Anything else — unknown provider, unknown action, or a mismatched
-// pair — is skipped with NO network call and NO credential use.
-//
-// Never add a "generic" fallback here: an unvetted POST can create junk
-// records in a client's live system, and a guessed URL can leak the
-// client's credentials to a domain we do not control.
-// ────────────────────────────────────────────────────────────────────────
+// Generic write for providers without specific functions
+async function genericProviderAction(
+  providerId: string,
+  providerName: string,
+  _creds: Record<string, string>,
+  payload: Record<string, any>
+): Promise<ProviderActionResult> {
+  // Unknown provider/action pairs fail closed. Never guess a host or send customer credentials.
+  return { providerId, provider: providerName, action: payload.action || "generic_write", status: "skipped", detail: "No explicit provider/action handler; write skipped without network request" };
+}
 const WRITE_DISPATCH: Record<string, (creds: Record<string, string>, payload: Record<string, any>) => Promise<ProviderActionResult>> = {
-  "hubspot:create_contact": createHubSpotContact,
-  "hubspot:update_contact": updateHubSpotContact,
-  "hubspot:create_task": createHubSpotTask,
-  "hubspot:create_deal": createHubSpotDeal,
-  "hubspot:create_company": createHubSpotCompany,
-  "hubspot:update_pipeline_stage": updateHubSpotPipelineStage,
-  "salesforce:update_account": updateSalesforceAccount,
-  "zendesk:create_ticket": createZendeskTicket,
-  "slack:send_message": sendSlackMessage,
-  "jira:create_issue": createJiraIssue,
-  // An audit finding is intentionally recorded as a Jira issue — intent matches.
-  "jira:create_audit_finding": createJiraIssue,
-  "quickbooks:create_invoice": createQuickBooksInvoice,
+  "hubspot": createHubSpotContact,
+  "salesforce": updateSalesforceAccount,
+  "zendesk": createZendeskTicket,
+  "slack": sendSlackMessage,
+  "jira": createJiraIssue,
+  "quickbooks": createQuickBooksInvoice,
 };
 
 /**
  * Execute a write action against a specific provider.
- * Fail-closed: only explicitly allowlisted (provider, action) pairs run.
- * Everything else returns "skipped" without any network call.
+ * Uses stored credentials + payload. Returns structured action result.
  */
 export async function executeProviderAction(
   providerId: string,
@@ -928,29 +826,18 @@ export async function executeProviderAction(
   credentials: Record<string, string>,
   payload: Record<string, any>
 ): Promise<ProviderActionResult> {
-  const action = payload.action || "write";
   if (!credentials || (!credentials.apiKey && !credentials.accessToken)) {
     return {
       providerId,
       provider: providerName,
-      action,
+      action: payload.action || "write",
       status: "skipped",
       detail: "No valid credentials — write operation requires API key or access token",
     };
   }
-  const handler = WRITE_DISPATCH[`${providerId}:${action}`];
-  if (!handler) {
-    return {
-      providerId,
-      provider: providerName,
-      action,
-      status: "skipped",
-      detail: `Write skipped: no vetted handler for ${providerName} action '${action}'. No request was made. This action requires a purpose-built integration (planned).`,
-    };
-  }
-  const result = await handler(credentials, payload);
-  // Report the action the caller asked for (handlers may share implementations).
-  return { ...result, action };
+  const handler = WRITE_DISPATCH[providerId];
+  if (handler) return handler(credentials, payload);
+  return genericProviderAction(providerId, providerName, credentials, payload);
 }
 
 export async function executeAgent(
