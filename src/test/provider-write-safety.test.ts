@@ -89,8 +89,8 @@ describe("write dispatch: explicitly allowlisted pairs still execute", () => {
     expect(getHubSpotTrustedTenantId("other-user@example.com", "owner@example.com", { "owner@example.com": {} , "other-user@example.com": {} })).toBeNull();
     expect(getHubSpotTrustedTenantId("OWNER@example.com", "owner@example.com", { "owner@example.com": {} })).toBe("owner@example.com");
     expect(getHubSpotTrustedTenantId("owner@example.com", "owner@example.com", {})).toBeNull();
-    expect(getHubSpotTrustedTenantId("owner@example.com", undefined, { "owner@example.com": {} })).toBeNull();
-    expect(getHubSpotTrustedTenantId("owner@example.com", "owner@example.com", undefined)).toBeNull();
+    expect(getHubSpotTrustedTenantId("owner@example.com", undefined as any, { "owner@example.com": {} })).toBeNull();
+    expect(getHubSpotTrustedTenantId("owner@example.com", "owner@example.com", undefined as any)).toBeNull();
     expect(getHubSpotTrustedTenantId("owner@example.com", "owner@example.com", { "owner@example.com": null })).toBeNull();
     expect(getHubSpotTrustedTenantId("owner@example.com", "owner@example.com", { "owner@example.com": "not-a-user" })).toBeNull();
   });

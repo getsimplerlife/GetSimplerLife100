@@ -712,8 +712,8 @@ export interface ProviderActionResult {
  */
 export function getHubSpotTrustedTenantId(
   userEmail: string,
-  ownerEmail: string | undefined,
-  knownUsers: Record<string, unknown> | undefined,
+  ownerEmail: string,
+  knownUsers: Record<string, unknown>,
 ): string | null {
   const email = String(userEmail || "").trim().toLowerCase();
   const owner = String(ownerEmail || "").trim().toLowerCase();
