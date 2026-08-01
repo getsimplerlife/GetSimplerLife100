@@ -1811,24 +1811,10 @@ serve({
             verifier || "",
           );
         } else {
-          // Generic exchange using framework directly
-          const { exchangeCodeForTokens } = await import("./src/integrations/framework/oauth");
-          tokens = await exchangeCodeForTokens(
-            { 
-              clientId: creds.clientId, 
-              clientSecret: creds.clientSecret, 
-              redirectUri, 
-              scopes: ["read"], 
-              authorizeUrl: "", 
-              tokenUrl: `https://${canonicalProvider}.com/oauth/token`, 
-              flowType: "authorization_code" 
-            },
-            code,
-            verifier,
-          );
+          // No audited callback handler: fail closed rather than guessing a token host.
+          throw new Error(`OAuth callback is not implemented for ${authProvider}`);
         }
-        
-        if (!usableOAuthToken(tokens)) throw new Error("OAuth provider returned no usable access token");
+                if (!usableOAuthToken(tokens)) throw new Error("OAuth provider returned no usable access token");
         // Store tokens in tenant_oauth_credentials.json
         const tokenFile = join(DATA_DIR, "tenant_oauth_credentials.json");
         const tokenData = readJSON(tokenFile);
