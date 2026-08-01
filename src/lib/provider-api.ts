@@ -576,7 +576,10 @@ const GENERIC_READ_ENDPOINTS: Record<string, GenericEndpointDef> = {
   "rippling": { url: `https://api.rippling.com/api/app/employees` },
   "outreach": { url: `https://api.outreach.io/api/v2/accounts` },
   "marketo": { url: `https://{munchkin}.mktorest.com/rest/v1/leads.json`, requiredCreds: ["munchkin"] },
-  "freshdesk": { url: `https://{domain}.freshdesk.com/api/v2/tickets`, requiredCreds: ["domain"] },
+  // Freshdesk requires API-key + Basic authentication; the generic probe only
+  // supports bearer tokens, so fail closed rather than sending credentials with
+  // the wrong scheme to a customer-specific host.
+  "freshdesk": { unsupported: "Freshdesk requires API-key Basic authentication; generic bearer probe is not supported. No request was made." },
   "monday-com": { unsupported: "Monday.com's API is GraphQL-only (POST); a generic GET probe cannot query it. Support is planned — no request was made." },
   "onfleet": { unsupported: "Onfleet requires HTTP Basic authentication, which the generic read probe does not support. No request was made." },
   "quickbooks-payroll": { unsupported: "QuickBooks Payroll has no standalone public REST endpoint. No request was made." },
