@@ -89,6 +89,7 @@ describe("write dispatch: explicitly allowlisted pairs still execute", () => {
     expect(getHubSpotTrustedTenantId("other-user@example.com", "owner@example.com", { "owner@example.com": {} , "other-user@example.com": {} })).toBeNull();
     expect(getHubSpotTrustedTenantId("OWNER@example.com", "owner@example.com", { "owner@example.com": {} })).toBe("owner@example.com");
     expect(getHubSpotTrustedTenantId("owner@example.com", "owner@example.com", {})).toBeNull();
+    expect(getHubSpotTrustedTenantId("owner@example.com", undefined, { "owner@example.com": {} })).toBeNull();
   });
   it("rejects missing or blank Bearer accessToken without a request", async () => {
     for (const credentials of [{}, { accessToken: "" }, { accessToken: "   " }]) {

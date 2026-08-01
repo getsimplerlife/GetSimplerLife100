@@ -712,7 +712,7 @@ export interface ProviderActionResult {
  */
 export function getHubSpotTrustedTenantId(
   userEmail: string,
-  ownerEmail = process.env.HUBSPOT_SINGLE_USER_TENANT_EMAIL || "mathewortiz97@gmail.com",
+  ownerEmail = process.env.HUBSPOT_SINGLE_USER_TENANT_EMAIL,
   knownUsers?: Record<string, unknown>,
 ): string | null {
   const email = String(userEmail || "").trim().toLowerCase();
