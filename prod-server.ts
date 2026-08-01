@@ -1120,13 +1120,11 @@ serve({
           writeJSON(TENANT_INTEGRATIONS_FILE, all);
           return Response.json({ success: true });
         }
-        // POST = sync
+        // POST = sync. A timestamp/status update is not a provider health check.
+        // Fail closed until this provider has an explicit tenant-scoped read handler.
         const conn = userConns.find((c: any) => c.id === connectionId || c.providerId === connectionId);
         if (!conn) return Response.json({ error: "Connection not found" }, { status: 404 });
-        conn.lastSync = new Date().toISOString();
-        conn.status = "Connected";
-        writeJSON(TENANT_INTEGRATIONS_FILE, all);
-        return Response.json({ success: true, connection: conn, synced: true });
+        return Response.json({ error: "Integration verification is not available for this provider; no request was made", verificationRequired: true, synced: false }, { status: 409 });
       } catch (e: any) {
         return Response.json({ error: e.message || "Failed" }, { status: 500 });
       }
@@ -1141,10 +1139,7 @@ serve({
         const userConns = all[user.email] || [];
         const conn = userConns.find((c: any) => c.id === connectionId || c.providerId === connectionId);
         if (!conn) return Response.json({ error: "Connection not found" }, { status: 404 });
-        conn.lastSync = new Date().toISOString();
-        conn.status = "Connected";
-        writeJSON(TENANT_INTEGRATIONS_FILE, all);
-        return Response.json({ success: true, connection: conn, synced: true });
+        return Response.json({ error: "Integration verification is not available for this provider; no request was made", verificationRequired: true, synced: false }, { status: 409 });
       } catch (e: any) {
         return Response.json({ error: e.message || "Sync failed" }, { status: 500 });
       }
