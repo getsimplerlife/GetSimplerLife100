@@ -85,6 +85,13 @@ describe("write dispatch: explicitly allowlisted pairs still execute", () => {
     expect(String(fetchMock.mock.calls[0][0])).toContain("https://api.hubapi.com/");
   });
 
+  it("rejects missing or blank Bearer accessToken without a request", async () => {
+    for (const credentials of [{}, { accessToken: "" }, { accessToken: "   " }]) {
+      const result = await executeProviderAction("hubspot", "HubSpot", credentials, { action: "create_contact", __trustedTenantId: "tenant-test", email: "a@b.co" });
+      expect(result.status).toBe("skipped");
+      expect(fetchMock).not.toHaveBeenCalled();
+    }
+  });
   it("rejects apiKey-only HubSpot credentials without a request", async () => {
     const result = await executeProviderAction("hubspot", "HubSpot", { apiKey: "legacy-key" }, { action: "create_contact", __trustedTenantId: "tenant-test", email: "a@b.co" });
     expect(result.status).toBe("skipped");
