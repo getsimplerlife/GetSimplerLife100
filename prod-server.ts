@@ -5,7 +5,7 @@ import { compare } from "bcryptjs";
 import { createHash, randomBytes } from "crypto";
 
 // ── Provider API module (server-side only — never imported in .tsx) ──
-import { executeAgent, executeProviderAction } from "./src/lib/provider-api";
+import { executeAgent, executeProviderAction, getHubSpotTrustedTenantId } from "./src/lib/provider-api";
 // ── Agent processor (post-query pipeline) ──
 import { processAgentResults } from "./src/lib/agent-processor";
 
@@ -1219,8 +1219,9 @@ serve({
               c.providerId === action.providerId && c.status === "Connected"
             );
             if (connected) {
-              // HubSpot writes are currently limited to the single-user tenant model: the authenticated email is the canonical tenant key. Do not enable multi-user tenant writes until this becomes a DB-backed tenant ID.
-              const actionPayload = { action: action.action, detail: action.detail, ...(action.payload || {}), tenantId: user.email, __trustedTenantId: user.email };
+              // Actual launch guard: only the configured single-user tenant owner may execute HubSpot writes. Other users receive no trusted scope and fail closed until DB-backed tenant membership exists.
+              const hubSpotTenant = action.providerId === "hubspot" ? getHubSpotTrustedTenantId(user.email) : null;
+              const actionPayload = { action: action.action, detail: action.detail, ...(action.payload || {}), tenantId: user.email, __trustedTenantId: hubSpotTenant || undefined };
               const execResult = await executeProviderAction(
                 action.providerId,
                 action.provider,

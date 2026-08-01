@@ -10,7 +10,7 @@
 //  4. Inventory Tracker actions carry the canonical providerId.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { executeProviderAction, querySingleProvider } from "../lib/provider-api";
+import { executeProviderAction, querySingleProvider, getHubSpotTrustedTenantId } from "../lib/provider-api";
 import type { ProviderResult, AgentIntegrationResult } from "../lib/provider-api";
 import { processAgentResults } from "../lib/agent-processor";
 
@@ -85,6 +85,10 @@ describe("write dispatch: explicitly allowlisted pairs still execute", () => {
     expect(String(fetchMock.mock.calls[0][0])).toContain("https://api.hubapi.com/");
   });
 
+  it("single-user tenant guard rejects non-owner users", () => {
+    expect(getHubSpotTrustedTenantId("other-user@example.com", "owner@example.com")).toBeNull();
+    expect(getHubSpotTrustedTenantId("OWNER@example.com", "owner@example.com")).toBe("owner@example.com");
+  });
   it("rejects missing or blank Bearer accessToken without a request", async () => {
     for (const credentials of [{}, { accessToken: "" }, { accessToken: "   " }]) {
       const result = await executeProviderAction("hubspot", "HubSpot", credentials, { action: "create_contact", __trustedTenantId: "tenant-test", email: "a@b.co" });

@@ -705,6 +705,17 @@ export interface ProviderActionResult {
 // Write Operation Dispatch
 // ────────────────────────────────────────────────────────────────────────
 
+/**
+ * Temporary launch guard: HubSpot writes are enabled only for the configured
+ * single-user tenant owner. Other authenticated users fail closed until a
+ * canonical DB-backed tenant membership lookup replaces this guard.
+ */
+export function getHubSpotTrustedTenantId(userEmail: string, ownerEmail = process.env.HUBSPOT_SINGLE_USER_TENANT_EMAIL || "mathewortiz97@gmail.com"): string | null {
+  const email = String(userEmail || "").trim().toLowerCase();
+  const owner = String(ownerEmail || "").trim().toLowerCase();
+  return email && owner && email === owner ? email : null;
+}
+
 function hubSpotCredentialToken(creds: Record<string, string>): string {
   return (creds.accessToken || "").trim();
 }
