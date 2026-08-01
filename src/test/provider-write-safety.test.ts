@@ -14,7 +14,7 @@ import { executeProviderAction, querySingleProvider } from "../lib/provider-api"
 import type { ProviderResult, AgentIntegrationResult } from "../lib/provider-api";
 import { processAgentResults } from "../lib/agent-processor";
 
-const CREDS = { apiKey: "test-key-123", accessToken: "test-token-456" };
+const CREDS = { accessToken: "test-token-456" };
 
 let fetchMock: ReturnType<typeof vi.fn>;
 
@@ -76,7 +76,8 @@ describe("write dispatch: explicitly allowlisted pairs still execute", () => {
   it("hubspot × create_contact executes against api.hubapi.com", async () => {
     const result = await executeProviderAction("hubspot", "HubSpot", CREDS, {
       action: "create_contact",
-      tenantId: "tenant-test",
+      tenantId: "attacker-tenant",
+      __trustedTenantId: "tenant-test",
       email: "a@b.co",
     });
     expect(result.status).toBe("executed");
@@ -84,20 +85,43 @@ describe("write dispatch: explicitly allowlisted pairs still execute", () => {
     expect(String(fetchMock.mock.calls[0][0])).toContain("https://api.hubapi.com/");
   });
 
+  it("rejects apiKey-only HubSpot credentials without a request", async () => {
+    const result = await executeProviderAction("hubspot", "HubSpot", { apiKey: "legacy-key" }, { action: "create_contact", __trustedTenantId: "tenant-test", email: "a@b.co" });
+    expect(result.status).toBe("skipped");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+  it("ignores caller tenantId when trusted live tenant context is present", async () => {
+    const result = await executeProviderAction("hubspot", "HubSpot", CREDS, { action: "create_contact", tenantId: "attacker", __trustedTenantId: "tenant-test", email: "a@b.co" });
+    expect(result.status).toBe("executed");
+    expect(JSON.stringify((fetchMock.mock.calls[0][1] as any).body)).not.toContain("attacker");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
   it("HubSpot writes fail closed without tenant scope", async () => {
     const result = await executeProviderAction("hubspot", "HubSpot", CREDS, { action: "create_contact", email: "a@b.co" });
     expect(result.status).toBe("skipped");
     expect(fetchMock).not.toHaveBeenCalled();
   });
   it("HubSpot update_contact uses numeric ID and vetted HubSpot host", async () => {
-    const result = await executeProviderAction("hubspot", "HubSpot", CREDS, { action: "update_contact", tenantId: "tenant-test", contactId: "123", email: "updated@b.co" });
+    const result = await executeProviderAction("hubspot", "HubSpot", CREDS, { action: "update_contact", tenantId: "tenant-test", __trustedTenantId: "tenant-test", contactId: "123", email: "updated@b.co" });
     expect(result.status).toBe("executed");
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(String(fetchMock.mock.calls[0][0])).toBe("https://api.hubapi.com/crm/v3/objects/contacts/123");
     expect((fetchMock.mock.calls[0][1] as any).method).toBe("PATCH");
   });
   it("HubSpot invalid object IDs fail closed without network", async () => {
-    const result = await executeProviderAction("hubspot", "HubSpot", CREDS, { action: "update_contact", tenantId: "tenant-test", contactId: "../../evil" });
+    const result = await executeProviderAction("hubspot", "HubSpot", CREDS, { action: "update_contact", tenantId: "tenant-test", __trustedTenantId: "tenant-test", contactId: "../../evil" });
+    expect(result.status).toBe("skipped");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+  for (const [action, path] of [["create_task", "/crm/v3/objects/tasks"], ["create_deal", "/crm/v3/objects/deals"], ["create_company", "/crm/v3/objects/companies"]] as const) {
+    it(`HubSpot ${action} uses the fixed host`, async () => {
+      const result = await executeProviderAction("hubspot", "HubSpot", CREDS, { action, tenantId: "tenant-test", __trustedTenantId: "tenant-test", subject: "test" });
+      expect(result.status).toBe("executed");
+      expect(String(fetchMock.mock.calls[0][0])).toBe(`https://api.hubapi.com${path}`);
+    });
+  }
+  it("HubSpot pipeline stage rejects malformed stage without network", async () => {
+    const result = await executeProviderAction("hubspot", "HubSpot", CREDS, { action: "update_pipeline_stage", tenantId: "tenant-test", __trustedTenantId: "tenant-test", dealId: "123", dealstage: "bad/stage" });
     expect(result.status).toBe("skipped");
     expect(fetchMock).not.toHaveBeenCalled();
   });

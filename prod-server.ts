@@ -1219,7 +1219,8 @@ serve({
               c.providerId === action.providerId && c.status === "Connected"
             );
             if (connected) {
-              const actionPayload = { action: action.action, detail: action.detail, ...(action.payload || {}), tenantId: user.email };
+              // HubSpot writes are currently limited to the single-user tenant model: the authenticated email is the canonical tenant key. Do not enable multi-user tenant writes until this becomes a DB-backed tenant ID.
+              const actionPayload = { action: action.action, detail: action.detail, ...(action.payload || {}), tenantId: user.email, __trustedTenantId: user.email };
               const execResult = await executeProviderAction(
                 action.providerId,
                 action.provider,

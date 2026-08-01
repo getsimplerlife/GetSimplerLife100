@@ -706,13 +706,15 @@ export interface ProviderActionResult {
 // ────────────────────────────────────────────────────────────────────────
 
 function hubSpotCredentialToken(creds: Record<string, string>): string {
-  return (creds.accessToken || creds.apiKey || "").trim();
+  return (creds.accessToken || "").trim();
 }
-function hubSpotWritePayload(payload: Record<string, any>): Record<string, any> | null {
+function hubSpotWritePayload(payload: Record<string, any>, trustedTenantId?: string): Record<string, any> | null {
   // tenantId is supplied by the authenticated live-path caller; never trust a
   // tenant identifier from an unscoped external request.
-  if (typeof payload.tenantId !== "string" || !payload.tenantId.trim()) return null;
-  return payload;
+  if (typeof trustedTenantId !== "string" || !trustedTenantId.trim()) return null;
+  // The caller-supplied payload tenantId is deliberately ignored. Only the
+  // authenticated live-path tenant context may scope a HubSpot resource.
+  return { ...payload, tenantId: trustedTenantId };
 }
 async function hubSpotWrite(
   action: string,
@@ -721,9 +723,10 @@ async function hubSpotWrite(
   creds: Record<string, string>,
   payload: Record<string, any>,
   properties: Record<string, any>,
+  trustedTenantId?: string,
 ): Promise<ProviderActionResult> {
   const token = hubSpotCredentialToken(creds);
-  const scoped = hubSpotWritePayload(payload);
+  const scoped = hubSpotWritePayload(payload, trustedTenantId);
   if (!token || !scoped) return { providerId: "hubspot", provider: "HubSpot", action, status: "skipped", detail: "HubSpot write requires scoped tenant context and access token; no request was made." };
   try {
     const res = await fetchWithTimeout(`https://api.hubapi.com${path}`, { method, headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ properties }) });
@@ -733,33 +736,33 @@ async function hubSpotWrite(
   } catch (e: any) { return { providerId: "hubspot", provider: "HubSpot", action, status: "failed", detail: e.message, error: e.message }; }
 }
 async function createHubSpotContact(creds: Record<string, string>, payload: Record<string, any>): Promise<ProviderActionResult> {
-  const { action: _a, tenantId: _t, ...properties } = payload;
-  return hubSpotWrite("create_contact", "POST", "/crm/v3/objects/contacts", creds, payload, properties);
+  const { action: _a, tenantId: _t, __trustedTenantId: _trusted, ...properties } = payload;
+  return hubSpotWrite("create_contact", "POST", "/crm/v3/objects/contacts", creds, payload, properties, payload.__trustedTenantId);
 }
 async function updateHubSpotContact(creds: Record<string, string>, payload: Record<string, any>): Promise<ProviderActionResult> {
   const id = String(payload.contactId || payload.id || "").trim();
   if (!/^[0-9]+$/.test(id)) return { providerId: "hubspot", provider: "HubSpot", action: "update_contact", status: "skipped", detail: "A numeric HubSpot contact ID is required; no request was made." };
-  const { action: _a, tenantId: _t, contactId: _c, id: _i, ...properties } = payload;
-  return hubSpotWrite("update_contact", "PATCH", `/crm/v3/objects/contacts/${id}`, creds, payload, properties);
+  const { action: _a, tenantId: _t, __trustedTenantId: _trusted, contactId: _c, id: _i, ...properties } = payload;
+  return hubSpotWrite("update_contact", "PATCH", `/crm/v3/objects/contacts/${id}`, creds, payload, properties, payload.__trustedTenantId);
 }
 async function createHubSpotTask(creds: Record<string, string>, payload: Record<string, any>): Promise<ProviderActionResult> {
-  const { action: _a, tenantId: _t, ...properties } = payload;
-  return hubSpotWrite("create_task", "POST", "/crm/v3/objects/tasks", creds, payload, properties);
+  const { action: _a, tenantId: _t, __trustedTenantId: _trusted, ...properties } = payload;
+  return hubSpotWrite("create_task", "POST", "/crm/v3/objects/tasks", creds, payload, properties, payload.__trustedTenantId);
 }
 async function createHubSpotDeal(creds: Record<string, string>, payload: Record<string, any>): Promise<ProviderActionResult> {
-  const { action: _a, tenantId: _t, ...properties } = payload;
-  return hubSpotWrite("create_deal", "POST", "/crm/v3/objects/deals", creds, payload, properties);
+  const { action: _a, tenantId: _t, __trustedTenantId: _trusted, ...properties } = payload;
+  return hubSpotWrite("create_deal", "POST", "/crm/v3/objects/deals", creds, payload, properties, payload.__trustedTenantId);
 }
 async function createHubSpotCompany(creds: Record<string, string>, payload: Record<string, any>): Promise<ProviderActionResult> {
-  const { action: _a, tenantId: _t, ...properties } = payload;
-  return hubSpotWrite("create_company", "POST", "/crm/v3/objects/companies", creds, payload, properties);
+  const { action: _a, tenantId: _t, __trustedTenantId: _trusted, ...properties } = payload;
+  return hubSpotWrite("create_company", "POST", "/crm/v3/objects/companies", creds, payload, properties, payload.__trustedTenantId);
 }
 async function updateHubSpotPipelineStage(creds: Record<string, string>, payload: Record<string, any>): Promise<ProviderActionResult> {
   const stage = String(payload.dealstage || payload.pipelineStage || "").trim();
   if (!stage || !/^[A-Za-z0-9_.-]+$/.test(stage)) return { providerId: "hubspot", provider: "HubSpot", action: "update_pipeline_stage", status: "skipped", detail: "A valid pipeline stage is required; no request was made." };
   const id = String(payload.dealId || payload.id || "").trim();
   if (!/^[0-9]+$/.test(id)) return { providerId: "hubspot", provider: "HubSpot", action: "update_pipeline_stage", status: "skipped", detail: "A numeric HubSpot deal ID is required; no request was made." };
-  return hubSpotWrite("update_pipeline_stage", "PATCH", `/crm/v3/objects/deals/${id}`, creds, payload, { dealstage: stage });
+  return hubSpotWrite("update_pipeline_stage", "PATCH", `/crm/v3/objects/deals/${id}`, creds, payload, { dealstage: stage }, payload.__trustedTenantId);
 }
 async function updateSalesforceAccount(creds: Record<string, string>, payload: Record<string, any>): Promise<ProviderActionResult> {
   const accessToken = creds.accessToken || creds.apiKey || "";
