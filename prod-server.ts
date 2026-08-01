@@ -5,7 +5,8 @@ import { compare } from "bcryptjs";
 import { createHash, randomBytes } from "crypto";
 
 // ── Provider API module (server-side only — never imported in .tsx) ──
-import { executeAgent, executeProviderAction, getHubSpotTrustedTenantId } from "./src/lib/provider-api";
+import { executeAgent, executeProviderAction } from "./src/lib/provider-api";
+import { validateOAuthState, consumeOAuthState, usableOAuthToken } from "./src/lib/oauth-safety";
 // ── Agent processor (post-query pipeline) ──
 import { processAgentResults } from "./src/lib/agent-processor";
 
@@ -1214,9 +1215,7 @@ serve({
               c.providerId === action.providerId && c.status === "Connected"
             );
             if (connected) {
-              // Actual launch guard: only the configured single-user tenant owner may execute HubSpot writes. Other users receive no trusted scope and fail closed until DB-backed tenant membership exists.
-              const hubSpotTenant = action.providerId === "hubspot" ? getHubSpotTrustedTenantId(user.email, undefined, readJSON(USERS_FILE)) : null;
-              const actionPayload = { action: action.action, detail: action.detail, ...(action.payload || {}), tenantId: user.email, __trustedTenantId: hubSpotTenant || undefined };
+              const actionPayload = { action: action.action, detail: action.detail, ...(action.payload || {}) };
               const execResult = await executeProviderAction(
                 action.providerId,
                 action.provider,
@@ -1319,7 +1318,6 @@ serve({
           action: "agent.run",
           resource: agent.name,
           detail: "Agent executed with processing: " + output.summary,
-          actions: actionsTaken.map((a: any) => ({ providerId: a.providerId, action: a.action, status: a.status, error: a.error || null })),
           ip: "127.0.0.1",
         });
         alogs1[user.email] = alogUser1;
@@ -1752,7 +1750,7 @@ serve({
       const authProvider = stateEntry.provider;
       const verifier = stateEntry.verifier;
       // Clean up consumed state
-      delete states[state];
+      consumeOAuthState(states, state);
       writeJSON(OAUTH_STATES_FILE, states);
 
       const creds = getOAuthCredentials(authProvider, user.email);
@@ -1798,7 +1796,7 @@ serve({
           );
         }
         
-        if (!tokens?.accessToken || typeof tokens.accessToken !== "string" || tokens.accessToken.trim().length < 8) {
+        if (!usableOAuthToken(tokens)) {
           throw new Error("OAuth provider returned no usable access token");
         }
         // Store tokens in tenant_oauth_credentials.json
