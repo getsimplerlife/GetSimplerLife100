@@ -2,7 +2,7 @@ import { OAuthConfig, buildAuthorizeUrl, exchangeCode, refreshToken, generateSta
 
 const DEFAULT_XERO_SCOPES = ["openid", "profile", "email"];
 // Full accounting scopes (enable in Xero Developer Portal first, then set OAUTH_XERO_SCOPES):
-// "openid profile email accounting.transactions accounting.contacts offline_access"
+// "openid profile email offline_access accounting.invoices accounting.invoices.read accounting.banktransactions accounting.banktransactions.read accounting.settings accounting.settings.read accounting.contacts accounting.contacts.read"
 
 export function getXeroOAuthConfig(config: { clientId: string; clientSecret: string; redirectUri: string }): OAuthConfig {
   const scopeEnv = typeof process !== "undefined" && process.env?.OAUTH_XERO_SCOPES;
