@@ -3,6 +3,7 @@ import { salesOutreachCapabilities } from "./capabilities/sales-outreach";
 import { customerSupportCapabilities } from "./capabilities/customer-support";
 import { hrCoordinatorCapabilities } from "./capabilities/hr-coordinator";
 import { complianceCapabilities } from "./capabilities/compliance";
+import { communicationsCapabilities } from "./capabilities/communications";
 
 /** Registry-free capability matrix; statuses stay unverified until fresh provider evidence exists. */
 export const employeeCapabilityMatrix = {
@@ -11,4 +12,5 @@ export const employeeCapabilityMatrix = {
   customer_support: customerSupportCapabilities,
   hr_coordinator: hrCoordinatorCapabilities,
   compliance: complianceCapabilities,
+  communications: communicationsCapabilities,
 } as const;
