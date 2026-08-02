@@ -81,3 +81,98 @@ export async function createItem(adapter: OperationsAdapter, input: Record<strin
   await options.audit({ capabilityId: "monday-create-item", tenantId: options.tenantId, outcome: "failed", idempotencyKey });
   throw lastError;
 }
+
+
+// Phase 1b extended capabilities
+export const operationsCapabilitiesExtended: ReadonlyArray<CapabilityContract> = [
+  defineCapabilityContract({
+    employeeId: OPERATIONS_EMPLOYEE_ID,
+    capabilityId: "monday-read-column-values",
+    kind: "understand",
+    status: "unverified",
+    providerId: MONDAY_PROVIDER_ID,
+    tenantScoped: true,
+    authRequired: true,
+    auditRequired: true,
+    idempotencyRequired: false,
+    retryPolicy: "bounded",
+    rollback: "not_applicable",
+    evidence: "Provider evidence for this capability is pending.",
+  }),
+  defineCapabilityContract({
+    employeeId: OPERATIONS_EMPLOYEE_ID,
+    capabilityId: "monday-update-column-values",
+    kind: "automate",
+    status: "unverified",
+    providerId: MONDAY_PROVIDER_ID,
+    tenantScoped: true,
+    authRequired: true,
+    auditRequired: true,
+    idempotencyRequired: true,
+    retryPolicy: "bounded",
+    rollback: "available",
+    evidence: "Provider evidence for this capability is pending.",
+  }),
+  defineCapabilityContract({
+    employeeId: OPERATIONS_EMPLOYEE_ID,
+    capabilityId: "monday-move-item",
+    kind: "automate",
+    status: "unverified",
+    providerId: MONDAY_PROVIDER_ID,
+    tenantScoped: true,
+    authRequired: true,
+    auditRequired: true,
+    idempotencyRequired: true,
+    retryPolicy: "bounded",
+    rollback: "available",
+    evidence: "Provider evidence for this capability is pending.",
+  }),
+  defineCapabilityContract({
+    employeeId: OPERATIONS_EMPLOYEE_ID,
+    capabilityId: "monday-read-subitems",
+    kind: "understand",
+    status: "unverified",
+    providerId: MONDAY_PROVIDER_ID,
+    tenantScoped: true,
+    authRequired: true,
+    auditRequired: true,
+    idempotencyRequired: false,
+    retryPolicy: "bounded",
+    rollback: "not_applicable",
+    evidence: "Provider evidence for this capability is pending.",
+  }),
+  defineCapabilityContract({
+    employeeId: OPERATIONS_EMPLOYEE_ID,
+    capabilityId: "monday-read-workspaces",
+    kind: "understand",
+    status: "unverified",
+    providerId: MONDAY_PROVIDER_ID,
+    tenantScoped: true,
+    authRequired: true,
+    auditRequired: true,
+    idempotencyRequired: false,
+    retryPolicy: "bounded",
+    rollback: "not_applicable",
+    evidence: "Provider evidence for this capability is pending.",
+  }),
+];
+export interface OperationsExtendedAdapter {
+  readColumnValues(tenantId: string, input?: Record<string, unknown>, idempotencyKey?: string): Promise<unknown>;
+  updateColumnValues(tenantId: string, input?: Record<string, unknown>, idempotencyKey?: string): Promise<unknown>;
+  moveItem(tenantId: string, input?: Record<string, unknown>, idempotencyKey?: string): Promise<unknown>;
+  readSubitems(tenantId: string, input?: Record<string, unknown>, idempotencyKey?: string): Promise<unknown>;
+  readWorkspaces(tenantId: string, input?: Record<string, unknown>, idempotencyKey?: string): Promise<unknown>;
+  executeExtendedCapability?(capabilityId: string, tenantId: string, input?: Record<string, unknown>, idempotencyKey?: string): Promise<unknown>;
+}
+export async function executeExtendedCapability(adapter: OperationsExtendedAdapter, capabilityId: string, options: { tenantId: string; authToken?: string; audit: (event: { capabilityId: string; tenantId: string; outcome: string; idempotencyKey?: string }) => Promise<void> | void; input?: Record<string, unknown>; idempotencyKey?: string; }): Promise<unknown> {
+  if (!options.tenantId.trim()) throw new Error("Tenant scope is required");
+  if (!options.authToken?.trim()) throw new Error("Provider authentication is required");
+  const write = new Set(["monday-update-column-values", "move-item"]);
+  if (write.has(capabilityId) && !options.idempotencyKey?.trim()) throw new Error("Idempotency key is required");
+  const method = capabilityId.replace(/^monday-/, "").replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+  const named = (adapter as any)[method];
+  const fn = named ?? adapter.executeExtendedCapability;
+  if (typeof fn !== "function") throw new Error("Unsupported capability");
+  try { const result = named ? await fn.call(adapter, options.tenantId, options.input, options.idempotencyKey) : await fn.call(adapter, capabilityId, options.tenantId, options.input, options.idempotencyKey); await options.audit({ capabilityId, tenantId: options.tenantId, outcome: "succeeded", ...(options.idempotencyKey ? { idempotencyKey: options.idempotencyKey } : {}) }); return result; }
+  catch (error) { await options.audit({ capabilityId, tenantId: options.tenantId, outcome: "failed", ...(options.idempotencyKey ? { idempotencyKey: options.idempotencyKey } : {}) }); throw error; }
+}
