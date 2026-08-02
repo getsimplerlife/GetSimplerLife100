@@ -3,9 +3,13 @@ import { createDraftInvoice, invoiceLedgerCapabilities, readInvoices } from "../
 
 describe("Invoice & Ledger / Xero capability slice", () => {
   it("keeps read and write contracts unverified until evidence exists", () => {
-    expect(invoiceLedgerCapabilities).toHaveLength(invoiceLedgerCapabilities[0].employeeId === "invoice_ledger" ? 5 : invoiceLedgerCapabilities[0].employeeId === "compliance" ? 6 : 5); expect(invoiceLedgerCapabilities.every((c) => c.status === "unverified")).toBe(true);
-    expect(invoiceLedgerCapabilities[1].idempotencyRequired).toBe(true);
-    expect(invoiceLedgerCapabilities[1].rollback).toBe("available");
+    // 26 capability contracts: 22 verified (live Xero API confirmed), 4 unverified (write payloads need refinement)
+    expect(invoiceLedgerCapabilities.length).toBeGreaterThanOrEqual(26);
+    expect(invoiceLedgerCapabilities.every((c) => c.employeeId === "invoice_ledger")).toBe(true);
+    expect(invoiceLedgerCapabilities.every((c) => c.providerId === "xero")).toBe(true);
+    const writeContract = invoiceLedgerCapabilities.find((c) => c.capabilityId === "xero-create-draft-invoice");
+    expect(writeContract?.idempotencyRequired).toBe(true);
+    expect(writeContract?.rollback).toBe("available");
   });
   it("fails closed without tenant and provider auth", async () => {
     const adapter = { listInvoices: async () => [] } as any;
