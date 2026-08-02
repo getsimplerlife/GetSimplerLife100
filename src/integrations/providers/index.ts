@@ -9,6 +9,28 @@ import { registry, type ProviderMetadata } from "../framework/registry";
 
 // ── Provider Metadata Registry ────────────────────────────────────────────────
 
+/**
+ * Determine the authentication contract from the provider module's exported
+ * auth implementation.  This intentionally errs toward api_key: a provider
+ * must not be advertised as OAuth merely because it is present in the
+ * registry.  Provider modules that need a different contract expose an
+ * explicit OAuth/basic/JWT auth helper.
+ */
+function deriveAuthType(module: Record<string, any>): ProviderMetadata["authType"] {
+  const authExports = Object.keys(module)
+    .filter((key) => /auth|token|credential/i.test(key))
+    .join(" ")
+    .toLowerCase();
+
+  if (/oauth/.test(authExports)) return "oauth2";
+  if (/jwt/.test(authExports)) return "jwt";
+  // Basic-auth implementations commonly expose only a generic header helper;
+  // keep this narrow reviewed list rather than inferring from provider names.
+  const providerId = String(module.PROVIDER_ID ?? "");
+  if (["airflow", "mirth-connect", "service-now", "servicenow", "smtp", "zendesk"].includes(providerId)) return "basic";
+  return "api_key";
+}
+
 function registerProvider(module: {
   PROVIDER_ID: string;
   PROVIDER_NAME: string;
@@ -114,16 +136,20 @@ function registerProvider(module: {
     name: module.PROVIDER_NAME,
     description: `${module.PROVIDER_NAME} integration for Simpler Life 100`,
     category: module.PROVIDER_CATEGORY as any,
-    authType: "oauth2",
-    docsUrl: `https://developers.${module.PROVIDER_ID}.com`,
+    authType: deriveAuthType(module),
+    // No provider URL is inferred here. Add a URL only after it has been
+    // explicitly reviewed against the provider's official documentation.
+    docsUrl: "",
     actions: actions.map((a: any) => ({
       name: a.name,
       description: a.description,
       inputSchema: a.inputSchema,
     })),
     triggers: [],
-    configSchema: {},
-    status: "active",
+    configSchema: { type: "object" },
+    // Registration is not verification. Connectivity remains unverified until
+    // a provider-specific auth/read/write evidence gate has passed.
+    status: "beta",
   };
 
   registry.register(metadata);
