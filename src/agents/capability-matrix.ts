@@ -9,6 +9,7 @@ import { manufacturingCapabilities } from "./capabilities/manufacturing";
 import { procurementCapabilities } from "./capabilities/procurement";
 import { customerSuccessCapabilities } from "./capabilities/customer-success";
 import { operationsCapabilities } from "./capabilities/operations";
+import { financeCapabilities } from "./capabilities/finance";
 
 /** Registry-free capability matrix; statuses stay unverified until fresh provider evidence exists. */
 export const employeeCapabilityMatrix = {
@@ -23,4 +24,5 @@ export const employeeCapabilityMatrix = {
   procurement: procurementCapabilities,
   customer_success: customerSuccessCapabilities,
   operations: operationsCapabilities,
+  finance: financeCapabilities,
 } as const;
