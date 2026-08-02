@@ -65,6 +65,10 @@ function getOAuthRedirectUri(_provider: string, req?: Request): string {
   const isLocal = host.includes("localhost") || host.includes("127.0.0.1") || host.startsWith("::1");
   const base = process.env.OAUTH_REDIRECT_BASE
     || (host ? `${isLocal ? "http" : "https"}://${host}` : "http://localhost:3000");
+  // Xero rejects redirect URIs with query parameters — use path-based format
+  if (_provider === "xero") {
+    return `${base}/api/oauth/callback/xero`;
+  }
   return `${base}/api/oauth/callback`;
 }
 
@@ -1798,7 +1802,9 @@ serve({
 
 
     // ── /api/oauth/callback ───────────────────────────────────────
-    if (pathname === "/api/oauth/callback") {
+    if (pathname === "/api/oauth/callback" || pathname.match(/^\/api\/oauth\/callback\/(.+)$/)) {
+      // Path-based providers (e.g. xero) embed the provider ID in the URL path
+      const pathProvider = (pathname.match(/^\/api\/oauth\/callback\/(.+)$/) || [])[1] || null;
       const code = url.searchParams.get("code");
       const state = url.searchParams.get("state");
       const errorParam = url.searchParams.get("error");
