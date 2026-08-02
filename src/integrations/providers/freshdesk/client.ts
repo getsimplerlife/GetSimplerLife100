@@ -3,6 +3,7 @@ import { HttpClient } from "../../framework/client"; import { ConnectionConfig }
 export class FreshdeskClient {
   private client: HttpClient;
   constructor(apiKey: string, domain: string) {
+    this.apiKey = apiKey;
     this.client = new HttpClient({ baseUrl: `https://${domain}.freshdesk.com/api/v2`, rateLimit: { maxRequestsPerSecond: 10 }, retry: { maxRetries: 3, baseDelay: 1000, maxDelay: 10000 }, timeout: 30000 });
   }
   private get headers() { return { Authorization: `Basic ${Buffer.from(`${this.apiKey}:X`).toString("base64")}`, "Content-Type": "application/json" }; }

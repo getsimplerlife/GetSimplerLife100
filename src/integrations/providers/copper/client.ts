@@ -3,6 +3,7 @@ import { HttpClient } from "../../framework/client"; import { ConnectionConfig }
 export class CopperClient {
   private client: HttpClient; private headers: Record<string, string>;
   constructor(apiKey: string, email: string) {
+    this.apiKey = apiKey;
     this.client = new HttpClient({ baseUrl: "https://api.copper.com/developer_api/v1", rateLimit: { maxRequestsPerSecond: 10 }, retry: { maxRetries: 3, baseDelay: 1000, maxDelay: 10000 }, timeout: 30000 });
     this.headers = { "X-PW-AccessToken": apiKey, "X-PW-Application": "developer_api", "X-PW-UserEmail": email };
   }
