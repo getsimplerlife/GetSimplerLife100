@@ -299,6 +299,14 @@ function getProviderCategory(providerId: string): string {
   return "";
 }
 
+// ── Monitoring tenant gate hydration ──────────────────────────────────
+import { hydrateTenants, configureTenant } from "./src/monitoring/gates";
+
+// ── Startup: hydrate tenant monitoring gates from purchase data ──────
+const initialPurchases = readJSON(TENANT_PURCHASES_FILE);
+hydrateTenants(initialPurchases);
+configureTenant("mathewortiz97@gmail.com", { purchased: true, status: "Active" });
+
 serve({
   port: 3000,
   async fetch(req) {
@@ -1709,6 +1717,7 @@ serve({
 
             purchases[customerEmail] = userPurchases;
             writeJSON(TENANT_PURCHASES_FILE, purchases);
+            configureTenant(customerEmail, { purchased: true, status: "Active" });
             return Response.json({ received: true });
           }
 
@@ -1734,6 +1743,7 @@ serve({
             });
             purchases[customerEmail] = userPurchases;
             writeJSON(TENANT_PURCHASES_FILE, purchases);
+            configureTenant(customerEmail, { purchased: true, status: "Active" });
             console.log(`[webhook] Provisioned ${matchedAgent.name} for ${customerEmail}`);
           } else if (customerEmail) {
             // Generic purchase — record it
@@ -1748,6 +1758,7 @@ serve({
             });
             purchases[customerEmail] = userPurchases;
             writeJSON(TENANT_PURCHASES_FILE, purchases);
+            configureTenant(customerEmail, { purchased: true, status: "Active" });
             console.log(`[webhook] Recorded purchase for ${customerEmail}`);
           }
         }
