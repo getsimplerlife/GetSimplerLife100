@@ -484,29 +484,15 @@ export async function handleGetProvider(req: Request): Promise<Response> {
 
 export async function handleWebhookReceiver(req: Request): Promise<Response> {
   const url = new URL(req.url);
-  const provider = url.searchParams.get("provider") || url.pathname.split("/").pop();
-  if (!provider) return error("Missing provider parameter");
-
+  const match = url.pathname.match(/^\/api\/webhooks\/(zendesk)\/([^/]+)$/);
+  if (!match) return error("Tenant-bound provider webhook route required", 404);
+  const [, provider, connectionId] = match;
   const body = await req.text();
-  const contentType = req.headers.get("content-type") || "";
-
-  // For webhooks, we check all connections across users for this provider
-  // This requires a direct DB query since the helper needs userId
-  const { db } = await import("../db/index");
-  const { integrations } = await import("../db/schema");
-  const { eq } = await import("drizzle-orm");
-  const connections = await db.select().from(integrations).where(eq(integrations.provider, provider));
-
-  if (connections.length === 0) return json({ received: true, note: "No connections for this provider" });
-
-  // Fire events to all connected users
-  for (const conn of connections) {
-    try {
-      await updateConnectionStatus(conn.id, conn.userId, conn.status as any, undefined);
-    } catch { /* ignore per-connection errors */ }
-  }
-
-  return json({ received: true, provider, eventCount: connections.length });
+  const signature = req.headers.get("x-zendesk-webhook-signature") || req.headers.get("x-webhook-signature");
+  if (!signature || !body) return error("Authenticated tenant-bound webhook required", 401);
+  // Do not scan connections or acknowledge/dispatch until a reviewed DB adapter
+  // resolves this exact connection, verifies its secret, and applies entitlement gates.
+  return json({ accepted: false, provider, connectionId, error: "Monitoring verification infrastructure is not enabled; no event was dispatched" }, 503);
 }
 
 // ─── 6. Integration Monitoring ────────────────────────────────────────────────
