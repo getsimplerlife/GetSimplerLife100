@@ -16,20 +16,26 @@ import { processAgentResults } from "../lib/agent-processor";
 
 const CREDS = { accessToken: "test-token-456" };
 
+const originalFetch = globalThis.fetch;
 let fetchMock: ReturnType<typeof vi.fn>;
+let fetchCallCount = 0;
 
 beforeEach(() => {
-  fetchMock = vi.fn(async () => ({
-    ok: true,
-    status: 200,
-    headers: { get: () => "application/json" },
-    json: async () => ({ id: "rec-1", ok: true, key: "PROJ-1", ts: "1.2", channel: "C1" }),
-  }));
-  vi.stubGlobal("fetch", fetchMock);
+  fetchCallCount = 0;
+  fetchMock = vi.fn(async () => {
+    fetchCallCount++;
+    return {
+      ok: true,
+      status: 200,
+      headers: { get: () => "application/json" },
+      json: async () => ({ id: "rec-1", ok: true, key: "PROJ-1", ts: "1.2", channel: "C1" }),
+    } as Response;
+  });
+  globalThis.fetch = fetchMock as unknown as typeof globalThis.fetch;
 });
 
 afterEach(() => {
-  vi.unstubAllGlobals();
+  globalThis.fetch = originalFetch;
 });
 
 // ──────────────────────────────────────────────────────────────────────
