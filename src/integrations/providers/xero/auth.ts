@@ -1,7 +1,13 @@
 import { OAuthConfig, buildAuthorizeUrl, exchangeCode, refreshToken, generateState, generateCodeVerifier, isTokenExpired } from "../../framework/oauth";
 
+const DEFAULT_XERO_SCOPES = ["openid", "profile", "email"];
+// Full accounting scopes (enable in Xero Developer Portal first, then set OAUTH_XERO_SCOPES):
+// "openid profile email accounting.transactions accounting.contacts offline_access"
+
 export function getXeroOAuthConfig(config: { clientId: string; clientSecret: string; redirectUri: string }): OAuthConfig {
-  return { clientId: config.clientId, clientSecret: config.clientSecret, redirectUri: config.redirectUri, scopes: ["openid", "profile", "email", "accounting.transactions", "accounting.settings", "accounting.contacts", "offline_access"], authorizeUrl: "https://login.xero.com/identity/connect/authorize", tokenUrl: "https://identity.xero.com/connect/token", flowType: "authorization_code", usePKCE: true };
+  const scopeEnv = typeof process !== "undefined" && process.env?.OAUTH_XERO_SCOPES;
+  const scopes = scopeEnv ? scopeEnv.split(" ").filter(Boolean) : DEFAULT_XERO_SCOPES;
+  return { clientId: config.clientId, clientSecret: config.clientSecret, redirectUri: config.redirectUri, scopes, authorizeUrl: "https://login.xero.com/identity/connect/authorize", tokenUrl: "https://identity.xero.com/connect/token", flowType: "authorization_code", usePKCE: true };
 }
 export async function buildXeroAuthUrl(config: any): Promise<{ url: string; state: string; verifier: string }> {
   const o = getXeroOAuthConfig(config); const s = generateState(); const v = generateCodeVerifier();

@@ -78,7 +78,7 @@ describe("End-to-end purchase provisioning", () => {
   });
 
   it("entitled tenant is accepted at monitoring webhook after purchase", async () => {
-    const { json } = await post("/api/monitoring/webhook/xero", {
+    const { json } = await post("/api/monitoring/webhook/hubspot", {
       employeeId: "emp-invoice-ledger-ai",
       eventType: "invoice.created",
       tenantId: TEST_EMAIL,
@@ -92,7 +92,7 @@ describe("End-to-end purchase provisioning", () => {
   it("duplicate events are skipped", async () => {
     const eventId = "e2e-dup-" + Date.now();
 
-    const { json: first } = await post("/api/monitoring/webhook/xero", {
+    const { json: first } = await post("/api/monitoring/webhook/hubspot", {
       id: eventId,
       employeeId: "emp-invoice-ledger-ai",
       eventType: "invoice.created",
@@ -101,7 +101,7 @@ describe("End-to-end purchase provisioning", () => {
     });
     expect(first.status).toBe("processed");
 
-    const { json: second } = await post("/api/monitoring/webhook/xero", {
+    const { json: second } = await post("/api/monitoring/webhook/hubspot", {
       id: eventId,
       employeeId: "emp-invoice-ledger-ai",
       eventType: "invoice.created",

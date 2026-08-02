@@ -219,7 +219,9 @@ export async function handleOAuthAuthorize(req: Request): Promise<Response> {
     const result = await buildFn({
       clientId,
       clientSecret,
-      redirectUri: `${SITE_ORIGIN}/api/oauth/callback?provider=${providerId}`,
+      redirectUri: providerId === "xero"
+        ? `${SITE_ORIGIN}/api/oauth/callback/${providerId}`
+        : `${SITE_ORIGIN}/api/oauth/callback?provider=${providerId}`,
       ...(providerMeta.defaultConfig || {}),
     });
     authorizeUrl = result.url;
@@ -235,7 +237,9 @@ export async function handleOAuthAuthorize(req: Request): Promise<Response> {
     const oauthConfig: OAuthConfig = {
       clientId,
       clientSecret,
-      redirectUri: `${SITE_ORIGIN}/api/oauth/callback?provider=${providerId}`,
+      redirectUri: providerId === "xero"
+        ? `${SITE_ORIGIN}/api/oauth/callback/${providerId}`
+        : `${SITE_ORIGIN}/api/oauth/callback?provider=${providerId}`,
       scopes: providerMeta.scopes || [],
       authorizeUrl: providerMeta.authorizeUrl || "",
       tokenUrl: providerMeta.tokenUrl || "",
@@ -261,7 +265,12 @@ export async function handleOAuthAuthorize(req: Request): Promise<Response> {
 
 export async function handleOAuthCallback(req: Request): Promise<Response> {
   const url = new URL(req.url);
-  const providerId = url.searchParams.get("provider");
+  // Support both query-param (?provider=xero) and path-based (/callback/xero)
+  let providerId = url.searchParams.get("provider");
+  if (!providerId) {
+    const pathMatch = url.pathname.match(/^\/api\/oauth\/callback\/([a-z0-9_-]+)$/);
+    if (pathMatch) providerId = pathMatch[1];
+  }
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
 
@@ -293,7 +302,9 @@ export async function handleOAuthCallback(req: Request): Promise<Response> {
       tokens = await exchangeFn({
         clientId,
         clientSecret,
-        redirectUri: `${SITE_ORIGIN}/api/oauth/callback?provider=${providerId}`,
+        redirectUri: providerId === "xero"
+        ? `${SITE_ORIGIN}/api/oauth/callback/${providerId}`
+        : `${SITE_ORIGIN}/api/oauth/callback?provider=${providerId}`,
         ...(providerMeta.defaultConfig || {}),
       }, code, "");
     } else {
@@ -302,7 +313,9 @@ export async function handleOAuthCallback(req: Request): Promise<Response> {
       const oauthConfig: OAuthConfig = {
         clientId,
         clientSecret,
-        redirectUri: `${SITE_ORIGIN}/api/oauth/callback?provider=${providerId}`,
+        redirectUri: providerId === "xero"
+        ? `${SITE_ORIGIN}/api/oauth/callback/${providerId}`
+        : `${SITE_ORIGIN}/api/oauth/callback?provider=${providerId}`,
         scopes: providerMeta.scopes || [],
         authorizeUrl: providerMeta.authorizeUrl || "",
         tokenUrl: providerMeta.tokenUrl || "",
@@ -544,6 +557,7 @@ export async function routeIntegrationRequest(req: Request): Promise<Response | 
   // OAuth
   if (pathname === "/api/oauth/authorize" && req.method === "GET") return handleOAuthAuthorize(req);
   if (pathname === "/api/oauth/callback" && req.method === "GET") return handleOAuthCallback(req);
+  if (pathname.match(/^\/api\/oauth\/callback\/[a-z0-9_-]+$/) && req.method === "GET") return handleOAuthCallback(req);
 
   // Provider Metadata
   if (pathname === "/api/integrations/providers" && req.method === "GET") return handleListProviders(req);
