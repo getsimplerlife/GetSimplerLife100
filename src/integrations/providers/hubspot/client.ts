@@ -101,16 +101,19 @@ export class HubSpotClient {
 
   private async search(entity: string, filterGroups: any[], properties: string[], limit = 50): Promise<HubSpotSearchResult<any>> {
     await this.ensureToken();
+    // HubSpot rejects empty CONTAINS_TOKEN filter values; use no filters to list all records.
+    const body: Record<string, unknown> = { properties, limit };
+    if (filterGroups.length > 0) body.filterGroups = filterGroups;
     const res = await this.client.post(
       `/crm/v3/objects/${entity}/search`,
-      { filterGroups, properties, limit },
+      body,
       this.authHeaders,
     );
     return res.data;
   }
 
   async searchContacts(query: string): Promise<HubSpotSearchResult<HubSpotContact>> {
-    return this.search("contacts", [{ filters: [{ propertyName: "email", operator: "CONTAINS_TOKEN", value: query }] }], ["firstname", "lastname", "email", "phone", "jobtitle", "company", "hs_object_id"]);
+    return this.search("contacts", query ? [{ filters: [{ propertyName: "email", operator: "CONTAINS_TOKEN", value: query }] }] : [], ["firstname", "lastname", "email", "phone", "jobtitle", "company", "hs_object_id"]);
   }
 
   async createContact(data: Partial<HubSpotContact["properties"]>): Promise<string> {
@@ -126,7 +129,7 @@ export class HubSpotClient {
   }
 
   async searchCompanies(query: string): Promise<HubSpotSearchResult<HubSpotCompany>> {
-    return this.search("companies", [{ filters: [{ propertyName: "name", operator: "CONTAINS_TOKEN", value: query }] }], ["name", "domain", "industry", "phone", "city", "state", "country", "hs_object_id"]);
+    return this.search("companies", query ? [{ filters: [{ propertyName: "name", operator: "CONTAINS_TOKEN", value: query }] }] : [], ["name", "domain", "industry", "phone", "city", "state", "country", "hs_object_id"]);
   }
 
   async createCompany(data: Partial<HubSpotCompany["properties"]>): Promise<string> {
@@ -142,7 +145,7 @@ export class HubSpotClient {
   }
 
   async searchDeals(query: string): Promise<HubSpotSearchResult<HubSpotDeal>> {
-    return this.search("deals", [{ filters: [{ propertyName: "dealname", operator: "CONTAINS_TOKEN", value: query }] }], ["dealname", "dealstage", "pipeline", "amount", "closedate", "dealtype", "hs_object_id"]);
+    return this.search("deals", query ? [{ filters: [{ propertyName: "dealname", operator: "CONTAINS_TOKEN", value: query }] }] : [], ["dealname", "dealstage", "pipeline", "amount", "closedate", "dealtype", "hs_object_id"]);
   }
 
   async createDeal(data: Partial<HubSpotDeal["properties"]>): Promise<string> {
@@ -167,6 +170,28 @@ export class HubSpotClient {
     await this.ensureToken();
     const res = await this.client.get<{ results: any[] }>("/crm/v3/pipelines/deals", this.authHeaders);
     return res.data.results;
+  }
+
+  async searchTickets(query: string): Promise<HubSpotSearchResult<any>> {
+    return this.search("tickets", query ? [{ filters: [{ propertyName: "subject", operator: "CONTAINS_TOKEN", value: query }] }] : [], ["subject", "content", "hs_pipeline", "hs_pipeline_stage", "createdate", "hs_object_id"]);
+  }
+
+  async updateDeal(id: string, data: Partial<HubSpotDeal["properties"]>): Promise<void> {
+    await this.ensureToken();
+    const res = await this.client.patch(`/crm/v3/objects/deals/${id}`, { properties: data }, this.authHeaders);
+    if (!res.ok) throw new Error(`HubSpot updateDeal failed HTTP ${res.status}`);
+  }
+
+  async updateContact(id: string, data: Partial<HubSpotContact["properties"]>): Promise<void> {
+    await this.ensureToken();
+    const res = await this.client.patch(`/crm/v3/objects/contacts/${id}`, { properties: data }, this.authHeaders);
+    if (!res.ok) throw new Error(`HubSpot updateContact failed HTTP ${res.status}`);
+  }
+
+  async deleteObject(kind: "contacts" | "deals" | "companies", id: string): Promise<void> {
+    await this.ensureToken();
+    const res = await this.client.delete(`/crm/v3/objects/${kind}/${id}`, this.authHeaders);
+    if (!res.ok && res.status !== 404) throw new Error(`HubSpot delete ${kind}/${id} failed HTTP ${res.status}`);
   }
 
   async healthCheck(): Promise<boolean> {
