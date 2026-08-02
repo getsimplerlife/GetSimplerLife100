@@ -4,12 +4,12 @@ import { customerSupportCapabilities } from "./capabilities/customer-support";
 import { hrCoordinatorCapabilities } from "./capabilities/hr-coordinator";
 import { complianceCapabilities } from "./capabilities/compliance";
 import { communicationsCapabilities } from "./capabilities/communications";
-import { logisticsCapabilities } from "./capabilities/logistics";
-import { manufacturingCapabilities } from "./capabilities/manufacturing";
-import { procurementCapabilities } from "./capabilities/procurement";
-import { customerSuccessCapabilities } from "./capabilities/customer-success";
-import { operationsCapabilities } from "./capabilities/operations";
-import { financeCapabilities } from "./capabilities/finance";
+import { logisticsCapabilities, logisticsCapabilitiesExtended } from "./capabilities/logistics";
+import { manufacturingCapabilities, manufacturingCapabilitiesExtended } from "./capabilities/manufacturing";
+import { procurementCapabilities, procurementCapabilitiesExtended } from "./capabilities/procurement";
+import { customerSuccessCapabilities, customerSuccessCapabilitiesExtended } from "./capabilities/customer-success";
+import { operationsCapabilities, operationsCapabilitiesExtended } from "./capabilities/operations";
+import { financeCapabilities, financeCapabilitiesExtended } from "./capabilities/finance";
 import { salesCapabilities } from "./capabilities/sales";
 import { marketingCapabilities } from "./capabilities/marketing";
 import { itOperationsCapabilities } from "./capabilities/it-operations";
@@ -25,12 +25,12 @@ export const employeeCapabilityMatrix = {
   hr_coordinator: hrCoordinatorCapabilities,
   compliance: complianceCapabilities,
   communications: communicationsCapabilities,
-  logistics: logisticsCapabilities,
-  manufacturing: manufacturingCapabilities,
-  procurement: procurementCapabilities,
-  customer_success: customerSuccessCapabilities,
-  operations: operationsCapabilities,
-  finance: financeCapabilities,
+  logistics: [...logisticsCapabilities, ...logisticsCapabilitiesExtended],
+  manufacturing: [...manufacturingCapabilities, ...manufacturingCapabilitiesExtended],
+  procurement: [...procurementCapabilities, ...procurementCapabilitiesExtended],
+  customer_success: [...customerSuccessCapabilities, ...customerSuccessCapabilitiesExtended],
+  operations: [...operationsCapabilities, ...operationsCapabilitiesExtended],
+  finance: [...financeCapabilities, ...financeCapabilitiesExtended],
   sales: salesCapabilities,
   marketing: marketingCapabilities,
   it_operations: itOperationsCapabilities,
