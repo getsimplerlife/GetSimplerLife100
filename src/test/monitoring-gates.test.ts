@@ -1,0 +1,12 @@
+import { describe, expect, it } from "vitest";
+import { createHmac } from "node:crypto";
+import { createDurableEventLeaseStore, normalizeWebhookEvent, verifyWebhookSignature } from "../lib/monitoring-gates";
+
+const secret = "tenant-zendesk-secret";
+function signed(body: string, at = Math.floor(Date.now() / 1000)) { const digest = createHmac("sha256", secret).update(`${at}.${body}`).digest("hex"); return `t=${at},v1=${digest}`; }
+describe("tenant-bound monitoring ingress gates", () => {
+  it("verifies signed ticket.created payload and binds connection tenant", () => { const body = JSON.stringify({ id: "evt-1", type: "ticket.created" }); const connection = { id: "conn-a", tenantId: "tenant-a", providerId: "zendesk", webhookSecret: secret, active: true }; const event = normalizeWebhookEvent(body, connection, signed(body)); expect(event?.tenantId).toBe("tenant-a"); expect(event?.connectionId).toBe("conn-a"); });
+  it("rejects bad signatures, stale signatures, and unsupported event types", () => { const body = JSON.stringify({ id: "evt-1", type: "ticket.created" }); expect(verifyWebhookSignature(body, "t=1,v1=" + "0".repeat(64), secret)).toBe(false); const connection = { id: "conn-a", tenantId: "tenant-a", providerId: "zendesk", webhookSecret: secret, active: true }; expect(normalizeWebhookEvent(JSON.stringify({ id: "evt-1", type: "ticket.updated" }), connection, signed(body))).toBeNull(); });
+  it("rejects malformed payloads without network/provider behavior", () => { const connection = { id: "conn-a", tenantId: "tenant-a", providerId: "zendesk", webhookSecret: secret, active: true }; expect(normalizeWebhookEvent("not-json", connection, signed("not-json"))).toBeNull(); });
+  it("claims a durable event once and deduplicates a second claim", async () => { const calls: string[] = []; const db = { async run(query: unknown) { const text = String(query); calls.push(text); return { changes: text.startsWith("INSERT") && calls.filter((c) => c.startsWith("INSERT")).length === 1 ? 1 : 0 }; } }; const store = createDurableEventLeaseStore(db); const event = { eventId: "evt-1", tenantId: "tenant-a", connectionId: "conn-a", providerId: "zendesk", payloadHash: "hash", rawBody: "{}", receivedAt: new Date().toISOString() }; expect(await store.claim("tenant-a:conn-a:zendesk:evt-1:ticket.created", event, 1000)).toBe("claimed"); expect(await store.claim("tenant-a:conn-a:zendesk:evt-1:ticket.created", event, 1000)).toBe("duplicate"); expect(calls.length).toBe(4); });
+});
