@@ -47,6 +47,7 @@ export interface ReportEntry {
   status: EntryStatus;
   httpStatus?: number;
   responseShape?: string;
+  responseSummary?: string;
   errorMessage?: string;
   reason?: string;
   timestamp?: string;
@@ -126,6 +127,7 @@ export async function runBatchVerification(options: CliOptions): Promise<BatchRe
       status: result.status === "verified" ? "verified" : "failed",
       httpStatus: result.evidence.httpStatus,
       responseShape: result.evidence.responseShape,
+      responseSummary: result.evidence.responseSummary,
       errorMessage: result.evidence.errorMessage,
       timestamp: result.evidence.timestamp,
     });
@@ -158,7 +160,7 @@ function renderMarkdown(report: BatchReport): string {
   lines.push("| capability | kind | status | http | evidence / reason |");
   lines.push("|---|---|---|---|---|");
   for (const e of report.entries) {
-    const detail = e.errorMessage || e.reason || e.responseShape || "";
+    const detail = e.errorMessage || e.reason || e.responseSummary || e.responseShape || "";
     lines.push(`| ${e.capabilityId} | ${e.kind} | ${e.status} | ${e.httpStatus ?? "—"} | ${detail} |`);
   }
   lines.push("");

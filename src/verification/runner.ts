@@ -25,6 +25,7 @@ export async function runVerification(
     const result = await withTimeout(verify(contract, credentials), options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
     evidence.httpStatus = result.httpStatus;
     evidence.responseShape = describeShape(result.response);
+    evidence.responseSummary = summarizeResponse(result.response);
     return { capabilityId: contract.capabilityId, status: "verified", evidence, expiresAt };
   } catch (error) {
     evidence.errorMessage = error instanceof Error ? error.message : String(error);
@@ -36,6 +37,27 @@ function describeShape(value: unknown): string {
   if (value === null) return "null";
   if (Array.isArray(value)) return "array";
   return typeof value === "object" ? "object" : typeof value;
+}
+
+/** Compact, safe summary of a successful verification response (no token/PII values). */
+function summarizeResponse(value: unknown): string | undefined {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
+  const parts: string[] = [];
+  for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof val === "boolean" || typeof val === "number") {
+      parts.push(`${key}=${String(val)}`);
+    } else if (typeof val === "string") {
+      parts.push(`${key}="${val.slice(0, 40)}"`);
+    } else if (Array.isArray(val)) {
+      parts.push(`${key}=[${val.length}]`);
+    } else if (typeof val === "object" && val !== null) {
+      parts.push(`${key}={}`);
+    } else {
+      parts.push(`${key}=null`);
+    }
+    if (parts.join(",").length > 160) break;
+  }
+  return parts.length > 0 ? parts.join(", ") : undefined;
 }
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {

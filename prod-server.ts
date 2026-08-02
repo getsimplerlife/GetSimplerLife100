@@ -60,11 +60,13 @@ function getOAuthCredentials(provider: string): { clientId: string; clientSecret
   return null;
 }
 
-function getOAuthRedirectUri(_provider: string, req?: Request): string {
+function getOAuthRedirectUri(provider: string, req?: Request): string {
   const host = req?.headers.get("x-forwarded-host") || req?.headers.get("host") || "";
   const isLocal = host.includes("localhost") || host.includes("127.0.0.1") || host.startsWith("::1");
   const base = process.env.OAUTH_REDIRECT_BASE
     || (host ? `${isLocal ? "http" : "https"}://${host}` : "http://localhost:3000");
+  // Provider-specific redirect URIs (must match what's registered in the OAuth app)
+  if (provider === "xero") return `${base}/api/xero-callback`;
   return `${base}/api/oauth/callback`;
 }
 
@@ -1717,6 +1719,14 @@ serve({
         return Response.json({ received: true });
       }
     }
+
+    // ── /api/xero-callback (Xero-specific redirect URI) ───────────────────
+    if (pathname === "/api/xero-callback") {
+      const params = url.searchParams.toString();
+      const target = `/api/oauth/callback?provider=xero${params ? "&" + params : ""}`;
+      return Response.redirect(target, 302);
+    }
+
 
 
     // ── /api/oauth/callback ───────────────────────────────────────
