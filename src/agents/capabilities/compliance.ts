@@ -4,7 +4,63 @@ export const JIRA_PROVIDER_ID = "jira";
 export const complianceCapabilities: ReadonlyArray<CapabilityContract> = [
   defineCapabilityContract({ employeeId: COMPLIANCE_EMPLOYEE_ID, capabilityId: "jira-read-audit-items", kind: "understand", status: "unverified", providerId: JIRA_PROVIDER_ID, tenantScoped: true, authRequired: true, auditRequired: true, idempotencyRequired: false, retryPolicy: "bounded", rollback: "not_applicable", evidence: "Jira provider module exposes audit-item read capability; authorized tenant read evidence is pending." }),
   defineCapabilityContract({ employeeId: COMPLIANCE_EMPLOYEE_ID, capabilityId: "jira-create-audit-finding", kind: "automate", status: "unverified", providerId: JIRA_PROVIDER_ID, tenantScoped: true, authRequired: true, auditRequired: true, idempotencyRequired: true, retryPolicy: "bounded", rollback: "available", evidence: "Jira provider module exposes audit-finding creation capability; authorized write, idempotency, and rollback evidence is pending." }),
-  defineCapabilityContract({ employeeId: COMPLIANCE_EMPLOYEE_ID, capabilityId: "jira-read-projects", kind: "understand", status: "unverified", providerId: JIRA_PROVIDER_ID, tenantScoped: true, authRequired: true, auditRequired: true, idempotencyRequired: false, retryPolicy: "bounded", rollback: "not_applicable", evidence: "Provider adapter capability path exists; authorized tenant evidence is pending." }),  defineCapabilityContract({ employeeId: COMPLIANCE_EMPLOYEE_ID, capabilityId: "jira-link-issues", kind: "automate", status: "unverified", providerId: JIRA_PROVIDER_ID, tenantScoped: true, authRequired: true, auditRequired: true, idempotencyRequired: true, retryPolicy: "bounded", rollback: "available", evidence: "Provider adapter capability path exists; authorized tenant evidence is pending." }),  defineCapabilityContract({ employeeId: COMPLIANCE_EMPLOYEE_ID, capabilityId: "jira-read-comments", kind: "understand", status: "unverified", providerId: JIRA_PROVIDER_ID, tenantScoped: true, authRequired: true, auditRequired: true, idempotencyRequired: false, retryPolicy: "bounded", rollback: "not_applicable", evidence: "Provider adapter capability path exists; authorized tenant evidence is pending." }),  defineCapabilityContract({ employeeId: COMPLIANCE_EMPLOYEE_ID, capabilityId: "jira-transition-issue", kind: "automate", status: "unverified", providerId: JIRA_PROVIDER_ID, tenantScoped: true, authRequired: true, auditRequired: true, idempotencyRequired: true, retryPolicy: "bounded", rollback: "available", evidence: "Provider adapter capability path exists; authorized tenant evidence is pending." }),];
+  defineCapabilityContract({
+    employeeId: COMPLIANCE_EMPLOYEE_ID,
+    capabilityId: "jira-read-projects",
+    kind: "understand",
+    status: "unverified",
+    providerId: JIRA_PROVIDER_ID,
+    tenantScoped: true,
+    authRequired: true,
+    auditRequired: true,
+    idempotencyRequired: false,
+    retryPolicy: "bounded",
+    rollback: "not_applicable",
+    evidence: "Provider adapter capability path exists; authorized tenant evidence is pending.",
+  }),
+  defineCapabilityContract({
+    employeeId: COMPLIANCE_EMPLOYEE_ID,
+    capabilityId: "jira-link-issues",
+    kind: "automate",
+    status: "unverified",
+    providerId: JIRA_PROVIDER_ID,
+    tenantScoped: true,
+    authRequired: true,
+    auditRequired: true,
+    idempotencyRequired: true,
+    retryPolicy: "bounded",
+    rollback: "available",
+    evidence: "Provider adapter capability path exists; authorized tenant evidence is pending.",
+  }),
+  defineCapabilityContract({
+    employeeId: COMPLIANCE_EMPLOYEE_ID,
+    capabilityId: "jira-read-comments",
+    kind: "understand",
+    status: "unverified",
+    providerId: JIRA_PROVIDER_ID,
+    tenantScoped: true,
+    authRequired: true,
+    auditRequired: true,
+    idempotencyRequired: false,
+    retryPolicy: "bounded",
+    rollback: "not_applicable",
+    evidence: "Provider adapter capability path exists; authorized tenant evidence is pending.",
+  }),
+  defineCapabilityContract({
+    employeeId: COMPLIANCE_EMPLOYEE_ID,
+    capabilityId: "jira-transition-issue",
+    kind: "automate",
+    status: "unverified",
+    providerId: JIRA_PROVIDER_ID,
+    tenantScoped: true,
+    authRequired: true,
+    auditRequired: true,
+    idempotencyRequired: true,
+    retryPolicy: "bounded",
+    rollback: "available",
+    evidence: "Provider adapter capability path exists; authorized tenant evidence is pending.",
+  }),
+];
 export interface ComplianceAdapter { listAuditItems(tenantId: string): Promise<unknown>; createAuditFinding(tenantId: string, input: Record<string, unknown>, idempotencyKey: string): Promise<unknown>; }
 export interface ComplianceExecutionOptions { tenantId: string; authToken?: string; audit: (event: { capabilityId: string; tenantId: string; outcome: string; idempotencyKey?: string }) => Promise<void> | void; maxAttempts?: number; }
 function requireTenant(options: ComplianceExecutionOptions): void { if (!options.tenantId.trim()) throw new Error("Tenant scope is required"); if (!options.authToken?.trim()) throw new Error("Provider authentication is required"); }
@@ -21,19 +77,55 @@ export interface ExtendedCapabilityAdapter {
   read?(capabilityId: string, tenantId: string): Promise<unknown>;
   write?(capabilityId: string, tenantId: string, input: Record<string, unknown>, idempotencyKey: string): Promise<unknown>;
 }
-export interface ExtendedExecutionOptions { tenantId: string; authToken?: string; audit: (event: { capabilityId: string; tenantId: string; outcome: string; idempotencyKey?: string }) => Promise<void> | void; maxAttempts?: number; }
-export async function executeExtendedCapability(adapter: ExtendedCapabilityAdapter, capabilityId: string, options: ExtendedExecutionOptions, input?: Record<string, unknown>, idempotencyKey?: string): Promise<unknown> {
+export interface ExtendedExecutionOptions {
+  tenantId: string;
+  authToken?: string;
+  audit: (event: { capabilityId: string; tenantId: string; outcome: string; idempotencyKey?: string }) => Promise<void> | void;
+  maxAttempts?: number;
+}
+export async function executeExtendedCapability(
+  adapter: ExtendedCapabilityAdapter,
+  capabilityId: string,
+  options: ExtendedExecutionOptions,
+  input?: Record<string, unknown>,
+  idempotencyKey?: string,
+): Promise<unknown> {
   if (!options.tenantId.trim()) throw new Error("Tenant scope is required");
   if (!options.authToken?.trim()) throw new Error("Provider authentication is required");
-  const write = capabilityId.includes("create-") || capabilityId.includes("update-") || capabilityId.includes("initiate-") || capabilityId.includes("link-") || capabilityId.includes("transition-") || capabilityId.includes("upload-");
+  const write = capabilityId.includes("create-")
+    || capabilityId.includes("update-")
+    || capabilityId.includes("initiate-")
+    || capabilityId.includes("link-")
+    || capabilityId.includes("transition-")
+    || capabilityId.includes("upload-");
   if (write && !idempotencyKey?.trim()) throw new Error("Idempotency key is required");
-  const attempts = Math.max(1, Math.min(options.maxAttempts ?? 2, 3)); let lastError: unknown;
-  for (let attempt=0; attempt<attempts; attempt++) try {
-    const fn = write ? adapter.write : adapter.read; if (!fn) throw new Error("Capability adapter method is unavailable");
-    const result = write ? await fn(capabilityId, options.tenantId, input ?? {}, idempotencyKey!) : await fn(capabilityId, options.tenantId);
-    await options.audit({ capabilityId, tenantId: options.tenantId, outcome: "succeeded", ...(write ? { idempotencyKey } : {}) }); return result;
-  } catch (error) { lastError=error; }
-  await options.audit({ capabilityId, tenantId: options.tenantId, outcome: "failed", ...(write ? { idempotencyKey } : {}) }); throw lastError;
+  const attempts = Math.max(1, Math.min(options.maxAttempts ?? 2, 3));
+  let lastError: unknown;
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    try {
+      const fn = write ? adapter.write : adapter.read;
+      if (!fn) throw new Error("Capability adapter method is unavailable");
+      const result = write
+        ? await fn(capabilityId, options.tenantId, input ?? {}, idempotencyKey!)
+        : await fn(capabilityId, options.tenantId);
+      await options.audit({
+        capabilityId,
+        tenantId: options.tenantId,
+        outcome: "succeeded",
+        ...(write ? { idempotencyKey } : {}),
+      });
+      return result;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  await options.audit({
+    capabilityId,
+    tenantId: options.tenantId,
+    outcome: "failed",
+    ...(write ? { idempotencyKey } : {}),
+  });
+  throw lastError;
 }
 
 export async function readProjects(adapter: ExtendedCapabilityAdapter, options: ExtendedExecutionOptions): Promise<unknown> {
