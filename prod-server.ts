@@ -1615,6 +1615,72 @@ serve({
     }
 
     // ── /api/stripe/webhook ──────────────────────────────────────
+    // ── /api/monitoring/webhook/:providerId ─────────────────────────
+    const monitorMatch = pathname.match(/^\/api\/monitoring\/webhook\/([a-z0-9_-]+)$/);
+    if (monitorMatch && req.method === "POST") {
+      const providerId = monitorMatch[1];
+      try {
+        // ── Webhook signature verification (per provider) ──────────
+        const rawBody = await req.text();
+        if (providerId === "xero") {
+          const webhookKey = process.env.XERO_WEBHOOK_KEY;
+          if (!webhookKey) {
+            console.error("[monitor] Xero webhook key not configured");
+            return Response.json({ error: "Webhook key not configured" }, { status: 500 });
+          }
+          const signature = req.headers.get("x-xero-signature");
+          if (!signature) {
+            return Response.json({ error: "Missing x-xero-signature header" }, { status: 401 });
+          }
+          const encoder = new TextEncoder();
+          const keyData = encoder.encode(webhookKey);
+          const bodyData = encoder.encode(rawBody);
+          try {
+            const cryptoKey = await crypto.subtle.importKey("raw", keyData, { name: "HMAC", hash: "SHA-256" }, false, ["verify"]);
+            const sigBytes = Uint8Array.from(atob(signature), c => c.charCodeAt(0));
+            const valid = await crypto.subtle.verify("HMAC", cryptoKey, sigBytes, bodyData);
+            if (!valid) {
+              console.error("[monitor] Invalid Xero webhook signature");
+              return Response.json({ error: "Invalid signature" }, { status: 401 });
+            }
+          } catch (sigErr) {
+            console.error("[monitor] Xero signature verification failed:", sigErr);
+            return Response.json({ error: "Signature verification failed" }, { status: 401 });
+          }
+        }
+        const body = JSON.parse(rawBody);
+        if (!body || !body.eventType || !body.employeeId) {
+          return Response.json({ error: "eventType and employeeId required" }, { status: 400 });
+        }
+        const { dispatch } = await import("./src/monitoring/dispatcher");
+        const event = {
+          id: body.id || crypto.randomUUID(),
+          employeeId: body.employeeId,
+          providerId,
+          eventType: body.eventType,
+          payload: body.payload || {},
+          receivedAt: new Date().toISOString(),
+          tenantId: body.tenantId,
+        };
+        const config = {
+          employeeId: body.employeeId,
+          providerId,
+          eventTypes: [body.eventType],
+        };
+        const outcome = await dispatch(event, config, {
+          holderId: `webhook-${providerId}`,
+          async execute(event) {
+            console.log(`[monitor] Processing event: ${event.eventType} for ${event.employeeId}`);
+          },
+        });
+        return Response.json(outcome, {
+          status: outcome.status === "processed" ? 200 : outcome.status === "skipped" ? 409 : 400,
+        });
+      } catch (err: any) {
+        console.error("[prod-server] Monitoring webhook error:", err);
+        return Response.json({ error: "Internal error" }, { status: 500 });
+      }
+    }
     if (pathname === "/api/stripe/webhook" && req.method === "POST") {
       try {
         const body = await req.json();
