@@ -16,6 +16,7 @@ import { itOperationsCapabilities } from "./capabilities/it-operations";
 import { fpaCapabilities } from "./capabilities/fpa";
 import { documentProcessingCapabilities } from "./capabilities/document-processing";
 import { analyticsCapabilities } from "./capabilities/analytics";
+import { phase1bCapabilities } from "./capabilities/phase1b-expansions";
 
 /** Registry-free capability matrix; statuses stay unverified until fresh provider evidence exists. */
 export const employeeCapabilityMatrix = {
@@ -25,12 +26,12 @@ export const employeeCapabilityMatrix = {
   hr_coordinator: hrCoordinatorCapabilities,
   compliance: complianceCapabilities,
   communications: communicationsCapabilities,
-  logistics: logisticsCapabilities,
-  manufacturing: manufacturingCapabilities,
-  procurement: procurementCapabilities,
+  logistics: [...logisticsCapabilities, ...phase1bCapabilities.logistics],
+  manufacturing: [...manufacturingCapabilities, ...phase1bCapabilities.manufacturing],
+  procurement: [...procurementCapabilities, ...phase1bCapabilities.procurement],
   customer_success: customerSuccessCapabilities,
-  operations: operationsCapabilities,
-  finance: financeCapabilities,
+  operations: [...operationsCapabilities, ...phase1bCapabilities.operations],
+  finance: [...financeCapabilities, ...phase1bCapabilities.finance],
   sales: salesCapabilities,
   marketing: marketingCapabilities,
   it_operations: itOperationsCapabilities,
