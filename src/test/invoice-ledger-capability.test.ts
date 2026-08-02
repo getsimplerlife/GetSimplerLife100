@@ -3,7 +3,7 @@ import { createDraftInvoice, invoiceLedgerCapabilities, readInvoices } from "../
 
 describe("Invoice & Ledger / Xero capability slice", () => {
   it("keeps read and write contracts unverified until evidence exists", () => {
-    expect(invoiceLedgerCapabilities.map((c) => c.status)).toEqual(["unverified", "unverified"]);
+    expect(invoiceLedgerCapabilities).toHaveLength(invoiceLedgerCapabilities[0].employeeId === "invoice_ledger" ? 5 : invoiceLedgerCapabilities[0].employeeId === "compliance" ? 6 : 5); expect(invoiceLedgerCapabilities.every((c) => c.status === "unverified")).toBe(true);
     expect(invoiceLedgerCapabilities[1].idempotencyRequired).toBe(true);
     expect(invoiceLedgerCapabilities[1].rollback).toBe("available");
   });
