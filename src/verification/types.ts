@@ -6,6 +6,8 @@ export interface VerificationEvidence {
   timestamp: string;
   httpStatus?: number;
   responseShape?: string;
+  /** Compact summary of the adapter response (e.g. created/rolledBack/residue) so evidence stays truthful without storing tokens. */
+  responseSummary?: string;
   errorMessage?: string;
   verifiedBy: string;
 }

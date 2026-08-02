@@ -2,14 +2,29 @@ import { describe, expect, it } from "vitest";
 import { createDraftInvoice, invoiceLedgerCapabilities, readInvoices } from "../agents/capabilities/invoice-ledger";
 
 describe("Invoice & Ledger / Xero capability slice", () => {
-  it("keeps read and write contracts unverified until evidence exists", () => {
-    // 26 capability contracts: 22 verified (live Xero API confirmed), 4 unverified (write payloads need refinement)
-    expect(invoiceLedgerCapabilities.length).toBeGreaterThanOrEqual(26);
-    expect(invoiceLedgerCapabilities.every((c) => c.employeeId === "invoice_ledger")).toBe(true);
-    expect(invoiceLedgerCapabilities.every((c) => c.providerId === "xero")).toBe(true);
-    const writeContract = invoiceLedgerCapabilities.find((c) => c.capabilityId === "xero-create-draft-invoice");
-    expect(writeContract?.idempotencyRequired).toBe(true);
-    expect(writeContract?.rollback).toBe("available");
+  it("declares 26 contracts (18 read / 6 write / 2 monitor), all unverified until live evidence exists", () => {
+    expect(invoiceLedgerCapabilities).toHaveLength(26);
+    expect(invoiceLedgerCapabilities.map((c) => c.status)).toEqual(Array(26).fill("unverified"));
+    const byKind = (kind: string) => invoiceLedgerCapabilities.filter((c) => c.kind === kind);
+    expect(byKind("understand")).toHaveLength(18);
+    expect(byKind("automate")).toHaveLength(6);
+    expect(byKind("monitor")).toHaveLength(2);
+    // every contract is tenant-scoped, authenticated, audited, and bounded
+    for (const c of invoiceLedgerCapabilities) {
+      expect(c.tenantScoped).toBe(true);
+      expect(c.authRequired).toBe(true);
+      expect(c.auditRequired).toBe(true);
+      expect(c.retryPolicy).toBe("bounded");
+    }
+    // writes carry idempotency + rollback
+    for (const c of byKind("automate")) {
+      expect(c.idempotencyRequired).toBe(true);
+      expect(c.rollback).not.toBe("not_applicable");
+    }
+    // the original write contract keeps its safety fields
+    const draft = invoiceLedgerCapabilities.find((c) => c.capabilityId === "xero-create-draft-invoice")!;
+    expect(draft.idempotencyRequired).toBe(true);
+    expect(draft.rollback).toBe("available");
   });
   it("fails closed without tenant and provider auth", async () => {
     const adapter = { listInvoices: async () => [] } as any;
