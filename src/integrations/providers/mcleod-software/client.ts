@@ -3,6 +3,7 @@ import { HttpClient } from "../../framework/client"; import { ConnectionConfig }
 export class McLeodClient {
   private client: HttpClient;
   constructor(apiKey: string, baseUrl: string) {
+    this.apiKey = apiKey;
     this.client = new HttpClient({ baseUrl: baseUrl || "https://api.mcleodsoftware.com/v1", rateLimit: { maxRequestsPerSecond: 5 }, retry: { maxRetries: 3, baseDelay: 1000, maxDelay: 10000 }, timeout: 30000 });
   }
   private get headers() { return { "X-API-Key": this.apiKey, "Content-Type": "application/json" }; }

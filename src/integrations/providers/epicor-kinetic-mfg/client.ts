@@ -3,6 +3,7 @@ import { ConnectionConfig } from "../../framework/connection";
 export class Epicor_kinetic_mfgClient {
   private client: HttpClient;
   constructor(apiKey: string) {
+    this.apiKey = apiKey;
     this.client = new HttpClient({ baseUrl: "https://api.epicor-kinetic-mfg.com/v1", rateLimit: { maxRequestsPerSecond: 5 }, retry: { maxRetries: 3, baseDelay: 1000, maxDelay: 10000 }, timeout: 30000 });
   }
   private get headers() { return { Authorization: "Bearer " + this.apiKey, "Content-Type": "application/json" }; }
