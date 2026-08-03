@@ -9,10 +9,11 @@ export class XeroClient {
   private get headers() { return { Authorization: `Bearer ${this.tokens.accessToken}`, "Xero-tenant-id": this.tenantId, "Content-Type": "application/json" }; }
   private async ensureToken() { if (isTokenExpired(this.tokens) && this.tokens.refreshToken) { const { refreshXeroToken } = await import("./auth"); this.tokens = await refreshXeroToken(this.authConfig, this.tokens.refreshToken); } }
 
-  async get(entity: string, id?: string): Promise<any> { const p = id ? `/${entity}/${id}` : `/${entity}`; const r = await this.client.get(p, this.headers); return r.data; }
-  async list(entity: string, filter?: string): Promise<any[]> { const p = filter ? `/${entity}?where=${encodeURIComponent(filter)}` : `/${entity}`; const r = await this.client.get(p, this.headers); return r.data?.[entity] || []; }
-  async create(entity: string, data: any): Promise<any> { const r = await this.client.post(`/${entity}`, data, this.headers); return r.data; }
-  async update(entity: string, id: string, data: any): Promise<void> { await this.client.post(`/${entity}/${id}`, data, this.headers); }
+  async get(entity: string, id?: string): Promise<any> { await this.ensureToken(); const p = id ? `/${entity}/${id}` : `/${entity}`; const r = await this.client.get(p, this.headers); return r.data; }
+  async list(entity: string, filter?: string): Promise<any[]> { await this.ensureToken(); const p = filter ? `/${entity}?where=${encodeURIComponent(filter)}` : `/${entity}`; const r = await this.client.get(p, this.headers); return r.data?.[entity] || []; }
+  async create(entity: string, data: any): Promise<any> { await this.ensureToken(); const r = await this.client.post(`/${entity}`, data, this.headers); return r.data; }
+  async update(entity: string, id: string, data: any): Promise<void> { await this.ensureToken(); await this.client.post(`/${entity}/${id}`, data, this.headers); }
+  async delete(entity: string, id: string): Promise<any> { await this.ensureToken(); const r = await this.client.delete(`/${entity}/${id}`, this.headers); return r.data; }
   async getOrganisations(): Promise<any> { const r = await this.client.get("/Organisation", this.headers); return r.data?.Organisation || []; }
   async healthCheck(): Promise<boolean> { try { const r = await this.client.get("/Organisation", this.headers); return r.ok; } catch { return false; } }
 }
