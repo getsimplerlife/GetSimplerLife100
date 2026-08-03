@@ -364,7 +364,7 @@ function ConnectedServices() {
     setUploading(true);
     setUploadStep("Uploading file payload to secure sandbox...");
 
-    // Simulated progress steps to make the extraction engine feel extremely cognitive and premium
+    // Progress tracking for extraction pipeline
     const steps = [
       { t: 800, text: "Instantiating layout analyzer & OCR bounds..." },
       { t: 1800, text: "Extracting document schema nodes & tabular lists..." },
