@@ -7,7 +7,7 @@ import { communicationsCapabilities } from "./capabilities/communications";
 import { logisticsCapabilities, logisticsCapabilitiesExtended } from "./capabilities/logistics";
 import { manufacturingCapabilities, manufacturingCapabilitiesExtended } from "./capabilities/manufacturing";
 import { procurementCapabilities, procurementCapabilitiesExtended } from "./capabilities/procurement";
-import { customerSuccessCapabilities, customerSuccessCapabilitiesExtended } from "./capabilities/customer-success";
+import { customerSuccessCapabilities } from "./capabilities/customer-success";
 import { operationsCapabilities, operationsCapabilitiesExtended } from "./capabilities/operations";
 import { financeCapabilities, financeCapabilitiesExtended } from "./capabilities/finance";
 import { salesCapabilities } from "./capabilities/sales";
@@ -28,7 +28,7 @@ export const employeeCapabilityMatrix = {
   logistics: [...logisticsCapabilities, ...logisticsCapabilitiesExtended],
   manufacturing: [...manufacturingCapabilities, ...manufacturingCapabilitiesExtended],
   procurement: [...procurementCapabilities, ...procurementCapabilitiesExtended],
-  customer_success: [...customerSuccessCapabilities, ...customerSuccessCapabilitiesExtended],
+  customer_success: customerSuccessCapabilities,
   operations: [...operationsCapabilities, ...operationsCapabilitiesExtended],
   finance: [...financeCapabilities, ...financeCapabilitiesExtended],
   sales: salesCapabilities,

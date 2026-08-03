@@ -8,7 +8,11 @@
 import type { CapabilityContract } from "../../lib/capability-contract";
 import type { ProviderCredential } from "../credential-source";
 import { xeroAdapter } from "./xero";
+<<<<<<< HEAD
+import { docusignAdapter, hubspotAdapter, intercomAdapter, jiraAdapter, mondayComAdapter, slackAdapter, zendeskAdapter } from "./priority";
+=======
 import { docusignAdapter, hubspotAdapter, intercomAdapter, jiraAdapter, mondayComAdapter, salesforceAdapter, slackAdapter } from "./priority";
+>>>>>>> origin/main
 
 export interface AdapterContext {
   credentials: ProviderCredential;
@@ -34,7 +38,11 @@ export const adapterRegistry: Record<string, CapabilityAdapter | undefined> = {
   // src/agents/capabilities/operations.ts) while the provider module id is "monday-com".
   monday: mondayComAdapter,
   intercom: intercomAdapter,
+<<<<<<< HEAD
+  zendesk: zendeskAdapter,
+=======
   salesforce: salesforceAdapter,
+>>>>>>> origin/main
 };
 
 export function hasAdapter(providerId: string): boolean {

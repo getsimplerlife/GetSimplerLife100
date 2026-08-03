@@ -46,6 +46,20 @@ export const customerSupportCapabilities: ReadonlyArray<CapabilityContract> = [
     rollback: "not_applicable",
     evidence: "Provider adapter capability path exists; authorized tenant evidence is pending.",
   }),
+  defineCapabilityContract({
+    employeeId: CUSTOMER_SUPPORT_EMPLOYEE_ID,
+    capabilityId: "zendesk-monitor-ticket-created",
+    kind: "monitor",
+    status: "unverified",
+    providerId: ZENDESK_PROVIDER_ID,
+    tenantScoped: true,
+    authRequired: true,
+    auditRequired: true,
+    idempotencyRequired: false,
+    retryPolicy: "bounded",
+    rollback: "not_applicable",
+    evidence: "Provider adapter capability path exists; authorized tenant evidence is pending.",
+  }),
 ];
 export interface CustomerSupportAdapter { listTickets(tenantId: string): Promise<unknown>; replyTicket(tenantId: string, input: Record<string, unknown>, idempotencyKey: string): Promise<unknown>; }
 export interface CustomerSupportExecutionOptions { tenantId: string; authToken?: string; audit: (event: { capabilityId: string; tenantId: string; outcome: string; idempotencyKey?: string }) => Promise<void> | void; maxAttempts?: number; }
@@ -59,6 +73,7 @@ export interface ExtendedCapabilityAdapter {
   readTicketFields?(tenantId: string): Promise<unknown>;
   updateTicketStatus?(tenantId: string, input: Record<string, unknown>, idempotencyKey: string): Promise<unknown>;
   readKnowledgeBase?(tenantId: string): Promise<unknown>;
+  monitorTicketCreated?(tenantId: string): Promise<unknown>;
   read?(capabilityId: string, tenantId: string): Promise<unknown>;
   write?(capabilityId: string, tenantId: string, input: Record<string, unknown>, idempotencyKey: string): Promise<unknown>;
 }
@@ -126,4 +141,9 @@ export async function updateTicketStatus(adapter: ExtendedCapabilityAdapter, opt
 export async function readKnowledgeBase(adapter: ExtendedCapabilityAdapter, options: ExtendedExecutionOptions): Promise<unknown> {
   if (!adapter.readKnowledgeBase) throw new Error("Capability adapter method is unavailable");
   return executeExtendedCapability({ read: (_id, tenant) => adapter.readKnowledgeBase!(tenant) }, "zendesk-read-knowledge-base", options);
+}
+
+export async function monitorTicketCreated(adapter: ExtendedCapabilityAdapter, options: ExtendedExecutionOptions): Promise<unknown> {
+  if (!adapter.monitorTicketCreated) throw new Error("Capability adapter method is unavailable");
+  return executeExtendedCapability({ read: (_id, tenant) => adapter.monitorTicketCreated!(tenant) }, "zendesk-monitor-ticket-created", options);
 }

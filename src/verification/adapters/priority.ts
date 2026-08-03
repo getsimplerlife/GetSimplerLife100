@@ -15,7 +15,11 @@ import { createJiraClient } from "../../integrations/providers/jira/client";
 import { createDocuSignClient } from "../../integrations/providers/docusign/client";
 import { createMondayComClient } from "../../integrations/providers/monday-com/client";
 import { createIntercomClient } from "../../integrations/providers/intercom/client";
+<<<<<<< HEAD
+import { createZendeskClient } from "../../integrations/providers/zendesk/client";
+=======
 import { createSalesforceClient } from "../../integrations/providers/salesforce/client";
+>>>>>>> origin/main
 import type { CapabilityAdapter } from "./index";
 import type { ProviderCredential } from "../credential-source";
 
@@ -744,6 +748,85 @@ export const salesforceAdapter: CapabilityAdapter = async (contract, ctx) => {
       await client.delete("Lead", leadId);
       cleanupIds.pop();
       return { httpStatus: 200, response: { updated: true, leadId } };
+    }
+    default:
+      throw new Error(`no verification path for ${contract.capabilityId}`);
+  }
+};
+/* ────────────────────────── Zendesk ────────────────────────── */
+function zendeskClientFrom(cred: ProviderCredential) {
+  const email = cred.email || (cred.user as string | undefined) || "";
+  const apiToken = cred.apiToken || "";
+  const subdomain = (cred.subdomain as string | undefined) || "";
+  if (!email || !apiToken || !subdomain) {
+    throw new Error("Zendesk credential needs email, apiToken, and subdomain");
+  }
+  return createZendeskClient({ email, apiToken, subdomain } as never);
+}
+export const zendeskAdapter: CapabilityAdapter = async (contract, ctx) => {
+  const client = zendeskClientFrom(ctx.credentials);
+  switch (contract.capabilityId) {
+    /* ── understand (read) ── */
+    case "zendesk-read-tickets": {
+      const tickets = await client.listTickets();
+      return { httpStatus: 200, response: { count: tickets.length } };
+    }
+    case "zendesk-read-ticket-fields": {
+      const fields = await client.listTicketFields();
+      return { httpStatus: 200, response: { count: fields.length } };
+    }
+    case "zendesk-read-knowledge-base": {
+      const articles = await client.listHelpCenterArticles();
+      return { httpStatus: 200, response: { count: articles.length } };
+    }
+    /* ── monitor ── */
+    case "zendesk-monitor-ticket-created": {
+      const tickets = await client.listTickets();
+      const since = Date.now() - 5 * 60 * 1000;
+      const recent = tickets.filter((t: any) => {
+        const created = new Date(t?.created_at || 0).getTime();
+        return created >= since;
+      });
+      return { httpStatus: 200, response: { monitored: recent.length } };
+    }
+    /* ── automate (write) ── */
+    case "zendesk-reply-ticket": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const label = LABEL();
+      const created = await client.createTicket({
+        subject: `${label} - Phase 7 verification ticket`,
+        comment: { body: `${label} - Phase 7 verification reply test (safe to ignore)`, public: true },
+        priority: "low",
+      });
+      const id = created?.id as number | undefined;
+      if (!id) throw new Error("Zendesk createTicket returned no id");
+      try {
+        await client.updateTicket(id, {
+          comment: { body: `${label} - Phase 7 verification reply (safe to ignore)`, public: true },
+        });
+        return { httpStatus: 200, response: { replied: true, ticketId: id } };
+      } finally {
+        const deleted = await client.deleteTicket(id);
+        if (!deleted) throw new Error("Zendesk cleanup failed after reply verification");
+      }
+    }
+    case "zendesk-update-ticket-status": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const label = LABEL();
+      const created = await client.createTicket({
+        subject: `${label} - Phase 7 verification ticket`,
+        comment: { body: `${label} - Phase 7 status update test (safe to ignore)`, public: true },
+        priority: "low",
+      });
+      const id = created?.id as number | undefined;
+      if (!id) throw new Error("Zendesk createTicket returned no id");
+      try {
+        const updated = await client.updateTicket(id, { status: "open" });
+        return { httpStatus: 200, response: { updated: true, ticketId: id, status: updated?.status } };
+      } finally {
+        const deleted = await client.deleteTicket(id);
+        if (!deleted) throw new Error("Zendesk cleanup failed after status verification");
+      }
     }
     default:
       throw new Error(`no verification path for ${contract.capabilityId}`);
