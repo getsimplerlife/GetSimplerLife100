@@ -24,6 +24,7 @@ import { createOnfleetClient } from "../../integrations/providers/onfleet/client
 import { createShopifyClient } from "../../integrations/providers/shopify/client";
 import { createMarketoClient } from "../../integrations/providers/marketo/client";
 import { createCoupaClient } from "../../integrations/providers/coupa/client";
+import { createAnaplanClient } from "../../integrations/providers/anaplan/client";
 import type { CapabilityAdapter } from "./index";
 import type { ProviderCredential } from "../credential-source";
 
@@ -1407,6 +1408,11 @@ export const coupaAdapter: CapabilityAdapter = async (contract, ctx) => {
       const poId = created?.id as string | undefined;
       if (!poId) throw new Error("Coupa createPurchaseOrder returned no id");
       return { httpStatus: 201, response: { created: true, poId } };
+    }
+    default:
+      throw new Error(`no verification path for ${contract.capabilityId}`);
+  }
+};
 
 /* ────────────────────────── Marketo ────────────────────────── */
 /**
@@ -1484,6 +1490,81 @@ export const marketoAdapter: CapabilityAdapter = async (contract, ctx) => {
       if (!leadId) throw new Error("Marketo instance has no leads to add to nurture");
       await client.triggerCampaign(campaignId, [leadId]);
       return { httpStatus: 200, response: { triggered: true, campaignId, leadId } };
+    }
+    default:
+      throw new Error(`no verification path for ${contract.capabilityId}`);
+  }
+};
+
+/* ────────────────────────── Anaplan ────────────────────────── */
+/**
+ * Anaplan API uses AnaplanAuthToken header against https://api.anaplan.com/2/0.
+ *
+ * Credentials: { authToken, workspaceId? }.
+ * Writes are labeled Phase7-*.
+ */
+export const anaplanAdapter: CapabilityAdapter = async (contract, ctx) => {
+  const cred = ctx.credentials;
+  const authToken = (cred.authToken as string) || (cred.accessToken as string) || (cred.apiKey as string) || "";
+  const workspaceId = (cred.workspaceId as string) || "";
+  if (!authToken) throw new Error("Anaplan credential has no authToken");
+  if (!workspaceId) throw new Error("Anaplan credential requires workspaceId for model-scoped operations");
+
+  const client = createAnaplanClient({ authToken, workspaceId } as never);
+
+  switch (contract.capabilityId) {
+    /* ── understand (read) ── */
+    case "anaplan-read-budgets": {
+      const models = await client.listModels(workspaceId);
+      if (!models.length) throw new Error("Anaplan workspace has no models to read budgets from");
+      const views = await client.listViews(models[0]?.id as string, workspaceId);
+      return { httpStatus: 200, response: { count: views.length, modelId: models[0]?.id } };
+    }
+    case "anaplan-read-models": {
+      const models = await client.listModels(workspaceId);
+      return { httpStatus: 200, response: { count: models.length } };
+    }
+    case "anaplan-read-modules": {
+      const models = await client.listModels(workspaceId);
+      if (!models.length) throw new Error("Anaplan workspace has no models to read modules from");
+      const modules = await client.listModules(models[0]?.id as string, workspaceId);
+      return { httpStatus: 200, response: { count: modules.length, modelId: models[0]?.id } };
+    }
+    case "anaplan-read-scenarios": {
+      const models = await client.listModels(workspaceId);
+      if (!models.length) throw new Error("Anaplan workspace has no models to read scenarios from");
+      const scenarios = await client.listScenarios(models[0]?.id as string, workspaceId);
+      return { httpStatus: 200, response: { count: scenarios.length, modelId: models[0]?.id } };
+    }
+    case "anaplan-read-actuals-vs-budget": {
+      const models = await client.listModels(workspaceId);
+      if (!models.length) throw new Error("Anaplan workspace has no models to read actuals from");
+      const data = await client.getActualsVsBudget(models[0]?.id as string, workspaceId);
+      return { httpStatus: 200, response: { hasData: Boolean(data), modelId: models[0]?.id } };
+    }
+    /* ── automate (write) ── */
+    case "anaplan-create-forecast": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const models = await client.listModels(workspaceId);
+      if (!models.length) throw new Error("Anaplan workspace has no models to create a forecast in");
+      const label = LABEL();
+      const result = await client.createImport(models[0]?.id as string, {
+        name: `${label} - Phase 7 verification forecast`,
+        source: { type: "manual" },
+      }, workspaceId);
+      return { httpStatus: 201, response: { created: true, modelId: models[0]?.id, details: result } };
+    }
+    case "anaplan-update-forecast-assumptions": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const models = await client.listModels(workspaceId);
+      if (!models.length) throw new Error("Anaplan workspace has no models to update assumptions in");
+      const views = await client.listViews(models[0]?.id as string, workspaceId);
+      if (!views.length) throw new Error("Anaplan model has no views to update");
+      const label = LABEL();
+      const result = await client.updateCellData(models[0]?.id as string, views[0]?.id as string, {
+        cells: [{ value: `${label} - Phase 7` }],
+      }, workspaceId);
+      return { httpStatus: 200, response: { updated: true, modelId: models[0]?.id, viewId: views[0]?.id } };
     }
     default:
       throw new Error(`no verification path for ${contract.capabilityId}`);
