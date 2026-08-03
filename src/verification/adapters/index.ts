@@ -8,7 +8,7 @@
 import type { CapabilityContract } from "../../lib/capability-contract";
 import type { ProviderCredential } from "../credential-source";
 import { xeroAdapter } from "./xero";
-import { docusignAdapter, hubspotAdapter, intercomAdapter, jiraAdapter, mondayComAdapter, salesforceAdapter, slackAdapter, tableauAdapter, workdayAdapter, zendeskAdapter } from "./priority";
+import { docusignAdapter, hubspotAdapter, intercomAdapter, jiraAdapter, mondayComAdapter, salesforceAdapter, servicenowAdapter, slackAdapter, tableauAdapter, workdayAdapter, zendeskAdapter } from "./priority";
 
 export interface AdapterContext {
   credentials: ProviderCredential;
@@ -37,6 +37,7 @@ export const adapterRegistry: Record<string, CapabilityAdapter | undefined> = {
   salesforce: salesforceAdapter,
   zendesk: zendeskAdapter,
   workday: workdayAdapter,
+  servicenow: servicenowAdapter,
   tableau: tableauAdapter,
 };
 
