@@ -428,6 +428,13 @@ export const mondayComAdapter: CapabilityAdapter = async (contract, ctx) => {
       const workspaces = result?.data?.workspaces ?? [];
       return { httpStatus: 200, response: { count: workspaces.length } };
     }
+    case "monday-monitor-item-created": {
+      const boards = await client.listBoards();
+      const boardId = Number(boards[0]?.id);
+      if (!boardId) throw new Error("Monday.com workspace has no board to monitor");
+      const items = await client.listItems(boardId, 10);
+      return { httpStatus: 200, response: { boardId, recentItemCount: items.length } };
+    }
     case "monday-create-item": {
       if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
       const boards = await client.listBoards();
