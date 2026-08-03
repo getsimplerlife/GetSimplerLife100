@@ -2142,13 +2142,14 @@ OAUTH_${provUpper}_CLIENT_SECRET=your_client_secret</pre><p style="font-size:0.8
         let ssrHtml = "";
         try {
           const { renderPage } = await import("./src/entry-server");
-          const result = await renderPage(url);
+          const result = await renderPage(url.pathname + url.search);
           if (result.html && !result.html.includes("SSR fallback")) {
             ssrHtml = result.html;
           }
-        } catch {
+        } catch (ssrErr: any) {
           // SSR import may fail if route tree not generated or browser APIs break
-          // Silently fall back to SPA mode
+          // Log and silently fall back to SPA mode
+          console.error("[prod-server] SSR render failed:", ssrErr?.message || String(ssrErr));
         }
 
         if (ssrHtml) {

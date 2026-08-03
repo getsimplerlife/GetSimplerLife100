@@ -51,7 +51,7 @@ export async function renderPage(url: string): Promise<SSRResult> {
   let headTags = "";
   for (const match of state.matches) {
     const route = match.route as any;
-    if (route.options?.head) {
+    if (route?.options?.head) {
       try {
         headTags += route.options.head({ params: match.params });
       } catch {}
