@@ -14,6 +14,7 @@ import { createSlackClient } from "../../integrations/providers/slack/client";
 import { createJiraClient } from "../../integrations/providers/jira/client";
 import { createDocuSignClient } from "../../integrations/providers/docusign/client";
 import { createMondayComClient } from "../../integrations/providers/monday-com/client";
+import { createIntercomClient } from "../../integrations/providers/intercom/client";
 import type { CapabilityAdapter } from "./index";
 import type { ProviderCredential } from "../credential-source";
 
@@ -467,6 +468,104 @@ export const mondayComAdapter: CapabilityAdapter = async (contract, ctx) => {
         `mutation { move_item_to_group(item_id: ${JSON.stringify(itemId)}, group_id: ${JSON.stringify(targetGroup.id)}) { id } }`,
       );
       return { httpStatus: 200, response: { moved: Boolean(result?.data?.move_item_to_group) } };
+    }
+    default:
+      throw new Error(`no verification path for ${contract.capabilityId}`);
+  }
+};
+
+/* ────────────────────────── Intercom ────────────────────────── */
+
+export const intercomAdapter: CapabilityAdapter = async (contract, ctx) => {
+  const cred = ctx.credentials;
+  if (!cred.accessToken) throw new Error("Intercom credential has no accessToken");
+  const client = createIntercomClient(baseAuth(cred, "intercom", ctx));
+
+  switch (contract.capabilityId) {
+    /* ── understand (read) ── */
+    case "intercom-read-conversations": {
+      const conversations = await client.listConversations();
+      return { httpStatus: 200, response: { count: conversations.length } };
+    }
+    case "intercom-read-contacts": {
+      const contacts = await client.listContacts();
+      return { httpStatus: 200, response: { count: contacts.length } };
+    }
+    case "intercom-read-companies": {
+      const r = await fetch("https://api.intercom.io/companies", {
+        headers: { Authorization: `Bearer ${cred.accessToken}`, Accept: "application/json" },
+      });
+      const data = await r.json();
+      return { httpStatus: r.status, response: { count: data?.data?.length ?? 0 } };
+    }
+    case "intercom-read-conversation": {
+      const conversations = await client.listConversations();
+      const id = conversations[0]?.id as string | undefined;
+      if (!id) throw new Error("Intercom workspace has no conversations to read");
+      const conversation = await client.getConversation(id);
+      return { httpStatus: 200, response: { found: true, id, source: conversation?.source?.type } };
+    }
+    case "intercom-read-contact": {
+      const contacts = await client.listContacts();
+      const id = contacts[0]?.id as string | undefined;
+      if (!id) throw new Error("Intercom workspace has no contacts to read");
+      const contact = await client.getContact(id);
+      return { httpStatus: 200, response: { found: true, id, email: (contact as any)?.email } };
+    }
+    /* ── monitor ── */
+    case "intercom-monitor-conversations": {
+      const conversations = await client.listConversations();
+      return { httpStatus: 200, response: { monitored: conversations.length } };
+    }
+    /* ── automate (write) ── */
+    case "intercom-send-message": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const conversations = await client.listConversations();
+      const id = conversations[0]?.id as string | undefined;
+      if (!id) throw new Error("Intercom workspace has no conversations to reply to");
+      const label = LABEL();
+      await client.replyToConversation(id, {
+        message_type: "comment",
+        body: `${label} - Phase 7 verification message (safe to ignore)`,
+        type: "admin",
+      });
+      return { httpStatus: 200, response: { sent: true, conversationId: id } };
+    }
+    case "intercom-assign-conversation": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const conversations = await client.listConversations();
+      const id = conversations[0]?.id as string | undefined;
+      if (!id) throw new Error("Intercom workspace has no conversations to assign");
+      const r = await fetch(`https://api.intercom.io/conversations/${id}/parts`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${cred.accessToken}`, "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ message_type: "assignment", type: "admin", assignee_id: (cred as any).adminId || "self" }),
+      });
+      return { httpStatus: r.status, response: { assigned: r.ok, conversationId: id } };
+    }
+    case "intercom-tag-user": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const contacts = await client.listContacts();
+      const contact = contacts[0] as any;
+      if (!contact?.id) throw new Error("Intercom workspace has no contacts to tag");
+      const r = await fetch("https://api.intercom.io/contacts/" + contact.id, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${cred.accessToken}`, "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ custom_attributes: { Phase7_verification: "true" } }),
+      });
+      return { httpStatus: r.status, response: { tagged: r.ok, contactId: contact.id } };
+    }
+    case "intercom-create-contact": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const label = LABEL();
+      const created = await client.createContact({
+        role: "user",
+        email: `phase7-${Date.now()}@verify.example.invalid`,
+        name: label,
+      });
+      const contactId = created?.id as string | undefined;
+      if (!contactId) throw new Error("Intercom createContact returned no id");
+      return { httpStatus: 201, response: { created: true, contactId } };
     }
     default:
       throw new Error(`no verification path for ${contract.capabilityId}`);
