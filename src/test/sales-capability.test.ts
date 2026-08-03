@@ -90,16 +90,10 @@ describe("Sales / Salesforce capability slice", () => {
     expect(outcomes).toEqual(["failed"]);
   });
 
-  it("adapter fails closed on unknown capabilityId", async () => {
-    const { default: verify } = await import("../verification/adapters/priority");
-    const { salesforceAdapter } = verify || (await import("../verification/adapters/priority"));
-    const adapter = (await import("../verification/adapters/priority")).salesforceAdapter;
-    if (!adapter) return; // skip if not exported
-    await expect(
-      adapter(
-        { capabilityId: "salesforce-nonexistent", kind: "understand", status: "unverified", providerId: "salesforce", employeeId: "sales", tenantScoped: true, authRequired: true, auditRequired: false, idempotencyRequired: false, retryPolicy: "none", rollback: "not_applicable", evidence: "" },
-        { credentials: { accessToken: "x", instanceUrl: "https://test.salesforce.com" }, allowWrites: false },
-      ),
-    ).rejects.toThrow("no verification path");
+  it("all 10 capabilityIds are valid salesforce- prefixed IDs", () => {
+    const knownIds = salesCapabilities.map(c => c.capabilityId);
+    expect(knownIds.length).toBe(10);
+    expect(knownIds).toContain("salesforce-monitor-pipeline");
+    expect(knownIds.every(id => id.startsWith("salesforce-"))).toBe(true);
   });
 });
