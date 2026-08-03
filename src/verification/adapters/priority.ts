@@ -22,6 +22,7 @@ import { createServiceNowClient } from "../../integrations/providers/servicenow/
 import { createTableauClient } from "../../integrations/providers/tableau/client";
 import { createOnfleetClient } from "../../integrations/providers/onfleet/client";
 import { createShopifyClient } from "../../integrations/providers/shopify/client";
+import { createMarketoClient } from "../../integrations/providers/marketo/client";
 import { createCoupaClient } from "../../integrations/providers/coupa/client";
 import type { CapabilityAdapter } from "./index";
 import type { ProviderCredential } from "../credential-source";
@@ -1406,6 +1407,83 @@ export const coupaAdapter: CapabilityAdapter = async (contract, ctx) => {
       const poId = created?.id as string | undefined;
       if (!poId) throw new Error("Coupa createPurchaseOrder returned no id");
       return { httpStatus: 201, response: { created: true, poId } };
+
+/* ────────────────────────── Marketo ────────────────────────── */
+/**
+ * Marketo REST API uses Bearer token auth against
+ * https://{restEndpoint}/rest (e.g. 123-ABC-456.mktorest.com/rest).
+ *
+ * Credentials: { accessToken, restEndpoint }.
+ * Writes are labeled Phase7-*, and rolled back where possible.
+ */
+export const marketoAdapter: CapabilityAdapter = async (contract, ctx) => {
+  const cred = ctx.credentials;
+  const accessToken = (cred.accessToken as string) || "";
+  const restEndpoint = (cred.restEndpoint as string) || (cred.instanceUrl as string) || (cred.subdomain as string) || "";
+  if (!accessToken) throw new Error("Marketo credential has no accessToken");
+  if (!restEndpoint) throw new Error("Marketo credential has no restEndpoint (e.g. 123-ABC-456.mktorest.com)");
+
+  const client = createMarketoClient({ accessToken, restEndpoint } as never);
+
+  switch (contract.capabilityId) {
+    /* ── understand (read) ── */
+    case "marketo-read-campaigns": {
+      const campaigns = await client.listCampaigns();
+      return { httpStatus: 200, response: { count: campaigns.length } };
+    }
+    case "marketo-read-programs": {
+      const programs = await client.listPrograms();
+      return { httpStatus: 200, response: { count: programs.length } };
+    }
+    case "marketo-read-assets": {
+      const emails = await client.listEmails();
+      return { httpStatus: 200, response: { count: emails.length } };
+    }
+    case "marketo-read-lead-scores": {
+      const leads = await client.listLeads({ maxReturn: 5 } as any);
+      return { httpStatus: 200, response: { count: leads.length } };
+    }
+    case "marketo-read-email-metrics": {
+      const stats = await client.getEmailSummaryStats();
+      return { httpStatus: 200, response: { hasStats: Boolean(stats) } };
+    }
+    /* ── automate (write) ── */
+    case "marketo-send-email": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const emails = await client.listEmails({ maxReturn: 1 });
+      const emailId = emails[0]?.id as number | undefined;
+      if (!emailId) throw new Error("Marketo instance has no email assets to send a sample from");
+      const label = LABEL();
+      await client.sendSampleEmail(emailId, `${label}@verify.example.invalid`);
+      return { httpStatus: 200, response: { sent: true, emailId } };
+    }
+    case "marketo-add-to-list": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const lists = await client.listLists({ maxReturn: 1 });
+      const listId = lists[0]?.id as number | undefined;
+      if (!listId) throw new Error("Marketo instance has no static lists to add leads to");
+      const leads = await client.listLeads({ maxReturn: 1 } as any);
+      const leadId = leads[0]?.id as number | undefined;
+      if (!leadId) throw new Error("Marketo instance has no leads to add to list");
+      const label = LABEL();
+      await client.addLeadsToList(listId, [leadId]);
+      // Rollback: remove the lead from the list
+      try {
+        return { httpStatus: 200, response: { added: true, rolledBack: true, listId, leadId } };
+      } finally {
+        await client.removeLeadsFromList(listId, [leadId]);
+      }
+    }
+    case "marketo-add-to-nurture": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const campaigns = await client.listCampaigns({ maxReturn: 1 });
+      const campaignId = campaigns[0]?.id as number | undefined;
+      if (!campaignId) throw new Error("Marketo instance has no campaigns to trigger for nurture");
+      const leads = await client.listLeads({ maxReturn: 1 } as any);
+      const leadId = leads[0]?.id as number | undefined;
+      if (!leadId) throw new Error("Marketo instance has no leads to add to nurture");
+      await client.triggerCampaign(campaignId, [leadId]);
+      return { httpStatus: 200, response: { triggered: true, campaignId, leadId } };
     }
     default:
       throw new Error(`no verification path for ${contract.capabilityId}`);
