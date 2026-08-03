@@ -12,6 +12,9 @@ export class ZendeskClient {
   async getTicket(id: number): Promise<any> { const r = await this.client.get(`/tickets/${id}`, this.headers); return r.data?.ticket; }
   async createTicket(data: any): Promise<any> { const r = await this.client.post("/tickets", { ticket: data }, this.headers); return r.data?.ticket; }
   async updateTicket(id: number, data: any): Promise<any> { const r = await this.client.put(`/tickets/${id}`, { ticket: data }, this.headers); return r.data?.ticket; }
+  async deleteTicket(id: number): Promise<boolean> { const r = await this.client.delete(`/tickets/${id}`, this.headers); return r.ok; }
+  async listTicketFields(): Promise<any[]> { const r = await this.client.get("/ticket_fields", this.headers); return r.data?.ticket_fields || []; }
+  async listHelpCenterArticles(): Promise<any[]> { const r = await this.client.get("/help_center/articles", this.headers); return r.data?.articles || []; }
   async searchTickets(query: string): Promise<any[]> { const r = await this.client.get(`/search?query=${encodeURIComponent(query)}`, this.headers); return r.data?.results || []; }
   async listUsers(): Promise<any[]> { const r = await this.client.get("/users", this.headers); return r.data?.users || []; }
   async healthCheck(): Promise<boolean> { try { const r = await this.client.get("/tickets?per_page=1", this.headers); return r.ok; } catch { return false; } }

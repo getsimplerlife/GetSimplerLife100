@@ -43,14 +43,19 @@ function writeJSON(path: string, data: any) {
 
 // ── OAuth Credential Resolution ────────────────────────────────────
 function getOAuthCredentials(provider: string): { clientId: string; clientSecret: string } | null {
-  // 1. Try environment variables: OAUTH_<PROVIDER>_CLIENT_ID / OAUTH_<PROVIDER>_CLIENT_SECRET
   const provUpper = provider.replace(/-/g, "_").toUpperCase();
-  const envClientId = process.env[`OAUTH_${provUpper}_CLIENT_ID`];
-  const envClientSecret = process.env[`OAUTH_${provUpper}_CLIENT_SECRET`];
+  // 1. Try OAUTH_<PROVIDER>_CLIENT_ID / OAUTH_<PROVIDER>_CLIENT_SECRET
+  let envClientId = process.env[`OAUTH_${provUpper}_CLIENT_ID`];
+  let envClientSecret = process.env[`OAUTH_${provUpper}_CLIENT_SECRET`];
+  // 2. Try without OAUTH_ prefix (e.g., DOCUSIGN_CLIENT_ID)
+  if (!envClientId || !envClientSecret) {
+    envClientId = process.env[`${provUpper}_CLIENT_ID`];
+    envClientSecret = process.env[`${provUpper}_CLIENT_SECRET`];
+  }
   if (envClientId && envClientSecret) {
     return { clientId: envClientId, clientSecret: envClientSecret };
   }
-  // 2. Fall back to tenant_oauth_credentials.json
+  // 3. Fall back to tenant_oauth_credentials.json
   const credsFile = join(DATA_DIR, "tenant_oauth_credentials.json");
   const creds = readJSON(credsFile);
   const key = `${provider}`;
@@ -1803,6 +1808,7 @@ serve({
 
     // ── /api/oauth/callback ───────────────────────────────────────
     if (pathname === "/api/oauth/callback" || pathname === "/api/xero-callback" || pathname.match(/^\/api\/oauth\/callback\/(.+)$/)) {
+      console.log("[oauth-callback] HIT - pathname:", pathname, "params:", Object.fromEntries(url.searchParams));
       // Path-based providers (e.g. xero) embed the provider ID in the URL path
       const pathProvider = pathname === "/api/xero-callback" ? "xero" : (pathname.match(/^\/api\/oauth\/callback\/(.+)$/) || [])[1] || null;
       const code = url.searchParams.get("code");
@@ -1827,7 +1833,7 @@ serve({
       if (!callbackUser?.email) {
         return Response.redirect(`/portal/integrations?error=${encodeURIComponent("Session expired. Please login and try again.")}`, 302);
       }
-      const stateError = validateOAuthState(stateEntry, callbackUser.email);
+      console.log("[oauth-callback] state found:", !!stateEntry, "provider:", stateEntry?.provider, "email:", stateEntry?.email);      const stateError = validateOAuthState(stateEntry, callbackUser.email);      console.log("[oauth-callback] stateError:", stateError);
       if (stateError === "mismatch") {
         return Response.redirect(`/portal/integrations?error=${encodeURIComponent("OAuth state belongs to a different tenant")}`, 302);
       }

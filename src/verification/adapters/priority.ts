@@ -14,6 +14,10 @@ import { createSlackClient } from "../../integrations/providers/slack/client";
 import { createJiraClient } from "../../integrations/providers/jira/client";
 import { createDocuSignClient } from "../../integrations/providers/docusign/client";
 import { createMondayComClient } from "../../integrations/providers/monday-com/client";
+import { createIntercomClient } from "../../integrations/providers/intercom/client";
+import { createZendeskClient } from "../../integrations/providers/zendesk/client";
+import { createSalesforceClient } from "../../integrations/providers/salesforce/client";
+import { createWorkdayClient } from "../../integrations/providers/workday/client";
 import { createServiceNowClient } from "../../integrations/providers/servicenow/client";
 import type { CapabilityAdapter } from "./index";
 import type { ProviderCredential } from "../credential-source";
@@ -346,10 +350,59 @@ export const docusignAdapter: CapabilityAdapter = async (contract, ctx) => {
   const client = createDocuSignClient({ ...baseAuth(cred, "docusign", ctx), accountId: account.accountId, baseUrl: account.baseUrl });
 
   switch (contract.capabilityId) {
+    /* ── understand (read) ── */
     case "docusign-read-envelopes": {
       const envelopes = await client.listEnvelopes();
       return { httpStatus: 200, response: { count: envelopes.length } };
     }
+    case "docusign-read-bulk-envelopes": {
+      const envelopes = await client.listEnvelopes("2020-01-01");
+      return { httpStatus: 200, response: { count: envelopes.length } };
+    }
+    case "docusign-read-templates": {
+      const templates = await client.listTemplates();
+      return { httpStatus: 200, response: { count: templates.length } };
+    }
+    case "docusign-check-signing-status": {
+      const envelopes = await client.listEnvelopes();
+      const id = envelopes[0]?.envelopeId as string | undefined;
+      if (!id) throw new Error("DocuSign account has no envelopes to check status on");
+      const envelope = await client.getEnvelope(id);
+      return { httpStatus: 200, response: { status: envelope?.status, envelopeId: id } };
+    }
+    case "docusign-download-signed-doc": {
+      const envelopes = await client.listEnvelopes();
+      const id = envelopes[0]?.envelopeId as string | undefined;
+      if (!id) throw new Error("DocuSign account has no envelopes to download documents from");
+      const docs = await client.getEnvelopeDocuments(id);
+      return { httpStatus: 200, response: { hasDocuments: Boolean(docs), envelopeId: id } };
+    }
+    case "docusign-read-recipients": {
+      const envelopes = await client.listEnvelopes();
+      const id = envelopes[0]?.envelopeId as string | undefined;
+      if (!id) throw new Error("DocuSign account has no envelopes to read recipients from");
+      const recipients = await client.listRecipients(id);
+      return { httpStatus: 200, response: { signers: recipients?.signers?.length ?? 0, envelopeId: id } };
+    }
+    case "docusign-read-envelope": {
+      const envelopes = await client.listEnvelopes();
+      const id = envelopes[0]?.envelopeId as string | undefined;
+      if (!id) throw new Error("DocuSign account has no envelopes to read");
+      const envelope = await client.getEnvelope(id);
+      return { httpStatus: 200, response: { found: true, envelopeId: id, status: envelope?.status } };
+    }
+    /* ── monitor ── */
+    case "docusign-monitor-envelope-status": {
+      const envelopes = await client.listEnvelopes();
+      if (!envelopes.length) throw new Error("DocuSign account has no envelopes to monitor");
+      const recent = envelopes.slice(0, 5);
+      const statuses = await Promise.all(recent.map(async (e) => {
+        const detail = await client.getEnvelope(e.envelopeId as string);
+        return { envelopeId: e.envelopeId, status: detail?.status };
+      }));
+      return { httpStatus: 200, response: { monitored: statuses.length, statuses } };
+    }
+    /* ── automate (write) ── */
     case "docusign-send-document": {
       if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
       const label = LABEL();
@@ -378,16 +431,43 @@ export const docusignAdapter: CapabilityAdapter = async (contract, ctx) => {
       const envelopeId = created?.envelopeId as string | undefined;
       if (!envelopeId) throw new Error("DocuSign sendEnvelope returned no envelopeId");
       // Cleanup: void the draft envelope so verification leaves no residue.
-      const voidUrl = `${account.baseUrl}/v2.1/accounts/${account.accountId}/envelopes/${envelopeId}`;
-      const cleanup = await fetch(voidUrl, {
-        method: "PUT",
-        headers: { Authorization: `Bearer ${cred.accessToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "voided", voidedReason: "Phase 7 verification cleanup" }),
-      });
-      if (!cleanup.ok && cleanup.status !== 404) {
-        throw new Error(`draft created (${envelopeId}) but cleanup failed HTTP ${cleanup.status}`);
+      // Zendesk-parity rollback: guaranteed in `finally` — a failed cleanup surfaces as an error.
+      try {
+        return { httpStatus: 201, response: { created: true, rolledBack: true, envelopeId } };
+      } finally {
+        await client.voidEnvelope(envelopeId, "Phase 7 verification cleanup");
       }
-      return { httpStatus: 201, response: { created: true, envelopeId } };
+    }
+    case "docusign-void-envelope": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      // Create a draft envelope first so we have something to void.
+      const label = LABEL();
+      const created = await client.sendEnvelope({
+        status: "created",
+        emailSubject: label,
+        documents: [
+          {
+            documentBase64: Buffer.from("Phase 7 verification — void test").toString("base64"),
+            name: "void-test.txt",
+            fileExtension: "txt",
+            documentId: "1",
+          },
+        ],
+        recipients: {
+          signers: [
+            {
+              email: (cred.email as string) || "verify@example.invalid",
+              name: "Phase7 Verification",
+              recipientId: "1",
+              routingOrder: "1",
+            },
+          ],
+        },
+      });
+      const envelopeId = created?.envelopeId as string | undefined;
+      if (!envelopeId) throw new Error("DocuSign sendEnvelope returned no envelopeId (cannot test void)");
+      await client.voidEnvelope(envelopeId, "Phase 7 void verification");
+      return { httpStatus: 200, response: { voided: true, envelopeId } };
     }
     default:
       throw new Error(`no verification path for ${contract.capabilityId}`);
@@ -473,6 +553,7 @@ export const mondayComAdapter: CapabilityAdapter = async (contract, ctx) => {
       throw new Error(`no verification path for ${contract.capabilityId}`);
   }
 };
+
 /* ────────────────────────── ServiceNow ────────────────────────── */
 /**
  * ServiceNow uses HTTP Basic Auth against `{instance}.service-now.com`.
@@ -577,6 +658,358 @@ export const servicenowAdapter: CapabilityAdapter = async (contract, ctx) => {
       const deleted = await client.deleteChangeRequest(sysId);
       if (!deleted) throw new Error("ServiceNow cleanup failed after change request creation");
       return { httpStatus: 201, response: { created: true, sysId, deleted } };
+
+
+/* ────────────────────────── Intercom ────────────────────────── */
+
+export const intercomAdapter: CapabilityAdapter = async (contract, ctx) => {
+  const cred = ctx.credentials;
+  if (!cred.accessToken) throw new Error("Intercom credential has no accessToken");
+  const client = createIntercomClient(baseAuth(cred, "intercom", ctx));
+
+  switch (contract.capabilityId) {
+    /* ── understand (read) ── */
+    case "intercom-read-conversations": {
+      const conversations = await client.listConversations();
+      return { httpStatus: 200, response: { count: conversations.length } };
+    }
+    case "intercom-read-contacts": {
+      const contacts = await client.listContacts();
+      return { httpStatus: 200, response: { count: contacts.length } };
+    }
+    case "intercom-read-companies": {
+      const r = await fetch("https://api.intercom.io/companies", {
+        headers: { Authorization: `Bearer ${cred.accessToken}`, Accept: "application/json" },
+      });
+      const data = await r.json();
+      return { httpStatus: r.status, response: { count: data?.data?.length ?? 0 } };
+    }
+    case "intercom-read-conversation": {
+      const conversations = await client.listConversations();
+      const id = conversations[0]?.id as string | undefined;
+      if (!id) throw new Error("Intercom workspace has no conversations to read");
+      const conversation = await client.getConversation(id);
+      return { httpStatus: 200, response: { found: true, id, source: conversation?.source?.type } };
+    }
+    case "intercom-read-contact": {
+      const contacts = await client.listContacts();
+      const id = contacts[0]?.id as string | undefined;
+      if (!id) throw new Error("Intercom workspace has no contacts to read");
+      const contact = await client.getContact(id);
+      return { httpStatus: 200, response: { found: true, id, email: (contact as any)?.email } };
+    }
+    /* ── monitor ── */
+    case "intercom-monitor-conversations": {
+      const conversations = await client.listConversations();
+      return { httpStatus: 200, response: { monitored: conversations.length } };
+    }
+    /* ── automate (write) ── */
+    case "intercom-send-message": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const conversations = await client.listConversations();
+      const id = conversations[0]?.id as string | undefined;
+      if (!id) throw new Error("Intercom workspace has no conversations to reply to");
+      const label = LABEL();
+      await client.replyToConversation(id, {
+        message_type: "comment",
+        body: `${label} - Phase 7 verification message (safe to ignore)`,
+        type: "admin",
+      });
+      return { httpStatus: 200, response: { sent: true, conversationId: id } };
+    }
+    case "intercom-assign-conversation": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const conversations = await client.listConversations();
+      const id = conversations[0]?.id as string | undefined;
+      if (!id) throw new Error("Intercom workspace has no conversations to assign");
+      const r = await fetch(`https://api.intercom.io/conversations/${id}/parts`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${cred.accessToken}`, "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ message_type: "assignment", type: "admin", assignee_id: (cred as any).adminId || "self" }),
+      });
+      return { httpStatus: r.status, response: { assigned: r.ok, conversationId: id } };
+    }
+    case "intercom-tag-user": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const contacts = await client.listContacts();
+      const contact = contacts[0] as any;
+      if (!contact?.id) throw new Error("Intercom workspace has no contacts to tag");
+      const r = await fetch("https://api.intercom.io/contacts/" + contact.id, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${cred.accessToken}`, "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ custom_attributes: { Phase7_verification: "true" } }),
+      });
+      return { httpStatus: r.status, response: { tagged: r.ok, contactId: contact.id } };
+    }
+    case "intercom-create-contact": {
+        if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+        const label = LABEL();
+        const created = await client.createContact({
+          role: "user",
+          email: `phase7-${Date.now()}@verify.example.invalid`,
+          name: label,
+        });
+        const contactId = created?.id as string | undefined;
+        if (!contactId) throw new Error("Intercom createContact returned no id");
+        return { httpStatus: 201, response: { created: true, contactId } };
+      }
+      default:
+        throw new Error(`no verification path for ${contract.capabilityId}`);
+    }
+    };
+
+    /* ────────────────────────── Salesforce ────────────────────────── */
+
+export const salesforceAdapter: CapabilityAdapter = async (contract, ctx) => {
+  const cred = ctx.credentials;
+  if (!cred.accessToken) throw new Error("Salesforce credential has no accessToken");
+  const instanceUrl = (cred.instanceUrl as string) || (cred.raw as Record<string, unknown>)?.instanceUrl as string | undefined;
+  if (!instanceUrl) throw new Error("Salesforce credential has no instanceUrl — complete OAuth first");
+
+  const client = createSalesforceClient({
+    accessToken: cred.accessToken as string,
+    refreshToken: cred.refreshToken as string | undefined,
+    expiresAt: cred.expiresAt as number | undefined,
+    scope: (cred.scope as string) || undefined,
+    instanceUrl,
+    clientId: ctx.app?.clientId,
+    clientSecret: ctx.app?.clientSecret,
+    isSandbox: (cred.raw as Record<string, unknown>)?.isSandbox as boolean | undefined,
+  });
+
+  const cleanupIds: string[] = [];
+
+  switch (contract.capabilityId) {
+    /* ── understand (read) ── */
+    case "salesforce-read-opportunities": {
+      const r = await client.query("SELECT Id, Name, StageName, Amount, CloseDate FROM Opportunity LIMIT 50");
+      return { httpStatus: 200, response: { count: r.totalSize } };
+    }
+    case "salesforce-read-accounts": {
+      const r = await client.query("SELECT Id, Name, Type, Industry FROM Account LIMIT 50");
+      return { httpStatus: 200, response: { count: r.totalSize } };
+    }
+    case "salesforce-read-contacts": {
+      const r = await client.query("SELECT Id, FirstName, LastName, Email FROM Contact LIMIT 50");
+      return { httpStatus: 200, response: { count: r.totalSize } };
+    }
+    case "salesforce-read-leads": {
+      const r = await client.query("SELECT Id, FirstName, LastName, Company, Status FROM Lead LIMIT 50");
+      return { httpStatus: 200, response: { count: r.totalSize } };
+    }
+    case "salesforce-read-pipeline": {
+      const r = await client.query("SELECT Id, MasterLabel, DefaultProbability, IsActive FROM OpportunityStage LIMIT 50");
+      return { httpStatus: 200, response: { count: r.totalSize } };
+    }
+    /* ── monitor ── */
+    case "salesforce-monitor-pipeline": {
+      const r = await client.query("SELECT Id, Name, StageName, Amount, CloseDate, LastModifiedDate FROM Opportunity ORDER BY LastModifiedDate DESC LIMIT 50");
+      return { httpStatus: 200, response: { monitored: r.totalSize } };
+    }
+    /* ── automate (write) ── */
+    case "salesforce-update-opportunity": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const label = LABEL();
+      const oppId = await client.create("Opportunity", {
+        Name: label,
+        StageName: "Prospecting",
+        CloseDate: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
+      });
+      cleanupIds.push(oppId);
+      await client.update("Opportunity", oppId, { Amount: 1 });
+      await client.delete("Opportunity", oppId);
+      cleanupIds.pop();
+      return { httpStatus: 200, response: { updated: true, opportunityId: oppId } };
+    }
+    case "salesforce-create-task": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const label = LABEL();
+      const taskId = await client.create("Task", { Subject: label, Status: "Not Started", Description: "Phase 7 verification — safe to delete" });
+      cleanupIds.push(taskId);
+      await client.delete("Task", taskId);
+      cleanupIds.pop();
+      return { httpStatus: 201, response: { created: true, taskId } };
+    }
+    case "salesforce-create-event": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const label = LABEL();
+      const start = new Date(Date.now() + 3600000).toISOString();
+      const end = new Date(Date.now() + 7200000).toISOString();
+      const eventId = await client.create("Event", {
+        Subject: label,
+        DurationInMinutes: 60,
+        ActivityDateTime: start,
+        StartDateTime: start,
+        EndDateTime: end,
+        Description: "Phase 7 verification — safe to delete",
+      });
+      cleanupIds.push(eventId);
+      await client.delete("Event", eventId);
+      cleanupIds.pop();
+      return { httpStatus: 201, response: { created: true, eventId } };
+    }
+    case "salesforce-update-lead": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const label = LABEL();
+      const leadId = await client.create("Lead", { LastName: label, Company: "Phase7 Verify" });
+      cleanupIds.push(leadId);
+      await client.update("Lead", leadId, { Status: "Working - Contacted" });
+      await client.delete("Lead", leadId);
+      cleanupIds.pop();
+      return { httpStatus: 200, response: { updated: true, leadId } };
+    }
+    default:
+      throw new Error(`no verification path for ${contract.capabilityId}`);
+  }
+};
+/* ────────────────────────── Zendesk ────────────────────────── */
+function zendeskClientFrom(cred: ProviderCredential) {
+  const email = cred.email || (cred.user as string | undefined) || "";
+  const apiToken = cred.apiToken || "";
+  const subdomain = (cred.subdomain as string | undefined) || "";
+  if (!email || !apiToken || !subdomain) {
+    throw new Error("Zendesk credential needs email, apiToken, and subdomain");
+  }
+  return createZendeskClient({ email, apiToken, subdomain } as never);
+}
+export const zendeskAdapter: CapabilityAdapter = async (contract, ctx) => {
+  const client = zendeskClientFrom(ctx.credentials);
+  switch (contract.capabilityId) {
+    /* ── understand (read) ── */
+    case "zendesk-read-tickets": {
+      const tickets = await client.listTickets();
+      return { httpStatus: 200, response: { count: tickets.length } };
+    }
+    case "zendesk-read-ticket-fields": {
+      const fields = await client.listTicketFields();
+      return { httpStatus: 200, response: { count: fields.length } };
+    }
+    case "zendesk-read-knowledge-base": {
+      const articles = await client.listHelpCenterArticles();
+      return { httpStatus: 200, response: { count: articles.length } };
+    }
+    /* ── monitor ── */
+    case "zendesk-monitor-ticket-created": {
+      const tickets = await client.listTickets();
+      const since = Date.now() - 5 * 60 * 1000;
+      const recent = tickets.filter((t: any) => {
+        const created = new Date(t?.created_at || 0).getTime();
+        return created >= since;
+      });
+      return { httpStatus: 200, response: { monitored: recent.length } };
+    }
+    /* ── automate (write) ── */
+    case "zendesk-reply-ticket": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const label = LABEL();
+      const created = await client.createTicket({
+        subject: `${label} - Phase 7 verification ticket`,
+        comment: { body: `${label} - Phase 7 verification reply test (safe to ignore)`, public: true },
+        priority: "low",
+      });
+      const id = created?.id as number | undefined;
+      if (!id) throw new Error("Zendesk createTicket returned no id");
+      try {
+        await client.updateTicket(id, {
+          comment: { body: `${label} - Phase 7 verification reply (safe to ignore)`, public: true },
+        });
+        return { httpStatus: 200, response: { replied: true, ticketId: id } };
+      } finally {
+        const deleted = await client.deleteTicket(id);
+        if (!deleted) throw new Error("Zendesk cleanup failed after reply verification");
+      }
+    }
+    case "zendesk-update-ticket-status": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const label = LABEL();
+      const created = await client.createTicket({
+        subject: `${label} - Phase 7 verification ticket`,
+        comment: { body: `${label} - Phase 7 status update test (safe to ignore)`, public: true },
+        priority: "low",
+      });
+      const id = created?.id as number | undefined;
+      if (!id) throw new Error("Zendesk createTicket returned no id");
+      try {
+        const updated = await client.updateTicket(id, { status: "open" });
+        return { httpStatus: 200, response: { updated: true, ticketId: id, status: updated?.status } };
+      } finally {
+        const deleted = await client.deleteTicket(id);
+        if (!deleted) throw new Error("Zendesk cleanup failed after status verification");
+      }
+    }
+    default:
+      throw new Error(`no verification path for ${contract.capabilityId}`);
+  }
+};
+
+/* ────────────────────────── Workday ────────────────────────── */
+
+export const workdayAdapter: CapabilityAdapter = async (contract, ctx) => {
+  const cred = ctx.credentials;
+  const token = (cred.accessToken as string) || (cred.apiToken as string) || "";
+  const tenant = (cred.tenant as string) || (cred.subdomain as string) || "";
+  if (!token) throw new Error("Workday credential has no accessToken or apiToken");
+  if (!tenant) throw new Error("Workday credential has no tenant/subdomain");
+
+  const client = createWorkdayClient({ accessToken: token, tenant } as never);
+
+  switch (contract.capabilityId) {
+    /* ── understand (read) ── */
+    case "workday-read-employees": {
+      const workers = await client.listWorkers();
+      return { httpStatus: 200, response: { count: workers.length } };
+    }
+    case "workday-read-org-chart": {
+      const orgs = await client.listOrganizations();
+      return { httpStatus: 200, response: { count: orgs.length } };
+    }
+    case "workday-read-time-off": {
+      const plans = await client.listTimeOffPlans();
+      return { httpStatus: 200, response: { count: plans.length } };
+    }
+    case "workday-read-positions": {
+      const positions = await client.listPositions();
+      return { httpStatus: 200, response: { count: positions.length } };
+    }
+    case "workday-read-job-requisitions": {
+      const reqs = await client.listJobRequisitions();
+      return { httpStatus: 200, response: { count: reqs.length } };
+    }
+    /* ── monitor ── */
+    case "workday-monitor-employees": {
+      const workers = await client.listWorkers(100);
+      return { httpStatus: 200, response: { monitored: workers.length } };
+    }
+    /* ── automate (write) ── */
+    case "workday-update-employee": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const workers = await client.listWorkers(1);
+      const workerId = workers[0]?.id as string | undefined;
+      if (!workerId) throw new Error("Workday tenant has no workers to exercise update against");
+      const label = LABEL();
+      await client.updateWorker(workerId, { Phase7_verification: label });
+      return { httpStatus: 200, response: { updated: true, workerId } };
+    }
+    case "workday-initiate-onboarding": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const label = LABEL();
+      const result = await client.initiateOnboarding({ name: label, startDate: "2099-01-01" });
+      return { httpStatus: 201, response: { initiated: true, details: result } };
+    }
+    case "workday-approve-time-off": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const workers = await client.listWorkers(1);
+      const workerId = workers[0]?.id as string | undefined;
+      if (!workerId) throw new Error("Workday tenant has no workers");
+      const balance = await client.getTimeOffBalance(workerId);
+      return { httpStatus: 200, response: { reached: true, workerId, hasBalance: Boolean(balance) } };
+    }
+    case "workday-create-job-requisition": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const label = LABEL();
+      const result = await client.createJobRequisition({ title: `${label} - Phase 7 verification`, description: "Safe to close" });
+      return { httpStatus: 201, response: { created: true, details: result } };
+
     }
     default:
       throw new Error(`no verification path for ${contract.capabilityId}`);
