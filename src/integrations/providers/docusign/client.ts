@@ -1,12 +1,16 @@
 import { HttpClient } from "../../framework/client"; import { OAuthTokens, isTokenExpired } from "../../framework/oauth"; import { ConnectionConfig } from "../../framework/connection";
 export interface EnvelopeRecipient { email: string; name?: string; roleName?: string; status?: string; tabs?: Array<Record<string, unknown>>; }
 export class DocuSignClient {
-  private client: HttpClient; private tokens: OAuthTokens; private authConfig: any; private accountId: string; private baseUrl: string;
-  constructor(tokens: OAuthTokens, authConfig: any, accountId: string, baseUrl: string) {
+  private client: HttpClient; private tokens: OAuthTokens; private authConfig: any; private accountId: string; private baseUrl: string; private appToken: string;
+  constructor(tokens: OAuthTokens, authConfig: any, accountId: string, baseUrl: string, appToken?: string) {
     this.baseUrl = baseUrl || "https://demo.docusign.net/restapi"; this.client = new HttpClient({ baseUrl: `${this.baseUrl}/v2.1/accounts/${accountId}`, rateLimit: { maxRequestsPerSecond: 20 }, retry: { maxRetries: 3, baseDelay: 1000, maxDelay: 10000 }, timeout: 30000 });
-    this.tokens = tokens; this.authConfig = authConfig; this.accountId = accountId;
+    this.tokens = tokens; this.authConfig = authConfig; this.accountId = accountId; this.appToken = appToken || "";
   }
-  private get headers() { return { Authorization: `Bearer ${this.tokens.accessToken}`, "Content-Type": "application/json" }; }
+  private get headers() {
+    const h: Record<string, string> = { Authorization: `Bearer ${this.tokens.accessToken}`, "Content-Type": "application/json" };
+    if (this.appToken) h["X-DocuSign-AppToken"] = this.appToken;
+    return h;
+  }
   private rebuildClient(baseUri: string, accountId: string) {
     this.baseUrl = baseUri || this.baseUrl;
     this.accountId = accountId;
@@ -100,5 +104,5 @@ export class DocuSignClient {
 export function createDocuSignClient(config: ConnectionConfig): DocuSignClient {
   return new DocuSignClient({ accessToken: config.accessToken || "", refreshToken: config.refreshToken, expiresAt: config.expiresAt, scope: config.scope, raw: config },
     { clientId: config.clientId || "", clientSecret: config.clientSecret || "", redirectUri: config.redirectUri || "" },
-    config.accountId || "", config.baseUrl || "");
+    config.accountId || "", config.baseUrl || "", config.appToken as string | undefined);
 }
