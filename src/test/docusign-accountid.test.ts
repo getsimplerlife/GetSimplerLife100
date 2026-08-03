@@ -12,18 +12,26 @@ describe("DocuSign account id resolution", () => {
     ])).toEqual({ accountId: "a2", baseUri: "https://demo.docusign.net/restapi" });
   });
 
-  it("uses the stored token account_id before any network call", async () => {
+  it("uses the stored token account_id before any userinfo call", async () => {
     const client = createDocuSignClient({
       accessToken: "tok",
       accountId: "",
-      raw: { account_id: "raw-account-123" },
+      account_id: "raw-account-123",
     } as never);
-    // ensureAccount runs on first call; a request must go to the resolved account path.
-    const called: string[] = [];
-    (client as any).client.get = async (path: string) => { called.push(path); return { data: { envelopes: [] } }; };
-    await client.listEnvelopes();
-    expect((client as any).accountId).toBe("raw-account-123");
-    expect(called.length).toBe(1);
+    const requested: string[] = [];
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (url: any) => {
+      requested.push(String(url));
+      return { ok: true, status: 200, headers: new Headers({ "content-type": "application/json" }), json: async () => ({ envelopes: [] }) } as Response;
+    }) as typeof fetch;
+    try {
+      await client.listEnvelopes();
+      expect((client as any).accountId).toBe("raw-account-123");
+      expect(requested.some((u) => u.includes("/v2.1/accounts/raw-account-123/envelopes"))).toBe(true);
+      expect(requested.some((u) => u.includes("userinfo"))).toBe(false);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 
   it("resolves the default account via canonical userinfo hosts only", async () => {
