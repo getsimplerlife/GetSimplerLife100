@@ -60,6 +60,62 @@ export const complianceCapabilities: ReadonlyArray<CapabilityContract> = [
     rollback: "available",
     evidence: "Provider adapter capability path exists; authorized tenant evidence is pending.",
   }),
+  defineCapabilityContract({
+    employeeId: COMPLIANCE_EMPLOYEE_ID,
+    capabilityId: "jira-monitor-issue-created",
+    kind: "monitor",
+    status: "unverified",
+    providerId: JIRA_PROVIDER_ID,
+    tenantScoped: true,
+    authRequired: true,
+    auditRequired: true,
+    idempotencyRequired: false,
+    retryPolicy: "bounded",
+    rollback: "not_applicable",
+    evidence: "Jira provider module exposes issue monitoring capability; authorized tenant evidence is pending.",
+  }),
+  defineCapabilityContract({
+    employeeId: COMPLIANCE_EMPLOYEE_ID,
+    capabilityId: "jira-read-issue",
+    kind: "understand",
+    status: "unverified",
+    providerId: JIRA_PROVIDER_ID,
+    tenantScoped: true,
+    authRequired: true,
+    auditRequired: true,
+    idempotencyRequired: false,
+    retryPolicy: "bounded",
+    rollback: "not_applicable",
+    evidence: "Jira provider module exposes single-issue read capability; authorized tenant evidence is pending.",
+  }),
+  defineCapabilityContract({
+    employeeId: COMPLIANCE_EMPLOYEE_ID,
+    capabilityId: "jira-update-issue",
+    kind: "automate",
+    status: "unverified",
+    providerId: JIRA_PROVIDER_ID,
+    tenantScoped: true,
+    authRequired: true,
+    auditRequired: true,
+    idempotencyRequired: true,
+    retryPolicy: "bounded",
+    rollback: "available",
+    evidence: "Jira provider module exposes issue update capability; authorized write, idempotency, and rollback evidence is pending.",
+  }),
+  defineCapabilityContract({
+    employeeId: COMPLIANCE_EMPLOYEE_ID,
+    capabilityId: "jira-read-sprints",
+    kind: "understand",
+    status: "unverified",
+    providerId: JIRA_PROVIDER_ID,
+    tenantScoped: true,
+    authRequired: true,
+    auditRequired: true,
+    idempotencyRequired: false,
+    retryPolicy: "bounded",
+    rollback: "not_applicable",
+    evidence: "Jira provider module exposes sprint read capability; authorized tenant evidence is pending.",
+  }),
 ];
 export interface ComplianceAdapter { listAuditItems(tenantId: string): Promise<unknown>; createAuditFinding(tenantId: string, input: Record<string, unknown>, idempotencyKey: string): Promise<unknown>; }
 export interface ComplianceExecutionOptions { tenantId: string; authToken?: string; audit: (event: { capabilityId: string; tenantId: string; outcome: string; idempotencyKey?: string }) => Promise<void> | void; maxAttempts?: number; }
@@ -146,4 +202,24 @@ export async function readComments(adapter: ExtendedCapabilityAdapter, options: 
 export async function transitionIssue(adapter: ExtendedCapabilityAdapter, options: ExtendedExecutionOptions, input: Record<string, unknown>, idempotencyKey: string): Promise<unknown> {
   if (!adapter.transitionIssue) throw new Error("Capability adapter method is unavailable");
   return executeExtendedCapability({ write: (_id, tenant, data, key) => adapter.transitionIssue!(tenant, data, key) }, "jira-transition-issue", options, input, idempotencyKey);
+}
+
+export async function readIssue(adapter: ExtendedCapabilityAdapter, options: ExtendedExecutionOptions): Promise<unknown> {
+  if (!adapter.read) throw new Error("Capability adapter method is unavailable");
+  return executeExtendedCapability({ read: (id, tenant) => adapter.read!(id, tenant) }, "jira-read-issue", options);
+}
+
+export async function updateIssue(adapter: ExtendedCapabilityAdapter, options: ExtendedExecutionOptions, input: Record<string, unknown>, idempotencyKey: string): Promise<unknown> {
+  if (!adapter.write) throw new Error("Capability adapter method is unavailable");
+  return executeExtendedCapability({ write: (id, tenant, data, key) => adapter.write!(id, tenant, data, key) }, "jira-update-issue", options, input, idempotencyKey);
+}
+
+export async function readSprints(adapter: ExtendedCapabilityAdapter, options: ExtendedExecutionOptions): Promise<unknown> {
+  if (!adapter.read) throw new Error("Capability adapter method is unavailable");
+  return executeExtendedCapability({ read: (id, tenant) => adapter.read!(id, tenant) }, "jira-read-sprints", options);
+}
+
+export async function monitorIssueCreated(adapter: ExtendedCapabilityAdapter, options: ExtendedExecutionOptions, subscription: Record<string, unknown>): Promise<unknown> {
+  if (!adapter.read) throw new Error("Capability adapter method is unavailable");
+  return executeExtendedCapability({ read: (id, tenant) => adapter.read!(id, tenant) }, "jira-monitor-issue-created", options);
 }
