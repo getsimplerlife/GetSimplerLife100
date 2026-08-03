@@ -12,7 +12,38 @@ export class ServiceNowClient {
   async getIncident(sysId: string): Promise<any> { const r = await this.client.get(`/table/incident/${sysId}`, this.headers); return r.data?.result; }
   async createIncident(data: any): Promise<any> { const r = await this.client.post("/table/incident", data, this.headers); return r.data?.result; }
   async updateIncident(sysId: string, data: any): Promise<any> { const r = await this.client.patch(`/table/incident/${sysId}`, data, this.headers); return r.data?.result; }
-  async listTables(): Promise<any[]> { const r = await this.client.get("/table/sys_db_object?sysparm_limit=50", this.headers); return r.data?.result || []; }
+  async deleteIncident(sysId: string): Promise<boolean> { const r = await this.client.delete(`/table/incident/${sysId}`, this.headers); return r.ok; }
+
+  /* ── Change Requests ── */
+  async listChangeRequests(): Promise<any[]> {
+    return this.queryTable("change_request");
+  }
+
+  async createChangeRequest(data: any): Promise<any> {
+    const r = await this.client.post("/table/change_request", data, this.headers);
+    return r.data?.result;
+  }
+
+  async deleteChangeRequest(sysId: string): Promise<void> {
+    await this.client.delete(`/table/change_request/${sysId}`, this.headers);
+  }
+
+  /* ── Problems ── */
+  async listProblems(): Promise<any[]> {
+    return this.queryTable("problem");
+  }
+
+  /* ── CMDB ── */
+  async listCmdbAssets(): Promise<any[]> {
+    return this.queryTable("cmdb_ci");
+  }
+
+  /* ── Knowledge Base ── */
+  async listKnowledgeBase(): Promise<any[]> {
+    return this.queryTable("kb_knowledge");
+  }
+
+  /* ── Generic table query ── */
   async queryTable(table: string, query?: string): Promise<any[]> { const p = query ? `/table/${table}?sysparm_query=${encodeURIComponent(query)}` : `/table/${table}?sysparm_limit=100`; const r = await this.client.get(p, this.headers); return r.data?.result || []; }
   async healthCheck(): Promise<boolean> { try { const r = await this.client.get("/table/incident?sysparm_limit=1", this.headers); return r.ok; } catch { return false; } }
 }

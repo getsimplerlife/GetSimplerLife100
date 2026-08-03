@@ -18,6 +18,7 @@ import { createIntercomClient } from "../../integrations/providers/intercom/clie
 import { createZendeskClient } from "../../integrations/providers/zendesk/client";
 import { createSalesforceClient } from "../../integrations/providers/salesforce/client";
 import { createWorkdayClient } from "../../integrations/providers/workday/client";
+import { createServiceNowClient } from "../../integrations/providers/servicenow/client";
 import type { CapabilityAdapter } from "./index";
 import type { ProviderCredential } from "../credential-source";
 
@@ -553,6 +554,112 @@ export const mondayComAdapter: CapabilityAdapter = async (contract, ctx) => {
   }
 };
 
+/* ────────────────────────── ServiceNow ────────────────────────── */
+/**
+ * ServiceNow uses HTTP Basic Auth against `{instance}.service-now.com`.
+ * Credentials: { user, password, instance } (personal developer instance).
+ * Writes are labeled Phase7-*, cleaned up (create → delete), and revert state
+ * they change (severity/assignment updates restore the original value).
+ */
+export const servicenowAdapter: CapabilityAdapter = async (contract, ctx) => {
+  const cred = ctx.credentials;
+  const user = (cred.user as string) || (cred.username as string) || "";
+  const password = (cred.password as string) || "";
+  const instance = (cred.instance as string) || "";
+  if (!user || !password || !instance) {
+    throw new Error("ServiceNow credential needs user, password and instance (e.g. dev123456)");
+  }
+  const client = createServiceNowClient({ user, password, instance });
+  switch (contract.capabilityId) {
+    case "servicenow-read-incidents": {
+      const incidents = await client.listIncidents();
+      return { httpStatus: 200, response: { count: incidents.length } };
+    }
+    case "servicenow-create-incident": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const label = LABEL();
+      const created = await client.createIncident({
+        short_description: label,
+        description: "Phase 7 provider verification — safe to delete",
+        category: "software",
+        urgency: 2,
+      });
+      const sysId = created?.sys_id as string | undefined;
+      if (!sysId) throw new Error("ServiceNow createIncident returned no sys_id");
+      const cleaned = await client.deleteIncident(sysId);
+      if (!cleaned) throw new Error(`incident created (${sysId}) but cleanup failed`);
+      return { httpStatus: 201, response: { created: true, sysId } };
+    }
+    case "servicenow-read-change-requests": {
+      const records = await client.queryTable("change_request");
+      return { httpStatus: 200, response: { count: records.length } };
+    }
+    case "servicenow-read-problems": {
+      const records = await client.queryTable("problem");
+      return { httpStatus: 200, response: { count: records.length } };
+    }
+    case "servicenow-read-cmdb-assets": {
+      const records = await client.queryTable("cmdb_ci");
+      return { httpStatus: 200, response: { count: records.length } };
+    }
+    case "servicenow-update-incident-severity": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const incidents = await client.listIncidents();
+      const incident = incidents[0];
+      const sysId = incident?.sys_id as string | undefined;
+      if (!sysId) throw new Error("ServiceNow instance has no incident to exercise severity update");
+      const original = String(incident.severity ?? "");
+      const target = original === "2" ? "3" : "2";
+      await client.updateIncident(sysId, { severity: target });
+      const reverted = await client.updateIncident(sysId, { severity: original });
+      if (!reverted) throw new Error(`severity update reverted on ${sysId} but confirmation missing`);
+      return { httpStatus: 200, response: { updated: true, sysId, from: original, to: target, reverted: true } };
+    }
+    case "servicenow-update-incident-assignment": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const incidents = await client.listIncidents();
+      const incident = incidents[0];
+      const sysId = incident?.sys_id as string | undefined;
+      if (!sysId) throw new Error("ServiceNow instance has no incident to exercise assignment update");
+      const original = String(incident.assignment_group ?? "");
+      // Find the first different assignment group to move to, then revert.
+      const groups = await client.queryTable("sys_user_group", "ORDERBYname");
+      const alternative = groups.find((g: any) => String(g.sys_id ?? "") !== original);
+      if (!alternative?.sys_id) throw new Error("ServiceNow instance has no alternative assignment group");
+      const target = String(alternative.sys_id);
+      await client.updateIncident(sysId, { assignment_group: target });
+      const reverted = await client.updateIncident(sysId, { assignment_group: original });
+      if (!reverted) throw new Error(`assignment update reverted on ${sysId} but confirmation missing`);
+      return { httpStatus: 200, response: { updated: true, sysId, from: original || "unassigned", to: target, reverted: true } };
+    }
+    case "servicenow-monitor-incident-created": {
+      const fiveMinAgo = Date.now() - 5 * 60 * 1000;
+      const incidents = await client.listIncidents();
+      const recent = incidents.filter((i: any) => {
+        const created = new Date(i.sys_created_on ?? "").getTime();
+        return Number.isFinite(created) && created >= fiveMinAgo;
+      });
+      return { httpStatus: 200, response: { recentCount: recent.length } };
+    }
+    case "servicenow-read-knowledge-base": {
+      const kb = await client.listKnowledgeBase();
+      return { httpStatus: 200, response: { count: kb.length } };
+    }
+    case "servicenow-create-change-request": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const label = LABEL();
+      const created = await client.createChangeRequest({
+        short_description: `${label} - Phase 7 verification change request`,
+        description: "Phase 7 verification — safe to close",
+        type: "standard",
+      });
+      const sysId = created?.sys_id as string | undefined;
+      if (!sysId) throw new Error("ServiceNow createChangeRequest returned no sys_id");
+      const deleted = await client.deleteChangeRequest(sysId);
+      if (!deleted) throw new Error("ServiceNow cleanup failed after change request creation");
+      return { httpStatus: 201, response: { created: true, sysId, deleted } };
+
+
 /* ────────────────────────── Intercom ────────────────────────── */
 
 export const intercomAdapter: CapabilityAdapter = async (contract, ctx) => {
@@ -902,6 +1009,7 @@ export const workdayAdapter: CapabilityAdapter = async (contract, ctx) => {
       const label = LABEL();
       const result = await client.createJobRequisition({ title: `${label} - Phase 7 verification`, description: "Safe to close" });
       return { httpStatus: 201, response: { created: true, details: result } };
+
     }
     default:
       throw new Error(`no verification path for ${contract.capabilityId}`);
