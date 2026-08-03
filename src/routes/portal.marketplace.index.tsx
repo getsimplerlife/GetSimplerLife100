@@ -46,13 +46,8 @@ function MarketplaceHub() {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeCategory, setActiveCategory] = useState<string>("all");
 
-  // Multi-step Checkout States
+  // Simple Stripe checkout — redirect to payment link, no simulation
   const [checkoutItem, setCheckoutItem] = useState<MarketplaceItem | null>(null);
-  const [checkoutStep, setCheckoutStep] = useState<"summary" | "processing" | "confirm" | "deploying" | "success">("summary");
-  const [customName, setCustomName] = useState("");
-  const [customPurpose, setCustomPurpose] = useState("");
-  const [simulatedTxId, setSimulatedTxId] = useState("");
-  const [simulatingLog, setSimulatingLog] = useState<string[]>([]);
 
   const categories = ["all", "Healthcare", "Finance", "Sales", "Operations", "HR", "Logistics", "IT", "Marketing"];
 
@@ -151,112 +146,17 @@ function MarketplaceHub() {
     loadData();
   }, []);
 
-  // Trigger Checkout Modal
+  // Redirect to real Stripe checkout
   const initiatePurchase = (item: MarketplaceItem) => {
-    setCheckoutItem(item);
-    setCheckoutStep("summary");
-    setCustomName(`${item.name} (${(item.deployedCount || 0) + 1})`);
-    setCustomPurpose(`Handles autonomous operations and workflows for ${item.category} division.`);
-    setSimulatedTxId(`ch_${Math.random().toString(36).substr(2, 9).toUpperCase()}`);
-    setSimulatingLog([]);
-  };
-
-  // Stripe checkout — redirect to real payment link
-  const handleSimulatePayment = () => {
-    if (!checkoutItem?.paymentLink) {
-      setFeedback("Payment link not available. Visit /build to purchase.");
+    if (!item.paymentLink) {
+      setFeedback("Payment link not available for this item.");
       setTimeout(() => setFeedback(""), 3000);
       return;
     }
     setFeedback("Redirecting to Stripe Checkout...");
-    window.open(checkoutItem.paymentLink, "_blank");
-    setCheckoutStep("processing");
-    setSimulatingLog(["Stripe Checkout opened in new tab...", "Complete payment to continue."]);
-  };
-
-  // Deploy Employee - creates records in Database and logs purchase
-  const handleConfirmDeploy = async () => {
-    if (!checkoutItem) return;
-    setCheckoutStep("deploying");
-    setSimulatingLog(["Saving license metadata to tenant database...", "Authorizing cognitive keys..."]);
-
-    try {
-      // 1. Save new employee instance into employees collection
-      const newEmployee = {
-        name: customName,
-        role: checkoutItem.name,
-        status: "Active",
-        agentType: checkoutItem.agentType,
-        purpose: customPurpose,
-        category: checkoutItem.category,
-        icon: checkoutItem.icon,
-        capabilities: [
-          `Autonomous ${checkoutItem.category} triage`,
-          "Multi-turn cognitive planning",
-          "Cross-system integrations sync"
-        ],
-        createdAt: new Date().toISOString(),
-      };
-
-      await fetch("/api/data/employees", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(newEmployee),
-      });
-
-      setSimulatingLog(prev => [...prev, "Sandbox environment successfully provisioned.", "Running self-check tests..."]);
-
-      // 2. Save purchase receipt into billing invoices history
-      const newInvoice = {
-        id: simulatedTxId,
-        type: `${checkoutItem.name} License Subscription`,
-        amount: checkoutItem.price,
-        date: new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
-      };
-
-      await fetch("/api/data/billing", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(newInvoice),
-      });
-
-      setSimulatingLog(prev => [...prev, "SLA billing contract created.", "SendGrid onboarding dispatch triggered."]);
-
-      // Record purchase and trigger agent provisioning
-      const provRes = await fetch("/api/purchases", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          productName: checkoutItem.name,
-          agentId: checkoutItem.id,
-          agentType: checkoutItem.agentType,
-          amount: checkoutItem.price,
-          txId: simulatedTxId,
-        }),
-      });
-      const provData = await provRes.json().catch(() => ({}));
-      if (provRes.ok) {
-        setSimulatingLog(prev => [...prev, `Agent "${checkoutItem.name}" provisioned successfully.`]);
-      } else {
-        setSimulatingLog(prev => [...prev, `Provisioning note: ${provData.error || "will activate after webhook"}`]);
-      }
-
-      setTimeout(() => {
-        setSimulatingLog(prev => [...prev, "✓ Cognitive Workspace Provisioned Successfully!"]);
-        setTimeout(() => {
-          setCheckoutStep("success");
-          loadData(); // Sync states!
-        }, 1000);
-      }, 1500);
-
-    } catch (err) {
-      console.error("Provisioning deployment error:", err);
-      setFeedback("Error: Provisioning contract timeout.");
-      setCheckoutItem(null);
-    }
+    window.open(item.paymentLink, "_blank");
+    setTimeout(() => setFeedback(""), 3000);
+    setCheckoutItem(null);
   };
 
   // Get a badge color based on text content
@@ -466,7 +366,7 @@ function MarketplaceHub() {
         <div className="bg-stone-950 border border-stone-900 rounded-[2rem] p-6 md:p-8 space-y-6 animate-fadeIn">
           <div>
             <h3 className="text-xl font-black text-white">License Purchase & Order Ledger</h3>
-            <p className="text-xs text-stone-500">Review all sandboxed simulated purchases and active live payment records.</p>
+            <p className="text-xs text-stone-500">Review all purchases and active payment records.</p>
           </div>
 
           {invoices.length > 0 ? (
@@ -513,203 +413,6 @@ function MarketplaceHub() {
           )}
         </div>
       )}
-
-      {/* ─── COGNITIVE PROVISIONING CHECKOUT MODAL ─── */}
-      {checkoutItem && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fadeIn font-sans">
-          <div className="bg-stone-950 border border-stone-900 rounded-[2.5rem] w-full max-w-xl shadow-2xl overflow-hidden text-stone-100 flex flex-col justify-between">
-            
-            {/* Modal Header */}
-            <div className="p-6 md:p-8 border-b border-stone-900 flex justify-between items-center bg-stone-900/30">
-              <div className="flex items-center gap-4">
-                <span className="text-3xl p-3 bg-stone-900 border border-stone-850 rounded-2xl">{checkoutItem.icon}</span>
-                <div>
-                  <h3 className="text-lg font-black text-white">{checkoutItem.name}</h3>
-                  <p className="text-xs text-stone-500">Workspace License Provisioning</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setCheckoutItem(null)}
-                className="p-2 hover:bg-stone-900 text-stone-500 hover:text-stone-300 rounded-xl transition-all border border-transparent hover:border-stone-800"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Modal Body depending on step */}
-            <div className="p-6 md:p-8 space-y-6 max-h-[450px] overflow-y-auto">
-              
-              {/* STEP 1: SUMMARY */}
-              {checkoutStep === "summary" && (
-                <div className="space-y-6 animate-fadeIn">
-                  <div className="space-y-2">
-                    <p className="text-xs text-stone-400 leading-relaxed font-semibold">
-                      Deploying this cognitive engine grants your tenant workspace an additional concurrent license. You can configure multiple instances of the same employee to handle separate workflow channels.
-                    </p>
-                  </div>
-
-                  <div className="p-4 bg-stone-900/30 rounded-2xl border border-stone-900 text-xs font-semibold text-stone-400 space-y-3">
-                    <div className="flex justify-between">
-                      <span>Billed Product Module:</span>
-                      <span className="text-white font-bold">{checkoutItem.name}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Instance Scope:</span>
-                      <span className="text-white font-bold">Instance #{(checkoutItem.deployedCount || 0) + 1}</span>
-                    </div>
-                    <div className="flex justify-between border-t border-stone-900 pt-3 font-bold text-sm">
-                      <span className="text-white">Billed Subscription Rate:</span>
-                      <span className="text-emerald-400 font-mono font-black">{checkoutItem.price}</span>
-                    </div>
-                  </div>
-
-                  {/* Double Actions Row: Stripe Live link AND Sandbox Simulator */}
-                  <div className="space-y-3 pt-2">
-                    <button
-                      onClick={handleSimulatePayment}
-                      className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs py-3.5 rounded-xl shadow-lg shadow-emerald-950/20 hover:shadow-emerald-950/40 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
-                    >
-                      💳 Simulate Checkout Complete (Sandboxed)
-                    </button>
-                    {checkoutItem.paymentLink && (
-                      <a
-                        href={checkoutItem.paymentLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="w-full block text-center bg-stone-900 hover:bg-stone-850 border border-stone-800 text-stone-300 hover:text-white font-black text-xs py-3.5 rounded-xl transition-all"
-                      >
-                        🔗 Go to Live Stripe Checkout
-                      </a>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* STEP 2: PROCESSING */}
-              {checkoutStep === "processing" && (
-                <div className="py-12 flex flex-col items-center justify-center space-y-6 animate-fadeIn">
-                  <div className="w-12 h-12 border-4 border-stone-900 border-t-emerald-500 rounded-full animate-spin" />
-                  <div className="text-center space-y-2 max-w-xs">
-                    <div className="text-sm font-bold text-white uppercase tracking-wider font-mono">Securing Gateway Link</div>
-                    <div className="space-y-1 text-[11px] font-mono text-stone-500">
-                      {simulatingLog.map((log, idx) => (
-                        <p key={idx} className="animate-fadeIn">❯ {log}</p>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* STEP 3: CONFIRM & BILLING */}
-              {checkoutStep === "confirm" && (
-                <div className="space-y-6 animate-fadeIn text-xs font-semibold text-stone-400">
-                  <div className="text-center space-y-2 pb-2">
-                    <span className="text-4xl block">🎉</span>
-                    <h4 className="text-base font-black text-white">Stripe Payment Confirmed!</h4>
-                    <p className="text-[11px] text-stone-500 font-medium">Receipt ID: {simulatedTxId}</p>
-                  </div>
-
-                  <div className="p-4 bg-emerald-950/10 rounded-2xl border border-emerald-900/30 text-emerald-400 flex items-center gap-3">
-                    <span className="text-emerald-500 text-xl">✓</span>
-                    <span>License verified successfully. Configure your new coworker below to deploy.</span>
-                  </div>
-
-                  {/* Naming inputs */}
-                  <div className="space-y-4 pt-2">
-                    <div className="space-y-2">
-                      <label className="block font-bold uppercase tracking-wider text-stone-500 text-[10px]">Digital Employee Name</label>
-                      <input
-                        type="text"
-                        value={customName}
-                        onChange={(e) => setCustomName(e.target.value)}
-                        className="w-full bg-stone-900 border border-stone-850 rounded-xl px-4 py-3 outline-none text-white focus:ring-2 focus:ring-emerald-500/50 transition-all font-semibold"
-                        placeholder="Sophia Intake AI"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="block font-bold uppercase tracking-wider text-stone-500 text-[10px]">Role Purpose / Responsibility</label>
-                      <textarea
-                        value={customPurpose}
-                        onChange={(e) => setCustomPurpose(e.target.value)}
-                        rows={3}
-                        className="w-full bg-stone-900 border border-stone-850 rounded-xl px-4 py-3 outline-none text-white focus:ring-2 focus:ring-emerald-500/50 transition-all font-semibold resize-none"
-                        placeholder="Handles intake files and verification workflows..."
-                      />
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={handleConfirmDeploy}
-                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs py-3.5 rounded-xl transition-all shadow-lg cursor-pointer flex items-center justify-center gap-2 active:scale-95"
-                  >
-                    🚀 Initialize & Deploy Agent Instance
-                  </button>
-                </div>
-              )}
-
-              {/* STEP 4: DEPLOYING PROVISIONING ANIMATION */}
-              {checkoutStep === "deploying" && (
-                <div className="py-8 flex flex-col items-center justify-center space-y-6 animate-fadeIn">
-                  <div className="w-14 h-14 border-4 border-stone-900 border-t-emerald-500 rounded-full animate-spin" />
-                  <div className="text-center space-y-4 w-full max-w-sm">
-                    <div className="text-sm font-black text-white uppercase tracking-wider font-mono flex items-center justify-center gap-2">
-                      <span className="h-2 w-2 bg-emerald-500 rounded-full animate-ping"></span>
-                      Provisioning Cognitive Workspace
-                    </div>
-                    <div className="p-4 bg-stone-900/50 border border-stone-900 rounded-2xl text-left font-mono text-[10px] text-stone-400 space-y-1.5 h-36 overflow-y-auto">
-                      {simulatingLog.map((log, idx) => (
-                        <p key={idx} className="animate-fadeIn">
-                          {log.startsWith("✓") ? (
-                            <span className="text-emerald-400">{log}</span>
-                          ) : (
-                            <span>❯ {log}</span>
-                          )}
-                        </p>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* STEP 5: SUCCESS */}
-              {checkoutStep === "success" && (
-                <div className="py-8 text-center space-y-6 animate-fadeIn text-xs font-semibold text-stone-400">
-                  <span className="text-5xl block animate-bounce">⚡</span>
-                  <div className="space-y-2">
-                    <h4 className="text-xl font-black text-white">AI Employee Deployed successfully!</h4>
-                    <p className="text-[11px] text-stone-500 max-w-sm mx-auto">
-                      Congratulations! <strong>{customName}</strong> is now live. Its background cognitive loop is running in your sandbox and ready for triggers.
-                    </p>
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row gap-3 pt-4">
-                    <Link
-                      to="/portal/employees/"
-                      onClick={() => setCheckoutItem(null)}
-                      className="flex-1 bg-stone-900 hover:bg-stone-850 border border-stone-800 text-stone-200 font-black text-xs py-3.5 rounded-xl transition-all text-center block"
-                    >
-                      🤖 View in Employees directory
-                    </Link>
-                    <button
-                      onClick={() => {
-                        setCheckoutItem(null);
-                        setActiveTab("history");
-                      }}
-                      className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs py-3.5 rounded-xl transition-all text-center"
-                    >
-                      📜 View Purchase History
-                    </button>
-                  </div>
-                </div>
-              )}
-
-            </div>
-
-          </div>
-        </div>
-      )}
-
       {/* Persistence Toast Feedback */}
       {feedback && (
         <div className="fixed bottom-6 right-6 bg-stone-900 border border-emerald-500/40 text-white px-5 py-3.5 rounded-2xl shadow-2xl z-50 flex items-center gap-3 animate-slideUp select-none">
