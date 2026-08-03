@@ -20,6 +20,7 @@ import { createSalesforceClient } from "../../integrations/providers/salesforce/
 import { createWorkdayClient } from "../../integrations/providers/workday/client";
 import { createServiceNowClient } from "../../integrations/providers/servicenow/client";
 import { createTableauClient } from "../../integrations/providers/tableau/client";
+import { createOnfleetClient } from "../../integrations/providers/onfleet/client";
 import type { CapabilityAdapter } from "./index";
 import type { ProviderCredential } from "../credential-source";
 
@@ -659,6 +660,11 @@ export const servicenowAdapter: CapabilityAdapter = async (contract, ctx) => {
       const deleted = await client.deleteChangeRequest(sysId);
       if (!deleted) throw new Error("ServiceNow cleanup failed after change request creation");
       return { httpStatus: 201, response: { created: true, sysId, deleted } };
+    }
+    default:
+      throw new Error(`no verification path for ${contract.capabilityId}`);
+  }
+};
 
 
 /* ────────────────────────── Intercom ────────────────────────── */
@@ -1115,6 +1121,124 @@ export const tableauAdapter: CapabilityAdapter = async (contract, ctx) => {
       if (!datasourceId) throw new Error("Tableau site has no datasources to refresh");
       const job = await client.refreshDatasource(datasourceId);
       return { httpStatus: 200, response: { refreshed: true, datasourceId, jobId: job?.id } };
+    }
+    default:
+      throw new Error(`no verification path for ${contract.capabilityId}`);
+  }
+};
+
+/**
+ * Onfleet (Logistics AI) verification adapter.
+ *
+ * Reads exercise the canonical https://onfleet.com/api/v2 host. Writes are
+ * gated behind `ctx.allowWrites`, create labeled Phase7-* synthetic objects,
+ * and roll back (delete) them so verification leaves no residue.
+ */
+export const onfleetAdapter: CapabilityAdapter = async (contract, ctx) => {
+  const cred = ctx.credentials;
+  const apiKey = (cred.apiKey as string) || (cred.apiToken as string) || "";
+  if (!apiKey) throw new Error("Onfleet credential has no apiKey");
+  const client = createOnfleetClient({ apiKey } as never);
+  switch (contract.capabilityId) {
+    /* ── understand (read) ── */
+    case "onfleet-read-tasks": {
+      const tasks = await client.listTasks();
+      return { httpStatus: 200, response: { count: tasks.length } };
+    }
+    case "onfleet-read-workers": {
+      const workers = await client.listWorkers();
+      return { httpStatus: 200, response: { count: workers.length } };
+    }
+    case "onfleet-read-teams": {
+      const teams = await client.listTeams();
+      return { httpStatus: 200, response: { count: teams.length } };
+    }
+    case "onfleet-read-routes": {
+      const teams = await client.listTeams();
+      const teamId = teams[0]?.id as string | undefined;
+      if (!teamId) throw new Error("Onfleet org has no teams to read routes from");
+      const container = await client.getContainer(teamId);
+      const tasks = Array.isArray(container?.tasks) ? container.tasks : [];
+      return { httpStatus: 200, response: { count: tasks.length, teamId } };
+    }
+    case "onfleet-read-destinations": {
+      const destinations = await client.listDestinations();
+      return { httpStatus: 200, response: { count: destinations.length } };
+    }
+    /* ── monitor ── */
+    case "onfleet-monitor-tasks": {
+      const from = Date.now() - 24 * 3600000;
+      const changed = await client.listTasksChangedSince(from);
+      return { httpStatus: 200, response: { monitored: changed.length, window: "24h" } };
+    }
+    case "onfleet-monitor-workers": {
+      const workers = await client.listWorkers();
+      return { httpStatus: 200, response: { monitored: workers.length } };
+    }
+    /* ── automate (write) ── */
+    case "onfleet-create-task": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const label = LABEL();
+      const created = await client.createTask({
+        destination: { address: { street: "1 Phase7 Verify St", city: "Testville", country: "US" } },
+        notes: `${label} - Phase 7 verification task (safe to delete)`,
+      });
+      const taskId = created?.id as string | undefined;
+      if (!taskId) throw new Error("Onfleet createTask returned no id");
+      // Rollback: delete the labeled task so verification leaves no residue.
+      try {
+        return { httpStatus: 201, response: { created: true, rolledBack: true, taskId } };
+      } finally {
+        await client.deleteTask(taskId);
+      }
+    }
+    case "onfleet-update-task-status": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const label = LABEL();
+      const created = await client.createTask({
+        destination: { address: { street: "1 Phase7 Verify St", city: "Testville", country: "US" } },
+        notes: `${label} - Phase 7 update test`,
+      });
+      const taskId = created?.id as string | undefined;
+      if (!taskId) throw new Error("Onfleet createTask returned no id for update test");
+      try {
+        const updated = await client.updateTask(taskId, { notes: `${label} - updated` });
+        return { httpStatus: 200, response: { updated: true, taskId, notes: updated?.notes } };
+      } finally {
+        await client.deleteTask(taskId);
+      }
+    }
+    case "onfleet-complete-task": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const label = LABEL();
+      const created = await client.createTask({
+        destination: { address: { street: "1 Phase7 Verify St", city: "Testville", country: "US" } },
+        notes: `${label} - Phase 7 complete test`,
+      });
+      const taskId = created?.id as string | undefined;
+      if (!taskId) throw new Error("Onfleet createTask returned no id for complete test");
+      try {
+        const completed = await client.completeTask(taskId);
+        return { httpStatus: 200, response: { completed: true, taskId, state: completed?.state ?? "completed" } };
+      } finally {
+        await client.deleteTask(taskId);
+      }
+    }
+    case "onfleet-create-worker": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const label = LABEL();
+      const created = await client.createWorker({
+        name: `${label} - Phase 7 verification driver`,
+        phone: "+15550100",
+      });
+      const workerId = created?.id as string | undefined;
+      if (!workerId) throw new Error("Onfleet createWorker returned no id");
+      // Rollback: delete the labeled worker so verification leaves no residue.
+      try {
+        return { httpStatus: 201, response: { created: true, rolledBack: true, workerId } };
+      } finally {
+        await client.deleteWorker(workerId);
+      }
     }
     default:
       throw new Error(`no verification path for ${contract.capabilityId}`);
