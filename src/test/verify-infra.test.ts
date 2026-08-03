@@ -148,7 +148,7 @@ describe("phase 7 verification infra — evidence store", () => {
 
 describe("phase 7 verification infra — adapter registry", () => {
   it("wires the priority providers and keeps unknown providers unwired", () => {
-    for (const id of ["xero", "hubspot", "slack", "jira", "docusign", "monday-com"]) {
+    for (const id of ["xero", "hubspot", "slack", "jira", "docusign", "monday-com", "zendesk"]) {
       expect(hasAdapter(id)).toBe(true);
     }
     expect(hasAdapter("not-a-provider")).toBe(false);
