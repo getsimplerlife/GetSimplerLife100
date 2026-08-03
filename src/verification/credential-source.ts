@@ -67,8 +67,8 @@ export function loadTokenFile(path: string): ProviderCredential {
   if (!text) throw new Error(`Token file is empty: ${path}`);
   if (text.startsWith("{")) {
     const parsed = JSON.parse(text) as ProviderCredential;
-    if (!parsed.accessToken && !parsed.apiToken) {
-      throw new Error(`Token file ${path} is JSON but has no accessToken/apiToken`);
+    if (!parsed.accessToken && !parsed.apiToken && !(parsed.user && parsed.password)) {
+      throw new Error(`Token file ${path} is JSON but has no accessToken/apiToken/basic-auth user+password`);
     }
     return parsed;
   }
@@ -107,7 +107,7 @@ export function loadStoredCredential(
   for (const key of candidates) {
     const entry = data[key];
     if (!entry) continue;
-    if (entry.accessToken || entry.apiToken || entry.apiKey) {
+    if (entry.accessToken || entry.apiToken || entry.apiKey || (entry.user && entry.password)) {
       return { credential: entry, source: `${credsFile}#${key}` };
     }
   }
@@ -146,6 +146,7 @@ export function describeCredential(cred: ProviderCredential | undefined): string
   }
   if (hasApi) parts.push("api token/key");
   if (cred.refreshToken) parts.push("refresh token");
+  if (cred.user && cred.password) parts.push(`basic auth (user: ${cred.user})`);
   if (!parts.length) return "present but no usable token fields";
   return parts.join(", ");
 }

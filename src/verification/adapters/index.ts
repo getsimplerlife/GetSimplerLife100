@@ -8,7 +8,7 @@
 import type { CapabilityContract } from "../../lib/capability-contract";
 import type { ProviderCredential } from "../credential-source";
 import { xeroAdapter } from "./xero";
-import { docusignAdapter, hubspotAdapter, jiraAdapter, mondayComAdapter, slackAdapter } from "./priority";
+import { docusignAdapter, hubspotAdapter, jiraAdapter, mondayComAdapter, servicenowAdapter, slackAdapter } from "./priority";
 
 export interface AdapterContext {
   credentials: ProviderCredential;
@@ -33,6 +33,7 @@ export const adapterRegistry: Record<string, CapabilityAdapter | undefined> = {
   // Capability contracts reference Monday.com as providerId "monday" (MONDAY_PROVIDER_ID in
   // src/agents/capabilities/operations.ts) while the provider module id is "monday-com".
   monday: mondayComAdapter,
+  servicenow: servicenowAdapter,
 };
 
 export function hasAdapter(providerId: string): boolean {

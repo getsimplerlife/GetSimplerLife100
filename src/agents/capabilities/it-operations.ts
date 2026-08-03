@@ -74,13 +74,28 @@ export const itOperationsCapabilities: ReadonlyArray<CapabilityContract> = [
     rollback: "available",
     evidence: "Provider adapter path exists; authorized tenant evidence is pending.",
   }),
+  defineCapabilityContract({
+    employeeId: IT_OPERATIONS_EMPLOYEE_ID,
+    capabilityId: "servicenow-monitor-incident-created",
+    kind: "monitor",
+    status: "unverified",
+    providerId: SERVICENOW_PROVIDER_ID,
+    tenantScoped: true,
+    authRequired: true,
+    auditRequired: true,
+    idempotencyRequired: false,
+    retryPolicy: "bounded",
+    rollback: "not_applicable",
+    evidence: "ServiceNow provider module exposes incident monitoring capability; authorized tenant evidence is pending.",
+  }),
 ];
 export interface ItOperationsAdapter { listIncidents(tenantId: string): Promise<unknown>; createIncident(tenantId: string, input: Record<string, unknown>, idempotencyKey: string): Promise<unknown>; 
   readChangeRequests(tenantId: string): Promise<unknown>;
   readProblems(tenantId: string): Promise<unknown>;
   readCmdbAssets(tenantId: string): Promise<unknown>;
   updateIncidentSeverity(tenantId: string, input: Record<string, unknown>, idempotencyKey: string): Promise<unknown>;
-  updateIncidentAssignment(tenantId: string, input: Record<string, unknown>, idempotencyKey: string): Promise<unknown>;}
+  updateIncidentAssignment(tenantId: string, input: Record<string, unknown>, idempotencyKey: string): Promise<unknown>;
+  monitorIncidentCreated?(tenantId: string): Promise<unknown>;}
 export interface ItOperationsExecutionOptions { tenantId: string; authToken?: string; audit: (event: { capabilityId: string; tenantId: string; outcome: string; idempotencyKey?: string }) => Promise<void> | void; maxAttempts?: number; }
 function requireTenant(options: ItOperationsExecutionOptions): void { if (!options.tenantId.trim()) throw new Error("Tenant scope is required"); if (!options.authToken?.trim()) throw new Error("Provider authentication is required"); }
 function boundedAttempts(value?: number): number { return Math.max(1, Math.min(value ?? 2, 3)); }
@@ -89,50 +104,86 @@ export async function createIncident(adapter: ItOperationsAdapter, input: Record
 
 
 export async function readChangeRequests(adapter: ItOperationsAdapter, options: ItOperationsExecutionOptions): Promise<unknown> {
-  if (!options.tenantId.trim()) throw new Error("Tenant scope is required");
-  if (!options.authToken?.trim()) throw new Error("Provider authentication is required");
-  
-  const result = await adapter.readChangeRequests(options.tenantId);
-  await options.audit({ capabilityId: "servicenow-read-change-requests", tenantId: options.tenantId, outcome: "succeeded" });
-  return result;
+  requireTenant(options);
+  let lastError: unknown;
+  for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) {
+    try {
+      const result = await adapter.readChangeRequests(options.tenantId);
+      await options.audit({ capabilityId: "servicenow-read-change-requests", tenantId: options.tenantId, outcome: "succeeded" });
+      return result;
+    } catch (error) { lastError = error; }
+  }
+  await options.audit({ capabilityId: "servicenow-read-change-requests", tenantId: options.tenantId, outcome: "failed" });
+  throw lastError;
 }
 
 
 export async function readProblems(adapter: ItOperationsAdapter, options: ItOperationsExecutionOptions): Promise<unknown> {
-  if (!options.tenantId.trim()) throw new Error("Tenant scope is required");
-  if (!options.authToken?.trim()) throw new Error("Provider authentication is required");
-  
-  const result = await adapter.readProblems(options.tenantId);
-  await options.audit({ capabilityId: "servicenow-read-problems", tenantId: options.tenantId, outcome: "succeeded" });
-  return result;
+  requireTenant(options);
+  let lastError: unknown;
+  for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) {
+    try {
+      const result = await adapter.readProblems(options.tenantId);
+      await options.audit({ capabilityId: "servicenow-read-problems", tenantId: options.tenantId, outcome: "succeeded" });
+      return result;
+    } catch (error) { lastError = error; }
+  }
+  await options.audit({ capabilityId: "servicenow-read-problems", tenantId: options.tenantId, outcome: "failed" });
+  throw lastError;
 }
 
 
 export async function readCmdbAssets(adapter: ItOperationsAdapter, options: ItOperationsExecutionOptions): Promise<unknown> {
-  if (!options.tenantId.trim()) throw new Error("Tenant scope is required");
-  if (!options.authToken?.trim()) throw new Error("Provider authentication is required");
-  
-  const result = await adapter.readCmdbAssets(options.tenantId);
-  await options.audit({ capabilityId: "servicenow-read-cmdb-assets", tenantId: options.tenantId, outcome: "succeeded" });
-  return result;
+  requireTenant(options);
+  let lastError: unknown;
+  for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) {
+    try {
+      const result = await adapter.readCmdbAssets(options.tenantId);
+      await options.audit({ capabilityId: "servicenow-read-cmdb-assets", tenantId: options.tenantId, outcome: "succeeded" });
+      return result;
+    } catch (error) { lastError = error; }
+  }
+  await options.audit({ capabilityId: "servicenow-read-cmdb-assets", tenantId: options.tenantId, outcome: "failed" });
+  throw lastError;
 }
 
 
 export async function updateIncidentSeverity(adapter: ItOperationsAdapter, options: ItOperationsExecutionOptions, input: Record<string, unknown>, idempotencyKey: string): Promise<unknown> {
-  if (!options.tenantId.trim()) throw new Error("Tenant scope is required");
-  if (!options.authToken?.trim()) throw new Error("Provider authentication is required");
+  requireTenant(options);
   if (!idempotencyKey.trim()) throw new Error("Idempotency key is required");
-  const result = await adapter.updateIncidentSeverity(options.tenantId, input, idempotencyKey);
-  await options.audit({ capabilityId: "servicenow-update-incident-severity", tenantId: options.tenantId, outcome: "succeeded", idempotencyKey });
-  return result;
+  let lastError: unknown;
+  for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) {
+    try {
+      const result = await adapter.updateIncidentSeverity(options.tenantId, input, idempotencyKey);
+      await options.audit({ capabilityId: "servicenow-update-incident-severity", tenantId: options.tenantId, outcome: "succeeded", idempotencyKey });
+      return result;
+    } catch (error) { lastError = error; }
+  }
+  await options.audit({ capabilityId: "servicenow-update-incident-severity", tenantId: options.tenantId, outcome: "failed", idempotencyKey });
+  throw lastError;
 }
 
 
 export async function updateIncidentAssignment(adapter: ItOperationsAdapter, options: ItOperationsExecutionOptions, input: Record<string, unknown>, idempotencyKey: string): Promise<unknown> {
-  if (!options.tenantId.trim()) throw new Error("Tenant scope is required");
-  if (!options.authToken?.trim()) throw new Error("Provider authentication is required");
+  requireTenant(options);
   if (!idempotencyKey.trim()) throw new Error("Idempotency key is required");
-  const result = await adapter.updateIncidentAssignment(options.tenantId, input, idempotencyKey);
-  await options.audit({ capabilityId: "servicenow-update-incident-assignment", tenantId: options.tenantId, outcome: "succeeded", idempotencyKey });
+  let lastError: unknown;
+  for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) {
+    try {
+      const result = await adapter.updateIncidentAssignment(options.tenantId, input, idempotencyKey);
+      await options.audit({ capabilityId: "servicenow-update-incident-assignment", tenantId: options.tenantId, outcome: "succeeded", idempotencyKey });
+      return result;
+    } catch (error) { lastError = error; }
+  }
+  await options.audit({ capabilityId: "servicenow-update-incident-assignment", tenantId: options.tenantId, outcome: "failed", idempotencyKey });
+  throw lastError;
+}
+
+
+export async function monitorIncidentCreated(adapter: ItOperationsAdapter, options: ItOperationsExecutionOptions, subscription: Record<string, unknown>): Promise<unknown> {
+  if (!adapter.monitorIncidentCreated) throw new Error("Capability adapter method is unavailable");
+  requireTenant(options);
+  const result = await adapter.monitorIncidentCreated(options.tenantId);
+  await options.audit({ capabilityId: "servicenow-monitor-incident-created", tenantId: options.tenantId, outcome: "succeeded" });
   return result;
 }

@@ -12,6 +12,7 @@ export class ServiceNowClient {
   async getIncident(sysId: string): Promise<any> { const r = await this.client.get(`/table/incident/${sysId}`, this.headers); return r.data?.result; }
   async createIncident(data: any): Promise<any> { const r = await this.client.post("/table/incident", data, this.headers); return r.data?.result; }
   async updateIncident(sysId: string, data: any): Promise<any> { const r = await this.client.patch(`/table/incident/${sysId}`, data, this.headers); return r.data?.result; }
+  async deleteIncident(sysId: string): Promise<boolean> { const r = await this.client.delete(`/table/incident/${sysId}`, this.headers); return r.ok; }
   async listTables(): Promise<any[]> { const r = await this.client.get("/table/sys_db_object?sysparm_limit=50", this.headers); return r.data?.result || []; }
   async queryTable(table: string, query?: string): Promise<any[]> { const p = query ? `/table/${table}?sysparm_query=${encodeURIComponent(query)}` : `/table/${table}?sysparm_limit=100`; const r = await this.client.get(p, this.headers); return r.data?.result || []; }
   async healthCheck(): Promise<boolean> { try { const r = await this.client.get("/table/incident?sysparm_limit=1", this.headers); return r.ok; } catch { return false; } }
