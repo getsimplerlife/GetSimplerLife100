@@ -1,7 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { AGENTS } from "~/data/agents";
-import { AGENT_SETUP_REQUIREMENTS, getSetupBadge } from "~/agents/setupRequirements";
+import { getSetupBadge } from "~/agents/setupRequirements";
 import { getAgentChainPartners } from "~/agents/agentChains";
 
 export const Route = createFileRoute("/portal/marketplace/")({
@@ -39,29 +38,10 @@ interface MarketplaceItem {
 function MarketplaceHub() {
   const [activeTab, setActiveTab] = useState<"catalog" | "history">("catalog");
 
-  // Pre-map AGENTS to MarketplaceItem format for SSR rendering
-  const ssrItems: any[] = (AGENTS as any[]).map((a: any) => ({
-    id: a.id,
-    name: a.name,
-    description: a.description,
-    category: (a.category === 'healthcare' ? 'Healthcare' : a.category === 'finance' ? 'Finance' : a.category === 'sales' ? 'Sales' : a.category === 'logistics' ? 'Logistics' : a.category === 'hr' ? 'HR' : a.category === 'it' ? 'IT' : a.category === 'marketing' || a.category === 'communications' ? 'Marketing' : 'Operations'),
-    price: `${a.price}/mo`,
-    installed: false,
-    deployedCount: 0,
-    rating: 4.8,
-    runsMonth: '1.2k',
-    icon: '🤖',
-    paymentLink: a.paymentLink || null,
-    agentType: a.agentType,
-    badges: (a.capabilities || []).slice(0, 3),
-    chainsWith: [],
-    setupRequirements: null,
-  }));
-
-  const [items, setItems] = useState<any[]>(ssrItems); // preloaded for SSR
-  const [employees, setEmployees] = useState<any[]>(AGENTS); // preloaded for SSR
+  const [items, setItems] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<any[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false); // items render immediately
+  const [loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [activeCategory, setActiveCategory] = useState<string>("all");

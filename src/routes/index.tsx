@@ -208,7 +208,7 @@ function Home() {
 
               {/* Stats Bar */}
               <div className="flex flex-wrap gap-4 text-[10px] font-mono text-stone-400">
-                <span className="bg-stone-900 border border-stone-800 px-3 py-1.5 rounded-lg"><span className="text-emerald-400 font-bold">180+</span> Integrations</span>
+                <span className="bg-stone-900 border border-stone-800 px-3 py-1.5 rounded-lg"><span className="text-emerald-400 font-bold">18</span> AI Employees</span>
                 <span className="bg-stone-900 border border-stone-800 px-3 py-1.5 rounded-lg"><span className="text-emerald-400 font-bold">14</span> Portal Tools</span>
                 <span className="bg-stone-900 border border-stone-800 px-3 py-1.5 rounded-lg"><span className="text-emerald-400 font-bold">23</span> Industries</span>
                 <span className="bg-stone-900 border border-stone-800 px-3 py-1.5 rounded-lg"><span className="text-emerald-400 font-bold">🔐</span> Real Credential Validation</span>
@@ -454,7 +454,7 @@ function Home() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {[
                 { icon: "🛒", title: "AI Marketplace", desc: "Browse & deploy AI employees with real Stripe payment links" },
-                { icon: "🔌", title: "180+ Integrations", desc: "Connect any business tool with credential-validated connections" },
+                { icon: "🔌", title: "Full Provider Support", desc: "Connect any business tool with credential-validated connections" },
                 { icon: "🔗", title: "Connected Accounts", desc: "Monitor, edit credentials, test connections per integration" },
                 { icon: "✅", title: "Task Queue", desc: "Track all AI employee work with status filtering" },
                 { icon: "⚡", title: "Workflows", desc: "8 pre-built automation templates ready to deploy across your stack" },

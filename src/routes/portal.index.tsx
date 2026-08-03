@@ -20,8 +20,8 @@ function ActivityHubDashboard() {
   const [employees, setEmployees] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
   const [approvals, setApprovals] = useState<any[]>([]);
-  const [integrationsCount, setIntegrationsCount] = useState(180);
   const [connectedCount, setConnectedCount] = useState(0);
+  const [integrationCount, setIntegrationCount] = useState(0);
   const [billing, setBilling] = useState<any[]>([]);
 
   const [loading, setLoading] = useState(true);
@@ -42,7 +42,11 @@ function ActivityHubDashboard() {
       if (rTasks.status === "fulfilled" && rTasks.value) setTasks(rTasks.value.data || []);
       if (rApp.status === "fulfilled" && rApp.value) setApprovals(rApp.value.data || []);
       if (rBil.status === "fulfilled" && rBil.value) setBilling(rBil.value.data || []);
-      if (rCon.status === "fulfilled" && rCon.value) setConnectedCount(rCon.value.data?.length || rCon.value.length || 0);
+      if (rCon.status === "fulfilled" && rCon.value) {
+        const conns = rCon.value.data || [];
+        setConnectedCount(conns.length);
+        setIntegrationCount(conns.length);
+      }
     } catch { /* keep SSR data */ }
   };
 
@@ -61,8 +65,9 @@ function ActivityHubDashboard() {
   });
 
   const totalFilteredTasks = filteredTasks.length;
-  const hoursSaved = (totalFilteredTasks * 0.15).toFixed(1);
-  const roiValue = (totalFilteredTasks * 0.15 * 45).toLocaleString(undefined, { maximumFractionDigits: 0 });
+
+  // Real metrics only — no fabricated multipliers.
+  const tasksCompleted = filteredTasks.filter((t: any) => t.status === 'Completed').length;
 
   const activeEmployees = employees.filter((e: any) => e.status === "Active");
   const idleEmployees = employees.filter((e: any) => e.status === "Idle");
@@ -174,7 +179,7 @@ function ActivityHubDashboard() {
             </h1>
             <p className="text-stone-400 text-sm mt-1 max-w-xl leading-relaxed">
               {totalFilteredTasks > 0
-                ? `Your AI workforce completed ${totalFilteredTasks} tasks ${timeLabel}, saving an estimated ${hoursSaved} hours.`
+                ? `Your AI workforce completed ${totalFilteredTasks} tasks ${timeLabel}.`
                 : `Your Activity Hub — monitor your AI workforce and take action ${timeLabel}.`}
             </p>
           </div>
@@ -283,10 +288,10 @@ function ActivityHubDashboard() {
       {!isNewUser && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: "Hours Saved", value: `${hoursSaved} hrs`, subtitle: `${timeLabel}`, color: "text-emerald-400", bg: "bg-emerald-500/5 border-emerald-500/20" },
-            { label: "Est. ROI", value: `$${roiValue}`, subtitle: "@ $45/hr baseline", color: "text-blue-400", bg: "bg-blue-500/5 border-blue-500/20" },
+            { label: "Tasks", value: `${totalFilteredTasks}`, subtitle: `${timeLabel}`, color: "text-emerald-400", bg: "bg-emerald-500/5 border-emerald-500/20" },
+            { label: "Completed", value: `${tasksCompleted}`, subtitle: `${timeLabel}`, color: "text-blue-400", bg: "bg-blue-500/5 border-blue-500/20" },
             { label: "Active AIs", value: `${activeEmployees.length}`, subtitle: `${employees.length} total`, color: "text-purple-400", bg: "bg-purple-500/5 border-purple-500/20" },
-            { label: "Tasks", value: `${totalFilteredTasks}`, subtitle: `${timeLabel}`, color: "text-amber-400", bg: "bg-amber-500/5 border-amber-500/20" },
+            { label: "Integrations", value: `${integrationCount}`, subtitle: `${connectedCount} connected`, color: "text-amber-400", bg: "bg-amber-500/5 border-amber-500/20" },
           ].map((m, i) => (
             <div key={i} className={`rounded-xl border p-5 ${m.bg} flex flex-col justify-between gap-3`}>
               <span className="text-[10px] font-mono uppercase tracking-widest text-stone-500 font-bold">{m.label}</span>
@@ -320,12 +325,12 @@ function ActivityHubDashboard() {
               <div className="text-[10px] font-mono text-stone-500 mt-1">Alerts</div>
             </div>
             <div className="bg-stone-900/60 border border-stone-800 rounded-xl p-4 text-center">
-              <div className="text-2xl font-black text-purple-400">{hoursSaved}</div>
-              <div className="text-[10px] font-mono text-stone-500 mt-1">Hours Saved</div>
+              <div className="text-2xl font-black text-purple-400">{idleEmployees.length}</div>
+              <div className="text-[10px] font-mono text-stone-500 mt-1">Idle Agents</div>
             </div>
             <div className="bg-stone-900/60 border border-stone-800 rounded-xl p-4 text-center">
-              <div className="text-2xl font-black text-amber-400">{Math.round(totalFilteredTasks * 0.15 * 45)}</div>
-              <div className="text-[10px] font-mono text-stone-500 mt-1">Est. ROI ($)</div>
+              <div className="text-2xl font-black text-amber-400">{integrationCount}</div>
+              <div className="text-[10px] font-mono text-stone-500 mt-1">Integrations</div>
             </div>
           </div>
         </div>
