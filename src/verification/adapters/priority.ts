@@ -8,13 +8,40 @@
  * after themselves. Unknown capability ids fail closed without network calls.
  */
 import { createHubSpotClient } from "../../integrations/providers/hubspot/client";
+import { refreshHubSpotToken } from "../../integrations/providers/hubspot/auth";
+import { isTokenExpired } from "../../integrations/framework/oauth";
 import { createSlackClient } from "../../integrations/providers/slack/client";
 import { createJiraClient } from "../../integrations/providers/jira/client";
 import { createDocuSignClient } from "../../integrations/providers/docusign/client";
 import { createMondayComClient } from "../../integrations/providers/monday-com/client";
 import type { CapabilityAdapter } from "./index";
+import type { ProviderCredential } from "../credential-source";
 
 const LABEL = () => `Phase7-VERIFY-${Date.now()}`;
+
+/**
+ * Refresh the HubSpot access token once if expired. Mutates `cred` so every
+ * later contract call in the same run reuses the fresh token.
+ */
+async function ensureFreshHubSpotCredential(
+  cred: ProviderCredential,
+  app?: { clientId?: string; clientSecret?: string },
+): Promise<void> {
+  const tokenLike = { accessToken: cred.accessToken, refreshToken: cred.refreshToken, expiresAt: cred.expiresAt };
+  if (!cred.refreshToken || !isTokenExpired(tokenLike as never)) return;
+  if (!app?.clientId || !app?.clientSecret) {
+    throw new Error("HubSpot access token expired and OAUTH_HUBSPOT_CLIENT_ID/SECRET are not configured — cannot refresh (see .env)");
+  }
+  const base = process.env.OAUTH_REDIRECT_BASE || process.env.SITE_ORIGIN || "";
+  const refreshed = await refreshHubSpotToken(
+    { clientId: app.clientId, clientSecret: app.clientSecret, redirectUri: base ? `${base}/api/oauth/callback?provider=hubspot` : "" },
+    cred.refreshToken,
+  );
+  cred.accessToken = refreshed.accessToken;
+  cred.refreshToken = refreshed.refreshToken;
+  cred.expiresAt = refreshed.expiresAt;
+  if (refreshed.scope) cred.scope = refreshed.scope;
+}
 
 function baseAuth(cred: Record<string, unknown>, provider: string, ctx: { app?: { clientId?: string; clientSecret?: string } }) {
   const base = process.env.OAUTH_REDIRECT_BASE || process.env.SITE_ORIGIN || "";
@@ -31,19 +58,32 @@ function baseAuth(cred: Record<string, unknown>, provider: string, ctx: { app?: 
 
 /* ────────────────────────── HubSpot ────────────────────────── */
 
-async function deleteHubSpotObject(kind: string, id: string, accessToken: string): Promise<void> {
-  const response = await fetch(`https://api.hubapi.com/crm/v3/objects/${kind}/${id}`, {
+/**
+ * HubSpot user-level OAuth tokens cannot DELETE/archive CRM objects (HTTP 403
+ * "User level OAuth token is not allowed for this endpoint"). Write verification
+ * requires create + rollback; if rollback is impossible we must fail closed BEFORE
+ * creating anything, otherwise every run leaves un-cleanable synthetic objects in
+ * the customer portal. Probe once per credential using a non-existent object id.
+ */
+async function assertHubSpotDeleteCapability(accessToken: string): Promise<void> {
+  const probe = await fetch("https://api.hubapi.com/crm/v3/objects/deals/000000000000", {
     method: "DELETE",
     headers: { Authorization: `Bearer ${accessToken}` },
   });
-  if (!response.ok && response.status !== 404) {
-    throw new Error(`HubSpot cleanup DELETE ${kind}/${id} failed HTTP ${response.status}`);
+  if (probe.status === 403) {
+    throw new Error(
+      "HubSpot credential cannot delete/archive CRM objects (403 — user-level OAuth token). " +
+        "Write verification requires create + rollback, so writes fail closed to avoid leaving residue. " +
+        "Connect a private-app token with delete permission to verify writes.",
+    );
   }
+  // 404 (no such object) means DELETE is permitted; 401/5xx are surfaced below per-request.
 }
 
 export const hubspotAdapter: CapabilityAdapter = async (contract, ctx) => {
   const cred = ctx.credentials;
   if (!cred.accessToken) throw new Error("HubSpot credential has no accessToken");
+  await ensureFreshHubSpotCredential(cred, ctx.app);
   const client = createHubSpotClient(baseAuth(cred, "hubspot", ctx));
 
   switch (contract.capabilityId) {
@@ -51,17 +91,90 @@ export const hubspotAdapter: CapabilityAdapter = async (contract, ctx) => {
       const result = await client.searchContacts("");
       return { httpStatus: 200, response: { count: result.results?.length ?? 0 } };
     }
+    case "hubspot-read-deals": {
+      const result = await client.searchDeals("");
+      return { httpStatus: 200, response: { count: result.results?.length ?? 0 } };
+    }
+    case "hubspot-read-companies": {
+      const result = await client.searchCompanies("");
+      return { httpStatus: 200, response: { count: result.results?.length ?? 0 } };
+    }
+    case "hubspot-read-tickets": {
+      const result = await client.searchTickets("");
+      return { httpStatus: 200, response: { count: result.results?.length ?? 0 } };
+    }
+    case "hubspot-read-pipeline-stages": {
+      const pipelines = await client.getPipelineStages();
+      const stageCount = pipelines.reduce((n: number, p: any) => n + (Array.isArray(p.stages) ? p.stages.length : 0), 0);
+      return { httpStatus: 200, response: { pipelines: pipelines.length, stages: stageCount } };
+    }
+    case "hubspot-read-owners": {
+      const owners = await client.getOwners();
+      return { httpStatus: 200, response: { count: owners.length } };
+    }
     case "hubspot-create-deal": {
       if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      await assertHubSpotDeleteCapability(cred.accessToken);
       const label = LABEL();
       const id = await client.createDeal({ dealname: label, amount: 1 });
       if (!id) throw new Error("HubSpot createDeal returned no id");
       try {
-        await deleteHubSpotObject("deals", id, cred.accessToken);
+        await client.deleteObject("deals", id);
       } catch (cleanupError) {
         throw new Error(`deal created (${id}) but cleanup failed: ${String(cleanupError)}`);
       }
-      return { httpStatus: 201, response: { created: true, id } };
+      return { httpStatus: 201, response: { created: true, rolledBack: true, id } };
+    }
+    case "hubspot-create-contact": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      await assertHubSpotDeleteCapability(cred.accessToken);
+      const label = LABEL();
+      const id = await client.createContact({ lastname: label, firstname: "Phase7" });
+      if (!id) throw new Error("HubSpot createContact returned no id");
+      try {
+        await client.deleteObject("contacts", id);
+      } catch (cleanupError) {
+        throw new Error(`contact created (${id}) but cleanup failed: ${String(cleanupError)}`);
+      }
+      return { httpStatus: 201, response: { created: true, rolledBack: true, id } };
+    }
+    case "hubspot-create-company": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      await assertHubSpotDeleteCapability(cred.accessToken);
+      const label = LABEL();
+      const id = await client.createCompany({ name: label });
+      if (!id) throw new Error("HubSpot createCompany returned no id");
+      try {
+        await client.deleteObject("companies", id);
+      } catch (cleanupError) {
+        throw new Error(`company created (${id}) but cleanup failed: ${String(cleanupError)}`);
+      }
+      return { httpStatus: 201, response: { created: true, rolledBack: true, id } };
+    }
+    case "hubspot-update-deal-stage": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      await assertHubSpotDeleteCapability(cred.accessToken);
+      const pipelines = await client.getPipelineStages();
+      const firstStage = pipelines[0]?.stages?.[0] as { id?: string } | undefined;
+      const secondStage = pipelines[0]?.stages?.[1] as { id?: string } | undefined;
+      if (!firstStage?.id || !secondStage?.id) {
+        throw new Error("HubSpot portal has no pipeline with two stages to exercise a stage change");
+      }
+      const label = LABEL();
+      const id = await client.createDeal({ dealname: label, dealstage: firstStage.id });
+      if (!id) throw new Error("HubSpot createDeal returned no id");
+      try {
+        await client.updateDeal(id, { dealstage: secondStage.id });
+        await client.deleteObject("deals", id);
+      } catch (cleanupError) {
+        throw new Error(`deal created (${id}) but stage-update/cleanup failed: ${String(cleanupError)}`);
+      }
+      return { httpStatus: 200, response: { created: true, stageChanged: true, rolledBack: true, id } };
+    }
+    case "hubspot-monitor-deal-stage-change": {
+      throw new Error(
+        "monitor verification requires a live webhook receiver (deal.propertyChange); the batch CLI cannot fabricate event receipt",
+      );
     }
     default:
       throw new Error(`no verification path for ${contract.capabilityId}`);
