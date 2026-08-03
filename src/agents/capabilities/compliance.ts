@@ -203,3 +203,23 @@ export async function transitionIssue(adapter: ExtendedCapabilityAdapter, option
   if (!adapter.transitionIssue) throw new Error("Capability adapter method is unavailable");
   return executeExtendedCapability({ write: (_id, tenant, data, key) => adapter.transitionIssue!(tenant, data, key) }, "jira-transition-issue", options, input, idempotencyKey);
 }
+
+export async function readIssue(adapter: ExtendedCapabilityAdapter, options: ExtendedExecutionOptions): Promise<unknown> {
+  if (!adapter.read) throw new Error("Capability adapter method is unavailable");
+  return executeExtendedCapability({ read: (id, tenant) => adapter.read!(id, tenant) }, "jira-read-issue", options);
+}
+
+export async function updateIssue(adapter: ExtendedCapabilityAdapter, options: ExtendedExecutionOptions, input: Record<string, unknown>, idempotencyKey: string): Promise<unknown> {
+  if (!adapter.write) throw new Error("Capability adapter method is unavailable");
+  return executeExtendedCapability({ write: (id, tenant, data, key) => adapter.write!(id, tenant, data, key) }, "jira-update-issue", options, input, idempotencyKey);
+}
+
+export async function readSprints(adapter: ExtendedCapabilityAdapter, options: ExtendedExecutionOptions): Promise<unknown> {
+  if (!adapter.read) throw new Error("Capability adapter method is unavailable");
+  return executeExtendedCapability({ read: (id, tenant) => adapter.read!(id, tenant) }, "jira-read-sprints", options);
+}
+
+export async function monitorIssueCreated(adapter: ExtendedCapabilityAdapter, options: ExtendedExecutionOptions, subscription: Record<string, unknown>): Promise<unknown> {
+  if (!adapter.read) throw new Error("Capability adapter method is unavailable");
+  return executeExtendedCapability({ read: (id, tenant) => adapter.read!(id, tenant) }, "jira-monitor-issue-created", options);
+}
