@@ -15,6 +15,7 @@ import { createJiraClient } from "../../integrations/providers/jira/client";
 import { createDocuSignClient } from "../../integrations/providers/docusign/client";
 import { createMondayComClient } from "../../integrations/providers/monday-com/client";
 import { createIntercomClient } from "../../integrations/providers/intercom/client";
+import { createSalesforceClient } from "../../integrations/providers/salesforce/client";
 import type { CapabilityAdapter } from "./index";
 import type { ProviderCredential } from "../credential-source";
 
@@ -628,16 +629,121 @@ export const intercomAdapter: CapabilityAdapter = async (contract, ctx) => {
       return { httpStatus: r.status, response: { tagged: r.ok, contactId: contact.id } };
     }
     case "intercom-create-contact": {
+        if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+        const label = LABEL();
+        const created = await client.createContact({
+          role: "user",
+          email: `phase7-${Date.now()}@verify.example.invalid`,
+          name: label,
+        });
+        const contactId = created?.id as string | undefined;
+        if (!contactId) throw new Error("Intercom createContact returned no id");
+        return { httpStatus: 201, response: { created: true, contactId } };
+      }
+      default:
+        throw new Error(`no verification path for ${contract.capabilityId}`);
+    }
+    };
+
+    /* ────────────────────────── Salesforce ────────────────────────── */
+
+export const salesforceAdapter: CapabilityAdapter = async (contract, ctx) => {
+  const cred = ctx.credentials;
+  if (!cred.accessToken) throw new Error("Salesforce credential has no accessToken");
+  const instanceUrl = (cred.instanceUrl as string) || (cred.raw as Record<string, unknown>)?.instanceUrl as string | undefined;
+  if (!instanceUrl) throw new Error("Salesforce credential has no instanceUrl — complete OAuth first");
+
+  const client = createSalesforceClient({
+    accessToken: cred.accessToken as string,
+    refreshToken: cred.refreshToken as string | undefined,
+    expiresAt: cred.expiresAt as number | undefined,
+    scope: (cred.scope as string) || undefined,
+    instanceUrl,
+    clientId: ctx.app?.clientId,
+    clientSecret: ctx.app?.clientSecret,
+    isSandbox: (cred.raw as Record<string, unknown>)?.isSandbox as boolean | undefined,
+  });
+
+  const cleanupIds: string[] = [];
+
+  switch (contract.capabilityId) {
+    /* ── understand (read) ── */
+    case "salesforce-read-opportunities": {
+      const r = await client.query("SELECT Id, Name, StageName, Amount, CloseDate FROM Opportunity LIMIT 50");
+      return { httpStatus: 200, response: { count: r.totalSize } };
+    }
+    case "salesforce-read-accounts": {
+      const r = await client.query("SELECT Id, Name, Type, Industry FROM Account LIMIT 50");
+      return { httpStatus: 200, response: { count: r.totalSize } };
+    }
+    case "salesforce-read-contacts": {
+      const r = await client.query("SELECT Id, FirstName, LastName, Email FROM Contact LIMIT 50");
+      return { httpStatus: 200, response: { count: r.totalSize } };
+    }
+    case "salesforce-read-leads": {
+      const r = await client.query("SELECT Id, FirstName, LastName, Company, Status FROM Lead LIMIT 50");
+      return { httpStatus: 200, response: { count: r.totalSize } };
+    }
+    case "salesforce-read-pipeline": {
+      const r = await client.query("SELECT Id, MasterLabel, DefaultProbability, IsActive FROM OpportunityStage LIMIT 50");
+      return { httpStatus: 200, response: { count: r.totalSize } };
+    }
+    /* ── monitor ── */
+    case "salesforce-monitor-pipeline": {
+      const r = await client.query("SELECT Id, Name, StageName, Amount, CloseDate, LastModifiedDate FROM Opportunity ORDER BY LastModifiedDate DESC LIMIT 50");
+      return { httpStatus: 200, response: { monitored: r.totalSize } };
+    }
+    /* ── automate (write) ── */
+    case "salesforce-update-opportunity": {
       if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
       const label = LABEL();
-      const created = await client.createContact({
-        role: "user",
-        email: `phase7-${Date.now()}@verify.example.invalid`,
-        name: label,
+      const oppId = await client.create("Opportunity", {
+        Name: label,
+        StageName: "Prospecting",
+        CloseDate: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
       });
-      const contactId = created?.id as string | undefined;
-      if (!contactId) throw new Error("Intercom createContact returned no id");
-      return { httpStatus: 201, response: { created: true, contactId } };
+      cleanupIds.push(oppId);
+      await client.update("Opportunity", oppId, { Amount: 1 });
+      await client.delete("Opportunity", oppId);
+      cleanupIds.pop();
+      return { httpStatus: 200, response: { updated: true, opportunityId: oppId } };
+    }
+    case "salesforce-create-task": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const label = LABEL();
+      const taskId = await client.create("Task", { Subject: label, Status: "Not Started", Description: "Phase 7 verification — safe to delete" });
+      cleanupIds.push(taskId);
+      await client.delete("Task", taskId);
+      cleanupIds.pop();
+      return { httpStatus: 201, response: { created: true, taskId } };
+    }
+    case "salesforce-create-event": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const label = LABEL();
+      const start = new Date(Date.now() + 3600000).toISOString();
+      const end = new Date(Date.now() + 7200000).toISOString();
+      const eventId = await client.create("Event", {
+        Subject: label,
+        DurationInMinutes: 60,
+        ActivityDateTime: start,
+        StartDateTime: start,
+        EndDateTime: end,
+        Description: "Phase 7 verification — safe to delete",
+      });
+      cleanupIds.push(eventId);
+      await client.delete("Event", eventId);
+      cleanupIds.pop();
+      return { httpStatus: 201, response: { created: true, eventId } };
+    }
+    case "salesforce-update-lead": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const label = LABEL();
+      const leadId = await client.create("Lead", { LastName: label, Company: "Phase7 Verify" });
+      cleanupIds.push(leadId);
+      await client.update("Lead", leadId, { Status: "Working - Contacted" });
+      await client.delete("Lead", leadId);
+      cleanupIds.pop();
+      return { httpStatus: 200, response: { updated: true, leadId } };
     }
     default:
       throw new Error(`no verification path for ${contract.capabilityId}`);
