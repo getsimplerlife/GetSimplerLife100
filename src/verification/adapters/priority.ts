@@ -19,6 +19,7 @@ import { createZendeskClient } from "../../integrations/providers/zendesk/client
 import { createSalesforceClient } from "../../integrations/providers/salesforce/client";
 import { createWorkdayClient } from "../../integrations/providers/workday/client";
 import { createServiceNowClient } from "../../integrations/providers/servicenow/client";
+import { createTableauClient } from "../../integrations/providers/tableau/client";
 import type { CapabilityAdapter } from "./index";
 import type { ProviderCredential } from "../credential-source";
 
@@ -1010,6 +1011,110 @@ export const workdayAdapter: CapabilityAdapter = async (contract, ctx) => {
       const result = await client.createJobRequisition({ title: `${label} - Phase 7 verification`, description: "Safe to close" });
       return { httpStatus: 201, response: { created: true, details: result } };
 
+    }
+    default:
+      throw new Error(`no verification path for ${contract.capabilityId}`);
+  }
+};
+
+/* ────────────────────────── Tableau ────────────────────────── */
+export const tableauAdapter: CapabilityAdapter = async (contract, ctx) => {
+  const cred = ctx.credentials;
+  const pat = (cred.pat as string) || (cred.apiToken as string) || "";
+  const serverUrl = (cred.serverUrl as string) || (cred.instanceUrl as string) || "";
+  const siteId = (cred.siteId as string) || (cred.site as string) || "";
+  if (!pat) throw new Error("Tableau credential has no pat/apiToken");
+  if (!serverUrl) throw new Error("Tableau credential has no serverUrl — configure the tenant Tableau Server/Cloud host");
+  if (!siteId) throw new Error("Tableau credential has no siteId");
+  const client = createTableauClient({ pat, serverUrl, siteId } as never);
+  switch (contract.capabilityId) {
+    /* ── understand (read) ── */
+    case "tableau-read-reports": {
+      const views = await client.listViews();
+      return { httpStatus: 200, response: { count: views.length } };
+    }
+    case "tableau-read-dashboards": {
+      const dashboards = await client.listDashboards();
+      return { httpStatus: 200, response: { count: dashboards.length } };
+    }
+    case "tableau-read-workbooks": {
+      const workbooks = await client.listWorkbooks();
+      return { httpStatus: 200, response: { count: workbooks.length } };
+    }
+    case "tableau-read-data-sources": {
+      const datasources = await client.listDatasources();
+      return { httpStatus: 200, response: { count: datasources.length } };
+    }
+    case "tableau-read-projects": {
+      const projects = await client.listProjects();
+      return { httpStatus: 200, response: { count: projects.length } };
+    }
+    case "tableau-read-users": {
+      const users = await client.listUsers();
+      return { httpStatus: 200, response: { count: users.length } };
+    }
+    /* ── monitor ── */
+    case "tableau-monitor-workbooks": {
+      const from = new Date(Date.now() - 30 * 86400000).toISOString();
+      const changed = await client.listWorkbooksChangedSince(from);
+      return { httpStatus: 200, response: { monitored: changed.length, window: "30d" } };
+    }
+    case "tableau-monitor-datasources": {
+      const datasources = await client.listDatasources(1);
+      const id = datasources[0]?.id as string | undefined;
+      if (!id) throw new Error("Tableau site has no datasources to monitor refresh jobs on");
+      const refreshes = await client.listDatasourceRefreshes(id);
+      return { httpStatus: 200, response: { monitored: refreshes.length, datasourceId: id } };
+    }
+    /* ── automate (write) ── */
+    case "tableau-create-project": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const label = LABEL();
+      const created = await client.createProject({ name: `${label} - Phase 7 verification`, description: "Safe to delete" });
+      const projectId = created?.id as string | undefined;
+      if (!projectId) throw new Error("Tableau createProject returned no id");
+      // Rollback: delete the labeled project so verification leaves no residue.
+      try {
+        return { httpStatus: 201, response: { created: true, rolledBack: true, projectId } };
+      } finally {
+        await client.deleteProject(projectId);
+      }
+    }
+    case "tableau-update-workbook": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const workbooks = await client.listWorkbooks(1);
+      const workbookId = workbooks[0]?.id as string | undefined;
+      if (!workbookId) throw new Error("Tableau site has no workbooks to exercise update against");
+      const originalName = workbooks[0]?.name as string | undefined;
+      const label = LABEL();
+      await client.updateWorkbook(workbookId, { name: `${label} - Phase 7 verification` });
+      // Rollback: restore the original workbook name so verification leaves no residue.
+      try {
+        return { httpStatus: 200, response: { updated: true, workbookId } };
+      } finally {
+        if (originalName) await client.updateWorkbook(workbookId, { name: originalName });
+      }
+    }
+    case "tableau-add-site-user": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const label = LABEL();
+      const created = await client.addSiteUser({ name: `phase7-${Date.now()}@verify.example.invalid`, siteRole: "Viewer" });
+      const userId = created?.id as string | undefined;
+      if (!userId) throw new Error("Tableau addSiteUser returned no id");
+      // Rollback: remove the labeled verification user so no residue remains.
+      try {
+        return { httpStatus: 201, response: { created: true, rolledBack: true, userId } };
+      } finally {
+        await client.removeSiteUser(userId);
+      }
+    }
+    case "tableau-refresh-datasource": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const datasources = await client.listDatasources(1);
+      const datasourceId = datasources[0]?.id as string | undefined;
+      if (!datasourceId) throw new Error("Tableau site has no datasources to refresh");
+      const job = await client.refreshDatasource(datasourceId);
+      return { httpStatus: 200, response: { refreshed: true, datasourceId, jobId: job?.id } };
     }
     default:
       throw new Error(`no verification path for ${contract.capabilityId}`);
