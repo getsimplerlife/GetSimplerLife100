@@ -200,6 +200,11 @@ export const slackAdapter: CapabilityAdapter = async (contract, ctx) => {
   const client = createSlackClient(baseAuth(cred, "slack", ctx));
 
   switch (contract.capabilityId) {
+    case "slack-read-channels": {
+      const channels = await client.listConversations("public_channel");
+      return { httpStatus: 200, response: { count: channels.length } };
+    }
+    case "slack-read-channel-history":
     case "slack-read-messages": {
       const channels = await client.listConversations("public_channel");
       const channel = channels[0]?.id as string | undefined;
@@ -207,13 +212,111 @@ export const slackAdapter: CapabilityAdapter = async (contract, ctx) => {
       const messages = await client.getConversationHistory(channel, 5);
       return { httpStatus: 200, response: { channel, count: messages.length } };
     }
+    case "slack-read-users": {
+      const users = await client.getUsers();
+      return { httpStatus: 200, response: { count: users.length } };
+    }
+    case "slack-read-user-info": {
+      const users = await client.getUsers();
+      const user = users[0]?.id as string | undefined;
+      if (!user) throw new Error("Slack workspace has no user to read");
+      const info = await client.getUserInfo(user);
+      return { httpStatus: 200, response: { user: info?.id ?? user, name: Boolean(info?.name) || Boolean(info?.real_name) } };
+    }
+    case "slack-search-messages": {
+      const matches = await client.searchMessages("Phase7");
+      return { httpStatus: 200, response: { count: matches.length } };
+    }
     case "slack-send-message": {
       if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
       const channels = await client.listConversations("public_channel");
       const channel = channels[0]?.id as string | undefined;
       if (!channel) throw new Error("Slack workspace has no public channel to post to");
       const result = await client.postMessage(channel, `Verification message ${LABEL()} — safe to delete`);
-      return { httpStatus: 200, response: { ok: Boolean(result?.ok), channel } };
+      const ts = result?.ts as string | undefined;
+      if (!result?.ok || !ts) throw new Error(`Slack postMessage failed: ${JSON.stringify(result).slice(0, 200)}`);
+      try {
+        const cleanup = await fetch("https://slack.com/api/chat.delete", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${cred.accessToken}`, "Content-Type": "application/json; charset=utf-8" },
+          body: JSON.stringify({ channel, ts }),
+        });
+        const cleanupBody = (await cleanup.json()) as { ok?: boolean };
+        if (!cleanupBody.ok) throw new Error(`message sent (${ts}) but cleanup failed`);
+      } catch (cleanupError) {
+        throw new Error(`message sent (${ts}) but cleanup failed: ${String(cleanupError)}`);
+      }
+      return { httpStatus: 200, response: { ok: true, channel, rolledBack: true } };
+    }
+    case "slack-send-ephemeral": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const channels = await client.listConversations("public_channel");
+      const channel = channels[0]?.id as string | undefined;
+      const users = await client.getUsers();
+      const user = users.find((u: any) => !u.is_bot && !u.deleted)?.id as string | undefined;
+      if (!channel || !user) throw new Error("Slack workspace has no public channel + member for ephemeral message");
+      const result = await client.postEphemeral(channel, user, `Verification ephemeral ${LABEL()}`);
+      if (!result?.ok) throw new Error(`Slack postEphemeral failed: ${JSON.stringify(result).slice(0, 200)}`);
+      // Ephemeral messages are transient (visible only to the target user, no channel residue) — no delete needed.
+      return { httpStatus: 200, response: { ok: true, channel, user } };
+    }
+    case "slack-add-reaction": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const channels = await client.listConversations("public_channel");
+      const channel = channels[0]?.id as string | undefined;
+      if (!channel) throw new Error("Slack workspace has no public channel to post to");
+      const sent = await client.postMessage(channel, `Verification reaction target ${LABEL()} — safe to delete`);
+      const ts = sent?.ts as string | undefined;
+      if (!sent?.ok || !ts) throw new Error(`Slack postMessage failed: ${JSON.stringify(sent).slice(0, 200)}`);
+      try {
+        await client.addReaction(channel, ts, "white_check_mark");
+        await fetch("https://slack.com/api/chat.delete", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${cred.accessToken}`, "Content-Type": "application/json; charset=utf-8" },
+          body: JSON.stringify({ channel, ts }),
+        });
+      } catch (cleanupError) {
+        throw new Error(`reaction added (${ts}) but cleanup failed: ${String(cleanupError)}`);
+      }
+      return { httpStatus: 200, response: { ok: true, channel, reaction: "white_check_mark", rolledBack: true } };
+    }
+    case "slack-upload-file": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const channels = await client.listConversations("public_channel");
+      const channel = channels[0]?.id as string | undefined;
+      if (!channel) throw new Error("Slack workspace has no public channel to upload to");
+      const form = new FormData();
+      form.append("channels", channel);
+      form.append("filename", `phase7-verify-${Date.now()}.txt`);
+      form.append("content", `Verification upload ${LABEL()} — safe to delete`);
+      const upload = await fetch("https://slack.com/api/files.upload", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${cred.accessToken}` },
+        body: form,
+      });
+      const uploadBody = (await upload.json()) as { ok?: boolean; file?: { id?: string } };
+      const fileId = uploadBody?.file?.id;
+      if (!uploadBody?.ok || !fileId) {
+        throw new Error(`Slack files.upload failed: ${JSON.stringify(uploadBody).slice(0, 200)}`);
+      }
+      try {
+        const cleanup = await fetch("https://slack.com/api/files.delete", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${cred.accessToken}`, "Content-Type": "application/json; charset=utf-8" },
+          body: JSON.stringify({ file: fileId }),
+        });
+        const cleanupBody = (await cleanup.json()) as { ok?: boolean };
+        if (!cleanupBody.ok) throw new Error(`file uploaded (${fileId}) but cleanup failed`);
+      } catch (cleanupError) {
+        throw new Error(`file uploaded (${fileId}) but cleanup failed: ${String(cleanupError)}`);
+      }
+      return { httpStatus: 200, response: { ok: true, channel, fileId, rolledBack: true } };
+    }
+    case "slack-monitor-mention":
+    case "slack-monitor-channel-activity": {
+      throw new Error(
+        "monitor verification requires a live webhook receiver (Events API app_mention / message.channels); the batch CLI cannot fabricate event receipt",
+      );
     }
     default:
       throw new Error(`no verification path for ${contract.capabilityId}`);
