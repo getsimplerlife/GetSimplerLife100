@@ -19,3 +19,6 @@ src/routeTree.gen.ts
 .env*
 .vercel
 site/.data/
+
+# Runtime data files
+/.data/
