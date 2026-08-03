@@ -173,6 +173,7 @@ import * as samsara from "../integrations/providers/samsara";
 import * as motive from "../integrations/providers/motive";
 import * as project44 from "../integrations/providers/project44";
 import * as fourkites from "../integrations/providers/fourkites";
+import * as onfleet from "../integrations/providers/onfleet";
 import * as dat from "../integrations/providers/dat";
 import * as truckstop from "../integrations/providers/truckstop";
 import * as descartes from "../integrations/providers/descartes";
@@ -383,6 +384,7 @@ registerProviderActions("samsara", [samsara], ["samsaraActions"]);
 registerProviderActions("motive", [motive], ["motiveActions"]);
 registerProviderActions("project44", [project44], ["project44Actions"]);
 registerProviderActions("fourkites", [fourkites], ["fourkitesActions"]);
+registerProviderActions("onfleet", [onfleet], ["onfleetActions"]);
 registerProviderActions("dat", [dat], ["datActions"]);
 registerProviderActions("truckstop", [truckstop], ["truckstopActions"]);
 registerProviderActions("descartes", [descartes], ["descartesActions"]);
@@ -605,7 +607,7 @@ function getProvidersInCategory(category: string): string[] {
     "support": ["zendesk", "freshdesk", "intercom", "help-scout", "servicenow", "salesforce-service-cloud"],
     "bi": ["power-bi", "tableau", "looker", "metabase", "qlik-sense", "sigma"],
     "ecommerce": ["shopify", "woocommerce", "bigcommerce", "magento", "amazon-seller"],
-    "logistics": ["mcleod-software", "mercurygate", "trimble-tms", "samsara", "motive", "project44", "fourkites", "dat", "truckstop", "descartes", "pcs-tms", "ascend-tms"],
+    "logistics": ["mcleod-software", "mercurygate", "trimble-tms", "samsara", "motive", "project44", "fourkites", "onfleet", "dat", "truckstop", "descartes", "pcs-tms", "ascend-tms"],
     "manufacturing": ["plex", "katana", "fishbowl", "mrpeasy", "iqms", "epicor-kinetic-mfg", "siemens-opcenter"],
     "healthcare": ["athenahealth", "nextgen", "eclinicalworks"],
     "scheduling": ["calendly", "microsoft-bookings", "google-calendar", "outlook-calendar", "acuity"],

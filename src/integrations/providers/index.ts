@@ -83,6 +83,7 @@ function registerProvider(module: {
     "mcleodSoftwareActions", "mercurygateActions", "trimbleTmsActions",
     "samsaraActions", "motiveActions", "project44Actions",
     "fourkitesActions", "datActions", "truckstopActions",
+    "onfleetActions",
     "descartesActions", "pcsTmsActions", "ascendTmsActions",
     // Manufacturing
     "plexActions", "katanaActions", "fishbowlActions",
@@ -293,6 +294,7 @@ import * as samsara from "./samsara";
 import * as motive from "./motive";
 import * as project44 from "./project44";
 import * as fourkites from "./fourkites";
+import * as onfleet from "./onfleet";
 import * as dat from "./dat";
 import * as truckstop from "./truckstop";
 import * as descartes from "./descartes";
@@ -503,6 +505,7 @@ const providerModules = [
   { ...motive, motiveActions: motive.motiveActions },
   { ...project44, project44Actions: project44.project44Actions },
   { ...fourkites, fourkitesActions: fourkites.fourkitesActions },
+  { ...onfleet, onfleetActions: onfleet.onfleetActions },
   { ...dat, datActions: dat.datActions },
   { ...truckstop, truckstopActions: truckstop.truckstopActions },
   { ...descartes, descartesActions: descartes.descartesActions },
@@ -717,6 +720,7 @@ export * from "./samsara";
 export * from "./motive";
 export * from "./project44";
 export * from "./fourkites";
+export * from "./onfleet";
 export * from "./dat";
 export * from "./truckstop";
 export * from "./descartes";
