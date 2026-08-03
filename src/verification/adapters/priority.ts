@@ -345,10 +345,59 @@ export const docusignAdapter: CapabilityAdapter = async (contract, ctx) => {
   const client = createDocuSignClient({ ...baseAuth(cred, "docusign", ctx), accountId: account.accountId, baseUrl: account.baseUrl });
 
   switch (contract.capabilityId) {
+    /* ── understand (read) ── */
     case "docusign-read-envelopes": {
       const envelopes = await client.listEnvelopes();
       return { httpStatus: 200, response: { count: envelopes.length } };
     }
+    case "docusign-read-bulk-envelopes": {
+      const envelopes = await client.listEnvelopes("2020-01-01");
+      return { httpStatus: 200, response: { count: envelopes.length } };
+    }
+    case "docusign-read-templates": {
+      const templates = await client.listTemplates();
+      return { httpStatus: 200, response: { count: templates.length } };
+    }
+    case "docusign-check-signing-status": {
+      const envelopes = await client.listEnvelopes();
+      const id = envelopes[0]?.envelopeId as string | undefined;
+      if (!id) throw new Error("DocuSign account has no envelopes to check status on");
+      const envelope = await client.getEnvelope(id);
+      return { httpStatus: 200, response: { status: envelope?.status, envelopeId: id } };
+    }
+    case "docusign-download-signed-doc": {
+      const envelopes = await client.listEnvelopes();
+      const id = envelopes[0]?.envelopeId as string | undefined;
+      if (!id) throw new Error("DocuSign account has no envelopes to download documents from");
+      const docs = await client.getEnvelopeDocuments(id);
+      return { httpStatus: 200, response: { hasDocuments: Boolean(docs), envelopeId: id } };
+    }
+    case "docusign-read-recipients": {
+      const envelopes = await client.listEnvelopes();
+      const id = envelopes[0]?.envelopeId as string | undefined;
+      if (!id) throw new Error("DocuSign account has no envelopes to read recipients from");
+      const recipients = await client.listRecipients(id);
+      return { httpStatus: 200, response: { signers: recipients?.signers?.length ?? 0, envelopeId: id } };
+    }
+    case "docusign-read-envelope": {
+      const envelopes = await client.listEnvelopes();
+      const id = envelopes[0]?.envelopeId as string | undefined;
+      if (!id) throw new Error("DocuSign account has no envelopes to read");
+      const envelope = await client.getEnvelope(id);
+      return { httpStatus: 200, response: { found: true, envelopeId: id, status: envelope?.status } };
+    }
+    /* ── monitor ── */
+    case "docusign-monitor-envelope-status": {
+      const envelopes = await client.listEnvelopes();
+      if (!envelopes.length) throw new Error("DocuSign account has no envelopes to monitor");
+      const recent = envelopes.slice(0, 5);
+      const statuses = await Promise.all(recent.map(async (e) => {
+        const detail = await client.getEnvelope(e.envelopeId as string);
+        return { envelopeId: e.envelopeId, status: detail?.status };
+      }));
+      return { httpStatus: 200, response: { monitored: statuses.length, statuses } };
+    }
+    /* ── automate (write) ── */
     case "docusign-send-document": {
       if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
       const label = LABEL();
@@ -377,16 +426,39 @@ export const docusignAdapter: CapabilityAdapter = async (contract, ctx) => {
       const envelopeId = created?.envelopeId as string | undefined;
       if (!envelopeId) throw new Error("DocuSign sendEnvelope returned no envelopeId");
       // Cleanup: void the draft envelope so verification leaves no residue.
-      const voidUrl = `${account.baseUrl}/v2.1/accounts/${account.accountId}/envelopes/${envelopeId}`;
-      const cleanup = await fetch(voidUrl, {
-        method: "PUT",
-        headers: { Authorization: `Bearer ${cred.accessToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "voided", voidedReason: "Phase 7 verification cleanup" }),
+      await client.voidEnvelope(envelopeId, "Phase 7 verification cleanup");
+      return { httpStatus: 201, response: { created: true, rolledBack: true, envelopeId } };
+    }
+    case "docusign-void-envelope": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      // Create a draft envelope first so we have something to void.
+      const label = LABEL();
+      const created = await client.sendEnvelope({
+        status: "created",
+        emailSubject: label,
+        documents: [
+          {
+            documentBase64: Buffer.from("Phase 7 verification — void test").toString("base64"),
+            name: "void-test.txt",
+            fileExtension: "txt",
+            documentId: "1",
+          },
+        ],
+        recipients: {
+          signers: [
+            {
+              email: (cred.email as string) || "verify@example.invalid",
+              name: "Phase7 Verification",
+              recipientId: "1",
+              routingOrder: "1",
+            },
+          ],
+        },
       });
-      if (!cleanup.ok && cleanup.status !== 404) {
-        throw new Error(`draft created (${envelopeId}) but cleanup failed HTTP ${cleanup.status}`);
-      }
-      return { httpStatus: 201, response: { created: true, envelopeId } };
+      const envelopeId = created?.envelopeId as string | undefined;
+      if (!envelopeId) throw new Error("DocuSign sendEnvelope returned no envelopeId (cannot test void)");
+      await client.voidEnvelope(envelopeId, "Phase 7 void verification");
+      return { httpStatus: 200, response: { voided: true, envelopeId } };
     }
     default:
       throw new Error(`no verification path for ${contract.capabilityId}`);

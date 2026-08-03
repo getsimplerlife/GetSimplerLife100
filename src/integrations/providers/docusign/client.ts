@@ -15,6 +15,7 @@ export class DocuSignClient {
   async listRecipients(id: string): Promise<any> { await this.ensureToken(); const r = await this.client.get(`/envelopes/${id}/recipients`, this.headers); return r.data; }
   async listTemplates(): Promise<any[]> { await this.ensureToken(); const r = await this.client.get("/templates", this.headers); return r.data?.envelopeTemplates || []; }
   async getEnvelopeDocuments(id: string): Promise<any> { await this.ensureToken(); const r = await this.client.get(`/envelopes/${id}/documents`, this.headers); return r.data; }
+  async voidEnvelope(id: string, reason: string): Promise<any> { await this.ensureToken(); const r = await this.client.put(`/envelopes/${id}`, { status: "voided", voidedReason: reason }, this.headers); return r.data; }
   async healthCheck(): Promise<boolean> { try { const r = await this.client.get("/envelopes?from_date=2020-01-01&count=1", this.headers); return r.ok; } catch { return false; } }
 }
 
