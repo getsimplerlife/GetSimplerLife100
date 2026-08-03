@@ -23,6 +23,7 @@ import { createTableauClient } from "../../integrations/providers/tableau/client
 import { createOnfleetClient } from "../../integrations/providers/onfleet/client";
 import { createShopifyClient } from "../../integrations/providers/shopify/client";
 import { createMarketoClient } from "../../integrations/providers/marketo/client";
+import { createCoupaClient } from "../../integrations/providers/coupa/client";
 import type { CapabilityAdapter } from "./index";
 import type { ProviderCredential } from "../credential-source";
 
@@ -1346,6 +1347,66 @@ export const shopifyAdapter: CapabilityAdapter = async (contract, ctx) => {
       throw new Error(`no verification path for ${contract.capabilityId}`);
   }
 };
+
+/* ────────────────────────── Coupa ────────────────────────── */
+/**
+ * Coupa (Procurement AI) verification adapter.
+ *
+ * Coupa uses API key (X-API-KEY) against https://{instance}.coupahost.com/api.
+ * Credentials: { apiKey, instance }.
+ * Writes are gated behind ctx.allowWrites, create labeled Phase7-* synthetic
+ * objects, and roll back where possible.
+ */
+export const coupaAdapter: CapabilityAdapter = async (contract, ctx) => {
+  const cred = ctx.credentials;
+  const apiKey = (cred.apiKey as string) || (cred.apiToken as string) || "";
+  const instance = (cred.instance as string) || (cred.subdomain as string) || "";
+  if (!apiKey) throw new Error("Coupa credential has no apiKey");
+  if (!instance) throw new Error("Coupa credential has no instance/subdomain");
+
+  const client = createCoupaClient({ apiKey, instance } as never);
+
+  switch (contract.capabilityId) {
+    /* ── understand (read) ── */
+    case "coupa-read-purchase-orders": {
+      const pos = await client.listPurchaseOrders();
+      return { httpStatus: 200, response: { count: pos.length } };
+    }
+    case "coupa-read-suppliers": {
+      const suppliers = await client.listSuppliers();
+      return { httpStatus: 200, response: { count: suppliers.length } };
+    }
+    case "coupa-read-receipts": {
+      const receipts = await client.listReceipts();
+      return { httpStatus: 200, response: { count: receipts.length } };
+    }
+    case "coupa-read-invoices-against-po": {
+      const invoices = await client.listInvoices();
+      return { httpStatus: 200, response: { count: invoices.length } };
+    }
+    case "coupa-read-approval-chains": {
+      const approvals = await client.listApprovals();
+      return { httpStatus: 200, response: { count: approvals.length } };
+    }
+    /* ── automate (write) ── */
+    case "coupa-create-purchase-order": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const label = LABEL();
+      const created = await client.createPurchaseOrder({
+        description: `${label} - Phase 7 verification PO`,
+        supplier: { name: "Phase7 Verification Supplier" },
+        currency: { code: "USD" },
+        lines: [
+          {
+            description: "Verification line item",
+            quantity: 1,
+            unit_price: 1,
+          },
+        ],
+      });
+      const poId = created?.id as string | undefined;
+      if (!poId) throw new Error("Coupa createPurchaseOrder returned no id");
+      return { httpStatus: 201, response: { created: true, poId } };
 
 /* ────────────────────────── Marketo ────────────────────────── */
 /**
