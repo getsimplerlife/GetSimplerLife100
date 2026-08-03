@@ -8,7 +8,7 @@
 import type { CapabilityContract } from "../../lib/capability-contract";
 import type { ProviderCredential } from "../credential-source";
 import { xeroAdapter } from "./xero";
-import { docusignAdapter, hubspotAdapter, intercomAdapter, jiraAdapter, mondayComAdapter, onfleetAdapter, salesforceAdapter, servicenowAdapter, shopifyAdapter, slackAdapter, tableauAdapter, workdayAdapter, zendeskAdapter } from "./priority";
+import { docusignAdapter, hubspotAdapter, intercomAdapter, jiraAdapter, marketoAdapter, mondayComAdapter, onfleetAdapter, salesforceAdapter, servicenowAdapter, shopifyAdapter, slackAdapter, tableauAdapter, workdayAdapter, zendeskAdapter } from "./priority";
 
 export interface AdapterContext {
   credentials: ProviderCredential;
@@ -41,6 +41,7 @@ export const adapterRegistry: Record<string, CapabilityAdapter | undefined> = {
   tableau: tableauAdapter,
   onfleet: onfleetAdapter,
   shopify: shopifyAdapter,
+  marketo: marketoAdapter,
 };
 
 export function hasAdapter(providerId: string): boolean {
