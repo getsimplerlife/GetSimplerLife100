@@ -15,11 +15,9 @@ import { createJiraClient } from "../../integrations/providers/jira/client";
 import { createDocuSignClient } from "../../integrations/providers/docusign/client";
 import { createMondayComClient } from "../../integrations/providers/monday-com/client";
 import { createIntercomClient } from "../../integrations/providers/intercom/client";
-<<<<<<< HEAD
 import { createZendeskClient } from "../../integrations/providers/zendesk/client";
-=======
 import { createSalesforceClient } from "../../integrations/providers/salesforce/client";
->>>>>>> origin/main
+import { createWorkdayClient } from "../../integrations/providers/workday/client";
 import type { CapabilityAdapter } from "./index";
 import type { ProviderCredential } from "../credential-source";
 
@@ -827,6 +825,79 @@ export const zendeskAdapter: CapabilityAdapter = async (contract, ctx) => {
         const deleted = await client.deleteTicket(id);
         if (!deleted) throw new Error("Zendesk cleanup failed after status verification");
       }
+    }
+    default:
+      throw new Error(`no verification path for ${contract.capabilityId}`);
+  }
+};
+
+/* ────────────────────────── Workday ────────────────────────── */
+
+export const workdayAdapter: CapabilityAdapter = async (contract, ctx) => {
+  const cred = ctx.credentials;
+  const token = (cred.accessToken as string) || (cred.apiToken as string) || "";
+  const tenant = (cred.tenant as string) || (cred.subdomain as string) || "";
+  if (!token) throw new Error("Workday credential has no accessToken or apiToken");
+  if (!tenant) throw new Error("Workday credential has no tenant/subdomain");
+
+  const client = createWorkdayClient({ accessToken: token, tenant } as never);
+
+  switch (contract.capabilityId) {
+    /* ── understand (read) ── */
+    case "workday-read-employees": {
+      const workers = await client.listWorkers();
+      return { httpStatus: 200, response: { count: workers.length } };
+    }
+    case "workday-read-org-chart": {
+      const orgs = await client.listOrganizations();
+      return { httpStatus: 200, response: { count: orgs.length } };
+    }
+    case "workday-read-time-off": {
+      const plans = await client.listTimeOffPlans();
+      return { httpStatus: 200, response: { count: plans.length } };
+    }
+    case "workday-read-positions": {
+      const positions = await client.listPositions();
+      return { httpStatus: 200, response: { count: positions.length } };
+    }
+    case "workday-read-job-requisitions": {
+      const reqs = await client.listJobRequisitions();
+      return { httpStatus: 200, response: { count: reqs.length } };
+    }
+    /* ── monitor ── */
+    case "workday-monitor-employees": {
+      const workers = await client.listWorkers(100);
+      return { httpStatus: 200, response: { monitored: workers.length } };
+    }
+    /* ── automate (write) ── */
+    case "workday-update-employee": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const workers = await client.listWorkers(1);
+      const workerId = workers[0]?.id as string | undefined;
+      if (!workerId) throw new Error("Workday tenant has no workers to exercise update against");
+      const label = LABEL();
+      await client.updateWorker(workerId, { Phase7_verification: label });
+      return { httpStatus: 200, response: { updated: true, workerId } };
+    }
+    case "workday-initiate-onboarding": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const label = LABEL();
+      const result = await client.initiateOnboarding({ name: label, startDate: "2099-01-01" });
+      return { httpStatus: 201, response: { initiated: true, details: result } };
+    }
+    case "workday-approve-time-off": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const workers = await client.listWorkers(1);
+      const workerId = workers[0]?.id as string | undefined;
+      if (!workerId) throw new Error("Workday tenant has no workers");
+      const balance = await client.getTimeOffBalance(workerId);
+      return { httpStatus: 200, response: { reached: true, workerId, hasBalance: Boolean(balance) } };
+    }
+    case "workday-create-job-requisition": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const label = LABEL();
+      const result = await client.createJobRequisition({ title: `${label} - Phase 7 verification`, description: "Safe to close" });
+      return { httpStatus: 201, response: { created: true, details: result } };
     }
     default:
       throw new Error(`no verification path for ${contract.capabilityId}`);
