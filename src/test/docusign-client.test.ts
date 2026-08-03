@@ -130,3 +130,27 @@ describe("DocuSign webhook handlers (monitor)", () => {
     expect(docusignEventLog.length).toBe(0);
   });
 });
+
+describe("DocuSign X-DocuSign-AppToken header", () => {
+  it("includes X-DocuSign-AppToken header when appToken is configured", () => {
+    const c = createDocuSignClient({ accessToken: "tok", accountId: "acct-1", appToken: "my-app-token-123" } as never);
+    const headers = (c as any).headers;
+    expect(headers["X-DocuSign-AppToken"]).toBe("my-app-token-123");
+    expect(headers["Authorization"]).toBe("Bearer tok");
+    expect(headers["Content-Type"]).toBe("application/json");
+  });
+
+  it("omits X-DocuSign-AppToken header when appToken is not provided", () => {
+    const c = createDocuSignClient({ accessToken: "tok", accountId: "acct-1" } as never);
+    const headers = (c as any).headers;
+    expect(headers["X-DocuSign-AppToken"]).toBeUndefined();
+    expect(headers["Authorization"]).toBe("Bearer tok");
+  });
+
+  it("omits X-DocuSign-AppToken header when appToken is empty string", () => {
+    const c = createDocuSignClient({ accessToken: "tok", accountId: "acct-1", appToken: "" } as never);
+    const headers = (c as any).headers;
+    expect(headers["X-DocuSign-AppToken"]).toBeUndefined();
+    expect(headers["Authorization"]).toBe("Bearer tok");
+  });
+});

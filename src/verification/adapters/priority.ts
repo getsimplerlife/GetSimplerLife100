@@ -353,7 +353,7 @@ export const docusignAdapter: CapabilityAdapter = async (contract, ctx) => {
     baseUrl: (cred.baseUrl as string) || "https://demo.docusign.net/restapi",
   }));
   if (!account.accountId) throw new Error("DocuSign account id unresolved (connect flow must capture accountId)");
-  const client = createDocuSignClient({ ...baseAuth(cred, "docusign", ctx), accountId: account.accountId, baseUrl: account.baseUrl });
+  const client = createDocuSignClient({ ...baseAuth(cred, "docusign", ctx), accountId: account.accountId, baseUrl: account.baseUrl, appToken: (cred.appToken as string) || "" });
 
   switch (contract.capabilityId) {
     /* ── understand (read) ── */
