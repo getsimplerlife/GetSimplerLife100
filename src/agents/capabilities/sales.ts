@@ -103,6 +103,20 @@ export const salesCapabilities: ReadonlyArray<CapabilityContract> = [
     rollback: "available",
     evidence: "Provider adapter path exists; authorized tenant evidence is pending.",
   }),
+  defineCapabilityContract({
+    employeeId: SALES_EMPLOYEE_ID,
+    capabilityId: "salesforce-monitor-pipeline",
+    kind: "monitor",
+    status: "unverified",
+    providerId: SALESFORCE_PROVIDER_ID,
+    tenantScoped: true,
+    authRequired: true,
+    auditRequired: true,
+    idempotencyRequired: false,
+    retryPolicy: "bounded",
+    rollback: "not_applicable",
+    evidence: "Provider adapter polls opportunity pipeline; authorized tenant evidence is pending.",
+  }),
 ];
 export interface SalesAdapter { listOpportunities(tenantId: string): Promise<unknown>; updateOpportunity(tenantId: string, input: Record<string, unknown>, idempotencyKey: string): Promise<unknown>; 
   readAccounts(tenantId: string): Promise<unknown>;
@@ -111,7 +125,8 @@ export interface SalesAdapter { listOpportunities(tenantId: string): Promise<unk
   readPipeline(tenantId: string): Promise<unknown>;
   createTask(tenantId: string, input: Record<string, unknown>, idempotencyKey: string): Promise<unknown>;
   createEvent(tenantId: string, input: Record<string, unknown>, idempotencyKey: string): Promise<unknown>;
-  updateLead(tenantId: string, input: Record<string, unknown>, idempotencyKey: string): Promise<unknown>;}
+  updateLead(tenantId: string, input: Record<string, unknown>, idempotencyKey: string): Promise<unknown>;
+  /** Monitor: polls the opportunity pipeline for recent changes. */ monitorPipeline(tenantId: string): Promise<unknown>; }
 export interface SalesExecutionOptions { tenantId: string; authToken?: string; audit: (event: { capabilityId: string; tenantId: string; outcome: string; idempotencyKey?: string }) => Promise<void> | void; maxAttempts?: number; }
 function requireTenant(options: SalesExecutionOptions): void { if (!options.tenantId.trim()) throw new Error("Tenant scope is required"); if (!options.authToken?.trim()) throw new Error("Provider authentication is required"); }
 function boundedAttempts(value?: number): number { return Math.max(1, Math.min(value ?? 2, 3)); }
@@ -186,4 +201,18 @@ export async function updateLead(adapter: SalesAdapter, options: SalesExecutionO
   const result = await adapter.updateLead(options.tenantId, input, idempotencyKey);
   await options.audit({ capabilityId: "salesforce-update-lead", tenantId: options.tenantId, outcome: "succeeded", idempotencyKey });
   return result;
+}
+
+export async function monitorPipeline(adapter: SalesAdapter, options: SalesExecutionOptions): Promise<unknown> {
+  requireTenant(options);
+  let lastError: unknown;
+  for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) {
+    try {
+      const result = await adapter.monitorPipeline(options.tenantId);
+      await options.audit({ capabilityId: "salesforce-monitor-pipeline", tenantId: options.tenantId, outcome: "succeeded" });
+      return result;
+    } catch (error) { lastError = error; }
+  }
+  await options.audit({ capabilityId: "salesforce-monitor-pipeline", tenantId: options.tenantId, outcome: "failed" });
+  throw lastError;
 }
