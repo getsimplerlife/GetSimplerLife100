@@ -560,6 +560,24 @@ export const servicenowAdapter: CapabilityAdapter = async (contract, ctx) => {
       });
       return { httpStatus: 200, response: { recentCount: recent.length } };
     }
+    case "servicenow-read-knowledge-base": {
+      const kb = await client.listKnowledgeBase();
+      return { httpStatus: 200, response: { count: kb.length } };
+    }
+    case "servicenow-create-change-request": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const label = LABEL();
+      const created = await client.createChangeRequest({
+        short_description: `${label} - Phase 7 verification change request`,
+        description: "Phase 7 verification — safe to close",
+        type: "standard",
+      });
+      const sysId = created?.sys_id as string | undefined;
+      if (!sysId) throw new Error("ServiceNow createChangeRequest returned no sys_id");
+      const deleted = await client.deleteChangeRequest(sysId);
+      if (!deleted) throw new Error("ServiceNow cleanup failed after change request creation");
+      return { httpStatus: 201, response: { created: true, sysId, deleted } };
+    }
     default:
       throw new Error(`no verification path for ${contract.capabilityId}`);
   }
