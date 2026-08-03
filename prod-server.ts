@@ -2123,8 +2123,7 @@ OAUTH_${provUpper}_CLIENT_SECRET=your_client_secret</pre><p style="font-size:0.8
       }
     }
 
-      // SPA mode: serve index.html for all non-API, non-asset GET requests.
-      // The React router handles routing client-side.
+      // SSR mode: try server-side rendering first, fall back to SPA
       try {
         const indexPath = join(DIST_CLIENT, "index.html");
         if (!existsSync(indexPath)) {
@@ -2138,6 +2137,24 @@ OAUTH_${provUpper}_CLIENT_SECRET=your_client_secret</pre><p style="font-size:0.8
           /(src|href)="(\/assets\/[^"]+)"/g,
           `$1="$2?_v=${BUILD_ID}"`
         );
+
+        // Try SSR rendering
+        let ssrHtml = "";
+        try {
+          const { renderPage } = await import("./src/entry-server");
+          const result = await renderPage(url);
+          if (result.html && !result.html.includes("SSR fallback")) {
+            ssrHtml = result.html;
+          }
+        } catch {
+          // SSR import may fail if route tree not generated or browser APIs break
+          // Silently fall back to SPA mode
+        }
+
+        if (ssrHtml) {
+          // Inject SSR-rendered content into the root div
+          html = html.replace('<div id="root"></div>', `<div id="root">${ssrHtml}</div>`);
+        }
 
         // Inject portal user data so the client skips /api/me fetch
         if (pathname.startsWith("/portal") && req) {
@@ -2173,4 +2190,4 @@ OAUTH_${provUpper}_CLIENT_SECRET=your_client_secret</pre><p style="font-size:0.8
       }
   },
 });
-console.log("[prod-server] Port 3000 — SPA mode: serving dist/index.html | API: /api/login, /api/register, /api/logout, /api/me");
+console.log("[prod-server] Port 3000 — SSR mode: server-side rendering + client hydration | API: /api/login, /api/register, /api/logout, /api/me");
