@@ -10,3 +10,34 @@ export async function buildDocuSignAuthUrl(config: any): Promise<{ url: string; 
 export async function handleDocuSignCallback(config: any, code: string, verifier: string) { return exchangeCode(getDocuSignOAuthConfig(config), code, verifier); }
 export async function refreshDocuSignToken(config: any, rt: string) { return refreshToken(getDocuSignOAuthConfig(config), rt); }
 export { isTokenExpired as isDocuSignTokenExpired };
+/** Canonical DocuSign OAuth userinfo hosts (production + developer sandbox). No guessed hosts. */
+export const DOCUSIGN_USERINFO_HOSTS = ["account.docusign.com", "account-d.docusign.com"] as const;
+/** Pick the default account from a userinfo `accounts` array; falls back to the first account. */
+export function pickDefaultAccount(accounts: Array<{ account_id?: string; is_default?: boolean; base_uri?: string }>): { accountId: string; baseUri: string } | undefined {
+  if (!Array.isArray(accounts) || accounts.length === 0) return undefined;
+  const chosen = accounts.find((a) => a.is_default) ?? accounts[0];
+  if (!chosen?.account_id) return undefined;
+  return { accountId: chosen.account_id, baseUri: chosen.base_uri || "" };
+}
+/**
+ * Resolve the default DocuSign account via GET /oauth/userinfo (canonical hosts only).
+ * Returns `{ accountId, baseUri }` or throws when no usable account exists.
+ */
+export async function resolveDocuSignDefaultAccount(tokens: { accessToken?: string }): Promise<{ accountId: string; baseUri: string }> {
+  if (!tokens.accessToken) throw new Error("DocuSign access token is required to resolve the default account");
+  let lastError: unknown;
+  for (const host of DOCUSIGN_USERINFO_HOSTS) {
+    try {
+      const res = await fetch(`https://${host}/oauth/userinfo`, {
+        headers: { Authorization: `Bearer ${tokens.accessToken}`, Accept: "application/json" },
+      });
+      if (!res.ok) continue;
+      const data = (await res.json()) as { accounts?: Array<{ account_id?: string; is_default?: boolean; base_uri?: string }> };
+      const picked = pickDefaultAccount(data.accounts ?? []);
+      if (picked) return picked;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw new Error(`DocuSign userinfo returned no usable account (last error: ${String(lastError ?? "no host succeeded")})`);
+}
