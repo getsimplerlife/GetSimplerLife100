@@ -10,6 +10,8 @@ export default defineConfig({
     allowedHosts: true,
   },
   build: {
+    minify: false,
+    target: "esnext",
     reportCompressedSize: false,
     rollupOptions: {
       external: ['@libsql/client', 'drizzle-orm/libsql'],
