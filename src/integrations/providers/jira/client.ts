@@ -16,6 +16,11 @@ export class JiraClient {
   async listProjects(): Promise<any[]> { await this.ensureToken(); const r = await this.client.get("/project", this.headers); return r.data || []; }
   async getProject(projectKey: string): Promise<any> { await this.ensureToken(); const r = await this.client.get(`/project/${projectKey}`, this.headers); return r.data; }
   async listSprints(boardId: number, state?: string): Promise<any[]> { await this.ensureToken(); const p = state ? `/board/${boardId}/sprint?state=${state}` : `/board/${boardId}/sprint`; const r = await this.client.get(p, this.headers); return r.data?.values || []; }
+  async linkIssues(linkType: string, inwardKey: string, outwardKey: string): Promise<any> { await this.ensureToken(); const r = await this.client.post("/issueLink", { type: { name: linkType }, inwardIssue: { key: inwardKey }, outwardIssue: { key: outwardKey } }, this.headers); return r.data; }
+  async getComments(issueKey: string): Promise<any[]> { await this.ensureToken(); const r = await this.client.get(`/issue/${issueKey}/comment`, this.headers); return r.data?.comments || []; }
+  async transitionIssue(issueKey: string, transitionId: string): Promise<void> { await this.ensureToken(); await this.client.post(`/issue/${issueKey}/transitions`, { transition: { id: transitionId } }, this.headers); }
+  async getTransitions(issueKey: string): Promise<any[]> { await this.ensureToken(); const r = await this.client.get(`/issue/${issueKey}/transitions`, this.headers); return r.data?.transitions || []; }
+  async listBoards(): Promise<any[]> { await this.ensureToken(); const r = await this.client.get("/agile/1.0/board", this.headers); return r.data?.values || []; }
   async healthCheck(): Promise<boolean> { try { const r = await this.client.get("/myself", this.headers); return r.ok; } catch { return false; } }
 }
 

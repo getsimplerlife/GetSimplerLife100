@@ -141,6 +141,66 @@ export const jiraAdapter: CapabilityAdapter = async (contract, ctx) => {
       // in the current client; issues are labeled Phase7-* for identification).
       return { httpStatus: 201, response: { created: true, key: issueKey } };
     }
+    case "jira-read-projects": {
+      const projects = await client.listProjects();
+      return { httpStatus: 200, response: { count: projects.length } };
+    }
+    case "jira-link-issues": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const issues = await client.searchIssues("ORDER BY created DESC", 2);
+      if (issues.length < 2) throw new Error("Jira site needs at least 2 issues to link");
+      const inward = issues[0]?.key as string | undefined;
+      const outward = issues[1]?.key as string | undefined;
+      if (!inward || !outward) throw new Error("Jira searchIssues returned issues without keys");
+      await client.linkIssues("Relates", inward, outward);
+      return { httpStatus: 201, response: { linked: true, inward, outward } };
+    }
+    case "jira-read-comments": {
+      const issues = await client.searchIssues("ORDER BY created DESC", 1);
+      const key = issues[0]?.key as string | undefined;
+      if (!key) throw new Error("Jira site has no issues to read comments from");
+      const comments = await client.getComments(key);
+      return { httpStatus: 200, response: { count: comments.length } };
+    }
+    case "jira-transition-issue": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const issues = await client.searchIssues("ORDER BY created DESC", 1);
+      const key = issues[0]?.key as string | undefined;
+      if (!key) throw new Error("Jira site has no issues to transition");
+      const transitions = await client.getTransitions(key);
+      if (!transitions.length) throw new Error("Jira issue has no available transitions");
+      await client.transitionIssue(key, transitions[0].id as string);
+      return { httpStatus: 200, response: { transitioned: true, key, to: transitions[0].name } };
+    }
+    case "jira-monitor-issue-created": {
+      const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString().replace(/\.\d+Z$/, "+0000");
+      const issues = await client.searchIssues(`created > "${fiveMinAgo}" ORDER BY created DESC`, 10);
+      return { httpStatus: 200, response: { recentCount: issues.length } };
+    }
+    case "jira-read-issue": {
+      const issues = await client.searchIssues("ORDER BY created DESC", 1);
+      const key = issues[0]?.key as string | undefined;
+      if (!key) throw new Error("Jira site has no issues to read");
+      const issue = await client.getIssue(key);
+      return { httpStatus: 200, response: { found: true, key } };
+    }
+    case "jira-update-issue": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const issues = await client.searchIssues("ORDER BY created DESC", 1);
+      const key = issues[0]?.key as string | undefined;
+      if (!key) throw new Error("Jira site has no issues to update");
+      const label = LABEL();
+      await client.updateIssue(key, { description: `${label} — Phase 7 verification update` });
+      return { httpStatus: 200, response: { updated: true, key } };
+    }
+    case "jira-read-sprints": {
+      const boards = await client.listBoards();
+      if (!boards.length) throw new Error("Jira site has no agile boards");
+      const boardId = boards[0]?.id as number | undefined;
+      if (!boardId) throw new Error("Jira board has no id");
+      const sprints = await client.listSprints(boardId);
+      return { httpStatus: 200, response: { count: sprints.length } };
+    }
     default:
       throw new Error(`no verification path for ${contract.capabilityId}`);
   }
