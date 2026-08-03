@@ -21,8 +21,8 @@
     window.__logs = [];
     function showError(msg) {
       window.__errors.push(msg);
-      var el = document.getElementById('root');
-      if(el) el.innerHTML = '<pre style="color:red;padding:20px;font-size:14px;background:#111;white-space:pre-wrap">'+msg+'</pre>';
+      // Errors are logged but do NOT overwrite page content.
+      // The SSR-rendered HTML must remain visible to users.
     }
     window.onerror = function(m,s,l,c,e) {
       showError('ERROR: '+m+' @ '+s+':'+l+'\n'+((e&&e.stack)||''));
