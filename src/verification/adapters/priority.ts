@@ -21,6 +21,7 @@ import { createWorkdayClient } from "../../integrations/providers/workday/client
 import { createServiceNowClient } from "../../integrations/providers/servicenow/client";
 import { createTableauClient } from "../../integrations/providers/tableau/client";
 import { createOnfleetClient } from "../../integrations/providers/onfleet/client";
+import { createShopifyClient } from "../../integrations/providers/shopify/client";
 import type { CapabilityAdapter } from "./index";
 import type { ProviderCredential } from "../credential-source";
 
@@ -1233,12 +1234,112 @@ export const onfleetAdapter: CapabilityAdapter = async (contract, ctx) => {
       });
       const workerId = created?.id as string | undefined;
       if (!workerId) throw new Error("Onfleet createWorker returned no id");
-      // Rollback: delete the labeled worker so verification leaves no residue.
       try {
         return { httpStatus: 201, response: { created: true, rolledBack: true, workerId } };
       } finally {
         await client.deleteWorker(workerId);
       }
+    }
+    default:
+      throw new Error(`no verification path for ${contract.capabilityId}`);
+  }
+};
+
+/* ────────────────────────── Shopify ────────────────────────── */
+/**
+ * Shopify Admin API uses X-Shopify-Access-Token header against
+ * https://{store}.myshopify.com/admin/api/{version}.
+ *
+ * Credentials: { accessToken, storeName }.
+ * Writes are labeled Phase7-*, and rolled back (delete product) where possible.
+ */
+export const shopifyAdapter: CapabilityAdapter = async (contract, ctx) => {
+  const cred = ctx.credentials;
+  const accessToken = (cred.accessToken as string) || "";
+  const storeName = (cred.storeName as string) || (cred.subdomain as string) || "";
+  if (!accessToken) throw new Error("Shopify credential has no accessToken");
+  if (!storeName) throw new Error("Shopify credential has no storeName (your-store.myshopify.com subdomain)");
+
+  const client = createShopifyClient({ accessToken, storeName } as never);
+
+  switch (contract.capabilityId) {
+    /* ── understand (read) ── */
+    case "shopify-read-orders": {
+      const orders = await client.listOrders();
+      return { httpStatus: 200, response: { count: orders.length } };
+    }
+    case "shopify-read-products": {
+      const products = await client.listProducts();
+      return { httpStatus: 200, response: { count: products.length } };
+    }
+    case "shopify-read-customers": {
+      const customers = await client.listCustomers();
+      return { httpStatus: 200, response: { count: customers.length } };
+    }
+    case "shopify-read-inventory": {
+      const locations = await client.listLocations();
+      if (!locations.length) throw new Error("Shopify store has no locations to read inventory from");
+      const levels = await client.listInventoryLevels({ locationId: locations[0]?.id as number });
+      return { httpStatus: 200, response: { count: levels.length, locationId: locations[0]?.id } };
+    }
+    case "shopify-read-product-variants": {
+      const products = await client.listProducts({ limit: 1 });
+      const productId = products[0]?.id as number | undefined;
+      if (!productId) throw new Error("Shopify store has no products to read variants from");
+      const variants = await client.getProductVariants(productId);
+      return { httpStatus: 200, response: { count: variants.length, productId } };
+    }
+    case "shopify-read-fulfillments": {
+      const orders = await client.listOrders({ limit: 1 });
+      const orderId = orders[0]?.id as number | undefined;
+      if (!orderId) throw new Error("Shopify store has no orders to read fulfillments from");
+      const fulfillments = await client.listFulfillments(orderId);
+      return { httpStatus: 200, response: { count: fulfillments.length, orderId } };
+    }
+    /* ── automate (write) ── */
+    case "shopify-create-product": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const label = LABEL();
+      const created = await client.createProduct({
+        title: `${label} - Phase 7 verification product`,
+        body_html: "<p>Phase 7 verification — safe to delete</p>",
+        vendor: "Phase7",
+        product_type: "Verification",
+        variants: [{ price: "1.00", inventory_management: null }],
+      });
+      const productId = created?.id as number | undefined;
+      if (!productId) throw new Error("Shopify createProduct returned no id");
+      try {
+        return { httpStatus: 201, response: { created: true, rolledBack: true, productId } };
+      } finally {
+        await client.deleteProduct(productId);
+      }
+    }
+    case "shopify-update-product": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const products = await client.listProducts({ limit: 1 });
+      const productId = products[0]?.id as number | undefined;
+      if (!productId) throw new Error("Shopify store has no products to exercise update against");
+      const originalTitle = (products[0]?.title as string) || "";
+      const label = LABEL();
+      await client.updateProduct(productId, { title: `${label} - Phase 7 verification` });
+      try {
+        return { httpStatus: 200, response: { updated: true, productId } };
+      } finally {
+        if (originalTitle) await client.updateProduct(productId, { title: originalTitle });
+      }
+    }
+    case "shopify-update-fulfillment": {
+      if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
+      const orders = await client.listOrders({ limit: 1 });
+      const orderId = orders[0]?.id as number | undefined;
+      if (!orderId) throw new Error("Shopify store has no orders to exercise fulfillment against");
+      const fulfillments = await client.listFulfillments(orderId);
+      const fulfillmentId = fulfillments[0]?.id as number | undefined;
+      if (!fulfillmentId) throw new Error("Shopify order has no fulfillments to exercise update against");
+      const label = LABEL();
+      await client.updateFulfillment(orderId, fulfillmentId, { tracking_company: label });
+      return { httpStatus: 200, response: { updated: true, orderId, fulfillmentId } };
     }
     default:
       throw new Error(`no verification path for ${contract.capabilityId}`);
