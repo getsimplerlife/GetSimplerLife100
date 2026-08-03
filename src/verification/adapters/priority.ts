@@ -430,8 +430,12 @@ export const docusignAdapter: CapabilityAdapter = async (contract, ctx) => {
       const envelopeId = created?.envelopeId as string | undefined;
       if (!envelopeId) throw new Error("DocuSign sendEnvelope returned no envelopeId");
       // Cleanup: void the draft envelope so verification leaves no residue.
-      await client.voidEnvelope(envelopeId, "Phase 7 verification cleanup");
-      return { httpStatus: 201, response: { created: true, rolledBack: true, envelopeId } };
+      // Zendesk-parity rollback: guaranteed in `finally` — a failed cleanup surfaces as an error.
+      try {
+        return { httpStatus: 201, response: { created: true, rolledBack: true, envelopeId } };
+      } finally {
+        await client.voidEnvelope(envelopeId, "Phase 7 verification cleanup");
+      }
     }
     case "docusign-void-envelope": {
       if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
