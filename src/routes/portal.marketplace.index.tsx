@@ -182,16 +182,45 @@ function MarketplaceHub() {
   };
 
   // Stripe checkout — redirect to real payment link
-  const handleSimulatePayment = () => {
-    if (!checkoutItem?.paymentLink) {
+  const handleSimulatePayment = async () => {
+    if (!checkoutItem) return;
+    // Try direct deploy first
+    setCheckoutStep("processing");
+    setSimulatingLog(["Initiating direct deployment...", "Provisioning AI employee workspace..."]);
+    try {
+      const res = await fetch("/api/purchases/deploy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          agentId: checkoutItem.agentType || checkoutItem.id,
+          agentName: checkoutItem.name,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSimulatingLog(prev => [...prev, "✓ Direct deployment successful!", "Moving to confirmation..."]);
+        setTimeout(() => handleConfirmDeploy(), 500);
+        return;
+      }
+      if (data.alreadyDeployed) {
+        setFeedback(checkoutItem.name + " is already deployed");
+        setTimeout(() => setFeedback(""), 3000);
+        setCheckoutItem(null);
+        return;
+      }
+    } catch (err) {
+      console.error("Deploy error:", err);
+    }
+    // Fallback to Stripe checkout
+    if (checkoutItem.paymentLink) {
+      setFeedback("Redirecting to Stripe Checkout...");
+      window.open(checkoutItem.paymentLink, "_blank");
+      setSimulatingLog(["Stripe Checkout opened in new tab...", "Complete payment to continue."]);
+    } else {
       setFeedback("Payment link not available. Visit /build to purchase.");
       setTimeout(() => setFeedback(""), 3000);
-      return;
     }
-    setFeedback("Redirecting to Stripe Checkout...");
-    window.open(checkoutItem.paymentLink, "_blank");
-    setCheckoutStep("processing");
-    setSimulatingLog(["Stripe Checkout opened in new tab...", "Complete payment to continue."]);
   };
 
   // Deploy Employee - creates records in Database and logs purchase

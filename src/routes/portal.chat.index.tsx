@@ -228,6 +228,7 @@ function ChatAssistant() {
 
       {/* ─── Primary Chat Interface Frame ─── */}
       <main className="flex-1 flex flex-col bg-stone-950 relative overflow-hidden">
+        <h1 className="text-lg font-black text-white px-6 py-3 border-b border-stone-900">💬 AI Chat Assistant</h1>
         
         {/* Messages List Area */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">

@@ -420,6 +420,38 @@ serve({
       }
     }
 
+    // ── Direct Deploy API (provision AI employee without Stripe) ──
+    if (pathname === "/api/purchases/deploy" && req.method === "POST") {
+      const user = await getUserFromSession(req);
+      if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
+      try {
+        const body = await req.json();
+        const agentId = body.agentId || body.agent_id || "";
+        const agentName = body.agentName || body.agent_name || agentId;
+        if (!agentId) return Response.json({ error: "agentId required" }, { status: 400 });
+        const purchases = readJSON(TENANT_PURCHASES_FILE);
+        const userPurchases = purchases[user.email] || [];
+        // Check for duplicate
+        if (userPurchases.some((p: any) => p.agentId === agentId && p.status === "active")) {
+          return Response.json({ error: "Already deployed", alreadyDeployed: true }, { status: 409 });
+        }
+        userPurchases.push({
+          id: "purchase-" + Math.random().toString(36).substr(2, 9),
+          agentId,
+          agentName,
+          amount: 0,
+          status: "active",
+          purchasedAt: new Date().toISOString(),
+        });
+        purchases[user.email] = userPurchases;
+        writeJSON(TENANT_PURCHASES_FILE, purchases);
+        console.log(`[deploy] Deployed ${agentName} (${agentId}) for ${user.email}`);
+        return Response.json({ success: true, agentId, agentName });
+      } catch {
+        return Response.json({ error: "Invalid request" }, { status: 400 });
+      }
+    }
+
     // ── CRM/ERP Slot API ──────────────────────────────────────────
     if (pathname === "/api/data/crm-slots" || pathname === "/api/data/erp-slots") {
       const user = await getUserFromSession(req);
@@ -509,7 +541,23 @@ serve({
         try {
           const body = await req.json();
           console.log(`[communications] POST by ${user.email}:`, body);
-          return Response.json({ success: true });
+          // Persist the communication message
+          const data = readJSON(COMMS_FILE);
+          const userData = data[user.email] || [];
+          const newMsg = {
+            id: "msg-" + Math.random().toString(36).substr(2, 9),
+            from: body.resource || body.from || user.email,
+            subject: body.action || body.subject || "New message",
+            preview: body.message || body.preview || "",
+            channel: body.channel || "portal",
+            time: new Date().toLocaleString(),
+            sentiment: body.sentiment || "neutral",
+            read: false,
+          };
+          userData.push(newMsg);
+          data[user.email] = userData;
+          writeJSON(COMMS_FILE, data);
+          return Response.json({ success: true, data: newMsg });
         } catch {
           return Response.json({ error: "Invalid request" }, { status: 400 });
         }
@@ -2096,32 +2144,9 @@ OAUTH_${provUpper}_CLIENT_SECRET=your_client_secret</pre><p style="font-size:0.8
       }
     }
 
-    // Purchase gate: CRM/ERP pages require a purchase (owner bypasses)
-    if ((pathname === "/portal/crm" || pathname === "/portal/erp") && req.method === "GET") {
-      const user = await getUserFromSession(req);
-      if (user && user.email !== "mathewortiz97@gmail.com") {
-        const purchases = readJSON(TENANT_PURCHASES_FILE);
-        const userPurchases = purchases[user.email] || [];
-        // Per-portal pack type check: CRM portal needs crm-pack, ERP portal needs erp-pack
-        const requiredPackType = pathname === "/portal/crm" ? "crm-pack" : "erp-pack";
-        const crmErpAgents = ["crm-sync-agent","email-assistant","lead-scoring-agent","customer-onboarding","sales-follow-up",
-          "support-triage-agent","support-ticket-router","invoice-processor","po-management","payroll-reconciliation"];
-        const hasCrmErpPurchase = userPurchases.some((p: any) => {
-          if (p.type === requiredPackType) return true; // CRM or ERP Connection Pack grants access
-          if (p.agents) return p.agents.some((a: any) => crmErpAgents.includes(a));
-          if (p.agentId) return crmErpAgents.includes(p.agentId);
-          if (p.type === "builder" || p.package) return true; // builder packages include CRM/ERP
-          return false;
-        });
-        if (!hasCrmErpPurchase) {
-          return Response.json({
-            error: "Purchase required",
-            message: `${pathname === "/portal/crm" ? "CRM" : "ERP"} integrations require an active AI employee, builder package, or Connection Pack purchase.`,
-            cta: "/portal/marketplace",
-          }, { status: 402 });
-        }
-      }
-    }
+    // CRM/ERP purchase gating is handled client-side by React components.
+    // portal.crm.index.tsx and portal.erp.index.tsx render upgrade states when
+    // no slots are available. The server must serve the SPA, not a 402 JSON block.
 
       // SPA mode: serve index.html for all non-API, non-asset GET requests.
       // The React router handles routing client-side.
