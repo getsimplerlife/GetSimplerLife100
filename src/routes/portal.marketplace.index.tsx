@@ -79,10 +79,9 @@ function MarketplaceHub() {
   // Core Sync Function
   const loadData = async () => {
     try {
-      const [empRes, billingRes, mktRes] = await Promise.all([
+      const [empRes, billingRes] = await Promise.all([
         fetch("/api/data/employees", { credentials: "include" }),
         fetch("/api/data/billing", { credentials: "include" }),
-        fetch("/api/data/marketplace", { credentials: "include" }),
       ]);
 
       const empData = await empRes.json();
@@ -92,35 +91,25 @@ function MarketplaceHub() {
       const billData = await billingRes.json();
       setInvoices(billData.data || []);
 
-      let marketplaceItemsList: any[] = [];
-      if (mktRes.ok) {
-        const mktData = await mktRes.json();
-        if (mktData.data && Array.isArray(mktData.data)) {
-          marketplaceItemsList = mktData.data;
-        } else if (Array.isArray(mktData)) {
-          marketplaceItemsList = mktData;
-        }
-      }
-
-      // Map deployed counts, installed flags, and payment links from employee catalog
-      const mapped = marketplaceItemsList.map((item) => {
+      // Use full AGENTS catalog as base, enrich with purchase data from API
+      const enrichedCatalog = ssrItems.map((item: any) => {
         const deployedInstances = emps.filter(
-          (emp: any) => emp.agentType === item.agentType || emp.type === item.agentType
+          (emp: any) => emp.agentType === item.agentType || emp.id === item.id
         );
-        // Find matching employee in catalog to get real paymentLink
         const catalogMatch = emps.find(
-          (emp: any) => emp.agentType === item.agentType || emp.name === item.name
+          (emp: any) => emp.agentType === item.agentType || emp.name === item.name || emp.id === item.id
         );
         return {
           ...item,
           deployedCount: deployedInstances.length,
-          installed: deployedInstances.length > 0,
-          paymentLink: catalogMatch?.paymentLink || item.paymentLink,
+          installed: deployedInstances.length > 0 || !!catalogMatch?.purchased,
+          paymentLink: item.paymentLink || catalogMatch?.paymentLink || null,
           chainsWith: item.agentType ? getAgentChainPartners(item.agentType) : [],
+          setupRequirements: AGENT_SETUP_REQUIREMENTS[item.agentType] || null,
         };
       });
 
-      // Prepend CRM and ERP Connection Packs to marketplace items
+      // CRM and ERP Connection Packs
       const crmPack: MarketplaceItem = {
         id: "crm-connection-pack",
         name: "CRM Connection Pack",
@@ -132,7 +121,7 @@ function MarketplaceHub() {
         rating: 4.9,
         runsMonth: "unlimited",
         icon: "💼",
-        paymentLink: "https://buy.stripe.com/test_crm_pack_5slots",
+        paymentLink: "",
         setupRequirements: null,
         badges: ["1 CRM Slot", "Works Out of Box", "Slack Integration"],
         chainsWith: ["CRM Sync Agent", "Lead Scoring Agent", "Sales Follow-Up Agent"],
@@ -150,19 +139,18 @@ function MarketplaceHub() {
         rating: 4.9,
         runsMonth: "unlimited",
         icon: "🏢",
-        paymentLink: "https://buy.stripe.com/test_erp_pack_5slots",
+        paymentLink: "",
         setupRequirements: null,
         badges: ["1 ERP Slot", "Works Out of Box", "Slack Integration"],
         chainsWith: ["Invoice Processor", "PO Management Agent", "Payroll Reconciliation Agent"],
         agentType: "erp-pack",
       };
 
-      setItems([crmPack, erpPack, ...mapped]);
+      setItems([crmPack, erpPack, ...enrichedCatalog]);
       setLoading(false);
     } catch (err) {
       console.error("Marketplace fetch error:", err);
-      // Fallback
-      setItems([]);
+      setItems(ssrItems);
       setLoading(false);
     }
   };
