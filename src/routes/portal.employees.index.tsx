@@ -138,9 +138,21 @@ function AIEmployeesWorkspaceHub() {
     return m && s;
   });
 
-  const activeCount = employees.filter((e: any) => e.status === "Active").length;
-  const idleCount = employees.filter((e: any) => e.status === "Idle").length;
-  const errorCount = employees.filter((e: any) => e.status !== "Active" && e.status !== "Idle" && e.status !== "Paused").length;
+  // Normalize status: handle lowercase/weird values from API
+  const normalizeStatus = (status: string) => {
+    const s = (status || "").toLowerCase();
+    if (s === "active") return "Active";
+    if (s === "paused") return "Paused";
+    if (s === "idle" || s === "available") return "Idle";
+    return status || "Idle";
+  };
+
+  const activeCount = employees.filter((e: any) => normalizeStatus(e.status) === "Active").length;
+  const idleCount = employees.filter((e: any) => normalizeStatus(e.status) === "Idle").length;
+  const errorCount = employees.filter((e: any) => {
+    const s = normalizeStatus(e.status);
+    return s !== "Active" && s !== "Idle" && s !== "Paused";
+  }).length;
 
   if (loading) {
     return (
@@ -161,8 +173,7 @@ function AIEmployeesWorkspaceHub() {
         </div>
         <h1 className="text-3xl font-black text-white tracking-tight">🤖 AI Employees</h1>
         <p className="text-stone-400 text-sm max-w-2xl leading-relaxed">
-          Monitor, control, and configure your autonomous AI workforce.{" "}
-          <span className="text-blue-400 font-mono text-[10px]">Runtime: src/agents/runtime.ts</span>
+          Monitor, control, and configure your autonomous AI workforce.
         </p>
       </div>
 
@@ -234,19 +245,24 @@ function AIEmployeesWorkspaceHub() {
                       </p>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
-                      <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[9px] font-mono uppercase font-bold ${
-                        emp.status === "Active" ? "bg-emerald-950/40 text-emerald-400 border border-emerald-900" :
-                        emp.status === "Idle" ? "bg-stone-900 text-stone-400 border border-stone-800" :
-                        emp.status === "Paused" ? "bg-amber-950/40 text-amber-400 border border-amber-900" :
-                        "bg-red-950/40 text-red-400 border border-red-900"
-                      }`}>
-                        <span className={`h-1 w-1 rounded-full ${
-                          emp.status === "Active" ? "bg-emerald-400 animate-pulse" :
-                          emp.status === "Paused" ? "bg-amber-400" :
-                          emp.status === "Idle" ? "bg-stone-500" : "bg-red-400"
-                        }`} />
-                        {emp.status}
-                      </span>
+                    {(() => {
+                      const ns = normalizeStatus(emp.status);
+                      return (
+                    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[9px] font-mono uppercase font-bold ${
+                    ns === "Active" ? "bg-emerald-950/40 text-emerald-400 border border-emerald-900" :
+                    ns === "Idle" ? "bg-stone-900 text-stone-400 border border-stone-800" :
+                    ns === "Paused" ? "bg-amber-950/40 text-amber-400 border border-amber-900" :
+                    "bg-red-950/40 text-red-400 border border-red-900"
+                    }`}>
+                    <span className={`h-1 w-1 rounded-full ${
+                      ns === "Active" ? "bg-emerald-400 animate-pulse" :
+                      ns === "Paused" ? "bg-amber-400" :
+                      ns === "Idle" ? "bg-stone-500" : "bg-red-400"
+                    }`} />
+                    {ns}
+                    </span>
+                      );
+                    })()}
                     </div>
                   </div>
 
