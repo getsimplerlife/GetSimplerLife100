@@ -286,7 +286,7 @@ function PortalLayout() {
           <Link to="/" className="text-xs font-black tracking-widest text-white uppercase hover:opacity-85 transition-opacity">
             Simpler Life 100
           </Link>
-          <span className="text-[9px] text-stone-500 font-mono tracking-wider">v3.5</span>
+          {user?.email === "mathewortiz97@gmail.com" && <span className="text-[9px] text-stone-500 font-mono tracking-wider">v3.5</span>}
         </div>
 
         {/* Navigation list */}

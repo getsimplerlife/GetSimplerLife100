@@ -33,7 +33,7 @@ interface SlotInfo {
   isOwner: boolean;
 }
 
-const CRM_CATEGORIES = ["CRM"];
+const CRM_CATEGORIES = ["CRM", "Sales"];
 
 function CRMPortal() {
   const [search, setSearch] = useState("");
