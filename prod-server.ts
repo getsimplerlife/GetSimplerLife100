@@ -532,6 +532,34 @@ serve({
       return Response.json({ data: userData });
     }
 
+    // ── /api/communications (POST) — chat/comm POST endpoint ──────
+    if (pathname === "/api/communications" && req.method === "POST") {
+      const user = await getUserFromSession(req);
+      if (user === null || user === undefined) return Response.json({ error: "Not authenticated" }, { status: 401 });
+      try {
+        const body = await req.json();
+        const COMMS_FILE = join(DATA_DIR, "tenant_communications.json");
+        const data = readJSON(COMMS_FILE);
+        const userData = data[user.email] || [];
+        const newMsg = {
+          id: "msg-" + Math.random().toString(36).substr(2, 9),
+          from: user.email,
+          subject: body.subject || body.message || "New message",
+          preview: body.message || body.preview || "",
+          channel: body.channel || "chat",
+          time: new Date().toLocaleString(),
+          sentiment: body.sentiment || "neutral",
+          read: false,
+        };
+        userData.push(newMsg);
+        data[user.email] = userData;
+        writeJSON(COMMS_FILE, data);
+        return Response.json({ success: true, data: newMsg });
+      } catch {
+        return Response.json({ error: "Invalid request" }, { status: 400 });
+      }
+    }
+
     // ── /api/data/communications (GET + POST) ──────────────────────
     if (pathname === "/api/data/communications") {
       const user = await getUserFromSession(req);
