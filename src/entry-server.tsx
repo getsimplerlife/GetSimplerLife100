@@ -50,6 +50,7 @@ export async function renderPage(url: string): Promise<SSRResult> {
   // Collect head tags (meta, title, links) from route matches
   let headTags = "";
   for (const match of state.matches) {
+    if (!match.route) continue;
     const route = match.route as any;
     if (route.options?.head) {
       try {
