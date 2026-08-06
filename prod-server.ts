@@ -33,7 +33,7 @@ const INDUSTRY_BLUEPRINTS = [
 
 function readJSON(path: string): any {
   if (!existsSync(path)) return {};
-  try { return JSON.parse(readFileSync(path, "utf-8")); } catch { return {}; }
+  try { return JSON.parse(readFileSync(path, "utf-8")); } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e))); return {}; }
 }
 
 function writeJSON(path: string, data: any) {
@@ -239,7 +239,7 @@ async function testProviderConnection(providerId: string, providerName: string, 
               return { success: false, error: `Invalid credentials for ${providerName}: ${body.error}.` };
             }
           }
-        } catch {
+        } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
           // Non-JSON body on 200 — accept cautiously
         }
       }
@@ -347,7 +347,7 @@ serve({
             "Set-Cookie": "session=" + token + "; Path=/; HttpOnly; SameSite=Lax; Max-Age=" + (60 * 60 * 24 * 7),
           },
         });
-      } catch {
+      } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
         return new Response(null, { status: 302, headers: { Location: "/login?error=Something+went+wrong" } });
       }
     }
@@ -373,7 +373,7 @@ serve({
         if (!email) return Response.json({ error: "Email required" }, { status: 400 });
         const users = readJSON(USERS_FILE);
         return Response.json({ exists: !!users[email] });
-      } catch { return Response.json({ error: "Invalid request" }, { status: 400 }); }
+      } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e))); return Response.json({ error: "Invalid request" }, { status: 400 }); }
     }
 
     if (pathname === "/api/set-password" && req.method === "POST") {
@@ -387,7 +387,7 @@ serve({
         users[email] = { email, password: hashedPassword, role: users[email]?.role || "user", createdAt: users[email]?.createdAt || Date.now() };
         writeJSON(USERS_FILE, users);
         return Response.json({ success: true });
-      } catch { return Response.json({ error: "Invalid request" }, { status: 400 }); }
+      } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e))); return Response.json({ error: "Invalid request" }, { status: 400 }); }
     }
 
     // ── Purchase Verification ─────────────────────────────────────
@@ -415,7 +415,7 @@ serve({
           p.feature === feature || p.agentType === feature || p.productId === feature
         );
         return Response.json({ hasAccess: hasFeature, reason: hasFeature ? "purchased" : "not purchased" });
-      } catch {
+      } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
         return Response.json({ hasAccess: false, reason: "error" });
       }
     }
@@ -447,7 +447,7 @@ serve({
         writeJSON(TENANT_PURCHASES_FILE, purchases);
         console.log(`[deploy] Deployed ${agentName} (${agentId}) for ${user.email}`);
         return Response.json({ success: true, agentId, agentName });
-      } catch {
+      } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
         return Response.json({ error: "Invalid request" }, { status: 400 });
       }
     }
@@ -523,7 +523,7 @@ serve({
           const body = await req.json();
           console.log(`[approvals] POST by ${user.email}:`, body);
           return Response.json({ success: true });
-        } catch {
+        } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
           return Response.json({ error: "Invalid request" }, { status: 400 });
         }
       }
@@ -555,7 +555,7 @@ serve({
         data[user.email] = userData;
         writeJSON(COMMS_FILE, data);
         return Response.json({ success: true, data: newMsg });
-      } catch {
+      } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
         return Response.json({ error: "Invalid request" }, { status: 400 });
       }
     }
@@ -586,7 +586,7 @@ serve({
           data[user.email] = userData;
           writeJSON(COMMS_FILE, data);
           return Response.json({ success: true, data: newMsg });
-        } catch {
+        } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
           return Response.json({ error: "Invalid request" }, { status: 400 });
         }
       }
@@ -617,7 +617,7 @@ serve({
           }
           console.log(`[inbox] POST by ${user.email}:`, body);
           return Response.json({ success: true });
-        } catch {
+        } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
           return Response.json({ error: "Invalid request" }, { status: 400 });
         }
       }
@@ -636,7 +636,7 @@ serve({
           const body = await req.json();
           console.log(`[notifications] POST by ${user.email}:`, body);
           return Response.json({ success: true });
-        } catch {
+        } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
           return Response.json({ error: "Invalid request" }, { status: 400 });
         }
       }
@@ -695,7 +695,7 @@ serve({
           }
           console.log(`[industries] POST by ${user.email}:`, body);
           return Response.json({ success: true });
-        } catch {
+        } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
           return Response.json({ error: "Invalid request" }, { status: 400 });
         }
       }
@@ -735,7 +735,7 @@ serve({
           const body = await req.json();
           console.log(`[reports] POST by ${user.email}:`, body);
           return Response.json({ success: true });
-        } catch {
+        } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
           return Response.json({ error: "Invalid request" }, { status: 400 });
         }
       }
@@ -754,7 +754,7 @@ serve({
           const body = await req.json();
           console.log(`[training] POST by ${user.email}:`, body);
           return Response.json({ success: true });
-        } catch {
+        } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
           return Response.json({ error: "Invalid request" }, { status: 400 });
         }
       }
@@ -921,7 +921,7 @@ serve({
           connectionRequirements: connectionRequirements[p.id] || null,
         }));
         return Response.json({ data: augmented, total, page, limit });
-      } catch {
+      } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
         return Response.json({ data: [], total: 0 });
       }
     }
@@ -1077,7 +1077,7 @@ serve({
         alogs3[user.email] = alogUser3;
         writeJSON(AUDIT_LOG_FILE, alogs3);
         return Response.json({ success: true });
-      } catch {
+      } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
         return Response.json({ error: "Invalid request" }, { status: 400 });
       }
     }
@@ -1100,7 +1100,7 @@ serve({
           suggestedAgentName: top?.name || "Automation AI",
           paymentLink: top?.paymentLink || ""
         }});
-      } catch { return Response.json({ analysis: { topMatch: "Automation AI", allMatches: [] } }); }
+      } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e))); return Response.json({ analysis: { topMatch: "Automation AI", allMatches: [] } }); }
     }
     if (pathname === "/api/tools/capture-lead" && req.method === "POST") {
       try {
@@ -1109,7 +1109,7 @@ serve({
         leads[body.email] = { email: body.email, toolName: body.toolName, result: body.result || {}, capturedAt: new Date().toISOString() };
         writeJSON(LEADS_FILE, leads);
         return Response.json({ success: true });
-      } catch { return Response.json({ success: false }, { status: 400 }); }
+      } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e))); return Response.json({ success: false }, { status: 400 }); }
     }
 
     // ── /api/upload ─────────────────────────────────────────────
@@ -1502,7 +1502,7 @@ serve({
         all[user.email] = userSessions;
         writeJSON(CHAT_SESSIONS_FILE, all);
         return Response.json({ sessionId: session.id, reply, session });
-      } catch {
+      } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
         return Response.json({ error: "Invalid request" }, { status: 400 });
       }
     }
@@ -1598,7 +1598,7 @@ serve({
         // Always return an array so the client can safely call .filter(), .map(), etc.
         const userData = Array.isArray(data) ? data : (data[user.email] || []);
         return Response.json({ data: userData });
-      } catch {
+      } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
         return Response.json({ data: [] });
       }
     }
@@ -1876,7 +1876,7 @@ serve({
           }
         }
         return Response.json({ received: true });
-      } catch {
+      } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
         return Response.json({ received: true });
       }
     }
@@ -2195,11 +2195,11 @@ OAUTH_${provUpper}_CLIENT_SECRET=your_client_secret</pre><p style="font-size:0.8
         let ssrHtml = "";
         try {
           const { renderPage } = await import("./src/entry-server");
-          const result = await renderPage(url);
+          const result = await renderPage(pathname); console.log("[SSR] url=" + url + " len=" + result.html.length + " fallback=" + result.html.includes("SSR fallback"));
           if (result.html && !result.html.includes("SSR fallback")) {
             ssrHtml = result.html;
           }
-        } catch {
+        } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
           // SSR import may fail if route tree not generated or browser APIs break
           // Silently fall back to SPA mode
         }
@@ -2222,7 +2222,7 @@ OAUTH_${provUpper}_CLIENT_SECRET=your_client_secret</pre><p style="font-size:0.8
                 html = html.replace("</head>", userScript + "</head>");
               }
             }
-          } catch {}
+          } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));}
         }
 
         // Inject method/action on login form for no-JS fallback
@@ -2238,7 +2238,7 @@ OAUTH_${provUpper}_CLIENT_SECRET=your_client_secret</pre><p style="font-size:0.8
             "ETag": `"${Date.now().toString(36)}"`,
           },
         });
-      } catch {
+      } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
         return new Response("Server error", { status: 500 });
       }
   },
