@@ -134,7 +134,7 @@ function AIEmployeesWorkspaceHub() {
     const m = emp.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
               emp.purpose?.toLowerCase().includes(searchTerm.toLowerCase()) ||
               emp.agentType?.toLowerCase().includes(searchTerm.toLowerCase());
-    const s = statusFilter === "all" || emp.status?.toLowerCase() === statusFilter.toLowerCase();
+    const s = statusFilter === "all" || normalizeStatus(emp.status).toLowerCase() === statusFilter.toLowerCase();
     return m && s;
   });
 
