@@ -94,4 +94,11 @@ describe("Coupa verification adapter (real client, mocked transport)", () => {
     await expect(coupaAdapter(contract("coupa-make-coffee"), ctx())).rejects.toThrow(/no verification path/);
     expect(calls).toHaveLength(0);
   });
+
+  it("monitor-purchase-orders polls with a recent timestamp and returns count", async () => {
+    const r = await coupaAdapter(contract("coupa-monitor-purchase-orders"), ctx());
+    expect(r).toEqual({ httpStatus: 200, response: { count: 2 } });
+    const monitorCall = calls.find((c) => c.url.includes("updated-at%5Bgt%5D"));
+    expect(monitorCall).toBeDefined();
+  });
 });
