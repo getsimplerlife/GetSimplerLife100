@@ -316,6 +316,10 @@ const initialPurchases = readJSON(TENANT_PURCHASES_FILE);
 hydrateTenants(initialPurchases);
 configureTenant("mathewortiz97@gmail.com", { purchased: true, status: "Active" });
 
+// Pre-compile SSR module before server starts listening so the publish
+// health check (which hits /) doesn't timeout on first compilation.
+await import("./src/entry-server").catch(e => console.log("[prod-server] SSR preload failed:", e?.message));
+console.log("[prod-server] SSR module ready - starting server on port 3000");
 serve({
   port: 3000,
   async fetch(req) {
