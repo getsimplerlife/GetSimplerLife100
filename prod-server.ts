@@ -331,12 +331,14 @@ function getProviderCategory(providerId: string): string {
 }
 
 // ── Background init: monitoring gates + SSR preload (non-blocking) ──
+let ssrReady = false;
 const _bgInit = (async () => {
   const { hydrateTenants, configureTenant } = await import("./src/monitoring/gates");
   const _initialPurchases = readJSON(TENANT_PURCHASES_FILE);
   hydrateTenants(_initialPurchases);
   configureTenant("mathewortiz97@gmail.com", { purchased: true, status: "Active" });
   await import("./src/entry-server").catch(e => console.log("[prod-server] SSR preload failed:", e?.message));
+  ssrReady = true;
   console.log("[prod-server] Background init complete");
 })().catch(e => console.error("[prod-server] Background init error:", e));
 
@@ -2227,7 +2229,16 @@ OAUTH_${provUpper}_CLIENT_SECRET=your_client_secret</pre><p style="font-size:0.8
           `$1="$2?_v=${BUILD_ID}"`
         );
 
-        // Try SSR rendering
+        // Try SSR rendering (skip if module not yet preloaded — serve static HTML for fast first response)
+        if (!ssrReady) {
+          return new Response(html, {
+            status: 200,
+            headers: {
+              "Content-Type": "text/html; charset=utf-8",
+              "Cache-Control": "no-store, must-revalidate",
+            },
+          });
+        }
         // Normalize trailing slash: /portal/ → /portal so TanStack Router matches
         const ssrPath = pathname.length > 1 && pathname.endsWith("/") ? pathname.slice(0, -1) : pathname;
         let ssrHtml = "";
