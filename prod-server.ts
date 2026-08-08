@@ -2194,6 +2194,11 @@ OAUTH_${provUpper}_CLIENT_SECRET=your_client_secret</pre><p style="font-size:0.8
 
         let html = readFileSync(indexPath, "utf-8");
 
+        // Kill all service workers immediately on every page load.
+        // This breaks the stale-SW trap where old SWs intercept requests and
+        // serve cached JS/CSS from previous deploys, preventing the new SW
+        // from ever loading. Runs before any other script on the page.
+        html = html.replace("</head>", `<script>if("serviceWorker" in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(s=>s.unregister()))}</script></head>`);
         // Cache-bust asset URLs to force CDN revalidation on new deploys
         html = html.replace(
           /(src|href)="(\/assets\/[^"]+)"/g,
