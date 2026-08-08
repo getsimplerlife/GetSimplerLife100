@@ -10,11 +10,22 @@ export default defineConfig({
     allowedHosts: true,
   },
   build: {
-    minify: false,
+    minify: "esbuild",
     target: "esnext",
     reportCompressedSize: false,
     rollupOptions: {
       external: ['@libsql/client', 'drizzle-orm/libsql'],
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/react-dom') || id.includes('node_modules/react/') || id.includes('node_modules/react-router') || id.includes('node_modules/@tanstack/react-router') || id.includes('node_modules/@tanstack/history') || id.includes('node_modules/@tanstack/store')) {
+            return 'react-vendor';
+          }
+          if (id.includes('node_modules/jspdf') || id.includes('node_modules/html2canvas')) {
+            return 'vendor-pdf';
+          }
+          if (id.includes('node_modules/purify') || id.includes('node_modules/dompurify')) return 'vendor-purify';
+        },
+      },
     },
   },
   resolve: {

@@ -2293,3 +2293,5 @@ OAUTH_${provUpper}_CLIENT_SECRET=your_client_secret</pre><p style="font-size:0.8
   },
 });
 console.log("[prod-server] Port 3000 — SSR mode: server-side rendering + client hydration | API: /api/login, /api/register, /api/logout, /api/me");
+// Signal readiness — write a file the publish tool can detect
+try { require("fs").writeFileSync("/tmp/slr100-ready", String(Date.now())); } catch (_) {}
