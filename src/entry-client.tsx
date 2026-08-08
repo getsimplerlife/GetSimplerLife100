@@ -1,7 +1,8 @@
-// Client entry — uses hydrateRoot for SSR hydration
-// URL/pathname fix ensures server and client render identically
+// Client entry — uses createRoot (not hydrateRoot) to avoid React error #418
+// when SSR HTML doesn't exactly match client render. SW registration ensures
+// stale cached pages from old deploys are cleaned up.
 import { StrictMode } from "react";
-import { hydrateRoot } from "react-dom/client";
+import { createRoot } from "react-dom/client";
 import { RouterProvider, createRouter } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
 
@@ -28,7 +29,7 @@ if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("/sw.js");
 }
 
-hydrateRoot(rootEl,
+createRoot(rootEl).render(
   <StrictMode>
     <RouterProvider router={router} />
   </StrictMode>
