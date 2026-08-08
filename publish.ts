@@ -75,7 +75,7 @@ async function main() {
   for (let i = 1; i <= MAX_POLLS; i++) {
     try {
       const isReady = await new Promise<boolean>((resolve) => {
-        const req = http.get(`http://localhost:${PORT}`, (_res) => resolve(true));
+        const req = http.get(`http://localhost:${PORT}/api/health`, (_res) => resolve(true));
         req.on("error", () => resolve(false));
         req.end();
       });

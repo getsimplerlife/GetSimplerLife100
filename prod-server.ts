@@ -321,6 +321,11 @@ serve({
   async fetch(req) {
     const url = new URL(req.url);
     const pathname = url.pathname;
+    // Health check endpoint
+    if (pathname === "/api/health" && req.method === "GET") {
+      return Response.json({ status: "ok", uptime: process.uptime(), timestamp: Date.now() });
+    }
+
 
     // Server-side form POST fallback for /login — works without JS hydration
     if (pathname === "/login" && req.method === "POST") {
@@ -2192,10 +2197,12 @@ OAUTH_${provUpper}_CLIENT_SECRET=your_client_secret</pre><p style="font-size:0.8
         );
 
         // Try SSR rendering
+        // Normalize trailing slash: /portal/ → /portal so TanStack Router matches
+        const ssrPath = pathname.length > 1 && pathname.endsWith("/") ? pathname.slice(0, -1) : pathname;
         let ssrHtml = "";
         try {
           const { renderPage } = await import("./src/entry-server");
-          const result = await renderPage(pathname); console.log("[SSR] url=" + url + " len=" + result.html.length + " fallback=" + result.html.includes("SSR fallback"));
+          const result = await renderPage(ssrPath); console.log("[SSR] url=" + url + " ssrPath=" + ssrPath + " len=" + result.html.length + " fallback=" + result.html.includes("SSR fallback"));
           if (result.html && !result.html.includes("SSR fallback")) {
             ssrHtml = result.html;
           }
