@@ -1,14 +1,36 @@
 import { serve } from "bun";
 import { join, basename } from "path";
 import { readFileSync, writeFileSync, existsSync, readdirSync } from "fs";
-import { compare } from "bcryptjs";
 import { createHash, randomBytes } from "crypto";
-import { consumeOAuthState, usableOAuthToken, validateOAuthState } from "./src/lib/oauth-safety";
 
-// ── Provider API module (server-side only — never imported in .tsx) ──
-import { executeAgent, executeProviderAction, getHubSpotTrustedTenantId } from "./src/lib/provider-api";
-// ── Agent processor (post-query pipeline) ──
-import { processAgentResults } from "./src/lib/agent-processor";
+// ── Lazy module accessors — loaded on first use to keep server startup under 1s ──
+let _bcryptjs: any;
+async function compare(password: string, hash: string): Promise<boolean> {
+  if (!_bcryptjs) _bcryptjs = await import("bcryptjs");
+  return _bcryptjs.compare(password, hash);
+}
+let _oauthSafety: any;
+async function _getOAuthSafety() {
+  if (!_oauthSafety) _oauthSafety = await import("./src/lib/oauth-safety");
+  return _oauthSafety;
+}
+async function consumeOAuthState(...args: any[]) { return (await _getOAuthSafety()).consumeOAuthState(...args); }
+async function usableOAuthToken(...args: any[]) { return (await _getOAuthSafety()).usableOAuthToken(...args); }
+async function validateOAuthState(...args: any[]) { return (await _getOAuthSafety()).validateOAuthState(...args); }
+let _providerApi: any;
+async function _getProviderApi() {
+  if (!_providerApi) _providerApi = await import("./src/lib/provider-api");
+  return _providerApi;
+}
+async function executeAgent(...args: any[]) { return (await _getProviderApi()).executeAgent(...args); }
+async function executeProviderAction(...args: any[]) { return (await _getProviderApi()).executeProviderAction(...args); }
+async function getHubSpotTrustedTenantId(...args: any[]) { return (await _getProviderApi()).getHubSpotTrustedTenantId(...args); }
+let _agentProcessor: any;
+async function _getAgentProcessor() {
+  if (!_agentProcessor) _agentProcessor = await import("./src/lib/agent-processor");
+  return _agentProcessor;
+}
+async function processAgentResults(...args: any[]) { return (await _getAgentProcessor()).processAgentResults(...args); }
 
 const BUILD_ID = Date.now().toString(36);
 const DIST_CLIENT = "/home/team/shared/site/dist";
@@ -308,18 +330,18 @@ function getProviderCategory(providerId: string): string {
   return "";
 }
 
-// ── Monitoring tenant gate hydration ──────────────────────────────────
-import { hydrateTenants, configureTenant } from "./src/monitoring/gates";
+// ── Background init: monitoring gates + SSR preload (non-blocking) ──
+const _bgInit = (async () => {
+  const { hydrateTenants, configureTenant } = await import("./src/monitoring/gates");
+  const _initialPurchases = readJSON(TENANT_PURCHASES_FILE);
+  hydrateTenants(_initialPurchases);
+  configureTenant("mathewortiz97@gmail.com", { purchased: true, status: "Active" });
+  await import("./src/entry-server").catch(e => console.log("[prod-server] SSR preload failed:", e?.message));
+  console.log("[prod-server] Background init complete");
+})().catch(e => console.error("[prod-server] Background init error:", e));
 
-// ── Startup: hydrate tenant monitoring gates from purchase data ──────
-const initialPurchases = readJSON(TENANT_PURCHASES_FILE);
-hydrateTenants(initialPurchases);
-configureTenant("mathewortiz97@gmail.com", { purchased: true, status: "Active" });
-
-// Pre-compile SSR module before server starts listening so the publish
-// health check (which hits /) doesn't timeout on first compilation.
-await import("./src/entry-server").catch(e => console.log("[prod-server] SSR preload failed:", e?.message));
-console.log("[prod-server] SSR module ready - starting server on port 3000");
+// ── START SERVER IMMEDIATELY — no blocking work before this ──
+console.log("[prod-server] Starting server on port 3000...");
 serve({
   port: 3000,
   async fetch(req) {
@@ -1306,7 +1328,7 @@ serve({
         let processorAlerts: any[] = [];
         let actionsTaken: any[] = [];
         try {
-          const processorResult = processAgentResults(
+          const processorResult = await processAgentResults(
             { id: agent.id, name: agent.name, category: agent.category || "general", instructions: agent.instructions || "" },
             agentResult,
             userConnections.filter((c: any) => c.status === "Connected")
@@ -1322,7 +1344,7 @@ serve({
             );
             if (connected) {
               // Actual launch guard: only the configured single-user tenant owner may execute HubSpot writes. Other users receive no trusted scope and fail closed until DB-backed tenant membership exists.
-              const hubSpotTenant = action.providerId === "hubspot" ? getHubSpotTrustedTenantId(user.email, undefined, readJSON(USERS_FILE)) : null;
+              const hubSpotTenant = action.providerId === "hubspot" ? await getHubSpotTrustedTenantId(user.email, undefined, readJSON(USERS_FILE)) : null;
               const actionPayload = { action: action.action, detail: action.detail, ...(action.payload || {}), tenantId: user.email, __trustedTenantId: hubSpotTenant || undefined };
               const execResult = await executeProviderAction(
                 action.providerId,
@@ -1918,12 +1940,12 @@ serve({
       if (!callbackUser?.email) {
         return Response.redirect(`/portal/integrations?error=${encodeURIComponent("Session expired. Please login and try again.")}`, 302);
       }
-      console.log("[oauth-callback] state found:", !!stateEntry, "provider:", stateEntry?.provider, "email:", stateEntry?.email);      const stateError = validateOAuthState(stateEntry, callbackUser.email);      console.log("[oauth-callback] stateError:", stateError);
+      console.log("[oauth-callback] state found:", !!stateEntry, "provider:", stateEntry?.provider, "email:", stateEntry?.email);      const stateError = await validateOAuthState(stateEntry, callbackUser.email);      console.log("[oauth-callback] stateError:", stateError);
       if (stateError === "mismatch") {
         return Response.redirect(`/portal/integrations?error=${encodeURIComponent("OAuth state belongs to a different tenant")}`, 302);
       }
       if (stateError === "expired") {
-        consumeOAuthState(states, state);
+        await await consumeOAuthState(states, state);
         writeJSON(OAUTH_STATES_FILE, states);
         return Response.redirect(`/portal/integrations?error=${encodeURIComponent("OAuth state expired. Please try again.")}`, 302);
       }
@@ -1984,7 +2006,7 @@ serve({
           // No audited callback handler: fail closed rather than guessing a token host.
           throw new Error(`OAuth callback is not implemented for ${authProvider}`);
         }
-                if (!usableOAuthToken(tokens)) throw new Error("OAuth provider returned no usable access token");
+                if (!(await usableOAuthToken(tokens))) throw new Error("OAuth provider returned no usable access token");
         // Store tokens in tenant_oauth_credentials.json
         const tokenFile = join(DATA_DIR, "tenant_oauth_credentials.json");
         const tokenData = readJSON(tokenFile);
