@@ -1512,6 +1512,11 @@ export const coupaAdapter: CapabilityAdapter = async (contract, ctx) => {
       if (!poId) throw new Error("Coupa createPurchaseOrder returned no id");
       return { httpStatus: 201, response: { created: true, poId } };
     }
+    /* ── monitor ── */
+    case "coupa-monitor-purchase-orders": {
+      const pos = await client.listPurchaseOrdersChangedSince(new Date(Date.now() - 3600000).toISOString());
+      return { httpStatus: 200, response: { count: pos.length } };
+    }
     default:
       throw new Error(`no verification path for ${contract.capabilityId}`);
   }
