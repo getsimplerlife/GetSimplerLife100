@@ -63,38 +63,6 @@ function writeJSON(path: string, data: any) {
   writeFileSync(path, JSON.stringify(data, null, 2));
 }
 
-function extractPaymentLinks(result: any): string[] {
-  const links: string[] = [];
-  if (!result) return links;
-  if (typeof result.paymentLink === 'string' && result.paymentLink.startsWith('https://')) {
-    links.push(result.paymentLink);
-  }
-  if (Array.isArray(result.topWorkflows)) {
-    for (const w of result.topWorkflows) {
-      if (w.workflow?.id) links.push('https://simplerlife100.ctonew.app/workflows/' + w.workflow.id);
-    }
-  }
-  if (Array.isArray(result.allMatches)) {
-    for (const m of result.allMatches) {
-      if (m.paymentLink && typeof m.paymentLink === 'string') links.push(m.paymentLink);
-    }
-  }
-  if (links.length === 0) links.push('https://buy.stripe.com/4gMfZj88TfMz6Hh8TS2Fa1K');
-  links.push('https://simplerlife100.ctonew.app/build');
-  return [...new Set(links)];
-}
-
-function suggestPlan(result: any): string {
-  if (!result) return 'Starter';
-  const savings = result.savingsSummary || '';
-  const hours = parseInt(savings) || 0;
-  if (hours >= 30) return 'Scale';
-  if (hours >= 10) return 'Growth';
-  if (result.annualSavings && result.annualSavings > 50000) return 'Scale';
-  if (result.annualSavings && result.annualSavings > 15000) return 'Growth';
-  return 'Starter';
-}
-
 
 // ── OAuth Credential Resolution ────────────────────────────────────
 function getOAuthCredentials(provider: string): { clientId: string; clientSecret: string } | null {
@@ -1153,19 +1121,7 @@ serve({
         writeJSON(LEADS_FILE, leads);
         const notifsRaw = readJSON(LEAD_NOTIFICATIONS_FILE);
         const notifs = Array.isArray(notifsRaw) ? notifsRaw : [];
-        const result = body.result || {};
-        const paymentLinks = extractPaymentLinks(result);
-        const plan = suggestPlan(result);
-        notifs.push({
-          id: 'notif-' + Math.random().toString(36).substr(2, 9),
-          email: body.email,
-          toolName: body.toolName,
-          timestamp: new Date().toISOString(),
-          notified: false,
-          paymentLinks,
-          suggestedPlan: plan,
-          toolResult: result,
-        });
+        notifs.push({ id: 'notif-' + Math.random().toString(36).substr(2, 9), email: body.email, toolName: body.toolName, timestamp: new Date().toISOString(), notified: false });
         writeJSON(LEAD_NOTIFICATIONS_FILE, notifs);
         return Response.json({ success: true });
       } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e))); return Response.json({ success: false }, { status: 400 }); }
@@ -1179,46 +1135,6 @@ serve({
         const pending = notifs.filter((n: any) => !n.notified);
         return Response.json({ notifications: pending });
       } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e))); return Response.json({ notifications: [] }, { status: 500 }); }
-    }
-
-    // ── /api/notifications/send ─────────────────────────────────────────────
-    if (pathname === "/api/notifications/send" && req.method === "POST") {
-      try {
-        const body = await req.json();
-        const notifId = body.notificationId;
-        const notifsRaw = readJSON(LEAD_NOTIFICATIONS_FILE);
-        const notifs: any[] = Array.isArray(notifsRaw) ? notifsRaw : [];
-        const idx = notifs.findIndex((n: any) => n.id === notifId);
-        if (idx === -1) return Response.json({ error: "Notification not found" }, { status: 404 });
-        const notif = notifs[idx];
-        const links = notif.paymentLinks || [];
-        const plan = notif.suggestedPlan || 'Starter';
-        const toolName = notif.toolName || 'our tools';
-        const toolLabel = toolName === 'assessment' ? 'AI Automation Assessment' :
-                          toolName === 'can-we-automate-this' ? 'Can We Automate This?' :
-                          toolName === 'ai-advisor' ? 'AI Operations Advisor' : toolName;
-        const planPricing: Record<string, string> = {
-          'Starter': '$750/mo', 'Growth': '$1,500/mo', 'Scale': '$3,000/mo',
-        };
-        const emailSubject = notif.email + ' - your ' + toolLabel + ' results';
-        let emailBody = 'Hi there,\n\n';
-        emailBody += 'Thanks for using the ' + toolLabel + ' tool! Here is what we found:\n\n';
-        emailBody += 'Based on your responses, we recommend the ' + plan + ' plan at ' + (planPricing[plan] || '$750/mo') + '.\n\n';
-        emailBody += 'Ready to get started? Here are your links:\n\n';
-        links.forEach((link: string, i: number) => {
-          emailBody += (i + 1) + '. ' + link + '\n';
-        });
-        emailBody += '\nWant to talk first? Schedule a call: https://simplerlife100.ctonew.app/contact\n\n';
-        emailBody += '- The Simpler Life 100 Team\n';
-        notifs[idx].notified = true;
-        notifs[idx].notifiedAt = new Date().toISOString();
-        writeJSON(LEAD_NOTIFICATIONS_FILE, notifs);
-        return Response.json({
-          success: true,
-          email: { to: notif.email, subject: emailSubject, body: emailBody },
-          notification: notifs[idx],
-        });
-      } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e))); return Response.json({ error: "Failed" }, { status: 500 }); }
     }
 
     // ── /api/upload ─────────────────────────────────────────────
