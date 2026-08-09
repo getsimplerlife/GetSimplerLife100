@@ -1146,36 +1146,34 @@ function lookupAgent(agentName: string): { name: string; paymentLink: string; de
 }
 
 
-// ── SMTP Email Sender ────────────────────────────────────────────────────────
-// ── SMTP Email Sender — uses fetch to SMTP bridge or Resend API ──────────
+// ── Email Sender (SendGrid) ───────────────────────────────────────────────────
 async function sendEmailSMTP(opts: { to: string; subject: string; body: string }): Promise<{ sent: boolean; error?: string }> {
-  const emailApiUrl = process.env.EMAIL_API_URL;
-  const emailApiKey = process.env.EMAIL_API_KEY;
-  const emailFrom = process.env.SMTP_FROM || process.env.SMTP_USER || "leads@simplerlife100.com";
+  const apiKey = process.env.SENDGRID_API_KEY;
+  const emailFrom = process.env.SMTP_FROM || "leads@simplerlife100.com";
 
-  if (!emailApiUrl) {
-    return { sent: false, error: "EMAIL_API_URL not configured — set to https://api.resend.com/emails or similar SMTP bridge" };
+  if (!apiKey) {
+    return { sent: false, error: "SENDGRID_API_KEY not configured" };
   }
 
   try {
-    const response = await fetch(emailApiUrl, {
+    const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        ...(emailApiKey ? { "Authorization": "Bearer " + emailApiKey } : {}),
+        "Authorization": "Bearer " + apiKey,
       },
       body: JSON.stringify({
-        from: emailFrom,
-        to: [opts.to],
+        personalizations: [{ to: [{ email: opts.to }] }],
+        from: { email: emailFrom },
         subject: opts.subject,
-        text: opts.body,
+        content: [{ type: "text/plain", value: opts.body }],
       }),
     });
-    if (response.ok) {
+    if (response.status === 202) {
       return { sent: true };
     } else {
       const errText = await response.text();
-      return { sent: false, error: `HTTP ${response.status}: ${errText}` };
+      return { sent: false, error: `SendGrid HTTP ${response.status}: ${errText}` };
     }
   } catch (e: any) {
     return { sent: false, error: e?.message || String(e) };
