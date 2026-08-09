@@ -17,9 +17,9 @@ const INDUSTRY_PRESETS: Record<string, { employees: number; hourlyCost: number; 
 };
 
 const BUILD_PACKAGES = [
-  { name: "Small Team", price: 7500, employees: "5-50", features: "2 AI agents • 3 workflows • 1 CRM", paymentLink: "https://buy.stripe.com/00w28tcp97g37Llc642Fa17" },
-  { name: "Growth", price: 15000, employees: "50-150", features: "5 AI agents • Cross-department • 1 CRM", paymentLink: "https://buy.stripe.com/5kQ14pah11VJfdN6LK2Fa18" },
-  { name: "Scale", price: 30000, employees: "150+", features: "Unlimited agents • Custom modeling • 1 CRM", paymentLink: "https://buy.stripe.com/3cIfZj74PbwjfdNda82Fa19" },
+  { name: "Small Team", price: 7500, employees: "5-50", features: "2 AI agents • 3 workflows • 1 CRM", paymentLink: "https://buy.stripe.com/3cI8wR88Tasfc1B9XW2Fa2K" },
+  { name: "Growth", price: 15000, employees: "50-150", features: "5 AI agents • Cross-department • 1 CRM", paymentLink: "https://buy.stripe.com/5kQ6oJbl5dErc1B1rq2Fa2L" },
+  { name: "Scale", price: 30000, employees: "150+", features: "Unlimited agents • Custom modeling • 1 CRM", paymentLink: "https://buy.stripe.com/aFa7sN60LdErc1B5HG2Fa2M" },
 ];
 
 function getRecommendedPackage(emps: number) {

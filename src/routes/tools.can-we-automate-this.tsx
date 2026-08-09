@@ -184,7 +184,7 @@ function CanWeAutomateThis() {
               </div>
             </div>
             <div className="mt-6 flex gap-3 flex-wrap">
-              <a href={result.paymentLink || "https://buy.stripe.com/cNifZjdtdasf3v59XW2Fa1h"} target="_blank" rel="noopener"
+              <a href={result.paymentLink || "https://buy.stripe.com/4gMfZj88TfMz6Hh8TS2Fa1K"} target="_blank" rel="noopener"
                 className="bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-sm px-6 py-3 rounded-xl transition-all">
                 🚀 Deploy This Agent →
               </a>
