@@ -22,10 +22,14 @@ declare module "@tanstack/react-router" {
 const rootEl = document.getElementById("root");
 if (!rootEl) throw new Error("Root element not found");
 
-// Register self-destruct SW v5 to clean up stale cached HTML from v1-v4.
-// Without this, old service workers persist in returning visitors' browsers,
-// intercepting requests and serving cached pages that predate SSR fixes.
-if ("serviceWorker" in navigator) {
+// SW v5 self-destruct: v1-v4 cached stale HTML/JS with hydrateRoot causing
+// React error #418 for returning visitors. SW v5 on activate clears all caches,
+// unregisters, and force-reloads the page. On second activation (after reload)
+// caches are empty so v5 just unregisters — no loop.
+// We skip registration if sessionStorage says we just went through cleanup,
+// adding defense-in-depth against any edge-case reload loops.
+if ("serviceWorker" in navigator && !sessionStorage.getItem("sw_cleanup_done")) {
+  sessionStorage.setItem("sw_cleanup_done", "1");
   navigator.serviceWorker.register("/sw.js");
 }
 

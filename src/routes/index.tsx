@@ -695,7 +695,7 @@ function Home() {
                   <div className="p-6 bg-stone-950 rounded-2xl border border-stone-800 flex justify-between items-center">
                     <div>
                       <div className="font-black text-white text-xl">Small Team</div>
-                      <div className="text-sm text-stone-400 font-bold">2 AI Agents • 3 Workflows</div>
+                      <div className="text-sm text-stone-400 font-bold">2 AI Agents • 3 Workflows • 1 CRM Connection</div>
                     </div>
                     <div className="text-right">
                       <div className="font-black text-emerald-400 text-2xl">$7,500</div>
@@ -705,7 +705,7 @@ function Home() {
                   <div className="p-6 bg-stone-950 rounded-2xl border border-stone-800 flex justify-between items-center">
                     <div>
                       <div className="font-black text-white text-xl">Growth</div>
-                      <div className="text-sm text-stone-400 font-bold">5 AI Agents • Cross-Department</div>
+                      <div className="text-sm text-stone-400 font-bold">5 AI Agents • Cross-Department • 1 CRM Connection</div>
                     </div>
                     <div className="text-right">
                       <div className="font-black text-emerald-400 text-2xl">$15,000</div>
@@ -715,7 +715,7 @@ function Home() {
                   <div className="p-6 bg-emerald-600 rounded-2xl flex justify-between items-center text-white shadow-xl shadow-emerald-900/30">
                     <div>
                       <div className="font-black text-xl">Scale</div>
-                      <div className="text-sm text-emerald-100 font-bold">Unlimited Agents • Custom Modeling</div>
+                      <div className="text-sm text-emerald-100 font-bold">Unlimited Agents • Custom Modeling • 1 CRM Connection</div>
                     </div>
                     <div className="text-right">
                       <div className="font-black text-2xl">$30,000</div>

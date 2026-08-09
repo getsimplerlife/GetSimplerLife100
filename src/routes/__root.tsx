@@ -114,18 +114,6 @@ function RootComponent() {
   }, [pageMeta]);
 
   useEffect(() => {
-    if (typeof window !== "undefined" && "serviceWorker" in navigator) {
-      window.addEventListener("load", () => {
-        navigator.serviceWorker
-          .register("/sw.js")
-          .then((reg) => {
-            console.log("ServiceWorker registered successfully with scope: ", reg.scope);
-          })
-          .catch((err) => {
-            console.error("ServiceWorker registration failed: ", err);
-          });
-      });
-    }
     // Capture the PWA install prompt event
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
