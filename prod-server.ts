@@ -1145,6 +1145,44 @@ function lookupAgent(agentName: string): { name: string; paymentLink: string; de
   return null;
 }
 
+
+// ── SMTP Email Sender ────────────────────────────────────────────────────────
+// ── SMTP Email Sender — uses fetch to SMTP bridge or Resend API ──────────
+async function sendEmailSMTP(opts: { to: string; subject: string; body: string }): Promise<{ sent: boolean; error?: string }> {
+  const emailApiUrl = process.env.EMAIL_API_URL;
+  const emailApiKey = process.env.EMAIL_API_KEY;
+  const emailFrom = process.env.SMTP_FROM || process.env.SMTP_USER || "leads@simplerlife100.com";
+
+  if (!emailApiUrl) {
+    return { sent: false, error: "EMAIL_API_URL not configured — set to https://api.resend.com/emails or similar SMTP bridge" };
+  }
+
+  try {
+    const response = await fetch(emailApiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(emailApiKey ? { "Authorization": "Bearer " + emailApiKey } : {}),
+      },
+      body: JSON.stringify({
+        from: emailFrom,
+        to: [opts.to],
+        subject: opts.subject,
+        text: opts.body,
+      }),
+    });
+    if (response.ok) {
+      return { sent: true };
+    } else {
+      const errText = await response.text();
+      return { sent: false, error: `HTTP ${response.status}: ${errText}` };
+    }
+  } catch (e: any) {
+    return { sent: false, error: e?.message || String(e) };
+  }
+}
+
+
 function buildLeadEmail(email: string, toolName: string, result: any): { subject: string; body: string; matchedAgents: any[]; bestPlan: string; planLink: string } {
   // Collect all matched agents across any tool type
   const matched: { name: string; paymentLink: string; price: number }[] = [];
@@ -1248,7 +1286,7 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
         // Store notification (auto-marked as notified)
         const notifsRaw = readJSON(LEAD_NOTIFICATIONS_FILE);
         const notifs = Array.isArray(notifsRaw) ? notifsRaw : [];
-        notifs.push({ id: notifId, email: body.email, toolName: body.toolName, result: body.result, timestamp: new Date().toISOString(), notified: true, subject: emailContent.subject, body: emailContent.body });
+        notifs.push({ id: notifId, email: body.email, toolName: body.toolName, result: body.result, timestamp: new Date().toISOString(), notified: false, subject: emailContent.subject, body: emailContent.body });
         writeJSON(LEAD_NOTIFICATIONS_FILE, notifs);
         // Auto-send: trigger the send endpoint inline
         try {
@@ -1272,13 +1310,35 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
         const notifs = Array.isArray(notifsRaw) ? notifsRaw : [];
         const notifId = sendBody.notificationId;
         const idx = notifs.findIndex((n: any) => n.id === notifId);
-        if (idx >= 0) { notifs[idx].notified = true; writeJSON(LEAD_NOTIFICATIONS_FILE, notifs); }
-        // Clean up pending queue
+        if (idx < 0) return Response.json({ success: false, reason: "Notification not found" }, { status: 404 });
+        const notif = notifs[idx];
+        // Actually deliver email via SMTP
+        const recipient = process.env.LEAD_NOTIFICATION_EMAIL || "electric.vortexz@gmail.com";
+        const smtpResult = await sendEmailSMTP({ to: recipient, subject: notif.subject || "New Lead", body: notif.body || "" });
+        if (smtpResult.sent) {
+          notifs[idx].notified = true;
+          notifs[idx].sentAt = new Date().toISOString();
+          writeJSON(LEAD_NOTIFICATIONS_FILE, notifs);
+          console.log("[SSR] Email sent successfully to " + recipient + " via SMTP");
+          return Response.json({ success: true, sent: true });
+        }
+        // SMTP failed/unavailable — fallback: queue to pending_emails.json
         const pending = readJSON(PENDING_EMAILS_FILE);
         const pendingArr = Array.isArray(pending) ? pending : [];
-        const filtered = pendingArr.filter((p: any) => p.notificationId !== notifId);
-        writeJSON(PENDING_EMAILS_FILE, filtered);
-        return Response.json({ success: true });
+        pendingArr.push({
+          id: "email-" + Math.random().toString(36).substr(2, 9),
+          notificationId: notifId,
+          to: recipient,
+          subject: notif.subject || "New Lead",
+          body: notif.body || "",
+          timestamp: new Date().toISOString(),
+          sent: false,
+        });
+        writeJSON(PENDING_EMAILS_FILE, pendingArr);
+        notifs[idx].notified = true;
+        writeJSON(LEAD_NOTIFICATIONS_FILE, notifs);
+        console.log("[SSR] SMTP unavailable (" + smtpResult.error + ") — email queued to pending_emails.json");
+        return Response.json({ success: true, sent: false, queued: true });
       } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e))); return Response.json({ success: false }, { status: 400 }); }
     }
 
