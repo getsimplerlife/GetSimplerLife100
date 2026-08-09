@@ -457,37 +457,9 @@ serve({
 
     // ── Direct Deploy API (provision AI employee without Stripe) ──
     if (pathname === "/api/purchases/deploy" && req.method === "POST") {
-      const user = await getUserFromSession(req);
-      if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
-      try {
-        const body = await req.json();
-        const agentId = body.agentId || body.agent_id || "";
-        const agentName = body.agentName || body.agent_name || agentId;
-        if (!agentId) return Response.json({ error: "agentId required" }, { status: 400 });
-        const purchases = readJSON(TENANT_PURCHASES_FILE);
-        const userPurchases = purchases[user.email] || [];
-        // Check for duplicate
-        if (userPurchases.some((p: any) => p.agentId === agentId && p.status === "active")) {
-          return Response.json({ error: "Already deployed", alreadyDeployed: true }, { status: 409 });
-        }
-        userPurchases.push({
-          id: "purchase-" + Math.random().toString(36).substr(2, 9),
-          agentId,
-          agentName,
-          amount: 0,
-          status: "active",
-          purchasedAt: new Date().toISOString(),
-        });
-        purchases[user.email] = userPurchases;
-        writeJSON(TENANT_PURCHASES_FILE, purchases);
-        if (configureTenant) {
-          configureTenant(user.email, { purchased: true, status: "Active" });
-        }
-        console.log(`[deploy] Deployed ${agentName} (${agentId}) for ${user.email}`);
-        return Response.json({ success: true, agentId, agentName });
-      } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
-        return Response.json({ error: "Invalid request" }, { status: 400 });
-      }
+      // Free deployment disabled: all purchases must go through Stripe checkout.
+      // Provisioning is handled by the Stripe webhook (checkout.session.completed).
+      return Response.json({ error: "Purchases must go through Stripe checkout" }, { status: 403 });
     }
 
     // ── CRM/ERP Slot API ──────────────────────────────────────────

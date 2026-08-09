@@ -115,13 +115,13 @@ function MarketplaceHub() {
         name: "CRM Connection Pack",
         description: "Unlock 1 connection slot for CRM platforms. Connect Salesforce, HubSpot, Zoho, Pipedrive, and more. Each slot supports one provider connection. Purchase again to add more slots.",
         category: "Operations",
-        price: "$2,500",
+        price: "$2,000",
         installed: false,
         deployedCount: 0,
         rating: 4.9,
         runsMonth: "unlimited",
         icon: "💼",
-        paymentLink: "https://buy.stripe.com/test_crm_pack_5slots",
+        paymentLink: "https://buy.stripe.com/3cI28t0Gr9obfdN1rq2Fa2G",
         setupRequirements: null,
         badges: ["1 CRM Slot", "Works Out of Box", "Slack Integration"],
         chainsWith: ["CRM Sync Agent", "Lead Scoring Agent", "Sales Follow-Up Agent"],
@@ -133,13 +133,13 @@ function MarketplaceHub() {
         name: "ERP Connection Pack",
         description: "Unlock 1 connection slot for ERP and accounting platforms. Connect NetSuite, QuickBooks, SAP, Xero, Sage Intacct, and more. Each slot supports one provider connection. Purchase again to add more slots.",
         category: "Operations",
-        price: "$2,500",
+        price: "$3,500",
         installed: false,
         deployedCount: 0,
         rating: 4.9,
         runsMonth: "unlimited",
         icon: "🏢",
-        paymentLink: "https://buy.stripe.com/test_erp_pack_5slots",
+        paymentLink: "https://buy.stripe.com/9B69AV9cX1VJ9Tt5HG2Fa2H",
         setupRequirements: null,
         badges: ["1 ERP Slot", "Works Out of Box", "Slack Integration"],
         chainsWith: ["Invoice Processor", "PO Management Agent", "Payroll Reconciliation Agent"],
@@ -600,24 +600,23 @@ function MarketplaceHub() {
                     </div>
                   </div>
 
-                  {/* Double Actions Row: Stripe Live link AND Sandbox Simulator */}
+                  {/* Stripe Checkout — payment required */}
                   <div className="space-y-3 pt-2">
-                    <button
-                      onClick={handleSimulatePayment}
-                      className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs py-3.5 rounded-xl shadow-lg shadow-emerald-950/20 hover:shadow-emerald-950/40 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
-                    >
-                      💳 Simulate Checkout Complete (Sandboxed)
-                    </button>
-                    {checkoutItem.paymentLink && (
+                    {checkoutItem.paymentLink ? (
                       <a
                         href={checkoutItem.paymentLink}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="w-full block text-center bg-stone-900 hover:bg-stone-850 border border-stone-800 text-stone-300 hover:text-white font-black text-xs py-3.5 rounded-xl transition-all"
+                        className="w-full block text-center bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs py-3.5 rounded-xl shadow-lg shadow-emerald-950/20 hover:shadow-emerald-950/40 transition-all cursor-pointer active:scale-95"
                       >
-                        🔗 Go to Live Stripe Checkout
+                        💳 Pay with Stripe — Checkout Now
                       </a>
+                    ) : (
+                      <div className="text-center text-stone-500 text-xs py-3">No payment link available</div>
                     )}
+                    <p className="text-center text-stone-600 text-[9px] leading-relaxed">
+                      After payment, your purchase is provisioned automatically via Stripe.
+                    </p>
                   </div>
                 </div>
               )}
