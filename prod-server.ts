@@ -1145,71 +1145,92 @@ function lookupAgent(agentName: string): { name: string; paymentLink: string; de
   return null;
 }
 
-function buildLeadEmail(email: string, toolName: string, result: any): { subject: string; body: string } {
-  const lines: string[] = [];
-  lines.push("New lead captured from Simple Life 100");
-  lines.push("");
-  lines.push("Email: " + email);
-  lines.push("Tool: " + toolName);
-  lines.push("");
+function buildLeadEmail(email: string, toolName: string, result: any): { subject: string; body: string; matchedAgents: any[]; bestPlan: string; planLink: string } {
+  // Collect all matched agents across any tool type
+  const matched: { name: string; paymentLink: string; price: number }[] = [];
+  const seen = new Set<string>();
+  const addAgent = (a: any) => {
+    if (a && !seen.has(a.name)) { seen.add(a.name); matched.push({ name: a.name, paymentLink: a.paymentLink, price: a.price || 0 }); }
+  };
+
+  let processInfo = "";
 
   if (toolName === "can-we-automate-this" && result.topMatch) {
     const agent = lookupAgent(result.topMatch);
-    lines.push("Process: " + (result.processDescription || "Automation workflow"));
-    lines.push("Top Match: " + result.topMatch);
-    if (result.savingsSummary) lines.push("Savings: " + result.savingsSummary);
-    if (agent) {
-      lines.push("");
-      lines.push("--- Individual Purchase ---");
-      lines.push(agent.name + ": " + agent.paymentLink);
-    }
+    if (agent) addAgent(agent);
+    processInfo = (result.processDescription || "Automation workflow");
+    if (result.savingsSummary) processInfo += "\nSavings: " + result.savingsSummary;
   } else if (toolName === "assessment" && result.topWorkflows) {
-    const wfs = Array.isArray(result.topWorkflows) ? result.topWorkflows.slice(0, 3) : [];
-    lines.push("Top Workflows:");
-    for (const wf of wfs) {
-      lines.push("  - " + (wf.name || wf));
-    }
-    if (result.totalAnnualSavings) lines.push("Total Annual Savings: " + result.totalAnnualSavings);
-    // Auto-match agents from workflow names
-    const matched = new Set<string>();
+    const wfs = Array.isArray(result.topWorkflows) ? result.topWorkflows.slice(0, 5) : [];
     for (const wf of wfs) {
       const wfName = typeof wf === 'string' ? wf : (wf.name || '');
       const agent = lookupAgent(wfName);
-      if (agent && !matched.has(agent.name)) {
-        matched.add(agent.name);
-        if (matched.size === 1) lines.push("");
-        lines.push("  " + agent.name + ": " + agent.paymentLink);
-      }
+      if (agent) addAgent(agent);
     }
   } else if (toolName === "ai-advisor" && result.messages) {
     const msgs = Array.isArray(result.messages) ? result.messages : [];
-    lines.push("Analysis Summary:");
-    for (const m of msgs.slice(0, 3)) {
-      const text = typeof m === 'string' ? m : (m.content || m.text || '');
-      lines.push("  " + text.substring(0, 120));
-    }
-    // Find agent mentions
     const fullText = msgs.map((m: any) => typeof m === 'string' ? m : (m.content || '')).join(' ');
-    const matched = new Set<string>();
     for (const a of (globalThis as any).__cachedAgents || []) {
-      if (fullText.toLowerCase().includes(a.name.toLowerCase()) && !matched.has(a.name)) {
-        matched.add(a.name);
-        if (matched.size === 1) lines.push("");
-        lines.push("  " + a.name + ": " + a.paymentLink);
-      }
+      if (fullText.toLowerCase().includes(a.name.toLowerCase())) addAgent(a);
     }
   }
 
-  lines.push("");
-  lines.push("--- Bundle & Save ---");
-  lines.push("CRM Connection Pack ($2,000): " + CRM_PACK_LINK);
-  lines.push("ERP Connection Pack ($3,500): " + ERP_PACK_LINK);
+  // Fallback: if no agents matched, suggest top-level automation
+  if (matched.length === 0) {
+    const all = (globalThis as any).__cachedAgents || [];
+    const top = all.slice(0, 2);
+    for (const a of top) addAgent(a);
+  }
+
+  // Plan selection: 1-3 → Starter, 4-7 → Growth, 8+ → Scale
+  const count = matched.length;
+  let bestPlan: string, planLink: string, planPrice: string, planIncludes: string;
+  if (count <= 3) {
+    bestPlan = "Starter"; planLink = "https://buy.stripe.com/3cI8wR88Tasfc1B9XW2Fa2K"; planPrice = "$7,500";
+    planIncludes = "3 AI employees • 5 workflow templates • Standard integrations • Email support";
+  } else if (count <= 7) {
+    bestPlan = "Growth"; planLink = "https://buy.stripe.com/5kQ6oJbl5dErc1B1rq2Fa2L"; planPrice = "$15,000";
+    planIncludes = "8 AI employees • All workflow templates • 180+ integrations • Priority support • CRM/ERP enabled";
+  } else {
+    bestPlan = "Scale"; planLink = "https://buy.stripe.com/aFa7sN60LdErc1B5HG2Fa2M"; planPrice = "$30,000";
+    planIncludes = "All 17 AI employees • Custom workflows • Dedicated account manager • 24/7 support • CRM/ERP/API access • SLA guarantee";
+  }
+
+  // Build email body
+  const L = "\n";
+  let body = "New Lead Captured from Simple Life 100" + L + L;
+  body += "Email: " + email + L;
+  body += "Tool: " + toolName + L;
+  if (processInfo) body += L + processInfo + L;
+  body += L;
+
+  // Option 1: A La Carte
+  body += "═══════════════════════════════════" + L;
+  body += "OPTION 1: \u00C0 LA CARTE" + L;
+  body += "═══════════════════════════════════" + L + L;
+  let totalPrice = 0;
+  for (const a of matched) {
+    body += "  \u2022 " + a.name + " — $" + a.price.toLocaleString() + "/mo" + L;
+    body += "    Purchase: " + a.paymentLink + L;
+    totalPrice += a.price;
+  }
+  body += L + "TOTAL \u00C0 LA CARTE: $" + totalPrice.toLocaleString() + "/mo" + L;
+  body += L + "PURCHASE INDIVIDUAL AGENTS:" + L;
+  for (const a of matched) {
+    body += "  " + a.name + ": " + a.paymentLink + L;
+  }
+  body += L;
+
+  // Option 2: Best-Fit Plan
+  body += "═══════════════════════════════════" + L;
+  body += "OPTION 2: " + bestPlan.toUpperCase() + " PLAN — " + planPrice + L;
+  body += "═══════════════════════════════════" + L + L;
+  body += planIncludes + L;
+  body += L + "PURCHASE " + bestPlan.toUpperCase() + " PLAN: " + planLink + L;
 
   const subject = "New Lead: " + email + " - " + toolName;
-  const body = lines.join("\n");
-  return { subject, body };
+  return { subject, body, matchedAgents: matched, bestPlan, planLink };
 }
-
     if (pathname === "/api/tools/capture-lead" && req.method === "POST") {
       try {
         const body = await req.json();
@@ -1221,18 +1242,24 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
         const leads = readJSON(LEADS_FILE) || {};
         leads[body.email] = { email: body.email, toolName: body.toolName, result: body.result || {}, capturedAt: new Date().toISOString() };
         writeJSON(LEADS_FILE, leads);
-        // Build enriched email
+        // Build enriched email with two-option format
         const emailContent = buildLeadEmail(body.email, body.toolName, body.result || {});
+        const notifId = 'notif-' + Math.random().toString(36).substr(2, 9);
+        // Store notification (auto-marked as notified)
         const notifsRaw = readJSON(LEAD_NOTIFICATIONS_FILE);
         const notifs = Array.isArray(notifsRaw) ? notifsRaw : [];
-        const notifId = 'notif-' + Math.random().toString(36).substr(2, 9);
-        notifs.push({ id: notifId, email: body.email, toolName: body.toolName, result: body.result, timestamp: new Date().toISOString(), notified: false, subject: emailContent.subject, body: emailContent.body });
+        notifs.push({ id: notifId, email: body.email, toolName: body.toolName, result: body.result, timestamp: new Date().toISOString(), notified: true, subject: emailContent.subject, body: emailContent.body });
         writeJSON(LEAD_NOTIFICATIONS_FILE, notifs);
-        // Queue email for owner
-        const pending = readJSON(PENDING_EMAILS_FILE);
-        const pendingArr = Array.isArray(pending) ? pending : [];
-        pendingArr.push({ notificationId: notifId, to: "electric.vortexz@gmail.com", subject: emailContent.subject, body: emailContent.body, createdAt: new Date().toISOString() });
-        writeJSON(PENDING_EMAILS_FILE, pendingArr);
+        // Auto-send: trigger the send endpoint inline
+        try {
+          await fetch("http://localhost:3000/api/notifications/send", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ notificationId: notifId }),
+          });
+        } catch (sendErr) {
+          console.log("[SSR] auto-send failed (non-fatal): " + (sendErr?.message || String(sendErr)));
+        }
         return Response.json({ success: true });
       } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e))); return Response.json({ success: false }, { status: 400 }); }
     }
@@ -1240,15 +1267,15 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
     // ── /api/notifications/send ────────────────────────────────────────────────
     if (pathname === "/api/notifications/send" && req.method === "POST") {
       try {
-        const body = await req.json();
-        const pending = readJSON(PENDING_EMAILS_FILE);
-        const pendingArr = Array.isArray(pending) ? pending : [];
-        const notifId = body.notificationId;
-        // Mark as notified and remove from pending
+        const sendBody = await req.json();
         const notifsRaw = readJSON(LEAD_NOTIFICATIONS_FILE);
         const notifs = Array.isArray(notifsRaw) ? notifsRaw : [];
+        const notifId = sendBody.notificationId;
         const idx = notifs.findIndex((n: any) => n.id === notifId);
         if (idx >= 0) { notifs[idx].notified = true; writeJSON(LEAD_NOTIFICATIONS_FILE, notifs); }
+        // Clean up pending queue
+        const pending = readJSON(PENDING_EMAILS_FILE);
+        const pendingArr = Array.isArray(pending) ? pending : [];
         const filtered = pendingArr.filter((p: any) => p.notificationId !== notifId);
         writeJSON(PENDING_EMAILS_FILE, filtered);
         return Response.json({ success: true });
