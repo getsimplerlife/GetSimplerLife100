@@ -332,10 +332,12 @@ function getProviderCategory(providerId: string): string {
 
 // ── Background init: monitoring gates + SSR preload (non-blocking) ──
 let ssrReady = false;
+let configureTenant: ((email: string, config: { purchased?: boolean; status?: string }) => void) | null = null;
 const _bgInit = (async () => {
-  const { hydrateTenants, configureTenant } = await import("./src/monitoring/gates");
+  const gates = await import("./src/monitoring/gates");
+  configureTenant = gates.configureTenant;
   const _initialPurchases = readJSON(TENANT_PURCHASES_FILE);
-  hydrateTenants(_initialPurchases);
+  gates.hydrateTenants(_initialPurchases);
   configureTenant("mathewortiz97@gmail.com", { purchased: true, status: "Active" });
   await import("./src/entry-server").catch(e => console.log("[prod-server] SSR preload failed:", e?.message));
   ssrReady = true;
@@ -478,6 +480,9 @@ serve({
         });
         purchases[user.email] = userPurchases;
         writeJSON(TENANT_PURCHASES_FILE, purchases);
+        if (configureTenant) {
+          configureTenant(user.email, { purchased: true, status: "Active" });
+        }
         console.log(`[deploy] Deployed ${agentName} (${agentId}) for ${user.email}`);
         return Response.json({ success: true, agentId, agentName });
       } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
