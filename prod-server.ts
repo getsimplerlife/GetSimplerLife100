@@ -31,6 +31,11 @@ async function _getAgentProcessor() {
   return _agentProcessor;
 }
 async function processAgentResults(...args: any[]) { return (await _getAgentProcessor()).processAgentResults(...args); }
+let _agentsData: any;
+async function getAgents() {
+  if (!_agentsData) _agentsData = await import("./src/data/agents");
+  return _agentsData;
+}
 
 const BUILD_ID = Date.now().toString(36);
 const DIST_CLIENT = "/home/team/shared/site/dist";
@@ -41,6 +46,7 @@ const TENANT_INTEGRATIONS_FILE = join(DATA_DIR, "tenant_integrations.json");
 const AI_EMPLOYEES_FILE = join(DATA_DIR, "ai_employees.json");
 const LEADS_FILE = join(DATA_DIR, "leads.json");
 const LEAD_NOTIFICATIONS_FILE = join(DATA_DIR, "lead_notifications.json");
+const PENDING_EMAILS_FILE = join(DATA_DIR, "pending_emails.json");
 const CHAT_SESSIONS_FILE = join(DATA_DIR, "chat_sessions.json");
 const OAUTH_STATES_FILE = join(DATA_DIR, "oauth_states.json");
 const TENANT_PURCHASES_FILE = join(DATA_DIR, "tenant_purchases.json");
@@ -1113,16 +1119,138 @@ serve({
         }});
       } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e))); return Response.json({ analysis: { topMatch: "Automation AI", allMatches: [] } }); }
     }
+const CRM_PACK_LINK = "https://buy.stripe.com/5kQaEZ60LcAn8Ppgmk2Fa2I";
+const ERP_PACK_LINK = "https://buy.stripe.com/dRmeVf88TfMzghRda82Fa2J";
+
+function lookupAgent(agentName: string): { name: string; paymentLink: string; description: string } | null {
+  if (!agentName) return null;
+  const name = agentName.toLowerCase().trim();
+  // Try exact name match first
+  for (const a of (globalThis as any).__cachedAgents || []) {
+    const an = a.name.toLowerCase();
+    // Strip "Agent" suffix for matching if needed
+    const simple = an.replace(/ agent$/, '');
+    if (simple === name || an === name || simple.includes(name) || name.includes(simple)) {
+      return { name: a.name, paymentLink: a.paymentLink, description: a.description || a.purpose };
+    }
+  }
+  // Partial keyword match
+  for (const a of (globalThis as any).__cachedAgents || []) {
+    const an = a.name.toLowerCase();
+    const words = name.split(/\s+/);
+    if (words.some((w: string) => w.length > 3 && an.includes(w))) {
+      return { name: a.name, paymentLink: a.paymentLink, description: a.description || a.purpose };
+    }
+  }
+  return null;
+}
+
+function buildLeadEmail(email: string, toolName: string, result: any): { subject: string; body: string } {
+  const lines: string[] = [];
+  lines.push("New lead captured from Simple Life 100");
+  lines.push("");
+  lines.push("Email: " + email);
+  lines.push("Tool: " + toolName);
+  lines.push("");
+
+  if (toolName === "can-we-automate-this" && result.topMatch) {
+    const agent = lookupAgent(result.topMatch);
+    lines.push("Process: " + (result.processDescription || "Automation workflow"));
+    lines.push("Top Match: " + result.topMatch);
+    if (result.savingsSummary) lines.push("Savings: " + result.savingsSummary);
+    if (agent) {
+      lines.push("");
+      lines.push("--- Individual Purchase ---");
+      lines.push(agent.name + ": " + agent.paymentLink);
+    }
+  } else if (toolName === "assessment" && result.topWorkflows) {
+    const wfs = Array.isArray(result.topWorkflows) ? result.topWorkflows.slice(0, 3) : [];
+    lines.push("Top Workflows:");
+    for (const wf of wfs) {
+      lines.push("  - " + (wf.name || wf));
+    }
+    if (result.totalAnnualSavings) lines.push("Total Annual Savings: " + result.totalAnnualSavings);
+    // Auto-match agents from workflow names
+    const matched = new Set<string>();
+    for (const wf of wfs) {
+      const wfName = typeof wf === 'string' ? wf : (wf.name || '');
+      const agent = lookupAgent(wfName);
+      if (agent && !matched.has(agent.name)) {
+        matched.add(agent.name);
+        if (matched.size === 1) lines.push("");
+        lines.push("  " + agent.name + ": " + agent.paymentLink);
+      }
+    }
+  } else if (toolName === "ai-advisor" && result.messages) {
+    const msgs = Array.isArray(result.messages) ? result.messages : [];
+    lines.push("Analysis Summary:");
+    for (const m of msgs.slice(0, 3)) {
+      const text = typeof m === 'string' ? m : (m.content || m.text || '');
+      lines.push("  " + text.substring(0, 120));
+    }
+    // Find agent mentions
+    const fullText = msgs.map((m: any) => typeof m === 'string' ? m : (m.content || '')).join(' ');
+    const matched = new Set<string>();
+    for (const a of (globalThis as any).__cachedAgents || []) {
+      if (fullText.toLowerCase().includes(a.name.toLowerCase()) && !matched.has(a.name)) {
+        matched.add(a.name);
+        if (matched.size === 1) lines.push("");
+        lines.push("  " + a.name + ": " + a.paymentLink);
+      }
+    }
+  }
+
+  lines.push("");
+  lines.push("--- Bundle & Save ---");
+  lines.push("CRM Connection Pack ($2,000): " + CRM_PACK_LINK);
+  lines.push("ERP Connection Pack ($3,500): " + ERP_PACK_LINK);
+
+  const subject = "New Lead: " + email + " - " + toolName;
+  const body = lines.join("\n");
+  return { subject, body };
+}
+
     if (pathname === "/api/tools/capture-lead" && req.method === "POST") {
       try {
         const body = await req.json();
+        // Load agents for lookup
+        if (!(globalThis as any).__cachedAgents) {
+          const ag = await getAgents();
+          (globalThis as any).__cachedAgents = ag.AGENTS || [];
+        }
         const leads = readJSON(LEADS_FILE) || {};
         leads[body.email] = { email: body.email, toolName: body.toolName, result: body.result || {}, capturedAt: new Date().toISOString() };
         writeJSON(LEADS_FILE, leads);
+        // Build enriched email
+        const emailContent = buildLeadEmail(body.email, body.toolName, body.result || {});
         const notifsRaw = readJSON(LEAD_NOTIFICATIONS_FILE);
         const notifs = Array.isArray(notifsRaw) ? notifsRaw : [];
-        notifs.push({ id: 'notif-' + Math.random().toString(36).substr(2, 9), email: body.email, toolName: body.toolName, timestamp: new Date().toISOString(), notified: false });
+        const notifId = 'notif-' + Math.random().toString(36).substr(2, 9);
+        notifs.push({ id: notifId, email: body.email, toolName: body.toolName, result: body.result, timestamp: new Date().toISOString(), notified: false, subject: emailContent.subject, body: emailContent.body });
         writeJSON(LEAD_NOTIFICATIONS_FILE, notifs);
+        // Queue email for owner
+        const pending = readJSON(PENDING_EMAILS_FILE);
+        const pendingArr = Array.isArray(pending) ? pending : [];
+        pendingArr.push({ notificationId: notifId, to: "electric.vortexz@gmail.com", subject: emailContent.subject, body: emailContent.body, createdAt: new Date().toISOString() });
+        writeJSON(PENDING_EMAILS_FILE, pendingArr);
+        return Response.json({ success: true });
+      } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e))); return Response.json({ success: false }, { status: 400 }); }
+    }
+
+    // ── /api/notifications/send ────────────────────────────────────────────────
+    if (pathname === "/api/notifications/send" && req.method === "POST") {
+      try {
+        const body = await req.json();
+        const pending = readJSON(PENDING_EMAILS_FILE);
+        const pendingArr = Array.isArray(pending) ? pending : [];
+        const notifId = body.notificationId;
+        // Mark as notified and remove from pending
+        const notifsRaw = readJSON(LEAD_NOTIFICATIONS_FILE);
+        const notifs = Array.isArray(notifsRaw) ? notifsRaw : [];
+        const idx = notifs.findIndex((n: any) => n.id === notifId);
+        if (idx >= 0) { notifs[idx].notified = true; writeJSON(LEAD_NOTIFICATIONS_FILE, notifs); }
+        const filtered = pendingArr.filter((p: any) => p.notificationId !== notifId);
+        writeJSON(PENDING_EMAILS_FILE, filtered);
         return Response.json({ success: true });
       } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e))); return Response.json({ success: false }, { status: 400 }); }
     }
