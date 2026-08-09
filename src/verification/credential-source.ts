@@ -131,6 +131,13 @@ export function loadProviderCredentials(
       source: stored.source,
     };
   }
+  // ── Provider-specific env-var fallbacks for bot tokens / non-OAuth credentials ──
+  if (provider === "slack") {
+    const botToken = process.env.SLACK_BOT_TOKEN;
+    if (botToken) {
+      return { credential: { accessToken: botToken }, source: "env SLACK_BOT_TOKEN" };
+    }
+  }
   return { app: loadOAuthAppCredentials(provider), source: stored.source };
 }
 

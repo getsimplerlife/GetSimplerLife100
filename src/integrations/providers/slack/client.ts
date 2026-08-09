@@ -7,7 +7,7 @@ export class SlackClient {
     this.tokens = tokens; this.authConfig = authConfig;
   }
   private get headers() { return { Authorization: `Bearer ${this.tokens.accessToken}`, "Content-Type": "application/json; charset=utf-8" }; }
-  private async ensureToken() { if (isTokenExpired(this.tokens) && this.tokens.refreshToken) { const { refreshSlackToken } = await import("./auth"); this.tokens = await refreshSlackToken(this.authConfig, this.tokens.refreshToken); } }
+  private async ensureToken() { if (!this.tokens.refreshToken) return; if (isTokenExpired(this.tokens)) { const { refreshSlackToken } = await import("./auth"); this.tokens = await refreshSlackToken(this.authConfig, this.tokens.refreshToken); } }
 
   async listConversations(types = "public_channel,private_channel"): Promise<any[]> { await this.ensureToken(); const r = await this.client.get(`/conversations.list?types=${types}&limit=200`, this.headers); return r.data?.channels || []; }
   async getConversationHistory(channel: string, limit = 100): Promise<any[]> { await this.ensureToken(); const r = await this.client.get(`/conversations.history?channel=${channel}&limit=${limit}`, this.headers); return r.data?.messages || []; }
