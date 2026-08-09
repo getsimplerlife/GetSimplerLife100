@@ -38,7 +38,7 @@ async function getAgents() {
 }
 
 const BUILD_ID = Date.now().toString(36);
-const DIST_CLIENT = "/home/team/shared/site/dist";
+const DIST_CLIENT = join(typeof import.meta?.dir !== "undefined" ? import.meta.dir : __dirname, "dist");
 const DATA_DIR = "/home/team/shared/site/.data";
 const USERS_FILE = join(DATA_DIR, "users.json");
 const SESSIONS_FILE = join(DATA_DIR, "sessions.json");
