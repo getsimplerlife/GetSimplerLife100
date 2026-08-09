@@ -33,6 +33,9 @@ function CanWeAutomateThis() {
   const [email, setEmail] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState<AnalysisData | null>(null);
+  const [emailInput, setEmailInput] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [showContactForm, setShowContactForm] = useState(false);
 
   const handleAnalyze = async () => {
     if (!input.trim()) return;
@@ -77,6 +80,19 @@ function CanWeAutomateThis() {
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleAnalyze(); }
+  };
+
+  const handleToolLeadCapture = async () => {
+    if (!emailInput || submitting) return;
+    setSubmitting(true);
+    try {
+      await fetch('/api/tools/capture-lead', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ email: emailInput, toolName: 'can-we-automate-this', result })
+      });
+      setShowContactForm(true);
+    } catch (e) { console.error(e); }
+    setSubmitting(false);
   };
 
   return (
@@ -179,6 +195,28 @@ function CanWeAutomateThis() {
           </div>
         </section>
       )}
+
+      {step === "results" && result && (
+        <section className="max-w-4xl mx-auto px-6 pb-20 space-y-6">
+          {!showContactForm ? (
+            <div className="bg-stone-900/50 border border-stone-800 rounded-2xl p-6 text-center">
+              <h3 className="text-lg font-bold text-white mb-2">Want us to build this for you?</h3>
+              <p className="text-sm text-stone-400 mb-4">Drop your email and we&apos;ll send you a custom implementation plan.</p>
+              <div className="flex gap-2 max-w-md mx-auto">
+                <input value={emailInput} onChange={(e) => setEmailInput(e.target.value)} placeholder="you@company.com" className="flex-1 bg-stone-950 border border-stone-800 rounded-xl px-4 py-2.5 text-sm text-stone-200 placeholder-stone-600 outline-none focus:border-emerald-700" />
+                <button onClick={handleToolLeadCapture} disabled={!emailInput || submitting} className="bg-emerald-500 hover:bg-emerald-400 disabled:bg-stone-700 text-black font-bold text-sm px-4 py-2.5 rounded-xl transition-all whitespace-nowrap">
+                  {submitting ? 'Sending...' : 'Send Me My Plan'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-emerald-950/30 border border-emerald-900/50 rounded-2xl p-6 text-center">
+              <p className="text-emerald-400 font-bold">✓ We&apos;ll reach out within 24 hours!</p>
+            </div>
+          )}
+        </section>
+      )}
+
     <Footer />
     </div>
   );

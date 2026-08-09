@@ -40,6 +40,7 @@ const SESSIONS_FILE = join(DATA_DIR, "sessions.json");
 const TENANT_INTEGRATIONS_FILE = join(DATA_DIR, "tenant_integrations.json");
 const AI_EMPLOYEES_FILE = join(DATA_DIR, "ai_employees.json");
 const LEADS_FILE = join(DATA_DIR, "leads.json");
+const LEAD_NOTIFICATIONS_FILE = join(DATA_DIR, "lead_notifications.json");
 const CHAT_SESSIONS_FILE = join(DATA_DIR, "chat_sessions.json");
 const OAUTH_STATES_FILE = join(DATA_DIR, "oauth_states.json");
 const TENANT_PURCHASES_FILE = join(DATA_DIR, "tenant_purchases.json");
@@ -1118,8 +1119,20 @@ serve({
         const leads = readJSON(LEADS_FILE) || {};
         leads[body.email] = { email: body.email, toolName: body.toolName, result: body.result || {}, capturedAt: new Date().toISOString() };
         writeJSON(LEADS_FILE, leads);
+        const notifs = readJSON(LEAD_NOTIFICATIONS_FILE) || [];
+        notifs.push({ id: 'notif-' + Math.random().toString(36).substr(2, 9), email: body.email, toolName: body.toolName, timestamp: new Date().toISOString(), notified: false });
+        writeJSON(LEAD_NOTIFICATIONS_FILE, notifs);
         return Response.json({ success: true });
       } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e))); return Response.json({ success: false }, { status: 400 }); }
+    }
+
+    // ── /api/notifications/pending ─────────────────────────────────────────────
+    if (pathname === "/api/notifications/pending" && req.method === "GET") {
+      try {
+        const notifs = readJSON(LEAD_NOTIFICATIONS_FILE) || [];
+        const pending = notifs.filter((n: any) => !n.notified);
+        return Response.json({ notifications: pending });
+      } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e))); return Response.json({ notifications: [] }, { status: 500 }); }
     }
 
     // ── /api/upload ─────────────────────────────────────────────

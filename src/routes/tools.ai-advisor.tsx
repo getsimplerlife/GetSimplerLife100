@@ -38,6 +38,9 @@ function AIAdvisor() {
   const [responses, setResponses] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [emailInput, setEmailInput] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [showContactForm, setShowContactForm] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -145,6 +148,20 @@ function AIAdvisor() {
       e.preventDefault();
       handleSend(input);
     }
+  };
+
+  const handleLeadCapture = async () => {
+    if (!emailInput || submitting) return;
+    setSubmitting(true);
+    const advisorResponse = { messages, description: userDescription };
+    try {
+      await fetch('/api/tools/capture-lead', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ email: emailInput, toolName: 'ai-advisor', result: advisorResponse })
+      });
+      setShowContactForm(true);
+    } catch (e) { console.error(e); }
+    setSubmitting(false);
   };
 
   const handleRestart = () => {
@@ -306,6 +323,23 @@ function AIAdvisor() {
                 </a>
               </div>
             </div>
+
+            {!showContactForm ? (
+              <div className="bg-stone-900/50 border border-stone-800 rounded-2xl p-6 text-center">
+                <h3 className="text-lg font-bold text-white mb-2">Want us to build this for you?</h3>
+                <p className="text-sm text-stone-400 mb-4">Drop your email and we&apos;ll send you a custom implementation plan.</p>
+                <div className="flex gap-2 max-w-md mx-auto">
+                  <input value={emailInput} onChange={(e) => setEmailInput(e.target.value)} placeholder="you@company.com" className="flex-1 bg-stone-950 border border-stone-800 rounded-xl px-4 py-2.5 text-sm text-stone-200 placeholder-stone-600 outline-none focus:border-emerald-700" />
+                  <button onClick={handleLeadCapture} disabled={!emailInput || submitting} className="bg-emerald-500 hover:bg-emerald-400 disabled:bg-stone-700 text-black font-bold text-sm px-4 py-2.5 rounded-xl transition-all whitespace-nowrap">
+                    {submitting ? 'Sending...' : 'Send Me My Plan'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-emerald-950/30 border border-emerald-900/50 rounded-2xl p-6 text-center">
+                <p className="text-emerald-400 font-bold">✓ We&apos;ll reach out within 24 hours!</p>
+              </div>
+            )}
 
             <div className="text-center">
               <a
