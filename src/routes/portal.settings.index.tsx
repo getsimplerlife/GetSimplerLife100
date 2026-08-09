@@ -944,7 +944,7 @@ function UnifiedSettingsHub() {
                   <div className="shrink-0 text-right space-y-1.5">
                     <span className="font-black text-emerald-400 text-sm block">$15,000</span>
                     <a
-                      href="https://buy.stripe.com/fZu14p2Oz7g3d5F9XW2Fa1v"
+                      href="https://buy.stripe.com/5kQ6oJbl5dErc1B1rq2Fa2L"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-block bg-stone-900 hover:bg-stone-800 text-white font-bold px-3 py-1.5 rounded-lg text-[10px] border border-stone-800"
@@ -962,7 +962,7 @@ function UnifiedSettingsHub() {
                   <div className="shrink-0 text-right space-y-1.5">
                     <span className="font-black text-emerald-400 text-sm block">$30,000</span>
                     <a
-                      href="https://buy.stripe.com/aFabJ31KveIv1mX2vu2Fa1w"
+                      href="https://buy.stripe.com/aFa7sN60LdErc1B5HG2Fa2M"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-block bg-stone-900 hover:bg-stone-800 text-white font-bold px-3 py-1.5 rounded-lg text-[10px] border border-stone-800"

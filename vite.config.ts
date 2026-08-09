@@ -31,8 +31,8 @@ export default defineConfig({
   resolve: {
     dedupe: ["react", "react-dom"],
     alias: {
-      "vinxi/http": "/home/team/shared/site/src/lib/vinxi-stub.ts",
-      "node:async_hooks": "/home/team/shared/site/src/lib/vinxi-stub.ts",
+      "vinxi/http": "/home/agent-lead/repos/GetSimplerLife100/src/lib/vinxi-stub.ts",
+      "node:async_hooks": "/home/agent-lead/repos/GetSimplerLife100/src/lib/vinxi-stub.ts",
     },
   },
   plugins: [
