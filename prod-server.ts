@@ -1119,7 +1119,8 @@ serve({
         const leads = readJSON(LEADS_FILE) || {};
         leads[body.email] = { email: body.email, toolName: body.toolName, result: body.result || {}, capturedAt: new Date().toISOString() };
         writeJSON(LEADS_FILE, leads);
-        const notifs = readJSON(LEAD_NOTIFICATIONS_FILE) || [];
+        const notifsRaw = readJSON(LEAD_NOTIFICATIONS_FILE);
+        const notifs = Array.isArray(notifsRaw) ? notifsRaw : [];
         notifs.push({ id: 'notif-' + Math.random().toString(36).substr(2, 9), email: body.email, toolName: body.toolName, timestamp: new Date().toISOString(), notified: false });
         writeJSON(LEAD_NOTIFICATIONS_FILE, notifs);
         return Response.json({ success: true });
@@ -1129,7 +1130,8 @@ serve({
     // ── /api/notifications/pending ─────────────────────────────────────────────
     if (pathname === "/api/notifications/pending" && req.method === "GET") {
       try {
-        const notifs = readJSON(LEAD_NOTIFICATIONS_FILE) || [];
+        const notifsRaw = readJSON(LEAD_NOTIFICATIONS_FILE);
+        const notifs = Array.isArray(notifsRaw) ? notifsRaw : [];
         const pending = notifs.filter((n: any) => !n.notified);
         return Response.json({ notifications: pending });
       } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e))); return Response.json({ notifications: [] }, { status: 500 }); }
