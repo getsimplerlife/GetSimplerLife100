@@ -939,7 +939,7 @@ function UnifiedSettingsHub() {
                 <div className="p-4 bg-stone-900/30 rounded-2xl border border-stone-900 flex justify-between items-center gap-4">
                   <div>
                     <div className="font-bold text-white text-sm">Growth Build Package</div>
-                    <p className="text-[11px] text-stone-500 mt-0.5">5 active AI employees, full API systems integration, 60-day tech support.</p>
+                    <p className="text-[11px] text-stone-500 mt-0.5">5 active AI employees, full API systems integration, 60-day tech support. 1 CRM connection included.</p>
                   </div>
                   <div className="shrink-0 text-right space-y-1.5">
                     <span className="font-black text-emerald-400 text-sm block">$15,000</span>
@@ -957,7 +957,7 @@ function UnifiedSettingsHub() {
                 <div className="p-4 bg-stone-900/30 rounded-2xl border border-stone-900 flex justify-between items-center gap-4">
                   <div>
                     <div className="font-bold text-white text-sm">Scale Build Package</div>
-                    <p className="text-[11px] text-stone-500 mt-0.5">Unlimited AI employees, customizable modeling, priority SLA support.</p>
+                    <p className="text-[11px] text-stone-500 mt-0.5">Unlimited AI employees, customizable modeling, priority SLA support. 1 CRM connection included.</p>
                   </div>
                   <div className="shrink-0 text-right space-y-1.5">
                     <span className="font-black text-emerald-400 text-sm block">$30,000</span>

@@ -17,9 +17,9 @@ const INDUSTRY_PRESETS: Record<string, { employees: number; hourlyCost: number; 
 };
 
 const BUILD_PACKAGES = [
-  { name: "Small Team", price: 7500, employees: "5-50", paymentLink: "https://buy.stripe.com/00w28tcp97g37Llc642Fa17" },
-  { name: "Growth", price: 15000, employees: "50-150", paymentLink: "https://buy.stripe.com/5kQ14pah11VJfdN6LK2Fa18" },
-  { name: "Scale", price: 30000, employees: "150+", paymentLink: "https://buy.stripe.com/3cIfZj74PbwjfdNda82Fa19" },
+  { name: "Small Team", price: 7500, employees: "5-50", features: "2 AI agents • 3 workflows • 1 CRM", paymentLink: "https://buy.stripe.com/00w28tcp97g37Llc642Fa17" },
+  { name: "Growth", price: 15000, employees: "50-150", features: "5 AI agents • Cross-department • 1 CRM", paymentLink: "https://buy.stripe.com/5kQ14pah11VJfdN6LK2Fa18" },
+  { name: "Scale", price: 30000, employees: "150+", features: "Unlimited agents • Custom modeling • 1 CRM", paymentLink: "https://buy.stripe.com/3cIfZj74PbwjfdNda82Fa19" },
 ];
 
 function getRecommendedPackage(emps: number) {
@@ -323,7 +323,7 @@ export function RicherROICalculator({ embed = false }: RicherROICalculatorProps)
                             </span>
                             <span className="text-sm font-black text-white">${pkg.price.toLocaleString()}</span>
                           </div>
-                          <div className="text-[10px] text-stone-500 mt-0.5">{pkg.employees} employees</div>
+                          <div className="text-[10px] text-stone-500 mt-0.5">{pkg.features}</div>
                         </a>
                       );
                     })}
