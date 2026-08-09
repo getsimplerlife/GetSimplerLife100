@@ -8,6 +8,43 @@ export const Route = createFileRoute("/portal/marketplace/")({
   component: MarketplaceHub,
 });
 
+// CRM and ERP Connection Packs — defined at module level for SSR visibility
+const CRM_PACK = {
+  id: "crm-connection-pack",
+  name: "CRM Connection Pack",
+  description: "Unlock 1 connection slot for CRM platforms. Connect Salesforce, HubSpot, Zoho, Pipedrive, and more. Each slot supports one provider connection. Purchase again to add more slots.",
+  category: "Operations" as const,
+  price: "$2,000",
+  installed: false,
+  deployedCount: 0,
+  rating: 4.9,
+  runsMonth: "unlimited",
+  icon: "💼",
+  paymentLink: "https://buy.stripe.com/5kQaEZ60LcAn8Ppgmk2Fa2I",
+  setupRequirements: null,
+  badges: ["1 CRM Slot", "Works Out of Box", "Slack Integration"],
+  chainsWith: ["CRM Sync Agent", "Lead Scoring Agent", "Sales Follow-Up Agent"],
+  agentType: "crm-pack",
+};
+
+const ERP_PACK = {
+  id: "erp-connection-pack",
+  name: "ERP Connection Pack",
+  description: "Unlock 1 connection slot for ERP and accounting platforms. Connect NetSuite, QuickBooks, SAP, Xero, Sage Intacct, and more. Each slot supports one provider connection. Purchase again to add more slots.",
+  category: "Operations" as const,
+  price: "$3,500",
+  installed: false,
+  deployedCount: 0,
+  rating: 4.9,
+  runsMonth: "unlimited",
+  icon: "🏢",
+  paymentLink: "https://buy.stripe.com/dRmeVf88TfMzghRda82Fa2J",
+  setupRequirements: null,
+  badges: ["1 ERP Slot", "Works Out of Box", "Slack Integration"],
+  chainsWith: ["Invoice Processor", "PO Management Agent", "Payroll Reconciliation Agent"],
+  agentType: "erp-pack",
+};
+
 interface MarketplaceItem {
   id: string;
   name: string;
@@ -39,8 +76,8 @@ interface MarketplaceItem {
 function MarketplaceHub() {
   const [activeTab, setActiveTab] = useState<"catalog" | "history">("catalog");
 
-  // Pre-map AGENTS to MarketplaceItem format for SSR rendering
-  const ssrItems: any[] = (AGENTS as any[]).map((a: any) => ({
+  // Pre-map AGENTS to MarketplaceItem format for SSR rendering — CRM/ERP packs first for immediate SSR visibility
+  const ssrItems: any[] = [CRM_PACK, ERP_PACK, ...(AGENTS as any[]).map((a: any) => ({
     id: a.id,
     name: a.name,
     description: a.description,
@@ -56,7 +93,7 @@ function MarketplaceHub() {
     badges: (a.capabilities || []).slice(0, 3),
     chainsWith: [],
     setupRequirements: null,
-  }));
+  }))];
 
   const [items, setItems] = useState<any[]>(ssrItems); // preloaded for SSR
   const [employees, setEmployees] = useState<any[]>(AGENTS); // preloaded for SSR
@@ -91,7 +128,7 @@ function MarketplaceHub() {
       const billData = await billingRes.json();
       setInvoices(billData.data || []);
 
-      // Use full AGENTS catalog as base, enrich with purchase data from API
+      // Use full AGENTS catalog + CRM/ERP packs as base, enrich with purchase data from API
       const enrichedCatalog = ssrItems.map((item: any) => {
         const deployedInstances = emps.filter(
           (emp: any) => emp.agentType === item.agentType || emp.id === item.id
@@ -104,49 +141,12 @@ function MarketplaceHub() {
           deployedCount: deployedInstances.length,
           installed: deployedInstances.length > 0 || !!catalogMatch?.purchased,
           paymentLink: catalogMatch?.paymentLink || item.paymentLink,
-          chainsWith: item.agentType ? getAgentChainPartners(item.agentType) : [],
-          setupRequirements: AGENT_SETUP_REQUIREMENTS[item.agentType] || null,
+          chainsWith: item.chainsWith?.length ? item.chainsWith : (item.agentType ? getAgentChainPartners(item.agentType) : []),
+          setupRequirements: item.setupRequirements !== undefined ? item.setupRequirements : (AGENT_SETUP_REQUIREMENTS[item.agentType] || null),
         };
       });
 
-      // CRM and ERP Connection Packs
-      const crmPack: MarketplaceItem = {
-        id: "crm-connection-pack",
-        name: "CRM Connection Pack",
-        description: "Unlock 1 connection slot for CRM platforms. Connect Salesforce, HubSpot, Zoho, Pipedrive, and more. Each slot supports one provider connection. Purchase again to add more slots.",
-        category: "Operations",
-        price: "$2,000",
-        installed: false,
-        deployedCount: 0,
-        rating: 4.9,
-        runsMonth: "unlimited",
-        icon: "💼",
-        paymentLink: "https://buy.stripe.com/3cI28t0Gr9obfdN1rq2Fa2G",
-        setupRequirements: null,
-        badges: ["1 CRM Slot", "Works Out of Box", "Slack Integration"],
-        chainsWith: ["CRM Sync Agent", "Lead Scoring Agent", "Sales Follow-Up Agent"],
-        agentType: "crm-pack",
-      };
-
-      const erpPack: MarketplaceItem = {
-        id: "erp-connection-pack",
-        name: "ERP Connection Pack",
-        description: "Unlock 1 connection slot for ERP and accounting platforms. Connect NetSuite, QuickBooks, SAP, Xero, Sage Intacct, and more. Each slot supports one provider connection. Purchase again to add more slots.",
-        category: "Operations",
-        price: "$3,500",
-        installed: false,
-        deployedCount: 0,
-        rating: 4.9,
-        runsMonth: "unlimited",
-        icon: "🏢",
-        paymentLink: "https://buy.stripe.com/9B69AV9cX1VJ9Tt5HG2Fa2H",
-        setupRequirements: null,
-        badges: ["1 ERP Slot", "Works Out of Box", "Slack Integration"],
-        chainsWith: ["Invoice Processor", "PO Management Agent", "Payroll Reconciliation Agent"],
-        agentType: "erp-pack",
-      };
-
-      setItems([crmPack, erpPack, ...enrichedCatalog]);
+      setItems(enrichedCatalog);
       setLoading(false);
     } catch (err) {
       console.error("Marketplace fetch error:", err);
