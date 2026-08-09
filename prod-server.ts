@@ -69,6 +69,54 @@ function writeJSON(path: string, data: any) {
   writeFileSync(path, JSON.stringify(data, null, 2));
 }
 
+// ── Startup Seed: guarantees critical files always exist with correct types ──
+function seedDataFiles() {
+  // Ensure .data directory exists
+  if (!existsSync(DATA_DIR)) { try { require("fs").mkdirSync(DATA_DIR, { recursive: true }); } catch(_) {} }
+
+  // integrations.json MUST be an array — .find() crashes on {}
+  const intFile = join(DATA_DIR, "integrations.json");
+  if (!existsSync(intFile)) { writeJSON(intFile, []); }
+  else { try { const v = readJSON(intFile); if (!Array.isArray(v)) writeJSON(intFile, []); } catch(_) { writeJSON(intFile, []); } }
+
+  // tenant_oauth_credentials.json — persists OAuth tokens across deploys
+  const oauthFile = join(DATA_DIR, "tenant_oauth_credentials.json");
+  if (!existsSync(oauthFile)) writeJSON(oauthFile, {});
+
+  // Seed admin user if no admin exists
+  const adminEmail = process.env.ADMIN_EMAIL || "mathewortiz97@gmail.com";
+  const users = readJSON(USERS_FILE);
+  const hasAdmin = Object.values(users).some((u: any) => u.role === "admin");
+  if (!hasAdmin) {
+    const { hashSync } = require("bcryptjs");
+    const adminPass = process.env.ADMIN_PASSWORD || "Mdsl1234";
+    users[adminEmail] = {
+      email: adminEmail,
+      password: hashSync(adminPass, 10),
+      role: "admin",
+      createdAt: Date.now(),
+    };
+    writeJSON(USERS_FILE, users);
+  }
+
+  // Ensure other critical files exist with sensible defaults
+  for (const [f, def] of [
+    [SESSIONS_FILE, {}],
+    [OAUTH_STATES_FILE, {}],
+    [TENANT_PURCHASES_FILE, {}],
+    [AUDIT_LOG_FILE, {}],
+    [LEADS_FILE, {}],
+    [LEAD_NOTIFICATIONS_FILE, {}],
+    [PENDING_EMAILS_FILE, {}],
+    [CHAT_SESSIONS_FILE, {}],
+    [TENANT_INTEGRATIONS_FILE, {}],
+    [AI_EMPLOYEES_FILE, {}],
+  ] as const) {
+    if (!existsSync(f)) writeJSON(f, def);
+  }
+}
+
+
 
 // ── OAuth Credential Resolution ────────────────────────────────────
 function getOAuthCredentials(provider: string): { clientId: string; clientSecret: string } | null {
@@ -352,7 +400,7 @@ const _bgInit = (async () => {
 })().catch(e => console.error("[prod-server] Background init error:", e));
 
 // ── START SERVER IMMEDIATELY — no blocking work before this ──
-console.log("[prod-server] Starting server on port 3000...");
+seedDataFiles(); console.log("[prod-server] Starting server on port 3000...");
 serve({
   port: 3000,
   async fetch(req) {
