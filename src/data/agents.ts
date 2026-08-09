@@ -6,7 +6,6 @@ export interface AgentData {
   description: string; industry: string; capabilities: string[];
   price: number; status: string; category: string;
   paymentLink: string; billing: string; billingNote: string;
-  stripePaymentLink: string;
 }
 
 export const AGENTS: AgentData[] = [
@@ -21,10 +20,9 @@ export const AGENTS: AgentData[] = [
     price: 950,
     status: "Paused",
     category: "finance",
-    paymentLink: "https://buy.stripe.com/eVqcN7fBl8k72r19XW2Fa2l",
+    paymentLink: "https://buy.stripe.com/dRm3cx60Lbwj7Lleec2Fa29",
     billing: "monthly",
     billingNote: "per month",
-    stripePaymentLink: "https://buy.stripe.com/test_4gw8zH6vK3qL9tOdQR",
   },
   {
     id: "crm-sync-agent-v1",
@@ -37,10 +35,9 @@ export const AGENTS: AgentData[] = [
     price: 2000,
     status: "available",
     category: "sales",
-    paymentLink: "https://buy.stripe.com/14AaEZexh0RFd5Ffig2Fa2m",
+    paymentLink: "https://buy.stripe.com/5kQ5kFexhcAn5Ddgmk2Fa2j",
     billing: "monthly",
     billingNote: "per month",
-    stripePaymentLink: "https://buy.stripe.com/test_7sEd2P1aB5mN4rKfGH",
   },
   {
     id: "email-assistant-v1",
@@ -53,10 +50,9 @@ export const AGENTS: AgentData[] = [
     price: 1800,
     status: "available",
     category: "communications",
-    paymentLink: "https://buy.stripe.com/9B6fZj74P6bZ2r17PO2Fa2n",
+    paymentLink: "https://buy.stripe.com/eVq28t60LgQDc1Bgmk2Fa2f",
     billing: "monthly",
     billingNote: "per month",
-    stripePaymentLink: "https://buy.stripe.com/test_3cFn6X9jM2pR7wUyAB",
   },
   {
     id: "data-entry-bot-v1",
@@ -69,10 +65,9 @@ export const AGENTS: AgentData[] = [
     price: 499,
     status: "available",
     category: "operations",
-    paymentLink: "https://buy.stripe.com/7sY14pfBl0RFfdNeec2Fa2o",
+    paymentLink: "https://buy.stripe.com/6oUbJ3cp9dErghRc642Fa24",
     billing: "monthly",
     billingNote: "per month",
-    stripePaymentLink: "https://buy.stripe.com/test_8vYk4L0zC6qW5tHeCD",
   },
   {
     id: "inventory-tracker-v1",
@@ -85,10 +80,9 @@ export const AGENTS: AgentData[] = [
     price: 1200,
     status: "available",
     category: "operations",
-    paymentLink: "https://buy.stripe.com/00w8wR60L57V7Ll7PO2Fa2p",
+    paymentLink: "https://buy.stripe.com/28E00l2Oz1VJghRda82Fa2a",
     billing: "monthly",
     billingNote: "per month",
-    stripePaymentLink: "https://buy.stripe.com/test_1mGt3B5xN9hJ7sVfEF",
   },
   {
     id: "compliance-auditor-v1",
@@ -101,10 +95,9 @@ export const AGENTS: AgentData[] = [
     price: 750,
     status: "available",
     category: "compliance",
-    paymentLink: "https://buy.stripe.com/bJe7sN1Kv57VghR2vu2Fa2q",
+    paymentLink: "https://buy.stripe.com/eVq28t60Lbwj8Pp1rq2Fa25",
     billing: "monthly",
     billingNote: "per month",
-    stripePaymentLink: "https://buy.stripe.com/test_2pRq7D4wM8kL6uBgGH",
   },
   {
     id: "hr-onboarding-agent-v1",
@@ -117,10 +110,9 @@ export const AGENTS: AgentData[] = [
     price: 850,
     status: "available",
     category: "hr",
-    paymentLink: "https://buy.stripe.com/4gM8wRgFp8k76Hh1rq2Fa2r",
+    paymentLink: "https://buy.stripe.com/4gMfZjfBlasf3v56LK2Fa26",
     billing: "monthly",
     billingNote: "per month",
-    stripePaymentLink: "https://buy.stripe.com/test_5tHy9E3vZ1nP4rJcIJ",
   },
   {
     id: "social-media-manager-v1",
@@ -133,10 +125,9 @@ export const AGENTS: AgentData[] = [
     price: 1200,
     status: "available",
     category: "marketing",
-    paymentLink: "https://buy.stripe.com/8x29AVgFpgQDe9Jb202Fa2s",
+    paymentLink: "https://buy.stripe.com/dRm5kF0GrdEr6Hh6LK2Fa2b",
     billing: "monthly",
     billingNote: "per month",
-    stripePaymentLink: "https://buy.stripe.com/test_6uJz2F8cA0mQ3sKdKL",
   },
   {
     id: "logistics-route-optimizer-v1",
@@ -149,10 +140,9 @@ export const AGENTS: AgentData[] = [
     price: 1800,
     status: "available",
     category: "logistics",
-    paymentLink: "https://buy.stripe.com/3cIdRb88T8k76Hhfig2Fa2t",
+    paymentLink: "https://buy.stripe.com/3cI28tgFp7g37Llb202Fa2g",
     billing: "monthly",
     billingNote: "per month",
-    stripePaymentLink: "https://buy.stripe.com/test_9wXb5G7yB2pS6tLeMN",
   },
   {
     id: "manufacturing-scheduler-v1",
@@ -165,10 +155,9 @@ export const AGENTS: AgentData[] = [
     price: 850,
     status: "available",
     category: "manufacturing",
-    paymentLink: "https://buy.stripe.com/14AcN71Kv7g37Ll3zy2Fa2u",
+    paymentLink: "https://buy.stripe.com/28EbJ374P8k71mX8TS2Fa27",
     billing: "monthly",
     billingNote: "per month",
-    stripePaymentLink: "https://buy.stripe.com/test_4kVe1H6xN3qT9uWfOP",
   },
   {
     id: "support-triage-agent-v1",
@@ -181,10 +170,9 @@ export const AGENTS: AgentData[] = [
     price: 1800,
     status: "available",
     category: "support",
-    paymentLink: "https://buy.stripe.com/fZudRb1Kv6bZ9Ttfig2Fa2v",
+    paymentLink: "https://buy.stripe.com/dRm7sN74PfMzaXx9XW2Fa2h",
     billing: "monthly",
     billingNote: "per month",
-    stripePaymentLink: "https://buy.stripe.com/test_0aCd3F5vM7rL2sPgQR",
   },
   {
     id: "sales-lead-scorer-v1",
@@ -197,10 +185,9 @@ export const AGENTS: AgentData[] = [
     price: 2000,
     status: "available",
     category: "sales",
-    paymentLink: "https://buy.stripe.com/dRm28t9cXeIv9Tt2vu2Fa2w",
+    paymentLink: "https://buy.stripe.com/7sYeVf4WHcAn2r1b202Fa2k",
     billing: "monthly",
     billingNote: "per month",
-    stripePaymentLink: "https://buy.stripe.com/test_8nBq6J2wZ4mK1pRfST",
   },
   {
     id: "customer-onboarding-agent-v1",
@@ -213,10 +200,9 @@ export const AGENTS: AgentData[] = [
     price: 1500,
     status: "available",
     category: "customer-success",
-    paymentLink: "https://buy.stripe.com/fZu4gB88T1VJ7Ll3zy2Fa2x",
+    paymentLink: "https://buy.stripe.com/dRm4gBah1cAn7Ll8TS2Fa2e",
     billing: "monthly",
     billingNote: "per month",
-    stripePaymentLink: "https://buy.stripe.com/test_7cMt5H9jX3qR8tWeUV",
   },
   {
     id: "support-ticket-router-agent-v1",
@@ -229,10 +215,9 @@ export const AGENTS: AgentData[] = [
     price: 1800,
     status: "available",
     category: "support",
-    paymentLink: "https://buy.stripe.com/5kQ5kFah17g3aXx2vu2Fa2y",
+    paymentLink: "https://buy.stripe.com/dRm9AV88T6bZ0iT3zy2Fa2i",
     billing: "monthly",
     billingNote: "per month",
-    stripePaymentLink: "https://buy.stripe.com/test_3pLv4G1yA8nQ5sHfWX",
   },
   {
     id: "sales-follow-up-agent-v1",
@@ -245,10 +230,9 @@ export const AGENTS: AgentData[] = [
     price: 1200,
     status: "available",
     category: "sales",
-    paymentLink: "https://buy.stripe.com/bJe8wRexhcAnfdNgmk2Fa2z",
+    paymentLink: "https://buy.stripe.com/7sYfZj3SD0RF7Ll1rq2Fa2c",
     billing: "monthly",
     billingNote: "per month",
-    stripePaymentLink: "https://buy.stripe.com/test_6rFw2E0xB9mJ7uKcYZ",
   },
   {
     id: "po-management-agent-v1",
@@ -261,10 +245,9 @@ export const AGENTS: AgentData[] = [
     price: 1200,
     status: "available",
     category: "procurement",
-    paymentLink: "https://buy.stripe.com/aFacN7ah1fMzc1B8TS2Fa2A",
+    paymentLink: "https://buy.stripe.com/fZubJ3dtdcAnghR1rq2Fa2d",
     billing: "monthly",
     billingNote: "per month",
-    stripePaymentLink: "https://buy.stripe.com/test_5sGx9D4vZ2kP8tLdAB",
   },
   {
     id: "payroll-reconciliation-agent-v1",
@@ -277,9 +260,8 @@ export const AGENTS: AgentData[] = [
     price: 850,
     status: "available",
     category: "finance",
-    paymentLink: "https://buy.stripe.com/4gM4gBbl52ZN0iT8TS2Fa2B",
+    paymentLink: "https://buy.stripe.com/fZucN74WH7g3e9J1rq2Fa28",
     billing: "monthly",
     billingNote: "per month",
-    stripePaymentLink: "https://buy.stripe.com/test_1tHy7B3wN6qM4sRfCD",
   },
 ];

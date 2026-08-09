@@ -31,9 +31,14 @@ async function _getAgentProcessor() {
   return _agentProcessor;
 }
 async function processAgentResults(...args: any[]) { return (await _getAgentProcessor()).processAgentResults(...args); }
+let _agentsData: any;
+async function getAgents() {
+  if (!_agentsData) _agentsData = await import("./src/data/agents");
+  return _agentsData;
+}
 
 const BUILD_ID = Date.now().toString(36);
-const DIST_CLIENT = "/home/team/shared/site/dist";
+const DIST_CLIENT = join(typeof import.meta?.dir !== "undefined" ? import.meta.dir : __dirname, "dist");
 const DATA_DIR = "/home/team/shared/site/.data";
 const USERS_FILE = join(DATA_DIR, "users.json");
 const SESSIONS_FILE = join(DATA_DIR, "sessions.json");
@@ -41,6 +46,7 @@ const TENANT_INTEGRATIONS_FILE = join(DATA_DIR, "tenant_integrations.json");
 const AI_EMPLOYEES_FILE = join(DATA_DIR, "ai_employees.json");
 const LEADS_FILE = join(DATA_DIR, "leads.json");
 const LEAD_NOTIFICATIONS_FILE = join(DATA_DIR, "lead_notifications.json");
+const PENDING_EMAILS_FILE = join(DATA_DIR, "pending_emails.json");
 const CHAT_SESSIONS_FILE = join(DATA_DIR, "chat_sessions.json");
 const OAUTH_STATES_FILE = join(DATA_DIR, "oauth_states.json");
 const TENANT_PURCHASES_FILE = join(DATA_DIR, "tenant_purchases.json");
@@ -1113,17 +1119,224 @@ serve({
         }});
       } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e))); return Response.json({ analysis: { topMatch: "Automation AI", allMatches: [] } }); }
     }
+const CRM_PACK_LINK = "https://buy.stripe.com/5kQaEZ60LcAn8Ppgmk2Fa2I";
+const ERP_PACK_LINK = "https://buy.stripe.com/dRmeVf88TfMzghRda82Fa2J";
+
+function lookupAgent(agentName: string): { name: string; paymentLink: string; description: string } | null {
+  if (!agentName) return null;
+  const name = agentName.toLowerCase().trim();
+  // Try exact name match first
+  for (const a of (globalThis as any).__cachedAgents || []) {
+    const an = a.name.toLowerCase();
+    // Strip "Agent" suffix for matching if needed
+    const simple = an.replace(/ agent$/, '');
+    if (simple === name || an === name || simple.includes(name) || name.includes(simple)) {
+      return { name: a.name, paymentLink: a.paymentLink, description: a.description || a.purpose };
+    }
+  }
+  // Partial keyword match
+  for (const a of (globalThis as any).__cachedAgents || []) {
+    const an = a.name.toLowerCase();
+    const words = name.split(/\s+/);
+    if (words.some((w: string) => w.length > 3 && an.includes(w))) {
+      return { name: a.name, paymentLink: a.paymentLink, description: a.description || a.purpose };
+    }
+  }
+  return null;
+}
+
+
+// ── Email Sender (SendGrid) ───────────────────────────────────────────────────
+async function sendEmailSMTP(opts: { to: string; subject: string; body: string }): Promise<{ sent: boolean; error?: string }> {
+  const apiKey = process.env.SENDGRID_API_KEY;
+  const emailFrom = process.env.SMTP_FROM || "leads@simplerlife100.com";
+
+  if (!apiKey) {
+    return { sent: false, error: "SENDGRID_API_KEY not configured" };
+  }
+
+  try {
+    const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + apiKey,
+      },
+      body: JSON.stringify({
+        personalizations: [{ to: [{ email: opts.to }] }],
+        from: { email: emailFrom },
+        subject: opts.subject,
+        content: [{ type: "text/plain", value: opts.body }],
+      }),
+    });
+    if (response.status === 202) {
+      return { sent: true };
+    } else {
+      const errText = await response.text();
+      return { sent: false, error: `SendGrid HTTP ${response.status}: ${errText}` };
+    }
+  } catch (e: any) {
+    return { sent: false, error: e?.message || String(e) };
+  }
+}
+
+
+function buildLeadEmail(email: string, toolName: string, result: any): { subject: string; body: string; matchedAgents: any[]; bestPlan: string; planLink: string } {
+  // Collect all matched agents across any tool type
+  const matched: { name: string; paymentLink: string; price: number }[] = [];
+  const seen = new Set<string>();
+  const addAgent = (a: any) => {
+    if (a && !seen.has(a.name)) { seen.add(a.name); matched.push({ name: a.name, paymentLink: a.paymentLink, price: a.price || 0 }); }
+  };
+
+  let processInfo = "";
+
+  if (toolName === "can-we-automate-this" && result.topMatch) {
+    const agent = lookupAgent(result.topMatch);
+    if (agent) addAgent(agent);
+    processInfo = (result.processDescription || "Automation workflow");
+    if (result.savingsSummary) processInfo += "\nSavings: " + result.savingsSummary;
+  } else if (toolName === "assessment" && result.topWorkflows) {
+    const wfs = Array.isArray(result.topWorkflows) ? result.topWorkflows.slice(0, 5) : [];
+    for (const wf of wfs) {
+      const wfName = typeof wf === 'string' ? wf : (wf.name || '');
+      const agent = lookupAgent(wfName);
+      if (agent) addAgent(agent);
+    }
+  } else if (toolName === "ai-advisor" && result.messages) {
+    const msgs = Array.isArray(result.messages) ? result.messages : [];
+    const fullText = msgs.map((m: any) => typeof m === 'string' ? m : (m.content || '')).join(' ');
+    for (const a of (globalThis as any).__cachedAgents || []) {
+      if (fullText.toLowerCase().includes(a.name.toLowerCase())) addAgent(a);
+    }
+  }
+
+  // Fallback: if no agents matched, suggest top-level automation
+  if (matched.length === 0) {
+    const all = (globalThis as any).__cachedAgents || [];
+    const top = all.slice(0, 2);
+    for (const a of top) addAgent(a);
+  }
+
+  // Plan selection: 1-3 → Starter, 4-7 → Growth, 8+ → Scale
+  const count = matched.length;
+  let bestPlan: string, planLink: string, planPrice: string, planIncludes: string;
+  if (count <= 3) {
+    bestPlan = "Starter"; planLink = "https://buy.stripe.com/3cI8wR88Tasfc1B9XW2Fa2K"; planPrice = "$7,500";
+    planIncludes = "3 AI employees • 5 workflow templates • Standard integrations • Email support";
+  } else if (count <= 7) {
+    bestPlan = "Growth"; planLink = "https://buy.stripe.com/5kQ6oJbl5dErc1B1rq2Fa2L"; planPrice = "$15,000";
+    planIncludes = "8 AI employees • All workflow templates • 180+ integrations • Priority support • CRM/ERP enabled";
+  } else {
+    bestPlan = "Scale"; planLink = "https://buy.stripe.com/aFa7sN60LdErc1B5HG2Fa2M"; planPrice = "$30,000";
+    planIncludes = "All 17 AI employees • Custom workflows • Dedicated account manager • 24/7 support • CRM/ERP/API access • SLA guarantee";
+  }
+
+  // Build email body
+  const L = "\n";
+  let body = "New Lead Captured from Simple Life 100" + L + L;
+  body += "Email: " + email + L;
+  body += "Tool: " + toolName + L;
+  if (processInfo) body += L + processInfo + L;
+  body += L;
+
+  // Option 1: A La Carte
+  body += "═══════════════════════════════════" + L;
+  body += "OPTION 1: \u00C0 LA CARTE" + L;
+  body += "═══════════════════════════════════" + L + L;
+  let totalPrice = 0;
+  for (const a of matched) {
+    body += "  \u2022 " + a.name + " — $" + a.price.toLocaleString() + "/mo" + L;
+    body += "    Purchase: " + a.paymentLink + L;
+    totalPrice += a.price;
+  }
+  body += L + "TOTAL \u00C0 LA CARTE: $" + totalPrice.toLocaleString() + "/mo" + L;
+  body += L + "PURCHASE INDIVIDUAL AGENTS:" + L;
+  for (const a of matched) {
+    body += "  " + a.name + ": " + a.paymentLink + L;
+  }
+  body += L;
+
+  // Option 2: Best-Fit Plan
+  body += "═══════════════════════════════════" + L;
+  body += "OPTION 2: " + bestPlan.toUpperCase() + " PLAN — " + planPrice + L;
+  body += "═══════════════════════════════════" + L + L;
+  body += planIncludes + L;
+  body += L + "PURCHASE " + bestPlan.toUpperCase() + " PLAN: " + planLink + L;
+
+  const subject = "New Lead: " + email + " - " + toolName;
+  return { subject, body, matchedAgents: matched, bestPlan, planLink };
+}
     if (pathname === "/api/tools/capture-lead" && req.method === "POST") {
       try {
         const body = await req.json();
+        // Load agents for lookup
+        if (!(globalThis as any).__cachedAgents) {
+          const ag = await getAgents();
+          (globalThis as any).__cachedAgents = ag.AGENTS || [];
+        }
         const leads = readJSON(LEADS_FILE) || {};
         leads[body.email] = { email: body.email, toolName: body.toolName, result: body.result || {}, capturedAt: new Date().toISOString() };
         writeJSON(LEADS_FILE, leads);
+        // Build enriched email with two-option format
+        const emailContent = buildLeadEmail(body.email, body.toolName, body.result || {});
+        const notifId = 'notif-' + Math.random().toString(36).substr(2, 9);
+        // Store notification (auto-marked as notified)
         const notifsRaw = readJSON(LEAD_NOTIFICATIONS_FILE);
         const notifs = Array.isArray(notifsRaw) ? notifsRaw : [];
-        notifs.push({ id: 'notif-' + Math.random().toString(36).substr(2, 9), email: body.email, toolName: body.toolName, timestamp: new Date().toISOString(), notified: false });
+        notifs.push({ id: notifId, email: body.email, toolName: body.toolName, result: body.result, timestamp: new Date().toISOString(), notified: false, subject: emailContent.subject, body: emailContent.body });
         writeJSON(LEAD_NOTIFICATIONS_FILE, notifs);
+        // Auto-send: trigger the send endpoint inline
+        try {
+          await fetch("http://localhost:3000/api/notifications/send", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ notificationId: notifId }),
+          });
+        } catch (sendErr) {
+          console.log("[SSR] auto-send failed (non-fatal): " + (sendErr?.message || String(sendErr)));
+        }
         return Response.json({ success: true });
+      } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e))); return Response.json({ success: false }, { status: 400 }); }
+    }
+
+    // ── /api/notifications/send ────────────────────────────────────────────────
+    if (pathname === "/api/notifications/send" && req.method === "POST") {
+      try {
+        const sendBody = await req.json();
+        const notifsRaw = readJSON(LEAD_NOTIFICATIONS_FILE);
+        const notifs = Array.isArray(notifsRaw) ? notifsRaw : [];
+        const notifId = sendBody.notificationId;
+        const idx = notifs.findIndex((n: any) => n.id === notifId);
+        if (idx < 0) return Response.json({ success: false, reason: "Notification not found" }, { status: 404 });
+        const notif = notifs[idx];
+        // Actually deliver email via SMTP
+        const recipient = process.env.LEAD_NOTIFICATION_EMAIL || "electric.vortexz@gmail.com";
+        const smtpResult = await sendEmailSMTP({ to: recipient, subject: notif.subject || "New Lead", body: notif.body || "" });
+        if (smtpResult.sent) {
+          notifs[idx].notified = true;
+          notifs[idx].sentAt = new Date().toISOString();
+          writeJSON(LEAD_NOTIFICATIONS_FILE, notifs);
+          console.log("[SSR] Email sent successfully to " + recipient + " via SMTP");
+          return Response.json({ success: true, sent: true });
+        }
+        // SMTP failed/unavailable — fallback: queue to pending_emails.json
+        const pending = readJSON(PENDING_EMAILS_FILE);
+        const pendingArr = Array.isArray(pending) ? pending : [];
+        pendingArr.push({
+          id: "email-" + Math.random().toString(36).substr(2, 9),
+          notificationId: notifId,
+          to: recipient,
+          subject: notif.subject || "New Lead",
+          body: notif.body || "",
+          timestamp: new Date().toISOString(),
+          sent: false,
+        });
+        writeJSON(PENDING_EMAILS_FILE, pendingArr);
+        notifs[idx].notified = true;
+        writeJSON(LEAD_NOTIFICATIONS_FILE, notifs);
+        console.log("[SSR] SMTP unavailable (" + smtpResult.error + ") — email queued to pending_emails.json");
+        return Response.json({ success: true, sent: false, queued: true });
       } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e))); return Response.json({ success: false }, { status: 400 }); }
     }
 
