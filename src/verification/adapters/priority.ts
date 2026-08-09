@@ -259,12 +259,23 @@ export const slackAdapter: CapabilityAdapter = async (contract, ctx) => {
       if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
       const channels = await client.listConversations("public_channel");
       const channel = pickMemberChannel(channels);
+      if (!channel) throw new Error("Slack workspace has no public channel with bot membership");
       const users = await client.getUsers();
-      const user = users.find((u: any) => !u.is_bot && !u.deleted)?.id as string | undefined;
-      if (!channel || !user) throw new Error("Slack workspace has no public channel + member for ephemeral message");
+      // Prefer a non-bot non-deleted user; fall back to the bot itself (self-ephemeral).
+      const user = users.find((u: any) => !u.is_bot && !u.deleted)?.id
+                ?? users.find((u: any) => u.is_bot && !u.deleted)?.id as string | undefined;
+      if (!channel || !user) throw new Error("Slack workspace has no public channel + user for ephemeral message");
       const result = await client.postEphemeral(channel, user, `Verification ephemeral ${LABEL()}`);
-      if (!result?.ok) throw new Error(`Slack postEphemeral failed: ${JSON.stringify(result).slice(0, 200)}`);
-      // Ephemeral messages are transient (visible only to the target user, no channel residue) — no delete needed.
+      if (!result?.ok) {
+        // If the chosen user isn't in the channel, fall back to self-ephemeral on the bot.
+        const botUser = users.find((u: any) => u.is_bot && !u.deleted)?.id as string | undefined;
+        if (botUser && botUser !== user) {
+          const fallback = await client.postEphemeral(channel, botUser, `Verification ephemeral ${LABEL()}`);
+          if (!fallback?.ok) throw new Error(`Slack postEphemeral failed (original + bot fallback): ${JSON.stringify(result).slice(0, 200)}`);
+          return { httpStatus: 200, response: { ok: true, channel, user: botUser, note: "bot-self-ephemeral" } };
+        }
+        throw new Error(`Slack postEphemeral failed: ${JSON.stringify(result).slice(0, 200)}`);
+      }
       return { httpStatus: 200, response: { ok: true, channel, user } };
     }
     case "slack-add-reaction": {
@@ -292,24 +303,41 @@ export const slackAdapter: CapabilityAdapter = async (contract, ctx) => {
       const channels = await client.listConversations("public_channel");
       const channel = pickMemberChannel(channels);
       if (!channel) throw new Error("Slack workspace has no public channel with bot membership");
-      const form = new FormData();
-      form.append("channels", channel);
-      form.append("filename", `phase7-verify-${Date.now()}.txt`);
-      form.append("content", `Verification upload ${LABEL()} — safe to delete`);
-      const upload = await fetch("https://slack.com/api/files.upload", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${cred.accessToken}` },
-        body: form,
+      const token = cred.accessToken;
+      // Slack V2 file upload: getUploadURLExternal → PUT content → completeUploadExternal.
+      // files.upload is deprecated as of 2025-03-11.
+      const filename = `phase7-verify-${Date.now()}.txt`;
+      const length = 42; // "Verification upload … — safe to delete".length
+      // Step 1: get upload URL
+      const urlReq = await fetch(`https://slack.com/api/files.getUploadURLExternal?filename=${encodeURIComponent(filename)}&length=${length}`, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${token}` },
       });
-      const uploadBody = (await upload.json()) as { ok?: boolean; file?: { id?: string } };
-      const fileId = uploadBody?.file?.id;
-      if (!uploadBody?.ok || !fileId) {
-        throw new Error(`Slack files.upload failed: ${JSON.stringify(uploadBody).slice(0, 200)}`);
+      const urlBody = (await urlReq.json()) as { ok?: boolean; upload_url?: string; file_id?: string; error?: string };
+      if (!urlBody.ok || !urlBody.upload_url || !urlBody.file_id) {
+        throw new Error(`Slack files.getUploadURLExternal failed: ${JSON.stringify(urlBody).slice(0, 200)}`);
+      }
+      // Step 2: upload content
+      const putReq = await fetch(urlBody.upload_url, {
+        method: "PUT",
+        body: `Verification upload ${LABEL()} — safe to delete`,
+      });
+      if (!putReq.ok) throw new Error(`Slack file content upload failed: HTTP ${putReq.status}`);
+      // Step 3: complete
+      const completeReq = await fetch("https://slack.com/api/files.completeUploadExternal", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json; charset=utf-8" },
+        body: JSON.stringify({ files: [{ id: urlBody.file_id, title: filename }], channel_id: channel }),
+      });
+      const completeBody = (await completeReq.json()) as { ok?: boolean; files?: any[]; error?: string };
+      const fileId = urlBody.file_id;
+      if (!completeBody.ok) {
+        throw new Error(`Slack files.completeUploadExternal failed: ${JSON.stringify(completeBody).slice(0, 200)}`);
       }
       try {
         const cleanup = await fetch("https://slack.com/api/files.delete", {
           method: "POST",
-          headers: { Authorization: `Bearer ${cred.accessToken}`, "Content-Type": "application/json; charset=utf-8" },
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json; charset=utf-8" },
           body: JSON.stringify({ file: fileId }),
         });
         const cleanupBody = (await cleanup.json()) as { ok?: boolean };
@@ -317,7 +345,7 @@ export const slackAdapter: CapabilityAdapter = async (contract, ctx) => {
       } catch (cleanupError) {
         throw new Error(`file uploaded (${fileId}) but cleanup failed: ${String(cleanupError)}`);
       }
-      return { httpStatus: 200, response: { ok: true, channel, fileId, rolledBack: true } };
+      return { httpStatus: 200, response: { ok: true, channel, fileId, rolledBack: true, method: "v2" } };
     }
     case "slack-monitor-mention":
     case "slack-monitor-channel-activity": {
