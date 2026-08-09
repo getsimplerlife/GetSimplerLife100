@@ -508,7 +508,7 @@ function ActivityHubDashboard() {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] text-stone-400 font-mono">Available</span>
-                  <span className="text-[10px] font-bold text-white">{integrationsCount}+</span>
+                  <span className="text-[10px] font-bold text-white">{integrationCount}+</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] text-stone-400 font-mono">Connected</span>
@@ -516,7 +516,7 @@ function ActivityHubDashboard() {
                 </div>
                 <div className="w-full bg-stone-900 rounded-full h-1.5 overflow-hidden">
                   <div className="bg-emerald-500 h-full rounded-full transition-all"
-                    style={{ width: `${integrationsCount > 0 ? Math.min((connectedCount / integrationsCount) * 100, 100) : 0}%` }} />
+                    style={{ width: `${integrationCount > 0 ? Math.min((connectedCount / integrationCount) * 100, 100) : 0}%` }} />
                 </div>
               </div>
               <Link to="/portal/integrations"
