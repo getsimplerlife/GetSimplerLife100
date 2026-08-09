@@ -21,7 +21,7 @@ const packages = [
     price: 7500,
     agentLimit: 2,
     features: ['2 AI employees', '3 automated workflows', 'CRM integration', '30 days support'],
-    paymentLink: 'https://buy.stripe.com/bJebJ3bl5eIv2r19XW2Fa1u',
+    paymentLink: 'https://buy.stripe.com/3cI8wR88Tasfc1B9XW2Fa2K',
     description: 'Perfect for small teams ready to automate their highest-friction process.',
   },
   {
@@ -30,7 +30,7 @@ const packages = [
     price: 15000,
     agentLimit: 5,
     features: ['5 AI employees', 'Cross-dept workflows', 'CRM + ERP integrations', 'Custom dashboards', '60 days support'],
-    paymentLink: 'https://buy.stripe.com/fZu14p2Oz7g3d5F9XW2Fa1v',
+    paymentLink: 'https://buy.stripe.com/5kQ6oJbl5dErc1B1rq2Fa2L',
     description: 'For growing teams that need automation across multiple departments.',
   },
   {
@@ -39,7 +39,7 @@ const packages = [
     price: 30000,
     agentLimit: 18,
     features: ['Up to 18 AI employees', 'Unlimited workflows', 'Custom agent training', 'Advanced integrations', '90 days support'],
-    paymentLink: 'https://buy.stripe.com/aFabJ31KveIv1mX2vu2Fa1w',
+    paymentLink: 'https://buy.stripe.com/aFa7sN60LdErc1B5HG2Fa2M',
     description: 'Enterprise-grade AI workforce for organizations ready to transform operations.',
   },
 ];

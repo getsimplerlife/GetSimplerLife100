@@ -33,9 +33,9 @@ const agents = [
 ];
 
 const builderTiers = [
-  { name: "Starter", price: 7500, link: "https://buy.stripe.com/3cIaEza5x8k7d5K9AD2Fa2l", desc: "3 AI employees + basic workflows", features: ["3 AI employees", "5 workflow templates", "Standard integrations", "Email support"] },
-  { name: "Professional", price: 15000, link: "https://buy.stripe.com/14k7sNfBlgQD5Ddgmo2Fa2m", desc: "8 AI employees + advanced workflows", features: ["8 AI employees", "All workflow templates", "180+ integrations", "Priority support", "CRM / ERP enabled"], highlight: true },
-  { name: "Enterprise", price: 30000, link: "https://buy.stripe.com/5kQbJ3fBl1VJ9TtdAR2Fa2n", desc: "Full AI Operations Team", features: ["All 17 AI employees", "Custom workflows", "Dedicated account manager", "24/7 support", "CRM / ERP / API access", "SLA guarantee"] },
+  { name: "Starter", price: 7500, link: "https://buy.stripe.com/3cI8wR88Tasfc1B9XW2Fa2K", desc: "3 AI employees + basic workflows", features: ["3 AI employees", "5 workflow templates", "Standard integrations", "Email support"] },
+  { name: "Professional", price: 15000, link: "https://buy.stripe.com/5kQ6oJbl5dErc1B1rq2Fa2L", desc: "8 AI employees + advanced workflows", features: ["8 AI employees", "All workflow templates", "180+ integrations", "Priority support", "CRM / ERP enabled"], highlight: true },
+  { name: "Enterprise", price: 30000, link: "https://buy.stripe.com/aFa7sN60LdErc1B5HG2Fa2M", desc: "Full AI Operations Team", features: ["All 17 AI employees", "Custom workflows", "Dedicated account manager", "24/7 support", "CRM / ERP / API access", "SLA guarantee"] },
 ];
 
 function PricingPage() {
@@ -137,7 +137,7 @@ function PricingPage() {
           </p>
           <div className="text-3xl font-black text-white mb-4">$2,500</div>
           <a
-            href="https://buy.stripe.com/5kQbJ3fBl1VJ9TtdAR2Fa2n"
+            href="https://buy.stripe.com/aFa7sN60LdErc1B5HG2Fa2M"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-block bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-3 rounded-xl font-bold text-sm transition-all"
