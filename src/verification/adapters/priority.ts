@@ -199,18 +199,11 @@ export const slackAdapter: CapabilityAdapter = async (contract, ctx) => {
   if (!cred.accessToken) throw new Error("Slack credential has no accessToken");
   const client = createSlackClient(baseAuth(cred, "slack", ctx));
 
-  // Bot tokens may need to join a channel before posting — "not_in_channel" is common
-  // when the first public channel isn't one the bot belongs to.
-  async function ensureChannelMembership(channel: string): Promise<void> {
-    const join = await fetch("https://slack.com/api/conversations.join", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${cred.accessToken}`, "Content-Type": "application/json; charset=utf-8" },
-      body: JSON.stringify({ channel }),
-    });
-    const joinBody = (await join.json()) as { ok?: boolean; error?: string };
-    if (!joinBody.ok && joinBody.error !== "already_in_channel") {
-      throw new Error(`Slack conversations.join failed: ${joinBody.error}`);
-    }
+  // Pick the first channel the bot is already a member of to avoid
+  // "not_in_channel" / missing_scope issues with conversations.join.
+  function pickMemberChannel(channels: any[]): string | undefined {
+    const memberChannels = channels.filter((c: any) => c.is_member === true);
+    return memberChannels[0]?.id as string | undefined;
   }
 
   switch (contract.capabilityId) {
@@ -221,8 +214,8 @@ export const slackAdapter: CapabilityAdapter = async (contract, ctx) => {
     case "slack-read-channel-history":
     case "slack-read-messages": {
       const channels = await client.listConversations("public_channel");
-      const channel = channels[0]?.id as string | undefined;
-      if (!channel) throw new Error("Slack workspace has no public channel to read");
+      const channel = pickMemberChannel(channels);
+      if (!channel) throw new Error("Slack workspace has no public channel with bot membership");
       const messages = await client.getConversationHistory(channel, 5);
       return { httpStatus: 200, response: { channel, count: messages.length } };
     }
@@ -244,9 +237,8 @@ export const slackAdapter: CapabilityAdapter = async (contract, ctx) => {
     case "slack-send-message": {
       if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
       const channels = await client.listConversations("public_channel");
-      const channel = channels[0]?.id as string | undefined;
-      if (!channel) throw new Error("Slack workspace has no public channel to post to");
-      await ensureChannelMembership(channel);
+      const channel = pickMemberChannel(channels);
+      if (!channel) throw new Error("Slack workspace has no public channel with bot membership");
       const result = await client.postMessage(channel, `Verification message ${LABEL()} — safe to delete`);
       const ts = result?.ts as string | undefined;
       if (!result?.ok || !ts) throw new Error(`Slack postMessage failed: ${JSON.stringify(result).slice(0, 200)}`);
@@ -266,11 +258,10 @@ export const slackAdapter: CapabilityAdapter = async (contract, ctx) => {
     case "slack-send-ephemeral": {
       if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
       const channels = await client.listConversations("public_channel");
-      const channel = channels[0]?.id as string | undefined;
+      const channel = pickMemberChannel(channels);
       const users = await client.getUsers();
       const user = users.find((u: any) => !u.is_bot && !u.deleted)?.id as string | undefined;
       if (!channel || !user) throw new Error("Slack workspace has no public channel + member for ephemeral message");
-      await ensureChannelMembership(channel);
       const result = await client.postEphemeral(channel, user, `Verification ephemeral ${LABEL()}`);
       if (!result?.ok) throw new Error(`Slack postEphemeral failed: ${JSON.stringify(result).slice(0, 200)}`);
       // Ephemeral messages are transient (visible only to the target user, no channel residue) — no delete needed.
@@ -279,9 +270,8 @@ export const slackAdapter: CapabilityAdapter = async (contract, ctx) => {
     case "slack-add-reaction": {
       if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
       const channels = await client.listConversations("public_channel");
-      const channel = channels[0]?.id as string | undefined;
-      if (!channel) throw new Error("Slack workspace has no public channel to post to");
-      await ensureChannelMembership(channel);
+      const channel = pickMemberChannel(channels);
+      if (!channel) throw new Error("Slack workspace has no public channel with bot membership");
       const sent = await client.postMessage(channel, `Verification reaction target ${LABEL()} — safe to delete`);
       const ts = sent?.ts as string | undefined;
       if (!sent?.ok || !ts) throw new Error(`Slack postMessage failed: ${JSON.stringify(sent).slice(0, 200)}`);
@@ -300,9 +290,8 @@ export const slackAdapter: CapabilityAdapter = async (contract, ctx) => {
     case "slack-upload-file": {
       if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
       const channels = await client.listConversations("public_channel");
-      const channel = channels[0]?.id as string | undefined;
-      if (!channel) throw new Error("Slack workspace has no public channel to upload to");
-      await ensureChannelMembership(channel);
+      const channel = pickMemberChannel(channels);
+      if (!channel) throw new Error("Slack workspace has no public channel with bot membership");
       const form = new FormData();
       form.append("channels", channel);
       form.append("filename", `phase7-verify-${Date.now()}.txt`);
