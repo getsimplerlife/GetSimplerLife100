@@ -195,7 +195,7 @@ export async function handleOAuthAuthorize(req: Request): Promise<Response> {
 
   // Fallback: if registry doesn't have the provider, try direct OAuth handling
   // for providers we know about (e.g., added to .env but not yet in registry snapshot)
-  if (providerId === "salesforce" && !registry.getProvider("salesforce")) {
+  if (providerId === "salesforce") {
     const redirectUri = process.env.OAUTH_REDIRECT_BASE
       ? `${process.env.OAUTH_REDIRECT_BASE}/api/oauth/callback`
       : "https://simplerlife100.ctonew.app/api/oauth/callback";
