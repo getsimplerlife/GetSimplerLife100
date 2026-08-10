@@ -2342,7 +2342,7 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
         const sfRedirectUri = process.env.OAUTH_REDIRECT_BASE ? `${process.env.OAUTH_REDIRECT_BASE}/api/oauth/callback` : "https://simplerlife100.ctonew.app/api/oauth/callback";
         // Generate PKCE code verifier and challenge (Salesforce requires PKCE)
         const sfCodeVerifier = randomBytes(32).toString("base64url");
-        const sfCodeChallenge = new Bun.SHA256().update(sfCodeVerifier).digest().toString("base64url").replace(/=+$/, "");
+        const sfCodeChallenge = Buffer.from(new Bun.SHA256().update(sfCodeVerifier).digest()).toString("base64url").replace(/=+$/, "");
         const sfState = crypto.randomUUID();
         // Store verifier for callback
         const sfStates = readJSON(OAUTH_STATES_FILE);
@@ -2356,7 +2356,10 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
       const providerData = integrations.find((p: any) =>
         p.id === provider || p.id?.toLowerCase() === provider.toLowerCase()
       );
-      if (!providerData) return Response.json({ error: "Unknown provider: " + provider }, { status: 404 });
+      if (!providerData) {
+        console.log(`[oauth] Provider "${provider}" not in integrations.json, falling through to dynamic handler`);
+        // Fall through to dynamic handler below — don't 404
+      }
       // Generate CSRF state bound to the authenticated tenant.
       const initiatingUser = await getUserFromSession(req);
       if (!initiatingUser?.email) return Response.json({ error: "Not authenticated" }, { status: 401 });
