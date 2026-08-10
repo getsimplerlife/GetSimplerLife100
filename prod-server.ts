@@ -2340,13 +2340,16 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
       if (provider === "salesforce") {
         const sfClientId = process.env.SALESFORCE_CLIENT_ID || process.env.OAUTH_SALESFORCE_CLIENT_ID || "3MVG9dAEux2v1sLtBkctu8cCTG9trew18uFCjes2Ziz.L3d0DD34_ca3AQ4Gd8ok0bALQNnRxvkgaRpV.Z3Kk";
         const sfRedirectUri = process.env.OAUTH_REDIRECT_BASE ? `${process.env.OAUTH_REDIRECT_BASE}/api/oauth/callback` : "https://simplerlife100.ctonew.app/api/oauth/callback";
+        // Get authenticated user for state binding
+        const sfUser = await getUserFromSession(req);
+        const sfEmail = sfUser?.email || "unknown";
         // Generate PKCE code verifier and challenge (Salesforce requires PKCE)
         const sfCodeVerifier = randomBytes(32).toString("base64url");
         const sfCodeChallenge = Buffer.from(new Bun.SHA256().update(sfCodeVerifier).digest()).toString("base64url").replace(/=+$/, "");
         const sfState = crypto.randomUUID();
-        // Store verifier for callback
+        // Store state with email for callback validation
         const sfStates = readJSON(OAUTH_STATES_FILE);
-        sfStates[sfState] = { provider: "salesforce", verifier: sfCodeVerifier, createdAt: Date.now() };
+        sfStates[sfState] = { provider: "salesforce", email: sfEmail, verifier: sfCodeVerifier, createdAt: Date.now() };
         writeJSON(OAUTH_STATES_FILE, sfStates);
         const sfUrl = `https://login.salesforce.com/services/oauth2/authorize?response_type=code&client_id=${encodeURIComponent(sfClientId)}&redirect_uri=${encodeURIComponent(sfRedirectUri)}&state=${sfState}&scope=api+refresh_token+offline_access&code_challenge=${sfCodeChallenge}&code_challenge_method=S256`;
         return Response.redirect(sfUrl, 302);
