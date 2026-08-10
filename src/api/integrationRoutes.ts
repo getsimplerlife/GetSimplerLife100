@@ -193,6 +193,20 @@ export async function handleOAuthAuthorize(req: Request): Promise<Response> {
   const providerId = url.searchParams.get("provider");
   if (!providerId) return error("Missing provider parameter");
 
+  // Fallback: if registry doesn't have the provider, try direct OAuth handling
+  // for providers we know about (e.g., added to .env but not yet in registry snapshot)
+  if (providerId === "salesforce" && !registry.getProvider("salesforce")) {
+    const redirectUri = process.env.OAUTH_REDIRECT_BASE
+      ? `${process.env.OAUTH_REDIRECT_BASE}/api/oauth/callback`
+      : "https://simplerlife100.ctonew.app/api/oauth/callback";
+    const clientId = process.env.SALESFORCE_CLIENT_ID;
+    if (clientId) {
+      const state = crypto.randomUUID();
+      const sfUrl = `https://login.salesforce.com/services/oauth2/authorize?response_type=code&client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=api+refresh_token+offline_access`;
+      return redirect(sfUrl);
+    }
+  }
+
   const providerMeta = registry.getProvider(providerId);
   if (!providerMeta) return error(`Unknown provider: ${providerId}`, 404);
 
