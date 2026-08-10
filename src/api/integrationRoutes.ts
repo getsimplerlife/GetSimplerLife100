@@ -199,7 +199,7 @@ export async function handleOAuthAuthorize(req: Request): Promise<Response> {
     const redirectUri = process.env.OAUTH_REDIRECT_BASE
       ? `${process.env.OAUTH_REDIRECT_BASE}/api/oauth/callback`
       : "https://simplerlife100.ctonew.app/api/oauth/callback";
-    const clientId = process.env.SALESFORCE_CLIENT_ID;
+    const clientId = process.env.SALESFORCE_CLIENT_ID || process.env.OAUTH_SALESFORCE_CLIENT_ID;
     if (clientId) {
       const state = crypto.randomUUID();
       const sfUrl = `https://login.salesforce.com/services/oauth2/authorize?response_type=code&client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=api+refresh_token+offline_access`;
