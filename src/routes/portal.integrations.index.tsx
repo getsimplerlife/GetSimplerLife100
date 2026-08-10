@@ -271,9 +271,26 @@ function ConnectedServices() {
   };
 
   useEffect(() => {
-    // Parallel: fetch connections and documents simultaneously
-    Promise.all([fetchConnectionsData(), fetchDocumentsData()]);
-  }, []);
+      // Parallel: fetch connections and documents simultaneously
+      Promise.all([fetchConnectionsData(), fetchDocumentsData()]);
+
+      // Read OAuth callback success/error from URL query params
+      const params = new URLSearchParams(window.location.search);
+      const successMsg = params.get("success");
+      const errorMsg = params.get("error");
+      if (successMsg) {
+        setFeedback(decodeURIComponent(successMsg));
+        // Clean the URL so the message doesn't reappear on refresh
+        const url = new URL(window.location.href);
+        url.searchParams.delete("success");
+        window.history.replaceState({}, "", url.toString());
+      } else if (errorMsg) {
+        setFeedback(`❌ ${decodeURIComponent(errorMsg)}`);
+        const url = new URL(window.location.href);
+        url.searchParams.delete("error");
+        window.history.replaceState({}, "", url.toString());
+      }
+    }, []);
 
   // Connect Redirect Handler
   const handleConnect = (providerId: string) => {
