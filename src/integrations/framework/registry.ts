@@ -65,6 +65,11 @@ class ProviderRegistry {
     return this.providers.get(id);
   }
 
+  // Alias for get() — used by integrationRoutes.ts
+  getProvider(id: string): ProviderMetadata | undefined {
+    return this.get(id);
+  }
+
   listByCategory(category: ProviderCategory): ProviderMetadata[] {
     return Array.from(this.providers.values()).filter((p) => p.category === category);
   }
