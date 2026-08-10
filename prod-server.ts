@@ -39,7 +39,7 @@ async function getAgents() {
 
 const BUILD_ID = Date.now().toString(36);
 const DIST_CLIENT = join(typeof import.meta?.dir !== "undefined" ? import.meta.dir : __dirname, "dist");
-const DATA_DIR = join(typeof import.meta?.dir !== "undefined" ? import.meta.dir : __dirname, ".data");
+const DATA_DIR = process.env.DATA_DIR ? (process.env.DATA_DIR.startsWith("/") ? process.env.DATA_DIR : join(typeof import.meta?.dir !== "undefined" ? import.meta.dir : __dirname, process.env.DATA_DIR)) : join(typeof import.meta?.dir !== "undefined" ? import.meta.dir : __dirname, ".data");
 const USERS_FILE = join(DATA_DIR, "users.json");
 const SESSIONS_FILE = join(DATA_DIR, "sessions.json");
 const TENANT_INTEGRATIONS_FILE = join(DATA_DIR, "tenant_integrations.json");
@@ -2336,6 +2336,14 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
     if (pathname === "/api/oauth/authorize") {
       const provider = url.searchParams.get("provider");
       if (!provider) return Response.json({ error: "provider param required" }, { status: 400 });
+      // Salesforce direct OAuth fallback (v2026-08-10: bypass integrations.json check)
+      if (provider === "salesforce") {
+        const sfClientId = process.env.SALESFORCE_CLIENT_ID || process.env.OAUTH_SALESFORCE_CLIENT_ID || "3MVG9dAEux2v1sLtBkctu8cCTG9trew18uFCjes2Ziz.L3d0DD34_ca3AQ4Gd8ok0bALQNnRxvkgaRpV.Z3Kk";
+        const sfRedirectUri = process.env.OAUTH_REDIRECT_BASE ? `${process.env.OAUTH_REDIRECT_BASE}/api/oauth/callback` : "https://simplerlife100.ctonew.app/api/oauth/callback";
+        const sfState = crypto.randomUUID();
+        const sfUrl = `https://login.salesforce.com/services/oauth2/authorize?response_type=code&client_id=${encodeURIComponent(sfClientId)}&redirect_uri=${encodeURIComponent(sfRedirectUri)}&state=${sfState}&scope=api+refresh_token+offline_access`;
+        return Response.redirect(sfUrl, 302);
+      }
       // Look up provider in integrations.json
       const integrations = readJSON(join(DATA_DIR, "integrations.json"));
       const providerData = integrations.find((p: any) =>
