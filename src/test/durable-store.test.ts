@@ -180,3 +180,29 @@ describe("durable store — durability contract", () => {
     expect(durableGet("sessions.json")).toEqual({});
   });
 });
+
+describe("durable store — fresh DB seeding", () => {
+  it("seeds the admin user and defaults into a fresh DB", async () => {
+    await durableClose();
+    const dir = join(tmpDir, "freshseed");
+    mkdirSync(dir, { recursive: true });
+    const driver = new MemoryKvDriver(); // empty DB — simulating first Neon boot
+    await initDurableStore(dir, driver);
+    seedDataFiles(dir); // should write defaults into BOTH file and durable store
+    await durableFlush();
+    // Admin user landed in the durable store (fresh DB gets admin).
+    expect(durableHas("users.json")).toBe(true);
+    const users = durableGet("users.json");
+    const admin = Object.values(users).find((u: any) => u && u.role === "admin");
+    expect(admin).toBeDefined();
+    expect(admin.email).toBe("mathewortiz97@gmail.com");
+    // And mirrored into the driver (the DB).
+    const dbUsers = driver.dump()["users.json"];
+    expect(Object.values(dbUsers).some((u: any) => u && u.role === "admin")).toBe(true);
+    // Defaults for the critical files exist in the durable store too.
+    expect(durableHas("tenant_integrations.json")).toBe(true);
+    expect(durableHas("tenant_purchases.json")).toBe(true);
+    expect(durableHas("sessions.json")).toBe(true);
+    expect(durableHas("tenant_oauth_credentials.json")).toBe(true);
+  });
+});

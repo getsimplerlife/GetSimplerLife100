@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync, existsSync, statSync } from "fs";
 import { join, basename } from "path";
+import { getDb, initDbSchema, pingDb, dbAll, closeDb } from "./db";
 
 /**
  * durable-store.ts — durable runtime data mirror backed by Postgres (Neon).
@@ -10,8 +11,8 @@ import { join, basename } from "path";
  * tokens, sessions, users, purchases, chat, and audit logs must live in a
  * durable external database so they survive every publish.
  *
- * This module mirrors the file-based JSON store (data-store.ts) into a
- * Postgres table `runtime_kv (key TEXT PRIMARY KEY, value JSONB, updated_at)`.
+ * This module mirrors the file-based JSON store (data-store.ts) into the
+ * Postgres `kv_store` table (see src/lib/db.ts):
  * - `initDurableStore(dataDir)` hydrates an in-memory cache from Postgres,
  *   then migrates any files that exist locally but are missing in the DB
  *   (strictly create-if-missing, idempotent).
@@ -22,9 +23,10 @@ import { join, basename } from "path";
  *   consistent.
  *
  * The driver is injectable for tests: `initDurableStore(dataDir, driver?)`.
- * The default driver uses Bun.sql against `process.env.DATABASE_URL`
- * (Neon). When DATABASE_URL is absent, the durable store stays disabled and
- * the file-based store (data-store.ts) is the only layer — current behavior.
+ * The default driver uses `postgres` (src/lib/db.ts) against
+ * `process.env.DATABASE_URL` (Neon). When DATABASE_URL is absent, the
+ * durable store stays disabled and the file-based store (data-store.ts) is
+ * the only layer — current behavior, byte-for-byte.
  */
 
 export interface KvDriver {
@@ -43,7 +45,6 @@ export class MemoryKvDriver implements KvDriver {
     const s = sql.trim();
     if (/^create table/i.test(s)) return [] as any;
     if (/^insert|^update|^upsert/i.test(s)) {
-      // INSERT ... (key, value) VALUES ($1, $2) ON CONFLICT ...
       const key = String(values?.[0] ?? "");
       const value = values?.[1] ?? null;
       this.store.set(key, value === null ? null : (typeof value === "string" ? JSON.parse(value) : value));
@@ -68,7 +69,6 @@ export class MemoryKvDriver implements KvDriver {
   }
 }
 
-const DURABLE_TABLE = "runtime_kv";
 const MAX_WRITE_ATTEMPTS = 3;
 
 let enabled = false;
@@ -110,7 +110,7 @@ function queueUpsert(key: string, value: any): void {
     for (let attempt = 1; attempt <= MAX_WRITE_ATTEMPTS; attempt++) {
       try {
         await driver!.unsafe(
-          `INSERT INTO ${DURABLE_TABLE} (key, value, updated_at) VALUES ($1, $2::jsonb, now()) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`,
+          `INSERT INTO kv_store (key, value, updated_at) VALUES ($1, $2::jsonb, now()) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`,
           [key, text],
         );
         return;
@@ -139,6 +139,7 @@ export async function durableClose(): Promise<void> {
   driver = null;
   dataDir = null;
   cache.clear();
+  await closeDb();
 }
 
 /**
@@ -152,24 +153,50 @@ export async function initDurableStore(
   providedDriver?: KvDriver,
 ): Promise<{ enabled: boolean; loaded: number; migrated: number; error?: string }> {
   dataDir = dir;
-  const url = process.env.DATABASE_URL?.trim();
-  if (!providedDriver && !url) {
+  if (!providedDriver && !process.env.DATABASE_URL?.trim()) {
     return { enabled: false, loaded: 0, migrated: 0 };
   }
   try {
     if (!providedDriver) {
-      const { SQL } = await import("bun");
-      const host = (() => { try { return new URL(url!).hostname; } catch { return ""; } })();
-      const needsTls = !!host && host !== "localhost" && host !== "127.0.0.1" && host !== "::1";
-      // Neon requires TLS; local Postgres usually does not.
-      providedDriver = new SQL({ url, tls: needsTls, connectTimeout: 8, max: 2 }) as unknown as KvDriver;
+      // Real Postgres driver (src/lib/db.ts) — throws if DATABASE_URL missing.
+      const db = getDb();
+      await initDbSchema(db);
+      await pingDb(db);
+      providedDriver = {
+        unsafe: (sql: string, values?: any[]) => db.unsafe(sql, values),
+      } as KvDriver;
+      // Seed the cache from the DB.
+      const rows = await dbAll(db);
+      cache.clear();
+      for (const r of rows) cache.set(r.key, JSON.stringify(r.value));
+      // Migrate local files missing in the DB (create-if-missing).
+      let migrated = 0;
+      if (existsSync(dir)) {
+        for (const name of readdirSync(dir)) {
+          if (!name.endsWith(".json")) continue;
+          if (cache.has(name)) continue;
+          const full = join(dir, name);
+          try {
+            if (!statSync(full).isFile()) continue;
+            const text = readFileSync(full, "utf-8");
+            const parsed = JSON.parse(text);
+            cache.set(name, JSON.stringify(parsed));
+            queueUpsert(name, parsed);
+            migrated++;
+          } catch { /* unreadable/corrupt — skip */ }
+        }
+      }
+      await durableFlush();
+      driver = providedDriver;
+      enabled = true;
+      return { enabled: true, loaded: rows.length, migrated };
     }
     driver = providedDriver;
     enabled = true; // must be set before queueUpsert runs (migration below)
     await driver.unsafe(
-      `CREATE TABLE IF NOT EXISTS ${DURABLE_TABLE} (key TEXT PRIMARY KEY, value JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+      `CREATE TABLE IF NOT EXISTS kv_store (key TEXT PRIMARY KEY, value JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
     );
-    const rows: any[] = await driver.unsafe(`SELECT key, value FROM ${DURABLE_TABLE}`);
+    const rows: any[] = await driver.unsafe(`SELECT key, value FROM kv_store`);
     cache.clear();
     for (const r of rows) {
       const v = r.value;

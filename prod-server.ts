@@ -353,9 +353,11 @@ if (legacyMig.migrated > 0) console.log("[prod-server] legacy DATA_DIR migration
 const durableInit = await initDurableStore(DATA_DIR);
 seedDataFiles(DATA_DIR);
 console.log("[prod-server] DATA_DIR=" + DATA_DIR + (isInsidePublishTree(DATA_DIR) ? "  [WARNING: DATA_DIR is inside the publish tree — a publish can wipe runtime data]" : ""));
-console.log("[prod-server] durable store: " + (durableInit.enabled
-  ? "POSTGRES enabled (loaded " + durableInit.loaded + " key(s), migrated " + durableInit.migrated + " file(s) from disk)"
-  : (durableInit.error ? "DISABLED (init error: " + durableInit.error + ") — using file store only" : "DISABLED (no DATABASE_URL) — using file store only")));
+if (durableInit.enabled) {
+  console.log("[prod-server] using durable Postgres store (loaded " + durableInit.loaded + " key(s), migrated " + durableInit.migrated + " file(s) from disk)");
+} else {
+  console.log("[prod-server] durable Postgres store " + (durableInit.error ? "DISABLED (init error: " + durableInit.error + ") — using file store only" : "DISABLED (no DATABASE_URL) — using file store only"));
+}
 console.log("[prod-server] Starting server on port 3000...");
 serve({
   port: 3000,
