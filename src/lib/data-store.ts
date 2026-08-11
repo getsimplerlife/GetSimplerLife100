@@ -1,5 +1,6 @@
 import { join } from "path";
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync, copyFileSync } from "fs";
+import { durableEnabled, durableGet, durableHas, durableKeyFor, durableSet } from "./durable-store";
 
 /**
  * data-store.ts — runtime data directory resolution and boot-time seeding.
@@ -109,6 +110,9 @@ export function countConnections(data: any): number {
 
 /** Read a JSON file; missing/corrupt files read as {} (never throw). */
 export function readJSON(path: string): any {
+  const key = durableKeyFor(path);
+  const dv = durableGet(key);
+  if (dv !== undefined) return dv;
   if (!existsSync(path)) return {};
   try {
     return JSON.parse(readFileSync(path, "utf-8"));
@@ -118,15 +122,28 @@ export function readJSON(path: string): any {
   }
 }
 
-/** Write a JSON file (pretty-printed). */
+/** Write a JSON file (pretty-printed). Mirrors to the durable store too. */
 export function writeJSON(path: string, data: any): void {
+  durableSet(durableKeyFor(path), data);
   writeFileSync(path, JSON.stringify(data, null, 2));
+}
+
+/** True when the file exists on disk OR the durable store holds its key. */
+function fileOrDurableExists(file: string): boolean {
+  if (durableEnabled()) {
+    const key = durableKeyFor(file);
+    if (durableHas(key)) return true;
+  }
+  return existsSync(file);
 }
 
 /**
  * Boot-time seed: guarantees critical files exist with correct types.
  * CREATE-IF-MISSING ONLY — existing files (connections, OAuth tokens,
  * sessions, purchases) are never deleted, truncated, or overwritten.
+ * Durable-aware: when the durable store is enabled, a key present in the
+ * durable store counts as "exists" even if the file was wiped by a publish,
+ * so real data is never replaced by empty seeds.
  */
 export function seedDataFiles(dataDir: string): void {
   // Ensure data directory exists
@@ -136,7 +153,7 @@ export function seedDataFiles(dataDir: string): void {
 
   // integrations.json MUST be an array — .find() crashes on {}
   const intFile = join(dataDir, "integrations.json");
-  if (!existsSync(intFile)) { writeJSON(intFile, []); }
+  if (!fileOrDurableExists(intFile)) { writeJSON(intFile, []); }
   else {
     try {
       const v = readJSON(intFile);
@@ -146,7 +163,7 @@ export function seedDataFiles(dataDir: string): void {
 
   // tenant_oauth_credentials.json — persists OAuth tokens across deploys
   const oauthFile = join(dataDir, "tenant_oauth_credentials.json");
-  if (!existsSync(oauthFile)) writeJSON(oauthFile, {});
+  if (!fileOrDurableExists(oauthFile)) writeJSON(oauthFile, {});
 
   // Seed admin user if no admin exists (create-if-missing only)
   const adminEmail = process.env.ADMIN_EMAIL || "mathewortiz97@gmail.com";
@@ -179,7 +196,7 @@ export function seedDataFiles(dataDir: string): void {
     "ai_employees.json",
   ]) {
     const file = join(dataDir, f);
-    if (!existsSync(file)) writeJSON(file, {});
+    if (!fileOrDurableExists(file)) writeJSON(file, {});
   }
 }
 
