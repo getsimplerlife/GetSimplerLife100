@@ -2,7 +2,7 @@ import { serve } from "bun";
 import { join, basename } from "path";
 import { readFileSync, writeFileSync, existsSync, readdirSync } from "fs";
 import { createHash, randomBytes } from "crypto";
-import { resolveDataDir, isInsidePublishTree, readJSON, writeJSON, seedDataFiles, bucketConnectionsByCategory } from "./src/lib/data-store";
+import { resolveDataDir, isInsidePublishTree, readJSON, writeJSON, seedDataFiles, bucketConnectionsByCategory, migrateLegacyData, findLegacyDataDir, countConnections } from "./src/lib/data-store";
 
 // ── Lazy module accessors — loaded on first use to keep server startup under 1s ──
 let _bcryptjs: any;
@@ -345,6 +345,8 @@ const _bgInit = (async () => {
 })().catch(e => console.error("[prod-server] Background init error:", e));
 
 // ── START SERVER IMMEDIATELY — no blocking work before this ──
+const legacyMig = migrateLegacyData(DATA_DIR);
+if (legacyMig.migrated > 0) console.log("[prod-server] legacy DATA_DIR migration: copied " + legacyMig.migrated + " file(s) from " + legacyMig.legacyDir);
 seedDataFiles(DATA_DIR);
 console.log("[prod-server] DATA_DIR=" + DATA_DIR + (isInsidePublishTree(DATA_DIR) ? "  [WARNING: DATA_DIR is inside the publish tree — a publish can wipe runtime data]" : ""));
 console.log("[prod-server] Starting server on port 3000...");
@@ -1890,6 +1892,19 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
           uptime: process.uptime(),
           memory: process.memoryUsage(),
           timestamp: new Date().toISOString(),
+        });
+      }
+      if (subPath === "datadir") {
+        const legacyDir = findLegacyDataDir();
+        const currentConns = readJSON(TENANT_INTEGRATIONS_FILE);
+        const legacyConns = legacyDir ? readJSON(join(legacyDir, "tenant_integrations.json")) : {};
+        return Response.json({
+          dataDir: DATA_DIR,
+          insidePublishTree: isInsidePublishTree(DATA_DIR),
+          legacyDirExists: !!legacyDir,
+          legacyDir: legacyDir,
+          legacyConnectionCount: countConnections(legacyConns),
+          currentConnectionCount: countConnections(currentConns),
         });
       }
       if (subPath === "credentials") {
