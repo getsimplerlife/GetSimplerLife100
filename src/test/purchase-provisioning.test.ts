@@ -2,8 +2,9 @@ import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { join } from "path";
 
-// Must match DATA_DIR used by prod-server.ts: /home/team/shared/site/.data
-const PURCHASES_FILE = "/home/team/shared/site/.data/tenant_purchases.json";
+// Must match the DATA_DIR used by prod-server.ts when started from the repo
+// without a DATA_DIR override: <repo>/.data (see src/lib/data-store.ts resolveDataDir).
+const PURCHASES_FILE = join(process.cwd(), ".data", "tenant_purchases.json");
 
 const TEST_EMAIL = "e2e-provisioning@" + Date.now() + ".test";
 

@@ -2,6 +2,7 @@ import { serve } from "bun";
 import { join, basename } from "path";
 import { readFileSync, writeFileSync, existsSync, readdirSync } from "fs";
 import { createHash, randomBytes } from "crypto";
+import { resolveDataDir, isInsidePublishTree, readJSON, writeJSON, seedDataFiles, bucketConnectionsByCategory } from "./src/lib/data-store";
 
 // ── Lazy module accessors — loaded on first use to keep server startup under 1s ──
 let _bcryptjs: any;
@@ -39,7 +40,7 @@ async function getAgents() {
 
 const BUILD_ID = Date.now().toString(36);
 const DIST_CLIENT = join(typeof import.meta?.dir !== "undefined" ? import.meta.dir : __dirname, "dist");
-const DATA_DIR = process.env.DATA_DIR ? (process.env.DATA_DIR.startsWith("/") ? process.env.DATA_DIR : join(typeof import.meta?.dir !== "undefined" ? import.meta.dir : __dirname, process.env.DATA_DIR)) : join(typeof import.meta?.dir !== "undefined" ? import.meta.dir : __dirname, ".data");
+const DATA_DIR = resolveDataDir(process.env.DATA_DIR, typeof import.meta?.dir !== "undefined" ? import.meta.dir : __dirname);
 const USERS_FILE = join(DATA_DIR, "users.json");
 const SESSIONS_FILE = join(DATA_DIR, "sessions.json");
 const TENANT_INTEGRATIONS_FILE = join(DATA_DIR, "tenant_integrations.json");
@@ -59,62 +60,6 @@ const INDUSTRY_BLUEPRINTS = [
   { name: "Manufacturing Quality Control", category: "manufacturing", description: "Computer vision QC pipeline for assembly line defect detection. Real-time alerts and trend analysis via Power BI dashboards." },
   { name: "Financial Reconciliation Suite", category: "finance", description: "Automated bank reconciliation, intercompany settlement matching, and audit trail generation across NetSuite, BlackLine, and SAP." },
 ];
-
-function readJSON(path: string): any {
-  if (!existsSync(path)) return {};
-  try { return JSON.parse(readFileSync(path, "utf-8")); } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e))); return {}; }
-}
-
-function writeJSON(path: string, data: any) {
-  writeFileSync(path, JSON.stringify(data, null, 2));
-}
-
-// ── Startup Seed: guarantees critical files always exist with correct types ──
-function seedDataFiles() {
-  // Ensure .data directory exists
-  if (!existsSync(DATA_DIR)) { try { require("fs").mkdirSync(DATA_DIR, { recursive: true }); } catch(_) {} }
-
-  // integrations.json MUST be an array — .find() crashes on {}
-  const intFile = join(DATA_DIR, "integrations.json");
-  if (!existsSync(intFile)) { writeJSON(intFile, []); }
-  else { try { const v = readJSON(intFile); if (!Array.isArray(v)) writeJSON(intFile, []); } catch(_) { writeJSON(intFile, []); } }
-
-  // tenant_oauth_credentials.json — persists OAuth tokens across deploys
-  const oauthFile = join(DATA_DIR, "tenant_oauth_credentials.json");
-  if (!existsSync(oauthFile)) writeJSON(oauthFile, {});
-
-  // Seed admin user if no admin exists
-  const adminEmail = process.env.ADMIN_EMAIL || "mathewortiz97@gmail.com";
-  const users = readJSON(USERS_FILE);
-  const hasAdmin = Object.values(users).some((u: any) => u.role === "admin");
-  if (!hasAdmin) {
-    const { hashSync } = require("bcryptjs");
-    const adminPass = process.env.ADMIN_PASSWORD || "Mdsl1234";
-    users[adminEmail] = {
-      email: adminEmail,
-      password: hashSync(adminPass, 10),
-      role: "admin",
-      createdAt: Date.now(),
-    };
-    writeJSON(USERS_FILE, users);
-  }
-
-  // Ensure other critical files exist with sensible defaults
-  for (const [f, def] of [
-    [SESSIONS_FILE, {}],
-    [OAUTH_STATES_FILE, {}],
-    [TENANT_PURCHASES_FILE, {}],
-    [AUDIT_LOG_FILE, {}],
-    [LEADS_FILE, {}],
-    [LEAD_NOTIFICATIONS_FILE, {}],
-    [PENDING_EMAILS_FILE, {}],
-    [CHAT_SESSIONS_FILE, {}],
-    [TENANT_INTEGRATIONS_FILE, {}],
-    [AI_EMPLOYEES_FILE, {}],
-  ] as const) {
-    if (!existsSync(f)) writeJSON(f, def);
-  }
-}
 
 
 
@@ -400,7 +345,9 @@ const _bgInit = (async () => {
 })().catch(e => console.error("[prod-server] Background init error:", e));
 
 // ── START SERVER IMMEDIATELY — no blocking work before this ──
-seedDataFiles(); console.log("[prod-server] Starting server on port 3000...");
+seedDataFiles(DATA_DIR);
+console.log("[prod-server] DATA_DIR=" + DATA_DIR + (isInsidePublishTree(DATA_DIR) ? "  [WARNING: DATA_DIR is inside the publish tree — a publish can wipe runtime data]" : ""));
+console.log("[prod-server] Starting server on port 3000...");
 serve({
   port: 3000,
   async fetch(req) {
@@ -546,19 +493,7 @@ serve({
       if (user === null || user === undefined) return Response.json({ error: "Not authenticated" }, { status: 401 });
       const all = readJSON(TENANT_INTEGRATIONS_FILE);
       const userConns = all[user.email] || [];
-      const crmConns: any[] = [];
-      const erpConns: any[] = [];
-      const otherConns: any[] = [];
-      for (const c of userConns) {
-        const cat = (c.category || "").toLowerCase();
-        if (cat.includes("crm")) {
-          crmConns.push(c);
-        } else if (cat.includes("erp") || cat.includes("accounting")) {
-          erpConns.push(c);
-        } else {
-          otherConns.push(c);
-        }
-      }
+      const { crm: crmConns, erp: erpConns, other: otherConns } = bucketConnectionsByCategory(userConns);
       const getSlotInfo = (packType: string) => {
         if (user.email === "mathewortiz97@gmail.com") return { totalSlots: 999, usedSlots: 0, remainingSlots: 999, isOwner: true };
         const purchases = readJSON(TENANT_PURCHASES_FILE);
