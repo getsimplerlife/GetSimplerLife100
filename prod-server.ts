@@ -3,6 +3,7 @@ import { join, basename } from "path";
 import { readFileSync, writeFileSync, existsSync, readdirSync } from "fs";
 import { createHash, randomBytes } from "crypto";
 import { resolveDataDir, isInsidePublishTree, readJSON, writeJSON, seedDataFiles, bucketConnectionsByCategory, migrateLegacyData, findLegacyDataDir, countConnections } from "./src/lib/data-store";
+import { initDurableStore, durableEnabled, durableKeyCount } from "./src/lib/durable-store";
 
 // ── Lazy module accessors — loaded on first use to keep server startup under 1s ──
 let _bcryptjs: any;
@@ -344,11 +345,17 @@ const _bgInit = (async () => {
   console.log("[prod-server] Background init complete");
 })().catch(e => console.error("[prod-server] Background init error:", e));
 
-// ── START SERVER IMMEDIATELY — no blocking work before this ──
+// ── START SERVER — durable store hydration completes before the first request ──
+// (If DATABASE_URL is absent or unreachable, initDurableStore returns fast
+// with enabled:false and the file-based store is the only layer.)
 const legacyMig = migrateLegacyData(DATA_DIR);
 if (legacyMig.migrated > 0) console.log("[prod-server] legacy DATA_DIR migration: copied " + legacyMig.migrated + " file(s) from " + legacyMig.legacyDir);
+const durableInit = await initDurableStore(DATA_DIR);
 seedDataFiles(DATA_DIR);
 console.log("[prod-server] DATA_DIR=" + DATA_DIR + (isInsidePublishTree(DATA_DIR) ? "  [WARNING: DATA_DIR is inside the publish tree — a publish can wipe runtime data]" : ""));
+console.log("[prod-server] durable store: " + (durableInit.enabled
+  ? "POSTGRES enabled (loaded " + durableInit.loaded + " key(s), migrated " + durableInit.migrated + " file(s) from disk)"
+  : (durableInit.error ? "DISABLED (init error: " + durableInit.error + ") — using file store only" : "DISABLED (no DATABASE_URL) — using file store only")));
 console.log("[prod-server] Starting server on port 3000...");
 serve({
   port: 3000,
@@ -1905,6 +1912,8 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
           legacyDir: legacyDir,
           legacyConnectionCount: countConnections(legacyConns),
           currentConnectionCount: countConnections(currentConns),
+          durableStore: durableEnabled() ? "postgres" : "file",
+          durableKeyCount: durableEnabled() ? durableKeyCount() : 0,
         });
       }
       if (subPath === "credentials") {
