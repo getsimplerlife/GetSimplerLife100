@@ -14,10 +14,10 @@
 //     / everything else), so no connection is invisible in the UI totals.
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync } from "fs";
+import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync, mkdirSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import { resolveDataDir, isInsidePublishTree, readJSON, seedDataFiles, bucketConnectionsByCategory } from "../lib/data-store";
+import { resolveDataDir, isInsidePublishTree, readJSON, seedDataFiles, bucketConnectionsByCategory, migrateLegacyData, findLegacyDataDir, countConnections, legacyDataDirCandidates } from "../lib/data-store";
 
 let tmpDir: string;
 
@@ -189,5 +189,72 @@ describe("repo .env DATA_DIR safety", () => {
     if (!m) return;
     const value = m[1].trim().replace(/^["']|["']$/g, "");
     expect(value, `DATA_DIR=${value} must not resolve inside the publish tree`).not.toMatch(/\/shared\/site\//);
+  });
+});
+
+describe("legacy publish-tree DATA_DIR migration (post-deploy recovery)", () => {
+  const L = () => join(tmpDir, "legacy-site", ".data");
+  const F = () => join(tmpDir, "fresh-target", ".data");
+  const P = () => join(tmpDir, "populated-target", ".data");
+  const E = () => join(tmpDir, "empty-legacy", ".data");
+
+  it("migrates a fresh/empty target from the legacy publish-tree store", () => {
+    const legacyDir = L(); const freshTarget = F();
+    mkdirSync(legacyDir, { recursive: true });
+    writeFileSync(join(legacyDir, "tenant_integrations.json"), JSON.stringify({ "t@x.com": [{ id: "c1", providerId: "slack" }] }));
+    writeFileSync(join(legacyDir, "tenant_oauth_credentials.json"), JSON.stringify({ slack: { accessToken: "xoxb-legacy" } }));
+    writeFileSync(join(legacyDir, "sessions.json"), JSON.stringify({}));
+
+    const result = migrateLegacyData(freshTarget, [legacyDir]);
+    expect(result.migrated).toBe(3);
+    expect(result.legacyDir).toBe(legacyDir);
+    // Files actually copied with content intact
+    const ints = readJSON(join(freshTarget, "tenant_integrations.json"));
+    expect(ints["t@x.com"][0].providerId).toBe("slack");
+    const oauth = readJSON(join(freshTarget, "tenant_oauth_credentials.json"));
+    expect(oauth.slack.accessToken).toBe("xoxb-legacy");
+    expect(existsSync(join(freshTarget, "sessions.json"))).toBe(true);
+  });
+
+  it("is idempotent — a second run copies nothing", () => {
+    const legacyDir = L(); const freshTarget = F();
+    const again = migrateLegacyData(freshTarget, [legacyDir]);
+    expect(again.migrated).toBe(0);
+    // Content unchanged by the second run
+    const ints = readJSON(join(freshTarget, "tenant_integrations.json"));
+    expect(ints["t@x.com"].length).toBe(1);
+  });
+
+  it("never touches an already-populated target", () => {
+    const legacyDir = L(); const populatedTarget = P();
+    mkdirSync(populatedTarget, { recursive: true });
+    writeFileSync(join(populatedTarget, "tenant_integrations.json"), JSON.stringify({ "t@x.com": [{ id: "live", providerId: "xero" }] }));
+    const before = readFileSync(join(populatedTarget, "tenant_integrations.json"), "utf-8");
+    const result = migrateLegacyData(populatedTarget, [legacyDir]);
+    expect(result.migrated).toBe(0);
+    expect(readFileSync(join(populatedTarget, "tenant_integrations.json"), "utf-8")).toBe(before);
+  });
+
+  it("both-empty → no-op (no legacy dir, no target files)", () => {
+    const result = migrateLegacyData(join(tmpDir, "noop-target", ".data"), [E()]);
+    expect(result.migrated).toBe(0);
+  });
+
+  it("counts connections from tenant_integrations.json payloads", () => {
+    expect(countConnections({ "t@x.com": [{ id: "a" }, { id: "b" }] })).toBe(2);
+    expect(countConnections([{ id: "a" }])).toBe(1);
+    expect(countConnections({})).toBe(0);
+    expect(countConnections(undefined as any)).toBe(0);
+  });
+
+  it("findLegacyDataDir returns the first existing candidate", () => {
+    mkdirSync(E(), { recursive: true });
+    expect(findLegacyDataDir([E(), L()])).toBe(E());
+    expect(findLegacyDataDir(["/nonexistent/a", "/nonexistent/b"])).toBeNull();
+  });
+
+  it("legacy candidates include the documented publish-tree path", () => {
+    const candidates = legacyDataDirCandidates();
+    expect(candidates).toContain("/home/team/shared/site/.data");
   });
 });

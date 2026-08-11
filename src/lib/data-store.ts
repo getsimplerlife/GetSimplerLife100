@@ -1,5 +1,5 @@
 import { join } from "path";
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync, copyFileSync } from "fs";
 
 /**
  * data-store.ts — runtime data directory resolution and boot-time seeding.
@@ -32,6 +32,79 @@ export function resolveDataDir(envDir: string | undefined, baseDir: string): str
 /** True when the resolved data dir sits inside a platform publish tree. */
 export function isInsidePublishTree(dataDir: string): boolean {
   return /\/shared\/site\//.test(dataDir) || /\/site\/\.data$/.test(dataDir);
+}
+
+/**
+ * Known publish-tree data dirs from BEFORE the connection-persistence fix
+ * (PR #124). The live host's pre-fix store may still exist at one of these
+ * paths; the migration below copies it in once, then it is never touched.
+ */
+export function legacyDataDirCandidates(): string[] {
+  const candidates: string[] = [];
+  if (process.env.LEGACY_DATA_DIR?.trim()) candidates.push(process.env.LEGACY_DATA_DIR.trim());
+  candidates.push("/home/team/shared/site/.data");
+  return candidates;
+}
+
+/** First existing legacy data dir from the candidate list (null when none). */
+export function findLegacyDataDir(candidates: string[] = legacyDataDirCandidates()): string | null {
+  for (const c of candidates) {
+    if (!c) continue;
+    try {
+      if (existsSync(c) && statSync(c).isDirectory()) return c;
+    } catch (_) { /* unreadable candidate — skip */ }
+  }
+  return null;
+}
+
+/**
+ * One-time legacy-store migration (post-deploy recovery, 2026-08-11).
+ *
+ * On boot with a FRESH/EMPTY resolved DATA_DIR, if a legacy publish-tree
+ * data dir still exists (e.g. <site>/.data — the pre-fix store that a
+ * publish could wipe), copy its files into the new DATA_DIR. Strictly
+ * CREATE-IF-MISSING: an existing target file is never overwritten, and a
+ * target dir that already contains data is never touched. Idempotent —
+ * running it twice is a no-op the second time.
+ *
+ * Returns the number of files copied (0 = nothing to migrate / no-op).
+ */
+export function migrateLegacyData(dataDir: string, candidates: string[] = legacyDataDirCandidates()): { migrated: number; legacyDir: string | null } {
+  // Target already populated → never touch it.
+  if (existsSync(dataDir)) {
+    try {
+      const entries = readdirSync(dataDir);
+      if (entries.length > 0) return { migrated: 0, legacyDir: null };
+    } catch (_) { return { migrated: 0, legacyDir: null }; }
+  }
+  const legacyDir = findLegacyDataDir(candidates);
+  if (!legacyDir || legacyDir === dataDir) return { migrated: 0, legacyDir: null };
+  let migrated = 0;
+  try {
+    mkdirSync(dataDir, { recursive: true });
+    for (const name of readdirSync(legacyDir)) {
+      const src = join(legacyDir, name);
+      const dst = join(dataDir, name);
+      if (!statSync(src).isFile()) continue;
+      if (existsSync(dst)) continue; // create-if-missing only
+      copyFileSync(src, dst);
+      migrated++;
+    }
+  } catch (_) { /* best effort — a partial copy is still safer than losing the legacy store */ }
+  return { migrated, legacyDir };
+}
+
+/**
+ * Count connections in a tenant_integrations.json payload.
+ * The store is keyed by tenant email → array of connections; a plain array
+ * is also accepted. Non-connection files return 0.
+ */
+export function countConnections(data: any): number {
+  if (Array.isArray(data)) return data.length;
+  if (data && typeof data === "object") {
+    return Object.values(data).reduce((sum: number, v: any) => sum + (Array.isArray(v) ? v.length : 0), 0);
+  }
+  return 0;
 }
 
 /** Read a JSON file; missing/corrupt files read as {} (never throw). */
