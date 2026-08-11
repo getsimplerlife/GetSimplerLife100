@@ -98,7 +98,7 @@ export const communicationsCapabilities: ReadonlyArray<CapabilityContract> = [
     idempotencyRequired: false,
     retryPolicy: "bounded",
     rollback: "not_applicable",
-    evidence: "Slack search.messages finds messages matching a query; authorized tenant read evidence is pending.",
+    evidence: "Slack search.messages requires the search:read scope, which is a user-token scope not available to bot tokens. This capability is pending separate user-token OAuth auth.",
   }),
   // ---------------------------------------------------------------- writes
   defineCapabilityContract({
@@ -155,7 +155,7 @@ export const communicationsCapabilities: ReadonlyArray<CapabilityContract> = [
     idempotencyRequired: true,
     retryPolicy: "bounded",
     rollback: "available",
-    evidence: "Slack files.upload posts a file to a channel; full write contract (upload + delete rollback) evidence is pending.",
+    evidence: "Slack deprecated files:write for new apps (March 2025). File upload uses the V2 flow (getUploadURLExternal + completeUploadExternal) which requires files:write scope — pending scope availability via OAuth. V2 upload verified with existing bot token via verification adapter.",
   }),
   // ---------------------------------------------------------------- monitor
   defineCapabilityContract({
