@@ -25,6 +25,7 @@ export function getGSlidesOAuthConfig(config: { clientId: string; clientSecret: 
     authorizeUrl: "https://accounts.google.com/o/oauth2/v2/auth",
     tokenUrl: "https://oauth2.googleapis.com/token",
     flowType: "authorization_code",
+    extraParams: { access_type: "offline", prompt: "consent" },
   };
 }
 
