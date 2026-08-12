@@ -10,11 +10,14 @@
  * Token handling: refresh once per run if expired (mutates the shared
  * credential object so later contracts reuse the fresh token).
  *
- * Write paths (opt-in via --writes): create a labeled Phase7-* artifact, read
- * it back, then delete it (OneDrive delete) so verification leaves no residue.
+ * NON-DESTRUCTIVE (owner directive 2026-08-12): write paths (opt-in via
+ * --writes) create a labeled Phase7-* artifact and LEAVE IT IN PLACE.
+ * Verification never deletes or trashes anything — labeled test files may
+ * accumulate in the tenant's OneDrive; that is the owner's explicit preference
+ * over any deletion. No deleteFile/trashFile calls exist in this adapter.
  * Read paths that need an existing file either use a credential-provided file
  * id (fileId/wordId/excelId/powerpointId) or, when --writes is on, create a
- * labeled artifact, read it, and delete it. Unknown capability ids fail closed
+ * labeled artifact, read it, and keep it. Unknown capability ids fail closed
  * without network calls.
  */
 import { createODClient } from "../../integrations/providers/onedrive/client";
@@ -93,14 +96,13 @@ export const microsoftAdapter: CapabilityAdapter = async (contract, ctx) => {
     }
     /* ── onedrive: automate ── */
     case "onedrive-write-files": {
-      if (!ctx.allowWrites) throw new Error("onedrive-write-files requires --writes (uploads a labeled file, then deletes it)");
+      if (!ctx.allowWrites) throw new Error("onedrive-write-files requires --writes (uploads a labeled file and leaves it in place)");
       const od = createODClient(baseAuth(cred, "onedrive", ctx) as never);
       const name = `${label()}.txt`;
       const created = await od.uploadFile(name, "Phase7 verification payload", "text/plain");
       if (!created?.id) throw new Error("OneDrive: upload returned no id");
       const content = await od.getFileContent(created.id);
-      await od.deleteFile(created.id);
-      return { httpStatus: 200, response: { fileId: created.id, name, bytes: content.length, deleted: true } };
+      return { httpStatus: 200, response: { fileId: created.id, name, bytes: content.length, kept: true } };
     }
     /* ── microsoft-word: understand ── */
     case "microsoft-word-read-content": {
@@ -111,25 +113,21 @@ export const microsoftAdapter: CapabilityAdapter = async (contract, ctx) => {
         return { httpStatus: 200, response: { fileId, chars: text.length } };
       }
       if (!ctx.allowWrites) {
-        throw new Error("microsoft-word-read-content requires a fileId in credentials or --writes to create+read+delete a labeled doc");
+        throw new Error("microsoft-word-read-content requires a fileId in credentials or --writes to create+read+keep a labeled doc");
       }
       const created = await word.createWordDocument(label(), ["Phase7 verification read-back"]);
       if (!created?.id) throw new Error("Microsoft Word: create returned no id");
       const text = await word.readWordDocumentText(created.id);
-      const od = createODClient(baseAuth(cred, "onedrive", ctx) as never);
-      await od.deleteFile(created.id);
-      return { httpStatus: 200, response: { fileId: created.id, chars: text.length } };
+      return { httpStatus: 200, response: { fileId: created.id, chars: text.length, kept: true } };
     }
     /* ── microsoft-word: automate ── */
     case "microsoft-word-create-document": {
-      if (!ctx.allowWrites) throw new Error("microsoft-word-create-document requires --writes (creates a labeled doc, then deletes it)");
+      if (!ctx.allowWrites) throw new Error("microsoft-word-create-document requires --writes (creates a labeled doc and leaves it in place)");
       const word = createWordClient(baseAuth(cred, "microsoft-word", ctx) as never);
       const created = await word.createWordDocument(label(), ["Phase7", "verification", "write"]);
       if (!created?.id) throw new Error("Microsoft Word: create returned no id");
       const text = await word.readWordDocumentText(created.id);
-      const od = createODClient(baseAuth(cred, "onedrive", ctx) as never);
-      await od.deleteFile(created.id);
-      return { httpStatus: 200, response: { fileId: created.id, chars: text.length, roundTrip: text.includes("verification") } };
+      return { httpStatus: 200, response: { fileId: created.id, chars: text.length, roundTrip: text.includes("verification"), kept: true } };
     }
     /* ── microsoft-excel: understand ── */
     case "microsoft-excel-read-ranges": {
@@ -140,18 +138,16 @@ export const microsoftAdapter: CapabilityAdapter = async (contract, ctx) => {
         return { httpStatus: 200, response: { fileId, rows: values.length } };
       }
       if (!ctx.allowWrites) {
-        throw new Error("microsoft-excel-read-ranges requires a fileId in credentials or --writes to create+read+delete a labeled workbook");
+        throw new Error("microsoft-excel-read-ranges requires a fileId in credentials or --writes to create+read+keep a labeled workbook");
       }
       const created = await excel.createExcelWorkbook(label(), [["Phase7", "verify"]]);
       if (!created?.id) throw new Error("Microsoft Excel: create returned no id");
       const values = await excel.readWorkbookRange(created.id, "Sheet1!A1:B1");
-      const od = createODClient(baseAuth(cred, "onedrive", ctx) as never);
-      await od.deleteFile(created.id);
-      return { httpStatus: 200, response: { fileId: created.id, rows: values.length } };
+      return { httpStatus: 200, response: { fileId: created.id, rows: values.length, kept: true } };
     }
     /* ── microsoft-excel: automate ── */
     case "microsoft-excel-write-values": {
-      if (!ctx.allowWrites) throw new Error("microsoft-excel-write-values requires --writes (creates a labeled workbook, writes values, then deletes it)");
+      if (!ctx.allowWrites) throw new Error("microsoft-excel-write-values requires --writes (creates a labeled workbook, writes values, and leaves it in place)");
       const excel = createExcelClient(baseAuth(cred, "microsoft-excel", ctx) as never);
       const created = await excel.createExcelWorkbook(label(), [["Phase7", "verify", "write"]]);
       if (!created?.id) throw new Error("Microsoft Excel: create returned no id");
@@ -160,9 +156,7 @@ export const microsoftAdapter: CapabilityAdapter = async (contract, ctx) => {
         ["a", "b", "c"],
       ]);
       const values = await excel.readWorkbookRange(created.id, "Sheet1!A1:C2");
-      const od = createODClient(baseAuth(cred, "onedrive", ctx) as never);
-      await od.deleteFile(created.id);
-      return { httpStatus: 200, response: { fileId: created.id, rowsReadBack: values.length, cells: values.flat().length } };
+      return { httpStatus: 200, response: { fileId: created.id, rowsReadBack: values.length, cells: values.flat().length, kept: true } };
     }
     /* ── microsoft-powerpoint: understand ── */
     case "microsoft-powerpoint-read-presentation": {
@@ -173,18 +167,16 @@ export const microsoftAdapter: CapabilityAdapter = async (contract, ctx) => {
         return { httpStatus: 200, response: { fileId, chars: text.length } };
       }
       if (!ctx.allowWrites) {
-        throw new Error("microsoft-powerpoint-read-presentation requires a fileId in credentials or --writes to create+read+delete a labeled deck");
+        throw new Error("microsoft-powerpoint-read-presentation requires a fileId in credentials or --writes to create+read+keep a labeled deck");
       }
       const created = await ppt.createPresentation(label(), [{ title: "Phase7", body: "verification" }]);
       if (!created?.id) throw new Error("Microsoft PowerPoint: create returned no id");
       const text = await ppt.readPresentationText(created.id);
-      const od = createODClient(baseAuth(cred, "onedrive", ctx) as never);
-      await od.deleteFile(created.id);
-      return { httpStatus: 200, response: { fileId: created.id, chars: text.length } };
+      return { httpStatus: 200, response: { fileId: created.id, chars: text.length, kept: true } };
     }
     /* ── microsoft-powerpoint: automate ── */
     case "microsoft-powerpoint-create-presentation": {
-      if (!ctx.allowWrites) throw new Error("microsoft-powerpoint-create-presentation requires --writes (creates a labeled deck, then deletes it)");
+      if (!ctx.allowWrites) throw new Error("microsoft-powerpoint-create-presentation requires --writes (creates a labeled deck and leaves it in place)");
       const ppt = createPowerPointClient(baseAuth(cred, "microsoft-powerpoint", ctx) as never);
       const created = await ppt.createPresentation(label(), [
         { title: "Phase7", body: "verification" },
@@ -192,9 +184,7 @@ export const microsoftAdapter: CapabilityAdapter = async (contract, ctx) => {
       ]);
       if (!created?.id) throw new Error("Microsoft PowerPoint: create returned no id");
       const text = await ppt.readPresentationText(created.id);
-      const od = createODClient(baseAuth(cred, "onedrive", ctx) as never);
-      await od.deleteFile(created.id);
-      return { httpStatus: 200, response: { fileId: created.id, chars: text.length, roundTrip: text.includes("Slide two") } };
+      return { httpStatus: 200, response: { fileId: created.id, chars: text.length, roundTrip: text.includes("Slide two"), kept: true } };
     }
     default:
       throw new Error(`no verification path for ${contract.capabilityId}`);
