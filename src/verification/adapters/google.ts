@@ -12,11 +12,14 @@
  * Token handling: refresh once per run if expired (mutates the shared
  * credential object so later contracts reuse the fresh token).
  *
- * Write paths (opt-in via --writes): create a labeled Phase7-* artifact,
- * then roll it back (Drive delete) so verification leaves no residue.
+ * NON-DESTRUCTIVE (owner directive 2026-08-12): write paths (opt-in via
+ * --writes) create a labeled Phase7-* artifact and LEAVE IT IN PLACE.
+ * Verification never deletes or trashes anything — labeled test files may
+ * accumulate in the tenant's Drive; that is the owner's explicit preference
+ * over any deletion. No deleteFile/trashFile calls exist in this adapter.
  * Read paths that need an existing file (docs content, sheet ranges, slides
  * resource) either use a credential-provided file id (docId/sheetId/slidesId)
- * or, when --writes is on, create a labeled artifact, read it, and delete it.
+ * or, when --writes is on, create a labeled artifact, read it, and keep it.
  * Unknown capability ids fail closed without network calls.
  */
 import { createGDriveClient } from "../../integrations/providers/google-drive/client";
@@ -89,15 +92,14 @@ export const googleAdapter: CapabilityAdapter = async (contract, ctx) => {
       const changed = await drive.listChangesSince(since, 10);
       return { httpStatus: 200, response: { count: changed.length, since } };
     }
-    /* ── google-drive: automate ── */
+    /* ── google-drive: automate (non-destructive: labeled folder left in place) ── */
     case "google-drive-write-files": {
-      if (!ctx.allowWrites) throw new Error("google-drive-write-files requires --writes (creates a labeled folder, then deletes it)");
+      if (!ctx.allowWrites) throw new Error("google-drive-write-files requires --writes (creates a labeled folder, left in place)");
       const drive = createGDriveClient(baseAuth(cred, "google-drive", ctx) as never);
       const name = label();
       const created = await drive.createFolder(name);
       if (!created?.id) throw new Error("Google Drive: createFolder returned no id");
-      await drive.deleteFile(created.id, true);
-      return { httpStatus: 200, response: { created: created.name, deleted: true } };
+      return { httpStatus: 200, response: { created: created.name, kept: true } };
     }
     /* ── google-docs: understand ── */
     case "google-docs-read-content": {
@@ -108,18 +110,16 @@ export const googleAdapter: CapabilityAdapter = async (contract, ctx) => {
         return { httpStatus: 200, response: { docId, chars: text.length } };
       }
       if (!ctx.allowWrites) {
-        throw new Error("google-docs-read-content requires a docId in credentials or --writes to create+read+delete a labeled doc");
+        throw new Error("google-docs-read-content requires a docId in credentials or --writes to create+read a labeled doc");
       }
       const created = await docs.createDocument(label());
       await docs.insertText(created.id, "Phase7 verification read-back");
       const text = await docs.getDocumentText(created.id);
-      const drive = createGDriveClient(baseAuth(cred, "google-drive", ctx) as never);
-      await drive.deleteFile(created.id, true);
       return { httpStatus: 200, response: { docId: created.id, chars: text.length } };
     }
-    /* ── google-docs: automate ── */
+    /* ── google-docs: automate (non-destructive: labeled doc left in place) ── */
     case "google-docs-create-from-template": {
-      if (!ctx.allowWrites) throw new Error("google-docs-create-from-template requires --writes (creates a labeled doc, then deletes it)");
+      if (!ctx.allowWrites) throw new Error("google-docs-create-from-template requires --writes (creates a labeled doc, left in place)");
       const docs = createGDocsClient(baseAuth(cred, "google-docs", ctx) as never);
       const templateId = (cred.templateId as string) || "";
       const created = templateId
@@ -128,8 +128,6 @@ export const googleAdapter: CapabilityAdapter = async (contract, ctx) => {
       if (!created?.id) throw new Error("Google Docs: create returned no id");
       await docs.insertText(created.id, "Phase7 verification body");
       const text = await docs.getDocumentText(created.id);
-      const drive = createGDriveClient(baseAuth(cred, "google-drive", ctx) as never);
-      await drive.deleteFile(created.id, true);
       return { httpStatus: 200, response: { docId: created.id, chars: text.length, template: Boolean(templateId) } };
     }
     /* ── google-sheets: understand ── */
@@ -141,18 +139,16 @@ export const googleAdapter: CapabilityAdapter = async (contract, ctx) => {
         return { httpStatus: 200, response: { sheetId, rows: values.length } };
       }
       if (!ctx.allowWrites) {
-        throw new Error("google-sheets-read-ranges requires a sheetId in credentials or --writes to create+read+delete a labeled sheet");
+        throw new Error("google-sheets-read-ranges requires a sheetId in credentials or --writes to create+read a labeled sheet");
       }
       const created = await sheets.createSpreadsheet(label());
       await sheets.writeRange(created.spreadsheetId, "Sheet1!A1", [["Phase7", "verified"]]);
       const values = await sheets.readRange(created.spreadsheetId, "Sheet1!A1:B1");
-      const drive = createGDriveClient(baseAuth(cred, "google-drive", ctx) as never);
-      await drive.deleteFile(created.spreadsheetId, true);
       return { httpStatus: 200, response: { sheetId: created.spreadsheetId, rows: values.length } };
     }
-    /* ── google-sheets: automate ── */
+    /* ── google-sheets: automate (non-destructive: labeled sheet left in place) ── */
     case "google-sheets-write-values": {
-      if (!ctx.allowWrites) throw new Error("google-sheets-write-values requires --writes (creates a labeled sheet, writes values, then deletes it)");
+      if (!ctx.allowWrites) throw new Error("google-sheets-write-values requires --writes (creates a labeled sheet, writes values, left in place)");
       const sheets = createGSheetsClient(baseAuth(cred, "google-sheets", ctx) as never);
       const created = await sheets.createSpreadsheet(label(), ["Sheet1"]);
       const written = await sheets.writeRange(created.spreadsheetId, "Sheet1!A1:C2", [
@@ -160,8 +156,6 @@ export const googleAdapter: CapabilityAdapter = async (contract, ctx) => {
         ["a", "b", "c"],
       ]);
       const values = await sheets.readRange(created.spreadsheetId, "Sheet1!A1:C2");
-      const drive = createGDriveClient(baseAuth(cred, "google-drive", ctx) as never);
-      await drive.deleteFile(created.spreadsheetId, true);
       return { httpStatus: 200, response: { sheetId: created.spreadsheetId, updated: written.updatedCells ?? written.updatedRange ?? "", rowsReadBack: values.length } };
     }
     /* ── google-slides: understand ── */
@@ -173,22 +167,18 @@ export const googleAdapter: CapabilityAdapter = async (contract, ctx) => {
         return { httpStatus: 200, response: { slidesId, slideCount: (pres.slides || []).length } };
       }
       if (!ctx.allowWrites) {
-        throw new Error("google-slides-read-presentation requires a slidesId in credentials or --writes to create+read+delete a labeled presentation");
+        throw new Error("google-slides-read-presentation requires a slidesId in credentials or --writes to create+read a labeled presentation");
       }
       const created = await slides.createPresentation(label());
       const pres = await slides.getPresentation(created.presentationId);
-      const drive = createGDriveClient(baseAuth(cred, "google-drive", ctx) as never);
-      await drive.deleteFile(created.presentationId, true);
       return { httpStatus: 200, response: { slidesId: created.presentationId, slideCount: (pres.slides || []).length } };
     }
-    /* ── google-slides: automate ── */
+    /* ── google-slides: automate (non-destructive: labeled presentation left in place) ── */
     case "google-slides-create-presentation": {
-      if (!ctx.allowWrites) throw new Error("google-slides-create-presentation requires --writes (creates a labeled presentation, then deletes it)");
+      if (!ctx.allowWrites) throw new Error("google-slides-create-presentation requires --writes (creates a labeled presentation, left in place)");
       const slides = createGSlidesClient(baseAuth(cred, "google-slides", ctx) as never);
       const created = await slides.createPresentationFromOutline(label(), [{ title: "Phase7", body: "verification" }]);
       if (!created?.presentationId) throw new Error("Google Slides: create returned no presentation id");
-      const drive = createGDriveClient(baseAuth(cred, "google-drive", ctx) as never);
-      await drive.deleteFile(created.presentationId, true);
       return { httpStatus: 200, response: { slidesId: created.presentationId, slides: created.slideIds?.length ?? 0 } };
     }
     default:
