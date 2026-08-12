@@ -15,6 +15,7 @@ export const GOOGLE_DRIVE_PROVIDER_ID = "google-drive";
 export const GOOGLE_DOCS_PROVIDER_ID = "google-docs";
 export const GOOGLE_SHEETS_PROVIDER_ID = "google-sheets";
 export const GOOGLE_SLIDES_PROVIDER_ID = "google-slides";
+export const GOOGLE_CALENDAR_PROVIDER_ID = "google-calendar";
 
 export const productivityCapabilities: ReadonlyArray<CapabilityContract> = [
   /* ── google-drive ─────────────────────────────────────────────────── */
@@ -146,6 +147,49 @@ export const productivityCapabilities: ReadonlyArray<CapabilityContract> = [
     retryPolicy: "bounded",
     rollback: "available",
     evidence: "Google Slides module exposes createPresentation/createPresentationFromOutline/addSlides with client-generated objectIds on slides.googleapis.com; authorized write, idempotency, and rollback (delete presentation) evidence is pending Google OAuth credentials.",
+  }),
+  /* ── google-calendar ───────────────────────────────────────────────── */
+  defineCapabilityContract({
+    employeeId: PRODUCTIVITY_EMPLOYEE_ID,
+    capabilityId: "google-calendar-list-calendars",
+    kind: "understand",
+    status: "unverified",
+    providerId: GOOGLE_CALENDAR_PROVIDER_ID,
+    tenantScoped: true,
+    authRequired: true,
+    auditRequired: true,
+    idempotencyRequired: false,
+    retryPolicy: "bounded",
+    rollback: "not_applicable",
+    evidence: "Google Calendar module exposes listCalendars (calendarList) on www.googleapis.com/calendar/v3; authorized tenant read evidence is pending Google OAuth credentials.",
+  }),
+  defineCapabilityContract({
+    employeeId: PRODUCTIVITY_EMPLOYEE_ID,
+    capabilityId: "google-calendar-list-events",
+    kind: "understand",
+    status: "unverified",
+    providerId: GOOGLE_CALENDAR_PROVIDER_ID,
+    tenantScoped: true,
+    authRequired: true,
+    auditRequired: true,
+    idempotencyRequired: false,
+    retryPolicy: "bounded",
+    rollback: "not_applicable",
+    evidence: "Google Calendar module exposes listEvents (events.list, time-window filter, single events) on www.googleapis.com/calendar/v3; authorized tenant read evidence is pending Google OAuth credentials.",
+  }),
+  defineCapabilityContract({
+    employeeId: PRODUCTIVITY_EMPLOYEE_ID,
+    capabilityId: "google-calendar-create-event",
+    kind: "automate",
+    status: "unverified",
+    providerId: GOOGLE_CALENDAR_PROVIDER_ID,
+    tenantScoped: true,
+    authRequired: true,
+    auditRequired: true,
+    idempotencyRequired: true,
+    retryPolicy: "bounded",
+    rollback: "available",
+    evidence: "Google Calendar module exposes createEvent (events.insert) on www.googleapis.com/calendar/v3 with per-call event creation for idempotency; authorized write and rollback (delete event) evidence is pending Google OAuth credentials.",
   }),
 ];
 
