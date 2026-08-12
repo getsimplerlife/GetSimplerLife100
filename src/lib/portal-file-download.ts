@@ -173,10 +173,15 @@ export async function handlePortalFileDownload(args: {
     return { status: 400, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ error: `Download not supported for provider ${file.provider}` }) };
   }
   // 3. Tenant OAuth token from the durable store.
+  //    PER-TENANT ONLY (owner mandate 2026-08-12): the token key is
+  //    `${tenantId}:${provider}`. There is deliberately NO bare-provider
+  //    fallback (`tokenData[file.provider]`) — a legacy bare key is shared
+  //    state, not tenant data, and using it could leak one tenant's token to
+  //    another. Fail closed: no per-tenant token → 401.
   const tokenFile = join(dataDir, "tenant_oauth_credentials.json");
   const tokenData = readJSON(tokenFile) || {};
   const tokenKey = `${tenantId}:${file.provider}`;
-  let entry = tokenData[tokenKey] || tokenData[file.provider];
+  let entry = tokenData[tokenKey];
   if (!entry?.accessToken) {
     return { status: 401, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ error: `No stored connection for ${file.provider} — connect it first` }) };
   }
@@ -184,10 +189,10 @@ export async function handlePortalFileDownload(args: {
   if (isTokenExpired(entry)) {
     try {
       const refreshed = await refreshProviderToken(file.provider, entry, dataDir, fetchImpl);
-      // Write back through the durable path (writeJSON → durable store).
+      // Write back through the durable path (writeJSON → durable store) under
+      // the SAME per-tenant key only — never a bare-provider key.
       const all = readJSON(tokenFile) || {};
       all[tokenKey] = refreshed;
-      if (tokenData[file.provider]) all[file.provider] = refreshed;
       writeJSON(tokenFile, all);
       entry = refreshed;
     } catch (e: any) {
