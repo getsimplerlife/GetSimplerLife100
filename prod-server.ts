@@ -3,7 +3,7 @@ import { join, basename } from "path";
 import { readFileSync, writeFileSync, existsSync, readdirSync } from "fs";
 import { createHash, randomBytes } from "crypto";
 import { resolveDataDir, isInsidePublishTree, readJSON, writeJSON, seedDataFiles, bucketConnectionsByCategory, migrateLegacyData, findLegacyDataDir, countConnections } from "./src/lib/data-store";
-import { initDurableStore, durableEnabled, durableKeyCount, durableStoreStatus } from "./src/lib/durable-store";
+import { initDurableStore, durableEnabled, durableKeyCount, durableStoreStatus, durableSnapshotBackup } from "./src/lib/durable-store";
 import { sweepExpiredTokens, tokenSweepStats } from "./src/lib/token-refresher";
 
 // ── Lazy module accessors — loaded on first use to keep server startup under 1s ──
@@ -392,6 +392,35 @@ function startTokenSweeper(): void {
   console.log(`[token-refresher] sweeper started: every ${TOKEN_SWEEP_INTERVAL_MS}ms (first sweep in 60s)`);
 }
 startTokenSweeper();
+// ── Background backup snapshots (owner mandate: never lose client data) ──
+const BACKUP_SNAPSHOT_INTERVAL_MS = (() => {
+  const n = Number(process.env.BACKUP_SNAPSHOT_INTERVAL_MS);
+  return Number.isFinite(n) && n > 0 ? n : 60 * 60 * 1000; // hourly default
+})();
+let backupTimer: any = null;
+let backupRunning = false;
+async function runBackupSnapshot(): Promise<void> {
+  if (backupRunning) return; // never overlap snapshots
+  backupRunning = true;
+  try {
+    const r = await durableSnapshotBackup();
+    console.log(`[durable-store] backup snapshot: ok=${r.ok} keys=${r.count}` + (r.error ? ` err=${r.error}` : ""));
+  } catch (e: any) {
+    console.log("[durable-store] backup snapshot error: " + (e?.message || String(e)));
+  } finally {
+    backupRunning = false;
+  }
+}
+function startBackupSweeper(): void {
+  if (backupTimer) return;
+  backupTimer = setInterval(() => { void runBackupSnapshot(); }, BACKUP_SNAPSHOT_INTERVAL_MS);
+  if (backupTimer?.unref) backupTimer.unref();
+  // First snapshot shortly after boot so a fresh DB has a snapshot quickly.
+  const first = setTimeout(() => { void runBackupSnapshot(); }, 60_000);
+  if (first?.unref) first.unref();
+  console.log(`[durable-store] backup sweeper started: every ${BACKUP_SNAPSHOT_INTERVAL_MS}ms (first snapshot in 60s)`);
+}
+startBackupSweeper();
 console.log("[prod-server] Starting server on port 3000...");
 serve({
   port: 3000,
@@ -1956,6 +1985,9 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
           pendingWriteCount: store.pendingWriteCount,
           lastWriteError: store.lastWriteError,
           pendingOverflowed: store.overflowed,
+          lastSnapshotAt: store.lastSnapshotAt,
+          snapshotCount: store.snapshotCount,
+          lastSnapshotError: store.lastSnapshotError,
           lastSweep: tokenSweepStats.lastSweep || null,
           nextSweep: tokenSweepStats.nextSweep || null,
           tokensRefreshed: tokenSweepStats.tokensRefreshed,
@@ -2574,4 +2606,4 @@ OAUTH_${provUpper}_CLIENT_SECRET=your_client_secret</pre><p style="font-size:0.8
 console.log("[prod-server] Port 3000 — SSR mode: server-side rendering + client hydration | API: /api/login, /api/register, /api/logout, /api/me");
 // Signal readiness — write a file the publish tool can detect
 try { require("fs").writeFileSync("/tmp/slr100-ready", String(Date.now())); } catch (_) {}
-process.on("exit", () => { if (tokenSweepTimer) clearInterval(tokenSweepTimer); });
+process.on("exit", () => { if (tokenSweepTimer) clearInterval(tokenSweepTimer); if (backupTimer) clearInterval(backupTimer); });

@@ -34,6 +34,13 @@ import { getDb, initDbSchema, pingDb, dbAll, closeDb } from "./db";
  *      loop retries init; when it succeeds the cache is hydrated from the DB
  *      and reads immediately see real data. `hydrationState` distinguishes
  *      "ready" from "retrying".
+ *   3. Backup snapshots (owner mandate 2026-08-12 — "never lose anything
+ *      from clients connections"): `durableSnapshotBackup()` copies every
+ *      kv_store row into the `kv_store_backup` table with a timestamped
+ *      snapshot id; old snapshots past the retention window (default 7 days)
+ *      are pruned. Even a catastrophic kv_store failure can be restored from
+ *      the most recent snapshot. Status surfaces via durableStoreStatus()
+ *      (lastSnapshotAt, snapshotCount) and GET /api/admin/datadir.
  *
  * The driver is injectable for tests: `initDurableStore(dataDir, driver?)`.
  * The default driver uses `postgres` (src/lib/db.ts) against
@@ -47,12 +54,26 @@ export interface KvDriver {
   unsafe<T = any>(sql: string, values?: any[]): Promise<T>;
 }
 
-/** In-memory fake driver used by tests (also useful for local dev). */
+/**
+ * In-memory fake driver used by tests (also useful for local dev).
+ * Table-aware: keeps kv_store and kv_store_backup as separate maps so
+ * snapshot/retention logic is exercised exactly like the real DB.
+ */
 export class MemoryKvDriver implements KvDriver {
-  private store = new Map<string, any>();
+  private tables = new Map<string, Map<string, any>>([
+    ["kv_store", new Map()],
+    ["kv_store_backup", new Map()],
+  ]);
   private rows: any[] = [];
   constructor(private initial: Record<string, any> = {}) {
-    for (const [k, v] of Object.entries(initial)) this.store.set(k, v);
+    const t = this.tables.get("kv_store")!;
+    for (const [k, v] of Object.entries(initial)) t.set(k, v);
+  }
+  private tableFor(sql: string): Map<string, any> {
+    const m = sql.match(/(?:into|from|update|table)\s+([a-z_0-9]+)/i);
+    const name = m ? m[1] : "kv_store";
+    if (!this.tables.has(name)) this.tables.set(name, new Map());
+    return this.tables.get(name)!;
   }
   async unsafe<T = any>(sql: string, values?: any[]): Promise<T> {
     const s = sql.trim();
@@ -60,11 +81,16 @@ export class MemoryKvDriver implements KvDriver {
     if (/^insert|^update|^upsert/i.test(s)) {
       const key = String(values?.[0] ?? "");
       const value = values?.[1] ?? null;
-      this.store.set(key, value === null ? null : (typeof value === "string" ? JSON.parse(value) : value));
+      this.tableFor(s).set(key, value === null ? null : (typeof value === "string" ? JSON.parse(value) : value));
+      return [] as any;
+    }
+    if (/^delete/i.test(s)) {
+      const keys = values?.[0];
+      if (Array.isArray(keys)) for (const k of keys) this.tableFor(s).delete(String(k));
       return [] as any;
     }
     if (/^select/i.test(s)) {
-      this.rows = [...this.store.entries()].map(([key, value]) => ({
+      this.rows = [...this.tableFor(s).entries()].map(([key, value]) => ({
         key,
         value: typeof value === "string" ? value : JSON.stringify(value),
       }));
@@ -72,12 +98,14 @@ export class MemoryKvDriver implements KvDriver {
     }
     return [] as any;
   }
-  get size(): number { return this.store.size; }
-  has(key: string): boolean { return this.store.has(key); }
-  get(key: string): any { return this.store.get(key); }
-  dump(): Record<string, any> {
+  get size(): number { return this.tables.get("kv_store")!.size; }
+  has(key: string): boolean { return this.tables.get("kv_store")!.has(key); }
+  get(key: string): any { return this.tables.get("kv_store")!.get(key); }
+  dump(): Record<string, any> { return this.dumpTable("kv_store"); }
+  dumpTable(name: string): Record<string, any> {
+    const t = this.tables.get(name) || new Map();
     const out: Record<string, any> = {};
-    for (const [k, v] of this.store) out[k] = typeof v === "string" ? v : JSON.parse(JSON.stringify(v));
+    for (const [k, v] of t) out[k] = typeof v === "string" ? v : JSON.parse(JSON.stringify(v));
     return out;
   }
 }
@@ -96,6 +124,8 @@ export interface DurableStoreOptions {
   reconnectMaxAttempts?: number;
   /** Set false to disable the boot reconnection loop entirely (tests). */
   reconnectEnabled?: boolean;
+  /** Keep backup snapshots for this many days (default 7). */
+  backupRetentionDays?: number;
 }
 const DEFAULT_OPTIONS: Required<DurableStoreOptions> = {
   pendingCap: 10_000,
@@ -104,6 +134,7 @@ const DEFAULT_OPTIONS: Required<DurableStoreOptions> = {
   reconnectIntervalMs: 30_000,
   reconnectMaxAttempts: 0,
   reconnectEnabled: true,
+  backupRetentionDays: 7,
 };
 let opts: Required<DurableStoreOptions> = { ...DEFAULT_OPTIONS };
 
@@ -131,6 +162,12 @@ let drainTimer: any = null;
 let drainDelayMs = DEFAULT_OPTIONS.retryBaseMs;
 let overflowed = false;
 let lastWriteError: string | null = null;
+
+// ── Backup snapshots (owner mandate: never lose client data) ────────────────
+let lastSnapshotAt: number | null = null;
+let snapshotCount = 0;
+let snapshotSeq = 0;
+let lastSnapshotError: string | null = null;
 
 // ── Boot resilience (never permanently fall back to files) ──────────────────
 type HydrationState = "ready" | "retrying";
@@ -174,6 +211,9 @@ export function durableStoreStatus(): {
   pendingWriteCount: number;
   lastWriteError: string | null;
   overflowed: boolean;
+  lastSnapshotAt: number | null;
+  snapshotCount: number;
+  lastSnapshotError: string | null;
 } {
   return {
     enabled,
@@ -181,6 +221,9 @@ export function durableStoreStatus(): {
     pendingWriteCount: pendingWrites.size,
     lastWriteError,
     overflowed,
+    lastSnapshotAt,
+    snapshotCount,
+    lastSnapshotError,
   };
 }
 
@@ -269,6 +312,73 @@ export async function durableFlush(): Promise<void> {
   await drainPendingWrites();
 }
 
+// ── Backup snapshots (owner mandate 2026-08-12) ──────────────────────────────
+/**
+ * Snapshot every kv_store row into kv_store_backup with a timestamped id,
+ * then prune snapshots older than the retention window (default 7 days).
+ * Call from the hourly background sweeper in prod-server.ts. Never crashes —
+ * failures are recorded in lastSnapshotError and surfaced in admin.
+ */
+export async function durableSnapshotBackup(): Promise<{ ok: boolean; count: number; error?: string }> {
+  if (!enabled || !driver) {
+    lastSnapshotError = "durable store not enabled";
+    return { ok: false, count: 0, error: lastSnapshotError };
+  }
+  try {
+    const rows: any[] = await driver.unsafe(`SELECT key, value FROM kv_store`);
+    const keys: Record<string, any> = {};
+    for (const r of rows) {
+      let raw = r.value;
+      if (typeof raw === "string") { try { raw = JSON.parse(raw); } catch { /* keep raw string */ } }
+      keys[String(r.key)] = raw;
+    }
+    // Monotonic suffix guarantees uniqueness even for back-to-back snapshots
+    // in the same millisecond (identical ISO ids would collide on the PK).
+    const snapshotId = "snap_" + new Date().toISOString().replace(/[:.]/g, "-") + "-" + (++snapshotSeq);
+    await driver.unsafe(
+      `INSERT INTO kv_store_backup (snapshot_id, data, taken_at) VALUES ($1, $2::jsonb, now())`,
+      [snapshotId, JSON.stringify({ takenAt: Date.now(), keys })],
+    );
+    lastSnapshotAt = Date.now();
+    snapshotCount++;
+    lastSnapshotError = null;
+    const pruned = await pruneOldBackups();
+    if (pruned > 0) console.log(`[durable-store] backup snapshot ${snapshotId}: pruned ${pruned} stale snapshot(s) (retention ${opts.backupRetentionDays}d)`);
+    return { ok: true, count: Object.keys(keys).length };
+  } catch (e: any) {
+    lastSnapshotError = e?.message || String(e);
+    console.log(`[durable-store] backup snapshot FAILED: ${lastSnapshotError}`);
+    return { ok: false, count: 0, error: lastSnapshotError };
+  }
+}
+
+/** Delete backup snapshots older than the retention window. */
+async function pruneOldBackups(): Promise<number> {
+  if (!enabled || !driver) return 0;
+  const cutoff = Date.now() - opts.backupRetentionDays * 86_400_000;
+  try {
+    const rows: any[] = await driver.unsafe(`SELECT snapshot_id, data FROM kv_store_backup`);
+    const stale: string[] = [];
+    for (const r of rows) {
+      const raw = r.data ?? r.value;
+      let parsed: any = raw;
+      if (typeof raw === "string") { try { parsed = JSON.parse(raw); } catch { continue; } }
+      if (parsed?.takenAt && Number(parsed.takenAt) < cutoff) stale.push(String(r.snapshot_id ?? r.key));
+    }
+    if (stale.length) await driver.unsafe(`DELETE FROM kv_store_backup WHERE snapshot_id = ANY($1)`, [stale]);
+    return stale.length;
+  } catch { return 0; }
+}
+
+/** Number of backup snapshots currently stored (0 when disabled). */
+export async function durableSnapshotCount(): Promise<number> {
+  if (!enabled || !driver) return 0;
+  try {
+    const rows: any[] = await driver.unsafe(`SELECT snapshot_id FROM kv_store_backup`);
+    return rows?.length || 0;
+  } catch { return 0; }
+}
+
 /** Poll until the store is enabled (boot reconnection succeeded). */
 export async function durableWaitForReady(timeoutMs = 10_000): Promise<boolean> {
   const start = Date.now();
@@ -294,6 +404,10 @@ export async function durableClose(): Promise<void> {
   drainDelayMs = opts.retryBaseMs;
   overflowed = false;
   lastWriteError = null;
+  lastSnapshotAt = null;
+  snapshotCount = 0;
+  snapshotSeq = 0;
+  lastSnapshotError = null;
   hydrationState = "ready";
   writeChain = Promise.resolve();
   enabled = false;
@@ -368,6 +482,12 @@ export async function initDurableStore(
   return result;
 }
 
+const CREATE_BACKUP_TABLE =
+  `CREATE TABLE IF NOT EXISTS kv_store_backup (` +
+  `snapshot_id TEXT PRIMARY KEY, ` +
+  `data JSONB NOT NULL, ` +
+  `taken_at TIMESTAMPTZ NOT NULL DEFAULT now())`;
+
 async function attemptInit(
   dir: string,
   providedDriver?: KvDriver,
@@ -376,7 +496,7 @@ async function attemptInit(
     if (!providedDriver) {
       // Real Postgres driver (src/lib/db.ts) — throws if DATABASE_URL missing.
       const db = getDb();
-      await initDbSchema(db);
+      await initDbSchema(db); // creates kv_store AND kv_store_backup
       await pingDb(db);
       providedDriver = {
         unsafe: (sql: string, values?: any[]) => db.unsafe(sql, values),
@@ -410,6 +530,7 @@ async function attemptInit(
     await driver.unsafe(
       `CREATE TABLE IF NOT EXISTS kv_store (key TEXT PRIMARY KEY, value JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
     );
+    await driver.unsafe(CREATE_BACKUP_TABLE);
     const rows: any[] = await driver.unsafe(`SELECT key, value FROM kv_store`);
     cache.clear();
     for (const r of rows) {
