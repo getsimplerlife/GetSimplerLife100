@@ -9,6 +9,7 @@ import type { CapabilityContract } from "../../lib/capability-contract";
 import type { ProviderCredential } from "../credential-source";
 import { xeroAdapter } from "./xero";
 import { googleAdapter } from "./google";
+import { microsoftAdapter } from "./microsoft";
 import { anaplanAdapter, coupaAdapter, docusignAdapter, hubspotAdapter, intercomAdapter, jiraAdapter, marketoAdapter, mondayComAdapter, onfleetAdapter, salesforceAdapter, servicenowAdapter, shopifyAdapter, slackAdapter, tableauAdapter, workdayAdapter, zendeskAdapter } from "./priority";
 
 export interface AdapterContext {
@@ -50,6 +51,11 @@ export const adapterRegistry: Record<string, CapabilityAdapter | undefined> = {
   "google-docs": googleAdapter,
   "google-sheets": googleAdapter,
   "google-slides": googleAdapter,
+  // Microsoft Productivity (Office file types + OneDrive)
+  onedrive: microsoftAdapter,
+  "microsoft-word": microsoftAdapter,
+  "microsoft-excel": microsoftAdapter,
+  "microsoft-powerpoint": microsoftAdapter,
 };
 
 export function hasAdapter(providerId: string): boolean {

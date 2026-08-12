@@ -17,6 +17,7 @@ import { fpaCapabilities } from "./capabilities/fpa";
 import { documentProcessingCapabilities } from "./capabilities/document-processing";
 import { analyticsCapabilities } from "./capabilities/analytics";
 import { productivityCapabilities } from "./capabilities/productivity";
+import { microsoftProductivityCapabilities } from "./capabilities/productivity-microsoft";
 
 /** Registry-free capability matrix; statuses stay unverified until fresh provider evidence exists. */
 export const employeeCapabilityMatrix = {
@@ -38,5 +39,5 @@ export const employeeCapabilityMatrix = {
   fpa: fpaCapabilities,
   document_processing: documentProcessingCapabilities,
   analytics: analyticsCapabilities,
-  productivity: productivityCapabilities,
+  productivity: [...productivityCapabilities, ...microsoftProductivityCapabilities],
 } as const;

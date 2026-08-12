@@ -1,5 +1,25 @@
-import { OAuthConfig } from "../../framework/oauth";
-export function getODOAuthConfig(config: { tenantId: string; clientId: string; clientSecret: string; redirectUri: string }): OAuthConfig {
-  return { clientId: config.clientId, clientSecret: config.clientSecret, redirectUri: config.redirectUri, scopes: ["Files.Read", "Files.ReadWrite", "Files.Read.All", "Files.ReadWrite.All", "Sites.Read.All", "offline_access"], authorizeUrl: `https://login.microsoftonline.com/${config.tenantId}/oauth2/v2.0/authorize`, tokenUrl: `https://login.microsoftonline.com/${config.tenantId}/oauth2/v2.0/token`, flowType: "authorization_code" };
+import { buildGraphAuthUrl, handleGraphCallback, refreshGraphToken, isGraphTokenExpired, type GraphOAuthInput } from "../microsoft-office/graph-auth";
+
+/**
+ * OneDrive — Microsoft Graph OAuth.
+ *
+ * Previously this module re-exported the Dynamics 365 auth flow, which
+ * requests CRM scopes (https://{tenant}.crm.dynamics.com/.default) — wrong for
+ * OneDrive and would fail with "invalid_scope". Fixed to use the shared Graph
+ * flow with Files scopes against the canonical login.microsoftonline.com host.
+ */
+export const ONEDRIVE_SCOPES = ["Files.ReadWrite", "offline_access"];
+
+export async function buildODAuthUrl(config: GraphOAuthInput) {
+  return buildGraphAuthUrl({ ...config, scopes: ONEDRIVE_SCOPES });
 }
-export { buildDynamicsAuthUrl as buildODAuthUrl, handleDynamicsCallback as handleODCallback, refreshDynamicsToken as refreshODToken, isDynamicsTokenExpired as isODTokenExpired } from "../dynamics-365/auth";
+
+export async function handleODCallback(config: GraphOAuthInput, code: string, verifier: string) {
+  return handleGraphCallback({ ...config, scopes: ONEDRIVE_SCOPES }, code, verifier);
+}
+
+export async function refreshODToken(config: GraphOAuthInput, rt: string) {
+  return refreshGraphToken({ ...config, scopes: ONEDRIVE_SCOPES }, rt);
+}
+
+export { isGraphTokenExpired as isODTokenExpired };

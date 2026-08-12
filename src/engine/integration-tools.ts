@@ -118,6 +118,9 @@ import * as egnyte from "../integrations/providers/egnyte";
 import * as googleDocs from "../integrations/providers/google-docs";
 import * as googleSheets from "../integrations/providers/google-sheets";
 import * as googleSlides from "../integrations/providers/google-slides";
+import * as microsoftWord from "../integrations/providers/microsoft-word";
+import * as microsoftExcel from "../integrations/providers/microsoft-excel";
+import * as microsoftPowerPoint from "../integrations/providers/microsoft-powerpoint";
 // Document Processing
 import * as adobeSign from "../integrations/providers/adobe-sign";
 import * as docusign from "../integrations/providers/docusign";
@@ -334,6 +337,9 @@ registerProviderActions("egnyte", [egnyte], ["egnyteActions"]);
 registerProviderActions("google-docs", [googleDocs], ["googleDocsActions"]);
 registerProviderActions("google-sheets", [googleSheets], ["googleSheetsActions"]);
 registerProviderActions("google-slides", [googleSlides], ["googleSlidesActions"]);
+registerProviderActions("microsoft-word", [microsoftWord], ["microsoftWordActions"]);
+registerProviderActions("microsoft-excel", [microsoftExcel], ["microsoftExcelActions"]);
+registerProviderActions("microsoft-powerpoint", [microsoftPowerPoint], ["microsoftPowerPointActions"]);
 // Document Processing
 registerProviderActions("adobe-sign", [adobeSign], ["adobeSignActions"]);
 registerProviderActions("docusign", [docusign], ["docusignActions"]);
@@ -611,7 +617,7 @@ function getProvidersInCategory(category: string): string[] {
     "email": ["outlook", "exchange", "gmail", "google-workspace", "imap", "smtp"],
     "communication": ["teams", "slack", "zoom", "ringcentral", "webex", "discord", "twilio", "dialpad", "aircall"],
     "storage": ["sharepoint", "onedrive", "google-drive", "dropbox", "box", "egnyte", "s3", "azure-blob", "gcs"],
-    "productivity": ["google-docs", "google-sheets", "google-slides"],
+    "productivity": ["google-docs", "google-sheets", "google-slides", "microsoft-word", "microsoft-excel", "microsoft-powerpoint"],
     "document-processing": ["adobe-sign", "docusign", "pandadoc", "dropbox-sign", "pdf-co", "ocr-space", "abbyy", "aws-textract", "azure-doc-intel", "google-doc-ai"],
     "project-management": ["monday-com", "asana", "clickup", "jira", "trello", "basecamp", "notion", "wrike", "smartsheet"],
     "hr": ["bamboohr", "workday", "ukg", "adp", "gusto", "rippling", "paychex", "greenhouse", "lever"],
