@@ -30,6 +30,8 @@ import { createGSheetsClient } from "../../integrations/providers/google-sheets/
 import { refreshSheetsToken } from "../../integrations/providers/google-sheets/auth";
 import { createGSlidesClient } from "../../integrations/providers/google-slides/client";
 import { refreshSlidesToken } from "../../integrations/providers/google-slides/auth";
+import { createGCalendarClient } from "../../integrations/providers/google-calendar/client";
+import { refreshCalendarToken } from "../../integrations/providers/google-calendar/auth";
 import { isTokenExpired } from "../../integrations/framework/oauth";
 import type { CapabilityAdapter } from "./index";
 import type { ProviderCredential } from "../credential-source";
@@ -64,6 +66,7 @@ async function ensureFreshCredential(cred: ProviderCredential, app?: { clientId?
   if (provider === "google-drive") refreshed = await refreshGDriveToken(cfg, cred.refreshToken);
   else if (provider === "google-sheets") refreshed = await refreshSheetsToken(cfg, cred.refreshToken);
   else if (provider === "google-slides") refreshed = await refreshSlidesToken(cfg, cred.refreshToken);
+  else if (provider === "google-calendar") refreshed = await refreshCalendarToken(cfg, cred.refreshToken);
   else refreshed = await refreshDocsToken(cfg, cred.refreshToken);
   cred.accessToken = refreshed.accessToken;
   cred.refreshToken = refreshed.refreshToken;
@@ -180,6 +183,38 @@ export const googleAdapter: CapabilityAdapter = async (contract, ctx) => {
       const created = await slides.createPresentationFromOutline(label(), [{ title: "Phase7", body: "verification" }]);
       if (!created?.presentationId) throw new Error("Google Slides: create returned no presentation id");
       return { httpStatus: 200, response: { slidesId: created.presentationId, slides: created.slideIds?.length ?? 0 } };
+    }
+    /* ── google-calendar: understand ── */
+    case "google-calendar-list-calendars": {
+      const cal = createGCalendarClient(baseAuth(cred, "google-calendar", ctx) as never);
+      const calendars = await cal.listCalendars(10);
+      return { httpStatus: 200, response: { count: calendars.length, sample: calendars.slice(0, 3).map((c: any) => ({ id: c.id, summary: c.summary, primary: Boolean(c.primary) })) } };
+    }
+    case "google-calendar-list-events": {
+      const cal = createGCalendarClient(baseAuth(cred, "google-calendar", ctx) as never);
+      const calendarId = (cred.calendarId as string) || "primary";
+      const since = new Date(Date.now() - 30 * 24 * 3600_000).toISOString();
+      const events = await cal.listEvents(calendarId, since, undefined, 10);
+      return { httpStatus: 200, response: { count: events.length, since, sample: events.slice(0, 3).map((e: any) => ({ id: e.id, summary: e.summary, start: e.start?.dateTime || e.start?.date })) } };
+    }
+    /* ── google-calendar: automate (NON-DESTRUCTIVE — owner directive 2026-08-12:
+       create a labeled test event, read it back, LEAVE IT IN PLACE; no deletion) ── */
+    case "google-calendar-create-event": {
+      if (!ctx.allowWrites) throw new Error("google-calendar-create-event requires --writes (creates a labeled event, left in place)");
+      const cal = createGCalendarClient(baseAuth(cred, "google-calendar", ctx) as never);
+      const calendarId = (cred.calendarId as string) || "primary";
+      const start = new Date(Date.now() + 24 * 3600_000).toISOString();
+      const end = new Date(Date.now() + 25 * 3600_000).toISOString();
+      const created = await cal.createEvent({
+        calendarId,
+        summary: `${label()} calendar event`,
+        description: "Phase7 verification event — left in place per owner directive (non-destructive verification)",
+        start,
+        end,
+      });
+      if (!created?.id) throw new Error("Google Calendar: createEvent returned no id");
+      const readBack = await cal.getEvent(calendarId, created.id);
+      return { httpStatus: 200, response: { eventId: created.id, calendarId, summary: readBack.summary, kept: true } };
     }
     default:
       throw new Error(`no verification path for ${contract.capabilityId}`);

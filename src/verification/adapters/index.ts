@@ -46,11 +46,12 @@ export const adapterRegistry: Record<string, CapabilityAdapter | undefined> = {
   marketo: marketoAdapter,
   coupa: coupaAdapter,
   anaplan: anaplanAdapter,
-  // Google Productivity (Google Workspace file types)
+  // Google Productivity (Google Workspace file types + Calendar)
   "google-drive": googleAdapter,
   "google-docs": googleAdapter,
   "google-sheets": googleAdapter,
   "google-slides": googleAdapter,
+  "google-calendar": googleAdapter,
   // Microsoft Productivity (Office file types + OneDrive)
   onedrive: microsoftAdapter,
   "microsoft-word": microsoftAdapter,

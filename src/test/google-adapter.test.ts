@@ -61,6 +61,11 @@ function defaultRoutes(method: string, url: string) {
   if (method === "POST" && url.includes("/presentations") && !url.includes(":batchUpdate")) return jsonResponse({ presentationId: "p-1", title: "x" });
   if (method === "POST" && url.includes("/presentations/") && url.includes(":batchUpdate")) return jsonResponse({ replies: [] });
   if (method === "GET" && url.includes("/presentations/")) return jsonResponse({ presentationId: "p-1", slides: [] });
+  // Calendar
+  if (method === "GET" && url.includes("/calendar/v3/users/me/calendarList")) return jsonResponse({ items: [{ id: "cal-1", summary: "Work", primary: true }] });
+  if (method === "GET" && url.includes("/calendars/") && url.includes("/events?")) return jsonResponse({ items: [{ id: "ev-1", summary: "Standup", start: { dateTime: "2026-08-13T09:00:00Z" } }] });
+  if (method === "GET" && url.includes("/calendars/") && url.includes("/events/")) return jsonResponse({ id: "ev-created", summary: "Phase7-VERIFY-x calendar event", status: "confirmed" });
+  if (method === "POST" && url.includes("/calendars/") && url.includes("/events")) return jsonResponse({ id: "ev-created", summary: "Phase7-VERIFY-x calendar event", status: "confirmed" });
   return jsonResponse({});
 }
 
@@ -135,6 +140,32 @@ describe("Google verification adapter (real clients, mocked transport)", () => {
     const r = await googleAdapter(contract("google-slides-create-presentation", "google-slides"), ctx());
     expect(r.httpStatus).toBe(200);
     expect((r.response as any).slides).toBe(1);
+  });
+
+  it("google-calendar-list-calendars lists the tenant's calendars (pure read)", async () => {
+    const r = await googleAdapter(contract("google-calendar-list-calendars", "google-calendar"), ctx());
+    expect(r.httpStatus).toBe(200);
+    expect((r.response as any).count).toBe(1);
+    expect(calls.some((c) => c.url.includes("/calendar/v3/users/me/calendarList"))).toBe(true);
+  });
+
+  it("google-calendar-list-events lists events with a time window", async () => {
+    const r = await googleAdapter(contract("google-calendar-list-events", "google-calendar"), ctx());
+    expect(r.httpStatus).toBe(200);
+    expect((r.response as any).count).toBe(1);
+    expect(calls.some((c) => c.url.includes("/calendars/primary/events"))).toBe(true);
+  });
+
+  it("google-calendar-create-event requires allowWrites (fail closed)", async () => {
+    await expect(googleAdapter(contract("google-calendar-create-event", "google-calendar"), ctx({ allowWrites: false }))).rejects.toThrow("--writes");
+  });
+
+  it("google-calendar-create-event creates a labeled event and leaves it in place (non-destructive, owner directive)", async () => {
+    const r = await googleAdapter(contract("google-calendar-create-event", "google-calendar"), ctx());
+    expect(r.httpStatus).toBe(200);
+    expect((r.response as any).kept).toBe(true);
+    expect((r.response as any).eventId).toBe("ev-created");
+    expect(calls.some((c) => c.method === "DELETE")).toBe(false);
   });
 
   it("unknown capability ids fail closed without network calls", async () => {

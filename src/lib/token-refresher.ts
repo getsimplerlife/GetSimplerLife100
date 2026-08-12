@@ -45,11 +45,12 @@ export const REFRESH_REGISTRY: Record<string, OAuthRefreshDef> = {
   xero: { tokenUrl: "https://identity.xero.com/connect/token" },
   // Audited: src/integrations/providers/hubspot/auth.ts → tokenUrl
   hubspot: { tokenUrl: "https://api.hubapi.com/oauth/v1/token" },
-  // Audited: src/integrations/providers/google-{drive,docs,sheets,slides}/auth.ts → tokenUrl
+  // Audited: src/integrations/providers/google-{drive,docs,sheets,slides,calendar}/auth.ts → tokenUrl
   "google-drive": { tokenUrl: "https://oauth2.googleapis.com/token" },
   "google-docs": { tokenUrl: "https://oauth2.googleapis.com/token" },
   "google-sheets": { tokenUrl: "https://oauth2.googleapis.com/token" },
   "google-slides": { tokenUrl: "https://oauth2.googleapis.com/token" },
+  "google-calendar": { tokenUrl: "https://oauth2.googleapis.com/token" },
   // Audited: src/integrations/providers/microsoft-office/graph-auth.ts → tokenUrl
   // (multi-tenant "common" authority — refresh tokens issued for tenant-bound
   // authorities that fail here will surface as auth_failed and need re-auth)

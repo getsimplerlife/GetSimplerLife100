@@ -5,7 +5,7 @@ import { createGoogleDoc, createGoogleDocFromTemplate, createGoogleSheet, writeG
 describe("Productivity capability contracts", () => {
   it("declares understand/monitor/automate slices for all four Google providers", () => {
     const providers = new Set(productivityCapabilities.map((c) => c.providerId));
-    expect(providers).toEqual(new Set(["google-drive", "google-docs", "google-sheets", "google-slides"]));
+    expect(providers).toEqual(new Set(["google-drive", "google-docs", "google-sheets", "google-slides", "google-calendar"]));
     const kinds = productivityCapabilities.map((c) => c.kind);
     expect(kinds).toContain("understand");
     expect(kinds).toContain("monitor");

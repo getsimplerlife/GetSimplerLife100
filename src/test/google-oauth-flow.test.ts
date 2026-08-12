@@ -3,6 +3,7 @@ import { getGDriveOAuthConfig } from "../integrations/providers/google-drive/aut
 import { getGDocsOAuthConfig } from "../integrations/providers/google-docs/auth";
 import { getGSheetsOAuthConfig } from "../integrations/providers/google-sheets/auth";
 import { getGSlidesOAuthConfig } from "../integrations/providers/google-slides/auth";
+import { getGCalendarOAuthConfig } from "../integrations/providers/google-calendar/auth";
 
 /**
  * Google OAuth flow regression suite (live-verification prep, 2026-08-12).
@@ -20,6 +21,7 @@ const PROVIDERS = [
   { id: "google-docs", label: "Docs", getConfig: getGDocsOAuthConfig },
   { id: "google-sheets", label: "Sheets", getConfig: getGSheetsOAuthConfig },
   { id: "google-slides", label: "Slides", getConfig: getGSlidesOAuthConfig },
+  { id: "google-calendar", label: "Calendar", getConfig: getGCalendarOAuthConfig },
 ] as const;
 
 describe("Google OAuth flow (refresh-token guarantee)", () => {
