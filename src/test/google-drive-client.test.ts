@@ -57,16 +57,44 @@ describe("Google Drive client (full capability surface)", () => {
     expect(calls[0]).toContain("trashed%20%3D%20false");
   });
 
-  it("deleteFile uses DELETE and returns id (rollback path)", async () => {
+  it("deleteFile default (no permanent) trashes via PATCH with Authorization header", async () => {
     const c = makeClient();
-    let deleted = false;
-    (c as any).client.delete = async () => {
-      deleted = true;
-      return { ok: true };
+    let patchedPath = "";
+    let patchedBody: any = null;
+    let patchedHeaders: Record<string, string> | undefined;
+    (c as any).client.patch = async (path: string, body: any, headers: Record<string, string>) => {
+      patchedPath = path;
+      patchedBody = body;
+      patchedHeaders = headers;
+      return { ok: true, data: { id: "file-9", trashed: true } };
     };
     const result = await c.deleteFile("file-9");
     expect(result).toEqual({ deleted: true, id: "file-9" });
-    expect(deleted).toBe(true);
+    expect(patchedPath).toContain("/files/file-9?");
+    expect(patchedPath).toContain("supportsAllDrives=true");
+    expect(patchedBody).toEqual({ trashed: true });
+    expect(patchedHeaders?.["Authorization"]).toBe("Bearer tok-1");
+  });
+
+  it("deleteFile permanent=true uses DELETE with Authorization header (regression: header was missing → 401)", async () => {
+    const c = makeClient();
+    let deletedPath = "";
+    let deletedHeaders: Record<string, string> | undefined;
+    (c as any).client.delete = async (path: string, headers: Record<string, string>) => {
+      deletedPath = path;
+      deletedHeaders = headers;
+      return { ok: true };
+    };
+    const result = await c.deleteFile("file-9", true);
+    expect(result).toEqual({ deleted: true, id: "file-9" });
+    expect(deletedPath).toContain("/files/file-9?");
+    expect(deletedPath).toContain("supportsAllDrives=true");
+    expect(deletedHeaders?.["Authorization"]).toBe("Bearer tok-1");
+  });
+
+  it("deleteFile requires a file id (fail closed)", async () => {
+    const c = makeClient();
+    await expect(c.deleteFile("")).rejects.toThrow("requires a file id");
   });
 
   it("moveFile patches with addParents/removeParents", async () => {

@@ -87,16 +87,18 @@ describe("Google verification adapter (real clients, mocked transport)", () => {
     await expect(googleAdapter(contract("google-drive-write-files"), ctx({ allowWrites: false }))).rejects.toThrow("--writes");
   });
 
-  it("google-drive-write-files creates a labeled folder and deletes it (rollback)", async () => {
+  it("google-drive-write-files creates a labeled folder and leaves it in place (non-destructive, owner directive)", async () => {
     const r = await googleAdapter(contract("google-drive-write-files"), ctx());
-    expect((r.response as any).deleted).toBe(true);
-    expect(calls.some((c) => c.method === "DELETE")).toBe(true);
+    expect((r.response as any).kept).toBe(true);
+    expect(calls.some((c) => c.method === "DELETE")).toBe(false);
+    expect(calls.some((c) => c.url.includes("trashed"))).toBe(false);
   });
 
-  it("google-docs-read-content with --writes creates, reads, deletes a labeled doc", async () => {
+  it("google-docs-read-content with --writes creates, reads, and leaves the labeled doc in place", async () => {
     const r = await googleAdapter(contract("google-docs-read-content", "google-docs"), ctx());
     expect(r.httpStatus).toBe(200);
     expect((r.response as any).chars).toBeGreaterThan(0);
+    expect(calls.some((c) => c.method === "DELETE")).toBe(false);
   });
 
   it("google-docs-read-content without docId and without --writes fails closed", async () => {
@@ -111,7 +113,7 @@ describe("Google verification adapter (real clients, mocked transport)", () => {
     expect((r.response as any).chars).toBeGreaterThan(0);
   });
 
-  it("google-sheets-read-ranges with --writes creates, writes, reads, deletes", async () => {
+  it("google-sheets-read-ranges with --writes creates, writes, reads, leaves in place", async () => {
     const r = await googleAdapter(contract("google-sheets-read-ranges", "google-sheets"), ctx());
     expect(r.httpStatus).toBe(200);
     expect((r.response as any).rows).toBeGreaterThan(0);
@@ -123,13 +125,13 @@ describe("Google verification adapter (real clients, mocked transport)", () => {
     expect((r.response as any).rowsReadBack).toBe(2);
   });
 
-  it("google-slides-read-presentation with --writes creates, reads, deletes", async () => {
+  it("google-slides-read-presentation with --writes creates, reads, leaves in place", async () => {
     const r = await googleAdapter(contract("google-slides-read-presentation", "google-slides"), ctx());
     expect(r.httpStatus).toBe(200);
     expect((r.response as any).slideCount).toBe(0);
   });
 
-  it("google-slides-create-presentation creates and deletes", async () => {
+  it("google-slides-create-presentation creates and leaves in place", async () => {
     const r = await googleAdapter(contract("google-slides-create-presentation", "google-slides"), ctx());
     expect(r.httpStatus).toBe(200);
     expect((r.response as any).slides).toBe(1);

@@ -182,11 +182,22 @@ export class GoogleDriveClient {
     return r.data;
   }
 
-  /** Delete a file (moves to trash by default; permanent with param). */
+  /** Delete a file (moves to trash by default; permanent only when explicitly requested). */
   async deleteFile(fileId: string, permanent = false): Promise<{ deleted: boolean; id: string }> {
     await this.ensureToken();
     if (!fileId) throw new Error("Google Drive: deleteFile requires a file id");
-    await this.client.delete(`/files/${encodeURIComponent(fileId)}?supportsAllDrives=true`);
+    if (permanent) {
+      // Permanent removal — must carry the Authorization header (regression: this
+      // call previously omitted this.headers, so cleanup 401'd against the API).
+      await this.client.delete(`/files/${encodeURIComponent(fileId)}?supportsAllDrives=true`, this.headers);
+    } else {
+      // Default: move to trash (restorable), matching the documented contract.
+      await this.client.patch(
+        `/files/${encodeURIComponent(fileId)}?supportsAllDrives=true&fields=id,name,trashed`,
+        { trashed: true },
+        this.headers,
+      );
+    }
     return { deleted: true, id: fileId };
   }
 
