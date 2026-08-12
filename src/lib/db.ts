@@ -48,13 +48,22 @@ export function getDb(): postgres.Sql {
   return _db;
 }
 
-/** Idempotent schema init — CREATE TABLE IF NOT EXISTS kv_store. */
+/** Idempotent schema init — CREATE TABLE IF NOT EXISTS kv_store (+ backup table). */
 export async function initDbSchema(db: postgres.Sql = getDb()): Promise<void> {
   await db.unsafe(
     `CREATE TABLE IF NOT EXISTS ${KV_TABLE} (` +
       `key TEXT PRIMARY KEY, ` +
       `value JSONB NOT NULL, ` +
       `updated_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+  );
+  // Backup snapshots (owner mandate 2026-08-12): hourly snapshots of kv_store
+  // with N-day retention so client data survives even a catastrophic kv_store
+  // failure. See durableSnapshotBackup() in durable-store.ts.
+  await db.unsafe(
+    `CREATE TABLE IF NOT EXISTS kv_store_backup (` +
+      `snapshot_id TEXT PRIMARY KEY, ` +
+      `data JSONB NOT NULL, ` +
+      `taken_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
   );
 }
 
