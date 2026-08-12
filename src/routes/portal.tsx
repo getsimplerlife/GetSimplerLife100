@@ -212,6 +212,7 @@ function PortalLayout() {
     { name: "Marketplace", subtitle: "Discover AI Agents", path: "/portal/marketplace", icon: "🛒", section: "AI Workforce" },
     { name: "Workflows", subtitle: "Builder · Management", path: "/portal/workflows", icon: "⚡", section: "Operations" },
     { name: "Documents", subtitle: "Upload · Process · Export", path: "/portal/documents", icon: "📁", section: "Operations" },
+    { name: "File Library", subtitle: "View · Edit · Print · Download", path: "/portal/files", icon: "📚", section: "Operations" },
     { name: "Approvals", subtitle: "Review · Authorize", path: "/portal/approvals", icon: "📋", section: "Operations" },
     { name: "AI Chat", subtitle: "Advisor · Assistant", path: "/portal/chat", icon: "💬", section: "Communications" },
     { name: "Communications", subtitle: "Messages · Log", path: "/portal/communications", icon: "📡", section: "Communications" },
