@@ -39,11 +39,12 @@ describe("OOXML zip container (hand-rolled, no deps)", () => {
   });
 
   it("extractZipEntry handles DEFLATED entries (re-saved by Office)", async () => {
-    // Build a real deflated zip by deflating "hello world payload" with CompressionStream.
+    // Build a real deflated zip by deflating "hello world payload" with zlib.
+    // (Blob.prototype.stream() is not available in the Bun/vitest runtime, so
+    // we use node:zlib deflateRawSync — raw deflate, method=8, no zlib header.)
+    const { deflateRawSync } = await import("node:zlib");
     const payload = new TextEncoder().encode("hello world payload");
-    const cs = new CompressionStream("deflate-raw");
-    const stream = new Blob([payload]).stream().pipeThrough(cs);
-    const compressed = new Uint8Array(await new Response(stream).arrayBuffer());
+    const compressed = new Uint8Array(deflateRawSync(payload));
 
     // Hand-assemble one local entry with method=8 (deflate).
     const nameBytes = new TextEncoder().encode("word/document.xml");
