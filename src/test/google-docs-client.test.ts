@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { HttpClientError } from "../integrations/framework/client";
 import { createGDocsClient, extractTextFromDocument, bodyEndIndexFromDocument, GOOGLE_DOC_MIME } from "../integrations/providers/google-docs/client";
 
 function makeClient() {
@@ -85,5 +86,54 @@ describe("Google Docs client (create/read/update)", () => {
     expect(copy.id).toBe("doc-copy");
     expect(calls[0]).toContain("/files/tpl-1/copy");
     expect(calls[1]).toContain(":batchUpdate");
+  });
+
+  it("healthCheck probes the Docs API (not drive) and reports token validity", async () => {
+    const c = makeClient();
+    const paths: string[] = [];
+    (c as any).docs.get = async (path: string) => {
+      paths.push(path);
+      throw new HttpClientError("GET probe failed (404)", 404, "Not Found");
+    };
+    expect(await c.healthCheck()).toBe(true); // 404 on a bogus id = auth OK
+    expect(paths[0]).toMatch(/^\/documents\//); // docs client, NOT the drive sub-client
+    (c as any).docs.get = async () => {
+      throw new HttpClientError("GET probe failed (401)", 401, "Unauthorized");
+    };
+    expect(await c.healthCheck()).toBe(false); // rejected token = fail
+    (c as any).docs.get = async () => {
+      throw new HttpClientError("GET probe failed (403)", 403, "Forbidden");
+    };
+    expect(await c.healthCheck()).toBe(false);
+    (c as any).docs.get = async () => {
+      throw new HttpClientError("GET probe failed (400)", 400, "Bad Request");
+    };
+    expect(await c.healthCheck()).toBe(true); // malformed id = auth OK
+    (c as any).docs.get = async () => {
+      throw new Error("network down");
+    };
+    expect(await c.healthCheck()).toBe(false);
+  });
+
+  it("healthCheck refreshes an expired token before probing (refresh path)", async () => {
+    const c = createGDocsClient({
+      accessToken: "tok-expired",
+      refreshToken: "rt-1",
+      expiresAt: Date.now() / 1000 - 60,
+    } as never);
+    let refreshed = false;
+    const seenHeaders: any[] = [];
+    (c as any).ensureToken = async () => {
+      refreshed = true;
+      // Simulate a successful refresh: the client's next request must use the new token.
+      (c as any).tokens = { accessToken: "tok-fresh", refreshToken: "rt-1", expiresAt: Date.now() / 1000 + 3600 };
+    };
+    (c as any).docs.get = async (_path: string, headers: any) => {
+      seenHeaders.push(headers);
+      throw new HttpClientError("GET probe failed (404)", 404, "Not Found");
+    };
+    expect(await c.healthCheck()).toBe(true);
+    expect(refreshed).toBe(true);
+    expect(seenHeaders[0]["Authorization"]).toBe("Bearer tok-fresh");
   });
 });
