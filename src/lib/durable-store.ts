@@ -18,9 +18,22 @@ import { getDb, initDbSchema, pingDb, dbAll, closeDb } from "./db";
  *   (strictly create-if-missing, idempotent).
  * - `durableGet`/`durableSet` are synchronous (backed by the cache) so the
  *   150+ existing `readJSON`/`writeJSON` call sites keep working unchanged.
- * - Writes are queued and upserted to Postgres asynchronously with bounded
- *   retry; the cache is updated synchronously so reads are immediately
- *   consistent.
+ * - Writes are queued and upserted to Postgres asynchronously; the cache is
+ *   updated synchronously so reads are immediately consistent.
+ *
+ * Durability hardening (2026-08-12): a database outage can never silently
+ * lose a client write and never leave the app booted with empty data:
+ *   1. Write-ahead retry queue: if a DB upsert fails, the latest value per
+ *      key is held in an in-memory pending map (latest-wins) and retried
+ *      with exponential backoff (1s → 2s → 4s … capped at 60s) until it
+ *      succeeds or the process exits. No silent drops — an overflow past the
+ *      cap (default 10k keys) logs loudly and is surfaced in admin
+ *      diagnostics (`overflowed`), never a crash.
+ *   2. Boot resilience: if Postgres is unreachable at init the store stays
+ *      disabled (server still boots fail-soft), but a background reconnection
+ *      loop retries init; when it succeeds the cache is hydrated from the DB
+ *      and reads immediately see real data. `hydrationState` distinguishes
+ *      "ready" from "retrying".
  *
  * The driver is injectable for tests: `initDurableStore(dataDir, driver?)`.
  * The default driver uses `postgres` (src/lib/db.ts) against
@@ -69,7 +82,38 @@ export class MemoryKvDriver implements KvDriver {
   }
 }
 
-const MAX_WRITE_ATTEMPTS = 3;
+// ── Tunables (tests shrink these; production defaults below) ────────────────
+export interface DurableStoreOptions {
+  /** Max distinct keys buffered in the write-ahead queue (default 10_000). */
+  pendingCap?: number;
+  /** Initial exponential backoff for the write-ahead queue (default 1s). */
+  retryBaseMs?: number;
+  /** Max backoff for the write-ahead queue (default 60s). */
+  retryMaxMs?: number;
+  /** How often boot reconnection is attempted while the DB is down (default 30s). */
+  reconnectIntervalMs?: number;
+  /** Max reconnect attempts (0 = indefinite, default). */
+  reconnectMaxAttempts?: number;
+  /** Set false to disable the boot reconnection loop entirely (tests). */
+  reconnectEnabled?: boolean;
+}
+const DEFAULT_OPTIONS: Required<DurableStoreOptions> = {
+  pendingCap: 10_000,
+  retryBaseMs: 1_000,
+  retryMaxMs: 60_000,
+  reconnectIntervalMs: 30_000,
+  reconnectMaxAttempts: 0,
+  reconnectEnabled: true,
+};
+let opts: Required<DurableStoreOptions> = { ...DEFAULT_OPTIONS };
+
+/** Override tunables (tests). Reset via `durableResetOptions()`. */
+export function setDurableOptions(next: DurableStoreOptions): void {
+  opts = { ...opts, ...next };
+}
+export function durableResetOptions(): void {
+  opts = { ...DEFAULT_OPTIONS };
+}
 
 let enabled = false;
 let driver: KvDriver | null = null;
@@ -78,6 +122,25 @@ let dataDir: string | null = null;
 const cache = new Map<string, string>();
 /** serialized write queue so upserts land in order */
 let writeChain: Promise<void> = Promise.resolve();
+
+// ── Write-ahead retry queue (never silently drop a write) ───────────────────
+/** key -> latest JSON text; latest-wins so memory cannot grow unbounded. */
+const pendingWrites = new Map<string, { text: string }>();
+let drainPromise: Promise<number> | null = null;
+let drainTimer: any = null;
+let drainDelayMs = DEFAULT_OPTIONS.retryBaseMs;
+let overflowed = false;
+let lastWriteError: string | null = null;
+
+// ── Boot resilience (never permanently fall back to files) ──────────────────
+type HydrationState = "ready" | "retrying";
+let hydrationState: HydrationState = "ready";
+let reconnectTimer: any = null;
+let reconnectAttempts = 0;
+let retryDir: string | null = null;
+let retryDriver: KvDriver | null = null;
+
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 export function durableEnabled(): boolean { return enabled; }
 
@@ -101,25 +164,95 @@ export function durableHas(key: string): boolean {
   return enabled && cache.has(key);
 }
 
-/** Queue an upsert; bounded retry, failure logged (cache keeps latest). */
+/**
+ * Diagnostics for /api/admin: current store state. `hydrationState` is
+ * "retrying" while boot reconnection is still looking for Postgres.
+ */
+export function durableStoreStatus(): {
+  enabled: boolean;
+  hydrationState: HydrationState;
+  pendingWriteCount: number;
+  lastWriteError: string | null;
+  overflowed: boolean;
+} {
+  return {
+    enabled,
+    hydrationState,
+    pendingWriteCount: pendingWrites.size,
+    lastWriteError,
+    overflowed,
+  };
+}
+
+async function upsertOne(key: string, text: string): Promise<void> {
+  await driver!.unsafe(
+    `INSERT INTO kv_store (key, value, updated_at) VALUES ($1, $2::jsonb, now()) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`,
+    [key, text],
+  );
+}
+
+/** Buffer a failed write for retry (latest-wins; bounded by pendingCap). */
+function bufferPending(key: string, text: string): void {
+  if (pendingWrites.size >= opts.pendingCap && !pendingWrites.has(key)) {
+    if (!overflowed) {
+      overflowed = true;
+      console.log(
+        `[durable-store] PENDING WRITE QUEUE OVERFLOW — ${opts.pendingCap} distinct keys buffered while the DB is down; ` +
+        `further NEW keys will be dropped until the queue drains (surfaced in admin as overflowed=true)`,
+      );
+    }
+    return; // drop — never crash, never grow unbounded
+  }
+  pendingWrites.set(key, { text });
+}
+
+/** One attempt at flushing every pending key. Serialized — concurrent callers share a pass. */
+export function drainPendingWrites(): Promise<number> {
+  if (drainPromise) return drainPromise;
+  drainPromise = (async (): Promise<number> => {
+    if (!enabled || !driver || pendingWrites.size === 0) return 0;
+    let drained = 0;
+    let failed = false;
+    for (const [key, entry] of [...pendingWrites.entries()]) {
+      try {
+        await upsertOne(key, entry.text);
+        pendingWrites.delete(key);
+        drained++;
+      } catch (e: any) {
+        failed = true;
+        lastWriteError = e?.message || String(e);
+      }
+    }
+    if (failed) drainDelayMs = Math.min(drainDelayMs * 2, opts.retryMaxMs);
+    else { drainDelayMs = opts.retryBaseMs; lastWriteError = null; }
+    if (pendingWrites.size > 0) scheduleDrain();
+    return drained;
+  })();
+  return drainPromise.finally(() => { drainPromise = null; });
+}
+
+function scheduleDrain(): void {
+  if (drainTimer || drainPromise) return;
+  drainTimer = setTimeout(() => {
+    drainTimer = null;
+    void drainPendingWrites();
+  }, drainDelayMs);
+  if (drainTimer?.unref) drainTimer.unref();
+}
+
+/** Queue an upsert; single fast-path attempt, then the write-ahead queue. */
 function queueUpsert(key: string, value: any): void {
   if (!enabled || !driver) return;
   const text = JSON.stringify(value);
   writeChain = writeChain.then(async () => {
-    let lastErr: unknown = null;
-    for (let attempt = 1; attempt <= MAX_WRITE_ATTEMPTS; attempt++) {
-      try {
-        await driver!.unsafe(
-          `INSERT INTO kv_store (key, value, updated_at) VALUES ($1, $2::jsonb, now()) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`,
-          [key, text],
-        );
-        return;
-      } catch (e) {
-        lastErr = e;
-        if (attempt < MAX_WRITE_ATTEMPTS) await Bun.sleep(50 * attempt);
-      }
+    try {
+      await upsertOne(key, text);
+      lastWriteError = null;
+    } catch (e: any) {
+      lastWriteError = e?.message || String(e);
+      bufferPending(key, text);
+      scheduleDrain();
     }
-    console.log(`[durable-store] FAILED upsert key=${key} err=${(lastErr as any)?.message || String(lastErr)} (will retry on next write)`);
   });
 }
 
@@ -131,15 +264,70 @@ export function durableSet(key: string, value: any): void {
 }
 
 /** Await all pending writes (tests, boot verification). */
-export async function durableFlush(): Promise<void> { await writeChain; }
+export async function durableFlush(): Promise<void> {
+  await writeChain;
+  await drainPendingWrites();
+}
+
+/** Poll until the store is enabled (boot reconnection succeeded). */
+export async function durableWaitForReady(timeoutMs = 10_000): Promise<boolean> {
+  const start = Date.now();
+  while (!enabled && Date.now() - start < timeoutMs) await sleep(25);
+  return enabled;
+}
+
+/** Stop the boot reconnection loop (tests / shutdown). */
+export function durableStopReconnect(): void {
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+  reconnectAttempts = 0;
+}
 
 /** Close the connection (tests). */
 export async function durableClose(): Promise<void> {
+  durableStopReconnect();
+  if (drainTimer) { clearTimeout(drainTimer); drainTimer = null; }
+  drainPromise = null;
+  pendingWrites.clear();
+  drainDelayMs = opts.retryBaseMs;
+  overflowed = false;
+  lastWriteError = null;
+  hydrationState = "ready";
+  writeChain = Promise.resolve();
   enabled = false;
   driver = null;
   dataDir = null;
+  retryDir = null;
+  retryDriver = null;
   cache.clear();
   await closeDb();
+}
+
+function startReconnectLoop(): void {
+  if (!opts.reconnectEnabled || reconnectTimer) return;
+  reconnectAttempts = 0;
+  reconnectTimer = setTimeout(doReconnectAttempt, opts.reconnectIntervalMs);
+  if (reconnectTimer?.unref) reconnectTimer.unref();
+}
+
+async function doReconnectAttempt(): Promise<void> {
+  reconnectTimer = null;
+  if (opts.reconnectMaxAttempts > 0 && reconnectAttempts >= opts.reconnectMaxAttempts) return;
+  reconnectAttempts++;
+  if (!retryDir) return;
+  const result = await attemptInit(retryDir, retryDriver);
+  if (result.enabled) {
+    hydrationState = "ready";
+    reconnectAttempts = 0;
+    // Any writes buffered during the outage drain via their own backoff loop.
+    if (pendingWrites.size > 0) scheduleDrain();
+    return;
+  }
+  hydrationState = "retrying";
+  reconnectTimer = setTimeout(doReconnectAttempt, opts.reconnectIntervalMs);
+  if (reconnectTimer?.unref) reconnectTimer.unref();
 }
 
 /**
@@ -147,15 +335,43 @@ export async function durableClose(): Promise<void> {
  * then migrates any .json files in `dataDir` that are missing in the DB
  * (create-if-missing, idempotent). Safe to call once at boot; returns the
  * status (enabled / loaded / migrated).
+ *
+ * If the DB is unreachable, returns enabled:false (server still boots
+ * fail-soft on files) but starts a background reconnection loop — the store
+ * is NOT permanently stuck on files.
  */
 export async function initDurableStore(
   dir: string,
   providedDriver?: KvDriver,
+  overrides?: DurableStoreOptions,
 ): Promise<{ enabled: boolean; loaded: number; migrated: number; error?: string }> {
+  if (overrides) setDurableOptions(overrides);
   dataDir = dir;
   if (!providedDriver && !process.env.DATABASE_URL?.trim()) {
+    durableStopReconnect();
+    hydrationState = "ready";
     return { enabled: false, loaded: 0, migrated: 0 };
   }
+  const result = await attemptInit(dir, providedDriver);
+  if (result.enabled) {
+    hydrationState = "ready";
+    reconnectAttempts = 0;
+    durableStopReconnect();
+    return result;
+  }
+  // Real attempt failed — keep retrying in the background instead of
+  // permanently falling back to the (ephemeral) file store.
+  hydrationState = "retrying";
+  retryDir = dir;
+  retryDriver = providedDriver || null;
+  startReconnectLoop();
+  return result;
+}
+
+async function attemptInit(
+  dir: string,
+  providedDriver?: KvDriver,
+): Promise<{ enabled: boolean; loaded: number; migrated: number; error?: string }> {
   try {
     if (!providedDriver) {
       // Real Postgres driver (src/lib/db.ts) — throws if DATABASE_URL missing.
@@ -165,11 +381,11 @@ export async function initDurableStore(
       providedDriver = {
         unsafe: (sql: string, values?: any[]) => db.unsafe(sql, values),
       } as KvDriver;
-      // Seed the cache from the DB.
       const rows = await dbAll(db);
       cache.clear();
       for (const r of rows) cache.set(r.key, JSON.stringify(r.value));
-      // Migrate local files missing in the DB (create-if-missing).
+      driver = providedDriver;
+      enabled = true; // must be set before migration upserts queue up
       let migrated = 0;
       if (existsSync(dir)) {
         for (const name of readdirSync(dir)) {
@@ -187,8 +403,6 @@ export async function initDurableStore(
         }
       }
       await durableFlush();
-      driver = providedDriver;
-      enabled = true;
       return { enabled: true, loaded: rows.length, migrated };
     }
     driver = providedDriver;

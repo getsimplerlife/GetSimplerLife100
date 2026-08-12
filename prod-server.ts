@@ -3,7 +3,8 @@ import { join, basename } from "path";
 import { readFileSync, writeFileSync, existsSync, readdirSync } from "fs";
 import { createHash, randomBytes } from "crypto";
 import { resolveDataDir, isInsidePublishTree, readJSON, writeJSON, seedDataFiles, bucketConnectionsByCategory, migrateLegacyData, findLegacyDataDir, countConnections } from "./src/lib/data-store";
-import { initDurableStore, durableEnabled, durableKeyCount } from "./src/lib/durable-store";
+import { initDurableStore, durableEnabled, durableKeyCount, durableStoreStatus } from "./src/lib/durable-store";
+import { sweepExpiredTokens, tokenSweepStats } from "./src/lib/token-refresher";
 
 // ── Lazy module accessors — loaded on first use to keep server startup under 1s ──
 let _bcryptjs: any;
@@ -358,6 +359,39 @@ if (durableInit.enabled) {
 } else {
   console.log("[prod-server] durable Postgres store " + (durableInit.error ? "DISABLED (init error: " + durableInit.error + ") — using file store only" : "DISABLED (no DATABASE_URL) — using file store only"));
 }
+// ── Background token-refresh sweeper (keeps OAuth connections alive 24/7) ──
+const TOKEN_SWEEP_INTERVAL_MS = (() => {
+  const n = Number(process.env.TOKEN_SWEEP_INTERVAL_MS);
+  return Number.isFinite(n) && n > 0 ? n : 60 * 60 * 1000; // hourly default
+})();
+let tokenSweepTimer: any = null;
+let tokenSweepRunning = false;
+async function runTokenSweep(): Promise<void> {
+  if (tokenSweepRunning) return; // never overlap sweeps
+  tokenSweepRunning = true;
+  try {
+    const result = await sweepExpiredTokens(DATA_DIR);
+    console.log(`[token-refresher] sweep done: checked=${result.checked} refreshed=${result.refreshed} failed=${result.failed} skipped=${result.skipped}` + (result.errors.length ? ` errors=${result.errors.length}` : ""));
+  } catch (e: any) {
+    tokenSweepStats.lastError = e?.message || String(e);
+    console.log("[token-refresher] sweep error: " + (e?.message || String(e)));
+  } finally {
+    tokenSweepRunning = false;
+    tokenSweepStats.lastSweep = Date.now();
+    tokenSweepStats.nextSweep = Date.now() + TOKEN_SWEEP_INTERVAL_MS;
+  }
+}
+function startTokenSweeper(): void {
+  if (tokenSweepTimer) return;
+  tokenSweepTimer = setInterval(() => { void runTokenSweep(); }, TOKEN_SWEEP_INTERVAL_MS);
+  if (tokenSweepTimer?.unref) tokenSweepTimer.unref();
+  tokenSweepStats.nextSweep = Date.now() + TOKEN_SWEEP_INTERVAL_MS;
+  // First sweep shortly after boot so near-expiry tokens refresh promptly.
+  const first = setTimeout(() => { void runTokenSweep(); }, 60_000);
+  if (first?.unref) first.unref();
+  console.log(`[token-refresher] sweeper started: every ${TOKEN_SWEEP_INTERVAL_MS}ms (first sweep in 60s)`);
+}
+startTokenSweeper();
 console.log("[prod-server] Starting server on port 3000...");
 serve({
   port: 3000,
@@ -1907,6 +1941,7 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
         const legacyDir = findLegacyDataDir();
         const currentConns = readJSON(TENANT_INTEGRATIONS_FILE);
         const legacyConns = legacyDir ? readJSON(join(legacyDir, "tenant_integrations.json")) : {};
+        const store = durableStoreStatus();
         return Response.json({
           dataDir: DATA_DIR,
           insidePublishTree: isInsidePublishTree(DATA_DIR),
@@ -1916,6 +1951,15 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
           currentConnectionCount: countConnections(currentConns),
           durableStore: durableEnabled() ? "postgres" : "file",
           durableKeyCount: durableEnabled() ? durableKeyCount() : 0,
+          hydrationState: store.hydrationState,
+          dbConnected: store.enabled,
+          pendingWriteCount: store.pendingWriteCount,
+          lastWriteError: store.lastWriteError,
+          pendingOverflowed: store.overflowed,
+          lastSweep: tokenSweepStats.lastSweep || null,
+          nextSweep: tokenSweepStats.nextSweep || null,
+          tokensRefreshed: tokenSweepStats.tokensRefreshed,
+          tokensFailed: tokenSweepStats.tokensFailed,
         });
       }
       if (subPath === "credentials") {
@@ -2530,3 +2574,4 @@ OAUTH_${provUpper}_CLIENT_SECRET=your_client_secret</pre><p style="font-size:0.8
 console.log("[prod-server] Port 3000 — SSR mode: server-side rendering + client hydration | API: /api/login, /api/register, /api/logout, /api/me");
 // Signal readiness — write a file the publish tool can detect
 try { require("fs").writeFileSync("/tmp/slr100-ready", String(Date.now())); } catch (_) {}
+process.on("exit", () => { if (tokenSweepTimer) clearInterval(tokenSweepTimer); });
