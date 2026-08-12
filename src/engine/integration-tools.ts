@@ -114,6 +114,10 @@ import * as gdrive from "../integrations/providers/google-drive";
 import * as dropbox from "../integrations/providers/dropbox";
 import * as box from "../integrations/providers/box";
 import * as egnyte from "../integrations/providers/egnyte";
+// Productivity (Google Workspace file types)
+import * as googleDocs from "../integrations/providers/google-docs";
+import * as googleSheets from "../integrations/providers/google-sheets";
+import * as googleSlides from "../integrations/providers/google-slides";
 // Document Processing
 import * as adobeSign from "../integrations/providers/adobe-sign";
 import * as docusign from "../integrations/providers/docusign";
@@ -326,6 +330,10 @@ registerProviderActions("google-drive", [gdrive], ["gdriveActions"]);
 registerProviderActions("dropbox", [dropbox], ["dropboxActions"]);
 registerProviderActions("box", [box], ["boxActions"]);
 registerProviderActions("egnyte", [egnyte], ["egnyteActions"]);
+// Productivity (Google Workspace file types)
+registerProviderActions("google-docs", [googleDocs], ["googleDocsActions"]);
+registerProviderActions("google-sheets", [googleSheets], ["googleSheetsActions"]);
+registerProviderActions("google-slides", [googleSlides], ["googleSlidesActions"]);
 // Document Processing
 registerProviderActions("adobe-sign", [adobeSign], ["adobeSignActions"]);
 registerProviderActions("docusign", [docusign], ["docusignActions"]);
@@ -603,6 +611,7 @@ function getProvidersInCategory(category: string): string[] {
     "email": ["outlook", "exchange", "gmail", "google-workspace", "imap", "smtp"],
     "communication": ["teams", "slack", "zoom", "ringcentral", "webex", "discord", "twilio", "dialpad", "aircall"],
     "storage": ["sharepoint", "onedrive", "google-drive", "dropbox", "box", "egnyte", "s3", "azure-blob", "gcs"],
+    "productivity": ["google-docs", "google-sheets", "google-slides"],
     "document-processing": ["adobe-sign", "docusign", "pandadoc", "dropbox-sign", "pdf-co", "ocr-space", "abbyy", "aws-textract", "azure-doc-intel", "google-doc-ai"],
     "project-management": ["monday-com", "asana", "clickup", "jira", "trello", "basecamp", "notion", "wrike", "smartsheet"],
     "hr": ["bamboohr", "workday", "ukg", "adp", "gusto", "rippling", "paychex", "greenhouse", "lever"],
