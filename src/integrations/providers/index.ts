@@ -113,6 +113,8 @@ function registerProvider(module: {
     "googleWorkspaceIdentityActions",
     // Storage
     "s3Actions", "azureBlobActions", "gcsActions",
+    // Productivity (Google Workspace file types)
+    "googleDocsActions", "googleSheetsActions", "googleSlidesActions",
     // Developer Tools
     "restApiActions", "graphqlActions", "webhooksBroadActions",
     "sftpActions", "soapActions", "jsonActions", "xmlActions",
@@ -358,6 +360,10 @@ import * as googleWorkspaceIdentity from "./google-workspace-identity";
 import * as s3 from "./s3";
 import * as azureBlob from "./azure-blob";
 import * as gcs from "./gcs";
+// ── Productivity Imports (Google Workspace file types) ─────────────────────────
+import * as googleDocs from "./google-docs";
+import * as googleSheets from "./google-sheets";
+import * as googleSlides from "./google-slides";
 // ── Developer Tools Imports ────────────────────────────────────────────────────
 import * as restApi from "./rest-api";
 import * as graphql from "./graphql";
@@ -570,6 +576,10 @@ const providerModules = [
   { ...s3, s3Actions: s3.s3Actions },
   { ...azureBlob, azureBlobActions: azureBlob.azureBlobActions },
   { ...gcs, gcsActions: gcs.gcsActions },
+  // Productivity (Google Workspace file types)
+  { ...googleDocs, googleDocsActions: googleDocs.googleDocsActions },
+  { ...googleSheets, googleSheetsActions: googleSheets.googleSheetsActions },
+  { ...googleSlides, googleSlidesActions: googleSlides.googleSlidesActions },
   // Developer Tools
   { ...restApi, restApiActions: restApi.restApiActions },
   { ...graphql, graphqlActions: graphql.graphqlActions },
@@ -786,6 +796,10 @@ export * from "./google-workspace-identity";
 export * from "./s3";
 export * from "./azure-blob";
 export * from "./gcs";
+// Productivity (Google Workspace file types)
+export * from "./google-docs";
+export * from "./google-sheets";
+export * from "./google-slides";
 // Developer Tools
 export * from "./rest-api";
 export * from "./graphql";

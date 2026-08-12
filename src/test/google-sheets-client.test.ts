@@ -1,0 +1,71 @@
+import { describe, expect, it } from "vitest";
+import { createGSheetsClient } from "../integrations/providers/google-sheets/client";
+
+function makeClient() {
+  return createGSheetsClient({ accessToken: "tok-1", refreshToken: "rt-1", expiresAt: Date.now() / 1000 + 3600 } as never);
+}
+
+describe("Google Sheets client (create/read/write)", () => {
+  it("uses Bearer token and canonical host", () => {
+    const c = makeClient();
+    const headers = (c as any).headers;
+    expect(headers["Authorization"]).toBe("Bearer tok-1");
+    expect((c as any).client.baseUrl).toBe("https://sheets.googleapis.com/v4");
+  });
+
+  it("createSpreadsheet posts title and tabs", async () => {
+    const c = makeClient();
+    const calls: Array<{ path: string; body: any }> = [];
+    (c as any).client.post = async (path: string, body: any) => {
+      calls.push({ path, body });
+      return { data: { spreadsheetId: "s-1", properties: { title: "Ledger" } } };
+    };
+    const s = await c.createSpreadsheet("Ledger", ["Sheet1", "Sheet2"]);
+    expect(s.spreadsheetId).toBe("s-1");
+    expect(calls[0].path).toBe("/spreadsheets");
+    expect(calls[0].body.properties.title).toBe("Ledger");
+    expect(calls[0].body.sheets).toHaveLength(2);
+  });
+
+  it("readRange hits values/{range} and returns rows", async () => {
+    const c = makeClient();
+    const calls: string[] = [];
+    (c as any).client.get = async (path: string) => {
+      calls.push(path);
+      return { data: { values: [["a", "b"], ["c", "d"]] } };
+    };
+    const rows = await c.readRange("s-1", "Sheet1!A1:D50");
+    expect(rows).toEqual([["a", "b"], ["c", "d"]]);
+    expect(calls[0]).toContain("/spreadsheets/s-1/values/Sheet1!A1%3AD50");
+  });
+
+  it("readRange requires a range (fail closed)", async () => {
+    const c = makeClient();
+    await expect(c.readRange("s-1", "")).rejects.toThrow("requires a range");
+  });
+
+  it("writeRange PUTs values with valueInputOption=RAW", async () => {
+    const c = makeClient();
+    const calls: Array<{ path: string; body: any }> = [];
+    (c as any).client.put = async (path: string, body: any) => {
+      calls.push({ path, body });
+      return { data: { updatedRange: "Sheet1!A1:B2", updatedCells: 4 } };
+    };
+    const r = await c.writeRange("s-1", "Sheet1!A1", [["a"], ["b"]]);
+    expect(r.updatedCells).toBe(4);
+    expect(calls[0].path).toContain("valueInputOption=RAW");
+    expect(calls[0].body.majorDimension).toBe("ROWS");
+  });
+
+  it("appendRows POSTs to :append", async () => {
+    const c = makeClient();
+    const calls: string[] = [];
+    (c as any).client.post = async (path: string) => {
+      calls.push(path);
+      return { data: { updates: { updatedRows: 2 } } };
+    };
+    await c.appendRows("s-1", "Sheet1!A1", [["x", "y"]]);
+    expect(calls[0]).toContain(":append?valueInputOption=RAW");
+    await expect(c.appendRows("s-1", "Sheet1!A1", [])).rejects.toThrow("non-empty values");
+  });
+});
