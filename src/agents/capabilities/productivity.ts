@@ -173,17 +173,13 @@ export interface ProductivityExecutionOptions {
  * (durable key client_files.json). Best-effort: a registry failure must NEVER
  * fail the create — the file exists in the provider regardless.
  * The file shape is normalized from the provider's create response.
+ *
+ * Shared by Google (productivity.ts) and Microsoft (productivity-microsoft.ts)
+ * create executors. Normalization: Google create responses carry
+ * spreadsheetId/presentationId and webViewLink|alternateLink; Microsoft Graph
+ * create responses carry id/name/webUrl.
  */
-function requireTenant(options: ProductivityExecutionOptions): void {
-  if (!options.tenantId.trim()) throw new Error("Tenant scope is required");
-  if (!options.authToken?.trim()) throw new Error("Provider authentication is required");
-}
-
-function boundedAttempts(value?: number): number {
-  return Math.max(1, Math.min(value ?? 2, 3));
-}
-
-function registerCreatedFile(
+export function registerCreatedFile(
   provider: string,
   kind: "doc" | "sheet" | "slides" | "word" | "excel" | "ppt" | "file",
   result: unknown,
@@ -207,7 +203,7 @@ function registerCreatedFile(
     } else {
       providerFileId = r.id;
       name = r.name || fallbackName;
-      url = r.webViewLink || r.alternateLink;
+      url = r.webUrl || r.webViewLink || r.alternateLink;
     }
     if (!providerFileId) return; // no usable id → nothing to register
     registerClientFile(
@@ -216,6 +212,15 @@ function registerCreatedFile(
       options.dataDir,
     );
   } catch { /* registry is best-effort — never fail the create */ }
+}
+
+function requireTenant(options: ProductivityExecutionOptions): void {
+  if (!options.tenantId.trim()) throw new Error("Tenant scope is required");
+  if (!options.authToken?.trim()) throw new Error("Provider authentication is required");
+}
+
+function boundedAttempts(value?: number): number {
+  return Math.max(1, Math.min(value ?? 2, 3));
 }
 
 async function executeWithRetry(

@@ -1,4 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, beforeEach, afterEach } from "vitest";
+import { mkdtempSync, rmSync } from "fs";
+import { tmpdir } from "os";
+import { join } from "path";
 import {
   microsoftProductivityCapabilities,
 } from "../agents/capabilities/productivity-microsoft";
@@ -12,6 +15,7 @@ import {
   type MicrosoftProductivityAdapter,
   type MicrosoftProductivityExecutionOptions,
 } from "../agents/capabilities/productivity-microsoft";
+import { listClientFiles } from "../lib/client-files";
 
 describe("Microsoft Productivity capability contracts", () => {
   it("declares understand/monitor/automate slices for all four Microsoft providers", () => {
@@ -95,5 +99,91 @@ describe("Microsoft Productivity capability contracts", () => {
       createMicrosoftWordDoc(adapter, { name: "R", paragraphs: [] }, { tenantId: "acme", authToken: "tok", audit: async (e) => auditEvents.push(e.outcome) } as never, "ik"),
     ).rejects.toThrow("boom");
     expect(auditEvents).toEqual(["failed"]);
+  });
+});
+
+describe("Microsoft executors register created files in the portal File Library registry", () => {
+  let dir: string;
+  beforeEach(() => { dir = mkdtempSync(join(tmpdir(), "ms-reg-")); });
+  afterEach(() => { rmSync(dir, { recursive: true, force: true }); });
+
+  const adapter: MicrosoftProductivityAdapter = {
+    createWordDoc: async () => ({ id: "w1", name: "Report.docx", webUrl: "https://1drv.ms/w1" }),
+    createExcelWorkbook: async () => ({ id: "x1", name: "Budget.xlsx", webUrl: "https://1drv.ms/x1" }),
+    writeExcelRange: async () => ({ ok: true }),
+    createPowerPoint: async () => ({ id: "p1", name: "Deck.pptx", webUrl: "https://1drv.ms/p1" }),
+    uploadOneDriveFile: async () => ({ id: "o1", name: "Q3.txt", webUrl: "https://1drv.ms/o1" }),
+    deleteOneDriveFile: async () => ({ deleted: true }),
+  };
+
+  it("registers Word/Excel/PowerPoint/OneDrive creates (Graph-shaped responses) for the tenant", async () => {
+    const options: MicrosoftProductivityExecutionOptions = {
+      tenantId: "acme@test.com",
+      authToken: "tok",
+      audit: async () => {},
+      dataDir: dir,
+    };
+    await createMicrosoftWordDoc(adapter, { name: "Report", paragraphs: ["x"] }, options, "ik-w");
+    await createMicrosoftExcelWorkbook(adapter, { name: "Budget", rows: [["a"]] }, options, "ik-x");
+    await createMicrosoftPowerPoint(adapter, { name: "Deck", slides: [{ title: "T" }] }, options, "ik-p");
+    await uploadMicrosoftOneDriveFile(adapter, { path: "Reports/Q3.txt", content: "hi" }, options, "ik-o");
+
+    const files = listClientFiles("acme@test.com", dir);
+    expect(files.map((f) => f.provider).sort()).toEqual(["microsoft-excel", "microsoft-powerpoint", "microsoft-word", "onedrive"]);
+    const word = files.find((f) => f.provider === "microsoft-word")!;
+    expect(word.providerFileId).toBe("w1");
+    expect(word.name).toBe("Report.docx");
+    expect(word.kind).toBe("word");
+    expect(word.url).toBe("https://1drv.ms/w1");
+    const excel = files.find((f) => f.provider === "microsoft-excel")!;
+    expect(excel.kind).toBe("excel");
+    const ppt = files.find((f) => f.provider === "microsoft-powerpoint")!;
+    expect(ppt.kind).toBe("ppt");
+    const od = files.find((f) => f.provider === "onedrive")!;
+    expect(od.kind).toBe("file");
+    expect(od.name).toBe("Q3.txt");
+    expect(od.url).toBe("https://1drv.ms/o1");
+  });
+
+  it("falls back to the input name when the provider returns no name (and normalizes OneDrive path)", async () => {
+    const options: MicrosoftProductivityExecutionOptions = {
+      tenantId: "acme@test.com",
+      authToken: "tok",
+      audit: async () => {},
+      dataDir: dir,
+    };
+    const noName: MicrosoftProductivityAdapter = {
+      ...adapter,
+      createWordDoc: async () => ({ id: "w2" }),
+      uploadOneDriveFile: async () => ({ id: "o2" }),
+    };
+    await createMicrosoftWordDoc(noName, { name: "Untitled", paragraphs: [] }, options, "ik-1");
+    await uploadMicrosoftOneDriveFile(noName, { path: "deep/folder/notes.txt", content: "x" }, options, "ik-2");
+    const files = listClientFiles("acme@test.com", dir);
+    expect(files.find((f) => f.provider === "microsoft-word")!.name).toBe("Untitled");
+    expect(files.find((f) => f.provider === "onedrive")!.name).toBe("notes.txt");
+  });
+
+  it("does not register when dataDir is omitted (create still succeeds)", async () => {
+    const options: MicrosoftProductivityExecutionOptions = {
+      tenantId: "acme@test.com",
+      authToken: "tok",
+      audit: async () => {},
+    };
+    await createMicrosoftWordDoc(adapter, { name: "Report", paragraphs: ["x"] }, options, "ik");
+    expect(listClientFiles("acme@test.com", dir)).toHaveLength(0);
+  });
+
+  it("registry failure never fails the create (best-effort, same as Google)", async () => {
+    const badDir = join(tmpdir(), "definitely-missing-ms-reg-dir-xyz-12345");
+    const options: MicrosoftProductivityExecutionOptions = {
+      tenantId: "acme@test.com",
+      authToken: "tok",
+      audit: async () => {},
+      dataDir: badDir,
+    };
+    await expect(
+      createMicrosoftWordDoc(adapter, { name: "Report", paragraphs: ["x"] }, options, "ik"),
+    ).resolves.toEqual({ id: "w1", name: "Report.docx", webUrl: "https://1drv.ms/w1" });
   });
 });

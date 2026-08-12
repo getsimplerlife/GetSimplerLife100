@@ -1,5 +1,5 @@
 import { defineCapabilityContract, type CapabilityContract } from "../../lib/capability-contract";
-import { PRODUCTIVITY_EMPLOYEE_ID } from "./productivity";
+import { PRODUCTIVITY_EMPLOYEE_ID, registerCreatedFile } from "./productivity";
 
 /**
  * Productivity employee — Microsoft Office capabilities (owner directive
@@ -164,6 +164,8 @@ export interface MicrosoftProductivityExecutionOptions {
   authToken?: string;
   audit: (event: { capabilityId: string; tenantId: string; outcome: string; idempotencyKey?: string }) => Promise<void> | void;
   maxAttempts?: number;
+  /** DATA_DIR for the portal File Library registry (client_files.json). */
+  dataDir?: string;
 }
 
 function requireMicrosoftTenant(options: MicrosoftProductivityExecutionOptions): void {
@@ -203,7 +205,11 @@ export function createMicrosoftWordDoc(
   options: MicrosoftProductivityExecutionOptions,
   idempotencyKey: string,
 ): Promise<unknown> {
-  return executeMicrosoftWithRetry("microsoft-word-create-document", idempotencyKey, () => adapter.createWordDoc(input, idempotencyKey), options);
+  return executeMicrosoftWithRetry("microsoft-word-create-document", idempotencyKey, async () => {
+    const result = await adapter.createWordDoc(input, idempotencyKey);
+    registerCreatedFile("microsoft-word", "word", result, input.name, options);
+    return result;
+  }, options);
 }
 
 export function createMicrosoftExcelWorkbook(
@@ -212,7 +218,11 @@ export function createMicrosoftExcelWorkbook(
   options: MicrosoftProductivityExecutionOptions,
   idempotencyKey: string,
 ): Promise<unknown> {
-  return executeMicrosoftWithRetry("microsoft-excel-write-values", idempotencyKey, () => adapter.createExcelWorkbook(input, idempotencyKey), options);
+  return executeMicrosoftWithRetry("microsoft-excel-write-values", idempotencyKey, async () => {
+    const result = await adapter.createExcelWorkbook(input, idempotencyKey);
+    registerCreatedFile("microsoft-excel", "excel", result, input.name, options);
+    return result;
+  }, options);
 }
 
 export function writeMicrosoftExcelRange(
@@ -230,7 +240,11 @@ export function createMicrosoftPowerPoint(
   options: MicrosoftProductivityExecutionOptions,
   idempotencyKey: string,
 ): Promise<unknown> {
-  return executeMicrosoftWithRetry("microsoft-powerpoint-create-presentation", idempotencyKey, () => adapter.createPowerPoint(input, idempotencyKey), options);
+  return executeMicrosoftWithRetry("microsoft-powerpoint-create-presentation", idempotencyKey, async () => {
+    const result = await adapter.createPowerPoint(input, idempotencyKey);
+    registerCreatedFile("microsoft-powerpoint", "ppt", result, input.name, options);
+    return result;
+  }, options);
 }
 
 export function uploadMicrosoftOneDriveFile(
@@ -239,5 +253,10 @@ export function uploadMicrosoftOneDriveFile(
   options: MicrosoftProductivityExecutionOptions,
   idempotencyKey: string,
 ): Promise<unknown> {
-  return executeMicrosoftWithRetry("onedrive-write-files", idempotencyKey, () => adapter.uploadOneDriveFile(input, idempotencyKey), options);
+  const fallbackName = input.path.split("/").pop() || input.path;
+  return executeMicrosoftWithRetry("onedrive-write-files", idempotencyKey, async () => {
+    const result = await adapter.uploadOneDriveFile(input, idempotencyKey);
+    registerCreatedFile("onedrive", "file", result, fallbackName, options);
+    return result;
+  }, options);
 }
