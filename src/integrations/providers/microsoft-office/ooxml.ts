@@ -6,9 +6,8 @@
  *   1. buildZip(entries) — creates a STORED (uncompressed) ZIP from name→content
  *      entries (deterministic timestamps, correct CRC32 + central directory).
  *   2. extractZipEntry(bytes, name) — reads one entry back out of an existing
- *      ZIP, handling both STORED (0) and DEFLATED (8) entries via
- *      DecompressionStream('deflate-raw') so files re-saved by Office/Word can
- *      be read back.
+ *      ZIP, handling both STORED (0) and DEFLATED (8) entries via node:zlib
+ *      inflateRawSync so files re-saved by Office/Word can be read back.
  *   3. buildMinimalDocx / buildMinimalXlsx / buildMinimalPptx — assemble the
  *      OOXML part sets for each file type with the real Microsoft schemas.
  *   4. extractDocxText / extractPptxText — pull plain text out of a document
@@ -127,12 +126,17 @@ export function buildZip(entries: ZipEntryInput[]): Uint8Array {
   return out;
 }
 
-/** Inflate a DEFLATED (raw deflate) buffer using DecompressionStream. */
+/**
+ * Inflate a DEFLATED (raw deflate) buffer using node:zlib.
+ *
+ * We intentionally avoid Blob.prototype.stream()/DecompressionStream here:
+ * they are not reliably available in the Bun server runtime (the same reason
+ * the test fixture builds deflated data with zlib). node:zlib inflateRawSync
+ * is synchronous, deterministic, and available everywhere Bun runs.
+ */
 async function inflateRaw(bytes: Uint8Array): Promise<Uint8Array> {
-  const ds = new DecompressionStream("deflate-raw");
-  const stream = new Blob([bytes]).stream().pipeThrough(ds);
-  const buf = await new Response(stream).arrayBuffer();
-  return new Uint8Array(buf);
+  const { inflateRawSync } = await import("node:zlib");
+  return new Uint8Array(inflateRawSync(bytes));
 }
 
 /**
