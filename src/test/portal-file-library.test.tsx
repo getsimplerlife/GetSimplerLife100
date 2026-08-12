@@ -1,8 +1,10 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import { createElement } from "react";
 import { mkdtempSync, rmSync, writeFileSync, existsSync, readFileSync, mkdirSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { renderToString } from "react-dom/server";
+import FileLibrary from "../routes/portal.files.index";
 import {
   CLIENT_FILES_KEY,
   listClientFiles,
@@ -225,8 +227,6 @@ describe("portal file download proxy", () => {
 
 describe("portal files page SSR", () => {
   it("renders the File Library shell server-side without crashing", () => {
-    const { createElement } = require("react");
-    const FileLibrary = require("../routes/portal.files.index").default;
     const html = renderToString(createElement(FileLibrary));
     expect(html).toContain("File Library");
     expect(html.length).toBeGreaterThan(100);
