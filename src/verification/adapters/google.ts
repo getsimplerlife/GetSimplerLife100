@@ -96,7 +96,7 @@ export const googleAdapter: CapabilityAdapter = async (contract, ctx) => {
       const name = label();
       const created = await drive.createFolder(name);
       if (!created?.id) throw new Error("Google Drive: createFolder returned no id");
-      await drive.deleteFile(created.id);
+      await drive.deleteFile(created.id, true);
       return { httpStatus: 200, response: { created: created.name, deleted: true } };
     }
     /* ── google-docs: understand ── */
@@ -114,7 +114,7 @@ export const googleAdapter: CapabilityAdapter = async (contract, ctx) => {
       await docs.insertText(created.id, "Phase7 verification read-back");
       const text = await docs.getDocumentText(created.id);
       const drive = createGDriveClient(baseAuth(cred, "google-drive", ctx) as never);
-      await drive.deleteFile(created.id);
+      await drive.deleteFile(created.id, true);
       return { httpStatus: 200, response: { docId: created.id, chars: text.length } };
     }
     /* ── google-docs: automate ── */
@@ -129,7 +129,7 @@ export const googleAdapter: CapabilityAdapter = async (contract, ctx) => {
       await docs.insertText(created.id, "Phase7 verification body");
       const text = await docs.getDocumentText(created.id);
       const drive = createGDriveClient(baseAuth(cred, "google-drive", ctx) as never);
-      await drive.deleteFile(created.id);
+      await drive.deleteFile(created.id, true);
       return { httpStatus: 200, response: { docId: created.id, chars: text.length, template: Boolean(templateId) } };
     }
     /* ── google-sheets: understand ── */
@@ -147,7 +147,7 @@ export const googleAdapter: CapabilityAdapter = async (contract, ctx) => {
       await sheets.writeRange(created.spreadsheetId, "Sheet1!A1", [["Phase7", "verified"]]);
       const values = await sheets.readRange(created.spreadsheetId, "Sheet1!A1:B1");
       const drive = createGDriveClient(baseAuth(cred, "google-drive", ctx) as never);
-      await drive.deleteFile(created.spreadsheetId);
+      await drive.deleteFile(created.spreadsheetId, true);
       return { httpStatus: 200, response: { sheetId: created.spreadsheetId, rows: values.length } };
     }
     /* ── google-sheets: automate ── */
@@ -161,7 +161,7 @@ export const googleAdapter: CapabilityAdapter = async (contract, ctx) => {
       ]);
       const values = await sheets.readRange(created.spreadsheetId, "Sheet1!A1:C2");
       const drive = createGDriveClient(baseAuth(cred, "google-drive", ctx) as never);
-      await drive.deleteFile(created.spreadsheetId);
+      await drive.deleteFile(created.spreadsheetId, true);
       return { httpStatus: 200, response: { sheetId: created.spreadsheetId, updated: written.updatedCells ?? written.updatedRange ?? "", rowsReadBack: values.length } };
     }
     /* ── google-slides: understand ── */
@@ -178,7 +178,7 @@ export const googleAdapter: CapabilityAdapter = async (contract, ctx) => {
       const created = await slides.createPresentation(label());
       const pres = await slides.getPresentation(created.presentationId);
       const drive = createGDriveClient(baseAuth(cred, "google-drive", ctx) as never);
-      await drive.deleteFile(created.presentationId);
+      await drive.deleteFile(created.presentationId, true);
       return { httpStatus: 200, response: { slidesId: created.presentationId, slideCount: (pres.slides || []).length } };
     }
     /* ── google-slides: automate ── */
@@ -188,7 +188,7 @@ export const googleAdapter: CapabilityAdapter = async (contract, ctx) => {
       const created = await slides.createPresentationFromOutline(label(), [{ title: "Phase7", body: "verification" }]);
       if (!created?.presentationId) throw new Error("Google Slides: create returned no presentation id");
       const drive = createGDriveClient(baseAuth(cred, "google-drive", ctx) as never);
-      await drive.deleteFile(created.presentationId);
+      await drive.deleteFile(created.presentationId, true);
       return { httpStatus: 200, response: { slidesId: created.presentationId, slides: created.slideIds?.length ?? 0 } };
     }
     default:
