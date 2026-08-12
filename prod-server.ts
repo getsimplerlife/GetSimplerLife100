@@ -848,6 +848,77 @@ serve({
       return Response.json({ data: userList, total: userList.length });
     }
 
+    // ── /api/portal/files (File Library — owner directive 2026-08-12) ──
+    // GET  /api/portal/files?fileId=...  → list tenant files (or one file)
+    // POST /api/portal/files/view        → audit a view action
+    // GET  /api/portal/files/download?fileId=... → server proxy stream
+    if (pathname === "/api/portal/files") {
+      const user = await getUserFromSession(req);
+      if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
+      const { listClientFiles, getClientFile } = await import("./src/lib/client-files");
+      if (req.method === "GET") {
+        const fileId = url.searchParams.get("fileId");
+        if (fileId) {
+          const file = getClientFile(user.email, fileId, DATA_DIR);
+          if (!file) return Response.json({ error: "File not found" }, { status: 404 });
+          return Response.json({ data: file });
+        }
+        const files = listClientFiles(user.email, DATA_DIR);
+        return Response.json({ data: files });
+      }
+      if (req.method === "POST") {
+        const body = await req.json().catch(() => ({}));
+        const fileId = body.fileId || url.searchParams.get("fileId");
+        if (!fileId) return Response.json({ error: "fileId required" }, { status: 400 });
+        const file = getClientFile(user.email, fileId, DATA_DIR);
+        if (!file) return Response.json({ error: "File not found" }, { status: 404 });
+        // Audit the view action like other portal actions.
+        const alogs = readJSON(AUDIT_LOG_FILE);
+        const alogUser = alogs[user.email] || [];
+        alogUser.push({
+          id: "log-" + Math.random().toString(36).substr(2, 9),
+          timestamp: new Date().toISOString(),
+          user: user.email,
+          action: "portal.files.view",
+          resource: file.id,
+          detail: `Viewed ${file.name} (${file.provider})`,
+          ip: "127.0.0.1",
+        });
+        alogs[user.email] = alogUser;
+        writeJSON(AUDIT_LOG_FILE, alogs);
+        return Response.json({ success: true });
+      }
+      return Response.json({ error: "Method not allowed" }, { status: 405 });
+    }
+    if (pathname === "/api/portal/files/download") {
+      const user = await getUserFromSession(req);
+      if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
+      const fileId = url.searchParams.get("fileId");
+      if (!fileId) return Response.json({ error: "fileId required" }, { status: 400 });
+      const { handlePortalFileDownload } = await import("./src/lib/portal-file-download");
+      const outcome = await handlePortalFileDownload({ tenantId: user.email, fileId, dataDir: DATA_DIR });
+      // Audit the download action (best-effort).
+      try {
+        const { getClientFile } = await import("./src/lib/client-files");
+        const file = getClientFile(user.email, fileId, DATA_DIR);
+        if (file) {
+          const alogs = readJSON(AUDIT_LOG_FILE);
+          const alogUser = alogs[user.email] || [];
+          alogUser.push({
+            id: "log-" + Math.random().toString(36).substr(2, 9),
+            timestamp: new Date().toISOString(),
+            user: user.email,
+            action: "portal.files.download",
+            resource: file.id,
+            detail: `Downloaded ${file.name} (${file.provider}) → ${outcome.status}`,
+            ip: "127.0.0.1",
+          });
+          alogs[user.email] = alogUser;
+          writeJSON(AUDIT_LOG_FILE, alogs);
+        }
+      } catch { /* audit is best-effort */ }
+      return new Response(outcome.body, { status: outcome.status, headers: outcome.headers });
+    }
     // ── /api/audit-logs (GET) ──────────────────────────────────────
     if (pathname === "/api/audit-logs") {
       const user = await getUserFromSession(req);

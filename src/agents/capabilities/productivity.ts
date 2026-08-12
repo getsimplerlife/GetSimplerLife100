@@ -1,4 +1,5 @@
 import { defineCapabilityContract, type CapabilityContract } from "../../lib/capability-contract";
+import { registerClientFile } from "../../lib/client-files";
 
 /**
  * Productivity employee — Google Workspace file capabilities (owner directive
@@ -163,8 +164,16 @@ export interface ProductivityExecutionOptions {
   authToken?: string;
   audit: (event: { capabilityId: string; tenantId: string; outcome: string; idempotencyKey?: string }) => Promise<void> | void;
   maxAttempts?: number;
+  /** DATA_DIR for the portal File Library registry (client_files.json). */
+  dataDir?: string;
 }
 
+/**
+ * Register a created provider file in the client portal File Library registry
+ * (durable key client_files.json). Best-effort: a registry failure must NEVER
+ * fail the create — the file exists in the provider regardless.
+ * The file shape is normalized from the provider's create response.
+ */
 function requireTenant(options: ProductivityExecutionOptions): void {
   if (!options.tenantId.trim()) throw new Error("Tenant scope is required");
   if (!options.authToken?.trim()) throw new Error("Provider authentication is required");
@@ -172,6 +181,41 @@ function requireTenant(options: ProductivityExecutionOptions): void {
 
 function boundedAttempts(value?: number): number {
   return Math.max(1, Math.min(value ?? 2, 3));
+}
+
+function registerCreatedFile(
+  provider: string,
+  kind: "doc" | "sheet" | "slides" | "word" | "excel" | "ppt" | "file",
+  result: unknown,
+  fallbackName: string,
+  options: ProductivityExecutionOptions,
+): void {
+  try {
+    if (!options.dataDir || !options.tenantId) return;
+    const r = (result ?? {}) as any;
+    let providerFileId: string | undefined;
+    let name = fallbackName;
+    let url: string | undefined;
+    if (provider === "google-sheets") {
+      providerFileId = r.spreadsheetId;
+      name = r.properties?.title || fallbackName;
+      url = r.spreadsheetUrl;
+    } else if (provider === "google-slides") {
+      providerFileId = r.presentationId;
+      name = r.title || fallbackName;
+      url = r.presentationUrl;
+    } else {
+      providerFileId = r.id;
+      name = r.name || fallbackName;
+      url = r.webViewLink || r.alternateLink;
+    }
+    if (!providerFileId) return; // no usable id → nothing to register
+    registerClientFile(
+      options.tenantId,
+      { provider, providerFileId, name, kind, url },
+      options.dataDir,
+    );
+  } catch { /* registry is best-effort — never fail the create */ }
 }
 
 async function executeWithRetry(
@@ -202,7 +246,11 @@ export function createGoogleDoc(
   options: ProductivityExecutionOptions,
   idempotencyKey: string,
 ): Promise<unknown> {
-  return executeWithRetry("google-docs-create-from-template", idempotencyKey, () => adapter.createDoc(input, idempotencyKey), options);
+  return executeWithRetry("google-docs-create-from-template", idempotencyKey, async () => {
+    const result = await adapter.createDoc(input, idempotencyKey);
+    registerCreatedFile("google-docs", "doc", result, input.title, options);
+    return result;
+  }, options);
 }
 
 export function createGoogleDocFromTemplate(
@@ -211,7 +259,11 @@ export function createGoogleDocFromTemplate(
   options: ProductivityExecutionOptions,
   idempotencyKey: string,
 ): Promise<unknown> {
-  return executeWithRetry("google-docs-create-from-template", idempotencyKey, () => adapter.createDocFromTemplate(input, idempotencyKey), options);
+  return executeWithRetry("google-docs-create-from-template", idempotencyKey, async () => {
+    const result = await adapter.createDocFromTemplate(input, idempotencyKey);
+    registerCreatedFile("google-docs", "doc", result, input.title, options);
+    return result;
+  }, options);
 }
 
 export function createGoogleSheet(
@@ -220,7 +272,11 @@ export function createGoogleSheet(
   options: ProductivityExecutionOptions,
   idempotencyKey: string,
 ): Promise<unknown> {
-  return executeWithRetry("google-sheets-write-values", idempotencyKey, () => adapter.createSheet(input, idempotencyKey), options);
+  return executeWithRetry("google-sheets-write-values", idempotencyKey, async () => {
+    const result = await adapter.createSheet(input, idempotencyKey);
+    registerCreatedFile("google-sheets", "sheet", result, input.title, options);
+    return result;
+  }, options);
 }
 
 export function writeGoogleSheetRange(
@@ -238,5 +294,9 @@ export function createGoogleSlides(
   options: ProductivityExecutionOptions,
   idempotencyKey: string,
 ): Promise<unknown> {
-  return executeWithRetry("google-slides-create-presentation", idempotencyKey, () => adapter.createSlides(input, idempotencyKey), options);
+  return executeWithRetry("google-slides-create-presentation", idempotencyKey, async () => {
+    const result = await adapter.createSlides(input, idempotencyKey);
+    registerCreatedFile("google-slides", "slides", result, input.title, options);
+    return result;
+  }, options);
 }

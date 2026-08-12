@@ -194,6 +194,7 @@ export function seedDataFiles(dataDir: string): void {
     "chat_sessions.json",
     "tenant_integrations.json",
     "ai_employees.json",
+    "client_files.json",
   ]) {
     const file = join(dataDir, f);
     if (!fileOrDurableExists(file)) writeJSON(file, {});
