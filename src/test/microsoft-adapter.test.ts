@@ -92,23 +92,24 @@ describe("Microsoft verification adapter (real clients, mocked transport)", () =
     expect(r.response).toMatchObject({ changes: 1, deltaCursorAvailable: true });
   });
 
-  it("onedrive-write-files uploads a labeled file then deletes it (rollback)", async () => {
+  it("onedrive-write-files uploads a labeled file and leaves it in place (non-destructive, owner directive)", async () => {
     const r = await microsoftAdapter(contract("onedrive-write-files"), ctx());
-    expect(r.response).toMatchObject({ deleted: true, bytes: 14 }); // "Phase7 payload" = 14 bytes
+    expect((r.response as any).kept).toBe(true);
+    expect((r.response as any).bytes).toBe(14); // "Phase7 payload" = 14 bytes
     const methods = calls.map((c) => c.method);
     expect(methods).toContain("PUT");
-    expect(methods).toContain("DELETE");
+    expect(methods).not.toContain("DELETE");
   });
 
   it("onedrive-write-files fails closed without --writes", async () => {
     await expect(microsoftAdapter(contract("onedrive-write-files"), ctx({ allowWrites: false }))).rejects.toThrow(/requires --writes/);
   });
 
-  it("microsoft-word-read-content creates+reads+deletes a labeled doc without a fileId", async () => {
+  it("microsoft-word-read-content creates+reads+keeps a labeled doc without a fileId", async () => {
     const r = await microsoftAdapter(contract("microsoft-word-read-content", "microsoft-word"), ctx());
-    expect(r.response).toMatchObject({ fileId: "created-1" });
+    expect(r.response).toMatchObject({ fileId: "created-1", kept: true });
     expect((r.response as any).chars).toBeGreaterThan(0);
-    expect(calls.map((c) => c.method)).toContain("DELETE");
+    expect(calls.map((c) => c.method)).not.toContain("DELETE");
   });
 
   it("microsoft-word-read-content uses a provided fileId without writes", async () => {
@@ -124,24 +125,28 @@ describe("Microsoft verification adapter (real clients, mocked transport)", () =
     await expect(microsoftAdapter(contract("microsoft-word-read-content", "microsoft-word"), ctx({ allowWrites: false }))).rejects.toThrow(/requires a fileId/);
   });
 
-  it("microsoft-word-create-document writes and round-trips text", async () => {
+  it("microsoft-word-create-document writes and round-trips text, leaves it in place", async () => {
     const r = await microsoftAdapter(contract("microsoft-word-create-document", "microsoft-word"), ctx());
     expect((r.response as any).roundTrip).toBe(true);
+    expect((r.response as any).kept).toBe(true);
     expect(calls.map((c) => c.method)).toContain("PUT");
+    expect(calls.map((c) => c.method)).not.toContain("DELETE");
   });
 
   it("microsoft-excel-read-ranges reads via the workbook API", async () => {
     const r = await microsoftAdapter(contract("microsoft-excel-read-ranges", "microsoft-excel"), ctx());
-    expect(r.response).toMatchObject({ fileId: "created-1", rows: 2 });
+    expect(r.response).toMatchObject({ fileId: "created-1", rows: 2, kept: true });
     expect(calls.some((c) => c.url.includes("/workbook/worksheets/"))).toBe(true);
+    expect(calls.map((c) => c.method)).not.toContain("DELETE");
   });
 
-  it("microsoft-excel-write-values creates, writes a range, reads back, deletes", async () => {
+  it("microsoft-excel-write-values creates, writes a range, reads back, keeps", async () => {
     const r = await microsoftAdapter(contract("microsoft-excel-write-values", "microsoft-excel"), ctx());
     expect((r.response as any).cells).toBeGreaterThan(0);
+    expect((r.response as any).kept).toBe(true);
     const methods = calls.map((c) => c.method);
     expect(methods).toContain("PATCH");
-    expect(methods).toContain("DELETE");
+    expect(methods).not.toContain("DELETE");
   });
 
   it("microsoft-powerpoint-read-presentation uses a provided fileId", async () => {
@@ -152,10 +157,18 @@ describe("Microsoft verification adapter (real clients, mocked transport)", () =
     expect(r.response).toMatchObject({ fileId: "deck-9" });
   });
 
-  it("microsoft-powerpoint-create-presentation creates, reads back, deletes", async () => {
+  it("microsoft-powerpoint-read-presentation with --writes creates+reads+keeps a labeled deck", async () => {
+    const r = await microsoftAdapter(contract("microsoft-powerpoint-read-presentation", "microsoft-powerpoint"), ctx());
+    expect(r.response).toMatchObject({ fileId: "created-1", kept: true });
+    expect((r.response as any).chars).toBeGreaterThan(0);
+    expect(calls.map((c) => c.method)).not.toContain("DELETE");
+  });
+
+  it("microsoft-powerpoint-create-presentation creates, reads back, keeps", async () => {
     const r = await microsoftAdapter(contract("microsoft-powerpoint-create-presentation", "microsoft-powerpoint"), ctx());
     expect((r.response as any).chars).toBeGreaterThan(0);
-    expect(calls.map((c) => c.method)).toContain("DELETE");
+    expect((r.response as any).kept).toBe(true);
+    expect(calls.map((c) => c.method)).not.toContain("DELETE");
   });
 
   it("fails closed on missing accessToken before any network call", async () => {
