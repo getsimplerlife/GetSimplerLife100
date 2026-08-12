@@ -8,7 +8,7 @@
 //  4. Unknown providers FAIL CLOSED — no registry entry ⇒ no network call,
 //     no guessed URL.
 // All provider calls use a mocked fetch — no live provider traffic in CI.
-import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from "vitest";
 import { mkdtempSync, mkdirSync, rmSync, readFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";

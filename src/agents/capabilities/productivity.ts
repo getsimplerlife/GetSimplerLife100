@@ -1,4 +1,5 @@
 import { defineCapabilityContract, type CapabilityContract } from "../../lib/capability-contract";
+import { registerClientFile } from "../../lib/client-files";
 
 /**
  * Productivity employee — Google Workspace file capabilities (owner directive
@@ -209,7 +210,6 @@ function registerCreatedFile(
       url = r.webViewLink || r.alternateLink;
     }
     if (!providerFileId) return; // no usable id → nothing to register
-    const { registerClientFile, kindForProvider } = require("../../lib/client-files") as typeof import("../../lib/client-files");
     registerClientFile(
       options.tenantId,
       { provider, providerFileId, name, kind, url },
