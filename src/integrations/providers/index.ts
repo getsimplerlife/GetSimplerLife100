@@ -115,6 +115,8 @@ function registerProvider(module: {
     "s3Actions", "azureBlobActions", "gcsActions",
     // Productivity (Google Workspace file types)
     "googleDocsActions", "googleSheetsActions", "googleSlidesActions",
+    // Productivity (Microsoft Office file types)
+    "microsoftWordActions", "microsoftExcelActions", "microsoftPowerPointActions",
     // Developer Tools
     "restApiActions", "graphqlActions", "webhooksBroadActions",
     "sftpActions", "soapActions", "jsonActions", "xmlActions",
@@ -364,6 +366,9 @@ import * as gcs from "./gcs";
 import * as googleDocs from "./google-docs";
 import * as googleSheets from "./google-sheets";
 import * as googleSlides from "./google-slides";
+import * as microsoftWord from "./microsoft-word";
+import * as microsoftExcel from "./microsoft-excel";
+import * as microsoftPowerPoint from "./microsoft-powerpoint";
 // ── Developer Tools Imports ────────────────────────────────────────────────────
 import * as restApi from "./rest-api";
 import * as graphql from "./graphql";
@@ -580,6 +585,10 @@ const providerModules = [
   { ...googleDocs, googleDocsActions: googleDocs.googleDocsActions },
   { ...googleSheets, googleSheetsActions: googleSheets.googleSheetsActions },
   { ...googleSlides, googleSlidesActions: googleSlides.googleSlidesActions },
+  // Productivity (Microsoft Office file types)
+  { ...microsoftWord, microsoftWordActions: microsoftWord.microsoftWordActions },
+  { ...microsoftExcel, microsoftExcelActions: microsoftExcel.microsoftExcelActions },
+  { ...microsoftPowerPoint, microsoftPowerPointActions: microsoftPowerPoint.microsoftPowerPointActions },
   // Developer Tools
   { ...restApi, restApiActions: restApi.restApiActions },
   { ...graphql, graphqlActions: graphql.graphqlActions },
@@ -800,6 +809,10 @@ export * from "./gcs";
 export * from "./google-docs";
 export * from "./google-sheets";
 export * from "./google-slides";
+// Productivity (Microsoft Office file types)
+export * from "./microsoft-word";
+export * from "./microsoft-excel";
+export * from "./microsoft-powerpoint";
 // Developer Tools
 export * from "./rest-api";
 export * from "./graphql";

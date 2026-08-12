@@ -1,2 +1,8 @@
-export * from "./auth"; export * from "./client"; export * from "./actions"; export * from "./webhooks";
-export const PROVIDER_ID = "onedrive"; export const PROVIDER_NAME = "OneDrive"; export const PROVIDER_CATEGORY = "storage";
+export * from "./auth";
+export * from "./client";
+export * from "./actions";
+export * from "./webhooks";
+
+export const PROVIDER_ID = "onedrive";
+export const PROVIDER_NAME = "OneDrive";
+export const PROVIDER_CATEGORY = "storage";
