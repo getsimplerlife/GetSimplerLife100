@@ -112,11 +112,27 @@ export class GoogleSheetsClient {
     return r.data;
   }
 
+  /**
+   * Health check: probes the Sheets API with a deliberately invalid
+   * spreadsheet id. The Sheets API has no list endpoint, so a bogus id
+   * returning 400/404 proves the access token is accepted (400 = malformed
+   * id, 404 = not found); 401/403 means the token is rejected. ensureToken()
+   * runs first so an expired-but-refreshable token does not false-negative.
+   * (The previous probe `GET /spreadsheets?fields=spreadsheetId` now returns
+   * a 404 HTML page from Google even with a valid token.)
+   */
   async healthCheck(): Promise<boolean> {
     try {
-      const r = await this.client.get("/spreadsheets?fields=spreadsheetId", this.headers);
-      return r.status === 400 || r.ok; // 400 = missing id param but auth OK
-    } catch {
+      await this.ensureToken();
+      const r = await this.client.get(
+        "/spreadsheets/healthcheck-0123456789abcdef0123456789abcdef",
+        this.headers,
+      );
+      return r.ok;
+    } catch (e: any) {
+      const status = e?.status;
+      if (status === 401 || status === 403) return false;
+      if (status === 400 || status === 404) return true; // auth passed, id is bogus
       return false;
     }
   }

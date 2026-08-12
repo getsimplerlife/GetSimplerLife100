@@ -3,13 +3,18 @@
  *
  * Loads provider credentials from, in order:
  *   1. `--token <path>` raw token file (JSON credential object or raw access token)
- *   2. `.data/tenant_oauth_credentials.json` — token entries keyed `${email}:${provider}`
- *   3. Environment `OAUTH_<PROVIDER>_CLIENT_ID` / `OAUTH_<PROVIDER>_CLIENT_SECRET` for app creds
+ *   2. The durable store (Neon kv_store key `tenant_oauth_credentials.json`) — token
+ *      entries keyed `${email}:${provider}`. Preferred because the live host's
+ *      filesystem is recreated on every publish, so the file layer is ephemeral there.
+ *   3. `.data/tenant_oauth_credentials.json` — same shape, used as a fallback (tests,
+ *      local dev without a database, or a fresh process where the store is disabled)
+ *   4. Environment `OAUTH_<PROVIDER>_CLIENT_ID` / `OAUTH_<PROVIDER>_CLIENT_SECRET` for app creds
  *
  * This module performs no network calls. It never logs or prints credential values.
  */
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { durableGet } from "../lib/durable-store";
 
 export interface ProviderCredential {
   provider?: string;
@@ -77,9 +82,10 @@ export function loadTokenFile(path: string): ProviderCredential {
 }
 
 /**
- * Find a stored credential in `.data/tenant_oauth_credentials.json`.
- * Lookup order: `${tenant}:${provider}` exact, any key ending `:${provider}` (first tenant found),
- * then a bare `${provider}` app-level key.
+ * Find a stored credential, preferring the durable store (Neon) and falling
+ * back to `.data/tenant_oauth_credentials.json` for tests / local dev.
+ * Lookup order (same for both sources): `${tenant}:${provider}` exact, any key
+ * ending `:${provider}` (first tenant found), then a bare `${provider}` key.
  */
 export function loadStoredCredential(
   provider: string,
@@ -87,6 +93,20 @@ export function loadStoredCredential(
 ): { credential?: ProviderCredential; app?: OAuthAppCredentials; source: string } {
   const dataDir = options.dataDir ?? DEFAULT_DATA_DIR;
   const credsFile = join(dataDir, "tenant_oauth_credentials.json");
+
+  // 1. Prefer the durable store. On the live host no file path survives a
+  //    publish, so the DB is the only place the tenant tokens actually live.
+  //    (durableGet returns undefined when the store is disabled — e.g. a
+  //    local run without DATABASE_URL — and we fall through to the file.)
+  const durableData = durableGet("tenant_oauth_credentials.json") as
+    | Record<string, ProviderCredential>
+    | undefined;
+  if (durableData && typeof durableData === "object") {
+    const hit = findCredentialEntry(durableData, provider, options.tenant);
+    if (hit) return { credential: hit.entry, source: `durable:tenant_oauth_credentials.json#${hit.key}` };
+  }
+
+  // 2. Fall back to the on-disk store (tests / local dev without a DB).
   if (!existsSync(credsFile)) return { source: `no ${credsFile}` };
 
   let data: Record<string, ProviderCredential>;
@@ -96,22 +116,30 @@ export function loadStoredCredential(
     return { source: `${credsFile} unreadable` };
   }
 
+  const hit = findCredentialEntry(data, provider, options.tenant);
+  if (hit) return { credential: hit.entry, source: `${credsFile}#${hit.key}` };
+  return { source: `no ${provider} credential in ${credsFile}` };
+}
+
+/** Shared tenant-scoped lookup used for both the durable store and the file. */
+function findCredentialEntry(
+  data: Record<string, ProviderCredential>,
+  provider: string,
+  tenant?: string,
+): { key: string; entry: ProviderCredential } | undefined {
   const keys = Object.keys(data);
   const candidates: string[] = [];
-  if (options.tenant && data[`${options.tenant}:${provider}`]) {
-    candidates.push(`${options.tenant}:${provider}`);
-  }
+  if (tenant && data[`${tenant}:${provider}`]) candidates.push(`${tenant}:${provider}`);
   candidates.push(...keys.filter((k) => k.endsWith(`:${provider}`)));
   candidates.push(...keys.filter((k) => k === provider));
-
   for (const key of candidates) {
     const entry = data[key];
     if (!entry) continue;
     if (entry.accessToken || entry.apiToken || entry.apiKey || (entry.user && entry.password)) {
-      return { credential: entry, source: `${credsFile}#${key}` };
+      return { key, entry };
     }
   }
-  return { source: `no ${provider} credential in ${credsFile}` };
+  return undefined;
 }
 
 /** Convenience loader used by the batch runner. */

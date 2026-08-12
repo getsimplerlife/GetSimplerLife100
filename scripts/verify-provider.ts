@@ -21,6 +21,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { employeeCapabilityMatrix } from "../src/agents/capability-matrix";
 import type { CapabilityContract } from "../src/lib/capability-contract";
+import { initDurableStore } from "../src/lib/durable-store";
 import { adapterRegistry } from "../src/verification/adapters";
 import {
   describeCredential,
@@ -172,6 +173,11 @@ function renderMarkdown(report: BatchReport): string {
 }
 
 export async function main(argv: string[]): Promise<void> {
+  // Hydrate the durable store (Neon) before loading credentials so tenant
+  // OAuth tokens are readable even though no file path survives a publish.
+  // No-op (enabled:false, file fallback) when DATABASE_URL is not set.
+  const dataDir = process.env.DATA_DIR || join(process.cwd(), ".data");
+  await initDurableStore(dataDir);
   const args = argv.slice(2);
   const options: CliOptions = { provider: "", allowWrites: false };
   for (let i = 0; i < args.length; i++) {

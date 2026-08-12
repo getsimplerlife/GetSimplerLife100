@@ -139,11 +139,27 @@ export class GoogleDocsClient {
     return bodyEndIndexFromDocument(doc);
   }
 
+  /**
+   * Health check: probes the Docs API with a deliberately invalid document id.
+   * The Docs API has no list endpoint, so a bogus id returning 400/404 proves
+   * the access token is accepted (400 = malformed id, 404 = not found);
+   * 401/403 means the token is rejected. ensureToken() runs first so an
+   * expired-but-refreshable token does not false-negative — the previous
+   * implementation probed via the drive sub-client, which bypassed the docs
+   * client's token refresh entirely.
+   */
   async healthCheck(): Promise<boolean> {
     try {
-      const r = await this.drive.get("/about?fields=user", this.headers);
+      await this.ensureToken();
+      const r = await this.docs.get(
+        "/documents/healthcheck-0123456789abcdef0123456789abcdef",
+        this.headers,
+      );
       return r.ok;
-    } catch {
+    } catch (e: any) {
+      const status = e?.status;
+      if (status === 401 || status === 403) return false;
+      if (status === 400 || status === 404) return true; // auth passed, id is bogus
       return false;
     }
   }

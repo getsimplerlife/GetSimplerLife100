@@ -2,6 +2,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { durableClose, initDurableStore, MemoryKvDriver } from "../lib/durable-store";
 import { hasAdapter } from "../verification/adapters";
 import {
   loadOAuthAppCredentials,
@@ -108,6 +109,64 @@ describe("phase 7 verification infra — credential source", () => {
     const loaded = loadProviderCredentials("slack", { dataDir: dir });
     expect(loaded.credential).toBeUndefined();
     rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("loads a stored credential from the durable store when the file is missing", async () => {
+    await durableClose();
+    const dir = mkdtempSync(join(tmpdir(), "verify-cred-"));
+    try {
+      const driver = new MemoryKvDriver({
+        "tenant_oauth_credentials.json": {
+          "owner@example.com:google-docs": { provider: "google-docs", accessToken: "tok-durable", expiresAt: 1 },
+          "tenant@example.com:google-docs": { provider: "google-docs", accessToken: "tok-other" },
+        },
+      });
+      const init = await initDurableStore(dir, driver);
+      expect(init.enabled).toBe(true);
+      // No tenant_oauth_credentials.json on disk — the durable store must win.
+      const byTenant = loadStoredCredential("google-docs", { tenant: "owner@example.com", dataDir: dir });
+      expect(byTenant.credential?.accessToken).toBe("tok-durable");
+      expect(byTenant.source).toContain("durable:tenant_oauth_credentials.json#owner@example.com:google-docs");
+      // No tenant given: first `:provider` key wins (same order as the file path).
+      const noTenant = loadStoredCredential("google-docs", { dataDir: dir });
+      expect(noTenant.credential?.accessToken).toBe("tok-durable");
+    } finally {
+      await durableClose();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("falls back to the file when the durable store has no credential", async () => {
+    await durableClose();
+    const dir = mkdtempSync(join(tmpdir(), "verify-cred-"));
+    try {
+      await initDurableStore(dir, new MemoryKvDriver()); // durable enabled but empty
+      writeFileSync(
+        join(dir, "tenant_oauth_credentials.json"),
+        JSON.stringify({ "a@example.com:xero": { provider: "xero", accessToken: "tok-file" } }),
+      );
+      const byTenant = loadStoredCredential("xero", { tenant: "a@example.com", dataDir: dir });
+      expect(byTenant.credential?.accessToken).toBe("tok-file");
+      expect(byTenant.source).toContain("tenant_oauth_credentials.json#a@example.com:xero");
+    } finally {
+      await durableClose();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("reports credentials missing when neither durable store nor file has one", async () => {
+    await durableClose();
+    const dir = mkdtempSync(join(tmpdir(), "verify-cred-"));
+    try {
+      await initDurableStore(dir, new MemoryKvDriver()); // durable enabled but empty
+      mkdirSync(dir, { recursive: true }); // no credentials file at all
+      const loaded = loadStoredCredential("slack", { dataDir: dir });
+      expect(loaded.credential).toBeUndefined();
+      expect(loaded.source).toBe(`no ${join(dir, "tenant_oauth_credentials.json")}`);
+    } finally {
+      await durableClose();
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 
