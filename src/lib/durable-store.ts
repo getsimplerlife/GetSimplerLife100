@@ -183,6 +183,70 @@ export function durableEnabled(): boolean { return enabled; }
 
 export function durableKeyCount(): number { return cache.size; }
 
+/** True for plain objects (NOT arrays, NOT strings/numbers/null). */
+export function isPlainObject(v: any): boolean {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+/**
+ * Runtime JSON files whose handlers do read-modify-write against tenant keys
+ * (`data[email] = ...`, `data[token] = ...`). They MUST parse to plain
+ * objects. A row stored as a JSONB *string* (e.g. Neon cell `"{}"` — the
+ * string "{}", not the object) parses to a string primitive, so those writes
+ * throw "Attempted to assign to readonly property" (real bug found live
+ * 2026-08-13 on tenant_purchases.json). The boot repair below normalizes any
+ * of these that parse to a non-object back to {} and writes the fix through.
+ * NOTE: tenant_audit_logs.json is intentionally absent — its reader tolerates
+ * both object and array shapes, so we never destroy an array-format history.
+ */
+export const OBJECT_FILE_KEYS: readonly string[] = [
+  "tenant_purchases.json",
+  "sessions.json",
+  "users.json",
+  "tenant_integrations.json",
+  "tenant_oauth_credentials.json",
+  "oauth_states.json",
+  "leads.json",
+  "lead_notifications.json",
+  "pending_emails.json",
+  "chat_sessions.json",
+  "client_files.json",
+  "agent_integration_map.json",
+];
+
+/**
+ * Boot repair for the "parses-to-primitive" class (Neon JSONB-string bug):
+ * for every known object-shape key already in the cache, if the parsed value
+ * is not a plain object, normalize the cache to {} and queue the write-through
+ * so the stored row heals on the next flush. Returns the number of keys
+ * repaired. Only touches keys that EXIST — it never creates new rows.
+ */
+export function repairPrimitiveShapes(): number {
+  if (!enabled) return 0;
+  let repaired = 0;
+  const repairedKeys: string[] = [];
+  for (const key of OBJECT_FILE_KEYS) {
+    const raw = cache.get(key);
+    if (raw === undefined) continue;
+    let needsRepair = false;
+    try {
+      needsRepair = !isPlainObject(JSON.parse(raw));
+    } catch {
+      needsRepair = true; // unparseable row — heal it
+    }
+    if (needsRepair) {
+      cache.set(key, JSON.stringify({}));
+      queueUpsert(key, {});
+      repaired++;
+      repairedKeys.push(key);
+    }
+  }
+  if (repaired > 0) {
+    console.log(`[durable-store] boot repair: normalized ${repaired} primitive-shaped row(s) to {} (${repairedKeys.join(", ")})`);
+  }
+  return repaired;
+}
+
 export function durableDataDir(): string | null { return dataDir; }
 
 /** Relative key for a file path (basename — DATA_DIR files are flat). */
@@ -523,6 +587,11 @@ async function attemptInit(
         }
       }
       await durableFlush();
+      // Boot repair: heal any row that parses to a primitive (Neon JSONB-string
+      // bug class) BEFORE the first request — read-modify-write handlers
+      // (purchases/sessions/users/...) would otherwise throw on the primitive.
+      repairPrimitiveShapes();
+      await durableFlush();
       return { enabled: true, loaded: rows.length, migrated };
     }
     driver = providedDriver;
@@ -555,6 +624,10 @@ async function attemptInit(
       }
     }
     // Await the migration writes so a caller can rely on data being durable.
+    await durableFlush();
+    // Boot repair: heal any row that parses to a primitive (Neon JSONB-string
+    // bug class) BEFORE the first request.
+    repairPrimitiveShapes();
     await durableFlush();
     return { enabled: true, loaded: rows.length, migrated };
   } catch (e: any) {

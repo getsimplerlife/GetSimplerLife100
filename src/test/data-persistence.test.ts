@@ -263,3 +263,38 @@ describe("legacy publish-tree DATA_DIR migration (post-deploy recovery)", () => 
     expect(candidates).toContain("/home/team/shared/site/.data");
   });
 });
+
+describe("boot repair of parses-to-primitive runtime files (file-backed path)", () => {
+  it("seedDataFiles repairs tenant_purchases.json that parses to a primitive string", () => {
+    // Mirrors the Neon JSONB-string class on disk: the file content is the
+    // JSON *string* "{}" (double-encoded), so JSON.parse returns a string
+    // primitive and `purchases[email] = ...` would throw.
+    const dir = join(tmpDir, "seed-repair-purchases");
+    seedDataFiles(dir);
+    const file = join(dir, "tenant_purchases.json");
+    writeFileSync(file, JSON.stringify("{}"));
+    seedDataFiles(dir); // next boot's seed runs over the broken value
+    const v = readJSON(file);
+    expect(v).toEqual({});
+    // And a webhook-style write works on the repaired value.
+    v["buyer@example.com"] = [{ type: "crm-pack", slots: 5, agentType: "crm-pack", status: "active" }];
+    writeFileSync(file, JSON.stringify(v, null, 2));
+    const after = readJSON(file);
+    expect(after["buyer@example.com"][0].slots).toBe(5);
+    expect(after["buyer@example.com"][0].agentType).toBe("crm-pack");
+  });
+
+  it("seedDataFiles repairs users.json that parses to a primitive (admin seed would otherwise throw)", () => {
+    const dir = join(tmpDir, "seed-repair-users");
+    seedDataFiles(dir);
+    const file = join(dir, "users.json");
+    writeFileSync(file, JSON.stringify("{}"));
+    seedDataFiles(dir); // must NOT throw on the primitive
+    const v = readJSON(file);
+    expect(typeof v).toBe("object");
+    expect(Array.isArray(v)).toBe(false);
+    // Admin is still seeded correctly after the repair.
+    const admin = Object.values(v).find((u: any) => u && u.role === "admin");
+    expect(admin).toBeDefined();
+  });
+});

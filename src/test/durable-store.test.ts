@@ -22,7 +22,7 @@ import { join } from "path";
 import {
   initDurableStore, durableClose, durableEnabled, durableKeyCount,
   durableGet, durableSet, durableHas, durableFlush, durableKeyFor,
-  MemoryKvDriver,
+  isPlainObject, MemoryKvDriver,
 } from "../lib/durable-store";
 import { readJSON, writeJSON, seedDataFiles } from "../lib/data-store";
 
@@ -204,5 +204,85 @@ describe("durable store — fresh DB seeding", () => {
     expect(durableHas("tenant_purchases.json")).toBe(true);
     expect(durableHas("sessions.json")).toBe(true);
     expect(durableHas("tenant_oauth_credentials.json")).toBe(true);
+  });
+});
+
+describe("durable store — boot repair of parses-to-primitive rows (Neon JSONB-string bug)", () => {
+  it("heals tenant_purchases.json stored as the JSON string \"{}\" and keeps pack webhook writes object-shaped", async () => {
+    await durableClose();
+    const dir = join(tmpDir, "repair-purchases");
+    mkdirSync(dir, { recursive: true });
+    // Exactly the Neon state found live 2026-08-13: the jsonb cell holds the
+    // JSON *string* "{}" (not the object), so JSON.parse through the chain
+    // returns the string primitive "{}" and `purchases[email] = ...` throws
+    // "Attempted to assign to readonly property".
+    const driver = new MemoryKvDriver({
+      "tenant_purchases.json": JSON.stringify("{}"),
+      "tenant_integrations.json": { "owner@example.com": [] },
+    });
+    const r = await initDurableStore(dir, driver);
+    expect(r.enabled).toBe(true);
+    // Boot repair normalized the cached value to a plain object.
+    const purchases = durableGet("tenant_purchases.json");
+    expect(isPlainObject(purchases)).toBe(true);
+    // The webhook pack branch — read, mutate, write — the exact operations
+    // that threw before the repair.
+    const userPurchases = purchases["buyer@example.com"] || [];
+    userPurchases.push({ id: "purchase-1", type: "crm-pack", slots: 5, agentType: "crm-pack", status: "active" });
+    purchases["buyer@example.com"] = userPurchases;
+    durableSet("tenant_purchases.json", purchases);
+    await durableFlush();
+    // The write-through fixed the stored row too: driver value is an object.
+    const healed = driver.dump()["tenant_purchases.json"];
+    expect(isPlainObject(healed)).toBe(true);
+    const record = healed["buyer@example.com"][0];
+    expect(record.type).toBe("crm-pack");
+    expect(record.slots).toBe(5);
+    expect(record.agentType).toBe("crm-pack");
+    expect(record.status).toBe("active");
+    // The generic branch (`purchases[customerEmail] = userPurchases`) also
+    // works on the healed value.
+    const again = durableGet("tenant_purchases.json");
+    const generic = again["buyer@example.com"] || [];
+    generic.push({ id: "purchase-2", amount: 750000, status: "active" });
+    again["buyer@example.com"] = generic;
+    durableSet("tenant_purchases.json", again);
+    await durableFlush();
+    expect(driver.dump()["tenant_purchases.json"]["buyer@example.com"]).toHaveLength(2);
+  });
+
+  it("repairs every object-shape file that parses to a primitive (string/number)", async () => {
+    await durableClose();
+    const dir = join(tmpDir, "repair-obj");
+    mkdirSync(dir, { recursive: true });
+    const driver = new MemoryKvDriver({
+      "sessions.json": JSON.stringify("{}"),
+      "leads.json": JSON.stringify(42),
+      // tenant_audit_logs is deliberately NOT in the repair list — its reader
+      // tolerates arrays, so a legitimately array-format history is never wiped.
+      "tenant_audit_logs.json": [],
+    });
+    await initDurableStore(dir, driver);
+    await durableFlush();
+    expect(isPlainObject(durableGet("sessions.json"))).toBe(true);
+    expect(isPlainObject(durableGet("leads.json"))).toBe(true);
+    // The array-format audit row is left untouched.
+    expect(Array.isArray(durableGet("tenant_audit_logs.json"))).toBe(true);
+    const dump = driver.dump();
+    expect(isPlainObject(dump["sessions.json"])).toBe(true);
+    expect(isPlainObject(dump["leads.json"])).toBe(true);
+    expect(dump["tenant_audit_logs.json"]).toEqual([]);
+  });
+
+  it("never touches rows that already have the correct object shape", async () => {
+    await durableClose();
+    const dir = join(tmpDir, "repair-keep");
+    mkdirSync(dir, { recursive: true });
+    const existing = { "owner@example.com": [{ type: "starter", status: "active" }] };
+    const driver = new MemoryKvDriver({ "tenant_purchases.json": existing });
+    await initDurableStore(dir, driver);
+    await durableFlush();
+    expect(durableGet("tenant_purchases.json")["owner@example.com"][0].type).toBe("starter");
+    expect(driver.dump()["tenant_purchases.json"]["owner@example.com"][0].status).toBe("active");
   });
 });
