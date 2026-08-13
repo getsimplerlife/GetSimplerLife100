@@ -63,7 +63,7 @@ describe("Microsoft Excel client (Graph)", () => {
     };
     await c.writeWorkbookRange("wb-1", "Sheet1!A1", [["x"]]);
     expect(calls[0].path).toContain("/me/drive/items/wb-1/workbook/worksheets/Sheet1/range(address='A1')/values");
-    expect(calls[0].body).toEqual([["x"]]);
+    expect(calls[0].body).toEqual({ values: [["x"]] });
   });
 
   it("writeWorkbookRange fails closed on empty values", async () => {

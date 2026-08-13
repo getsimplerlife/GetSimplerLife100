@@ -108,7 +108,7 @@ export class MicrosoftExcelClient {
     const addr = range.includes("!") ? range.slice(range.indexOf("!") + 1) : range;
     const r = await this.client.patch(
       `/me/drive/items/${encodeURIComponent(id)}/workbook/worksheets/${DEFAULT_WORKSHEET}/range(address='${addr}')/values`,
-      values,
+      { values },
       this.headers,
     );
     return r.data;
