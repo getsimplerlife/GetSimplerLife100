@@ -20,7 +20,7 @@ describe("Microsoft Word client (Graph)", () => {
       return { ok: true, json: async () => ({ id: "doc-1", name: "My Doc.docx" }) };
     };
     const r = await c.createWordDocument("My Doc", ["Hello", "World"]);
-    expect(captured!.url).toBe("https://graph.microsoft.com/v1.0/me/drive/root/children/My%20Doc.docx:/content");
+    expect(captured!.url).toBe("https://graph.microsoft.com/v1.0/me/drive/root:/My%20Doc.docx:/content");
     expect(captured!.headers["Content-Type"]).toBe("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
     const bodyText = new TextDecoder().decode(captured!.body);
     expect(bodyText).toContain("PK"); // zip magic

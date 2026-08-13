@@ -59,9 +59,12 @@ function defaultRoutes(method: string, url: string, body?: any, headers: Record<
     return jsonResponse({ id: "created-1", name: "x" });
   }
   // Excel workbook API (must precede the generic items route — range URLs contain /items/)
+  // The excel client reads/writes the RANGE OBJECT (Graph's /values navigation is
+  // unreliable on some accounts — verified live 2026-08-13), so respond with the
+  // Graph range-object shape { values: [...] } for both GET and PATCH.
   if (url.includes("/workbook/worksheets/")) {
-    if (method === "GET") return jsonResponse([["Phase7", "verify"], ["a", "b"]]);
-    if (method === "PATCH") return jsonResponse([["Phase7", "verify"]]);
+    if (method === "GET") return jsonResponse({ values: [["Phase7", "verify"], ["a", "b"]] });
+    if (method === "PATCH") return jsonResponse({ values: [["Phase7", "verify"]] });
   }
   // Content download — serve the real binary for the created artifact kind.
   if (method === "GET" && url.includes("/content")) {

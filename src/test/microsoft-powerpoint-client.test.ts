@@ -20,7 +20,7 @@ describe("Microsoft PowerPoint client (Graph)", () => {
       return { ok: true, json: async () => ({ id: "deck-1", name: "Deck.pptx" }) };
     };
     const r = await c.createPresentation("Deck", [{ title: "Slide 1", body: "body" }]);
-    expect(captured!.url).toBe("https://graph.microsoft.com/v1.0/me/drive/root/children/Deck.pptx:/content");
+    expect(captured!.url).toBe("https://graph.microsoft.com/v1.0/me/drive/root:/Deck.pptx:/content");
     expect(captured!.headers["Content-Type"]).toBe("application/vnd.openxmlformats-officedocument.presentationml.presentation");
     const bodyText = new TextDecoder().decode(captured!.body);
     expect(bodyText).toContain("PK");

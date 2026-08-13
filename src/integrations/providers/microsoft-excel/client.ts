@@ -11,7 +11,9 @@ import { buildMinimalXlsx } from "../microsoft-office/ooxml";
  *
  * Excel workbooks are .xlsx (OOXML ZIP) files in OneDrive. Creation builds a
  * minimal valid .xlsx and PUTs it; value read/write goes through the native
- * Graph workbook API (/workbook/worksheets/{name}/range(...)/values), which is
+ * Graph workbook API (range(address='...') range-object endpoints — the /values
+ * navigation returns an empty Json entity on some accounts, so reads/writes go
+ * through the range object itself, which is)
  * the correct, honest path for reading cells back (no zip parsing needed).
  */
 const GRAPH_BASE = "https://graph.microsoft.com/v1.0";
@@ -70,7 +72,7 @@ export class MicrosoftExcelClient {
     if (!name) throw new Error("Microsoft Excel: createExcelWorkbook requires a name");
     if (!/\.xlsx$/i.test(name)) name = `${name}.xlsx`;
     const xlsx = buildMinimalXlsx(rows);
-    return this.putContent(`/me/drive/root/children/${encodeURIComponent(name)}:/content`, xlsx);
+    return this.putContent(`/me/drive/root:/${encodeURI(name)}:/content`, xlsx);
   }
 
   /* ── Read ───────────────────────────────────────────────────────────── */
@@ -86,11 +88,17 @@ export class MicrosoftExcelClient {
   async readWorkbookRange(id: string, range = `${DEFAULT_WORKSHEET}!A1:Z100`): Promise<any[][]> {
     await this.ensureToken();
     if (!id) throw new Error("Microsoft Excel: readWorkbookRange requires an id");
+    // The worksheet is already in the URL path; Graph rejects a sheet-qualified
+    // address ("Sheet1!A1:C2") at worksheet scope with 400, so strip the prefix.
+    const addr = range.includes("!") ? range.slice(range.indexOf("!") + 1) : range;
     const r = await this.client.get(
-      `/me/drive/items/${encodeURIComponent(id)}/workbook/worksheets/${DEFAULT_WORKSHEET}/range(address='${encodeURIComponent(range)}')/values`,
+      `/me/drive/items/${encodeURIComponent(id)}/workbook/worksheets/${DEFAULT_WORKSHEET}/range(address='${addr}')`,
       this.headers,
     );
-    return (r.data as any[][]) || [];
+    // The range object carries values (and text); the /values navigation is
+    // unreliable (empty Json on some accounts), so read the range object.
+    const data = r.data as any;
+    return (Array.isArray(data?.values) ? data.values : Array.isArray(data?.text) ? data.text : []) as any[][];
   }
 
   /* ── Write ──────────────────────────────────────────────────────────── */
@@ -100,9 +108,12 @@ export class MicrosoftExcelClient {
     if (!id) throw new Error("Microsoft Excel: writeWorkbookRange requires an id");
     if (!range) throw new Error("Microsoft Excel: writeWorkbookRange requires a range");
     if (!Array.isArray(values) || values.length === 0) throw new Error("Microsoft Excel: writeWorkbookRange requires a non-empty values array");
+    // The worksheet is already in the URL path; Graph rejects a sheet-qualified
+    // address ("Sheet1!A1:C2") at worksheet scope with 400, so strip the prefix.
+    const addr = range.includes("!") ? range.slice(range.indexOf("!") + 1) : range;
     const r = await this.client.patch(
-      `/me/drive/items/${encodeURIComponent(id)}/workbook/worksheets/${DEFAULT_WORKSHEET}/range(address='${encodeURIComponent(range)}')/values`,
-      values,
+      `/me/drive/items/${encodeURIComponent(id)}/workbook/worksheets/${DEFAULT_WORKSHEET}/range(address='${addr}')`,
+      { values },
       this.headers,
     );
     return r.data;
