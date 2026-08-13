@@ -86,8 +86,11 @@ export class MicrosoftExcelClient {
   async readWorkbookRange(id: string, range = `${DEFAULT_WORKSHEET}!A1:Z100`): Promise<any[][]> {
     await this.ensureToken();
     if (!id) throw new Error("Microsoft Excel: readWorkbookRange requires an id");
+    // The worksheet is already in the URL path; Graph rejects a sheet-qualified
+    // address ("Sheet1!A1:C2") at worksheet scope with 400, so strip the prefix.
+    const addr = range.includes("!") ? range.slice(range.indexOf("!") + 1) : range;
     const r = await this.client.get(
-      `/me/drive/items/${encodeURIComponent(id)}/workbook/worksheets/${DEFAULT_WORKSHEET}/range(address='${range}')/values`,
+      `/me/drive/items/${encodeURIComponent(id)}/workbook/worksheets/${DEFAULT_WORKSHEET}/range(address='${addr}')/values`,
       this.headers,
     );
     return (r.data as any[][]) || [];
@@ -100,8 +103,11 @@ export class MicrosoftExcelClient {
     if (!id) throw new Error("Microsoft Excel: writeWorkbookRange requires an id");
     if (!range) throw new Error("Microsoft Excel: writeWorkbookRange requires a range");
     if (!Array.isArray(values) || values.length === 0) throw new Error("Microsoft Excel: writeWorkbookRange requires a non-empty values array");
+    // The worksheet is already in the URL path; Graph rejects a sheet-qualified
+    // address ("Sheet1!A1:C2") at worksheet scope with 400, so strip the prefix.
+    const addr = range.includes("!") ? range.slice(range.indexOf("!") + 1) : range;
     const r = await this.client.patch(
-      `/me/drive/items/${encodeURIComponent(id)}/workbook/worksheets/${DEFAULT_WORKSHEET}/range(address='${range}')/values`,
+      `/me/drive/items/${encodeURIComponent(id)}/workbook/worksheets/${DEFAULT_WORKSHEET}/range(address='${addr}')/values`,
       values,
       this.headers,
     );

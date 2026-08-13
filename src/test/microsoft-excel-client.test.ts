@@ -45,7 +45,7 @@ describe("Microsoft Excel client (Graph)", () => {
       return { data: [["a", "b"], ["c", "d"]] };
     };
     const values = await c.readWorkbookRange("wb-1", "Sheet1!A1:B2");
-    expect(calls[0]).toContain("/me/drive/items/wb-1/workbook/worksheets/Sheet1/range(address='Sheet1!A1:B2')/values");
+    expect(calls[0]).toContain("/me/drive/items/wb-1/workbook/worksheets/Sheet1/range(address='A1:B2')/values");
     expect(values.length).toBe(2);
   });
 
@@ -62,7 +62,7 @@ describe("Microsoft Excel client (Graph)", () => {
       return { data: [["x"]] };
     };
     await c.writeWorkbookRange("wb-1", "Sheet1!A1", [["x"]]);
-    expect(calls[0].path).toContain("/me/drive/items/wb-1/workbook/worksheets/Sheet1/range(address='Sheet1!A1')/values");
+    expect(calls[0].path).toContain("/me/drive/items/wb-1/workbook/worksheets/Sheet1/range(address='A1')/values");
     expect(calls[0].body).toEqual([["x"]]);
   });
 
