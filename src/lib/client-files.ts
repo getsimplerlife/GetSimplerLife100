@@ -1,5 +1,6 @@
 import { join } from "path";
 import { readJSON, writeJSON, resolveDataDir } from "./data-store";
+import { workspaceForProvider, type Workspace } from "./workspace-routing";
 /**
  * client-files.ts — the client portal File Library registry.
  *
@@ -34,6 +35,8 @@ export interface ClientFile {
   id: string;
   /** Provider module id, e.g. "google-docs", "google-sheets", "microsoft-word", "onedrive". */
   provider: string;
+  /** Workspace family ('google' | 'microsoft') — computed from provider at registration. */
+  workspace?: Workspace;
   /** Id of the file inside the provider (Drive fileId / Graph item id / etc). */
   providerFileId: string;
   /** Human-friendly file name. */
@@ -41,6 +44,10 @@ export interface ClientFile {
   kind: ClientFileKind;
   /** Provider web URL for this file (open/edit in provider). */
   url?: string;
+  /** Native provider URL alias (same as url — explicit for unified delivery). */
+  nativeUrl?: string;
+  /** Who created this file ('employee' | 'chat' | 'portal' | 'verification' | ...). */
+  createdConnector?: string;
   /** iframe embed URL (View/Print in portal). */
   embedUrl?: string;
   createdAt: number;
@@ -70,16 +77,29 @@ function writeIndex(index: ClientFilesIndex, dataDir?: string): void {
   writeJSON(clientFilesPath(dataDir), index);
 }
 
+/**
+ * Normalize a stored record at read time: legacy entries (registered before
+ * the workspace/nativeUrl fields existed) get their workspace derived from
+ * the provider module id so the portal always shows a badge.
+ */
+function normalizeClientFile(file: ClientFile): ClientFile {
+  if (file.workspace) return file;
+  const workspace = workspaceForProvider(file.provider) || undefined;
+  if (!workspace) return file;
+  return { ...file, workspace };
+}
+
 /** All files visible to a tenant (their own only — never another tenant's). */
 export function listClientFiles(tenantId: string, dataDir?: string): ClientFile[] {
   if (!tenantId) return [];
-  return readIndex(dataDir)[tenantId] || [];
+  return (readIndex(dataDir)[tenantId] || []).map(normalizeClientFile);
 }
 
 /** One file, only if the tenant owns it (permission gating at read time). */
 export function getClientFile(tenantId: string, fileId: string, dataDir?: string): ClientFile | undefined {
   if (!tenantId || !fileId) return undefined;
-  return listClientFiles(tenantId, dataDir).find((f) => f.id === fileId);
+  const found = listClientFiles(tenantId, dataDir).find((f) => f.id === fileId);
+  return found ? normalizeClientFile(found) : undefined;
 }
 
 function genId(provider: string, providerFileId: string): string {
@@ -107,10 +127,15 @@ export function registerClientFile(
   const entry: ClientFile = {
     id,
     provider: file.provider,
+    // Workspace family derived from the provider module id (never guessed).
+    workspace: file.workspace || workspaceForProvider(file.provider) || undefined,
     providerFileId: file.providerFileId,
     name: file.name,
     kind: file.kind,
     url: file.url,
+    // Unified delivery: nativeUrl mirrors the provider's native open URL.
+    nativeUrl: file.nativeUrl || file.url || undefined,
+    createdConnector: file.createdConnector || undefined,
     embedUrl: file.embedUrl,
     createdAt: now,
     updatedAt: now,

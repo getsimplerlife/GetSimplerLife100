@@ -907,6 +907,80 @@ serve({
       } catch { /* audit is best-effort */ }
       return new Response(outcome.body, { status: outcome.status, headers: outcome.headers });
     }
+    // ── /api/portal/settings (workspace preference — owner directive 2026-08-13) ──
+    // GET  → { data: { workspacePreference } }
+    // POST { workspacePreference } → persist (google | microsoft | auto)
+    if (pathname === "/api/portal/settings") {
+      const user = await getUserFromSession(req);
+      if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
+      const { getWorkspacePreference, setWorkspacePreference, VALID_WORKSPACE_PREFERENCES } = await import("./src/lib/tenant-settings");
+      if (req.method === "GET") {
+        const preference = getWorkspacePreference(user.email, DATA_DIR);
+        return Response.json({ data: { workspacePreference: preference } });
+      }
+      if (req.method === "POST") {
+        const body = await req.json().catch(() => ({}));
+        const preference = body.workspacePreference;
+        if (!VALID_WORKSPACE_PREFERENCES.includes(preference)) {
+          return Response.json(
+            { error: `Invalid workspacePreference — expected one of: ${VALID_WORKSPACE_PREFERENCES.join(", ")}` },
+            { status: 400 },
+          );
+        }
+        setWorkspacePreference(user.email, preference, DATA_DIR);
+        // Audit the setting change (best-effort).
+        try {
+          const alogs = readJSON(AUDIT_LOG_FILE);
+          const alogUser = alogs[user.email] || [];
+          alogUser.push({
+            id: "log-" + Math.random().toString(36).substr(2, 9),
+            timestamp: new Date().toISOString(),
+            user: user.email,
+            action: "portal.settings.workspace",
+            resource: "workspacePreference",
+            detail: `Workspace preference set to ${preference}`,
+            ip: "127.0.0.1",
+          });
+          alogs[user.email] = alogUser;
+          writeJSON(AUDIT_LOG_FILE, alogs);
+        } catch { /* audit is best-effort */ }
+        return Response.json({ data: { workspacePreference: preference } });
+      }
+      return Response.json({ error: "Method not allowed" }, { status: 405 });
+    }
+    // ── /api/portal/files/create — cross-workspace data-file creation ──
+    // POST { fileType, title, content?, requestedProvider?, connector? }
+    // Routes to the tenant's preferred connected workspace (google|microsoft),
+    // creates the file with the provider's audited client, and registers it
+    // in the File Library. Fail-closed: 400 invalid input, 409 not connected,
+    // 5xx provider/refresh failures.
+    if (pathname === "/api/portal/files/create") {
+      const user = await getUserFromSession(req);
+      if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
+      if (req.method !== "POST") return Response.json({ error: "Method not allowed" }, { status: 405 });
+      const body = await req.json().catch(() => ({}));
+      const { createDataFile } = await import("./src/lib/file-creation");
+      const outcome = await createDataFile({
+        tenantId: user.email,
+        fileType: body.fileType,
+        title: body.title,
+        content: body.content,
+        requestedProvider: body.requestedProvider,
+        connector: body.connector || "portal",
+        dataDir: DATA_DIR,
+      });
+      if (!outcome.ok) {
+        return Response.json({ error: outcome.error, connectHint: outcome.connectHint || [] }, { status: outcome.status });
+      }
+      return Response.json({
+        data: {
+          file: outcome.file,
+          workspace: outcome.workspace,
+          provider: outcome.provider,
+          message: outcome.message,
+        },
+      });
+    }
     // ── /api/audit-logs (GET) ──────────────────────────────────────
     if (pathname === "/api/audit-logs") {
       const user = await getUserFromSession(req);
@@ -1847,7 +1921,57 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
         const integrationMap = readJSON(join(DATA_DIR, "agent_integration_map.json"));
         const userIntegrations = readJSON(TENANT_INTEGRATIONS_FILE);
         const userConns = userIntegrations[user.email] || [];
-        const responseText = `I'm your AI assistant at Simpler Life 100. ${userConns.length > 0 ?
+        // ── File-creation intents (owner directive 2026-08-13) ──
+        // "create a spreadsheet of unpaid invoices" → route to the tenant's
+        // preferred connected workspace (google|microsoft) and say which one
+        // was used. Fail-closed: no workspace connected → the reply explains
+        // what to connect; the canned reply remains for everything else.
+        let createReply: string | null = null;
+        const lowerMsg = (message || "").toLowerCase().trim();
+        const isQuestion = /^(how|can|could|what|when|why|is|are|do|does|should|will|would)\b/.test(lowerMsg);
+        const hasCreateVerb = /\b(create|make|generate|build|produce)\b/.test(lowerMsg);
+        if (!isQuestion && hasCreateVerb && /(spreadsheet|sheet|document|doc\b|presentation|slides|deck|file|export)/.test(lowerMsg)) {
+          let fileType: "doc" | "spreadsheet" | "slides" | "file" | null = null;
+          if (/spreadsheet|\bsheet\b|\btable\b/.test(lowerMsg)) fileType = "spreadsheet";
+          else if (/\bdocument\b|\bdoc\b|\bword\b/.test(lowerMsg)) fileType = "doc";
+          else if (/presentation|slides|deck/.test(lowerMsg)) fileType = "slides";
+          else fileType = "file";
+          // Explicit provider mentions (unambiguous only).
+          let requestedProvider: string | undefined;
+          if (/google\s*sheets|google\s*spreadsheets/.test(lowerMsg)) requestedProvider = "google-sheets";
+          else if (/google\s*docs?|google\s*documents/.test(lowerMsg)) requestedProvider = "google-docs";
+          else if (/microsoft\s*word|\bms\s*word|\bword\s*document/.test(lowerMsg)) requestedProvider = "microsoft-word";
+          else if (/\bexcel\b/.test(lowerMsg)) requestedProvider = "microsoft-excel";
+          // Title: strip verbs/type words and filler; fall back to a sensible default.
+          const cleaned = (message || "")
+            .replace(/\b(please|kindly)\b/gi, " ")
+            .replace(/\b(create|make|generate|build|produce)\b/gi, " ")
+            .replace(/\b(a|an|the|of|me|us|our|a few|some)\b/gi, " ")
+            .replace(/\b(spreadsheet|spreadsheets|sheet|sheets|table|tables|document|doc|docs|word|presentation|presentations|slides|deck|file|export)\b/gi, " ")
+            .replace(/\s+/g, " ").trim()
+            .replace(/^[\s,.:;!?-]+|[\s,.:;!?-]+$/g, "");
+          const title = (cleaned
+            ? cleaned.charAt(0).toUpperCase() + cleaned.slice(1)
+            : "AI-created " + (fileType === "spreadsheet" ? "spreadsheet" : fileType === "doc" ? "document" : fileType === "slides" ? "presentation" : "file")
+          ).slice(0, 80);
+          try {
+            const { createDataFile } = await import("./src/lib/file-creation");
+            const outcome = await createDataFile({
+              tenantId: user.email,
+              fileType,
+              title,
+              requestedProvider,
+              connector: "chat",
+              dataDir: DATA_DIR,
+            });
+            createReply = outcome.ok
+              ? outcome.message + " Open it in your portal File Library, or here: " + (outcome.file.url || outcome.file.nativeUrl || "") + "."
+              : "I couldn't create that: " + outcome.error + (outcome.connectHint?.length ? " Connect: " + outcome.connectHint.join(", ") : "") + ".";
+          } catch (e: any) {
+            createReply = "I couldn't create that right now: " + (e?.message || String(e));
+          }
+        }
+        const responseText = createReply !== null ? createReply : `I'm your AI assistant at Simpler Life 100. ${userConns.length > 0 ?
           `I can see you have ${userConns.length} integration(s) connected (${userConns.map((c: any) => c.provider).join(", ")}). ` :
           "You don't have any integrations connected yet — I can help you set those up. "
         }Our platform has ${employees.length} AI employees available for deployment across 23 industries. How can I help you optimize your operations today?`;
