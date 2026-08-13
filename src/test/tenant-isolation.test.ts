@@ -219,9 +219,9 @@ describe("3. OAuth token store: per-tenant keys only", () => {
     }
   });
 
-  it("SOURCE GUARD: the only token store write in prod-server is the per-tenant key `${user.email}:${authProvider}`", () => {
+  it("SOURCE GUARD: the only token store write in prod-server is the per-tenant key `${user.email}:${canonicalProvider}` (per-tenant, canonical id)", () => {
     const src = readSource("prod-server.ts");
-    expect(src).toContain("const tokenKey = `${user.email}:${authProvider}`;");
+    expect(src).toContain("const tokenKey = `${user.email}:${canonicalProvider}`;");
     expect(src).toContain("tokenData[tokenKey] = {");
   });
 });
