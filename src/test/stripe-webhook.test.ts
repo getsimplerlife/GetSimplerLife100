@@ -8,6 +8,9 @@ import {
   buildPackPurchase,
   verifyStripeSignature,
   STRIPE_SIGNATURE_TOLERANCE_MS,
+  agentPaymentLink,
+  matchAgentByPaymentLink,
+  matchAgentByMetadata,
 } from "../lib/stripe-webhook";
 
 function sign(rawBody: string, secret: string, timestampSec?: number): string {
@@ -138,5 +141,89 @@ describe("verifyStripeSignature — optional signature verification (fail closed
     const check = verifyStripeSignature(body, "t=notanumber,v1=abc", SECRET);
     expect(check.ok).toBe(false);
     expect(check.error).toMatch(/timestamp/i);
+  });
+});
+
+describe("agentPaymentLink — runtime catalog payment-link field", () => {
+  const AGENT_LINK = "https://buy.stripe.com/dRm3cx60Lbwj7Lleec2Fa29";
+
+  it("reads the runtime `paymentLink` field (ai_employees.json seed shape)", () => {
+    // Regression: the runtime catalog stores the link as `paymentLink`, NOT
+    // `stripePaymentLink` — the webhook matcher must read this spelling or
+    // every per-agent purchase falls to the generic branch (no agentId).
+    expect(agentPaymentLink({ id: "invoice-processor-v1", paymentLink: AGENT_LINK })).toBe(AGENT_LINK);
+  });
+
+  it("falls back to the legacy `stripePaymentLink` spelling", () => {
+    expect(agentPaymentLink({ id: "x", stripePaymentLink: AGENT_LINK })).toBe(AGENT_LINK);
+  });
+
+  it("prefers paymentLink when both exist", () => {
+    expect(agentPaymentLink({ paymentLink: AGENT_LINK, stripePaymentLink: "https://buy.stripe.com/OTHER" })).toBe(AGENT_LINK);
+  });
+
+  it("returns undefined for missing/blank links", () => {
+    expect(agentPaymentLink({})).toBeUndefined();
+    expect(agentPaymentLink({ paymentLink: "" })).toBeUndefined();
+    expect(agentPaymentLink({ paymentLink: "   " })).toBeUndefined();
+    expect(agentPaymentLink(null)).toBeUndefined();
+  });
+});
+
+describe("matchAgentByPaymentLink — webhook agent entitlement mapping", () => {
+  const CATALOG = [
+    { id: "invoice-processor-v1", name: "Invoice Processor", paymentLink: "https://buy.stripe.com/dRm3cx60Lbwj7Lleec2Fa29" },
+    { id: "crm-sync-agent-v1", name: "CRM Sync Agent", paymentLink: "https://buy.stripe.com/5kQ5kFexhcAn5Ddgmk2Fa2j" },
+    { id: "legacy-agent-v1", name: "Legacy Agent", stripePaymentLink: "https://buy.stripe.com/6oUbJ3cp9dErghRc642Fa24" },
+  ];
+
+  it("matches the exact session payment_link to the runtime paymentLink", () => {
+    const hit = matchAgentByPaymentLink(CATALOG, "https://buy.stripe.com/dRm3cx60Lbwj7Lleec2Fa29");
+    expect(hit?.id).toBe("invoice-processor-v1");
+  });
+
+  it("matches when Stripe appends query params to the payment link", () => {
+    const hit = matchAgentByPaymentLink(CATALOG, "https://buy.stripe.com/5kQ5kFexhcAn5Ddgmk2Fa2j?prefilled_email=a%40b.com");
+    expect(hit?.id).toBe("crm-sync-agent-v1");
+  });
+
+  it("matches the legacy stripePaymentLink spelling", () => {
+    const hit = matchAgentByPaymentLink(CATALOG, "https://buy.stripe.com/6oUbJ3cp9dErghRc642Fa24");
+    expect(hit?.id).toBe("legacy-agent-v1");
+  });
+
+  it("returns null for unknown payment links (fail closed — no guessing)", () => {
+    expect(matchAgentByPaymentLink(CATALOG, "https://buy.stripe.com/3cI8wR88Tasfc1B9XW2Fa2K")).toBeNull();
+    expect(matchAgentByPaymentLink(CATALOG, "https://buy.stripe.com/nonexistent")).toBeNull();
+  });
+
+  it("returns null for empty catalog / missing session link", () => {
+    expect(matchAgentByPaymentLink([], "https://buy.stripe.com/x")).toBeNull();
+    expect(matchAgentByPaymentLink(CATALOG, null)).toBeNull();
+    expect(matchAgentByPaymentLink(CATALOG, undefined)).toBeNull();
+    expect(matchAgentByPaymentLink(undefined, "https://buy.stripe.com/x")).toBeNull();
+  });
+
+  it("never matches a pack link (packs are handled by detectPackType first)", () => {
+    expect(matchAgentByPaymentLink(CATALOG, CRM_PACK_LINK)).toBeNull();
+    expect(matchAgentByPaymentLink(CATALOG, ERP_PACK_LINK)).toBeNull();
+  });
+});
+
+describe("matchAgentByMetadata — legacy stripePriceId metadata path", () => {
+  const CATALOG = [
+    { id: "invoice-processor-v1", stripePriceId: "price_abc123" },
+    { id: "plain-agent", paymentLink: "https://buy.stripe.com/x" },
+  ];
+
+  it("matches the employee whose stripePriceId equals metadata.priceId", () => {
+    const hit = matchAgentByMetadata(CATALOG, { priceId: "price_abc123" });
+    expect(hit?.id).toBe("invoice-processor-v1");
+  });
+
+  it("returns null when no employee has the priceId", () => {
+    expect(matchAgentByMetadata(CATALOG, { priceId: "price_zzz" })).toBeNull();
+    expect(matchAgentByMetadata(CATALOG, {})).toBeNull();
+    expect(matchAgentByMetadata(CATALOG, null)).toBeNull();
   });
 });

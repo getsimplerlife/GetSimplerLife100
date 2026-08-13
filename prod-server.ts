@@ -3,7 +3,7 @@ import { join, basename } from "path";
 import { readFileSync, writeFileSync, existsSync, readdirSync } from "fs";
 import { createHash, randomBytes } from "crypto";
 import { resolveDataDir, isInsidePublishTree, readJSON, writeJSON, seedDataFiles, bucketConnectionsByCategory, migrateLegacyData, findLegacyDataDir, countConnections } from "./src/lib/data-store";
-import { detectPackType, buildPackPurchase, verifyStripeSignature } from "./src/lib/stripe-webhook";
+import { detectPackType, buildPackPurchase, verifyStripeSignature, matchAgentByPaymentLink, matchAgentByMetadata } from "./src/lib/stripe-webhook";
 import { AGENTS } from "./src/data/agents";
 import { initDurableStore, durableEnabled, durableKeyCount, durableStoreStatus, durableSnapshotBackup } from "./src/lib/durable-store";
 import { sweepExpiredTokens, tokenSweepStats } from "./src/lib/token-refresher";
@@ -411,7 +411,7 @@ if (!process.env.STRIPE_WEBHOOK_SECRET) {
 }
 console.log("[prod-server] Starting server on port 3000...");
 serve({
-  port: 3000,
+  port: Number(process.env.PORT || 3000), // PORT env override for local/isolated test instances
   async fetch(req) {
     const url = new URL(req.url);
     const pathname = url.pathname;
@@ -1629,7 +1629,7 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
             return Response.json({
               error: "Purchase required to run this agent",
               agentId,
-              paymentLink: agent.stripePaymentLink || null,
+              paymentLink: agent.paymentLink || agent.stripePaymentLink || null,
             }, { status: 402 });
           }
         }
@@ -2193,6 +2193,21 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
           const paymentLink = session.payment_link || "";
           const amountTotal = session.amount_total || 0;
 
+          // Idempotency guard — Stripe delivers at-least-once, so a re-delivered
+          // checkout.session.completed MUST NOT double-provision. Without this,
+          // a duplicated pack event would push a second pack record and the
+          // slots API (which sums active packs) would grant 10 slots instead of
+          // 5 — a real over-granting vector for the owner's "no free stuff"
+          // directive. Skip when this session id was already recorded.
+          if (customerEmail && session.id) {
+            const priorPurchases = readJSON(TENANT_PURCHASES_FILE);
+            const prior = (priorPurchases[customerEmail] || []).some((p: any) => p.stripeSessionId === session.id);
+            if (prior) {
+              console.log(`[webhook] Duplicate Stripe event for ${customerEmail} (session ${session.id}) — skipping`);
+              return Response.json({ received: true });
+            }
+          }
+
           // Check for CRM or ERP Connection Pack purchase. The marketplace buy
           // buttons point at the canonical pack links (opaque IDs, no metadata),
           // so the canonical links are mapped to pack types explicitly; the
@@ -2209,13 +2224,15 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
             return Response.json({ received: true });
           }
 
-          // Match payment link to agent
+          // Match payment link to agent. The runtime catalog stores the link
+          // as `paymentLink` (some catalogs used `stripePaymentLink`) — match
+          // BOTH spellings or every per-agent purchase falls through to the
+          // generic branch (no agentId) and the paid agent is never granted.
+          // (Live bug 2026-08-13: runtime records had only `paymentLink`, so
+          // the old `e.stripePaymentLink` matcher never fired.)
           const employees = readJSON(AI_EMPLOYEES_FILE);
-          const matchedAgent = employees.find((e: any) =>
-            e.stripePaymentLink && session.payment_link && e.stripePaymentLink.includes(session.payment_link)
-          ) || employees.find((e: any) =>
-            e.stripePriceId && session.metadata?.priceId === e.stripePriceId
-          );
+          const matchedAgent = matchAgentByPaymentLink(employees, session.payment_link)
+            || matchAgentByMetadata(employees, session.metadata);
           if (customerEmail && matchedAgent) {
             // Provision the purchase
             const purchases = readJSON(TENANT_PURCHASES_FILE);
