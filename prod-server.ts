@@ -105,6 +105,7 @@ function getOAuthRedirectUri(_provider: string, req?: Request): string {
 
 // Provider name → canonical key for module lookup (handles hyphens, etc.)
 import { getCanonicalProvider } from "./src/lib/provider-canonical";
+import { resolveServerPort } from "./src/lib/server-port";
 function generateSessionToken(): string {
   return createHash("sha256").update(randomBytes(64)).digest("hex");
 }
@@ -409,9 +410,10 @@ startBackupSweeper();
 if (!process.env.STRIPE_WEBHOOK_SECRET) {
   console.log("[prod-server] WARNING: STRIPE_WEBHOOK_SECRET is not set — /api/stripe/webhook and /api/stripe-webhook accept unsigned payloads (a forged checkout.session.completed could mark any email as purchased). Set STRIPE_WEBHOOK_SECRET before launch; the handler is signature-verification-ready.");
 }
-console.log("[prod-server] Starting server on port 3000...");
+const serverPort = resolveServerPort(process.env.PORT);
+console.log(`[prod-server] Starting server on port ${serverPort}...`);
 serve({
-  port: Number(process.env.PORT || 3000), // PORT env override for local/isolated test instances
+  port: serverPort, // canonical 3000; platform default PORT=80 ignored; explicit numeric overrides honored (see src/lib/server-port.ts)
   async fetch(req) {
     const url = new URL(req.url);
     const pathname = url.pathname;
@@ -2823,7 +2825,7 @@ OAUTH_${provUpper}_CLIENT_SECRET=your_client_secret</pre><p style="font-size:0.8
       }
   },
 });
-console.log("[prod-server] Port 3000 — SSR mode: server-side rendering + client hydration | API: /api/login, /api/register, /api/logout, /api/me");
+console.log(`[prod-server] Port ${serverPort} — SSR mode: server-side rendering + client hydration | API: /api/login, /api/register, /api/logout, /api/me`);
 // Signal readiness — write a file the publish tool can detect
 try { require("fs").writeFileSync("/tmp/slr100-ready", String(Date.now())); } catch (_) {}
 process.on("exit", () => { if (tokenSweepTimer) clearInterval(tokenSweepTimer); if (backupTimer) clearInterval(backupTimer); });
