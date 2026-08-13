@@ -11,6 +11,12 @@ import {
   agentPaymentLink,
   matchAgentByPaymentLink,
   matchAgentByMetadata,
+  STARTER_PLAN_LINK,
+  PROFESSIONAL_PLAN_LINK,
+  ENTERPRISE_PLAN_LINK,
+  detectPlanType,
+  planAgentIds,
+  buildPlanPurchase,
 } from "../lib/stripe-webhook";
 
 function sign(rawBody: string, secret: string, timestampSec?: number): string {
@@ -225,5 +231,91 @@ describe("matchAgentByMetadata — legacy stripePriceId metadata path", () => {
     expect(matchAgentByMetadata(CATALOG, { priceId: "price_zzz" })).toBeNull();
     expect(matchAgentByMetadata(CATALOG, {})).toBeNull();
     expect(matchAgentByMetadata(CATALOG, null)).toBeNull();
+  });
+});
+
+describe("detectPlanType — canonical plan links (owner decision F3: Starter 3 / Professional 8 / Enterprise 17)", () => {
+  it("maps the canonical Starter link to starter with 3 agents", () => {
+    expect(detectPlanType(STARTER_PLAN_LINK)?.tier).toBe("starter");
+    expect(detectPlanType(STARTER_PLAN_LINK)?.agentCount).toBe(3);
+  });
+
+  it("maps the canonical Professional link to professional with 8 agents", () => {
+    expect(detectPlanType(PROFESSIONAL_PLAN_LINK)?.tier).toBe("professional");
+    expect(detectPlanType(PROFESSIONAL_PLAN_LINK)?.agentCount).toBe(8);
+  });
+
+  it("maps the canonical Enterprise link to enterprise with all 17 agents", () => {
+    expect(detectPlanType(ENTERPRISE_PLAN_LINK)?.tier).toBe("enterprise");
+    expect(detectPlanType(ENTERPRISE_PLAN_LINK)?.agentCount).toBe(17);
+  });
+
+  it("matches canonical links with Stripe query params appended", () => {
+    expect(detectPlanType(STARTER_PLAN_LINK + "?prefilled_email=a%40b.com")?.tier).toBe("starter");
+  });
+
+  it("returns null for non-plan links (packs, agents, generic, junk)", () => {
+    expect(detectPlanType(CRM_PACK_LINK)).toBeNull();
+    expect(detectPlanType(ERP_PACK_LINK)).toBeNull();
+    expect(detectPlanType("https://buy.stripe.com/dRm3cx60Lbwj7Lleec2Fa29")).toBeNull(); // agent link
+    expect(detectPlanType("https://buy.stripe.com/4gMfZj88TfMz6Hh8TS2Fa1K")).toBeNull(); // generic
+    expect(detectPlanType("")).toBeNull();
+    expect(detectPlanType(null)).toBeNull();
+    expect(detectPlanType("https://buy.stripe.com/test_starter_plan")).toBeNull(); // fail closed — no substring guessing
+  });
+});
+
+describe("planAgentIds — which catalog agents a tier grants", () => {
+  const CATALOG = ["a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9", "a10",
+    "a11", "a12", "a13", "a14", "a15", "a16", "a17"].map((id) => ({ id, name: id }));
+
+  it("Starter grants the first 3 agents in catalog order", () => {
+    const spec = detectPlanType(STARTER_PLAN_LINK)!;
+    expect(planAgentIds(CATALOG, spec)).toEqual(["a1", "a2", "a3"]);
+  });
+
+  it("Professional grants the first 8 agents in catalog order", () => {
+    const spec = detectPlanType(PROFESSIONAL_PLAN_LINK)!;
+    expect(planAgentIds(CATALOG, spec)).toHaveLength(8);
+    expect(planAgentIds(CATALOG, spec)[0]).toBe("a1");
+    expect(planAgentIds(CATALOG, spec)[7]).toBe("a8");
+  });
+
+  it("Enterprise grants all 17 agents", () => {
+    const spec = detectPlanType(ENTERPRISE_PLAN_LINK)!;
+    expect(planAgentIds(CATALOG, spec)).toHaveLength(17);
+  });
+
+  it("caps at the catalog size when the catalog is smaller than the tier", () => {
+    const spec = detectPlanType(ENTERPRISE_PLAN_LINK)!;
+    const small = [{ id: "x1" }, { id: "x2" }];
+    expect(planAgentIds(small, spec)).toEqual(["x1", "x2"]);
+  });
+
+  it("returns [] for an empty/invalid catalog or spec", () => {
+    expect(planAgentIds([], detectPlanType(STARTER_PLAN_LINK)!)).toEqual([]);
+    expect(planAgentIds(CATALOG, null)).toEqual([]);
+    expect(planAgentIds(undefined, detectPlanType(STARTER_PLAN_LINK)!)).toEqual([]);
+  });
+});
+
+describe("buildPlanPurchase — plan record shape (type + tier + agentIds)", () => {
+  it("records a Starter plan with tier, agentCount and the granted agentIds", () => {
+    const rec = buildPlanPurchase(
+      { tier: "starter", productName: "Starter Plan", agentCount: 3 },
+      750000,
+      "cs_test_plan_1",
+      ["invoice-processor-v1", "crm-sync-agent-v1", "email-assistant-v1"],
+    ) as any;
+    expect(rec.type).toBe("plan");
+    expect(rec.tier).toBe("starter");
+    expect(rec.productName).toBe("Starter Plan");
+    expect(rec.agentCount).toBe(3);
+    expect(rec.agentIds).toHaveLength(3);
+    expect(rec.agentIds[0]).toBe("invoice-processor-v1");
+    expect(rec.amount).toBe(750000);
+    expect(rec.stripeSessionId).toBe("cs_test_plan_1");
+    expect(rec.status).toBe("active");
+    expect(rec.purchasedAt).toBeTruthy();
   });
 });

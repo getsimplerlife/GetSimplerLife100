@@ -91,6 +91,89 @@ export function buildPackPurchase(
 }
 
 /**
+ * Plan purchases (owner decision 2026-08-13, task F3): Starter ($7,500)
+ * grants 3 agents, Growth/Professional ($15,000) grants 8, Scale/Enterprise
+ * ($30,000) grants all 17. The pricing page names them Starter / Professional
+ * / Enterprise; the owner's brief calls them Starter / Growth / Scale — same
+ * three links. Plan detection mirrors the pack detection: canonical link
+ * exact/prefix match, fail closed (unknown links are NOT plans).
+ */
+export const STARTER_PLAN_LINK = "https://buy.stripe.com/3cI8wR88Tasfc1B9XW2Fa2K";
+export const PROFESSIONAL_PLAN_LINK = "https://buy.stripe.com/5kQ6oJbl5dErc1B1rq2Fa2L";
+export const ENTERPRISE_PLAN_LINK = "https://buy.stripe.com/aFa7sN60LdErc1B5HG2Fa2M";
+
+export type PlanTier = "starter" | "professional" | "enterprise";
+
+export interface PlanSpec {
+  tier: PlanTier;
+  productName: string;
+  /** Number of AI employees the tier grants (owner decision: 3 / 8 / all 17). */
+  agentCount: number;
+}
+
+/** Constant map: canonical plan link → plan spec (tier + name + agent count). */
+export const PLANS_BY_LINK: Record<string, PlanSpec> = {
+  [STARTER_PLAN_LINK]: { tier: "starter", productName: "Starter Plan", agentCount: 3 },
+  [PROFESSIONAL_PLAN_LINK]: { tier: "professional", productName: "Professional Plan", agentCount: 8 },
+  [ENTERPRISE_PLAN_LINK]: { tier: "enterprise", productName: "Enterprise Plan", agentCount: 17 },
+};
+
+/**
+ * Detect a plan purchase from the canonical Stripe payment links. Fail closed:
+ * only the three canonical plan links (exact or with Stripe query params)
+ * resolve to a plan — any other link returns null and falls through to the
+ * agent/generic branches.
+ */
+export function detectPlanType(paymentLink: string | undefined | null): PlanSpec | null {
+  const link = paymentLink || "";
+  if (!link) return null;
+  for (const [canonical, spec] of Object.entries(PLANS_BY_LINK)) {
+    if (link === canonical || link.includes(canonical)) return spec;
+  }
+  return null;
+}
+
+/**
+ * Resolve which catalog agents a plan grants. Uses catalog order — the first
+ * `agentCount` employees (Starter 3, Professional 8, Enterprise all). If the
+ * catalog ever has fewer employees than the tier grants, every available agent
+ * is included (an Enterprise buyer still gets the whole team).
+ */
+export function planAgentIds(
+  employees: any[] | undefined | null,
+  spec: PlanSpec | undefined | null,
+): string[] {
+  if (!Array.isArray(employees) || !spec) return [];
+  return employees.slice(0, spec.agentCount).map((e: any) => e?.id).filter((id: any) => typeof id === "string");
+}
+
+/**
+ * Build the persisted plan purchase record. One record per plan purchase with
+ * an `agentIds` array (the granted agents). Consumers treat `agentId` and
+ * `agentIds` the same way: the portal employee list, /api/agents/run gate and
+ * the billing list all read from this record shape.
+ */
+export function buildPlanPurchase(
+  spec: PlanSpec,
+  amount: number,
+  stripeSessionId: string | undefined | null,
+  agentIds: string[],
+): Record<string, unknown> {
+  return {
+    id: "purchase-" + Math.random().toString(36).substr(2, 9),
+    type: "plan",
+    tier: spec.tier,
+    productName: spec.productName,
+    agentCount: spec.agentCount,
+    agentIds,
+    amount,
+    stripeSessionId: stripeSessionId || "unknown",
+    status: "active",
+    purchasedAt: new Date().toISOString(),
+  };
+}
+
+/**
  * The payment-link field an AI-employee record carries. The runtime catalog
  * (ai_employees.json, seeded from src/data/agents.ts) stores it as
  * `paymentLink`; some older/other catalogs used `stripePaymentLink`. The

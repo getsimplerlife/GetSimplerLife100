@@ -277,8 +277,8 @@ describe("Purchase-flow integrity audit (owner directive: no free stuff)", () =>
     });
   });
 
-  describe("PLAN purchase (Starter $7,500) — DOCUMENTS current behavior; plan→agent mapping pending owner decision", () => {
-    it("records the plan purchase as a generic amount-only record (no type/agentId today)", async () => {
+  describe("PLAN purchase (Starter $7,500) → grants its 3 agents (owner decision F3: Starter 3 / Professional 8 / Enterprise 17)", () => {
+    it("provisions a plan record with tier + agentIds (Starter grants the first 3 catalog agents)", async () => {
       const sessionId = "cs_audit_plan_" + TS;
       const { status, json } = await postWebhook(checkoutEvent(
         PLAN_EMAIL, sessionId, "https://buy.stripe.com/3cI8wR88Tasfc1B9XW2Fa2K", 750000,
@@ -289,20 +289,43 @@ describe("Purchase-flow integrity audit (owner directive: no free stuff)", () =>
       const purchases = readJSONFile(PURCHASES_FILE);
       const recs = purchases[PLAN_EMAIL] || [];
       expect(recs.length).toBe(1);
+      expect(recs[0].type).toBe("plan");
+      expect(recs[0].tier).toBe("starter");
+      expect(recs[0].productName).toBe("Starter Plan");
+      expect(recs[0].agentCount).toBe(3);
       expect(recs[0].amount).toBe(750000);
-      // Current behavior: no agentId/type/slots — a plan purchase grants no
-      // agent entitlements yet. FLAGGED in the audit report for an owner
-      // decision (pricing advertises 3/8/all-17 employees per tier).
-      expect(recs[0].agentId).toBeUndefined();
-      expect(recs[0].type).toBeUndefined();
+      expect(recs[0].agentIds).toEqual([
+        "invoice-processor-v1",
+        "crm-sync-agent-v1",
+        "email-assistant-v1",
+      ]);
     });
 
-    it("plan buyer sees NO agents and NO feature access (finding, not silently changed)", async () => {
+    it("plan buyer sees EXACTLY the 3 granted agents in the portal employee list", async () => {
       const cookie = await registerAndGetCookie(PLAN_EMAIL);
       expect(cookie).toBeTruthy();
-      const { json } = await authedGet("/api/data/employees", cookie!);
-      expect(json.data || []).toEqual([]);
+      const { status, json } = await authedGet("/api/data/employees", cookie!);
+      expect(status).toBe(200);
+      const ids = (json.data || []).map((e: any) => e.id);
+      expect(ids).toEqual(["invoice-processor-v1", "crm-sync-agent-v1", "email-assistant-v1"]);
+      expect(json.data.every((e: any) => e.purchased === true)).toBe(true);
+    });
 
+    it("plan buyer can run a granted agent but is blocked (402) from a NON-granted agent", async () => {
+      const cookie = await registerAndGetCookie(PLAN_EMAIL);
+      expect(cookie).toBeTruthy();
+      // data-entry-bot-v1 is catalog #4 — NOT in Starter's first 3 → must 402.
+      const runRes = await fetch(`${BASE_URL}/api/agents/run`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Cookie: `session=${cookie}` },
+        body: JSON.stringify({ agentId: "data-entry-bot-v1", input: "test" }),
+      });
+      expect(runRes.status).toBe(402);
+    });
+
+    it("plan purchase does NOT unlock feature flags (has-access unchanged)", async () => {
+      const cookie = await registerAndGetCookie(PLAN_EMAIL);
+      expect(cookie).toBeTruthy();
       const accessRes = await fetch(`${BASE_URL}/api/purchases/has-access`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Cookie: `session=${cookie}` },
@@ -310,7 +333,6 @@ describe("Purchase-flow integrity audit (owner directive: no free stuff)", () =>
       });
       const access = await accessRes.json();
       expect(access.hasAccess).toBe(false);
-      expect(access.reason).toBe("not purchased");
     });
   });
 

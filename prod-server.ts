@@ -3,7 +3,7 @@ import { join, basename } from "path";
 import { readFileSync, writeFileSync, existsSync, readdirSync } from "fs";
 import { createHash, randomBytes } from "crypto";
 import { resolveDataDir, isInsidePublishTree, readJSON, writeJSON, seedDataFiles, bucketConnectionsByCategory, migrateLegacyData, findLegacyDataDir, countConnections } from "./src/lib/data-store";
-import { detectPackType, buildPackPurchase, verifyStripeSignature, matchAgentByPaymentLink, matchAgentByMetadata } from "./src/lib/stripe-webhook";
+import { detectPackType, buildPackPurchase, verifyStripeSignature, matchAgentByPaymentLink, matchAgentByMetadata, detectPlanType, buildPlanPurchase, planAgentIds } from "./src/lib/stripe-webhook";
 import { AGENTS } from "./src/data/agents";
 import { initDurableStore, durableEnabled, durableKeyCount, durableStoreStatus, durableSnapshotBackup } from "./src/lib/durable-store";
 import { sweepExpiredTokens, tokenSweepStats } from "./src/lib/token-refresher";
@@ -1623,7 +1623,8 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
           const purchases = readJSON(TENANT_PURCHASES_FILE);
           const userPurchases = purchases[user.email] || [];
           const hasAgent = userPurchases.some((p: any) =>
-            p.agentId === agentId || p.agentType === agentId || p.productId === agentId
+            p.agentId === agentId || p.agentType === agentId || p.productId === agentId ||
+            (Array.isArray(p.agentIds) && (p.agentIds.includes(agentId) || p.agentIds.includes(agentId + "-v1")))
           );
           if (!hasAgent) {
             return Response.json({
@@ -1923,11 +1924,11 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
         if (user.email !== "mathewortiz97@gmail.com") {
           const purchases = readJSON(TENANT_PURCHASES_FILE);
           const userPurchases = purchases[user.email] || [];
-          const purchasedIds = new Set(
-            userPurchases
-              .filter((p: any) => p.agentId)
-              .map((p: any) => p.agentId)
-          );
+          const purchasedIds = new Set<string>();
+          for (const p of userPurchases) {
+            if (p.agentId) purchasedIds.add(p.agentId);
+            if (Array.isArray(p.agentIds)) for (const id of p.agentIds) purchasedIds.add(id);
+          }
           const filtered = employees
             .filter((e: any) => purchasedIds.has(e.id))
             .map((e: any) => ({ ...e, purchased: true }));
@@ -2221,6 +2222,24 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
             writeJSON(TENANT_PURCHASES_FILE, purchases);
             configureTenant(customerEmail, { purchased: true, status: "Active" });
             console.log(`[webhook] Provisioned ${packSpec.productName} (${packSpec.slots} slots) for ${customerEmail}`);
+            return Response.json({ received: true });
+          }
+
+          // Plan purchases (owner decision F3): Starter grants 3 agents,
+          // Professional 8, Enterprise all 17. One record with the granted
+          // agentIds; the portal list and /api/agents/run gate treat agentIds
+          // like agentId.
+          const planSpec = detectPlanType(paymentLink);
+          if (planSpec && customerEmail) {
+            const purchases = readJSON(TENANT_PURCHASES_FILE);
+            const userPurchases = purchases[customerEmail] || [];
+            const employees = readJSON(AI_EMPLOYEES_FILE);
+            const agentIds = planAgentIds(employees, planSpec);
+            userPurchases.push(buildPlanPurchase(planSpec, amountTotal, session.id, agentIds));
+            purchases[customerEmail] = userPurchases;
+            writeJSON(TENANT_PURCHASES_FILE, purchases);
+            configureTenant(customerEmail, { purchased: true, status: "Active" });
+            console.log(`[webhook] Provisioned ${planSpec.productName} (${agentIds.length} agents) for ${customerEmail}`);
             return Response.json({ received: true });
           }
 
