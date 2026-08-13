@@ -3,6 +3,7 @@ import { join, basename } from "path";
 import { readFileSync, writeFileSync, existsSync, readdirSync } from "fs";
 import { createHash, randomBytes } from "crypto";
 import { resolveDataDir, isInsidePublishTree, readJSON, writeJSON, seedDataFiles, bucketConnectionsByCategory, migrateLegacyData, findLegacyDataDir, countConnections } from "./src/lib/data-store";
+import { detectPackType, buildPackPurchase, verifyStripeSignature } from "./src/lib/stripe-webhook";
 import { AGENTS } from "./src/data/agents";
 import { initDurableStore, durableEnabled, durableKeyCount, durableStoreStatus, durableSnapshotBackup } from "./src/lib/durable-store";
 import { sweepExpiredTokens, tokenSweepStats } from "./src/lib/token-refresher";
@@ -405,6 +406,9 @@ function startBackupSweeper(): void {
   console.log(`[durable-store] backup sweeper started: every ${BACKUP_SNAPSHOT_INTERVAL_MS}ms (first snapshot in 60s)`);
 }
 startBackupSweeper();
+if (!process.env.STRIPE_WEBHOOK_SECRET) {
+  console.log("[prod-server] WARNING: STRIPE_WEBHOOK_SECRET is not set — /api/stripe/webhook accepts unsigned payloads (a forged checkout.session.completed could mark any email as purchased). Set STRIPE_WEBHOOK_SECRET before launch; the handler is signature-verification-ready.");
+}
 console.log("[prod-server] Starting server on port 3000...");
 serve({
   port: 3000,
@@ -1231,9 +1235,6 @@ serve({
         }});
       } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e))); return Response.json({ analysis: { topMatch: "Automation AI", allMatches: [] } }); }
     }
-const CRM_PACK_LINK = "https://buy.stripe.com/5kQaEZ60LcAn8Ppgmk2Fa2I";
-const ERP_PACK_LINK = "https://buy.stripe.com/dRmeVf88TfMzghRda82Fa2J";
-
 function lookupAgent(agentName: string): { name: string; paymentLink: string; description: string } | null {
   if (!agentName) return null;
   const name = agentName.toLowerCase().trim();
@@ -2157,7 +2158,18 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
 
     if (pathname === "/api/stripe/webhook" && req.method === "POST") {
       try {
-        const body = await req.json();
+        // Read the RAW body first — signature verification (and the Stripe
+        // HMAC scheme t=<ts>,v1=<sig>) requires the exact bytes received.
+        const rawBody = await req.text();
+        const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+        if (webhookSecret) {
+          const check = verifyStripeSignature(rawBody, req.headers.get("stripe-signature"), webhookSecret);
+          if (!check.ok) {
+            console.log(`[webhook] Stripe signature rejected: ${check.error}`);
+            return Response.json({ error: check.error }, { status: 400 });
+          }
+        }
+        const body = JSON.parse(rawBody);
         const eventType = body.type || "unknown";
         // Handle checkout.session.completed
         if (eventType === "checkout.session.completed" || body.data?.object?.object === "checkout.session") {
@@ -2166,53 +2178,19 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
           const paymentLink = session.payment_link || "";
           const amountTotal = session.amount_total || 0;
 
-          // Check for CRM or ERP Connection Pack purchase
-          const CRM_PACK_PAYMENT_LINK = "https://buy.stripe.com/test_crm_pack_5slots";
-          const ERP_PACK_PAYMENT_LINK = "https://buy.stripe.com/test_erp_pack_5slots";
-          const isCrmPack = paymentLink.includes("crm_pack") || paymentLink.includes("crm-pack") ||
-                            (session.metadata?.productType === "crm-pack");
-          const isErpPack = paymentLink.includes("erp_pack") || paymentLink.includes("erp-pack") ||
-                            (session.metadata?.productType === "erp-pack") ||
-                            // Legacy combined pack detection
-                            paymentLink.includes("crm_erp_pack");
-
-          if ((isCrmPack || isErpPack) && customerEmail) {
+          // Check for CRM or ERP Connection Pack purchase. The marketplace buy
+          // buttons point at the canonical pack links (opaque IDs, no metadata),
+          // so the canonical links are mapped to pack types explicitly; the
+          // legacy substring + metadata.productType fallbacks are kept.
+          const packSpec = detectPackType(paymentLink, session.metadata);
+          if (packSpec && customerEmail) {
             const purchases = readJSON(TENANT_PURCHASES_FILE);
             const userPurchases = purchases[customerEmail] || [];
-
-            if (isCrmPack) {
-              userPurchases.push({
-                id: "purchase-" + Math.random().toString(36).substr(2, 9),
-                type: "crm-pack",
-                productName: "CRM Connection Pack",
-                slots: 5,
-                usedSlots: 0,
-                amount: amountTotal,
-                stripeSessionId: session.id || "unknown",
-                status: "active",
-                purchasedAt: new Date().toISOString(),
-              });
-              console.log(`[webhook] Provisioned CRM Connection Pack (5 slots) for ${customerEmail}`);
-            }
-
-            if (isErpPack) {
-              userPurchases.push({
-                id: "purchase-" + Math.random().toString(36).substr(2, 9),
-                type: "erp-pack",
-                productName: "ERP Connection Pack",
-                slots: 5,
-                usedSlots: 0,
-                amount: amountTotal,
-                stripeSessionId: session.id || "unknown",
-                status: "active",
-                purchasedAt: new Date().toISOString(),
-              });
-              console.log(`[webhook] Provisioned ERP Connection Pack (5 slots) for ${customerEmail}`);
-            }
-
+            userPurchases.push(buildPackPurchase(packSpec, amountTotal, session.id));
             purchases[customerEmail] = userPurchases;
             writeJSON(TENANT_PURCHASES_FILE, purchases);
             configureTenant(customerEmail, { purchased: true, status: "Active" });
+            console.log(`[webhook] Provisioned ${packSpec.productName} (${packSpec.slots} slots) for ${customerEmail}`);
             return Response.json({ received: true });
           }
 
