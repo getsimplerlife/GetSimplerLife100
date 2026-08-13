@@ -407,7 +407,7 @@ function startBackupSweeper(): void {
 }
 startBackupSweeper();
 if (!process.env.STRIPE_WEBHOOK_SECRET) {
-  console.log("[prod-server] WARNING: STRIPE_WEBHOOK_SECRET is not set — /api/stripe/webhook accepts unsigned payloads (a forged checkout.session.completed could mark any email as purchased). Set STRIPE_WEBHOOK_SECRET before launch; the handler is signature-verification-ready.");
+  console.log("[prod-server] WARNING: STRIPE_WEBHOOK_SECRET is not set — /api/stripe/webhook and /api/stripe-webhook accept unsigned payloads (a forged checkout.session.completed could mark any email as purchased). Set STRIPE_WEBHOOK_SECRET before launch; the handler is signature-verification-ready.");
 }
 console.log("[prod-server] Starting server on port 3000...");
 serve({
@@ -2088,7 +2088,7 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
       return Response.json({ error: "Unknown admin resource: " + subPath }, { status: 404 });
     }
 
-    // ── /api/stripe/webhook ──────────────────────────────────────
+    // ── /api/stripe/webhook + /api/stripe-webhook ────────────────
     // ── /api/monitoring/webhook/:providerId ─────────────────────────
     const monitorMatch = pathname.match(/^\/api\/monitoring\/webhook\/([a-z0-9_-]+)$/);
     if (monitorMatch && req.method === "POST") {
@@ -2156,11 +2156,26 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
       }
     }
 
-    if (pathname === "/api/stripe/webhook" && req.method === "POST") {
+    // The Stripe dashboard webhook is registered with a HYPHEN
+    // (/api/stripe-webhook) — that's the spelling the owner set when it was
+    // first configured. The canonical route is the SLASH form. Accept BOTH so
+    // real events never silently fall through to the SPA HTML fallback (which
+    // returns 200 and makes Stripe mark the event delivered while NO purchase
+    // is recorded in Neon).
+    if (pathname === "/api/stripe/webhook" || pathname === "/api/stripe-webhook") {
+      if (req.method !== "POST") {
+        // Never serve the SPA HTML fallback on webhook paths — a 200 HTML
+        // "success" would be treated as delivered by Stripe. Fail closed with
+        // an explicit non-HTML error instead.
+        return Response.json({ error: "Method not allowed — POST required" }, { status: 405 });
+      }
       try {
         // Read the RAW body first — signature verification (and the Stripe
         // HMAC scheme t=<ts>,v1=<sig>) requires the exact bytes received.
         const rawBody = await req.text();
+        // Log which spelling Stripe actually delivered to (hyphen vs slash)
+        // so the dashboard registration can be reconciled with the route.
+        console.log(`[webhook] Stripe event received on ${pathname}`);
         const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
         if (webhookSecret) {
           const check = verifyStripeSignature(rawBody, req.headers.get("stripe-signature"), webhookSecret);
