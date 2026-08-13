@@ -2,9 +2,14 @@ import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { join } from "path";
 
-// Must match the DATA_DIR used by prod-server.ts when started from the repo
-// without a DATA_DIR override: <repo>/.data (see src/lib/data-store.ts resolveDataDir).
-const PURCHASES_FILE = join(process.cwd(), ".data", "tenant_purchases.json");
+// Must match the DATA_DIR used by prod-server.ts. Defaults to <repo>/.data
+// (file-backed runs); set TEST_DATA_DIR to the server's real DATA_DIR when
+// verifying against the Neon-backed server (e.g. /var/lib/simplerlife100/.data)
+// so the file assertions read where the server actually writes.
+const PURCHASES_FILE = join(
+  process.env.TEST_DATA_DIR || join(process.cwd(), ".data"),
+  "tenant_purchases.json",
+);
 
 const TEST_EMAIL = "e2e-provisioning@" + Date.now() + ".test";
 
@@ -76,6 +81,41 @@ describe("End-to-end purchase provisioning", () => {
     expect(userPurchases.length).toBeGreaterThanOrEqual(1);
     expect(userPurchases[0].status).toBe("active");
     expect(userPurchases[0].amount).toBe(95000);
+  });
+
+  it("provisions a CRM Connection Pack from the canonical Stripe link with type/slots/agentType", async () => {
+    // Regression for the Neon JSONB-string bug (2026-08-13): when
+    // tenant_purchases.json parses to a string primitive, the pack branch
+    // threw "Attempted to assign to readonly property" and nothing was
+    // recorded. The boot repair must make this e2e path write a real object.
+    const webhookBody = {
+      type: "checkout.session.completed",
+      data: {
+        object: {
+          id: "cs_test_pack_" + Date.now(),
+          object: "checkout.session",
+          customer_details: { email: TEST_EMAIL },
+          customer_email: TEST_EMAIL,
+          payment_link: "https://buy.stripe.com/5kQaEZ60LcAn8Ppgmk2Fa2I",
+          amount_total: 200000,
+          metadata: {},
+        },
+      },
+    };
+
+    const { status, json } = await post("/api/stripe/webhook", webhookBody);
+    expect(status).toBe(200);
+    expect(json.received).toBe(true);
+
+    const purchases = readPurchases();
+    const userPurchases = purchases[TEST_EMAIL] || [];
+    const pack = userPurchases.find((p: any) => p.type === "crm-pack");
+    expect(pack).toBeDefined();
+    expect(pack.slots).toBe(5);
+    expect(pack.agentType).toBe("crm-pack");
+    expect(pack.productName).toBe("CRM Connection Pack");
+    expect(pack.status).toBe("active");
+    expect(pack.amount).toBe(200000);
   });
 
   it("entitled tenant is accepted at monitoring webhook after purchase", async () => {

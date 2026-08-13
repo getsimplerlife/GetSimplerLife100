@@ -2236,8 +2236,16 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
           }
         }
         return Response.json({ received: true });
-      } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
-        return Response.json({ received: true });
+      } catch (e: any) {
+        // NEVER return {received:true} on failure — Stripe treats 2xx as
+        // "delivered" and the error would be silently lost (this masked the
+        // 2026-08-13 tenant_purchases.json readonly-assignment bug). Return
+        // 500 + detail so Stripe retries and the failure is visible in logs.
+        console.log("[SSR] FAILED url=" + url + " err=" + (e?.stack || e?.message || String(e)));
+        return Response.json(
+          { error: "Webhook processing failed", detail: e?.message || String(e) },
+          { status: 500 },
+        );
       }
     }
 

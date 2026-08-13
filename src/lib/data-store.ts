@@ -1,6 +1,6 @@
 import { join } from "path";
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync, copyFileSync } from "fs";
-import { durableEnabled, durableGet, durableHas, durableKeyFor, durableSet } from "./durable-store";
+import { durableEnabled, durableGet, durableHas, durableKeyFor, durableSet, isPlainObject } from "./durable-store";
 import { AGENTS } from "../data/agents";
 
 /**
@@ -139,6 +139,24 @@ function fileOrDurableExists(file: string): boolean {
 }
 
 /**
+ * Guarantee a runtime JSON file exists AND parses to a plain object.
+ * CREATE-IF-MISSING + REPAIR-IF-PRIMITIVE — real object data is never
+ * touched. This is the file/seed-layer half of the "parses-to-primitive"
+ * repair (the durable half runs in durable-store.ts repairPrimitiveShapes):
+ * a value stored as a JSON *string* (Neon JSONB-string bug, e.g.
+ * tenant_purchases.json = '"{}"') parses to a string primitive, and
+ * read-modify-write handlers (`data[email] = ...`) throw on it. Normalize
+ * to {} and write through (writeJSON mirrors to the durable store too).
+ */
+function ensurePlainObjectFile(file: string): void {
+  if (!fileOrDurableExists(file)) { writeJSON(file, {}); return; }
+  try {
+    const v = readJSON(file);
+    if (!isPlainObject(v)) writeJSON(file, {});
+  } catch { writeJSON(file, {}); }
+}
+
+/**
  * Boot-time seed: guarantees critical files exist with correct types.
  * CREATE-IF-MISSING ONLY — existing files (connections, OAuth tokens,
  * sessions, purchases) are never deleted, truncated, or overwritten.
@@ -174,11 +192,13 @@ export function seedDataFiles(dataDir: string): void {
     } catch (_) { writeJSON(empFile, AGENTS); }
   }
 
-  // tenant_oauth_credentials.json — persists OAuth tokens across deploys
-  const oauthFile = join(dataDir, "tenant_oauth_credentials.json");
-  if (!fileOrDurableExists(oauthFile)) writeJSON(oauthFile, {});
+  // tenant_oauth_credentials.json — persists OAuth tokens across deploys.
+  // Repair-if-primitive: a string-shaped value would break every OAuth read.
+  ensurePlainObjectFile(join(dataDir, "tenant_oauth_credentials.json"));
 
-  // Seed admin user if no admin exists (create-if-missing only)
+  // Seed admin user if no admin exists (create-if-missing only). users.json
+  // must be a plain object first — the admin block below assigns `users[email]`.
+  ensurePlainObjectFile(join(dataDir, "users.json"));
   const adminEmail = process.env.ADMIN_EMAIL || "mathewortiz97@gmail.com";
   const usersFile = join(dataDir, "users.json");
   const users = readJSON(usersFile);
@@ -195,7 +215,7 @@ export function seedDataFiles(dataDir: string): void {
     writeJSON(usersFile, users);
   }
 
-  // Critical files exist with sensible defaults (never overwrite)
+  // Critical files exist with correct OBJECT shape (never overwrite real data).
   for (const f of [
     "sessions.json",
     "oauth_states.json",
@@ -208,8 +228,7 @@ export function seedDataFiles(dataDir: string): void {
     "tenant_integrations.json",
     "client_files.json",
   ]) {
-    const file = join(dataDir, f);
-    if (!fileOrDurableExists(file)) writeJSON(file, {});
+    ensurePlainObjectFile(join(dataDir, f));
   }
 }
 
