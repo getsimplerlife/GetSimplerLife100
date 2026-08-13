@@ -73,6 +73,11 @@ describe("restart persistence: seedDataFiles is create-if-missing only", () => {
     }
     // integrations.json must be an array (the server calls .find() on it)
     expect(Array.isArray(readJSON(join(dir, "integrations.json")))).toBe(true);
+    // ai_employees.json must be an array too (chat/agent handlers call
+    // .length/.find() on it) — seeded from the canonical AGENTS list
+    const seededEmployees = readJSON(join(dir, "ai_employees.json"));
+    expect(Array.isArray(seededEmployees)).toBe(true);
+    expect(seededEmployees.length).toBeGreaterThan(0);
   });
 
   it("does NOT wipe an existing connection when the server restarts", () => {
