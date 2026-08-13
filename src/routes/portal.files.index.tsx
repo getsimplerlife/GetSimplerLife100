@@ -10,10 +10,13 @@ export const Route = createFileRoute("/portal/files/")({
 export interface PortalFile {
   id: string;
   provider: string;
+  workspace?: "google" | "microsoft";
   providerFileId: string;
   name: string;
   kind: "doc" | "sheet" | "slides" | "word" | "excel" | "ppt" | "file";
   url?: string;
+  nativeUrl?: string;
+  createdConnector?: string;
   embedUrl?: string;
   createdAt: number;
   updatedAt: number;
@@ -47,11 +50,48 @@ function FileLibrary() {
   const [searchTerm, setSearchTerm] = useState("");
   const [previewFile, setPreviewFile] = useState<PortalFile | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
-
+  // Workspace preference (owner directive 2026-08-13): where AI employees
+  // create data files — Google, Microsoft, or auto (route to what's connected).
+  const [workspacePref, setWorkspacePref] = useState<"google" | "microsoft" | "auto">("auto");
+  const [prefSaving, setPrefSaving] = useState(false);
   const showToast = useCallback((msg: string) => {
     setFeedback(msg);
     setTimeout(() => setFeedback(null), 4000);
   }, []);
+  const loadPreference = useCallback(async () => {
+    try {
+      const res = await fetch("/api/portal/settings");
+      if (res.ok) {
+        const json = await res.json();
+        const p = json?.data?.workspacePreference;
+        if (p === "google" || p === "microsoft" || p === "auto") setWorkspacePref(p);
+      }
+    } catch { /* preference is best-effort */ }
+  }, []);
+  useEffect(() => {
+    void loadPreference();
+  }, [loadPreference]);
+  const savePreference = useCallback(async () => {
+    setPrefSaving(true);
+    try {
+      const res = await fetch("/api/portal/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workspacePreference: workspacePref }),
+      });
+      const json = await res.json().catch(() => null);
+      if (res.ok) {
+        showToast(`File workspace preference saved: ${workspacePref === "auto" ? "Auto (pick connected workspace)" : workspacePref === "google" ? "Google Workspace" : "Microsoft 365"}`);
+      } else {
+        showToast(json?.error || "Could not save preference");
+      }
+    } catch (err) {
+      console.error("Error saving preference:", err);
+      showToast("Could not save preference");
+    } finally {
+      setPrefSaving(false);
+    }
+  }, [workspacePref, showToast]);
 
   const fetchFiles = useCallback(async () => {
     try {
@@ -150,6 +190,36 @@ function FileLibrary() {
           </span>
         )}
       </div>
+      {/* Workspace preference — owner directive 2026-08-13 */}
+      <Card className="bg-stone-900/40 border border-stone-850 p-5 rounded-2xl">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div>
+            <h3 className="text-sm font-black flex items-center gap-1.5">🧭 Where should AI-created files go?</h3>
+            <p className="text-stone-400 text-xs mt-1">
+              Choose the workspace AI employees use when they create files for you. <span className="text-stone-300 font-semibold">Auto</span> uses the workspace you have connected — and when both Google and Microsoft are connected, it picks the least-loaded one.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            {(["google", "microsoft", "auto"] as const).map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setWorkspacePref(p)}
+                className={`text-[11px] font-bold rounded-lg px-3 py-1.5 border transition-colors ${
+                  workspacePref === p
+                    ? "bg-emerald-600/20 border-emerald-600 text-emerald-300"
+                    : "bg-stone-900 border-stone-800 text-stone-400 hover:text-stone-200 hover:border-stone-700"
+                }`}
+              >
+                {p === "google" ? "Google" : p === "microsoft" ? "Microsoft" : "Auto"}
+              </button>
+            ))}
+            <Button size="sm" onClick={savePreference} disabled={prefSaving}>
+              {prefSaving ? "Saving…" : "Save"}
+            </Button>
+          </div>
+        </div>
+      </Card>
 
       <Card className="bg-stone-900/40 border border-stone-850 p-6 rounded-2xl space-y-6">
         {/* Search */}
@@ -222,6 +292,9 @@ function FileLibrary() {
                         <p className="text-xs font-extrabold text-white truncate" title={file.name}>{file.name}</p>
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
                           <Badge variant="emerald">{kind.label}</Badge>
+                          <span className={`text-[9px] font-mono font-bold rounded px-1.5 py-0.5 ${file.workspace === "microsoft" ? "bg-sky-900/40 text-sky-300" : "bg-emerald-900/40 text-emerald-300"}`}>
+                            {file.workspace === "microsoft" ? "Microsoft" : "Google"}
+                          </span>
                           <span className="text-[9px] font-mono text-stone-500">{providerLabel}</span>
                         </div>
                       </div>

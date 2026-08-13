@@ -1,0 +1,91 @@
+/**
+ * tenant-settings.ts — per-tenant settings in the durable store.
+ *
+ * Key: tenant_settings.json  (basename → durable store key, so it persists
+ * to Neon alongside tenant_integrations.json / tenant_oauth_credentials.json
+ * and survives publishes).
+ *
+ * Shape: { [tenantEmail]: { workspacePreference: 'google'|'microsoft'|'auto' } }
+ * — tenant-scoped, keyed by email exactly like client_files.json.
+ *
+ * The workspace preference decides where AI employees create data files
+ * (Google OR Microsoft) when a file-creation request does not name a
+ * provider explicitly. Default: 'auto' (route to whichever file workspace
+ * the tenant has connected).
+ */
+import { join } from "path";
+import { readJSON, writeJSON, resolveDataDir } from "./data-store";
+import type { WorkspacePreference } from "./workspace-routing";
+
+export const TENANT_SETTINGS_KEY = "tenant_settings.json";
+export const VALID_WORKSPACE_PREFERENCES: readonly WorkspacePreference[] = [
+  "google",
+  "microsoft",
+  "auto",
+] as const;
+
+export interface TenantSettings {
+  workspacePreference?: WorkspacePreference;
+}
+
+export type TenantSettingsIndex = Record<string, TenantSettings>;
+
+function defaultDataDir(): string {
+  return resolveDataDir(
+    process.env.DATA_DIR,
+    typeof import.meta?.dir !== "undefined" ? import.meta.dir : process.cwd(),
+  );
+}
+
+export function tenantSettingsPath(dataDir?: string): string {
+  return join(dataDir ?? defaultDataDir(), TENANT_SETTINGS_KEY);
+}
+
+function readIndex(dataDir?: string): TenantSettingsIndex {
+  const raw = readJSON(tenantSettingsPath(dataDir));
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) return raw as TenantSettingsIndex;
+  return {};
+}
+
+function writeIndex(index: TenantSettingsIndex, dataDir?: string): void {
+  writeJSON(tenantSettingsPath(dataDir), index);
+}
+
+/** A tenant's settings object (empty when never set). */
+export function getTenantSettings(tenantId: string, dataDir?: string): TenantSettings {
+  if (!tenantId) return {};
+  return readIndex(dataDir)[tenantId] || {};
+}
+
+/** Workspace preference for a tenant — always a valid value, default 'auto'. */
+export function getWorkspacePreference(tenantId: string, dataDir?: string): WorkspacePreference {
+  const pref = getTenantSettings(tenantId, dataDir).workspacePreference;
+  return VALID_WORKSPACE_PREFERENCES.includes(pref as WorkspacePreference)
+    ? (pref as WorkspacePreference)
+    : "auto";
+}
+
+/** Validate a workspace preference value (throws on anything else). */
+export function assertValidWorkspacePreference(value: unknown): asserts value is WorkspacePreference {
+  if (typeof value !== "string" || !VALID_WORKSPACE_PREFERENCES.includes(value as WorkspacePreference)) {
+    throw new Error(
+      `Invalid workspace preference "${String(value)}" — expected one of: ${VALID_WORKSPACE_PREFERENCES.join(", ")}`,
+    );
+  }
+}
+
+/** Set a tenant's workspace preference (validated). Returns the updated settings. */
+export function setWorkspacePreference(
+  tenantId: string,
+  preference: WorkspacePreference,
+  dataDir?: string,
+): TenantSettings {
+  if (!tenantId?.trim()) throw new Error("setWorkspacePreference requires a tenant id");
+  assertValidWorkspacePreference(preference);
+  const index = readIndex(dataDir);
+  const current = index[tenantId] || {};
+  const next: TenantSettings = { ...current, workspacePreference: preference };
+  index[tenantId] = next;
+  writeIndex(index, dataDir);
+  return next;
+}

@@ -210,6 +210,8 @@ export interface ProductivityExecutionOptions {
   maxAttempts?: number;
   /** DATA_DIR for the portal File Library registry (client_files.json). */
   dataDir?: string;
+  /** Creator label stamped on registered files (default 'employee'). */
+  connector?: string;
 }
 
 /**
@@ -252,7 +254,7 @@ export function registerCreatedFile(
     if (!providerFileId) return; // no usable id → nothing to register
     registerClientFile(
       options.tenantId,
-      { provider, providerFileId, name, kind, url },
+      { provider, providerFileId, name, kind, url, createdConnector: options.connector || "employee" },
       options.dataDir,
     );
   } catch { /* registry is best-effort — never fail the create */ }
