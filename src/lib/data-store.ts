@@ -1,6 +1,7 @@
 import { join } from "path";
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync, copyFileSync } from "fs";
 import { durableEnabled, durableGet, durableHas, durableKeyFor, durableSet } from "./durable-store";
+import { AGENTS } from "../data/agents";
 
 /**
  * data-store.ts — runtime data directory resolution and boot-time seeding.
@@ -160,6 +161,18 @@ export function seedDataFiles(dataDir: string): void {
       if (!Array.isArray(v)) writeJSON(intFile, []);
     } catch (_) { writeJSON(intFile, []); }
   }
+  // ai_employees.json MUST be an array — chat/agent-action handlers call
+  // .length/.find() on it. Seeded from the canonical AGENTS list (18).
+  // Repair (not clobber): only non-array values (e.g. the old {} default)
+  // are replaced; real runtime arrays with agent statuses are untouched.
+  const empFile = join(dataDir, "ai_employees.json");
+  if (!fileOrDurableExists(empFile)) { writeJSON(empFile, AGENTS); }
+  else {
+    try {
+      const v = readJSON(empFile);
+      if (!Array.isArray(v)) writeJSON(empFile, AGENTS);
+    } catch (_) { writeJSON(empFile, AGENTS); }
+  }
 
   // tenant_oauth_credentials.json — persists OAuth tokens across deploys
   const oauthFile = join(dataDir, "tenant_oauth_credentials.json");
@@ -193,7 +206,6 @@ export function seedDataFiles(dataDir: string): void {
     "pending_emails.json",
     "chat_sessions.json",
     "tenant_integrations.json",
-    "ai_employees.json",
     "client_files.json",
   ]) {
     const file = join(dataDir, f);

@@ -3,6 +3,7 @@ import { join, basename } from "path";
 import { readFileSync, writeFileSync, existsSync, readdirSync } from "fs";
 import { createHash, randomBytes } from "crypto";
 import { resolveDataDir, isInsidePublishTree, readJSON, writeJSON, seedDataFiles, bucketConnectionsByCategory, migrateLegacyData, findLegacyDataDir, countConnections } from "./src/lib/data-store";
+import { AGENTS } from "./src/data/agents";
 import { initDurableStore, durableEnabled, durableKeyCount, durableStoreStatus, durableSnapshotBackup } from "./src/lib/durable-store";
 import { sweepExpiredTokens, tokenSweepStats } from "./src/lib/token-refresher";
 
@@ -1853,7 +1854,11 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
           userSessions.push(session);
         }
         // Generate contextual response
-        const employees = readJSON(AI_EMPLOYEES_FILE);
+        const employeesData = readJSON(AI_EMPLOYEES_FILE);
+        // ai_employees.json can be {} if seeded before this fix (or missing);
+        // {}.length is undefined -> "undefined AI employees". Fall back to the
+        // canonical AGENTS list so the count is always real.
+        const employees = Array.isArray(employeesData) && employeesData.length > 0 ? employeesData : AGENTS;
         const integrationMap = readJSON(join(DATA_DIR, "agent_integration_map.json"));
         const userIntegrations = readJSON(TENANT_INTEGRATIONS_FILE);
         const userConns = userIntegrations[user.email] || [];
