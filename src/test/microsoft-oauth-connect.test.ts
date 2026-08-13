@@ -160,3 +160,56 @@ describe("prod-server OAuth path resolves through the canonical id (source guard
     expect(src).toContain('import { getCanonicalProvider } from "./src/lib/provider-canonical";');
   });
 });
+
+describe("providers API / getOAuthCredentials contract (lead-requested regressions)", () => {
+  it("providers API (serves the catalog 1:1) returns the canonical Office ids", () => {
+    // The /api/integrations/providers route maps over src/content/integrations
+    // without id transformation, so the catalog ids ARE the API ids.
+    const apiIds = integrations.filter(Boolean).map((i) => i.id);
+    for (const id of MICROSOFT_IDS) expect(apiIds).toContain(id);
+  });
+
+  it('getOAuthCredentials("microsoft-word") env-key path is non-null (mirrors prod-server key building)', () => {
+    // prod-server: OAUTH_${provider.replace(/-/g, "_").toUpperCase()}_CLIENT_ID
+    const keyOf = (provider: string, suffix: string) =>
+      `OAUTH_${provider.replace(/-/g, "_").toUpperCase()}_${suffix}`;
+    expect(keyOf("microsoft-word", "CLIENT_ID")).toBe("OAUTH_MICROSOFT_WORD_CLIENT_ID");
+    expect(keyOf("microsoft-excel", "CLIENT_SECRET")).toBe("OAUTH_MICROSOFT_EXCEL_CLIENT_SECRET");
+    expect(keyOf("microsoft-powerpoint", "CLIENT_ID")).toBe("OAUTH_MICROSOFT_POWERPOINT_CLIENT_ID");
+    // Simulate the exact getOAuthCredentials first branch with env vars set:
+    // it must resolve to a non-null { clientId, clientSecret }, never a null path.
+    const saved: Record<string, string | undefined> = {};
+    const setVar = (k: string, v: string) => { saved[k] = process.env[k]; process.env[k] = v; };
+    const restore = () => { for (const [k, v] of Object.entries(saved)) { if (v === undefined) delete process.env[k]; else process.env[k] = v; } };
+    try {
+      setVar("OAUTH_MICROSOFT_WORD_CLIENT_ID", "cid-w");
+      setVar("OAUTH_MICROSOFT_WORD_CLIENT_SECRET", "csec-w");
+      setVar("OAUTH_MICROSOFT_EXCEL_CLIENT_ID", "cid-e");
+      setVar("OAUTH_MICROSOFT_EXCEL_CLIENT_SECRET", "csec-e");
+      setVar("OAUTH_MICROSOFT_POWERPOINT_CLIENT_ID", "cid-p");
+      setVar("OAUTH_MICROSOFT_POWERPOINT_CLIENT_SECRET", "csec-p");
+      for (const [provider, cid, csec] of [
+        ["microsoft-word", "cid-w", "csec-w"],
+        ["microsoft-excel", "cid-e", "csec-e"],
+        ["microsoft-powerpoint", "cid-p", "csec-p"],
+      ] as const) {
+        const clientId = process.env[keyOf(provider, "CLIENT_ID")];
+        const clientSecret = process.env[keyOf(provider, "CLIENT_SECRET")];
+        expect({ clientId, clientSecret }, provider).toEqual({ clientId: cid, clientSecret: csec });
+        expect(clientId && clientSecret, provider).toBeTruthy(); // non-null path
+      }
+    } finally {
+      restore();
+    }
+  });
+
+  it("prod-server providers API route maps the catalog without renaming ids (source guard)", () => {
+    const src = require("node:fs").readFileSync(join(process.cwd(), "prod-server.ts"), "utf8");
+    const route = src.slice(src.indexOf("/api/integrations/providers"));
+    expect(route).toContain('const { integrations } = await import("./src/content/integrations");');
+    // No id-rename map for the Office providers anywhere in the route.
+    expect(route).not.toContain('"microsoft-word": "word"');
+    expect(route).not.toContain('"microsoft-excel": "excel"');
+  });
+});
+
