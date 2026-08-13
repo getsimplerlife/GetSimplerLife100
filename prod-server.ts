@@ -103,24 +103,7 @@ function getOAuthRedirectUri(_provider: string, req?: Request): string {
 }
 
 // Provider name → canonical key for module lookup (handles hyphens, etc.)
-const PROVIDER_CANONICAL: Record<string, string> = {
-  "quickbooks-online": "quickbooks-enterprise",
-  "quickbooks": "quickbooks-enterprise",
-  "quickbooks-desktop": "quickbooks-enterprise",
-  "zoho": "zoho-crm",
-  "gmail": "google-workspace",
-  "google": "google-workspace",
-  "microsoft": "microsoft-365",
-  "microsoft-dynamics": "dynamics-365",
-  "outlook": "outlook-calendar",
-  "bamboohr": "adp",
-  "sap": "sap-s4hana",
-};
-
-function getCanonicalProvider(provider: string): string {
-  return PROVIDER_CANONICAL[provider.toLowerCase()] || provider.toLowerCase();
-}
-
+import { getCanonicalProvider } from "./src/lib/provider-canonical";
 function generateSessionToken(): string {
   return createHash("sha256").update(randomBytes(64)).digest("hex");
 }
@@ -2345,16 +2328,16 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
         return Response.redirect(`/portal/integrations?error=${encodeURIComponent("Session expired. Please login and try again.")}`, 302);
       }
       
-      const creds = getOAuthCredentials(authProvider);
+      const canonicalProvider = getCanonicalProvider(authProvider);
+      const creds = getOAuthCredentials(canonicalProvider);
       if (!creds) {
-        return Response.redirect(`/portal/integrations?error=${encodeURIComponent("OAuth not configured for " + authProvider + ". Add credentials in Admin → OAuth Settings.")}`, 302);
+        return Response.redirect(`/portal/integrations?error=${encodeURIComponent("OAuth not configured for " + canonicalProvider + ". Add credentials in Admin → OAuth Settings.")}`, 302);
       }
       
-      const redirectUri = getOAuthRedirectUri(authProvider, req);
+      const redirectUri = getOAuthRedirectUri(canonicalProvider, req);
       
       try {
         // Exchange code for tokens using the provider's auth module
-        const canonicalProvider = getCanonicalProvider(authProvider);
         const authModulePath = `./src/integrations/providers/${canonicalProvider}/auth.ts`;
         const authMod = await import(authModulePath);
         
@@ -2372,15 +2355,15 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
           );
         } else {
           // No audited callback handler: fail closed rather than guessing a token host.
-          throw new Error(`OAuth callback is not implemented for ${authProvider}`);
+          throw new Error(`OAuth callback is not implemented for ${canonicalProvider}`);
         }
                 if (!(await usableOAuthToken(tokens))) throw new Error("OAuth provider returned no usable access token");
         // Store tokens in tenant_oauth_credentials.json
         const tokenFile = join(DATA_DIR, "tenant_oauth_credentials.json");
         const tokenData = readJSON(tokenFile);
-        const tokenKey = `${user.email}:${authProvider}`;
+        const tokenKey = `${user.email}:${canonicalProvider}`;
         tokenData[tokenKey] = {
-          provider: authProvider,
+          provider: canonicalProvider,
           email: user.email,
           accessToken: tokens.accessToken,
           refreshToken: tokens.refreshToken,
@@ -2397,12 +2380,12 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
         const userConns = allConns[user.email] || [];
         
         // Check for existing connection
-        const existingIdx = userConns.findIndex((c: any) => c.providerId === authProvider);
+        const existingIdx = userConns.findIndex((c: any) => c.providerId === canonicalProvider);
         const entry = {
           id: "int-" + Math.random().toString(36).substr(2, 9),
-          provider: authProvider,
-          providerId: authProvider,
-          category: getProviderCategory(authProvider) || "Integration",
+          provider: canonicalProvider,
+          providerId: canonicalProvider,
+          category: getProviderCategory(canonicalProvider) || "Integration",
           status: "Connected",
           connectedAt: new Date().toISOString(),
           lastSync: new Date().toISOString(),
@@ -2426,20 +2409,20 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
           timestamp: new Date().toISOString(),
           user: user.email,
           action: "integration.connect",
-          resource: authProvider,
-          detail: `Connected ${authProvider} via OAuth`,
+          resource: canonicalProvider,
+          detail: `Connected ${canonicalProvider} via OAuth`,
           ip: "127.0.0.1",
         });
         alogs[user.email] = alogUser;
         writeJSON(AUDIT_LOG_FILE, alogs);
         
         // Redirect to integrations with success
-        const successMsg = encodeURIComponent(`✅ Connected to ${authProvider} successfully!`);
+        const successMsg = encodeURIComponent(`✅ Connected to ${canonicalProvider} successfully!`);
         return Response.redirect(`/portal/integrations?success=${successMsg}`, 302);
         
       } catch (e: any) {
         console.error("OAuth callback error:", e);
-        const errMsg = encodeURIComponent(`OAuth failed for ${authProvider}: ${e.message || "Unknown error"}`);
+        const errMsg = encodeURIComponent(`OAuth failed for ${canonicalProvider}: ${e.message || "Unknown error"}`);
         return Response.redirect(`/portal/integrations?error=${errMsg}`, 302);
       }
     }
@@ -2486,7 +2469,7 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
       // Build OAuth redirect URL dynamically via provider auth modules
       const redirectUri = getOAuthRedirectUri(provider, req);
       const canonicalProvider = getCanonicalProvider(provider);
-      const creds = getOAuthCredentials(provider);
+      const creds = getOAuthCredentials(canonicalProvider);
       
       // Try to use a real provider auth module
       let authUrl: string | null = null;

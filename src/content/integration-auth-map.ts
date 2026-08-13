@@ -80,6 +80,9 @@ import * as auth_55 from "../integrations/providers/wrike/auth";
 import * as auth_56 from "../integrations/providers/xero/auth";
 import * as auth_57 from "../integrations/providers/zoho-crm/auth";
 import * as auth_58 from "../integrations/providers/zoom/auth";
+import * as auth_59 from "../integrations/providers/microsoft-excel/auth";
+import * as auth_60 from "../integrations/providers/microsoft-powerpoint/auth";
+import * as auth_61 from "../integrations/providers/microsoft-word/auth";
 const providerAuthModules: ReadonlyArray<{ id: string; module: Record<string, unknown> }> = [
   { id: "adobe-sign", module: auth_0 },
   { id: "adp", module: auth_1 },
@@ -110,6 +113,9 @@ const providerAuthModules: ReadonlyArray<{ id: string; module: Record<string, un
   { id: "help-scout", module: auth_26 },
   { id: "hubspot", module: auth_27 },
   { id: "infor-cloudsuite", module: auth_28 },
+  { id: "microsoft-excel", module: auth_59 },
+  { id: "microsoft-powerpoint", module: auth_60 },
+  { id: "microsoft-word", module: auth_61 },
   { id: "jira", module: auth_29 },
   { id: "netsuite", module: auth_30 },
   { id: "notion", module: auth_31 },

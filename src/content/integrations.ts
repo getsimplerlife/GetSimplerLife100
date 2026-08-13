@@ -1747,7 +1747,7 @@ export const integrations: Integration[] = [
     relatedWorkflows: ["email-management", "document-processing", "onboarding", "compliance-reporting", "report-generation"],
   },
   {
-    id: "excel",
+    id: "microsoft-excel",
     name: "Microsoft Excel",
     icon: "excel",
     category: "Microsoft Ecosystem",
@@ -1762,7 +1762,7 @@ export const integrations: Integration[] = [
     relatedWorkflows: ["report-generation", "data-entry-automation", "budget-tracking", "invoice-automation", "compliance-reporting"],
   },
   {
-    id: "word",
+    id: "microsoft-word",
     name: "Microsoft Word",
     icon: "word",
     category: "Microsoft Ecosystem",
@@ -1775,6 +1775,19 @@ export const integrations: Integration[] = [
       "Document protection and restriction enforcement for sensitive content"],
     industries: ["legal", "financial-services", "insurance", "real-estate", "construction"],
     relatedWorkflows: ["document-generation", "contract-review", "compliance-reporting", "onboarding", "report-generation"],
+  },
+  {
+    id: "microsoft-powerpoint",
+    name: "Microsoft PowerPoint",
+    icon: "powerpoint",
+    category: "Microsoft Ecosystem",
+    description: "Automated presentation creation and editing in Microsoft PowerPoint -- build decks from outlines, add slides, and read back slide content for QA via the PowerPoint REST API and Graph.",
+    capabilities: ["Presentation creation from outlines with template support",
+      "Slide addition and content population for existing decks",
+      "Read back slide content for QA and review",
+      "Deck artifacts kept in the portal File Library for view/edit/print/download"],
+    industries: ["education", "technology", "financial-services", "retail", "manufacturing"],
+    relatedWorkflows: ["document-generation", "report-generation", "client-intake", "onboarding", "compliance-reporting"],
   },
   // ======================================================================
   // Google Ecosystem
