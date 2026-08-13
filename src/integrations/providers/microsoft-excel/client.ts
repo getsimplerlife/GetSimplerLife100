@@ -70,7 +70,7 @@ export class MicrosoftExcelClient {
     if (!name) throw new Error("Microsoft Excel: createExcelWorkbook requires a name");
     if (!/\.xlsx$/i.test(name)) name = `${name}.xlsx`;
     const xlsx = buildMinimalXlsx(rows);
-    return this.putContent(`/me/drive/root/children/${encodeURIComponent(name)}:/content`, xlsx);
+    return this.putContent(`/me/drive/root:/${encodeURI(name)}:/content`, xlsx);
   }
 
   /* ── Read ───────────────────────────────────────────────────────────── */
@@ -87,7 +87,7 @@ export class MicrosoftExcelClient {
     await this.ensureToken();
     if (!id) throw new Error("Microsoft Excel: readWorkbookRange requires an id");
     const r = await this.client.get(
-      `/me/drive/items/${encodeURIComponent(id)}/workbook/worksheets/${DEFAULT_WORKSHEET}/range(address='${encodeURIComponent(range)}')/values`,
+      `/me/drive/items/${encodeURIComponent(id)}/workbook/worksheets/${DEFAULT_WORKSHEET}/range(address='${range}')/values`,
       this.headers,
     );
     return (r.data as any[][]) || [];
@@ -101,7 +101,7 @@ export class MicrosoftExcelClient {
     if (!range) throw new Error("Microsoft Excel: writeWorkbookRange requires a range");
     if (!Array.isArray(values) || values.length === 0) throw new Error("Microsoft Excel: writeWorkbookRange requires a non-empty values array");
     const r = await this.client.patch(
-      `/me/drive/items/${encodeURIComponent(id)}/workbook/worksheets/${DEFAULT_WORKSHEET}/range(address='${encodeURIComponent(range)}')/values`,
+      `/me/drive/items/${encodeURIComponent(id)}/workbook/worksheets/${DEFAULT_WORKSHEET}/range(address='${range}')/values`,
       values,
       this.headers,
     );

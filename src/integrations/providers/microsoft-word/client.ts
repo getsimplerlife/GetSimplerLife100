@@ -11,7 +11,7 @@ import { buildMinimalDocx, extractDocxText } from "../microsoft-office/ooxml";
  *
  * Word documents are .docx (OOXML ZIP) files stored in OneDrive. The client:
  *   - createWordDocument: builds a minimal valid .docx and PUTs it to
- *     /me/drive/root/children/{name}:/content
+ *     /me/drive/root:/{name}:/content
  *   - readWordDocument: GET /me/drive/items/{id}/content and extracts text
  *     (handles stored and deflated zip entries)
  *   - listWordDocuments: GET /me/drive/root/children filtered by .docx
@@ -74,7 +74,7 @@ export class MicrosoftWordClient {
     if (!name) throw new Error("Microsoft Word: createWordDocument requires a name");
     if (!/\.docx$/i.test(name)) name = `${name}.docx`;
     const docx = buildMinimalDocx(paragraphs);
-    return this.putContent(`/me/drive/root/children/${encodeURIComponent(name)}:/content`, docx, DOCX_MIME);
+    return this.putContent(`/me/drive/root:/${encodeURI(name)}:/content`, docx, DOCX_MIME);
   }
 
   /* ── Read ───────────────────────────────────────────────────────────── */

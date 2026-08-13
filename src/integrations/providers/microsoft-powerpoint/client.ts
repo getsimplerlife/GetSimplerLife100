@@ -74,7 +74,7 @@ export class MicrosoftPowerPointClient {
     if (!Array.isArray(slides) || slides.length === 0) throw new Error("Microsoft PowerPoint: createPresentation requires at least one slide");
     if (!/\.pptx$/i.test(name)) name = `${name}.pptx`;
     const pptx = buildMinimalPptx(slides);
-    return this.putContent(`/me/drive/root/children/${encodeURIComponent(name)}:/content`, pptx);
+    return this.putContent(`/me/drive/root:/${encodeURI(name)}:/content`, pptx);
   }
 
   /* ── Read ───────────────────────────────────────────────────────────── */
