@@ -54,6 +54,7 @@ export function NavHeader({ businessName = "Simpler Life 100" }: { businessName?
           </div>
 
           <Link to="/build" className="text-sm font-bold text-stone-400 hover:text-white transition-colors">Builder</Link>
+          <Link to="/features" className="text-sm font-bold text-stone-400 hover:text-white transition-colors">Features</Link>
 
           {/* FAQ Dropdown (Desktop) */}
           <div className="relative group">
@@ -161,6 +162,13 @@ export function NavHeader({ businessName = "Simpler Life 100" }: { businessName?
                 className="block px-4 py-3 text-sm font-bold rounded-lg text-stone-400 hover:text-white hover:bg-stone-900 transition-colors"
               >
                 Builder
+              </Link>
+              <Link
+                to="/features"
+                onClick={() => setMenuOpen(false)}
+                className="block px-4 py-3 text-sm font-bold rounded-lg text-stone-400 hover:text-white hover:bg-stone-900 transition-colors"
+              >
+                Features
               </Link>
 
               {/* Mobile FAQ (click to toggle) */}

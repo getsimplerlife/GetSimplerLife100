@@ -2,7 +2,16 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 
 export const Route = createFileRoute("/register")({
-  head: () => ({ meta: [{ title: "Register | Simpler Life 100" }, { name: "description", content: "Create your Simpler Life 100 account. Deploy AI employees and start automating your operations today." }] }),
+  head: () => ({ meta: [
+    { title: "Register | Simpler Life 100" },
+    { name: "description", content: "Create your Simpler Life 100 account. Deploy AI employees and start automating your operations today." },
+    { property: "og:title", content: "Register | Simpler Life 100" },
+    { property: "og:description", content: "Create your Simpler Life 100 account. Deploy AI employees and start automating your operations today." },
+    { property: "og:type", content: "website" },
+    { property: "og:url", content: "https://simplerlife100.ctonew.app/register" },
+    { property: "og:site_name", content: "Simpler Life 100" },
+    { name: "twitter:card", content: "summary_large_image" },
+  ] }),
 
   component: Register,
 });

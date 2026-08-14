@@ -5,7 +5,16 @@ import { Header } from "~/components/Header";
 import { Footer } from "~/components/Footer";
 
 export const Route = createFileRoute("/")({
-  head: () => ({ meta: [{ title: "Simpler Life 100 | AI Operations Teams" }, { name: "description", content: "Replace hours of manual work with AI coworkers that integrate into your existing tools. Industry-specific AI employees — deploy in minutes." }] }),
+  head: () => ({ meta: [
+    { title: "Simpler Life 100 | AI Operations Teams" },
+    { name: "description", content: "Replace hours of manual work with AI coworkers that integrate into your existing tools. Industry-specific AI employees — deploy in minutes." },
+    { property: "og:title", content: "Simpler Life 100 | AI Operations Teams" },
+    { property: "og:description", content: "Replace hours of manual work with AI coworkers that integrate into your existing tools. Real results, no complexity." },
+    { property: "og:type", content: "website" },
+    { property: "og:url", content: "https://simplerlife100.ctonew.app/" },
+    { property: "og:site_name", content: "Simpler Life 100" },
+    { name: "twitter:card", content: "summary_large_image" },
+  ] }),
 
   component: Home,
 });

@@ -7,6 +7,12 @@ export const Route = createFileRoute("/pricing")({
     meta: [
       { title: "Pricing | Simpler Life 100 AI Employees" },
       { name: "description", content: "AI Operations Teams starting at $499/mo. Individual agents or builder packages with live deployment. 180+ integrations available." },
+      { property: "og:title", content: "Pricing | Simpler Life 100 AI Employees" },
+      { property: "og:description", content: "AI Operations Teams starting at $499/mo. Individual agents or builder packages with live deployment. 180+ integrations available." },
+      { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://simplerlife100.ctonew.app/pricing" },
+      { property: "og:site_name", content: "Simpler Life 100" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: PricingPage,

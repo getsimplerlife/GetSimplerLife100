@@ -97,6 +97,7 @@ export function Header({ businessName, user }: HeaderProps) {
           </div>
 
           <Link to="/build" className={navLinkClass("/build")}>Builder</Link>
+          <Link to="/features" className={navLinkClass("/features")}>Features</Link>
 
           <div className="relative group">
             <button className={`text-sm font-bold transition-colors flex items-center gap-1 cursor-pointer ${
@@ -181,6 +182,7 @@ export function Header({ businessName, user }: HeaderProps) {
           </div>
 
           <Link to="/build" onClick={() => setMenuOpen(false)} className="block px-3 py-3 text-sm font-bold rounded-lg text-stone-400 hover:text-white hover:bg-stone-900 transition-colors">Builder</Link>
+          <Link to="/features" onClick={() => setMenuOpen(false)} className="block px-3 py-3 text-sm font-bold rounded-lg text-stone-400 hover:text-white hover:bg-stone-900 transition-colors">Features</Link>
 
           <div>
             <button onClick={() => setMobileFaqOpen(!mobileFaqOpen)}

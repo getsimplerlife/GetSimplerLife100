@@ -17,6 +17,7 @@ export function Footer() {
             <h4 className="text-white font-bold text-sm mb-3">Platform</h4>
             <div className="space-y-2">
               <Link to="/how-it-works" className="block text-stone-400 hover:text-white text-sm transition-colors">How It Works</Link>
+              <Link to="/features" className="block text-stone-400 hover:text-white text-sm transition-colors">Features</Link>
               <Link to="/build" className="block text-stone-400 hover:text-white text-sm transition-colors">Build Your Team</Link>
               <Link to="/tools" className="block text-stone-400 hover:text-white text-sm transition-colors">Free Tools</Link>
               <Link to="/pricing" className="block text-stone-400 hover:text-white text-sm transition-colors">Pricing</Link>
