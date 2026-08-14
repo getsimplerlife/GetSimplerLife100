@@ -462,9 +462,12 @@ serve({
   async fetch(req) {
     const url = new URL(req.url);
     const pathname = url.pathname;
-    // Health check endpoint
+    // Health check endpoint (I7: never cached — uptime monitors must see live state)
     if (pathname === "/api/health" && req.method === "GET") {
-      return Response.json({ status: "ok", uptime: process.uptime(), timestamp: Date.now() });
+      return Response.json(
+        { status: "ok", uptime: process.uptime(), timestamp: Date.now() },
+        { headers: { "Cache-Control": "no-store" } },
+      );
     }
 
 
