@@ -12,6 +12,17 @@ export async function refreshDocuSignToken(config: any, rt: string) { return ref
 export { isTokenExpired as isDocuSignTokenExpired };
 /** Canonical DocuSign OAuth userinfo hosts (production + developer sandbox). No guessed hosts. */
 export const DOCUSIGN_USERINFO_HOSTS = ["account.docusign.com", "account-d.docusign.com"] as const;
+/**
+ * Normalize a userinfo `base_uri` into the DocuSign REST API base URL
+ * (`https://<host>/restapi`). The client appends `/v2.1/accounts/<id>`.
+ * Only the canonical scheme/host from userinfo is used — no guessed hosts.
+ */
+export function docusignApiBaseUrl(baseUri: string | undefined): string {
+  const raw = (baseUri || "").trim().replace(/\/+$/, "");
+  if (!raw) return "https://demo.docusign.net/restapi";
+  const withScheme = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  return withScheme.endsWith("/restapi") ? withScheme : `${withScheme}/restapi`;
+}
 /** Pick the default account from a userinfo `accounts` array; falls back to the first account. */
 export function pickDefaultAccount(accounts: Array<{ account_id?: string; is_default?: boolean; base_uri?: string }>): { accountId: string; baseUri: string } | undefined {
   if (!Array.isArray(accounts) || accounts.length === 0) return undefined;

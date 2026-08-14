@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pickDefaultAccount, resolveDocuSignDefaultAccount, DOCUSIGN_USERINFO_HOSTS } from "../integrations/providers/docusign/auth";
+import { pickDefaultAccount, resolveDocuSignDefaultAccount, docusignApiBaseUrl, DOCUSIGN_USERINFO_HOSTS } from "../integrations/providers/docusign/auth";
 import { createDocuSignClient } from "../integrations/providers/docusign/client";
 
 describe("DocuSign account id resolution", () => {
@@ -54,6 +54,14 @@ describe("DocuSign account id resolution", () => {
     }
   });
 
+  it("builds the API base URL from a userinfo base_uri without guessing hosts", () => {
+    expect(docusignApiBaseUrl("https://demo.docusign.net")).toBe("https://demo.docusign.net/restapi");
+    expect(docusignApiBaseUrl("demo.docusign.net")).toBe("https://demo.docusign.net/restapi");
+    expect(docusignApiBaseUrl("https://demo.docusign.net/restapi")).toBe("https://demo.docusign.net/restapi");
+    expect(docusignApiBaseUrl("")).toBe("https://demo.docusign.net/restapi");
+    expect(docusignApiBaseUrl(undefined)).toBe("https://demo.docusign.net/restapi");
+    expect(docusignApiBaseUrl("https://na2.docusign.net")).toBe("https://na2.docusign.net/restapi");
+  });
   it("fails closed with a clear error when no account can be resolved", async () => {
     const originalFetch = globalThis.fetch;
     globalThis.fetch = (async () => ({ ok: false }) as Response) as typeof fetch;
