@@ -4,8 +4,10 @@
  *
  * Each adapter maps a capability contract id to a live, canonical-host API call
  * through the provider's existing client module. Writes are only executed when
- * `ctx.allowWrites` is true, use labeled Phase7-* synthetic objects, and clean up
- * after themselves. Unknown capability ids fail closed without network calls.
+ * `ctx.allowWrites` is true, create labeled Phase7-* synthetic objects, and LEAVE
+ * them in place (non-destructive, owner directive — deletion inside client/owner
+ * accounts is explicit-client-request only). Unknown capability ids fail closed
+ * without network calls.
  */
 import { createHubSpotClient } from "../../integrations/providers/hubspot/client";
 import { refreshHubSpotToken } from "../../integrations/providers/hubspot/auth";
@@ -70,25 +72,32 @@ function baseAuth(cred: Record<string, unknown>, provider: string, ctx: { app?: 
 /* ────────────────────────── HubSpot ────────────────────────── */
 
 /**
- * HubSpot user-level OAuth tokens cannot DELETE/archive CRM objects (HTTP 403
- * "User level OAuth token is not allowed for this endpoint"). Write verification
- * requires create + rollback; if rollback is impossible we must fail closed BEFORE
- * creating anything, otherwise every run leaves un-cleanable synthetic objects in
- * the customer portal. Probe once per credential using a non-existent object id.
+ * Read-only existence probe for HubSpot write verification.
+ *
+ * Writes create labeled Phase7-* synthetic objects and LEAVE them (non-destructive,
+ * owner directive), so no delete capability is ever required. Before creating
+ * anything we confirm the credential can actually reach the CRM API with a
+ * READ-ONLY GET against a non-existent object id: HTTP 404 proves the API is
+ * reachable and the token is accepted without touching any data. This probe never
+ * issues DELETE and cannot delete anything. 401/403 fail closed so a credential
+ * without read access never mutates a portal it cannot inspect.
  */
-async function assertHubSpotDeleteCapability(accessToken: string): Promise<void> {
+async function assertHubSpotReadAccess(accessToken: string): Promise<void> {
   const probe = await fetch("https://api.hubapi.com/crm/v3/objects/deals/000000000000", {
-    method: "DELETE",
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   if (probe.status === 403) {
     throw new Error(
-      "HubSpot credential cannot delete/archive CRM objects (403 — user-level OAuth token). " +
-        "Write verification requires create + rollback, so writes fail closed to avoid leaving residue. " +
-        "Connect a private-app token with delete permission to verify writes.",
+      "HubSpot credential cannot read CRM objects (403 — user-level OAuth token). " +
+        "Write verification requires read access to confirm the API is reachable, so writes fail closed. " +
+        "Connect a token with CRM read scope to verify writes.",
     );
   }
-  // 404 (no such object) means DELETE is permitted; 401/5xx are surfaced below per-request.
+  if (probe.status === 401) {
+    throw new Error("HubSpot credential rejected (401) — check the access token.");
+  }
+  // 404 (no such object) means the API is reachable and the token is accepted.
+  // 2xx/4xx-other are surfaced below per-request.
 }
 
 export const hubspotAdapter: CapabilityAdapter = async (contract, ctx) => {
@@ -125,46 +134,31 @@ export const hubspotAdapter: CapabilityAdapter = async (contract, ctx) => {
     }
     case "hubspot-create-deal": {
       if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
-      await assertHubSpotDeleteCapability(cred.accessToken);
+      await assertHubSpotReadAccess(cred.accessToken);
       const label = LABEL();
       const id = await client.createDeal({ dealname: label, amount: 1 });
       if (!id) throw new Error("HubSpot createDeal returned no id");
-      try {
-        await client.deleteObject("deals", id);
-      } catch (cleanupError) {
-        throw new Error(`deal created (${id}) but cleanup failed: ${String(cleanupError)}`);
-      }
-      return { httpStatus: 201, response: { created: true, rolledBack: true, id } };
+      return { httpStatus: 201, response: { created: true, kept: true, id } };
     }
     case "hubspot-create-contact": {
       if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
-      await assertHubSpotDeleteCapability(cred.accessToken);
+      await assertHubSpotReadAccess(cred.accessToken);
       const label = LABEL();
       const id = await client.createContact({ lastname: label, firstname: "Phase7" });
       if (!id) throw new Error("HubSpot createContact returned no id");
-      try {
-        await client.deleteObject("contacts", id);
-      } catch (cleanupError) {
-        throw new Error(`contact created (${id}) but cleanup failed: ${String(cleanupError)}`);
-      }
-      return { httpStatus: 201, response: { created: true, rolledBack: true, id } };
+      return { httpStatus: 201, response: { created: true, kept: true, id } };
     }
     case "hubspot-create-company": {
       if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
-      await assertHubSpotDeleteCapability(cred.accessToken);
+      await assertHubSpotReadAccess(cred.accessToken);
       const label = LABEL();
       const id = await client.createCompany({ name: label });
       if (!id) throw new Error("HubSpot createCompany returned no id");
-      try {
-        await client.deleteObject("companies", id);
-      } catch (cleanupError) {
-        throw new Error(`company created (${id}) but cleanup failed: ${String(cleanupError)}`);
-      }
-      return { httpStatus: 201, response: { created: true, rolledBack: true, id } };
+      return { httpStatus: 201, response: { created: true, kept: true, id } };
     }
     case "hubspot-update-deal-stage": {
       if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
-      await assertHubSpotDeleteCapability(cred.accessToken);
+      await assertHubSpotReadAccess(cred.accessToken);
       const pipelines = await client.getPipelineStages();
       const firstStage = pipelines[0]?.stages?.[0] as { id?: string } | undefined;
       const secondStage = pipelines[0]?.stages?.[1] as { id?: string } | undefined;
@@ -174,13 +168,8 @@ export const hubspotAdapter: CapabilityAdapter = async (contract, ctx) => {
       const label = LABEL();
       const id = await client.createDeal({ dealname: label, dealstage: firstStage.id });
       if (!id) throw new Error("HubSpot createDeal returned no id");
-      try {
-        await client.updateDeal(id, { dealstage: secondStage.id });
-        await client.deleteObject("deals", id);
-      } catch (cleanupError) {
-        throw new Error(`deal created (${id}) but stage-update/cleanup failed: ${String(cleanupError)}`);
-      }
-      return { httpStatus: 200, response: { created: true, stageChanged: true, rolledBack: true, id } };
+      await client.updateDeal(id, { dealstage: secondStage.id });
+      return { httpStatus: 200, response: { created: true, stageChanged: true, kept: true, id } };
     }
     case "hubspot-monitor-deal-stage-change": {
       throw new Error(
@@ -932,8 +921,6 @@ export const salesforceAdapter: CapabilityAdapter = async (contract, ctx) => {
     isSandbox: (cred.raw as Record<string, unknown>)?.isSandbox as boolean | undefined,
   });
 
-  const cleanupIds: string[] = [];
-
   switch (contract.capabilityId) {
     /* ── understand (read) ── */
     case "salesforce-read-opportunities": {
@@ -970,20 +957,14 @@ export const salesforceAdapter: CapabilityAdapter = async (contract, ctx) => {
         StageName: "Prospecting",
         CloseDate: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
       });
-      cleanupIds.push(oppId);
       await client.update("Opportunity", oppId, { Amount: 1 });
-      await client.delete("Opportunity", oppId);
-      cleanupIds.pop();
-      return { httpStatus: 200, response: { updated: true, opportunityId: oppId } };
+      return { httpStatus: 200, response: { updated: true, kept: true, opportunityId: oppId } };
     }
     case "salesforce-create-task": {
       if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
       const label = LABEL();
-      const taskId = await client.create("Task", { Subject: label, Status: "Not Started", Description: "Phase 7 verification — safe to delete" });
-      cleanupIds.push(taskId);
-      await client.delete("Task", taskId);
-      cleanupIds.pop();
-      return { httpStatus: 201, response: { created: true, taskId } };
+      const taskId = await client.create("Task", { Subject: label, Status: "Not Started", Description: "Phase 7 verification — kept in place (non-destructive)" });
+      return { httpStatus: 201, response: { created: true, kept: true, taskId } };
     }
     case "salesforce-create-event": {
       if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
@@ -996,22 +977,16 @@ export const salesforceAdapter: CapabilityAdapter = async (contract, ctx) => {
         ActivityDateTime: start,
         StartDateTime: start,
         EndDateTime: end,
-        Description: "Phase 7 verification — safe to delete",
+        Description: "Phase 7 verification — kept in place (non-destructive)",
       });
-      cleanupIds.push(eventId);
-      await client.delete("Event", eventId);
-      cleanupIds.pop();
-      return { httpStatus: 201, response: { created: true, eventId } };
+      return { httpStatus: 201, response: { created: true, kept: true, eventId } };
     }
     case "salesforce-update-lead": {
       if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
       const label = LABEL();
       const leadId = await client.create("Lead", { LastName: label, Company: "Phase7 Verify" });
-      cleanupIds.push(leadId);
       await client.update("Lead", leadId, { Status: "Working - Contacted" });
-      await client.delete("Lead", leadId);
-      cleanupIds.pop();
-      return { httpStatus: 200, response: { updated: true, leadId } };
+      return { httpStatus: 200, response: { updated: true, kept: true, leadId } };
     }
     default:
       throw new Error(`no verification path for ${contract.capabilityId}`);
