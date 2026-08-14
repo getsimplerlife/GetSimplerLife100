@@ -2566,6 +2566,23 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
           throw new Error(`OAuth callback is not implemented for ${canonicalProvider}`);
         }
                 if (!(await usableOAuthToken(tokens))) throw new Error("OAuth provider returned no usable access token");
+        // DocuSign: resolve + persist the default account id / API base URL so
+        // live verification and the client can build URLs without re-resolving
+        // userinfo on every call. Resolution is best-effort: if userinfo fails
+        // here, the adapter resolves at runtime (fail-closed, both canonical
+        // hosts). Only canonical hosts are contacted — never a guessed URL.
+        if (canonicalProvider === "docusign") {
+          try {
+            const docusignAuth = await import("./src/integrations/providers/docusign/auth");
+            const resolved = await docusignAuth.resolveDocuSignDefaultAccount(tokens);
+            if (resolved.accountId) {
+              tokens.accountId = resolved.accountId;
+              tokens.baseUrl = docusignAuth.docusignApiBaseUrl(resolved.baseUri);
+            }
+          } catch (e: any) {
+            console.warn("[oauth-callback] DocuSign account resolution deferred to runtime:", e?.message || e);
+          }
+        }
         // Store tokens in tenant_oauth_credentials.json
         const tokenFile = join(DATA_DIR, "tenant_oauth_credentials.json");
         const tokenData = readJSON(tokenFile);

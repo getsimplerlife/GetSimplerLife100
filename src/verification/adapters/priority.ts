@@ -470,27 +470,33 @@ export const jiraAdapter: CapabilityAdapter = async (contract, ctx) => {
 
 /* ────────────────────────── DocuSign ────────────────────────── */
 
+/**
+ * Resolve the DocuSign account the credential belongs to via the module's
+ * canonical resolver, which tries BOTH userinfo hosts (production
+ * account.docusign.com + developer sandbox account-d.docusign.com). The
+ * owner's token only answers on the sandbox host, so the previous
+ * single-host resolver always failed closed. Fail-closed: throws only when
+ * userinfo genuinely yields no usable account.
+ */
 async function resolveDocuSignAccount(accessToken: string): Promise<{ accountId: string; baseUrl: string }> {
-  const response = await fetch("https://account.docusign.com/oauth/userinfo", {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  if (!response.ok) throw new Error(`DocuSign userinfo failed HTTP ${response.status}`);
-  const info = (await response.json()) as {
-    accounts?: Array<{ account_id: string; base_uri: string; is_default?: boolean }>;
-  };
-  const account = info.accounts?.find((a) => a.is_default) ?? info.accounts?.[0];
-  if (!account?.account_id || !account.base_uri) throw new Error("DocuSign userinfo returned no account");
-  return { accountId: account.account_id, baseUrl: `https://${account.base_uri}/restapi` };
+  const { resolveDocuSignDefaultAccount, docusignApiBaseUrl } = await import("../../integrations/providers/docusign/auth");
+  const resolved = await resolveDocuSignDefaultAccount({ accessToken });
+  if (!resolved.accountId) throw new Error("DocuSign userinfo returned no usable account");
+  return { accountId: resolved.accountId, baseUrl: docusignApiBaseUrl(resolved.baseUri) };
 }
 
 export const docusignAdapter: CapabilityAdapter = async (contract, ctx) => {
   const cred = ctx.credentials;
   if (!cred.accessToken) throw new Error("DocuSign credential has no accessToken");
-  const account = await resolveDocuSignAccount(cred.accessToken).catch(() => ({
-    accountId: (cred.accountId as string) || "",
-    baseUrl: (cred.baseUrl as string) || "https://demo.docusign.net/restapi",
-  }));
-  if (!account.accountId) throw new Error("DocuSign account id unresolved (connect flow must capture accountId)");
+  const storedAccountId = (cred.accountId as string) || "";
+  const storedBaseUrl = (cred.baseUrl as string) || "https://demo.docusign.net/restapi";
+  // Use the pre-stored account when the connect flow captured it; otherwise
+  // resolve at runtime (both canonical userinfo hosts), and only fail closed
+  // if userinfo genuinely returns no usable account.
+  const account = storedAccountId
+    ? { accountId: storedAccountId, baseUrl: storedBaseUrl }
+    : await resolveDocuSignAccount(cred.accessToken).catch(() => ({ accountId: "", baseUrl: storedBaseUrl }));
+  if (!account.accountId) throw new Error("DocuSign account id unresolved (connect flow must capture accountId; userinfo returned no usable account)");
   const client = createDocuSignClient({ ...baseAuth(cred, "docusign", ctx), accountId: account.accountId, baseUrl: account.baseUrl, appToken: (cred.appToken as string) || "" });
 
   switch (contract.capabilityId) {
