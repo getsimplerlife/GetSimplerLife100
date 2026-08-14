@@ -327,6 +327,16 @@ const _bgInit = (async () => {
   const _initialPurchases = readJSON(TENANT_PURCHASES_FILE);
   gates.hydrateTenants(_initialPurchases);
   configureTenant("mathewortiz97@gmail.com", { purchased: true, status: "Active" });
+  // Xero webhook org gates: map each entitled tenant's Xero org UUID -> monitoring
+  // gate so real webhook events can dispatch. Best-effort, canonical host only,
+  // fail-soft (expired tokens just skip). Receiving webhooks never mutates orgs.
+  import("./src/monitoring/xero-webhook")
+    .then((xw) => xw.registerXeroOrgGates({
+      dataDir: DATA_DIR,
+      canMonitor: (email) => gates.canMonitor(email, xw.XERO_MONITOR_EMPLOYEE_ID),
+      configureTenant: gates.configureTenant,
+    }))
+    .catch((e) => console.log("[prod-server] Xero org-gate registration skipped:", e?.message));
   await import("./src/entry-server").catch(e => console.log("[prod-server] SSR preload failed:", e?.message));
   ssrReady = true;
   console.log("[prod-server] Background init complete");
@@ -2263,68 +2273,91 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
     // ── /api/stripe/webhook + /api/stripe-webhook ────────────────
     // ── /api/monitoring/webhook/:providerId ─────────────────────────
     const monitorMatch = pathname.match(/^\/api\/monitoring\/webhook\/([a-z0-9_-]+)$/);
-    if (monitorMatch && req.method === "POST") {
+    if (monitorMatch) {
       const providerId = monitorMatch[1];
-      try {
-        // ── Webhook signature verification (per provider) ──────────
-        const rawBody = await req.text();
-        if (providerId === "xero") {
-          const webhookKey = process.env.XERO_WEBHOOK_KEY;
-          if (!webhookKey) {
-            console.error("[monitor] Xero webhook key not configured");
-            return Response.json({ error: "Webhook key not configured" }, { status: 500 });
-          }
-          const signature = req.headers.get("x-xero-signature");
-          if (!signature) {
-            return Response.json({ error: "Missing x-xero-signature header" }, { status: 401 });
-          }
-          const encoder = new TextEncoder();
-          const keyData = encoder.encode(webhookKey);
-          const bodyData = encoder.encode(rawBody);
-          try {
-            const cryptoKey = await crypto.subtle.importKey("raw", keyData, { name: "HMAC", hash: "SHA-256" }, false, ["verify"]);
-            const sigBytes = Uint8Array.from(atob(signature), c => c.charCodeAt(0));
-            const valid = await crypto.subtle.verify("HMAC", cryptoKey, sigBytes, bodyData);
-            if (!valid) {
-              console.error("[monitor] Invalid Xero webhook signature");
-              return Response.json({ error: "Invalid signature" }, { status: 401 });
-            }
-          } catch (sigErr) {
-            console.error("[monitor] Xero signature verification failed:", sigErr);
-            return Response.json({ error: "Signature verification failed" }, { status: 401 });
-          }
-        }
-        const body = JSON.parse(rawBody);
-        if (!body || !body.eventType || !body.employeeId) {
-          return Response.json({ error: "eventType and employeeId required" }, { status: 400 });
-        }
+      // Xero uses a dedicated receiver: GET = handshake (echo the webhook key so
+      // Xero activates the subscription), POST = HMAC-signed events mapped to the
+      // xero-monitor-* contracts. Fail-closed on missing/unset key — see
+      // src/monitoring/xero-webhook.ts. Non-destructive: never mutates the org.
+      if (providerId === "xero") {
+        const xeroWh = await import("./src/monitoring/xero-webhook");
         const { dispatch } = await import("./src/monitoring/dispatcher");
-        const event = {
-          id: body.id || crypto.randomUUID(),
-          employeeId: body.employeeId,
-          providerId,
-          eventType: body.eventType,
-          payload: body.payload || {},
-          receivedAt: new Date().toISOString(),
-          tenantId: body.tenantId,
-        };
-        const config = {
-          employeeId: body.employeeId,
-          providerId,
-          eventTypes: [body.eventType],
-        };
-        const outcome = await dispatch(event, config, {
-          holderId: `webhook-${providerId}`,
-          async execute(event) {
-            console.log(`[monitor] Processing event: ${event.eventType} for ${event.employeeId}`);
+        const gates = await import("./src/monitoring/gates");
+        return xeroWh.handleXeroWebhook(req, {
+          getWebhookKey: () => process.env.XERO_WEBHOOK_KEY,
+          async ensureOrgGate(orgId) {
+            try {
+              if (gates.canMonitor(orgId, xeroWh.XERO_MONITOR_EMPLOYEE_ID)) return true;
+              const creds = readJSON(join(DATA_DIR, "tenant_oauth_credentials.json"));
+              if (creds && typeof creds === "object") {
+                for (const [key, raw] of Object.entries(creds)) {
+                  if (!key.endsWith(":xero") || !raw || typeof raw !== "object") continue;
+                  const email = key.slice(0, -":xero".length);
+                  const record = raw as Record<string, unknown>;
+                  if (record.tenantId === orgId && gates.canMonitor(email, xeroWh.XERO_MONITOR_EMPLOYEE_ID)) {
+                    gates.configureTenant(orgId, { purchased: true, status: "Active" });
+                    return true;
+                  }
+                }
+              }
+              return false;
+            } catch {
+              return false;
+            }
+          },
+          dispatch(event) {
+            return dispatch(
+              event,
+              { employeeId: event.employeeId, providerId: "xero", eventTypes: [event.eventType] },
+              {
+                holderId: "webhook-xero",
+                async execute(evt) {
+                  const payload = (evt.payload || {}) as Record<string, unknown>;
+                  console.log(`[monitor] Xero ${evt.eventType} -> ${String(payload.capabilityId || "")} for tenant ${evt.tenantId}`);
+                },
+              },
+            );
+          },
+          recordReceipt(receipt) {
+            return xeroWh.recordXeroWebhookReceipt(receipt, DATA_DIR);
           },
         });
-        return Response.json(outcome, {
-          status: outcome.status === "processed" ? 200 : outcome.status === "skipped" ? 409 : 400,
-        });
-      } catch (err: any) {
-        console.error("[prod-server] Monitoring webhook error:", err);
-        return Response.json({ error: "Internal error" }, { status: 500 });
+      }
+      if (req.method === "POST") {
+        try {
+          // Generic provider path (hubspot/zendesk homegrown shape: {id?, employeeId, eventType, tenantId, payload})
+          const body = await req.json();
+          if (!body || !body.eventType || !body.employeeId) {
+            return Response.json({ error: "eventType and employeeId required" }, { status: 400 });
+          }
+          const { dispatch } = await import("./src/monitoring/dispatcher");
+          const event = {
+            id: body.id || crypto.randomUUID(),
+            employeeId: body.employeeId,
+            providerId,
+            eventType: body.eventType,
+            payload: body.payload || {},
+            receivedAt: new Date().toISOString(),
+            tenantId: body.tenantId,
+          };
+          const config = {
+            employeeId: body.employeeId,
+            providerId,
+            eventTypes: [body.eventType],
+          };
+          const outcome = await dispatch(event, config, {
+            holderId: `webhook-${providerId}`,
+            async execute(event) {
+              console.log(`[monitor] Processing event: ${event.eventType} for ${event.employeeId}`);
+            },
+          });
+          return Response.json(outcome, {
+            status: outcome.status === "processed" ? 200 : outcome.status === "skipped" ? 409 : 400,
+          });
+        } catch (err: any) {
+          console.error("[prod-server] Monitoring webhook error:", err);
+          return Response.json({ error: "Internal error" }, { status: 500 });
+        }
       }
     }
 

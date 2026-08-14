@@ -17,17 +17,30 @@
  * in place (non-destructive, owner directive). Zero delete/archive/rollback calls —
  * deletion inside client/owner accounts is explicit-client-request only.
  *
- * Monitor paths: cannot be exercised by a batch CLI — they require a live webhook
- * receiver; the adapter fails closed with that reason rather than fabricating.
+ * Monitor paths: verified via live webhook receipt — the receiver at
+ * /api/monitoring/webhook/xero records a durable receipt for every authenticated
+ * INVOICE.CREATED / BILL.CREATED event it maps and dispatches; the batch CLI
+ * reads that receipt (it cannot fabricate event receipt) and fails closed until
+ * a real event has landed.
  */
 import { refreshXeroToken } from "../../integrations/providers/xero/auth";
 import { createXeroClient, type XeroClient } from "../../integrations/providers/xero/client";
 import { isTokenExpired } from "../../integrations/framework/oauth";
+import { latestXeroWebhookReceipt } from "../../monitoring/xero-webhook";
+import { join } from "node:path";
 import type { ProviderCredential } from "../credential-source";
 import type { CapabilityAdapter } from "./index";
 
 const CONNECTIONS_URL = "https://api.xero.com/connections";
 const LABEL_PREFIX = "Phase7-VERIFY-";
+/** Where the live webhook receiver is published (for evidence messages). */
+const RECEIVER_BASE = process.env.SITE_ORIGIN || process.env.OAUTH_REDIRECT_BASE || "https://simplerlife100.ctonew.app";
+const receiptUrl = `${RECEIVER_BASE}/api/monitoring/webhook/xero`;
+/** Live webhook receipts stay valid as verification evidence for 24h. */
+const WEBHOOK_RECEIPT_TTL_MS = 24 * 60 * 60 * 1000;
+function verificationDataDir(): string {
+  return process.env.DATA_DIR || join(process.cwd(), ".data");
+}
 
 async function resolveTenantId(accessToken: string, known?: string): Promise<string> {
   if (known) return known;
@@ -354,14 +367,31 @@ export const xeroAdapter: CapabilityAdapter = async (contract, ctx) => {
       break;
     }
     // --------------------------------------------------------- monitor
+    // Live verification route: the webhook receiver at /api/monitoring/webhook/xero
+    // records a durable receipt for every authenticated INVOICE.CREATED /
+    // BILL.CREATED event it maps and dispatches. The batch CLI cannot fabricate
+    // receipt, so these contracts verify only when a real event has landed.
     case "xero-monitor-invoice-created":
-      throw new Error(
-        "monitor verification requires a live webhook receiver (INVOICE.CREATED); the batch CLI cannot fabricate event receipt",
-      );
-    case "xero-monitor-bill-created":
-      throw new Error(
-        "monitor verification requires a live webhook receiver (BILL.CREATED); the batch CLI cannot fabricate event receipt",
-      );
+    case "xero-monitor-bill-created": {
+      const expectedEventType = contract.capabilityId === "xero-monitor-invoice-created" ? "INVOICE.CREATED" : "BILL.CREATED";
+      const receipt = latestXeroWebhookReceipt(contract.capabilityId, verificationDataDir(), WEBHOOK_RECEIPT_TTL_MS);
+      if (!receipt) {
+        throw new Error(
+          `monitor verification requires a live webhook receipt (${expectedEventType}); the batch CLI cannot fabricate event receipt — register ${receiptUrl} and wait for a real event`,
+        );
+      }
+      return {
+        httpStatus: 200,
+        response: {
+          verified: true,
+          source: "live-webhook-receipt",
+          eventType: receipt.eventType,
+          eventId: receipt.eventId,
+          tenantId: receipt.tenantId,
+          receivedAt: receipt.receivedAt,
+        },
+      };
+    }
     default:
       throw new Error(`no verification path for ${contract.capabilityId}`);
   }
