@@ -93,55 +93,45 @@ describe("Onfleet verification adapter (real client, mocked transport)", () => {
     expect(calls).toHaveLength(0);
   });
 
-  it("create-task creates a labeled task and rolls it back with a delete", async () => {
+  it("create-task creates a labeled task and leaves it in place (non-destructive)", async () => {
     const r = await onfleetAdapter(contract("onfleet-create-task"), ctx());
-    expect(r).toEqual({ httpStatus: 201, response: { created: true, rolledBack: true, taskId: "t-new" } });
+    expect(r).toEqual({ httpStatus: 201, response: { created: true, kept: true, taskId: "t-new" } });
     const post = calls.find((c) => c.method === "POST" && c.url.endsWith("/tasks"))!;
     expect(post.body.notes).toMatch(/Phase7-VERIFY/);
-    const del = calls.find((c) => c.method === "DELETE" && c.url.includes("/tasks"))!;
-    expect(del.url).toContain("/tasks/t-new");
-    const postIndex = calls.indexOf(post);
-    const delIndex = calls.indexOf(del);
-    expect(postIndex).toBeLessThan(delIndex);
+    // Zero DELETE requests — artifacts are left in place (owner mandate).
+    expect(calls.filter((c) => c.method === "DELETE")).toEqual([]);
   });
-
-  it("update-task-status creates, updates, then deletes (ordered)", async () => {
+  it("update-task-status creates and updates (no delete)", async () => {
     const r = await onfleetAdapter(contract("onfleet-update-task-status"), ctx());
     expect(r.response.updated).toBe(true);
+    expect(r.response.kept).toBe(true);
     const order = calls.filter((c) => c.url.includes("/tasks")).map((c) => c.method);
-    expect(order).toEqual(["POST", "PUT", "DELETE"]);
+    expect(order).toEqual(["POST", "PUT"]);
     const put = calls.find((c) => c.method === "PUT")!;
     expect(put.body.notes).toMatch(/updated$/);
   });
-
-  it("complete-task creates, completes, then deletes (ordered)", async () => {
+  it("complete-task creates and completes (no delete)", async () => {
     const r = await onfleetAdapter(contract("onfleet-complete-task"), ctx());
-    expect(r.response).toMatchObject({ completed: true, taskId: "t-new" });
+    expect(r.response).toMatchObject({ completed: true, taskId: "t-new", kept: true });
     const order = calls.filter((c) => c.url.includes("/tasks")).map((c) => c.method + " " + c.url);
+    expect(order[0]).toContain("POST");
     expect(order[1]).toContain("POST");
     expect(order[1]).toContain("/complete");
-    expect(order[2]).toBe("DELETE " + "https://onfleet.com/api/v2/tasks/t-new");
+    expect(calls.filter((c) => c.method === "DELETE")).toEqual([]);
   });
-
-  it("create-worker creates a labeled worker and rolls it back", async () => {
+  it("create-worker creates a labeled worker and leaves it in place", async () => {
     const r = await onfleetAdapter(contract("onfleet-create-worker"), ctx());
-    expect(r).toEqual({ httpStatus: 201, response: { created: true, rolledBack: true, workerId: "w-new" } });
+    expect(r).toEqual({ httpStatus: 201, response: { created: true, kept: true, workerId: "w-new" } });
     const post = calls.find((c) => c.method === "POST" && c.url.endsWith("/workers"))!;
     expect(post.body.name).toMatch(/Phase7-VERIFY/);
-    const del = calls.find((c) => c.method === "DELETE" && c.url.includes("/workers"))!;
-    expect(del.url).toContain("/workers/w-new");
+    expect(calls.filter((c) => c.method === "DELETE")).toEqual([]);
   });
-
-  it("failed rollback surfaces as an error", async () => {
-    installFetch((method, url) => {
-      if (method === "POST" && url.endsWith("/tasks")) return jsonResponse({ id: "t-new" }, 201);
-      // 4xx: HttpClient does not auto-retry 4xx, so the failed rollback surfaces immediately.
-      if (method === "DELETE" && url.includes("/tasks")) return jsonResponse({}, 400);
-      return jsonResponse({});
-    });
-    await expect(onfleetAdapter(contract("onfleet-create-task"), ctx())).rejects.toThrow();
+  it("leaves artifacts in place even when the client is fine (no rollback branch)", async () => {
+    // No DELETE route is provided/needed — the adapter never issues one.
+    const r = await onfleetAdapter(contract("onfleet-create-task"), ctx());
+    expect(r.response.kept).toBe(true);
+    expect(calls.filter((c) => c.method === "DELETE")).toEqual([]);
   });
-
   it("fails closed without an api key", async () => {
     calls.length = 0;
     await expect(onfleetAdapter(contract("onfleet-read-tasks"), ctx({ credentials: {} }))).rejects.toThrow(/no apiKey/);

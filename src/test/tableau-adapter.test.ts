@@ -68,25 +68,14 @@ describe("Tableau verification adapter (real client, mocked transport)", () => {
     expect(calls.length).toBe(0);
   });
 
-  it("create-project creates a labeled project and deletes it in rollback", async () => {
+  it("create-project creates a labeled project and leaves it in place (non-destructive)", async () => {
     const out = await tableauAdapter(createProjectContract, ctx());
-    expect(out).toMatchObject({ httpStatus: 201, response: { created: true, rolledBack: true, projectId: "new-p1" } });
+    expect(out).toMatchObject({ httpStatus: 201, response: { created: true, kept: true, projectId: "new-p1" } });
     const created = calls.find((c) => c.method === "POST" && c.url.includes("/projects"));
     expect(created?.body.project.name).toContain("Phase7-VERIFY");
-    const deleted = calls.find((c) => c.method === "DELETE" && c.url.includes("/projects/new-p1"));
-    expect(deleted).toBeTruthy();
-    expect(calls.findIndex((c) => c.method === "POST")).toBeLessThan(calls.findIndex((c) => c.method === "DELETE"));
+    // Zero DELETE requests — artifacts are left in place (owner mandate).
+    expect(calls.filter((c) => c.method === "DELETE")).toEqual([]);
   });
-
-  it("create-project surfaces a failed rollback as an error", async () => {
-    installFetch((method, url) => {
-      if (method === "POST" && url.includes("/projects")) return jsonResponse({ project: { id: "new-p1" } }, 201);
-      if (method === "DELETE" && url.includes("/projects/")) return { ok: false, status: 400 } as unknown as Response;
-      return { ok: false, status: 404 } as unknown as Response;
-    });
-    await expect(tableauAdapter(createProjectContract, ctx())).rejects.toThrow();
-  });
-
   it("update-workbook renames with a label then restores the original name", async () => {
     const out = await tableauAdapter(updateWorkbookContract, ctx());
     expect(out).toMatchObject({ httpStatus: 200, response: { updated: true, workbookId: "w1" } });
@@ -96,16 +85,15 @@ describe("Tableau verification adapter (real client, mocked transport)", () => {
     expect(puts[1].body.workbook.name).toBe("Orig");
   });
 
-  it("add-site-user creates a labeled viewer and removes it in rollback", async () => {
+  it("add-site-user creates a labeled viewer and leaves it in place (non-destructive)", async () => {
     const out = await tableauAdapter(addSiteUserContract, ctx());
-    expect(out).toMatchObject({ httpStatus: 201, response: { created: true, rolledBack: true, userId: "new-u1" } });
+    expect(out).toMatchObject({ httpStatus: 201, response: { created: true, kept: true, userId: "new-u1" } });
     const created = calls.find((c) => c.method === "POST" && c.url.includes("/users"));
     expect(created?.body.user.name).toContain("@verify.example.invalid");
     expect(created?.body.user.siteRole).toBe("Viewer");
-    const removed = calls.find((c) => c.method === "DELETE" && c.url.includes("/users/new-u1"));
-    expect(removed).toBeTruthy();
+    // Zero DELETE requests — the labeled user is left in place (owner mandate).
+    expect(calls.filter((c) => c.method === "DELETE")).toEqual([]);
   });
-
   it("refresh-datasource starts a refresh job on the first datasource", async () => {
     const out = await tableauAdapter(refreshDatasourceContract, ctx());
     expect(out).toMatchObject({ httpStatus: 200, response: { refreshed: true, datasourceId: "d1", jobId: "job-1" } });

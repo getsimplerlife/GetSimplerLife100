@@ -142,14 +142,13 @@ describe("Shopify verification adapter (real client, mocked transport)", () => {
     ).rejects.toThrow("write verification disabled");
   });
 
-  it("create product with writes enabled", async () => {
+  it("create product with writes enabled leaves the labeled product in place (non-destructive)", async () => {
     const result = await shopifyAdapter(contract("shopify-create-product"), ctx({ allowWrites: true }));
-    expect(result).toEqual({ httpStatus: 201, response: { created: true, rolledBack: true, productId: 999 } });
-    // Should have POSTed product and DELETE'd it for rollback
+    expect(result).toEqual({ httpStatus: 201, response: { created: true, kept: true, productId: 999 } });
+    // Should have POSTed product and NOT issued any DELETE (owner mandate).
     expect(calls.some((c) => c.method === "POST")).toBe(true);
-    expect(calls.some((c) => c.method === "DELETE")).toBe(true);
+    expect(calls.filter((c) => c.method === "DELETE")).toEqual([]);
   });
-
   it("update product fails closed without --writes", async () => {
     await expect(
       shopifyAdapter(contract("shopify-update-product"), {
