@@ -2,8 +2,8 @@
 # Rebuild the site and (re)start the production server on port 3000.
 # Build runs in the foreground so errors surface; the server is launched in a new
 # session (setsid) so it keeps running after this script — and your shell — exits.
-# serve.ts frees the port (across user boundaries, retrying on races) before
-# binding, so this is safe to re-run no matter who started the current server.
+# The start script frees port 3000 (fuser -k across user boundaries, retrying on
+# races) before binding, so this is safe to re-run no matter who started the server.
 set -euo pipefail
 cd "$(dirname "$0")"
 
