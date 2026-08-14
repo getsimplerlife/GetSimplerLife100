@@ -33,9 +33,9 @@ const agents = [
 ];
 
 const builderTiers = [
-  { name: "Starter", price: 7500, link: "https://buy.stripe.com/3cI8wR88Tasfc1B9XW2Fa2K", desc: "3 AI employees + basic workflows", features: ["3 AI employees", "5 workflow templates", "Standard integrations", "Email support"] },
-  { name: "Professional", price: 15000, link: "https://buy.stripe.com/5kQ6oJbl5dErc1B1rq2Fa2L", desc: "8 AI employees + advanced workflows", features: ["8 AI employees", "All workflow templates", "180+ integrations", "Priority support", "CRM / ERP enabled"], highlight: true },
-  { name: "Enterprise", price: 30000, link: "https://buy.stripe.com/aFa7sN60LdErc1B5HG2Fa2M", desc: "Full AI Operations Team", features: ["All 17 AI employees", "Custom workflows", "Dedicated account manager", "24/7 support", "CRM / ERP / API access", "SLA guarantee"] },
+  { name: "Starter", price: 7500, link: "https://buy.stripe.com/3cI8wR88Tasfc1B9XW2Fa2K", desc: "3 AI employees + basic workflows", features: ["3 AI employees", "5 workflow templates", "Standard integrations", "Email support", "Includes 1 Connection Pack (CRM or ERP — your choice)"] },
+  { name: "Professional", price: 15000, link: "https://buy.stripe.com/5kQ6oJbl5dErc1B1rq2Fa2L", desc: "8 AI employees + advanced workflows", features: ["8 AI employees", "All workflow templates", "180+ integrations", "Priority support", "Includes 1 Connection Pack (CRM or ERP — your choice)"], highlight: true },
+  { name: "Enterprise", price: 30000, link: "https://buy.stripe.com/aFa7sN60LdErc1B5HG2Fa2M", desc: "Full AI Operations Team", features: ["All 17 AI employees", "Custom workflows", "Dedicated account manager", "24/7 support", "Includes 1 Connection Pack (CRM or ERP — your choice)", "API access", "SLA guarantee"] },
 ];
 
 function PricingPage() {

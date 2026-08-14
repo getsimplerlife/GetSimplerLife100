@@ -950,6 +950,51 @@ serve({
       }
       return Response.json({ error: "Method not allowed" }, { status: 405 });
     }
+    // ── /api/portal/pack-slot — plan-included Connection Pack redemption ──
+    // GET  → { data: { included, chosen } } (read-only entitlement view)
+    // POST { choice: "crm" | "erp" } → redeem the included slot (fail-closed:
+    //      400 invalid choice, 404 no included slot, 409 already chosen).
+    // Choosing materializes a pack-type record so the existing CRM/ERP slot
+    // logic unlocks the connectors for that tenant (same shape as a pack
+    // purchase). Owner decision 2026-08-14.
+    if (pathname === "/api/portal/pack-slot") {
+      const user = await getUserFromSession(req);
+      if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
+      const { getPlanPackSlot, choosePlanPackSlot } = await import("./src/lib/plan-pack-slot");
+      if (req.method === "GET") {
+        const purchases = readJSON(TENANT_PURCHASES_FILE);
+        return Response.json({ data: getPlanPackSlot(purchases[user.email] || []) });
+      }
+      if (req.method === "POST") {
+        const body = await req.json().catch(() => ({}));
+        const purchases = readJSON(TENANT_PURCHASES_FILE);
+        const userPurchases = purchases[user.email] || [];
+        const outcome = choosePlanPackSlot(userPurchases, body?.choice);
+        if (!outcome.ok) {
+          return Response.json({ error: outcome.error }, { status: outcome.status });
+        }
+        purchases[user.email] = outcome.purchases;
+        writeJSON(TENANT_PURCHASES_FILE, purchases);
+        // Audit the redemption (best-effort).
+        try {
+          const alogs = readJSON(AUDIT_LOG_FILE);
+          const alogUser = alogs[user.email] || [];
+          alogUser.push({
+            id: "log-" + Math.random().toString(36).substr(2, 9),
+            timestamp: new Date().toISOString(),
+            user: user.email,
+            action: "portal.pack-slot.choose",
+            resource: "connectionPack",
+            detail: `Redeemed plan-included Connection Pack: ${body?.choice === "crm" ? "CRM" : "ERP"}`,
+            ip: "127.0.0.1",
+          });
+          alogs[user.email] = alogUser;
+          writeJSON(AUDIT_LOG_FILE, alogs);
+        } catch { /* audit is best-effort */ }
+        return Response.json({ data: outcome.slot });
+      }
+      return Response.json({ error: "Method not allowed" }, { status: 405 });
+    }
     // ── /api/portal/files/create — cross-workspace data-file creation ──
     // POST { fileType, title, content?, requestedProvider?, connector? }
     // Routes to the tenant's preferred connected workspace (google|microsoft),
