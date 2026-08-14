@@ -97,13 +97,13 @@ describe("catalog filtering helpers", () => {
 
 describe("placeholder copy — owner-approved, no fabricated claims", () => {
   it("exposes the exact owner contact email", () => {
-    expect(PLACEHOLDER_CONTACT_EMAIL).toBe("Electric.vortexz@gmail.com");
+    expect(PLACEHOLDER_CONTACT_EMAIL).toBe("electric.vortexz@gmail.com");
   });
   it("uses the exact in-development status copy", () => {
     expect(PLACEHOLDER_STATUS_COPY).toBe("In development — we're working on it.");
   });
   it("contact line contains the email and never claims Connected", () => {
-    expect(PLACEHOLDER_CONTACT_COPY).toContain("Contact Electric.vortexz@gmail.com");
+    expect(PLACEHOLDER_CONTACT_COPY).toContain("Contact us at electric.vortexz@gmail.com");
     expect(PLACEHOLDER_CONTACT_COPY.toLowerCase()).not.toContain("connected");
     expect(PLACEHOLDER_STATUS_COPY.toLowerCase()).not.toContain("connected");
   });

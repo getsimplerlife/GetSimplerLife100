@@ -9,15 +9,15 @@
  * Truthfulness rules (owner-specified):
  *  - "Connected" must NEVER appear for a placeholder provider.
  *  - Salesforce has app credentials but NO customer connection → placeholder.
- *  - The contact email is owner-specified: Electric.vortexz@gmail.com.
+ *  - The contact email is owner-specified (lowercase): electric.vortexz@gmail.com.
  *
  * Matching is done on canonical provider ids (see provider-canonical.ts) so
  * aliases (gmail→google-workspace, word→microsoft-word, …) resolve correctly.
  */
 
-export const PLACEHOLDER_CONTACT_EMAIL = "Electric.vortexz@gmail.com";
+export const PLACEHOLDER_CONTACT_EMAIL = "electric.vortexz@gmail.com";
 export const PLACEHOLDER_STATUS_COPY = "In development — we're working on it.";
-export const PLACEHOLDER_CONTACT_COPY = `Want it sooner? Contact ${PLACEHOLDER_CONTACT_EMAIL}`;
+export const PLACEHOLDER_CONTACT_COPY = `Want it sooner? Contact us at ${PLACEHOLDER_CONTACT_EMAIL}`;
 
 /**
  * Providers with real connected credentials (live-verified; see the
