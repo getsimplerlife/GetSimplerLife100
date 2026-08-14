@@ -15,6 +15,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { durableGet } from "../lib/durable-store";
+import { writeJSON } from "../lib/data-store";
 
 export interface ProviderCredential {
   provider?: string;
@@ -167,6 +168,53 @@ export function loadProviderCredentials(
     }
   }
   return { app: loadOAuthAppCredentials(provider), source: stored.source };
+}
+
+/**
+ * Persist a refreshed credential back to the durable store (and file mirror)
+ * after a verification run rotated the tokens. Xero (and other OAuth
+ * providers) issue single-use refresh tokens: a refresh invalidates the
+ * previous refresh token, so dropping the rotated one on the floor leaves the
+ * stored credential permanently dead. Writes go through writeJSON → durable
+ * store when enabled (same path as the hourly token-refresher).
+ *
+ * This is a no-op when nothing usable is stored for the provider/tenant, and
+ * never fabricates a credential. It never logs or prints credential values.
+ */
+export function persistRefreshedCredential(
+  provider: string,
+  updated: ProviderCredential,
+  options: { tenant?: string; dataDir?: string } = {},
+): void {
+  const dataDir = options.dataDir ?? DEFAULT_DATA_DIR;
+  const credsFile = join(dataDir, "tenant_oauth_credentials.json");
+  // Read the CURRENT store (durable first — same priority as the loader) so we
+  // merge into live state, never overwrite with a stale snapshot.
+  const durableData = durableGet("tenant_oauth_credentials.json") as
+    | Record<string, ProviderCredential>
+    | undefined;
+  let data: Record<string, ProviderCredential> | undefined = durableData;
+  if (!data || typeof data !== "object") {
+    if (!existsSync(credsFile)) return;
+    try {
+      data = JSON.parse(readFileSync(credsFile, "utf8")) as Record<string, ProviderCredential>;
+    } catch {
+      return;
+    }
+  }
+  const hit = findCredentialEntry(data, provider, options.tenant);
+  if (!hit) return;
+  const entry = data[hit.key];
+  data[hit.key] = {
+    ...entry,
+    accessToken: updated.accessToken ?? entry.accessToken,
+    refreshToken: updated.refreshToken ?? entry.refreshToken,
+    expiresAt: updated.expiresAt ?? entry.expiresAt,
+    scope: updated.scope ?? entry.scope,
+    tokenType: updated.tokenType ?? entry.tokenType,
+    updatedAt: new Date().toISOString(),
+  };
+  writeJSON(credsFile, data);
 }
 
 /** Report token freshness without printing the token. */

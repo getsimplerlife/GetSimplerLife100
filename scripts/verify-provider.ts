@@ -26,6 +26,7 @@ import { adapterRegistry } from "../src/verification/adapters";
 import {
   describeCredential,
   loadProviderCredentials,
+  persistRefreshedCredential,
   type ProviderCredential,
 } from "../src/verification/credential-source";
 import { DEFAULT_EVIDENCE_TTL_MS, EvidenceStore } from "../src/verification/evidence-store";
@@ -83,11 +84,17 @@ export async function runBatchVerification(options: CliOptions): Promise<BatchRe
     );
   }
 
+  const dataDir = process.env.DATA_DIR || join(process.cwd(), ".data");
   const loaded = loadProviderCredentials(provider, {
     tokenFile: options.tokenFile,
     tenant: options.tenant,
+    dataDir,
   });
   const credentialSummary = describeCredential(loaded.credential);
+  // Snapshot the loaded expiry so we can tell whether any contract call
+  // refreshed the token in-memory (adapters rotate refresh tokens; the rotated
+  // one MUST be persisted or the stored credential becomes permanently dead).
+  const loadedExpiresAt = loaded.credential?.expiresAt;
   const adapter = adapterRegistry[provider];
 
   const evidenceStore = new EvidenceStore();
@@ -132,6 +139,25 @@ export async function runBatchVerification(options: CliOptions): Promise<BatchRe
       errorMessage: result.evidence.errorMessage,
       timestamp: result.evidence.timestamp,
     });
+  }
+  // Persist a rotated refresh token when any contract call refreshed the token
+  // in-memory (Xero/Google/etc. issue single-use refresh tokens — dropping the
+  // rotation permanently kills the stored credential). Only write back for
+  // store-backed credentials, never a --token file or env fallback.
+  if (
+    loaded.credential &&
+    !options.tokenFile &&
+    typeof loaded.credential.expiresAt === "number" &&
+    loaded.credential.expiresAt !== loadedExpiresAt
+  ) {
+    try {
+      persistRefreshedCredential(provider, loaded.credential, { tenant: options.tenant, dataDir });
+      console.log(`[verify] persisted refreshed ${provider} credential (rotated refresh token saved)`);
+    } catch (error) {
+      console.log(
+        `[verify] WARN could not persist refreshed ${provider} credential: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
 
   const summary = {
