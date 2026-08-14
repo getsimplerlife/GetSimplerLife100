@@ -1209,8 +1209,9 @@ export const tableauAdapter: CapabilityAdapter = async (contract, ctx) => {
  * Onfleet (Logistics AI) verification adapter.
  *
  * Reads exercise the canonical https://onfleet.com/api/v2 host. Writes are
- * gated behind `ctx.allowWrites`, create labeled Phase7-* synthetic objects,
- * and roll back (delete) them so verification leaves no residue.
+ * gated behind `ctx.allowWrites` and create labeled Phase7-* synthetic objects
+ * that are LEFT in place (non-destructive — deletion inside client accounts
+ * is explicit-client-request only).
  */
 export const onfleetAdapter: CapabilityAdapter = async (contract, ctx) => {
   const cred = ctx.credentials;
@@ -1488,7 +1489,8 @@ export const coupaAdapter: CapabilityAdapter = async (contract, ctx) => {
  * https://{restEndpoint}/rest (e.g. 123-ABC-456.mktorest.com/rest).
  *
  * Credentials: { accessToken, restEndpoint }.
- * Writes are labeled Phase7-*, and rolled back where possible.
+ * Writes are labeled Phase7-* and LEFT in place (non-destructive — deletion
+ * inside client accounts is explicit-client-request only).
  */
 export const marketoAdapter: CapabilityAdapter = async (contract, ctx) => {
   const cred = ctx.credentials;
