@@ -228,21 +228,12 @@ export const slackAdapter: CapabilityAdapter = async (contract, ctx) => {
       const channels = await client.listConversations("public_channel");
       const channel = pickMemberChannel(channels);
       if (!channel) throw new Error("Slack workspace has no public channel with bot membership");
-      const result = await client.postMessage(channel, `Verification message ${LABEL()} — safe to delete`);
+      const result = await client.postMessage(channel, `Verification message ${LABEL()} — Phase7 verification artifact (kept)`);
       const ts = result?.ts as string | undefined;
       if (!result?.ok || !ts) throw new Error(`Slack postMessage failed: ${JSON.stringify(result).slice(0, 200)}`);
-      try {
-        const cleanup = await fetch("https://slack.com/api/chat.delete", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${cred.accessToken}`, "Content-Type": "application/json; charset=utf-8" },
-          body: JSON.stringify({ channel, ts }),
-        });
-        const cleanupBody = (await cleanup.json()) as { ok?: boolean };
-        if (!cleanupBody.ok) throw new Error(`message sent (${ts}) but cleanup failed`);
-      } catch (cleanupError) {
-        throw new Error(`message sent (${ts}) but cleanup failed: ${String(cleanupError)}`);
-      }
-      return { httpStatus: 200, response: { ok: true, channel, rolledBack: true } };
+      // Non-destructive (owner directive): the labeled verification message is LEFT in place.
+      // No chat.delete cleanup — deletion inside client accounts is explicit-client-request only.
+      return { httpStatus: 200, response: { ok: true, channel, messageTs: ts, created: true, kept: true } };
     }
     case "slack-send-ephemeral": {
       if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
@@ -272,20 +263,13 @@ export const slackAdapter: CapabilityAdapter = async (contract, ctx) => {
       const channels = await client.listConversations("public_channel");
       const channel = pickMemberChannel(channels);
       if (!channel) throw new Error("Slack workspace has no public channel with bot membership");
-      const sent = await client.postMessage(channel, `Verification reaction target ${LABEL()} — safe to delete`);
+      const sent = await client.postMessage(channel, `Verification reaction target ${LABEL()} — Phase7 verification artifact (kept)`);
       const ts = sent?.ts as string | undefined;
       if (!sent?.ok || !ts) throw new Error(`Slack postMessage failed: ${JSON.stringify(sent).slice(0, 200)}`);
-      try {
-        await client.addReaction(channel, ts, "white_check_mark");
-        await fetch("https://slack.com/api/chat.delete", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${cred.accessToken}`, "Content-Type": "application/json; charset=utf-8" },
-          body: JSON.stringify({ channel, ts }),
-        });
-      } catch (cleanupError) {
-        throw new Error(`reaction added (${ts}) but cleanup failed: ${String(cleanupError)}`);
-      }
-      return { httpStatus: 200, response: { ok: true, channel, reaction: "white_check_mark", rolledBack: true } };
+      await client.addReaction(channel, ts, "white_check_mark");
+      // Non-destructive (owner directive): the labeled message + reaction are LEFT in place.
+      // No chat.delete cleanup — deletion inside client accounts is explicit-client-request only.
+      return { httpStatus: 200, response: { ok: true, channel, reaction: "white_check_mark", created: true, kept: true } };
     }
     case "slack-upload-file": {
       if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
@@ -296,7 +280,7 @@ export const slackAdapter: CapabilityAdapter = async (contract, ctx) => {
       // Slack V2 file upload: getUploadURLExternal → PUT content → completeUploadExternal.
       // files.upload is deprecated as of 2025-03-11.
       const filename = `phase7-verify-${Date.now()}.txt`;
-      const length = 42; // "Verification upload … — safe to delete".length
+      const length = 42; // "Verification upload … — kept in place (non-destructive)".length
       // Step 1: get upload URL
       const urlReq = await fetch(`https://slack.com/api/files.getUploadURLExternal?filename=${encodeURIComponent(filename)}&length=${length}`, {
         method: "GET",
@@ -309,7 +293,7 @@ export const slackAdapter: CapabilityAdapter = async (contract, ctx) => {
       // Step 2: upload content
       const putReq = await fetch(urlBody.upload_url, {
         method: "PUT",
-        body: `Verification upload ${LABEL()} — safe to delete`,
+        body: `Verification upload ${LABEL()} — kept in place (non-destructive)`,
       });
       if (!putReq.ok) throw new Error(`Slack file content upload failed: HTTP ${putReq.status}`);
       // Step 3: complete
@@ -323,18 +307,9 @@ export const slackAdapter: CapabilityAdapter = async (contract, ctx) => {
       if (!completeBody.ok) {
         throw new Error(`Slack files.completeUploadExternal failed: ${JSON.stringify(completeBody).slice(0, 200)}`);
       }
-      try {
-        const cleanup = await fetch("https://slack.com/api/files.delete", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json; charset=utf-8" },
-          body: JSON.stringify({ file: fileId }),
-        });
-        const cleanupBody = (await cleanup.json()) as { ok?: boolean };
-        if (!cleanupBody.ok) throw new Error(`file uploaded (${fileId}) but cleanup failed`);
-      } catch (cleanupError) {
-        throw new Error(`file uploaded (${fileId}) but cleanup failed: ${String(cleanupError)}`);
-      }
-      return { httpStatus: 200, response: { ok: true, channel, fileId, rolledBack: true, method: "v2" } };
+      // Non-destructive (owner directive): the labeled file is LEFT in place.
+      // No files.delete cleanup — deletion inside client accounts is explicit-client-request only.
+      return { httpStatus: 200, response: { ok: true, channel, fileId, created: true, kept: true, method: "v2" } };
     }
     case "slack-monitor-mention":
     case "slack-monitor-channel-activity": {
@@ -384,7 +359,7 @@ export const jiraAdapter: CapabilityAdapter = async (contract, ctx) => {
         project: { key: project },
         summary: label,
         issuetype: { name: "Task" },
-        description: "Phase 7 provider verification — safe to delete",
+        description: "Phase 7 provider verification — kept in place (non-destructive)",
       });
       const issueKey = created?.key as string | undefined;
       if (!issueKey) throw new Error("Jira createIssue returned no key");
@@ -550,7 +525,7 @@ export const docusignAdapter: CapabilityAdapter = async (contract, ctx) => {
         emailSubject: label,
         documents: [
           {
-            documentBase64: Buffer.from("Phase 7 verification document — safe to delete").toString("base64"),
+            documentBase64: Buffer.from("Phase 7 verification document — kept in place (non-destructive)").toString("base64"),
             name: "verification.txt",
             fileExtension: "txt",
             documentId: "1",
@@ -569,13 +544,9 @@ export const docusignAdapter: CapabilityAdapter = async (contract, ctx) => {
       });
       const envelopeId = created?.envelopeId as string | undefined;
       if (!envelopeId) throw new Error("DocuSign sendEnvelope returned no envelopeId");
-      // Cleanup: void the draft envelope so verification leaves no residue.
-      // Zendesk-parity rollback: guaranteed in `finally` — a failed cleanup surfaces as an error.
-      try {
-        return { httpStatus: 201, response: { created: true, rolledBack: true, envelopeId } };
-      } finally {
-        await client.voidEnvelope(envelopeId, "Phase 7 verification cleanup");
-      }
+      // Non-destructive (owner directive): the labeled DRAFT envelope is LEFT in place.
+      // No voidEnvelope cleanup — deletion/voiding inside client accounts is explicit-client-request only.
+      return { httpStatus: 201, response: { created: true, kept: true, envelopeId } };
     }
     case "docusign-void-envelope": {
       if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
@@ -657,13 +628,9 @@ export const mondayComAdapter: CapabilityAdapter = async (contract, ctx) => {
       const created = await client.createItem(boardId, groupId, LABEL());
       const itemId = created?.id as string | undefined;
       if (!itemId) throw new Error("Monday.com createItem returned no id");
-      const cleanup = await client.query(
-        `mutation { delete_item_by_id(item_id: ${JSON.stringify(itemId)}) { id } }`,
-      );
-      if (!cleanup?.data?.delete_item_by_id) {
-        throw new Error(`item created (${itemId}) but cleanup failed`);
-      }
-      return { httpStatus: 200, response: { created: true, itemId } };
+      // Non-destructive (owner directive): the labeled item is LEFT in place.
+      // No delete_item_by_id cleanup — deletion inside client accounts is explicit-client-request only.
+      return { httpStatus: 200, response: { created: true, kept: true, itemId } };
     }
     case "monday-update-column-values":
     case "monday-move-item": {
@@ -697,8 +664,8 @@ export const mondayComAdapter: CapabilityAdapter = async (contract, ctx) => {
 /**
  * ServiceNow uses HTTP Basic Auth against `{instance}.service-now.com`.
  * Credentials: { user, password, instance } (personal developer instance).
- * Writes are labeled Phase7-*, cleaned up (create → delete), and revert state
- * they change (severity/assignment updates restore the original value).
+ * Writes are labeled Phase7-* and LEFT in place (non-destructive, owner
+ * directive); severity/assignment updates restore the original value.
  */
 export const servicenowAdapter: CapabilityAdapter = async (contract, ctx) => {
   const cred = ctx.credentials;
@@ -719,15 +686,15 @@ export const servicenowAdapter: CapabilityAdapter = async (contract, ctx) => {
       const label = LABEL();
       const created = await client.createIncident({
         short_description: label,
-        description: "Phase 7 provider verification — safe to delete",
+        description: "Phase 7 provider verification — kept in place (non-destructive)",
         category: "software",
         urgency: 2,
       });
       const sysId = created?.sys_id as string | undefined;
       if (!sysId) throw new Error("ServiceNow createIncident returned no sys_id");
-      const cleaned = await client.deleteIncident(sysId);
-      if (!cleaned) throw new Error(`incident created (${sysId}) but cleanup failed`);
-      return { httpStatus: 201, response: { created: true, sysId } };
+      // Non-destructive (owner directive): the labeled incident is LEFT in place.
+      // No deleteIncident cleanup — deletion inside client accounts is explicit-client-request only.
+      return { httpStatus: 201, response: { created: true, kept: true, sysId } };
     }
     case "servicenow-read-change-requests": {
       const records = await client.queryTable("change_request");
@@ -794,9 +761,9 @@ export const servicenowAdapter: CapabilityAdapter = async (contract, ctx) => {
       });
       const sysId = created?.sys_id as string | undefined;
       if (!sysId) throw new Error("ServiceNow createChangeRequest returned no sys_id");
-      const deleted = await client.deleteChangeRequest(sysId);
-      if (!deleted) throw new Error("ServiceNow cleanup failed after change request creation");
-      return { httpStatus: 201, response: { created: true, sysId, deleted } };
+      // Non-destructive (owner directive): the labeled change request is LEFT in place.
+      // No deleteChangeRequest cleanup — deletion inside client accounts is explicit-client-request only.
+      return { httpStatus: 201, response: { created: true, kept: true, sysId } };
     }
     default:
       throw new Error(`no verification path for ${contract.capabilityId}`);
@@ -1039,15 +1006,12 @@ export const zendeskAdapter: CapabilityAdapter = async (contract, ctx) => {
       });
       const id = created?.id as number | undefined;
       if (!id) throw new Error("Zendesk createTicket returned no id");
-      try {
-        await client.updateTicket(id, {
-          comment: { body: `${label} - Phase 7 verification reply (safe to ignore)`, public: true },
-        });
-        return { httpStatus: 200, response: { replied: true, ticketId: id } };
-      } finally {
-        const deleted = await client.deleteTicket(id);
-        if (!deleted) throw new Error("Zendesk cleanup failed after reply verification");
-      }
+      await client.updateTicket(id, {
+        comment: { body: `${label} - Phase 7 verification reply (safe to ignore)`, public: true },
+      });
+      // Non-destructive (owner directive): the labeled ticket is LEFT in place.
+      // No deleteTicket cleanup — deletion inside client accounts is explicit-client-request only.
+      return { httpStatus: 200, response: { replied: true, ticketId: id, created: true, kept: true } };
     }
     case "zendesk-update-ticket-status": {
       if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
@@ -1059,13 +1023,10 @@ export const zendeskAdapter: CapabilityAdapter = async (contract, ctx) => {
       });
       const id = created?.id as number | undefined;
       if (!id) throw new Error("Zendesk createTicket returned no id");
-      try {
-        const updated = await client.updateTicket(id, { status: "open" });
-        return { httpStatus: 200, response: { updated: true, ticketId: id, status: updated?.status } };
-      } finally {
-        const deleted = await client.deleteTicket(id);
-        if (!deleted) throw new Error("Zendesk cleanup failed after status verification");
-      }
+      const updated = await client.updateTicket(id, { status: "open" });
+      // Non-destructive (owner directive): the labeled ticket is LEFT in place.
+      // No deleteTicket cleanup — deletion inside client accounts is explicit-client-request only.
+      return { httpStatus: 200, response: { updated: true, ticketId: id, status: updated?.status, created: true, kept: true } };
     }
     default:
       throw new Error(`no verification path for ${contract.capabilityId}`);
@@ -1199,15 +1160,12 @@ export const tableauAdapter: CapabilityAdapter = async (contract, ctx) => {
     case "tableau-create-project": {
       if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
       const label = LABEL();
-      const created = await client.createProject({ name: `${label} - Phase 7 verification`, description: "Safe to delete" });
+      const created = await client.createProject({ name: `${label} - Phase 7 verification`, description: "Phase7 verification artifact (kept)" });
       const projectId = created?.id as string | undefined;
       if (!projectId) throw new Error("Tableau createProject returned no id");
-      // Rollback: delete the labeled project so verification leaves no residue.
-      try {
-        return { httpStatus: 201, response: { created: true, rolledBack: true, projectId } };
-      } finally {
-        await client.deleteProject(projectId);
-      }
+      // Non-destructive (owner directive): the labeled project is LEFT in place.
+      // No deleteProject cleanup — deletion inside client accounts is explicit-client-request only.
+      return { httpStatus: 201, response: { created: true, kept: true, projectId } };
     }
     case "tableau-update-workbook": {
       if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
@@ -1230,12 +1188,9 @@ export const tableauAdapter: CapabilityAdapter = async (contract, ctx) => {
       const created = await client.addSiteUser({ name: `phase7-${Date.now()}@verify.example.invalid`, siteRole: "Viewer" });
       const userId = created?.id as string | undefined;
       if (!userId) throw new Error("Tableau addSiteUser returned no id");
-      // Rollback: remove the labeled verification user so no residue remains.
-      try {
-        return { httpStatus: 201, response: { created: true, rolledBack: true, userId } };
-      } finally {
-        await client.removeSiteUser(userId);
-      }
+      // Non-destructive (owner directive): the labeled verification user is LEFT in place.
+      // No removeSiteUser cleanup — removal inside client accounts is explicit-client-request only.
+      return { httpStatus: 201, response: { created: true, kept: true, userId } };
     }
     case "tableau-refresh-datasource": {
       if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
@@ -1254,8 +1209,9 @@ export const tableauAdapter: CapabilityAdapter = async (contract, ctx) => {
  * Onfleet (Logistics AI) verification adapter.
  *
  * Reads exercise the canonical https://onfleet.com/api/v2 host. Writes are
- * gated behind `ctx.allowWrites`, create labeled Phase7-* synthetic objects,
- * and roll back (delete) them so verification leaves no residue.
+ * gated behind `ctx.allowWrites` and create labeled Phase7-* synthetic objects
+ * that are LEFT in place (non-destructive — deletion inside client accounts
+ * is explicit-client-request only).
  */
 export const onfleetAdapter: CapabilityAdapter = async (contract, ctx) => {
   const cred = ctx.credentials;
@@ -1304,16 +1260,13 @@ export const onfleetAdapter: CapabilityAdapter = async (contract, ctx) => {
       const label = LABEL();
       const created = await client.createTask({
         destination: { address: { street: "1 Phase7 Verify St", city: "Testville", country: "US" } },
-        notes: `${label} - Phase 7 verification task (safe to delete)`,
+        notes: `${label} - Phase 7 verification task (kept in place, non-destructive)`,
       });
       const taskId = created?.id as string | undefined;
       if (!taskId) throw new Error("Onfleet createTask returned no id");
-      // Rollback: delete the labeled task so verification leaves no residue.
-      try {
-        return { httpStatus: 201, response: { created: true, rolledBack: true, taskId } };
-      } finally {
-        await client.deleteTask(taskId);
-      }
+      // Non-destructive (owner directive): the labeled task is LEFT in place.
+      // No deleteTask cleanup — deletion inside client accounts is explicit-client-request only.
+      return { httpStatus: 201, response: { created: true, kept: true, taskId } };
     }
     case "onfleet-update-task-status": {
       if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
@@ -1324,12 +1277,10 @@ export const onfleetAdapter: CapabilityAdapter = async (contract, ctx) => {
       });
       const taskId = created?.id as string | undefined;
       if (!taskId) throw new Error("Onfleet createTask returned no id for update test");
-      try {
-        const updated = await client.updateTask(taskId, { notes: `${label} - updated` });
-        return { httpStatus: 200, response: { updated: true, taskId, notes: updated?.notes } };
-      } finally {
-        await client.deleteTask(taskId);
-      }
+      const updated = await client.updateTask(taskId, { notes: `${label} - updated` });
+      // Non-destructive (owner directive): the labeled task is LEFT in place.
+      // No deleteTask cleanup — deletion inside client accounts is explicit-client-request only.
+      return { httpStatus: 200, response: { updated: true, taskId, notes: updated?.notes, created: true, kept: true } };
     }
     case "onfleet-complete-task": {
       if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
@@ -1340,12 +1291,10 @@ export const onfleetAdapter: CapabilityAdapter = async (contract, ctx) => {
       });
       const taskId = created?.id as string | undefined;
       if (!taskId) throw new Error("Onfleet createTask returned no id for complete test");
-      try {
-        const completed = await client.completeTask(taskId);
-        return { httpStatus: 200, response: { completed: true, taskId, state: completed?.state ?? "completed" } };
-      } finally {
-        await client.deleteTask(taskId);
-      }
+      const completed = await client.completeTask(taskId);
+      // Non-destructive (owner directive): the labeled task is LEFT in place.
+      // No deleteTask cleanup — deletion inside client accounts is explicit-client-request only.
+      return { httpStatus: 200, response: { completed: true, taskId, state: completed?.state ?? "completed", created: true, kept: true } };
     }
     case "onfleet-create-worker": {
       if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
@@ -1356,11 +1305,9 @@ export const onfleetAdapter: CapabilityAdapter = async (contract, ctx) => {
       });
       const workerId = created?.id as string | undefined;
       if (!workerId) throw new Error("Onfleet createWorker returned no id");
-      try {
-        return { httpStatus: 201, response: { created: true, rolledBack: true, workerId } };
-      } finally {
-        await client.deleteWorker(workerId);
-      }
+      // Non-destructive (owner directive): the labeled worker is LEFT in place.
+      // No deleteWorker cleanup — deletion inside client accounts is explicit-client-request only.
+      return { httpStatus: 201, response: { created: true, kept: true, workerId } };
     }
     default:
       throw new Error(`no verification path for ${contract.capabilityId}`);
@@ -1373,7 +1320,7 @@ export const onfleetAdapter: CapabilityAdapter = async (contract, ctx) => {
  * https://{store}.myshopify.com/admin/api/{version}.
  *
  * Credentials: { accessToken, storeName }.
- * Writes are labeled Phase7-*, and rolled back (delete product) where possible.
+ * Writes are labeled Phase7-* and LEFT in place (non-destructive, owner directive).
  */
 export const shopifyAdapter: CapabilityAdapter = async (contract, ctx) => {
   const cred = ctx.credentials;
@@ -1424,18 +1371,16 @@ export const shopifyAdapter: CapabilityAdapter = async (contract, ctx) => {
       const label = LABEL();
       const created = await client.createProduct({
         title: `${label} - Phase 7 verification product`,
-        body_html: "<p>Phase 7 verification — safe to delete</p>",
+        body_html: "<p>Phase 7 verification — kept in place (non-destructive)</p>",
         vendor: "Phase7",
         product_type: "Verification",
         variants: [{ price: "1.00", inventory_management: null }],
       });
       const productId = created?.id as number | undefined;
       if (!productId) throw new Error("Shopify createProduct returned no id");
-      try {
-        return { httpStatus: 201, response: { created: true, rolledBack: true, productId } };
-      } finally {
-        await client.deleteProduct(productId);
-      }
+      // Non-destructive (owner directive): the labeled product is LEFT in place.
+      // No deleteProduct cleanup — deletion inside client accounts is explicit-client-request only.
+      return { httpStatus: 201, response: { created: true, kept: true, productId } };
     }
     case "shopify-update-product": {
       if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
@@ -1474,8 +1419,8 @@ export const shopifyAdapter: CapabilityAdapter = async (contract, ctx) => {
  *
  * Coupa uses API key (X-API-KEY) against https://{instance}.coupahost.com/api.
  * Credentials: { apiKey, instance }.
- * Writes are gated behind ctx.allowWrites, create labeled Phase7-* synthetic
- * objects, and roll back where possible.
+ * Writes are gated behind ctx.allowWrites and create labeled Phase7-* synthetic
+ * objects, LEFT in place (non-destructive, owner directive).
  */
 export const coupaAdapter: CapabilityAdapter = async (contract, ctx) => {
   const cred = ctx.credentials;
@@ -1544,7 +1489,8 @@ export const coupaAdapter: CapabilityAdapter = async (contract, ctx) => {
  * https://{restEndpoint}/rest (e.g. 123-ABC-456.mktorest.com/rest).
  *
  * Credentials: { accessToken, restEndpoint }.
- * Writes are labeled Phase7-*, and rolled back where possible.
+ * Writes are labeled Phase7-* and LEFT in place (non-destructive — deletion
+ * inside client accounts is explicit-client-request only).
  */
 export const marketoAdapter: CapabilityAdapter = async (contract, ctx) => {
   const cred = ctx.credentials;
@@ -1597,12 +1543,9 @@ export const marketoAdapter: CapabilityAdapter = async (contract, ctx) => {
       if (!leadId) throw new Error("Marketo instance has no leads to add to list");
       const label = LABEL();
       await client.addLeadsToList(listId, [leadId]);
-      // Rollback: remove the lead from the list
-      try {
-        return { httpStatus: 200, response: { added: true, rolledBack: true, listId, leadId } };
-      } finally {
-        await client.removeLeadsFromList(listId, [leadId]);
-      }
+      // Non-destructive (owner directive): the labeled lead membership is LEFT in place.
+      // No removeLeadsFromList cleanup — removal inside client accounts is explicit-client-request only.
+      return { httpStatus: 200, response: { added: true, kept: true, listId, leadId } };
     }
     case "marketo-add-to-nurture": {
       if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");

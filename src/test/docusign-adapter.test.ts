@@ -41,27 +41,15 @@ describe("DocuSign verification adapter (real client, mocked transport)", () => 
     expect(calls.filter((c) => c.method !== "GET" && !c.url.includes("userinfo")).length).toBe(0);
   });
 
-  it("send-document creates a labeled draft (status created) and voids it in rollback", async () => {
+  it("send-document creates a labeled draft and leaves it in place (non-destructive)", async () => {
     const out = await docusignAdapter(sendContract, ctx());
-    expect(out).toMatchObject({ httpStatus: 201, response: { created: true, rolledBack: true, envelopeId: "env-adapter-1" } });
+    expect(out).toMatchObject({ httpStatus: 201, response: { created: true, kept: true, envelopeId: "env-adapter-1" } });
     const created = calls.find((c) => c.method === "POST" && c.url.includes("/envelopes"));
     expect(created?.body).toMatchObject({ status: "created", emailSubject: expect.stringContaining("Phase7-VERIFY") });
     expect(created?.body.recipients.signers[0].email).toBe("verify@example.invalid");
-    const voided = calls.find((c) => c.method === "PUT" && c.url.includes("/envelopes/env-adapter-1"));
-    expect(voided?.body).toMatchObject({ status: "voided", voidedReason: expect.stringContaining("cleanup") });
-    expect(calls.findIndex((c) => c.method === "POST")).toBeLessThan(calls.findIndex((c) => c.method === "PUT"));
+    // No void (no PUT status=voided) — the draft envelope is left in place (owner mandate).
+    expect(calls.filter((c) => c.method === "PUT" && String(c.body?.status) === "voided")).toEqual([]);
   });
-
-  it("send-document surfaces a failed rollback as an error", async () => {
-    const failingFetch = vi.fn(async (url: any, init: any) => {
-      const method = init?.method || "GET";
-      if (method === "PUT" && String(url).includes("/envelopes/")) return { ok: false, status: 400 } as unknown as Response;
-      return jsonResponse({ envelopeId: "env-adapter-1" });
-    });
-    globalThis.fetch = failingFetch as unknown as typeof fetch;
-    await expect(docusignAdapter(sendContract, ctx())).rejects.toThrow();
-  });
-
   it("void-envelope creates a draft and voids it (action + inherent rollback)", async () => {
     const out = await docusignAdapter(voidContract, ctx());
     expect(out).toMatchObject({ httpStatus: 200, response: { voided: true, envelopeId: "env-adapter-1" } });

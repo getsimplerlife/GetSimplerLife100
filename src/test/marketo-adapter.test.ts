@@ -66,11 +66,12 @@ describe("Marketo verification adapter", () => {
   it("add to list fails closed without --writes", async () => {
     await expect(marketoAdapter(contract("marketo-add-to-list"), { ...ctx(), allowWrites: false })).rejects.toThrow("write verification disabled");
   });
-  it("add to list with writes + rollback", async () => {
-    expect(await marketoAdapter(contract("marketo-add-to-list"), ctx())).toEqual({ httpStatus: 200, response: { added: true, rolledBack: true, listId: 10, leadId: 4 } });
-    expect(calls.some(c => c.method === "DELETE")).toBe(true);
+  it("add to list with writes keeps the labeled membership (non-destructive)", async () => {
+    expect(await marketoAdapter(contract("marketo-add-to-list"), ctx())).toEqual({ httpStatus: 200, response: { added: true, kept: true, listId: 10, leadId: 4 } });
+    // Should have POSTed the membership and NOT issued any DELETE/remove (owner mandate).
+    expect(calls.some(c => c.method === "POST")).toBe(true);
+    expect(calls.filter(c => c.method === "DELETE")).toEqual([]);
   });
-
   it("add to nurture fails closed without --writes", async () => {
     await expect(marketoAdapter(contract("marketo-add-to-nurture"), { ...ctx(), allowWrites: false })).rejects.toThrow("write verification disabled");
   });

@@ -3,10 +3,18 @@
  * accounts — verification artifacts are created labeled and LEFT; deletion is
  * explicit-client-request only).
  *
- * Covers the three remaining non-compliant verification paths fixed in this PR:
+ * Covers the non-compliant verification paths fixed across PR #153 + follow-up:
  *  1. xero.ts      — 6 create-then-rollback write contracts → create labeled + LEAVE
  *  2. priority.ts  — HubSpot write contracts: no deleteObject, read-only GET probe
  *  3. priority.ts  — Salesforce write contracts: no client.delete, no cleanupIds
+ *  4. priority.ts  — Slack: no chat.delete/files.delete cleanup (send-message,
+ *                    add-reaction, upload-file)
+ *  5. priority.ts  — DocuSign send-document: draft envelope LEFT (no void cleanup)
+ *  6. priority.ts  — Monday.com: no delete_item_by_id cleanup
+ *  7. priority.ts  — ServiceNow: no deleteIncident/deleteChangeRequest cleanup
+ *  8. priority.ts  — Zendesk: no deleteTicket cleanup (reply + status update)
+ *  (Tableau/Onfleet/Shopify/Marketo non-destructive assertions live in their own
+ *  adapter test files — updated in the same follow-up.)
  *
  * Each test drives the real adapter + real client with a mocked TRANSPORT (fetch),
  * records every HTTP call, and asserts BOTH:
@@ -15,7 +23,15 @@
  */
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { xeroAdapter } from "../verification/adapters/xero";
-import { hubspotAdapter, salesforceAdapter } from "../verification/adapters/priority";
+import {
+  hubspotAdapter,
+  salesforceAdapter,
+  slackAdapter,
+  docusignAdapter,
+  mondayComAdapter,
+  servicenowAdapter,
+  zendeskAdapter,
+} from "../verification/adapters/priority";
 import type { AdapterContext } from "../verification/adapters";
 import type { ProviderCredential } from "../verification/credential-source";
 
@@ -278,4 +294,117 @@ describe("Salesforce verification adapter — non-destructive writes", () => {
   it("fails closed when the credential has no instanceUrl", async () => {
     await expect(salesforceAdapter(contract("salesforce-create-task"), ctx())).rejects.toThrow(/no instanceUrl/i);
   });
+});
+
+/* ────────────────────────── Slack (3 write contracts) ────────────────────────── */
+describe("Slack verification adapter — non-destructive writes (owner mandate)", () => {
+  beforeEach(() => {
+    calls.length = 0;
+    installFetch((method: string, url: string) => {
+      if (method === "GET" && url.includes("/conversations.list")) return jsonResponse({ ok: true, channels: [{ id: "C1", is_member: true, name: "general" }] });
+      if (method === "GET" && url.includes("/users.list")) return jsonResponse({ ok: true, members: [{ id: "U1", is_bot: false, deleted: false }] });
+      if (method === "POST" && url.includes("/chat.postMessage")) return jsonResponse({ ok: true, ts: "1.0001", channel: "C1" });
+      if (method === "POST" && url.includes("/reactions.add")) return jsonResponse({ ok: true });
+      if (method === "GET" && url.includes("/files.getUploadURLExternal")) return jsonResponse({ ok: true, upload_url: "https://files.slack.com/upload/x", file_id: "F1" });
+      if (method === "PUT" && url.includes("files.slack.com/upload")) return jsonResponse({ ok: true });
+      if (method === "POST" && url.includes("/files.completeUploadExternal")) return jsonResponse({ ok: true, files: [{ id: "F1" }] });
+      return jsonResponse({});
+    });
+  });
+  afterEach(() => { vi.restoreAllMocks(); });
+  const writeCases = ["slack-send-message", "slack-add-reaction", "slack-upload-file"];
+  for (const capabilityId of writeCases) {
+    it(`${capabilityId} creates a labeled artifact and leaves it (kept:true, zero deletes)`, async () => {
+      const out = await slackAdapter(contract(capabilityId), ctx());
+      expect(out.httpStatus).toBe(200);
+      expect(out.response.kept).toBe(true);
+      expect(calls.filter((c) => c.method === "DELETE")).toEqual([]);
+      expect(calls.filter((c) => c.url.includes("chat.delete") || c.url.includes("files.delete"))).toEqual([]);
+    });
+  }
+  it("fails closed for writes without --writes", async () => {
+    await expect(slackAdapter(contract("slack-send-message"), ctx({ allowWrites: false }))).rejects.toThrow(/write verification disabled/);
+  });
+});
+/* ────────────────────────── DocuSign send-document ────────────────────────── */
+describe("DocuSign send-document — draft envelope left in place (owner mandate)", () => {
+  beforeEach(() => {
+    calls.length = 0;
+    installFetch((method: string, url: string) => {
+      if (method === "POST" && url.includes("/envelopes")) return jsonResponse({ envelopeId: "env-1" });
+      return jsonResponse({});
+    });
+  });
+  afterEach(() => { vi.restoreAllMocks(); });
+  it("creates a labeled draft envelope and leaves it (kept:true, no void PUT)", async () => {
+    const out = await docusignAdapter(contract("docusign-send-document"), ctx({ credentials: { ...makeCred(), accountId: "acc-1", baseUrl: "https://demo.docusign.net/restapi", email: "verify@example.invalid" } }));
+    expect(out).toMatchObject({ httpStatus: 201, response: { created: true, kept: true, envelopeId: "env-1" } });
+    const voidPuts = calls.filter((c) => c.method === "PUT" && String(c.body?.status) === "voided");
+    expect(voidPuts).toEqual([]);
+    expect(calls.filter((c) => c.method === "DELETE")).toEqual([]);
+  });
+});
+/* ────────────────────────── Monday.com ────────────────────────── */
+describe("Monday.com verification adapter — non-destructive writes (owner mandate)", () => {
+  beforeEach(() => {
+    calls.length = 0;
+    installFetch((method: string, url: string, body: any) => {
+      if (method === "POST" && url.includes("api.monday.com")) {
+        const q = String(body?.query || "");
+        if (q.includes("boards(limit")) return jsonResponse({ data: { boards: [{ id: 123, groups: [{ id: "grp1" }] }] } });
+        if (q.includes("create_item")) return jsonResponse({ data: { create_item: { id: 777 } } });
+      }
+      return jsonResponse({});
+    });
+  });
+  afterEach(() => { vi.restoreAllMocks(); });
+  it("monday-create-item creates a labeled item and leaves it (kept:true, no delete mutation)", async () => {
+    const out = await mondayComAdapter(contract("monday-create-item"), ctx({ credentials: { apiToken: "tok" } as ProviderCredential }));
+    expect(out).toMatchObject({ httpStatus: 200, response: { created: true, kept: true, itemId: 777 } });
+    expect(calls.some((c) => String(c.body?.query || "").includes("delete_item_by_id"))).toBe(false);
+  });
+});
+/* ────────────────────────── ServiceNow ────────────────────────── */
+describe("ServiceNow verification adapter — non-destructive writes (owner mandate)", () => {
+  beforeEach(() => {
+    calls.length = 0;
+    installFetch((method: string, url: string) => {
+      if (method === "POST" && url.includes("/table/incident")) return jsonResponse({ result: { sys_id: "inc1" } });
+      if (method === "POST" && url.includes("/table/change_request")) return jsonResponse({ result: { sys_id: "cr1" } });
+      return jsonResponse({});
+    });
+  });
+  afterEach(() => { vi.restoreAllMocks(); });
+  const writeCases = ["servicenow-create-incident", "servicenow-create-change-request"];
+  for (const capabilityId of writeCases) {
+    it(`${capabilityId} creates a labeled record and leaves it (kept:true, no delete)`, async () => {
+      const cred = { user: "u", password: "p", instance: "dev123456" } as ProviderCredential;
+      const out = await servicenowAdapter(contract(capabilityId), ctx({ credentials: cred }));
+      expect(out.httpStatus).toBe(201);
+      expect(out.response.kept).toBe(true);
+      expect(calls.filter((c) => c.method === "DELETE")).toEqual([]);
+    });
+  }
+});
+/* ────────────────────────── Zendesk ────────────────────────── */
+describe("Zendesk verification adapter — non-destructive writes (owner mandate)", () => {
+  beforeEach(() => {
+    calls.length = 0;
+    installFetch((method: string, url: string) => {
+      if (method === "POST" && url.includes("/tickets")) return jsonResponse({ ticket: { id: 555, status: "new" } });
+      if (method === "PUT" && url.includes("/tickets/555")) return jsonResponse({ ticket: { id: 555, status: "open" } });
+      return jsonResponse({});
+    });
+  });
+  afterEach(() => { vi.restoreAllMocks(); });
+  const writeCases = ["zendesk-reply-ticket", "zendesk-update-ticket-status"];
+  for (const capabilityId of writeCases) {
+    it(`${capabilityId} creates a labeled ticket and leaves it (kept:true, no delete)`, async () => {
+      const cred = { email: "a@b.com", apiToken: "tok", subdomain: "sub" } as ProviderCredential;
+      const out = await zendeskAdapter(contract(capabilityId), ctx({ credentials: cred }));
+      expect(out.httpStatus).toBe(200);
+      expect(out.response.kept).toBe(true);
+      expect(calls.filter((c) => c.method === "DELETE")).toEqual([]);
+    });
+  }
 });
