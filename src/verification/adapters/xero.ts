@@ -13,9 +13,9 @@
  * tax rates, currencies, items, tracking categories, repeating invoices, budgets,
  * and GET /Reports/<Name> for the profit & loss, balance sheet, and trial balance.
  *
- * Write paths (opt-in via --writes): create a labeled artifact, then roll it back
- * (delete/archive/void) so verification leaves no residue. If cleanup is impossible
- * (no provider delete endpoint), the residue is recorded explicitly.
+ * Write paths (opt-in via --writes): create a labeled Phase7-* artifact and LEAVE it
+ * in place (non-destructive, owner directive). Zero delete/archive/rollback calls —
+ * deletion inside client/owner accounts is explicit-client-request only.
  *
  * Monitor paths: cannot be exercised by a batch CLI — they require a live webhook
  * receiver; the adapter fails closed with that reason rather than fabricating.
@@ -221,8 +221,7 @@ export const xeroAdapter: CapabilityAdapter = async (contract, ctx) => {
         const invoice = created?.Invoices?.[0];
         const invoiceId = invoice?.InvoiceID as string | undefined;
         if (!invoiceId) throw new Error("draft invoice created but response contained no InvoiceID");
-        await client.update("Invoices", invoiceId, { Status: "DELETED" });
-        return { httpStatus: 200, response: { created: true, rolledBack: true, invoiceNumber: invoice?.InvoiceNumber ?? null } };
+        return { httpStatus: 200, response: { created: true, kept: true, invoiceId, invoiceNumber: invoice?.InvoiceNumber ?? null } };
       } catch (error) {
         describeError(error);
       }
@@ -243,8 +242,7 @@ export const xeroAdapter: CapabilityAdapter = async (contract, ctx) => {
         const bill = created?.Invoices?.[0];
         const billId = bill?.InvoiceID as string | undefined;
         if (!billId) throw new Error("bill created but response contained no InvoiceID");
-        await client.update("Invoices", billId, { Status: "DELETED" });
-        return { httpStatus: 200, response: { created: true, rolledBack: true, invoiceNumber: bill?.InvoiceNumber ?? null } };
+        return { httpStatus: 200, response: { created: true, kept: true, billId, invoiceNumber: bill?.InvoiceNumber ?? null } };
       } catch (error) {
         describeError(error);
       }
@@ -266,9 +264,7 @@ export const xeroAdapter: CapabilityAdapter = async (contract, ctx) => {
         const po = created?.PurchaseOrders?.[0];
         const poId = po?.PurchaseOrderID as string | undefined;
         if (!poId) throw new Error("purchase order created but response contained no PurchaseOrderID");
-        await client.update("PurchaseOrders", poId, { Status: "DELETED" });
-        await client.update("Contacts", contactId, { ContactStatus: "ARCHIVED" });
-        return { httpStatus: 200, response: { created: true, rolledBack: true, purchaseOrderNumber: po?.PurchaseOrderNumber ?? null } };
+        return { httpStatus: 200, response: { created: true, kept: true, poId, contactId, purchaseOrderNumber: po?.PurchaseOrderNumber ?? null } };
       } catch (error) {
         describeError(error);
       }
@@ -282,9 +278,7 @@ export const xeroAdapter: CapabilityAdapter = async (contract, ctx) => {
         const contact = created?.Contacts?.[0];
         const contactId = contact?.ContactID as string | undefined;
         if (!contactId) throw new Error("contact created but response contained no ContactID");
-        // Xero has no contact delete endpoint; archive is the rollback.
-        await client.update("Contacts", contactId, { ContactStatus: "ARCHIVED" });
-        return { httpStatus: 200, response: { created: true, rolledBack: "archived", contactId } };
+        return { httpStatus: 200, response: { created: true, kept: true, contactId } };
       } catch (error) {
         describeError(error);
       }
@@ -306,22 +300,7 @@ export const xeroAdapter: CapabilityAdapter = async (contract, ctx) => {
         const journal = created?.ManualJournals?.[0];
         const journalId = journal?.ManualJournalID as string | undefined;
         if (!journalId) throw new Error("manual journal created but response contained no ManualJournalID");
-        let rolledBack = false;
-        try {
-          await client.delete("ManualJournals", journalId);
-          rolledBack = true;
-        } catch (cleanupError) {
-          // Manual journal deletion is not available on every plan; record residue honestly.
-          return {
-            httpStatus: 200,
-            response: {
-              created: true,
-              rolledBack: false,
-              residue: `manual journal ${journalId} left in DRAFT (delete unavailable): ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`,
-            },
-          };
-        }
-        return { httpStatus: 200, response: { created: true, rolledBack, journalNumber: journal?.JournalNumber ?? null } };
+        return { httpStatus: 200, response: { created: true, kept: true, journalId, journalNumber: journal?.JournalNumber ?? null } };
       } catch (error) {
         describeError(error);
       }
@@ -329,23 +308,13 @@ export const xeroAdapter: CapabilityAdapter = async (contract, ctx) => {
     }
     case "xero-create-payment": {
       requireWrites();
-      let createdBankAccount = false;
-      let bankAccountId: string | undefined;
-      const archiveBankAccount = async (): Promise<boolean> => {
-        if (!createdBankAccount || !bankAccountId) return true;
-        try {
-          await client.update("Accounts", bankAccountId, { Status: "ARCHIVED" });
-          return true;
-        } catch {
-          return false;
-        }
-      };
       try {
         const label = `${LABEL_PREFIX}${Date.now()}`;
         const accountCode = await findAccountCode(client);
         // Payments must reference a document (invoice) and a bank account. Some orgs
         // (e.g. this test tenant) have no BANK account; create a labeled one for the
-        // verification, archive it afterwards, and record the residue if archiving fails.
+        // verification and leave it in place (non-destructive, owner directive).
+        let bankAccountId: string | undefined;
         try {
           bankAccountId = await findBankAccountId(client);
         } catch {
@@ -358,7 +327,6 @@ export const xeroAdapter: CapabilityAdapter = async (contract, ctx) => {
           const acct = created?.Accounts?.[0];
           if (!acct?.AccountID) throw new Error("bank account created but response contained no AccountID");
           bankAccountId = acct.AccountID as string;
-          createdBankAccount = true;
         }
         const invoiceRes = await client.create("Invoices", {
           Type: "ACCREC",
@@ -379,23 +347,8 @@ export const xeroAdapter: CapabilityAdapter = async (contract, ctx) => {
         const payment = created?.Payments?.[0];
         const paymentId = payment?.PaymentID as string | undefined;
         if (!paymentId) throw new Error("payment created but response contained no PaymentID");
-        await client.delete("Payments", paymentId);
-        await client.update("Invoices", invoiceId, { Status: "DELETED" });
-        const bankArchived = await archiveBankAccount();
-        if (createdBankAccount && !bankArchived) {
-          return {
-            httpStatus: 200,
-            response: {
-              created: true,
-              rolledBack: true,
-              residue: `temporary bank account ${bankAccountId} left ACTIVE (archive failed)`,
-            },
-          };
-        }
-        return { httpStatus: 200, response: { created: true, rolledBack: true, bankAccountCreated: createdBankAccount, bankArchived, paymentId } };
+        return { httpStatus: 200, response: { created: true, kept: true, paymentId, invoiceId, bankAccountId } };
       } catch (error) {
-        // Best-effort cleanup so a failed verification never leaks a temporary bank account.
-        await archiveBankAccount();
         describeError(error);
       }
       break;
