@@ -206,7 +206,7 @@ function AdminIndex() {
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-black text-white">{selectedUserData.email}</h3>
-                  <button onClick={() => setSelectedUser(null)} className="text-stone-500 hover:text-white text-sm font-bold">✕</button>
+                  <button onClick={() => setSelectedUser(null)} aria-label="Close user details" className="text-stone-500 hover:text-white text-sm font-bold">✕</button>
                 </div>
                 <div className="text-xs text-stone-500 font-semibold">
                   ID: {selectedUserData.id.slice(0, 8)}...<br />

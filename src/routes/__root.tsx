@@ -15,6 +15,7 @@ const PAGE_TITLES: Record<string, { title: string; description: string }> = {
   "/about": { title: "About Simpler Life 100 | Our Mission", description: "We build AI operations teams to liberate people from repetitive manual work." },
   "/contact": { title: "Contact Simpler Life 100 | Get in Touch", description: "Get in touch with the Simpler Life 100 team." },
   "/faq": { title: "FAQ | Simpler Life 100 AI Employees", description: "Frequently asked questions about AI employees, pricing, integrations, and deployment." },
+  "/features": { title: "Features | Simpler Life 100 AI Operations Teams", description: "AI employees that understand your systems, monitor them, and automate client-requested tasks — with cross-workspace files, a client portal, and fail-closed security." },
   "/how-it-works": { title: "How It Works | Simpler Life 100", description: "Purchase AI employees, deploy instantly, and connect to 180+ integration providers." },
   "/build": { title: "Build Your AI Team | Simpler Life 100", description: "Build your custom AI Operations Team. Choose from 17 AI agents across 3 builder packages." },
   "/case-studies": { title: "Case Studies | Simpler Life 100", description: "Real results from AI Operations Teams across logistics, manufacturing, healthcare, and retail." },
@@ -95,22 +96,37 @@ function usePageMeta() {
   const pathname = routerState.location?.pathname || "/";
   return resolvePageMeta(pathname);
 }
-
+/** Set (or update) a meta tag in <head>; returns the element. */
+function upsertMeta(attr: "name" | "property", key: string, content: string) {
+  let el = document.querySelector(`meta[${attr}="${key}"]`) as HTMLMetaElement | null;
+  if (!el) {
+    el = document.createElement("meta");
+    el.setAttribute(attr, key);
+    document.head.appendChild(el);
+  }
+  el.setAttribute("content", content);
+  return el;
+}
 function RootComponent() {
   const pageMeta = usePageMeta();
 
   // Set document title client-side (CSR mode — no SSR head export)
   useEffect(() => {
-    document.title = pageMeta?.title || "Simpler Life 100 | AI Operations Teams";
+    const title = pageMeta?.title || "Simpler Life 100 | AI Operations Teams";
+    const description = pageMeta?.description || "Replace hours of manual work with AI coworkers that integrate into your existing tools. Real results, no complexity.";
+    document.title = title;
     // Update meta description
-    const desc = pageMeta?.description || "Replace hours of manual work with AI coworkers that integrate into your existing tools. Real results, no complexity.";
-    let metaDesc = document.querySelector('meta[name="description"]');
-    if (!metaDesc) {
-      metaDesc = document.createElement("meta");
-      metaDesc.setAttribute("name", "description");
-      document.head.appendChild(metaDesc);
-    }
-    metaDesc.setAttribute("content", desc);
+    upsertMeta("name", "description", description);
+    // Open Graph + Twitter cards (client fallback; SSR heads set these per-route)
+    const canonicalUrl = `https://simplerlife100.ctonew.app${window.location.pathname || "/"}`;
+    upsertMeta("property", "og:title", title);
+    upsertMeta("property", "og:description", description);
+    upsertMeta("property", "og:type", "website");
+    upsertMeta("property", "og:url", canonicalUrl);
+    upsertMeta("property", "og:site_name", "Simpler Life 100");
+    upsertMeta("name", "twitter:card", "summary_large_image");
+    upsertMeta("name", "twitter:title", title);
+    upsertMeta("name", "twitter:description", description);
   }, [pageMeta]);
 
   useEffect(() => {

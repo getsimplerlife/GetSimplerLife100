@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { PROVIDERS } from "~/data/providers";
+import { isPlaceholderProvider, PLACEHOLDER_CONTACT_COPY, PLACEHOLDER_CONTACT_EMAIL, PLACEHOLDER_STATUS_COPY } from "~/lib/provider-placeholders";
 
 export const Route = createFileRoute("/portal/integrations/")({
   component: ConnectedServices,
@@ -648,6 +649,47 @@ function ConnectedServices() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {unconnectedProviders.map((prov) => {
+                if (isPlaceholderProvider(prov.id)) {
+                  // Honest in-development placeholder card — never claims Connected.
+                  return (
+                    <div
+                      key={prov.id}
+                      className="bg-stone-950 border border-stone-900 rounded-2xl p-5 flex flex-col justify-between"
+                    >
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-start">
+                          <div className="h-11 w-11 bg-stone-900 border border-stone-800 rounded-xl flex items-center justify-center text-xl shadow-md">
+                            {getProviderEmoji(prov.id, prov.category)}
+                          </div>
+                          <span className="text-[8px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded border bg-amber-950/40 text-amber-500 border-amber-900/40">
+                            In Development
+                          </span>
+                        </div>
+                        <div className="space-y-1">
+                          <h3 className="text-xs font-bold text-white leading-snug">
+                            {prov.name}
+                            <span className="text-[8px] font-mono text-stone-600 font-normal"> ({prov.id})</span>
+                          </h3>
+                          <p className="text-stone-400 text-[10px] leading-relaxed font-semibold">
+                            {PLACEHOLDER_STATUS_COPY}
+                          </p>
+                          <a
+                            href={`mailto:${PLACEHOLDER_CONTACT_EMAIL}`}
+                            className="inline-block mt-1 text-[10px] font-bold text-emerald-400 hover:text-emerald-300 underline"
+                          >
+                            {PLACEHOLDER_CONTACT_COPY}
+                          </a>
+                        </div>
+                      </div>
+                      <div className="border-t border-stone-900 pt-3.5 mt-5 flex items-center justify-between gap-2">
+                        <span className="text-[9px] font-mono text-stone-600 uppercase tracking-wider">
+                          {categoryLabels[prov.category] || prov.category}
+                        </span>
+                        <span className="text-[9px] font-mono text-stone-600">Coming soon</span>
+                      </div>
+                    </div>
+                  );
+                }
 
                 return (
                   <div
@@ -1167,3 +1209,5 @@ function ConnectedServices() {
     </div>
   );
 }
+
+export default ConnectedServices;

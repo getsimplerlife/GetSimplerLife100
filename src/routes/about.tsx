@@ -23,6 +23,12 @@ export const Route = createFileRoute('/about')({
     meta: [
       { title: "About Simpler Life 100 | Our Mission" },
       { name: "description", content: "We build AI operations teams to liberate people from repetitive manual work. Learn about our mission, principles, and approach to AI automation." },
+      { property: "og:title", content: "About Simpler Life 100 | Our Mission" },
+      { property: "og:description", content: "We build AI operations teams to liberate people from repetitive manual work. Learn about our mission, principles, and approach to AI automation." },
+      { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://simplerlife100.ctonew.app/about" },
+      { property: "og:site_name", content: "Simpler Life 100" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   loader: () => getPageData(),

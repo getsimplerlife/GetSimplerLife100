@@ -50,4 +50,17 @@
     background: rgba(5, 150, 105, 0.3);
     color: #a7f3d0;
   }
+  /* Visible keyboard focus — a11y: never remove outlines for keyboard users */
+  :focus {
+    outline: 2px solid rgba(16, 185, 129, 0.7);
+    outline-offset: 2px;
+  }
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+  :focus-visible {
+    outline: 2px solid #10b981;
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
 }
