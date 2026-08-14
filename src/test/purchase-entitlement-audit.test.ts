@@ -2,7 +2,6 @@ import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { join } from "path";
 import { createHmac } from "crypto";
-import { ensureTestServer, testBaseUrl, testDataDir } from "./test-env";
 
 /**
  * purchase-entitlement-audit.test.ts — post-deploy purchase-flow integrity
@@ -42,12 +41,12 @@ import { ensureTestServer, testBaseUrl, testDataDir } from "./test-env";
  * store) before considering the live store clean.
  */
 
-const TEST_DATA_DIR = testDataDir();
+const TEST_DATA_DIR = process.env.TEST_DATA_DIR || join(process.cwd(), ".data");
 const PURCHASES_FILE = join(TEST_DATA_DIR, "tenant_purchases.json");
 const USERS_FILE = join(TEST_DATA_DIR, "users.json");
 const SESSIONS_FILE = join(TEST_DATA_DIR, "sessions.json");
 
-const BASE_URL = testBaseUrl();
+const BASE_URL = process.env.TEST_BASE_URL || "http://localhost:3000";
 const PASSWORD = "audit-pass-2026";
 
 // One timestamp for all emails so cleanup is a single glob-friendly prefix.
@@ -178,7 +177,6 @@ async function authedGet(path: string, cookie: string): Promise<{ status: number
 
 describe("Purchase-flow integrity audit (owner directive: no free stuff)", () => {
   beforeAll(async () => {
-    await ensureTestServer();
     for (const dir of [TEST_DATA_DIR]) if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
     serverEnforcesSignatures = await probeSignatureEnforcement();
     if (serverEnforcesSignatures && !WEBHOOK_SECRET) {

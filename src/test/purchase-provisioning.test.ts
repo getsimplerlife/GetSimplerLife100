@@ -2,18 +2,20 @@ import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { join } from "path";
 import { createHmac } from "crypto";
-import { ensureTestServer, testBaseUrl, testDataDir } from "./test-env";
 
 // Must match the DATA_DIR used by prod-server.ts. Defaults to <repo>/.data
 // (file-backed runs); set TEST_DATA_DIR to the server's real DATA_DIR when
 // verifying against the Neon-backed server (e.g. /var/lib/simplerlife100/.data)
 // so the file assertions read where the server actually writes.
-const PURCHASES_FILE = join(testDataDir(), "tenant_purchases.json");
+const PURCHASES_FILE = join(
+  process.env.TEST_DATA_DIR || join(process.cwd(), ".data"),
+  "tenant_purchases.json",
+);
 
 // Which server to hit. Defaults to the live port-3000 prod server; set
 // TEST_BASE_URL to verify against a local branch instance (e.g.
 // http://localhost:3999) without touching the live server.
-const BASE_URL = testBaseUrl();
+const BASE_URL = process.env.TEST_BASE_URL || "http://localhost:3000";
 
 const TEST_EMAIL = "e2e-provisioning@" + Date.now() + ".test";
 const TEST_EMAIL_HYPHEN = "e2e-hyphen-path@" + Date.now() + ".test";
@@ -93,7 +95,6 @@ function removeTestEmail(email: string) {
 
 describe("End-to-end purchase provisioning", () => {
   beforeAll(async () => {
-    await ensureTestServer();
     // Ensure the data dir exists
     const dir = join(PURCHASES_FILE, "..");
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true });

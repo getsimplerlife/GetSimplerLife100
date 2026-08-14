@@ -3,7 +3,6 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { join } from "path";
 import { createHmac } from "crypto";
 import { clearTenants, configureTenant, canMonitor, hydrateTenants } from "../monitoring/gates";
-import { ensureTestServer, testBaseUrl, testDataDir } from "./test-env";
 /**
  * Owner-decisions batch tests (2026-08-14):
  *   F4 — ANY successful purchase (incl. the $1 generic product) enables
@@ -83,8 +82,8 @@ describe("F4 — ANY purchase enables monitoring ingress (owner decision: YES)",
 });
 
 // ── Pack-slot endpoint e2e (probe-based) ──────────────────────────────
-const TEST_DATA_DIR = testDataDir();
-const BASE_URL = testBaseUrl();
+const TEST_DATA_DIR = process.env.TEST_DATA_DIR || join(process.cwd(), ".data");
+const BASE_URL = process.env.TEST_BASE_URL || "http://localhost:3000";
 const PASSWORD = "owner-decisions-pass";
 const TS = Date.now();
 const PACK_SLOT_EMAIL = "pack-slot@" + TS + ".test";
@@ -180,7 +179,6 @@ function removeTestRecords() {
 describe("Pack-slot redemption endpoint (plan-included Connection Pack)", () => {
   let cookie: string | null = null;
   beforeAll(async () => {
-    await ensureTestServer();
     for (const dir of [TEST_DATA_DIR]) if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
     serverEnforcesSignatures = await probeSignatureEnforcement();
     if (serverEnforcesSignatures && !WEBHOOK_SECRET) {
