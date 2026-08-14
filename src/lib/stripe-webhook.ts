@@ -152,6 +152,14 @@ export function planAgentIds(
  * an `agentIds` array (the granted agents). Consumers treat `agentId` and
  * `agentIds` the same way: the portal employee list, /api/agents/run gate and
  * the billing list all read from this record shape.
+ *
+ * Owner decision (2026-08-14): every plan purchase now ALSO includes 1
+ * Connection Pack slot (CRM or ERP — the customer's choice). The entitlement
+ * is recorded on the plan record as `packSlot: { included: true, chosen: null }`.
+ * `chosen` becomes "crm" or "erp" when the tenant redeems the slot through
+ * POST /api/portal/pack-slot (see src/lib/plan-pack-slot.ts); redeeming also
+ * materializes a pack-type record so the existing CRM/ERP slot logic
+ * (connect gate, /api/data/{crm,erp}-slots, consumeCrmErpSlot) works unchanged.
  */
 export function buildPlanPurchase(
   spec: PlanSpec,
@@ -166,6 +174,7 @@ export function buildPlanPurchase(
     productName: spec.productName,
     agentCount: spec.agentCount,
     agentIds,
+    packSlot: { included: true, chosen: null },
     amount,
     stripeSessionId: stripeSessionId || "unknown",
     status: "active",

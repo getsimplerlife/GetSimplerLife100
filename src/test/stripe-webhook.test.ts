@@ -317,5 +317,19 @@ describe("buildPlanPurchase — plan record shape (type + tier + agentIds)", () 
     expect(rec.stripeSessionId).toBe("cs_test_plan_1");
     expect(rec.status).toBe("active");
     expect(rec.purchasedAt).toBeTruthy();
+    // Owner decision 2026-08-14: every plan includes 1 Connection Pack slot
+    // (CRM or ERP — the customer's choice). The entitlement is recorded on
+    // the plan record and redeemed via POST /api/portal/pack-slot.
+    expect(rec.packSlot).toEqual({ included: true, chosen: null });
+  });
+  it("records the pack slot on every tier (Starter / Professional / Enterprise)", () => {
+    for (const spec of [
+      { tier: "starter", productName: "Starter Plan", agentCount: 3 },
+      { tier: "professional", productName: "Professional Plan", agentCount: 8 },
+      { tier: "enterprise", productName: "Enterprise Plan", agentCount: 17 },
+    ]) {
+      const rec = buildPlanPurchase(spec, 1, "cs_x", []) as any;
+      expect(rec.packSlot).toEqual({ included: true, chosen: null });
+    }
   });
 });

@@ -700,14 +700,6 @@ for (let attempt = 1; ; attempt++) {
           }
         }
 
-        // GET /api/billing/portal — redirect to Stripe customer portal
-        if (pathname === "/api/billing/portal" && req.method === "GET") {
-          return new Response(JSON.stringify({ url: "https://buy.stripe.com/14A3cw2EKfRqcF0gEJ3Ru00" }), {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-          });
-        }
-
         // POST /api/upload — upload and process a document
         if (pathname === "/api/upload" && req.method === "POST") {
           try {

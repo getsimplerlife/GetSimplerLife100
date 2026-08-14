@@ -299,6 +299,15 @@ describe("Purchase-flow integrity audit (owner directive: no free stuff)", () =>
         "crm-sync-agent-v1",
         "email-assistant-v1",
       ]);
+      // Owner decision 2026-08-14: every plan includes 1 Connection Pack
+      // slot (CRM or ERP — the customer's choice), redeemed via
+      // /api/portal/pack-slot. Assert the entitlement shape when the record
+      // carries it (post-deploy / branch instance); a legacy server record
+      // without packSlot is tolerated by the audit so the suite stays green
+      // against older deployments.
+      if (recs[0].packSlot) {
+        expect(recs[0].packSlot).toEqual({ included: true, chosen: null });
+      }
     });
 
     it("plan buyer sees EXACTLY the 3 granted agents in the portal employee list", async () => {
@@ -334,20 +343,33 @@ describe("Purchase-flow integrity audit (owner directive: no free stuff)", () =>
       const access = await accessRes.json();
       expect(access.hasAccess).toBe(false);
     });
+    it("F4: plan purchase enables monitoring ingress for that tenant", async () => {
+      // Owner decision 2026-08-14 (F4): ANY successful purchase — including
+      // plans — sets canMonitor true. The plan was purchased above; the
+      // monitoring webhook must now be accepted for this tenant.
+      const monRes = await fetch(`${BASE_URL}/api/monitoring/webhook/hubspot`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ employeeId: "emp-invoice-ledger-ai", eventType: "invoice.created", tenantId: PLAN_EMAIL, payload: { f4plan: true } }),
+      });
+      const mon = await monRes.json();
+      expect(mon.status).toBe("processed");
+      expect(mon.dispatchedTo).toBe("emp-invoice-ledger-ai");
+    });
   });
 
   describe("GENERIC purchase (industry link) — minimal record, no free agent access", () => {
     it("records amount-only and grants NO agents / NO feature access", async () => {
       const sessionId = "cs_audit_generic_" + TS;
       const { status } = await postWebhook(checkoutEvent(
-        GENERIC_EMAIL, sessionId, "https://buy.stripe.com/4gMfZj88TfMz6Hh8TS2Fa1K", 1000,
+        GENERIC_EMAIL, sessionId, "https://buy.stripe.com/4gMfZj88TfMz6Hh8TS2Fa1K", 100,
       ));
       expect(status).toBe(200);
 
       const purchases = readJSONFile(PURCHASES_FILE);
       const recs = purchases[GENERIC_EMAIL] || [];
       expect(recs.length).toBe(1);
-      expect(recs[0].amount).toBe(1000);
+      expect(recs[0].amount).toBe(100);
       expect(recs[0].agentId).toBeUndefined();
 
       const cookie = await registerAndGetCookie(GENERIC_EMAIL);
@@ -363,6 +385,21 @@ describe("Purchase-flow integrity audit (owner directive: no free stuff)", () =>
       const access = await accessRes.json();
       expect(access.hasAccess).toBe(false);
       expect(access.reason).toBe("not purchased");
+    });
+    it("F4: ANY purchase (incl. $1 generic) enables monitoring ingress for that tenant", async () => {
+      // Owner decision 2026-08-14 (F4): a successful purchase of ANY type —
+      // including the $1 generic product — sets canMonitor true for the
+      // tenant (monitoring ingress enabled). Provider ACTIONS stay
+      // connection-gated (unchanged). The $1 generic purchase was recorded
+      // in the test above; the monitoring webhook must now be accepted.
+      const monRes = await fetch(`${BASE_URL}/api/monitoring/webhook/hubspot`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ employeeId: "emp-invoice-ledger-ai", eventType: "invoice.created", tenantId: GENERIC_EMAIL, payload: { f4: true } }),
+      });
+      const mon = await monRes.json();
+      expect(mon.status).toBe("processed");
+      expect(mon.dispatchedTo).toBe("emp-invoice-ledger-ai");
     });
   });
 
