@@ -7,6 +7,7 @@ import { detectPackType, buildPackPurchase, verifyStripeSignature, matchAgentByP
 import { AGENTS } from "./src/data/agents";
 import { initDurableStore, durableEnabled, durableKeyCount, durableStoreStatus, durableSnapshotBackup } from "./src/lib/durable-store";
 import { sweepExpiredTokens, tokenSweepStats } from "./src/lib/token-refresher";
+import { sweepExpiredOAuthStates, OAUTH_STATE_TTL_MS } from "./src/lib/oauth-state-sweeper";
 
 // ── Lazy module accessors — loaded on first use to keep server startup under 1s ──
 let _bcryptjs: any;
@@ -417,6 +418,40 @@ function startBackupSweeper(): void {
   console.log(`[durable-store] backup sweeper started: every ${BACKUP_SNAPSHOT_INTERVAL_MS}ms (first snapshot in 60s)`);
 }
 startBackupSweeper();
+// ── OAuth-state TTL sweeper (owner-approved I3: purge stale CSRF states) ──
+const OAUTH_STATE_SWEEP_INTERVAL_MS = (() => {
+  const n = Number(process.env.OAUTH_STATE_SWEEP_INTERVAL_MS);
+  return Number.isFinite(n) && n > 0 ? n : 60 * 60 * 1000; // hourly default
+})();
+let oauthStateSweepTimer: any = null;
+let oauthStateSweepRunning = false;
+let oauthStateSweepStats = { lastSweep: 0, nextSweep: 0, lastError: "" };
+async function runOAuthStateSweep(): Promise<void> {
+  if (oauthStateSweepRunning) return; // never overlap sweeps
+  oauthStateSweepRunning = true;
+  try {
+    const result = sweepExpiredOAuthStates(DATA_DIR, OAUTH_STATE_TTL_MS);
+    console.log(`[oauth-state-sweeper] sweep done: checked=${result.checked} removed=${result.removed} ttlMs=${result.ttlMs}` + (result.errors.length ? ` errors=${result.errors.length}` : ""));
+  } catch (e: any) {
+    oauthStateSweepStats.lastError = e?.message || String(e);
+    console.log("[oauth-state-sweeper] sweep error: " + (e?.message || String(e)));
+  } finally {
+    oauthStateSweepRunning = false;
+    oauthStateSweepStats.lastSweep = Date.now();
+    oauthStateSweepStats.nextSweep = Date.now() + OAUTH_STATE_SWEEP_INTERVAL_MS;
+  }
+}
+function startOAuthStateSweeper(): void {
+  if (oauthStateSweepTimer) return;
+  oauthStateSweepTimer = setInterval(() => { void runOAuthStateSweep(); }, OAUTH_STATE_SWEEP_INTERVAL_MS);
+  if (oauthStateSweepTimer?.unref) oauthStateSweepTimer.unref();
+  oauthStateSweepStats.nextSweep = Date.now() + OAUTH_STATE_SWEEP_INTERVAL_MS;
+  const first = setTimeout(() => { void runOAuthStateSweep(); }, 60_000);
+  if (first?.unref) first.unref();
+  console.log(`[oauth-state-sweeper] sweeper started: every ${OAUTH_STATE_SWEEP_INTERVAL_MS}ms (first sweep in 60s)`);
+}
+startOAuthStateSweeper();
+
 if (!process.env.STRIPE_WEBHOOK_SECRET) {
   console.log("[prod-server] WARNING: STRIPE_WEBHOOK_SECRET is not set — /api/stripe/webhook and /api/stripe-webhook accept unsigned payloads (a forged checkout.session.completed could mark any email as purchased). Set STRIPE_WEBHOOK_SECRET before launch; the handler is signature-verification-ready.");
 }

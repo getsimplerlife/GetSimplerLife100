@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { join } from "path";
 import { createHmac } from "crypto";
 import { clearTenants, configureTenant, canMonitor, hydrateTenants } from "../monitoring/gates";
+import { ensureTestServer, testBaseUrl, testDataDir } from "./test-env";
 /**
  * Owner-decisions batch tests (2026-08-14):
  *   F4 — ANY successful purchase (incl. the $1 generic product) enables
@@ -25,18 +26,20 @@ function readRepoFile(rel: string): string {
   return readFileSync(join(process.cwd(), rel), "utf-8");
 }
 
-describe("F5 — orphaned /api/billing/portal stub removed from serve.ts", () => {
-  const serveSrc = readRepoFile("serve.ts");
+describe("F5 — dead serve.ts removed entirely (owner-approved I5)", () => {
   const prodSrc = readRepoFile("prod-server.ts");
-  it("serve.ts no longer contains the /api/billing/portal stub", () => {
-    expect(serveSrc).not.toContain("/api/billing/portal");
-    expect(serveSrc).not.toContain("buy.stripe.com/14A3cw2EKfRqcF0gEJ3Ru00");
+  it("serve.ts no longer exists in the repo", () => {
+    expect(existsSync(join(process.cwd(), "serve.ts"))).toBe(false);
   });
-  it("payment webhook paths are untouched in serve.ts and prod-server.ts", () => {
-    expect(serveSrc).toContain("/api/stripe-webhook");
-    expect(serveSrc).toContain("/api/stripe/webhook");
+  it("prod-server.ts is the only server and keeps both payment webhook paths", () => {
     expect(prodSrc).toContain("/api/stripe-webhook");
     expect(prodSrc).toContain("/api/stripe/webhook");
+  });
+  it("no file imports serve.ts", () => {
+    // Any lingering importer would have broken the build; assert none reference it.
+    const { execSync } = require("child_process");
+    const hits = execSync(`grep -rn "from \\"./serve\\"\\|from '\\./serve'\\|serve\\.ts" --include="*.ts" --include="*.tsx" --include="*.js" --exclude="owner-decisions.test.ts" --exclude="documentProcessor.ts" src package.json 2>/dev/null || true`, { encoding: "utf-8" });
+    expect(hits.trim()).toBe("");
   });
 });
 
@@ -82,8 +85,8 @@ describe("F4 — ANY purchase enables monitoring ingress (owner decision: YES)",
 });
 
 // ── Pack-slot endpoint e2e (probe-based) ──────────────────────────────
-const TEST_DATA_DIR = process.env.TEST_DATA_DIR || join(process.cwd(), ".data");
-const BASE_URL = process.env.TEST_BASE_URL || "http://localhost:3000";
+const TEST_DATA_DIR = testDataDir();
+const BASE_URL = testBaseUrl();
 const PASSWORD = "owner-decisions-pass";
 const TS = Date.now();
 const PACK_SLOT_EMAIL = "pack-slot@" + TS + ".test";
@@ -179,6 +182,7 @@ function removeTestRecords() {
 describe("Pack-slot redemption endpoint (plan-included Connection Pack)", () => {
   let cookie: string | null = null;
   beforeAll(async () => {
+    await ensureTestServer();
     for (const dir of [TEST_DATA_DIR]) if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
     serverEnforcesSignatures = await probeSignatureEnforcement();
     if (serverEnforcesSignatures && !WEBHOOK_SECRET) {
