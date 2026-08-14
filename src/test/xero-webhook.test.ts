@@ -159,6 +159,24 @@ describe("handleXeroWebhook — POST events", () => {
     expect(d.dispatched[0].payload).toMatchObject({ capabilityId: "xero-monitor-bill-created" });
   });
 
+  it("accepts the HMAC when Xero sends it in the Xero-Webhook-Signature header (documented scheme)", async () => {
+    const d = deps();
+    const rawBody = JSON.stringify({ events: [{ eventType: "BILL.CREATED", resourceId: "bill-sig-1", tenantId: "org-1" }] });
+    const sig = await computeXeroWebhookSignature(rawBody, WEBHOOK_KEY);
+    const response = await handleXeroWebhook(
+      new Request("https://example.test/api/monitoring/webhook/xero", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Xero-Webhook-Signature": sig },
+        body: rawBody,
+      }),
+      d,
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.outcomes[0]).toMatchObject({ capabilityId: "xero-monitor-bill-created", status: "processed" });
+    expect(d.receipts[0]).toMatchObject({ capabilityId: "xero-monitor-bill-created" });
+  });
+
   it("rejects a wrong signature with 401 and never dispatches", async () => {
     const d = deps();
     const response = await handleXeroWebhook(

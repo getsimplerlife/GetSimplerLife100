@@ -32,6 +32,11 @@ import type { EventOutcome, MonitoredEvent } from "./types";
 
 /** Header Xero uses for both the handshake key and the HMAC signature. */
 export const XERO_WEBHOOK_HEADER = "xero-webhook-key";
+/**
+ * Xero's docs also send the base64 HMAC-SHA256 signature of the raw body in a
+ * `Xero-Webhook-Signature` header — accepted as a fallback for POST events.
+ */
+export const XERO_WEBHOOK_SIGNATURE_HEADER = "xero-webhook-signature";
 /** Canonical Xero connections API host (never guessed). */
 export const XERO_CONNECTIONS_URL = "https://api.xero.com/connections";
 /** Employee that owns the Xero monitor capability contracts. */
@@ -196,8 +201,11 @@ export async function handleXeroWebhook(req: Request, deps: XeroWebhookDeps): Pr
     return Response.json({ error: "Failed to read body" }, { status: 400 });
   }
 
-  const headerValue = req.headers.get(XERO_WEBHOOK_HEADER);
-  const valid = await verifyXeroWebhookSignature(rawBody, headerValue, webhookKey);
+  const keyHeaderValue = req.headers.get(XERO_WEBHOOK_HEADER);
+  const sigHeaderValue = req.headers.get(XERO_WEBHOOK_SIGNATURE_HEADER);
+  const valid =
+    (await verifyXeroWebhookSignature(rawBody, keyHeaderValue, webhookKey)) ||
+    (sigHeaderValue ? await verifyXeroWebhookSignature(rawBody, sigHeaderValue, webhookKey) : false);
   if (!valid) {
     console.error("[monitor] Xero webhook signature rejected");
     return Response.json({ error: "Invalid Xero-Webhook-Key header" }, { status: 401 });
