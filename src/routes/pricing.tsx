@@ -71,7 +71,7 @@ function PricingPage() {
               )}
               <h3 className="text-lg font-bold text-white">{tier.name}</h3>
               <div className="mt-3 mb-4">
-                <span className="text-3xl font-black text-white">${(tier.price / 1000).toFixed(0)}k</span>
+                <span className="text-3xl font-black text-white">${tier.price.toLocaleString("en-US")}</span>
                 <span className="text-stone-500 text-sm"> one-time</span>
               </div>
               <p className="text-stone-400 text-sm mb-4">{tier.desc}</p>
