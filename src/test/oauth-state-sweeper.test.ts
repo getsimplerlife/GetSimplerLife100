@@ -53,10 +53,15 @@ describe("sweepExpiredOAuthStates — TTL behavior", () => {
   });
 
   it("keeps an entry exactly at the TTL boundary (strictly-older rule)", () => {
+    // Use a fixed reference time so the boundary is deterministic — under
+    // load, the ms elapsed between writing createdAt=Date.now()-TTL and the
+    // sweep's own Date.now() used to push the entry past the boundary and
+    // remove it (pre-existing flake).
+    const now = Date.now();
     writeStates(dir, {
-      boundary: { provider: "hubspot", createdAt: Date.now() - TTL },
+      boundary: { provider: "hubspot", createdAt: now - TTL },
     });
-    const result = sweepExpiredOAuthStates(dir);
+    const result = sweepExpiredOAuthStates(dir, TTL, now);
     expect(result.removed).toBe(0);
     expect(readStates(dir)).toHaveProperty("boundary");
   });

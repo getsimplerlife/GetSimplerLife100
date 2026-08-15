@@ -28,10 +28,13 @@ export const OAUTH_STATE_TTL_MS = 24 * 60 * 60 * 1000; // 24h
 /**
  * Purge OAuth states older than ttlMs from `oauth_states.json` in `dataDir`.
  * Idempotent: a second run with the same TTL removes nothing more.
+ *
+ * `nowMs` is injectable for deterministic tests (defaults to Date.now()).
  */
 export function sweepExpiredOAuthStates(
   dataDir: string,
   ttlMs: number = OAUTH_STATE_TTL_MS,
+  nowMs: number = Date.now(),
 ): OAuthStateSweepResult {
   const file = join(dataDir, "oauth_states.json");
   const result: OAuthStateSweepResult = { checked: 0, removed: 0, ttlMs, errors: [] };
@@ -42,7 +45,7 @@ export function sweepExpiredOAuthStates(
     if (!states || typeof states !== "object" || Array.isArray(states)) {
       return result;
     }
-    const now = Date.now();
+    const now = nowMs;
     const kept: Record<string, unknown> = {};
     let removed = 0;
     for (const [state, entry] of Object.entries(states)) {
