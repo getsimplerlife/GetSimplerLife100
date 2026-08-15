@@ -1,0 +1,8 @@
+# Canonical suite timing — raise bun's native test timeout to match
+# vitest.config.ts (testTimeout 30s / hookTimeout 60s). Bun's default
+# per-test timeout is 5000ms, which is too short for the self-hosted
+# test server cold-boot on a loaded box (caused beforeAll hook timeouts
+# in purchase/health/pack-slot tests). vitest reads its own config; this
+# file only affects `bun test` (native runner).
+[test]
+timeout = 30000
