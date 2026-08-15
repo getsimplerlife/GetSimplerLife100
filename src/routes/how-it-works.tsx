@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { createServerFn } from '~/lib/server-fn-polyfill';
 import { getUser } from '~/db/queries';
+import { pageHead } from "~/lib/site-meta";
 
 const getPageData = createServerFn({ method: 'GET' }).handler(async () => {
   let businessName = 'Simpler Life 100';
@@ -19,12 +20,7 @@ const getPageData = createServerFn({ method: 'GET' }).handler(async () => {
 });
 
 export const Route = createFileRoute('/how-it-works')({
-  head: () => ({
-    meta: [
-      { title: "How It Works | Simpler Life 100" },
-      { name: "description", content: "Purchase AI employees, deploy instantly, and connect to 180+ integration providers via OAuth or API key. See how Simpler Life 100 works." },
-    ],
-  }),
+  head: () => pageHead("/how-it-works"),
   loader: () => getPageData(),
   component: HowItWorksPage,
 });

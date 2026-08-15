@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { RicherROICalculator } from "~/components/RicherROICalculator";
+import { pageHead } from "~/lib/site-meta";
 
 export const Route = createFileRoute("/roi-calculator")({
-  head: () => ({ meta: [{ title: "ROI Calculator | Simpler Life 100" }, { name: "description", content: "Calculate your automation ROI. Estimate how much time and money AI employees can save your operations team." }] }),
+  head: () => pageHead("/roi-calculator"),
 
   component: ROICalculatorPage,
 });

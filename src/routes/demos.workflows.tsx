@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { pageHead } from "~/lib/site-meta";
 
 export const Route = createFileRoute("/demos/workflows")({
+  head: () => pageHead("/demos/workflows"),
   component: WorkflowsDemoPage,
 });
 

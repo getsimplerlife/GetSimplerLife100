@@ -182,8 +182,10 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }
               <h3 className="text-lg font-black text-stone-900 dark:text-white">{title}</h3>
             ) : <div />}
             <button
+              type="button"
               onClick={onClose}
-              className="rounded-lg p-1 text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800 hover:text-stone-500 focus:outline-none transition-colors"
+              aria-label="Close dialog"
+              className="rounded-lg p-1 text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800 hover:text-stone-500 transition-colors"
             >
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />

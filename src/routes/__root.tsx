@@ -9,37 +9,7 @@ import { useEffect } from "react";
 import type { ReactNode } from "react";
 
 import "~/styles/app.css";
-
-// Page-specific titles (path prefix → title)
-const PAGE_TITLES: Record<string, { title: string; description: string }> = {
-  "/about": { title: "About Simpler Life 100 | Our Mission", description: "We build AI operations teams to liberate people from repetitive manual work." },
-  "/contact": { title: "Contact Simpler Life 100 | Get in Touch", description: "Get in touch with the Simpler Life 100 team." },
-  "/faq": { title: "FAQ | Simpler Life 100 AI Employees", description: "Frequently asked questions about AI employees, pricing, integrations, and deployment." },
-  "/features": { title: "Features | Simpler Life 100 AI Operations Teams", description: "AI employees that understand your systems, monitor them, and automate client-requested tasks — with cross-workspace files, a client portal, and fail-closed security." },
-  "/how-it-works": { title: "How It Works | Simpler Life 100", description: "Purchase AI employees, deploy instantly, and connect to 180+ integration providers." },
-  "/build": { title: "Build Your AI Team | Simpler Life 100", description: "Build your custom AI Operations Team. Choose from 17 AI agents across 3 builder packages." },
-  "/case-studies": { title: "Case Studies | Simpler Life 100", description: "Real results from AI Operations Teams across logistics, manufacturing, healthcare, and retail." },
-  "/support": { title: "Support | Simpler Life 100", description: "Get help with your AI Operations Team. Contact support or schedule a consultation." },
-  "/industries": { title: "Industries | Simpler Life 100", description: "Industry-specific AI Operations Teams for 23 verticals." },
-  "/pricing": { title: "Pricing | Simpler Life 100 AI Employees", description: "AI Operations Teams starting at $499/mo. 180+ integrations." },
-  "/demo": { title: "Request a Demo | Simpler Life 100", description: "See Simpler Life 100 in action. Request a personalized demo." },
-  "/login": { title: "Login | Simpler Life 100", description: "Login to your Simpler Life 100 account." },
-  "/register": { title: "Register | Simpler Life 100", description: "Create your Simpler Life 100 account." },
-  "/set-password": { title: "Set Password | Simpler Life 100", description: "Set your account password." },
-  "/tools": { title: "AI Operations Tools | Simpler Life 100", description: "Interactive tools to assess and plan your AI automation." },
-  "/roi-calculator": { title: "ROI Calculator | Simpler Life 100", description: "Calculate your ROI from AI operations automation." },
-};
-
-function resolvePageMeta(pathname: string) {
-  if (!pathname) return null;
-  if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname];
-  for (const [prefix, meta] of Object.entries(PAGE_TITLES)) {
-    if (pathname.startsWith(prefix + "/") || pathname.startsWith(prefix + "?")) {
-      return meta;
-    }
-  }
-  return null;
-}
+import { resolvePageMeta } from "~/lib/site-meta";
 
 function ErrorComponent({ error, info }: { error: Error; info?: { componentStack: string } }) {
   // Log to window.__errors so the debugger in index.html captures it

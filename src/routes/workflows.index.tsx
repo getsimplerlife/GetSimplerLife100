@@ -1,8 +1,10 @@
 import { useState, useMemo } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { automationLibrary, type AutomationCard } from "../content/automation-library";
+import { pageHead } from "~/lib/site-meta";
 
 export const Route = createFileRoute("/workflows/")({
+  head: () => pageHead("/workflows"),
   component: AutomationLibraryPage,
 });
 

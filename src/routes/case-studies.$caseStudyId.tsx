@@ -1,8 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router';
 import CaseStudyPage from '~/components/CaseStudyPage';
 import { caseStudies } from '~/content/case-studies';
+import { pageHead } from "~/lib/site-meta";
 
 export const Route = createFileRoute('/case-studies/$caseStudyId')({
+  head: () => pageHead("/case-studies"),
   component: CaseStudyRoutePage,
   notFoundComponent: () => <div className="text-center py-20 text-stone-400">Case study not found</div>,
 });

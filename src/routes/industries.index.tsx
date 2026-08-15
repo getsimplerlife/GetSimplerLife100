@@ -4,6 +4,7 @@ import { Header } from '~/components/Header';
 import { Footer } from '~/components/Footer';
 import { industries } from '~/content/industries';
 import { getUser } from '~/db/queries';
+import { pageHead } from "~/lib/site-meta";
 
 const getPageData = createServerFn({ method: 'GET' }).handler(async () => {
   let businessName = 'Simpler Life 100';
@@ -21,12 +22,7 @@ const getPageData = createServerFn({ method: 'GET' }).handler(async () => {
 });
 
 export const Route = createFileRoute('/industries/')({
-  head: () => ({
-    meta: [
-      { title: "Industries | Simpler Life 100" },
-      { name: "description", content: "Industry-specific AI Operations Teams for 23 verticals. From logistics to healthcare, deploy AI employees that understand your domain." },
-    ],
-  }),
+  head: () => pageHead("/industries"),
   loader: () => getPageData(),
   component: IndustriesIndexPage,
 });

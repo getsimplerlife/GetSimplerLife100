@@ -1,17 +1,8 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
+import { pageHead } from "~/lib/site-meta";
 
 export const Route = createFileRoute('/features')({
-  head: () => ({
-    meta: [
-      { title: 'Features | Simpler Life 100 AI Operations Teams' },
-      { name: 'description', content: 'AI employees that understand your systems, monitor them, and automate client-requested tasks — with cross-workspace files, a client portal, and fail-closed security.' },
-      { property: 'og:title', content: 'Features | Simpler Life 100 AI Operations Teams' },
-      { property: 'og:description', content: 'AI employees that understand, monitor, and safely automate across your operations. Real results, no complexity.' },
-      { property: 'og:type', content: 'website' },
-      { property: 'og:url', content: 'https://simplerlife100.ctonew.app/features' },
-      { name: 'twitter:card', content: 'summary_large_image' },
-    ],
-  }),
+  head: () => pageHead("/features"),
   component: FeaturesPage,
 });
 

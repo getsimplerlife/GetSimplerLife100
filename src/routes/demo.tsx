@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { pageHead } from "~/lib/site-meta";
 
 export const Route = createFileRoute("/demo")({
-  head: () => ({ meta: [{ title: "Request a Demo | Simpler Life 100" }, { name: "description", content: "See Simpler Life 100 in action. Request a personalized demo of AI Operations Teams for your industry." }] }),
+  head: () => pageHead("/demo"),
 
   component: PortalDemoPage,
 });

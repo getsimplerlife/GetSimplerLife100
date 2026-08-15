@@ -2,9 +2,10 @@ import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Header } from "~/components/Header";
 import { Footer } from "~/components/Footer";
+import { pageHead } from "~/lib/site-meta";
 
 export const Route = createFileRoute("/tools/can-we-automate-this")({
-  head: () => ({ meta: [{ title: "Can We Automate This? | Simpler Life 100" }, { name: "description", content: "Describe any repetitive workflow and our AI will match it to the right automation agent. Free tool, no signup." }] }),
+  head: () => pageHead("/tools/can-we-automate-this"),
 
   component: CanWeAutomateThis,
 });

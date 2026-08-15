@@ -2,14 +2,10 @@ import { useState } from 'react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { Header } from '~/components/Header';
 import { Footer } from '~/components/Footer';
+import { pageHead } from "~/lib/site-meta";
 
 export const Route = createFileRoute('/build')({
-  head: () => ({
-    meta: [
-      { title: "Build Your AI Team | Simpler Life 100" },
-      { name: "description", content: "Build your custom AI Operations Team. Choose from 17 AI agents across 3 builder packages with instant deployment and 180+ integrations." },
-    ],
-  }),
+  head: () => pageHead("/build"),
   component: BuildBuilder,
 });
 

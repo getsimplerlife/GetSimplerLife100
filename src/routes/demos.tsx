@@ -1,5 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-export const Route = createFileRoute("/demos")({ component: DemosHub });
+import { pageHead } from "~/lib/site-meta";
+export const Route = createFileRoute("/demos")({
+  head: () => pageHead("/demos"),
+  component: DemosHub,
+});
 function DemosHub() {
   return (
     <div className="min-h-screen bg-stone-950 text-stone-100">

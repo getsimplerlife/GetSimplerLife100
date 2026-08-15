@@ -4,9 +4,10 @@ import { Header } from "~/components/Header";
 import { Footer } from "~/components/Footer";
 import { assessmentQuestions, runAssessment, generateReportText, type AssessmentAnswers, type AssessmentReport } from "../tools/assessment-engine";
 import { workflows } from "../content/workflows";
+import { pageHead } from "~/lib/site-meta";
 
 export const Route = createFileRoute("/tools/assessment")({
-  head: () => ({ meta: [{ title: "AI Automation Assessment | Simpler Life 100" }, { name: "description", content: "Discover which AI agents can automate your workflows. Free assessment, no signup." }] }),
+  head: () => pageHead("/tools/assessment"),
 
   component: AutomationAssessment,
 });
