@@ -1,17 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
+import { pageHead } from "~/lib/site-meta";
 
 export const Route = createFileRoute("/login")({
-  head: () => ({ meta: [
-    { title: "Login | Simpler Life 100" },
-    { name: "description", content: "Sign in to your Simpler Life 100 portal to manage your AI employees, workflows, and integrations." },
-    { property: "og:title", content: "Login | Simpler Life 100" },
-    { property: "og:description", content: "Sign in to your Simpler Life 100 portal to manage your AI employees, workflows, and integrations." },
-    { property: "og:type", content: "website" },
-    { property: "og:url", content: "https://simplerlife100.ctonew.app/login" },
-    { property: "og:site_name", content: "Simpler Life 100" },
-    { name: "twitter:card", content: "summary_large_image" },
-  ] }),
+  head: () => pageHead("/login"),
 
   component: Login,
 });
@@ -68,9 +60,9 @@ function Login() {
               </span>
             </Link>
           </div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-stone-900 tracking-tight">
+          <h1 className="mt-6 text-center text-3xl font-extrabold text-stone-900 tracking-tight">
             Welcome back
-          </h2>
+          </h1>
           <p className="mt-2 text-center text-sm text-stone-600">
             Or{" "}
             <Link

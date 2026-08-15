@@ -2,14 +2,10 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { caseStudies } from '~/content/case-studies';
 import { Header } from '~/components/Header';
 import { Footer } from '~/components/Footer';
+import { pageHead } from "~/lib/site-meta";
 
 export const Route = createFileRoute('/case-studies/')({
-  head: () => ({
-    meta: [
-      { title: "Case Studies | Simpler Life 100" },
-      { name: "description", content: "Real results from AI Operations Teams. See how companies in logistics, manufacturing, healthcare, and retail automated their operations." },
-    ],
-  }),
+  head: () => pageHead("/case-studies"),
   component: CaseStudiesIndexPage,
 });
 

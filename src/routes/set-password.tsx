@@ -1,7 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
+import { pageHead } from "~/lib/site-meta";
 
 export const Route = createFileRoute("/set-password")({
+  head: () => pageHead("/set-password"),
   component: SetPassword,
 });
 
@@ -66,7 +68,7 @@ function SetPassword() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h2 className="mt-3 text-2xl font-bold text-gray-900">Password Set!</h2>
+            <h1 className="mt-3 text-2xl font-bold text-gray-900">Password Set!</h1>
             <p className="mt-2 text-gray-600">Your password has been successfully updated. You can now sign in to your portal.</p>
             <div className="mt-6">
                 <Link to="/login" className="text-emerald-600 hover:text-emerald-500 font-medium">
@@ -82,9 +84,9 @@ function SetPassword() {
     <div className="min-h-screen flex items-center justify-center bg-stone-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8 bg-white p-10 rounded-2xl shadow-sm border">
         <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+          <h1 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
                         Set Your Password
-                      </h2>
+                      </h1>
                       <p className="mt-2 text-center text-sm text-gray-600">
                         Enter your email and choose a new password. Works for first-time logins and password resets.
                       </p>

@@ -1,8 +1,10 @@
 import { useState, useMemo, useEffect } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { integrations, type Integration } from "../content/integrations";
+import { pageHead } from "~/lib/site-meta";
 
 export const Route = createFileRoute("/integrations/")({
+  head: () => pageHead("/integrations"),
   component: IntegrationExplorerPage,
 });
 

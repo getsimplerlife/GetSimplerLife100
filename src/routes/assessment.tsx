@@ -1,13 +1,15 @@
 import { useState, useRef } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { 
-  assessmentQuestions, 
-  runAssessment, 
-  type AssessmentAnswers, 
-  type AssessmentReport 
+import { pageHead } from "~/lib/site-meta";
+import {
+  assessmentQuestions,
+  runAssessment,
+  type AssessmentAnswers,
+  type AssessmentReport
 } from "../tools/assessment-engine";
 
 export const Route = createFileRoute("/assessment")({
+  head: () => pageHead("/assessment"),
   component: AssessmentPage,
 });
 

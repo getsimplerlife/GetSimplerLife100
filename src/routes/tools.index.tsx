@@ -3,14 +3,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { analyzeDescription } from "../tools/automation-analyzer";
 import { Header } from "~/components/Header";
 import { Footer } from "~/components/Footer";
+import { pageHead } from "~/lib/site-meta";
 
 export const Route = createFileRoute("/tools/")({
-  head: () => ({
-    meta: [
-      { title: "Free AI Productivity Tools | Simpler Life 100" },
-      { name: "description", content: "Free AI-powered tools for operations teams. Analyze workflows, estimate savings, and discover automation opportunities — no signup required." },
-    ],
-  }),
+  head: () => pageHead("/tools"),
   component: ToolsHub,
 });
 

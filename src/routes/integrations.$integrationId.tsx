@@ -1,8 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router';
 import IntegrationPage from '~/components/IntegrationPage';
 import { integrations } from '~/content/integrations';
+import { pageHead } from "~/lib/site-meta";
 
 export const Route = createFileRoute('/integrations/$integrationId')({
+  head: () => pageHead("/integrations"),
   component: IntegrationRoutePage,
   notFoundComponent: () => <div className="text-center py-20 text-stone-400">Integration not found</div>,
 });

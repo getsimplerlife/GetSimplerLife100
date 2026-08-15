@@ -1,14 +1,10 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { Header } from '~/components/Header';
 import { Footer } from '~/components/Footer';
+import { pageHead } from "~/lib/site-meta";
 
 export const Route = createFileRoute('/support')({
-  head: () => ({
-    meta: [
-      { title: "Support | Simpler Life 100" },
-      { name: "description", content: "Get help with your AI Operations Team. Contact support, browse documentation, or schedule a consultation with our team." },
-    ],
-  }),
+  head: () => pageHead("/support"),
   component: SupportPage,
 });
 

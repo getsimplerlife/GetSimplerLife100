@@ -1,14 +1,10 @@
 import { useState } from 'react';
 import { Link, createFileRoute } from '@tanstack/react-router';
 import { getUser, submitLead } from '~/db/queries';
+import { pageHead } from "~/lib/site-meta";
 
 export const Route = createFileRoute('/contact')({
-  head: () => ({
-    meta: [
-      { title: "Contact Simpler Life 100 | Get in Touch" },
-      { name: "description", content: "Get in touch with the Simpler Life 100 team. Schedule a demo, ask about AI employees, or discuss custom automation for your industry." },
-    ],
-  }),
+  head: () => pageHead("/contact"),
   loader: async () => {
     const user = await getUser();
     return { user };

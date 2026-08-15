@@ -3,6 +3,7 @@ import { createServerFn } from '~/lib/server-fn-polyfill';
 import { Header } from "~/components/Header";
 import { Footer } from "~/components/Footer";
 import { getUser } from '~/db/queries';
+import { pageHead } from "~/lib/site-meta";
 
 const getPageData = createServerFn({ method: 'GET' }).handler(async () => {
   let businessName = 'Simpler Life 100';
@@ -21,12 +22,7 @@ const getPageData = createServerFn({ method: 'GET' }).handler(async () => {
 });
 
 export const Route = createFileRoute('/faq')({
-  head: () => ({
-    meta: [
-      { title: "FAQ | Simpler Life 100 AI Employees" },
-      { name: "description", content: "Frequently asked questions about AI employees, pricing, integrations, deployment, and how Simpler Life 100 automates your operations." },
-    ],
-  }),
+  head: () => pageHead("/faq"),
   loader: () => getPageData(),
   component: FaqPage,
 });

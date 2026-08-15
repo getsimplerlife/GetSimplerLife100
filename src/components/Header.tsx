@@ -48,7 +48,7 @@ export function Header({ businessName, user }: HeaderProps) {
 
         <nav className="hidden lg:flex gap-5 xl:gap-8 items-center">
           <div className="relative group">
-            <button className={`text-sm font-bold transition-colors flex items-center gap-1 cursor-pointer ${
+            <button type="button" aria-haspopup="true" className={`text-sm font-bold transition-colors flex items-center gap-1 cursor-pointer ${
               location.pathname.startsWith("/industries") ? "text-emerald-500" : "text-stone-400 hover:text-white"
             }`}>
               Industries
@@ -56,7 +56,7 @@ export function Header({ businessName, user }: HeaderProps) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
             </button>
-            <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+            <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus-within:opacity-100 group-focus-within:visible transition-all duration-200">
               <div className="bg-stone-900 border border-stone-800 rounded-xl shadow-xl shadow-black/30 p-2 min-w-[220px] max-h-[60vh] overflow-y-auto space-y-0.5">
                 <Link to="/industries" className="block px-3.5 py-2 text-sm font-bold rounded-lg text-stone-300 hover:text-white hover:bg-stone-800 transition-colors">
                   📂 All Industries
@@ -73,7 +73,7 @@ export function Header({ businessName, user }: HeaderProps) {
           </div>
 
           <div className="relative group">
-            <button className={`text-sm font-bold transition-colors flex items-center gap-1 cursor-pointer ${
+            <button type="button" aria-haspopup="true" className={`text-sm font-bold transition-colors flex items-center gap-1 cursor-pointer ${
               ["/tools", "/tools/", "/roi-calculator"].some(p => location.pathname.startsWith(p))
                 ? "text-emerald-500" : "text-stone-400 hover:text-white"
             }`}>
@@ -82,7 +82,7 @@ export function Header({ businessName, user }: HeaderProps) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
             </button>
-            <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+            <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus-within:opacity-100 group-focus-within:visible transition-all duration-200">
               <div className="bg-stone-900 border border-stone-800 rounded-xl shadow-xl shadow-black/30 p-2 min-w-[210px] space-y-0.5">
                 {toolLinks.map((link) => (
                   <Link key={link.to} to={link.to}
@@ -100,7 +100,7 @@ export function Header({ businessName, user }: HeaderProps) {
           <Link to="/features" className={navLinkClass("/features")}>Features</Link>
 
           <div className="relative group">
-            <button className={`text-sm font-bold transition-colors flex items-center gap-1 cursor-pointer ${
+            <button type="button" aria-haspopup="true" className={`text-sm font-bold transition-colors flex items-center gap-1 cursor-pointer ${
               ["/faq", "/about", "/contact", "/how-it-works", "/support"].some(p => location.pathname === p)
                 ? "text-emerald-500" : "text-stone-400 hover:text-white"
             }`}>
@@ -109,7 +109,7 @@ export function Header({ businessName, user }: HeaderProps) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
             </button>
-            <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+            <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus-within:opacity-100 group-focus-within:visible transition-all duration-200">
               <div className="bg-stone-900 border border-stone-800 rounded-xl shadow-xl shadow-black/30 p-2 min-w-[180px] space-y-0.5">
                 {faqLinks.map((link) => (
                   <Link key={link.to} to={link.to}
@@ -133,7 +133,7 @@ export function Header({ businessName, user }: HeaderProps) {
           )}
         </nav>
 
-        <button onClick={() => setMenuOpen(!menuOpen)} className="lg:hidden p-2 text-stone-400 hover:text-white transition-colors" aria-label="Toggle menu">
+        <button type="button" onClick={() => setMenuOpen(!menuOpen)} aria-expanded={menuOpen} className="lg:hidden p-2 text-stone-400 hover:text-white transition-colors" aria-label="Toggle menu">
           {menuOpen ? (
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
           ) : (

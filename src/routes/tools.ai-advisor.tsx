@@ -3,9 +3,10 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Header } from "~/components/Header";
 import { Footer } from "~/components/Footer";
 import { analyzeDescription, getFollowUpQuestions } from "../tools/automation-analyzer";
+import { pageHead } from "~/lib/site-meta";
 
 export const Route = createFileRoute("/tools/ai-advisor")({
-  head: () => ({ meta: [{ title: "AI Operations Advisor | Simpler Life 100" }, { name: "description", content: "Tell us about your team's pain points. Our AI identifies automation opportunities and estimates your savings." }] }),
+  head: () => pageHead("/tools/ai-advisor"),
 
   component: AIAdvisor,
 });
