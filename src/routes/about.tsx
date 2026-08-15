@@ -20,7 +20,7 @@ const getPageData = createServerFn({ method: 'GET' }).handler(async () => {
 });
 
 export const Route = createFileRoute('/about')({
-  head: () => pageHead("/about"),,
+  head: () => pageHead("/about"),
   loader: () => getPageData(),
   component: AboutPage,
 });

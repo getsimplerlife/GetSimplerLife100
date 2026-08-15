@@ -2,7 +2,7 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { pageHead } from "~/lib/site-meta";
 
 export const Route = createFileRoute('/features')({
-  head: () => pageHead("/features"),,
+  head: () => pageHead("/features"),
   component: FeaturesPage,
 });
 

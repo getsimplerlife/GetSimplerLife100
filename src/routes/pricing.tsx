@@ -4,7 +4,7 @@ import { Footer } from "~/components/Footer";
 import { pageHead } from "~/lib/site-meta";
 
 export const Route = createFileRoute("/pricing")({
-  head: () => pageHead("/pricing"),,
+  head: () => pageHead("/pricing"),
   component: PricingPage,
 });
 
