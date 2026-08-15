@@ -58,6 +58,9 @@ export const REFRESH_REGISTRY: Record<string, OAuthRefreshDef> = {
   "microsoft-word": { tokenUrl: "https://login.microsoftonline.com/common/oauth2/v2.0/token" },
   "microsoft-excel": { tokenUrl: "https://login.microsoftonline.com/common/oauth2/v2.0/token" },
   "microsoft-powerpoint": { tokenUrl: "https://login.microsoftonline.com/common/oauth2/v2.0/token" },
+  // Audited: src/integrations/providers/docusign/auth.ts → tokenUrl (authorization_code
+  // grant; form-encoded client creds proven by the working connect token exchange)
+  docusign: { tokenUrl: "https://account-d.docusign.com/oauth/token" },
 };
 
 /** True when this provider has an audited refresh path (fail-closed gate). */

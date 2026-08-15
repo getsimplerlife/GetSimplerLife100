@@ -32,7 +32,7 @@ beforeEach(() => {
   now = Date.now();
   // Deterministic env: no provider client credentials in env for these tests.
   for (const k of Object.keys(process.env)) {
-    if (/^(OAUTH_)?(XERO|HUBSPOT)_CLIENT_(ID|SECRET)$/.test(k)) delete process.env[k];
+    if (/^(OAUTH_)?(XERO|HUBSPOT|DOCUSIGN)_CLIENT_(ID|SECRET)$/.test(k)) delete process.env[k];
   }
   tokenSweepStats.lastSweep = 0;
   tokenSweepStats.nextSweep = 0;
@@ -117,12 +117,14 @@ describe("token refresher — needsRefresh policy", () => {
 });
 
 describe("token refresher — registry fail-closed", () => {
-  it("only audited providers are registered (xero, hubspot)", () => {
+  it("only audited providers are registered (xero, hubspot, docusign)", () => {
     expect(isRefreshProvider("xero")).toBe(true);
     expect(isRefreshProvider("hubspot")).toBe(true);
+    expect(isRefreshProvider("docusign")).toBe(true);
     expect(isRefreshProvider("mystery")).toBe(false);
     expect(REFRESH_REGISTRY.xero.tokenUrl).toBe("https://identity.xero.com/connect/token");
     expect(REFRESH_REGISTRY.hubspot.tokenUrl).toBe("https://api.hubapi.com/oauth/v1/token");
+    expect(REFRESH_REGISTRY.docusign.tokenUrl).toBe("https://account-d.docusign.com/oauth/token");
   });
 });
 
@@ -172,6 +174,61 @@ describe("token refresher — sweep", () => {
     expect(dbConns[0].lastSync).toBe(new Date(now).toISOString());
   });
 
+  it("docusign near-expiry → refresh against audited tokenUrl, rotated refresh token persisted", async () => {
+    const dir = seedStore({
+      provider: "docusign",
+      tokenKey: "owner@example.com:docusign",
+      updatedAt: new Date(now - HOUR).toISOString(),
+      expiresAt: Math.floor((now + 60_000) / 1000), // ~last 30% of lifetime → refresh
+    });
+    const driver = new MemoryKvDriver({
+      "tenant_oauth_credentials.json": JSON.parse(readFileSync(join(dir, "tenant_oauth_credentials.json"), "utf-8")),
+      "tenant_integrations.json": JSON.parse(readFileSync(join(dir, "tenant_integrations.json"), "utf-8")),
+    });
+    await durableClose();
+    await initDurableStore(dir, driver);
+    const r = await sweepExpiredTokens(dir, { now });
+    expect(r.refreshed).toBe(1);
+    expect(r.failed).toBe(0);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(String(fetchMock.mock.calls[0][0])).toBe("https://account-d.docusign.com/oauth/token");
+    const body = String(fetchMock.mock.calls[0][1]?.body);
+    expect(body).toContain("grant_type=refresh_token");
+    expect(body).toContain("refresh_token=old-refresh");
+    expect(body).toContain("client_id=client-id");
+    // Rotation persisted through the durable write path (PR #156 rule).
+    await durableFlush();
+    const dbTokens = driver.dump()["tenant_oauth_credentials.json"]["owner@example.com:docusign"];
+    expect(dbTokens.accessToken).toBe("new-access");
+    expect(dbTokens.refreshToken).toBe("new-refresh");
+    expect(dbTokens.expiresAt).toBeGreaterThan(Math.floor(now / 1000));
+    const dbConns = driver.dump()["tenant_integrations.json"]["owner@example.com"];
+    expect(dbConns[0].status).toBe("Connected");
+    expect(dbConns[0].credentials.apiKey).toBe("new-access");
+  });
+  it("docusign refresh failure (bad grant) → fail-closed: auth_failed, exactly one call", async () => {
+    const dir = seedStore({
+      provider: "docusign",
+      tokenKey: "owner@example.com:docusign",
+      updatedAt: new Date(now - HOUR).toISOString(),
+      expiresAt: Math.floor((now + 60_000) / 1000),
+    });
+    fetchMock = vi.fn(async () => ({
+      ok: false,
+      status: 400,
+      headers: { get: () => "application/json" },
+      text: async () => "invalid_grant",
+    }) as unknown as Response);
+    globalThis.fetch = fetchMock as unknown as typeof globalThis.fetch;
+    const r = await sweepExpiredTokens(dir, { now });
+    expect(r.failed).toBe(1);
+    expect(r.refreshed).toBe(0);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(r.errors.join(" ")).toContain("invalid_grant");
+    const conns = JSON.parse(readFileSync(join(dir, "tenant_integrations.json"), "utf-8"));
+    expect(conns["owner@example.com"][0].status).toBe("auth_failed");
+    expect(tokenSweepStats.tokensFailed).toBe(1);
+  });
   it("refresh failure → connection marked auth_failed, no crash, no tight retry", async () => {
     const dir = seedStore({
       updatedAt: new Date(now - HOUR).toISOString(),
