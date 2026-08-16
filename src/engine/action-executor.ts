@@ -26,11 +26,20 @@ export interface ActionResult {
   actionName: string;
   provider: string;
   duration: number;
+  /** Set when the write was routed to the Approval Queue instead of executing. */
+  pendingApproval?: boolean;
+  /** The pending-action id a client can approve/reject in the portal. */
+  actionId?: string;
 }
 
 export interface ExecutionOptions {
   timeout?: number; // ms, default 30000
   retryOnRefresh?: boolean; // retry once after token refresh, default true
+  /** Optional agent id recorded on approval-queue entries (default "ai-employee"). */
+  agentId?: string;
+  /** When true, bypasses the Approval Queue gate (used ONLY by the portal
+   *  approve path, after a human approved the stored payload). */
+  bypassApproval?: boolean;
 }
 
 // ── Action Handler Registry ──────────────────────────────────────────────
@@ -188,6 +197,30 @@ export async function executeAction(
     }
 
     const { providerId, handler } = entry;
+
+    // ── Approval Queue gate (cross-agent, default ON) ──────────────────
+    // Any provider WRITE action is routed to the client's pending-actions
+    // queue unless (a) the tenant explicitly opted out (approvalMode "auto")
+    // or (b) this call is the portal's own approve path (bypassApproval).
+    // Fail-closed: a store error blocks the write — never write around the
+    // gate. Reads pass through untouched.
+    if (!options?.bypassApproval) {
+      const { approvalGate } = await import("../lib/approval-queue");
+      const gate = approvalGate(userId, actionName, providerId, params || {}, {
+        agentId: options?.agentId,
+      });
+      if (!gate.allowed) {
+        return {
+          success: false,
+          error: gate.error || `Write "${actionName}" is pending human approval — no provider call was made.`,
+          actionName,
+          provider: providerId,
+          duration: Date.now() - startTime,
+          pendingApproval: true,
+          actionId: gate.actionId,
+        };
+      }
+    }
 
     // 2. Find the user's connection for this provider
     const connections = await listConnectionsByProvider(userId, providerId);
