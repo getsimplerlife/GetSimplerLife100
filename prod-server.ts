@@ -2464,12 +2464,16 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
           },
         });
       }
-      // Slack Events API receiver: POST only. URL-verification challenge and
-      // event_callback deliveries are HMAC-signed with SLACK_SIGNING_SECRET
-      // (X-Slack-Signature = v0= hex HMAC-SHA256("v0:<ts>:<rawBody>", secret)).
-      // Fail-closed on missing/unset secret — see src/monitoring/slack-webhook.ts.
+      // Slack Events API receiver: POST only. Served on BOTH
+      // /api/monitoring/webhook/slack (canonical — dev/local + tests use it)
+      // and /api/monitoring/webhook/slack-events (alias that passes the live
+      // platform edge, which reserves the exact /slack path — see PR #169).
+      // URL-verification challenge and event_callback deliveries are HMAC-signed
+      // with SLACK_SIGNING_SECRET (X-Slack-Signature = v0= hex
+      // HMAC-SHA256("v0:<ts>:<rawBody>", secret)). Fail-closed on missing/unset
+      // secret — see src/monitoring/slack-webhook.ts.
       // Non-destructive: never mutates the workspace.
-      if (providerId === "slack") {
+      if (providerId === "slack" || providerId === "slack-events") {
         const slackWh = await import("./src/monitoring/slack-webhook");
         const { dispatch } = await import("./src/monitoring/dispatcher");
         const gates = await import("./src/monitoring/gates");

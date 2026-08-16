@@ -21,6 +21,7 @@ import {
   verifySlackRequest,
   type SlackWebhookDeps,
 } from "../monitoring/slack-webhook";
+import { ensureTestServer, testBaseUrl, testSlackSigningSecret } from "./test-env";
 
 const SIGNING_SECRET = "slack-signing-secret-test-123";
 
@@ -455,5 +456,63 @@ describe("constantTimeEqual", () => {
     expect(constantTimeEqual("abc", "abc")).toBe(true);
     expect(constantTimeEqual("abc", "abd")).toBe(false);
     expect(constantTimeEqual("abc", "abcd")).toBe(false);
+  });
+});
+
+describe("prod-server route wiring — /api/monitoring/webhook/slack-events alias (PR #169)", () => {
+  // Self-hosted test server runs the REAL prod-server.ts (see test-env.ts).
+  beforeAll(async () => {
+    await ensureTestServer();
+  });
+
+  async function signedPostTo(path: string, body: unknown, sigOverride?: string) {
+    const rawBody = JSON.stringify(body);
+    const ts = String(Math.floor(Date.now() / 1000));
+    const sig = sigOverride ?? `v0=${await computeSlackSignature(`v0:${ts}:${rawBody}`, testSlackSigningSecret())}`;
+    return fetch(`${testBaseUrl()}${path}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Slack-Signature": sig,
+        "X-Slack-Request-Timestamp": ts,
+      },
+      body: rawBody,
+    });
+  }
+
+  it("serves a signed url_verification challenge on the slack-events alias (200 + plain-text echo)", async () => {
+    const res = await signedPostTo("/api/monitoring/webhook/slack-events", {
+      type: "url_verification",
+      challenge: "alias-challenge-456",
+      token: "ignored",
+    });
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")).toContain("text/plain");
+    expect(await res.text()).toBe("alias-challenge-456");
+  });
+
+  it("rejects a wrong signature on the slack-events alias (401)", async () => {
+    const res = await signedPostTo(
+      "/api/monitoring/webhook/slack-events",
+      { type: "url_verification", challenge: "x" },
+      "v0=deadbeef",
+    );
+    expect(res.status).toBe(401);
+  });
+
+  it("keeps the canonical /api/monitoring/webhook/slack route wired (signed challenge → 200)", async () => {
+    const res = await signedPostTo("/api/monitoring/webhook/slack", {
+      type: "url_verification",
+      challenge: "canonical-challenge-789",
+    });
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe("canonical-challenge-789");
+  });
+
+  it("returns 405 for non-POST on both paths (route exists, POST-only)", async () => {
+    for (const path of ["/api/monitoring/webhook/slack", "/api/monitoring/webhook/slack-events"]) {
+      const res = await fetch(`${testBaseUrl()}${path}`, { method: "GET" });
+      expect(res.status).toBe(405);
+    }
   });
 });
