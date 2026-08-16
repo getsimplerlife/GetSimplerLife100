@@ -26,6 +26,9 @@ export const VALID_WORKSPACE_PREFERENCES: readonly WorkspacePreference[] = [
 
 export interface TenantSettings {
   workspacePreference?: WorkspacePreference;
+  /** Approval Queue mode: "on" (default — writes await human approval) or
+   *  "auto" (explicit per-tenant opt-out: writes execute immediately). */
+  approvalMode?: "on" | "auto";
 }
 
 export type TenantSettingsIndex = Record<string, TenantSettings>;
@@ -85,6 +88,26 @@ export function setWorkspacePreference(
   const index = readIndex(dataDir);
   const current = index[tenantId] || {};
   const next: TenantSettings = { ...current, workspacePreference: preference };
+  index[tenantId] = next;
+  writeIndex(index, dataDir);
+  return next;
+}
+
+export const VALID_APPROVAL_MODES: readonly ("on" | "auto")[] = ["on", "auto"] as const;
+
+/** Set a tenant's Approval Queue mode (validated; "on" is the default). */
+export function setApprovalMode(
+  tenantId: string,
+  mode: "on" | "auto",
+  dataDir?: string,
+): TenantSettings {
+  if (!tenantId?.trim()) throw new Error("setApprovalMode requires a tenant id");
+  if (!VALID_APPROVAL_MODES.includes(mode)) {
+    throw new Error(`Invalid approval mode "${String(mode)}" — expected "on" or "auto"`);
+  }
+  const index = readIndex(dataDir);
+  const current = index[tenantId] || {};
+  const next: TenantSettings = { ...current, approvalMode: mode };
   index[tenantId] = next;
   writeIndex(index, dataDir);
   return next;

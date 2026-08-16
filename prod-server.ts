@@ -179,6 +179,24 @@ async function getUserFromSession(req: Request): Promise<any> {
   const users = readJSON(USERS_FILE);
   return users[session.email] || null;
 }
+/** Append a best-effort audit-log entry for a user (never throws). */
+function appendAudit(user: any, action: string, resource: string, detail: string): void {
+  try {
+    const alogs = readJSON(AUDIT_LOG_FILE);
+    const alogUser = alogs[user.email] || [];
+    alogUser.push({
+      id: "log-" + Math.random().toString(36).substr(2, 9),
+      timestamp: new Date().toISOString(),
+      user: user.email,
+      action,
+      resource,
+      detail,
+      ip: "127.0.0.1",
+    });
+    alogs[user.email] = alogUser;
+    writeJSON(AUDIT_LOG_FILE, alogs);
+  } catch { /* audit is best-effort */ }
+}
 
 async function testProviderConnection(providerId: string, providerName: string, credentials: any): Promise<{ success: boolean; error?: string }> {
   // Test the connection by making a real HTTP request
@@ -625,25 +643,6 @@ serve({
     }
 
     // ── Data APIs ─────────────────────────────────────────────────
-    // ── /api/data/approvals (GET + POST) ───────────────────────────
-    if (pathname === "/api/data/approvals") {
-      const user = await getUserFromSession(req);
-      if (user === null || user === undefined) return Response.json({ error: "Not authenticated" }, { status: 401 });
-      const APPROVALS_FILE = join(DATA_DIR, "tenant_approvals.json");
-      if (req.method === "POST") {
-        try {
-          const body = await req.json();
-          console.log(`[approvals] POST by ${user.email}:`, body);
-          return Response.json({ success: true });
-        } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
-          return Response.json({ error: "Invalid request" }, { status: 400 });
-        }
-      }
-      const data = readJSON(APPROVALS_FILE);
-      const userData = Array.isArray(data) ? data : (data[user.email] || []);
-      return Response.json({ data: userData });
-    }
-
     // ── /api/communications (POST) — chat/comm POST endpoint ──────
     if (pathname === "/api/communications" && req.method === "POST") {
       const user = await getUserFromSession(req);
@@ -1075,6 +1074,99 @@ serve({
           message: outcome.message,
         },
       });
+    }
+    // ── /api/portal/approvals — cross-agent Approval Queue ──────────
+    // GET  → { data: { pending: [...], decided: [...], mode: "on"|"auto" } }
+    // POST { actionId, decision: "approve"|"reject"|"edit", payload? } →
+    //        approve executes the stored write (engine, gate bypassed);
+    //        reject DISCARDS it (no provider call ever); edit replaces the
+    //        stored payload (keeps status pending, ready for approve).
+    // Session-gated, strictly tenant-scoped (user.email).
+    if (pathname === "/api/portal/approvals") {
+      const user = await getUserFromSession(req);
+      if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
+      const { listPendingActions, listDecidedActions, getTenantAction, markApproved, markRejected, approvalModeForTenant } = await import("./src/lib/approval-queue");
+      if (req.method === "GET") {
+        return Response.json({
+          data: {
+            pending: listPendingActions(user.email, DATA_DIR),
+            decided: listDecidedActions(user.email, DATA_DIR),
+            mode: approvalModeForTenant(user.email, DATA_DIR),
+          },
+        });
+      }
+      if (req.method === "POST") {
+        const body = await req.json().catch(() => ({}));
+        const { actionId, decision } = body || {};
+        if (!actionId || !["approve", "reject", "edit"].includes(decision)) {
+          return Response.json({ error: "Invalid request — actionId and decision (approve|reject|edit) are required" }, { status: 400 });
+        }
+        const record = getTenantAction(user.email, actionId, DATA_DIR);
+        if (!record) return Response.json({ error: "Action not found" }, { status: 404 });
+        if (record.status !== "pending") {
+          return Response.json({ error: `Action already ${record.status}` }, { status: 409 });
+        }
+        if (decision === "reject") {
+          const rejected = markRejected(user.email, actionId, user.email, DATA_DIR);
+          // Audit the decision (best-effort).
+          try { appendAudit(user, "portal.approvals.reject", actionId, `Rejected agent write ${record.actionType} (${record.provider})`); } catch { /* best-effort */ }
+          return Response.json({ data: { action: rejected } });
+        }
+        if (decision === "edit") {
+          const { editPendingAction } = await import("./src/lib/approval-queue");
+          const edited = editPendingAction(user.email, actionId, body.payload, DATA_DIR);
+          if (!edited) return Response.json({ error: "Cannot edit — action not pending" }, { status: 409 });
+          return Response.json({ data: { action: edited } });
+        }
+        // approve — execute the STORED payload (or the edited payload).
+        // Register provider actions first (integration-tools import has the
+        // side effect of populating the action registry), then execute.
+        await import("./src/engine/integration-tools");
+        const { executeAction } = await import("./src/engine/action-executor");
+        const payload = body.payload !== undefined ? body.payload : record.payload;
+        const outcome = await executeAction(record.actionType, payload, user.email, {
+          bypassApproval: true, // human approved this exact payload
+          agentId: record.agentId,
+        });
+        const approved = markApproved(user.email, actionId, user.email, outcome.success ? { result: outcome.data } : { error: outcome.error }, DATA_DIR);
+        // Audit the decision (best-effort).
+        try {
+          appendAudit(
+            user,
+            outcome.success ? "portal.approvals.approve" : "portal.approvals.approve-failed",
+            actionId,
+            `${outcome.success ? "Executed" : "Execution failed for"} agent write ${record.actionType} (${record.provider})`,
+          );
+        } catch { /* best-effort */ }
+        return Response.json({ data: { action: approved, execution: { success: outcome.success, error: outcome.error, result: outcome.data } } });
+      }
+      return Response.json({ error: "Method not allowed" }, { status: 405 });
+    }
+    // ── /api/portal/approvals/settings — per-tenant approval mode ───
+    // GET → { data: { mode } }  POST { mode: "on"|"auto" } (explicit opt-out)
+    if (pathname === "/api/portal/approvals/settings") {
+      const user = await getUserFromSession(req);
+      if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
+      const { approvalModeForTenant } = await import("./src/lib/approval-queue");
+      const { setApprovalMode } = await import("./src/lib/tenant-settings");
+      if (req.method === "GET") {
+        return Response.json({ data: { mode: approvalModeForTenant(user.email, DATA_DIR) } });
+      }
+      if (req.method === "POST") {
+        const body = await req.json().catch(() => ({}));
+        const mode = body?.mode;
+        if (mode !== "on" && mode !== "auto") {
+          return Response.json({ error: "Invalid mode — expected \"on\" or \"auto\"" }, { status: 400 });
+        }
+        try {
+          const settings = setApprovalMode(user.email, mode, DATA_DIR);
+          try { appendAudit(user, "portal.approvals.settings", "approvalMode", `Approval Queue mode set to ${mode}`); } catch { /* best-effort */ }
+          return Response.json({ data: { mode: settings.approvalMode, settings } });
+        } catch (e: any) {
+          return Response.json({ error: e?.message || "Failed to update approval mode" }, { status: 400 });
+        }
+      }
+      return Response.json({ error: "Method not allowed" }, { status: 405 });
     }
     // ── /api/audit-logs (GET) ──────────────────────────────────────
     if (pathname === "/api/audit-logs") {
