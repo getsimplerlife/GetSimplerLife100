@@ -2430,7 +2430,18 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
                   }
                 }
               }
-              return false;
+              // Self-heal: no persisted tenantId matched the org (e.g. the
+              // published copy's boot never resolved it). Resolve each
+              // entitled tenant's Xero org live via the canonical Connections
+              // API; on match configure the gate + persist tenantId back into
+              // the credential record (durable write-through). Fail-closed:
+              // any error -> false, nothing mutated.
+              return xeroWh.selfHealXeroOrgGate({
+                dataDir: DATA_DIR,
+                orgId,
+                canMonitor: (email) => gates.canMonitor(email, xeroWh.XERO_MONITOR_EMPLOYEE_ID),
+                configureTenant: (oid, gate) => gates.configureTenant(oid, gate),
+              });
             } catch {
               return false;
             }
