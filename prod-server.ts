@@ -1138,6 +1138,9 @@ serve({
           return Response.json({ data: { action: edited } });
         }
         // approve — execute the STORED payload (or the edited payload).
+        // Register provider actions first (integration-tools import has the
+        // side effect of populating the action registry), then execute.
+        await import("./src/engine/integration-tools");
         const { executeAction } = await import("./src/engine/action-executor");
         const payload = body.payload !== undefined ? body.payload : record.payload;
         const outcome = await executeAction(record.actionType, payload, user.email, {

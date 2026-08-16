@@ -193,6 +193,7 @@ describe("engine integration (executeAction gate)", () => {
     expect(result.provider).toBe("xero");
   });
   it("bypassApproval skips the gate (portal approve path)", async () => {
+    await import("../engine/integration-tools"); // registers provider actions
     const { executeAction } = await import("../engine/action-executor");
     const result = await executeAction("createXeroInvoice", { Type: "ACCREC" }, "nobody-approval@test", { bypassApproval: true });
     // It proceeds past the gate and fails on the missing connection — proof
