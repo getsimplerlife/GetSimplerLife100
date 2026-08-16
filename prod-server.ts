@@ -2464,6 +2464,48 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
           },
         });
       }
+      // Slack Events API receiver: POST only. URL-verification challenge and
+      // event_callback deliveries are HMAC-signed with SLACK_SIGNING_SECRET
+      // (X-Slack-Signature = v0= hex HMAC-SHA256("v0:<ts>:<rawBody>", secret)).
+      // Fail-closed on missing/unset secret — see src/monitoring/slack-webhook.ts.
+      // Non-destructive: never mutates the workspace.
+      if (providerId === "slack") {
+        const slackWh = await import("./src/monitoring/slack-webhook");
+        const { dispatch } = await import("./src/monitoring/dispatcher");
+        const gates = await import("./src/monitoring/gates");
+        return slackWh.handleSlackWebhook(req, {
+          getSigningSecret: () => process.env.SLACK_SIGNING_SECRET,
+          async ensureTeamGate(teamId) {
+            try {
+              if (gates.canMonitor(teamId, slackWh.SLACK_MONITOR_EMPLOYEE_ID)) return true;
+              return slackWh.selfHealSlackTeamGate({
+                dataDir: DATA_DIR,
+                teamId,
+                canMonitor: (email) => gates.canMonitor(email, slackWh.SLACK_MONITOR_EMPLOYEE_ID),
+                configureTenant: (tid, gate) => gates.configureTenant(tid, gate),
+              });
+            } catch {
+              return false;
+            }
+          },
+          dispatch(event) {
+            return dispatch(
+              event,
+              { employeeId: event.employeeId, providerId: "slack", eventTypes: [event.eventType] },
+              {
+                holderId: "webhook-slack",
+                async execute(evt) {
+                  const payload = (evt.payload || {}) as Record<string, unknown>;
+                  console.log("[monitor] Slack " + evt.eventType + " -> " + String(payload.capabilityId || "") + " for team " + evt.tenantId);
+                },
+              },
+            );
+          },
+          recordReceipt(receipt) {
+            return slackWh.recordSlackWebhookReceipt(receipt, DATA_DIR);
+          },
+        });
+      }
       if (req.method === "POST") {
         try {
           // Generic provider path (hubspot/zendesk homegrown shape: {id?, employeeId, eventType, tenantId, payload})

@@ -27,10 +27,21 @@ import { createShopifyClient } from "../../integrations/providers/shopify/client
 import { createMarketoClient } from "../../integrations/providers/marketo/client";
 import { createCoupaClient } from "../../integrations/providers/coupa/client";
 import { createAnaplanClient } from "../../integrations/providers/anaplan/client";
+import { latestRealSlackWebhookReceipt } from "../../monitoring/slack-webhook";
+import { join } from "node:path";
 import type { CapabilityAdapter } from "./index";
 import type { ProviderCredential } from "../credential-source";
 
 const LABEL = () => `Phase7-VERIFY-${Date.now()}`;
+
+/** Where the live Slack webhook receiver is published (for evidence messages). */
+const SLACK_RECEIVER_BASE = process.env.SITE_ORIGIN || process.env.OAUTH_REDIRECT_BASE || "https://simplerlife100.ctonew.app";
+const slackReceiptUrl = `${SLACK_RECEIVER_BASE}/api/monitoring/webhook/slack`;
+/** Live webhook receipts stay valid as verification evidence for 24h. */
+const SLACK_WEBHOOK_RECEIPT_TTL_MS = 24 * 60 * 60 * 1000;
+function slackVerificationDataDir(): string {
+  return process.env.DATA_DIR || join(process.cwd(), ".data");
+}
 
 /**
  * Refresh the HubSpot access token once if expired. Mutates `cred` so every
@@ -311,11 +322,34 @@ export const slackAdapter: CapabilityAdapter = async (contract, ctx) => {
       // No files.delete cleanup — deletion inside client accounts is explicit-client-request only.
       return { httpStatus: 200, response: { ok: true, channel, fileId, created: true, kept: true, method: "v2" } };
     }
+    // --------------------------------------------------------- monitor
+    // Live verification route: the webhook receiver at /api/monitoring/webhook/slack
+    // records a durable receipt for every signed app_mention / message event it
+    // maps and dispatches. The batch CLI cannot fabricate receipt, so these
+    // contracts verify only when a REAL Slack event has landed. Synthetic
+    // receipts (channel "verification-probe", ts "abc123" from our own
+    // verification POSTs) are rejected — only a plausible real channel + ts
+    // counts as delivery evidence (PR #167 lesson).
     case "slack-monitor-mention":
     case "slack-monitor-channel-activity": {
-      throw new Error(
-        "monitor verification requires a live webhook receiver (Events API app_mention / message.channels); the batch CLI cannot fabricate event receipt",
-      );
+      const expectedEventType = contract.capabilityId === "slack-monitor-mention" ? "app_mention" : "message";
+      const receipt = latestRealSlackWebhookReceipt(contract.capabilityId, slackVerificationDataDir(), SLACK_WEBHOOK_RECEIPT_TTL_MS);
+      if (!receipt) {
+        throw new Error(
+          `monitor verification requires a live webhook receipt (${expectedEventType}) carrying a REAL Slack channel + ts; synthetic receipts (verification-probe/abc123) are rejected — register ${slackReceiptUrl} and wait for a real event`,
+        );
+      }
+      return {
+        httpStatus: 200,
+        response: {
+          verified: true,
+          source: "live-webhook-receipt",
+          eventType: receipt.eventType,
+          eventId: receipt.eventId,
+          teamId: receipt.teamId,
+          receivedAt: receipt.receivedAt,
+        },
+      };
     }
     default:
       throw new Error(`no verification path for ${contract.capabilityId}`);
