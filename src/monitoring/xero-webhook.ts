@@ -2,22 +2,27 @@
  * Xero webhook receiver for the monitoring pipeline.
  *
  * Xero webhook contract (developer.xero.com — webhooks guide):
- *  - Handshake: when a webhook delivery URL is saved, Xero sends a GET request
- *    carrying the `Xero-Webhook-Key` header. The endpoint MUST answer HTTP 200
- *    with the webhook key echoed as the response body, or Xero never activates
- *    the webhook.
+ *  - Intent-to-receive validation: when a webhook delivery URL is saved, Xero
+ *    sends a series of HTTPS POSTs carrying the payload
+ *    `{"events": [], "lastEventSequence": 0, "firstEventSequence": 0,
+ *    "entropy": "..."}` plus the `x-xero-signature` header. The receiver MUST
+ *    return 2xx for correctly-signed payloads and 401 for incorrectly-signed
+ *    ones to gain validation — there is no GET handshake in Xero's real flow
+ *    (a GET handler is kept only for manual probing).
  *  - Events: Xero POSTs JSON `{ events: [...] }`; each event carries eventType
  *    (e.g. INVOICE.CREATED / BILL.CREATED), eventCategory, resourceUrl,
  *    resourceId, eventDateUtc and tenantId (the Xero org UUID).
- *  - Signature: Xero signs the RAW request body with HMAC-SHA256 using the
- *    webhook key as the secret; the base64 signature is sent in the
- *    `Xero-Webhook-Key` header of every POST. We also accept a plaintext
- *    key match (handshake-style) for robustness, but never process a request
- *    that fails both checks.
+ *  - Signature: Xero signs EVERY webhook request (validation AND event
+ *    deliveries) by base64-encoding the HMAC-SHA256 of the RAW request body
+ *    using the webhook key as the secret, and sends it in the
+ *    `x-xero-signature` header. We also accept two legacy fallback headers
+ *    (`xero-webhook-key`, `xero-webhook-signature`) for robustness and older
+ *    synthetic probes, but never process a request that fails all checks.
  *
  * Fail-closed rules (owner mandate):
  *  - XERO_WEBHOOK_KEY unset -> 503, nothing processed (no guessed keys).
- *  - Missing / mismatched key or signature -> 401, nothing processed.
+ *  - Missing / mismatched signature (all three headers) -> 401, nothing
+ *    processed. Constant-time compare throughout.
  *  - Malformed JSON or a missing events array -> 400.
  *  - Unknown event types are acknowledged but never dispatched (they are not in
  *    our subscription). No guessed provider URLs anywhere — the only external
@@ -30,11 +35,20 @@ import { join } from "node:path";
 import { readJSON, writeJSON } from "../lib/data-store";
 import type { EventOutcome, MonitoredEvent } from "./types";
 
-/** Header Xero uses for both the handshake key and the HMAC signature. */
+/**
+ * Xero's real signature header: base64 HMAC-SHA256 of the raw body using the
+ * webhook key. Present on EVERY request (validation + event deliveries).
+ * PRIMARY header — this is what Xero actually sends.
+ */
+export const XERO_XERO_SIGNATURE_HEADER = "x-xero-signature";
+/**
+ * Legacy header (handshake-style / older probes): the plaintext webhook key or
+ * the same base64 HMAC-SHA256 signature. Accepted as a fallback for POSTs.
+ */
 export const XERO_WEBHOOK_HEADER = "xero-webhook-key";
 /**
- * Xero's docs also send the base64 HMAC-SHA256 signature of the raw body in a
- * `Xero-Webhook-Signature` header — accepted as a fallback for POST events.
+ * Legacy header: base64 HMAC-SHA256 signature of the raw body. Accepted as a
+ * fallback for POST events (some client setups used this).
  */
 export const XERO_WEBHOOK_SIGNATURE_HEADER = "xero-webhook-signature";
 /** Canonical Xero connections API host (never guessed). */
@@ -203,9 +217,13 @@ export async function handleXeroWebhook(req: Request, deps: XeroWebhookDeps): Pr
     return Response.json({ error: "Failed to read body" }, { status: 400 });
   }
 
+  // PRIMARY: Xero's real scheme (x-xero-signature on validation AND events).
+  const realSigValue = req.headers.get(XERO_XERO_SIGNATURE_HEADER);
+  // Fallbacks: legacy headers our earlier synthetic probes / docs used.
   const keyHeaderValue = req.headers.get(XERO_WEBHOOK_HEADER);
   const sigHeaderValue = req.headers.get(XERO_WEBHOOK_SIGNATURE_HEADER);
   const valid =
+    (realSigValue ? await verifyXeroWebhookSignature(rawBody, realSigValue, webhookKey) : false) ||
     (await verifyXeroWebhookSignature(rawBody, keyHeaderValue, webhookKey)) ||
     (sigHeaderValue ? await verifyXeroWebhookSignature(rawBody, sigHeaderValue, webhookKey) : false);
   if (!valid) {
@@ -267,7 +285,11 @@ export async function handleXeroWebhook(req: Request, deps: XeroWebhookDeps): Pr
   return Response.json({ received: true, processed, skipped, failed, ignored, outcomes });
 }
 
-/** GET handshake: echo the webhook key (200) so Xero activates the webhook. */
+/**
+ * GET handshake: echo the webhook key (200). NOTE: Xero's real activation flow
+ * uses signed POST validation (x-xero-signature), not a GET; this handler is
+ * kept for manual probing and backwards compatibility only.
+ */
 export async function handleXeroHandshake(req: Request, deps: XeroWebhookDeps): Promise<Response> {
   const webhookKey = deps.getWebhookKey();
   if (!webhookKey) {

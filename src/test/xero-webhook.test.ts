@@ -249,6 +249,95 @@ describe("handleXeroWebhook — POST events", () => {
     expect(response.status).toBe(405);
   });
 });
+describe("handleXeroWebhook — real Xero signature scheme (x-xero-signature)", () => {
+  beforeEach(async () => {
+    const { clearSeen } = await import("../monitoring/dedupe");
+    clearSeen();
+  });
+  /** POST with the signature in Xero's real header: x-xero-signature. */
+  const realSignedPost = async (path: string, body: unknown, opts: { key?: string | null; webhookKey?: string } = {}) => {
+    const rawBody = JSON.stringify(body);
+    const headerValue = opts.key !== undefined ? opts.key : await computeXeroWebhookSignature(rawBody, opts.webhookKey || WEBHOOK_KEY);
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (headerValue !== null) headers["x-xero-signature"] = headerValue;
+    return new Request(`https://example.test${path}`, { method: "POST", headers, body: rawBody });
+  };
+  it("accepts a correctly-signed intent-to-receive validation payload (empty events) with 200", async () => {
+    const d = deps();
+    const response = await handleXeroWebhook(
+      await realSignedPost("/api/monitoring/webhook/xero", { events: [], lastEventSequence: 0, firstEventSequence: 0, entropy: "abc123" }),
+      d,
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.processed).toBe(0);
+    expect(body.failed).toBe(0);
+    expect(d.dispatched).toHaveLength(0);
+    expect(d.receipts).toHaveLength(0);
+  });
+  it("rejects an incorrectly-signed intent-to-receive validation payload with 401", async () => {
+    const d = deps();
+    const response = await handleXeroWebhook(
+      await realSignedPost("/api/monitoring/webhook/xero", { events: [], lastEventSequence: 0, firstEventSequence: 0, entropy: "abc123" }, { key: "bogus-signature" }),
+      d,
+    );
+    expect(response.status).toBe(401);
+    expect(d.dispatched).toHaveLength(0);
+  });
+  it("processes INVOICE.CREATED signed with x-xero-signature and records a receipt", async () => {
+    const d = deps();
+    const response = await handleXeroWebhook(
+      await realSignedPost("/api/monitoring/webhook/xero", {
+        events: [{ eventType: "INVOICE.CREATED", eventCategory: "INVOICE", resourceId: "inv-real-1", resourceUrl: "https://api.xero.com/api.xro/2.0/Invoices/inv-real-1", eventDateUtc: "2026-08-16T00:00:00Z", tenantId: "org-1" }],
+      }),
+      d,
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.processed).toBe(1);
+    expect(body.failed).toBe(0);
+    expect(body.outcomes[0]).toMatchObject({ eventType: "INVOICE.CREATED", capabilityId: "xero-monitor-invoice-created", status: "processed" });
+    expect(d.dispatched).toHaveLength(1);
+    expect(d.dispatched[0]).toMatchObject({ providerId: "xero", eventType: "INVOICE.CREATED", tenantId: "org-1" });
+    expect(d.receipts[0]).toMatchObject({ capabilityId: "xero-monitor-invoice-created", outcome: "processed" });
+  });
+  it("processes BILL.CREATED signed with x-xero-signature and records a receipt", async () => {
+    const d = deps();
+    const response = await handleXeroWebhook(
+      await realSignedPost("/api/monitoring/webhook/xero", { events: [{ eventType: "BILL.CREATED", resourceId: "bill-real-1", tenantId: "org-1" }] }),
+      d,
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.outcomes[0]).toMatchObject({ capabilityId: "xero-monitor-bill-created", status: "processed" });
+    expect(d.dispatched[0].payload).toMatchObject({ capabilityId: "xero-monitor-bill-created" });
+    expect(d.receipts[0]).toMatchObject({ capabilityId: "xero-monitor-bill-created", outcome: "processed" });
+  });
+  it("rejects a signature computed with the WRONG webhook key in x-xero-signature (401)", async () => {
+    const d = deps();
+    const response = await handleXeroWebhook(
+      await realSignedPost(
+        "/api/monitoring/webhook/xero",
+        { events: [{ eventType: "INVOICE.CREATED", resourceId: "inv-wrong-1", tenantId: "org-1" }] },
+        { webhookKey: "wrong-key" },
+      ),
+      d,
+    );
+    expect(response.status).toBe(401);
+    expect(d.dispatched).toHaveLength(0);
+    expect(d.receipts).toHaveLength(0);
+  });
+  it("still accepts the legacy Xero-Webhook-Key header (fallback) when no x-xero-signature is present", async () => {
+    const d = deps();
+    const response = await handleXeroWebhook(
+      await signedPost("/api/monitoring/webhook/xero", { events: [{ eventType: "BILL.CREATED", resourceId: "bill-legacy-1", tenantId: "org-1" }] }),
+      d,
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.outcomes[0]).toMatchObject({ capabilityId: "xero-monitor-bill-created", status: "processed" });
+  });
+});
 
 describe("live-receipt log", () => {
   it("records receipts and latestXeroWebhookReceipt returns the newest processed one within TTL", async () => {
