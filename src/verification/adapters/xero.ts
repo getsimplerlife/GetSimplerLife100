@@ -22,11 +22,18 @@
  * INVOICE.CREATED / BILL.CREATED event it maps and dispatches; the batch CLI
  * reads that receipt (it cannot fabricate event receipt) and fails closed until
  * a real event has landed.
+ *
+ * Synthetic-receipt rejection (PR #167): the receiver records EVERY processed
+ * event, including our own signed verification POSTs (which carry synthetic
+ * resource ids like "abc123" / all-zeros / non-UUID tokens). A monitor contract
+ * only verifies when the newest matching receipt carries a plausible REAL Xero
+ * resource UUID (v4 format). Receipts with a clearly-synthetic resource id are
+ * skipped — never counted as delivery evidence.
  */
 import { refreshXeroToken } from "../../integrations/providers/xero/auth";
 import { createXeroClient, type XeroClient } from "../../integrations/providers/xero/client";
 import { isTokenExpired } from "../../integrations/framework/oauth";
-import { latestXeroWebhookReceipt } from "../../monitoring/xero-webhook";
+import { readXeroWebhookReceipts, type XeroWebhookReceipt } from "../../monitoring/xero-webhook";
 import { join } from "node:path";
 import type { ProviderCredential } from "../credential-source";
 import type { CapabilityAdapter } from "./index";
@@ -40,6 +47,47 @@ const receiptUrl = `${RECEIVER_BASE}/api/monitoring/webhook/xero`;
 const WEBHOOK_RECEIPT_TTL_MS = 24 * 60 * 60 * 1000;
 function verificationDataDir(): string {
   return process.env.DATA_DIR || join(process.cwd(), ".data");
+}
+
+/**
+ * A plausible real Xero resource UUID: 8-4-4-4-12 hex groups, version 4.
+ * Real Xero events always carry the created resource's real UUID; our own
+ * verification POSTs use synthetic tokens ("abc123", all-zeros, or non-UUID).
+ */
+const XERO_RESOURCE_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const ALL_ZEROS_UUID = "00000000-0000-0000-0000-000000000000";
+
+/** Extract the resource token embedded in a receipt eventId (`xero:<tenant>:<eventType>:<resource>`). */
+export function xeroResourceTokenFromEventId(eventId: string): string {
+  // eventId format: `xero:${tenantId}:${eventType}:${resourceId || resourceUrl || "no-resource"}`
+  const parts = eventId.split(":");
+  if (parts.length < 4) return "";
+  return parts.slice(3).join(":").trim();
+}
+
+/** True when a resource token is clearly synthetic (abc123 / all-zeros / non-UUID). */
+export function isSyntheticXeroResourceToken(token: string): boolean {
+  const t = token.trim().toLowerCase();
+  if (t.length === 0) return true;
+  if (t.includes("abc123")) return true;
+  if (t === ALL_ZEROS_UUID) return true;
+  return !XERO_RESOURCE_UUID_RE.test(t);
+}
+
+/**
+ * Newest processed receipt for a capability within `withinMs` that carries a
+ * plausible REAL Xero resource UUID. Synthetic receipts (abc123 / all-zeros /
+ * non-UUID tokens from local verification probes) are skipped — a monitor
+ * contract verifies only on a real Xero delivery.
+ */
+export function latestRealXeroWebhookReceipt(capabilityId: string, dataDir: string, withinMs: number): XeroWebhookReceipt | undefined {
+  const cutoff = Date.now() - withinMs;
+  const matches = readXeroWebhookReceipts(dataDir)
+    .filter((r) => r.capabilityId === capabilityId && r.outcome === "processed")
+    .filter((r) => new Date(r.receivedAt).getTime() >= cutoff)
+    .filter((r) => !isSyntheticXeroResourceToken(xeroResourceTokenFromEventId(r.eventId)));
+  matches.sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());
+  return matches[0];
 }
 
 async function resolveTenantId(accessToken: string, known?: string): Promise<string> {
@@ -371,13 +419,16 @@ export const xeroAdapter: CapabilityAdapter = async (contract, ctx) => {
     // records a durable receipt for every authenticated INVOICE.CREATED /
     // BILL.CREATED event it maps and dispatches. The batch CLI cannot fabricate
     // receipt, so these contracts verify only when a real event has landed.
+    // Synthetic receipts (abc123 / all-zeros / non-UUID resource tokens from our
+    // own verification POSTs) are rejected — only a plausible real Xero resource
+    // UUID counts as delivery evidence (PR #167).
     case "xero-monitor-invoice-created":
     case "xero-monitor-bill-created": {
       const expectedEventType = contract.capabilityId === "xero-monitor-invoice-created" ? "INVOICE.CREATED" : "BILL.CREATED";
-      const receipt = latestXeroWebhookReceipt(contract.capabilityId, verificationDataDir(), WEBHOOK_RECEIPT_TTL_MS);
+      const receipt = latestRealXeroWebhookReceipt(contract.capabilityId, verificationDataDir(), WEBHOOK_RECEIPT_TTL_MS);
       if (!receipt) {
         throw new Error(
-          `monitor verification requires a live webhook receipt (${expectedEventType}); the batch CLI cannot fabricate event receipt — register ${receiptUrl} and wait for a real event`,
+          `monitor verification requires a live webhook receipt (${expectedEventType}) carrying a REAL Xero resource UUID; synthetic receipts (abc123/all-zeros) are rejected — register ${receiptUrl} and wait for a real event`,
         );
       }
       return {
@@ -387,6 +438,7 @@ export const xeroAdapter: CapabilityAdapter = async (contract, ctx) => {
           source: "live-webhook-receipt",
           eventType: receipt.eventType,
           eventId: receipt.eventId,
+          resourceId: xeroResourceTokenFromEventId(receipt.eventId),
           tenantId: receipt.tenantId,
           receivedAt: receipt.receivedAt,
         },
