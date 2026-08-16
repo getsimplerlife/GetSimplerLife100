@@ -73,7 +73,9 @@ export interface XeroWebhookDeps {
   /**
    * Best-effort entitlement resolution for a Xero org UUID: when the org belongs
    * to an entitled (purchased) tenant, register the org as a monitoring gate and
-   * return true. Never performs network I/O — the ack path must stay fast.
+   * return true. Fast path (persisted tenantId match) is synchronous; the
+   * runtime implementation may self-heal on first miss via the canonical Xero
+   * Connections API (see selfHealXeroOrgGate). Fail-closed: any error -> false.
    */
   ensureOrgGate(orgId: string): Promise<boolean>;
   /** Dispatch a mapped event through the monitoring pipeline. */
@@ -373,4 +375,64 @@ export async function registerXeroOrgGates(opts: RegisterOrgGatesOptions): Promi
   }
   if (registered > 0) console.log(`[monitor] Registered ${registered} Xero org gate(s) for webhook monitoring`);
   return registered;
+}
+export interface SelfHealOrgGateOptions {
+  /** Runtime data dir holding tenant_oauth_credentials.json. */
+  dataDir: string;
+  /** The org UUID from the webhook event (event.tenantId). */
+  orgId: string;
+  /** Entitlement check — only purchased tenants may get an org gate. */
+  canMonitor: (email: string) => boolean;
+  /** Registers the org as an active monitoring gate on match. */
+  configureTenant: (orgId: string, gate: { purchased: boolean; status: string }) => void;
+}
+/**
+ * Runtime self-heal for the webhook org gate: when no persisted tenantId in
+ * tenant_oauth_credentials.json matches the event's org UUID, resolve each
+ * entitled tenant's Xero org live via the canonical Connections API (same
+ * host/helper as boot-time registration) and, on match, configure the gate
+ * AND persist tenantId back into the credential record (write-through, so
+ * future boots and other copies see it).
+ *
+ * Fail-closed rules:
+ *  - Only the canonical XERO_CONNECTIONS_URL is contacted (no guessed URLs).
+ *  - A per-credential resolve error skips that credential (stale/expired
+ *    token) — no access is granted, and NOTHING is mutated on failure.
+ *  - If no credential matches the org, returns false (event stays denied).
+ *  - Records that already carry the matching tenantId configure the gate
+ *    without any network I/O (idempotent fast path).
+ */
+export async function selfHealXeroOrgGate(opts: SelfHealOrgGateOptions): Promise<boolean> {
+  const file = join(opts.dataDir, "tenant_oauth_credentials.json");
+  const creds = readJSON(file);
+  if (!creds || typeof creds !== "object") return false;
+  for (const [key, raw] of Object.entries(creds)) {
+    if (!key.endsWith(":xero") || !raw || typeof raw !== "object") continue;
+    const email = key.slice(0, -":xero".length);
+    if (!opts.canMonitor(email)) continue;
+    const record = raw as Record<string, unknown>;
+    const persistedOrgId = typeof record.tenantId === "string" ? record.tenantId : undefined;
+    if (persistedOrgId === opts.orgId) {
+      opts.configureTenant(persistedOrgId, { purchased: true, status: "Active" });
+      return true;
+    }
+    let resolvedOrgId: string;
+    try {
+      resolvedOrgId = await resolveXeroOrgId(typeof record.accessToken === "string" ? record.accessToken : undefined);
+    } catch {
+      continue; // fail-soft per credential; nothing granted, nothing mutated
+    }
+    if (resolvedOrgId !== opts.orgId) continue;
+    opts.configureTenant(resolvedOrgId, { purchased: true, status: "Active" });
+    if (record.tenantId !== resolvedOrgId) {
+      record.tenantId = resolvedOrgId;
+      const all = readJSON(file);
+      if (all && typeof all === "object") {
+        all[key] = record;
+        writeJSON(file, all);
+      }
+    }
+    return true;
+  }
+  return false;
 }
