@@ -194,7 +194,18 @@ describe("engine integration (executeAction gate)", () => {
     const { actionRegistry, executeAction } = await import("../engine/action-executor");
     await import("../engine/integration-tools"); // registers all providers
     expect(actionRegistry.hasAction("createXeroInvoice")).toBe(true);
-    const result = await executeAction("createXeroInvoice", { Type: "ACCREC" }, "nobody-approval@test", { agentId: "invoice-processor-v1" });
+    // Point the engine's default data dir at a writable temp dir so the
+    // approval store is reachable (canonical env has DATA_DIR unset, so the
+    // runtime default under the worktree does not exist). Restore after.
+    const prevDataDir = process.env.DATA_DIR;
+    process.env.DATA_DIR = dir;
+    let result;
+    try {
+      result = await executeAction("createXeroInvoice", { Type: "ACCREC" }, "nobody-approval@test", { agentId: "invoice-processor-v1" });
+    } finally {
+      if (prevDataDir === undefined) delete process.env.DATA_DIR;
+      else process.env.DATA_DIR = prevDataDir;
+    }
     expect(result.success).toBe(false);
     expect(result.pendingApproval).toBe(true);
     expect(result.actionId).toBeTruthy();
