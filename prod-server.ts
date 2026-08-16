@@ -643,25 +643,6 @@ serve({
     }
 
     // ── Data APIs ─────────────────────────────────────────────────
-    // ── /api/data/approvals (GET + POST) ───────────────────────────
-    if (pathname === "/api/data/approvals") {
-      const user = await getUserFromSession(req);
-      if (user === null || user === undefined) return Response.json({ error: "Not authenticated" }, { status: 401 });
-      const APPROVALS_FILE = join(DATA_DIR, "tenant_approvals.json");
-      if (req.method === "POST") {
-        try {
-          const body = await req.json();
-          console.log(`[approvals] POST by ${user.email}:`, body);
-          return Response.json({ success: true });
-        } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
-          return Response.json({ error: "Invalid request" }, { status: 400 });
-        }
-      }
-      const data = readJSON(APPROVALS_FILE);
-      const userData = Array.isArray(data) ? data : (data[user.email] || []);
-      return Response.json({ data: userData });
-    }
-
     // ── /api/communications (POST) — chat/comm POST endpoint ──────
     if (pathname === "/api/communications" && req.method === "POST") {
       const user = await getUserFromSession(req);

@@ -34,13 +34,13 @@ function ActivityHubDashboard() {
       const [rEmp, rTasks, rApp, rBil, rCon] = await Promise.allSettled([
         fetch("/api/data/employees", { credentials: "include" }).then(r => r.ok ? r.json() : null),
         fetch("/api/data/tasks", { credentials: "include" }).then(r => r.ok ? r.json() : null),
-        fetch("/api/data/approvals", { credentials: "include" }).then(r => r.ok ? r.json() : null),
+        fetch("/api/portal/approvals", { credentials: "include" }).then(r => r.ok ? r.json() : null),
         fetch("/api/data/billing", { credentials: "include" }).then(r => r.ok ? r.json() : null),
         fetch("/api/integrations", { credentials: "include" }).then(r => r.ok ? r.json() : null),
       ]);
       if (rEmp.status === "fulfilled" && rEmp.value) setEmployees(rEmp.value.data || []);
       if (rTasks.status === "fulfilled" && rTasks.value) setTasks(rTasks.value.data || []);
-      if (rApp.status === "fulfilled" && rApp.value) setApprovals(rApp.value.data || []);
+      if (rApp.status === "fulfilled" && rApp.value) setApprovals(rApp.value.data?.pending || []);
       if (rBil.status === "fulfilled" && rBil.value) setBilling(rBil.value.data || []);
       if (rCon.status === "fulfilled" && rCon.value) {
         const conns = rCon.value.data || [];
@@ -89,17 +89,15 @@ function ActivityHubDashboard() {
 
   // ── Approval actions ──────────────────────────────────────────────
 
-  const handleApprovalAction = async (id: string, action: string) => {
+  const handleApprovalAction = async (actionId: string, action: "approve" | "reject") => {
     try {
       setFeedback(`Processing: ${action}...`);
-      await fetch("/api/data/approvals", {
+      await fetch("/api/portal/approvals", {
         method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
-        body: JSON.stringify({ action: "approval_" + action.toLowerCase(), resource: id }),
+        body: JSON.stringify({ actionId, decision: action }),
       });
-      const target = approvals.find(a => a.id === id || a._id === id);
-      if (target?._id) await fetch(`/api/data/approvals/${target._id}`, { method: "DELETE", credentials: "include" });
-      setApprovals(approvals.filter(a => a.id !== id && a._id !== id));
-      setFeedback(`✓ ${action}ed`);
+      setApprovals(approvals.filter(a => a.actionId !== actionId));
+      setFeedback(`✓ ${action === "approve" ? "Approved" : "Rejected"}`);
       setTimeout(() => setFeedback(""), 3000);
     } catch { setFeedback("Failed"); setTimeout(() => setFeedback(""), 3000); }
   };
@@ -452,17 +450,17 @@ function ActivityHubDashboard() {
               ) : (
                 <div className="space-y-3">
                   {approvals.slice(0, 3).map((app: any) => (
-                    <div key={app.id || app._id} className="bg-stone-900/50 border border-stone-800 rounded-lg p-3 space-y-2">
+                    <div key={app.actionId} className="bg-stone-900/50 border border-stone-800 rounded-lg p-3 space-y-2">
                       <div className="flex justify-between text-[9px] font-mono">
-                        <span className="text-stone-500 truncate">{app.id?.slice(0, 12) || "PENDING"}</span>
-                        <span className="text-blue-400">{app.confidenceScore}% conf.</span>
+                        <span className="text-stone-500 truncate">{app.actionId?.slice(0, 12) || "PENDING"}</span>
+                        <span className="text-blue-400">{app.provider || "unknown"}</span>
                       </div>
-                      <p className="text-[10px] font-bold text-white leading-snug">{app.type}</p>
-                      <p className="text-[9px] text-stone-400 leading-relaxed bg-stone-950 rounded-lg p-2">{app.suggestedDecision}</p>
+                      <p className="text-[10px] font-bold text-white leading-snug">{app.actionType}</p>
+                      <p className="text-[9px] text-stone-400 leading-relaxed bg-stone-950 rounded-lg p-2">{(app.summary?.what || "No details") + (app.summary?.where ? " \u2192 " + app.summary.where : "")}</p>
                       <div className="grid grid-cols-2 gap-1.5">
-                        <button onClick={() => handleApprovalAction(app.id || app._id, "Approve")}
+                        <button onClick={() => handleApprovalAction(app.actionId, "approve")}
                           className="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold py-1.5 rounded-lg transition-all">Approve</button>
-                        <button onClick={() => handleApprovalAction(app.id || app._id, "Reject")}
+                        <button onClick={() => handleApprovalAction(app.actionId, "reject")}
                           className="bg-stone-800 hover:bg-stone-700 text-stone-300 text-[10px] font-bold py-1.5 rounded-lg border border-stone-700 transition-all">Reject</button>
                       </div>
                     </div>

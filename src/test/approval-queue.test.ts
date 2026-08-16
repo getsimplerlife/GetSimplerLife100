@@ -350,6 +350,15 @@ describe("portal /api/portal/approvals (self-hosted server)", () => {
     expect(approve.json.data.execution.error).toMatch(/no connection found|not initialized/i);
   });
 
+  it("HYGIENE: legacy /api/data/approvals endpoint is gone (404, no echo trap)", async () => {
+    const probe = await fetch(`${testBaseUrl()}/api/portal/approvals`, { method: "GET" });
+    if ((probe.headers.get("content-type") || "").includes("text/html") || probe.status === 404) return;
+    const res = await fetch(`${testBaseUrl()}/api/data/approvals`, { method: "GET" });
+    // Dead endpoint: must NOT return 200 (the old echo handler is removed).
+    // Server's global /api auth guard answers 401 when unauthenticated.
+    expect(res.status).not.toBe(200);
+  });
+
   it("ISOLATION: tenant B cannot see or decide tenant A's actions", async () => {
     const probe = await fetch(`${testBaseUrl()}/api/portal/approvals`, { method: "GET" });
     if ((probe.headers.get("content-type") || "").includes("text/html") || probe.status === 404) return;
