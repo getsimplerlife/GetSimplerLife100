@@ -13,6 +13,11 @@ export function getHubSpotOAuthConfig(config: { clientId: string; clientSecret: 
     tokenUrl: "https://api.hubapi.com/oauth/v1/token",
     flowType: "authorization_code",
     usePKCE: true,
+    // Force HubSpot to re-show the consent screen on reconnect. Without this,
+    // reconnecting an already-approved app silently re-approves with the ORIGINAL
+    // scope grant — newly added scopes (crm.schemas.pipelines.read, and any scope
+    // never consented) never land (verified live: reconnect stayed 4/11 until this).
+    extraParams: { prompt: "consent" },
   };
 }
 
