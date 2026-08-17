@@ -65,4 +65,28 @@ describe("HubSpot OAuth scopes", () => {
     expect(parsed.searchParams.get("response_type")).toBe("code");
     expect(parsed.searchParams.get("code_challenge_method")).toBe("S256");
   });
+
+  it("forces re-consent with prompt=consent (without it, HubSpot silently re-approves the ORIGINAL scope grant and new scopes never land)", async () => {
+    const { url } = await buildHubSpotAuthUrl({
+      clientId: "test-id",
+      clientSecret: "test-secret",
+      redirectUri: "https://example.com/oauth/callback",
+    });
+    const parsed = new URL(url);
+    expect(parsed.searchParams.get("prompt")).toBe("consent");
+  });
+
+  it("authorize URL keeps all 10 scopes AND prompt=consent at the same time", async () => {
+    const { url } = await buildHubSpotAuthUrl({
+      clientId: "test-id",
+      clientSecret: "test-secret",
+      redirectUri: "https://example.com/oauth/callback",
+    });
+    const parsed = new URL(url);
+    expect(parsed.searchParams.get("prompt")).toBe("consent");
+    expect(parsed.searchParams.get("scope")).toBe(ALLOWED_SCOPES.join(" "));
+    for (const scope of ALLOWED_SCOPES) {
+      expect(parsed.searchParams.get("scope")).toContain(scope);
+    }
+  });
 });
