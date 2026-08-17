@@ -163,6 +163,15 @@ async function waitForHealth(timeoutMs = 45_000): Promise<void> {
   throw new Error(`test server did not become ready on ${SELF_HOSTED_BASE_URL} (${lastErr})`);
 }
 
+/** Deterministic signing secret for the isolated test server's Slack route.
+ *  The repo .env ships SLACK_SIGNING_SECRET empty (the real value is wired
+ *  only at watchdog launch), so the self-hosted test server falls back to a
+ *  fixed test secret; server-level Slack route tests (PR #169) sign requests
+ *  with the same value. */
+export function testSlackSigningSecret(): string {
+  return process.env.SLACK_SIGNING_SECRET || "slack-test-signing-secret";
+}
+
 /** Mirrors the Stripe secret the spawned server will enforce (from .env). */
 export function resolveWebhookSecretFromEnv(): string {
   if (process.env.STRIPE_WEBHOOK_SECRET) return process.env.STRIPE_WEBHOOK_SECRET;
@@ -243,6 +252,10 @@ async function spawnServerOnce(): Promise<void> {
     // Disable the Neon durable store: file-backed, zero live writes.
     DATABASE_URL: "",
     STRIPE_WEBHOOK_SECRET: resolveWebhookSecretFromEnv(),
+    // Slack route is fail-closed without a signing secret; the isolated test
+    // server gets a deterministic one so server-level route tests (PR #169
+    // slack-events alias) can sign requests. Live servers are unaffected.
+    SLACK_SIGNING_SECRET: testSlackSigningSecret(),
     SLACK_BOT_TOKEN: "",
     OAUTH_STATE_SWEEP_INTERVAL_MS: String(60 * 60 * 1000),
     BACKUP_SNAPSHOT_INTERVAL_MS: String(60 * 60 * 1000),
