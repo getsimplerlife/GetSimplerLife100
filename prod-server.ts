@@ -6,7 +6,8 @@ import { resolveDataDir, isInsidePublishTree, readJSON, writeJSON, seedDataFiles
 import { detectPackType, buildPackPurchase, verifyStripeSignature, matchAgentByPaymentLink, matchAgentByMetadata, detectPlanType, buildPlanPurchase, planAgentIds } from "./src/lib/stripe-webhook";
 import { AGENTS } from "./src/data/agents";
 import { initDurableStore, durableEnabled, durableKeyCount, durableStoreStatus, durableSnapshotBackup } from "./src/lib/durable-store";
-import { sweepExpiredTokens, tokenSweepStats } from "./src/lib/token-refresher";
+import { startScheduledTokenRefresher, scheduledRefresherStats, REFRESHER_TICK_MS } from "./src/lib/token-refresher";
+import { startHealthHeartbeat } from "./src/lib/connection-health";
 import { sweepExpiredOAuthStates, OAUTH_STATE_TTL_MS } from "./src/lib/oauth-state-sweeper";
 
 // ── Lazy module accessors — loaded on first use to keep server startup under 1s ──
@@ -374,39 +375,32 @@ if (durableInit.enabled) {
 } else {
   console.log("[prod-server] durable Postgres store " + (durableInit.error ? "DISABLED (init error: " + durableInit.error + ") — using file store only" : "DISABLED (no DATABASE_URL) — using file store only"));
 }
-// ── Background token-refresh sweeper (keeps OAuth connections alive 24/7) ──
-const TOKEN_SWEEP_INTERVAL_MS = (() => {
-  const n = Number(process.env.TOKEN_SWEEP_INTERVAL_MS);
-  return Number.isFinite(n) && n > 0 ? n : 60 * 60 * 1000; // hourly default
+// ── Connection lifecycle (#230, owner: "never lose a connection again") ──
+// PROACTIVE  — due-based refresh every CONNECTION_TICK_MS (60s, NOT hourly-blind);
+//              a boot catch-up refreshes anything already due at startup.
+// DURABLE    — every rotated (single-use) refresh token is flushed to Neon
+//              immediately on every refresh path (scheduler + persistRefreshedCredential).
+// DETECTED   — health heartbeat probes a REAL read per provider every
+//              CONNECTION_HEALTH_INTERVAL_MS (15 min) with loud per-provider logs.
+// SELF-HEALING — fatal grant errors → status reconnect_required + owner email
+//              alert (throttled 6h) + per-tenant status via /api/portal/connections.
+const CONNECTION_TICK_MS = (() => {
+  const n = Number(process.env.CONNECTION_TICK_MS);
+  return Number.isFinite(n) && n > 0 ? n : REFRESHER_TICK_MS; // 60s default
 })();
-let tokenSweepTimer: any = null;
-let tokenSweepRunning = false;
-async function runTokenSweep(): Promise<void> {
-  if (tokenSweepRunning) return; // never overlap sweeps
-  tokenSweepRunning = true;
-  try {
-    const result = await sweepExpiredTokens(DATA_DIR);
-    console.log(`[token-refresher] sweep done: checked=${result.checked} refreshed=${result.refreshed} failed=${result.failed} skipped=${result.skipped}` + (result.errors.length ? ` errors=${result.errors.length}` : ""));
-  } catch (e: any) {
-    tokenSweepStats.lastError = e?.message || String(e);
-    console.log("[token-refresher] sweep error: " + (e?.message || String(e)));
-  } finally {
-    tokenSweepRunning = false;
-    tokenSweepStats.lastSweep = Date.now();
-    tokenSweepStats.nextSweep = Date.now() + TOKEN_SWEEP_INTERVAL_MS;
-  }
+const CONNECTION_HEALTH_INTERVAL_MS = (() => {
+  const n = Number(process.env.CONNECTION_HEALTH_INTERVAL_MS);
+  return Number.isFinite(n) && n > 0 ? n : 15 * 60 * 1000; // 15m default
+})();
+const connectionLifecycle: Array<{ stop(): void }> = [];
+function startConnectionLifecycle(): void {
+  connectionLifecycle.push(
+    startScheduledTokenRefresher(DATA_DIR, { tickMs: CONNECTION_TICK_MS }),
+    startHealthHeartbeat(DATA_DIR, { intervalMs: CONNECTION_HEALTH_INTERVAL_MS }),
+  );
+  console.log(`[connection-lifecycle] started: scheduled refresher (tick ${CONNECTION_TICK_MS}ms + boot catch-up) + health heartbeat (every ${CONNECTION_HEALTH_INTERVAL_MS}ms)`);
 }
-function startTokenSweeper(): void {
-  if (tokenSweepTimer) return;
-  tokenSweepTimer = setInterval(() => { void runTokenSweep(); }, TOKEN_SWEEP_INTERVAL_MS);
-  if (tokenSweepTimer?.unref) tokenSweepTimer.unref();
-  tokenSweepStats.nextSweep = Date.now() + TOKEN_SWEEP_INTERVAL_MS;
-  // First sweep shortly after boot so near-expiry tokens refresh promptly.
-  const first = setTimeout(() => { void runTokenSweep(); }, 60_000);
-  if (first?.unref) first.unref();
-  console.log(`[token-refresher] sweeper started: every ${TOKEN_SWEEP_INTERVAL_MS}ms (first sweep in 60s)`);
-}
-startTokenSweeper();
+startConnectionLifecycle();
 // ── Background backup snapshots (owner mandate: never lose client data) ──
 const BACKUP_SNAPSHOT_INTERVAL_MS = (() => {
   const n = Number(process.env.BACKUP_SNAPSHOT_INTERVAL_MS);
@@ -996,6 +990,38 @@ serve({
         return Response.json({ data: { workspacePreference: preference } });
       }
       return Response.json({ error: "Method not allowed" }, { status: 405 });
+    }
+    // ── /api/portal/connections — #230 connection health + reconnect surface ──
+    // GET → per-tenant { provider, status, health, expiresAt, reconnectPath }
+    if (pathname === "/api/portal/connections") {
+      const user = await getUserFromSession(req);
+      if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
+      const { isRefreshProvider } = await import("./src/lib/token-refresher");
+      const { connectionHealthSnapshot } = await import("./src/lib/connection-health");
+      const tokenData = (readJSON(join(DATA_DIR, "tenant_oauth_credentials.json")) as Record<string, any>) || {};
+      const health = connectionHealthSnapshot(DATA_DIR);
+      const list: any[] = [];
+      for (const [key, entry] of Object.entries<any>(tokenData)) {
+        if (!entry || typeof entry !== "object") continue;
+        const provider = String(entry.provider || (key.includes(":") ? key.split(":")[1] : key));
+        const email = key.includes(":") ? key.split(":")[0] : "";
+        if (email && email !== user.email) continue; // strict per-tenant isolation
+        const healthRec = health.find((h) => h.provider === provider && (!email || h.email === email));
+        const hasRefresh = isRefreshProvider(provider) && Boolean(entry.refreshToken);
+        list.push({
+          provider,
+          connected: Boolean(entry.accessToken || entry.apiToken),
+          hasRefreshToken: hasRefresh,
+          expiresAt: entry.expiresAt ? new Date(Number(entry.expiresAt) * 1000).toISOString() : null,
+          status: healthRec?.status ?? (hasRefresh ? "ok" : "unknown"),
+          lastProbeAt: healthRec?.lastProbeAt ?? null,
+          lastOkAt: healthRec?.lastOkAt ?? null,
+          lastError: healthRec?.lastError ?? null,
+          consecutiveFailures: healthRec?.consecutiveFailures ?? 0,
+          reconnectPath: hasRefresh ? "/portal/integrations" : null,
+        });
+      }
+      return Response.json({ data: { connections: list, refreshTicks: scheduledRefresherStats.tickCount } });
     }
     // ── /api/portal/pack-slot — plan-included Connection Pack redemption ──
     // GET  → { data: { included, chosen } } (read-only entitlement view)
@@ -2360,10 +2386,14 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
           lastSnapshotAt: store.lastSnapshotAt,
           snapshotCount: store.snapshotCount,
           lastSnapshotError: store.lastSnapshotError,
-          lastSweep: tokenSweepStats.lastSweep || null,
-          nextSweep: tokenSweepStats.nextSweep || null,
-          tokensRefreshed: tokenSweepStats.tokensRefreshed,
-          tokensFailed: tokenSweepStats.tokensFailed,
+          lastSweep: scheduledRefresherStats.lastTickAt || null,
+          nextSweep: null, // due-based scheduler has no fixed cadence
+          tokensRefreshed: scheduledRefresherStats.refreshed,
+          tokensFailed: scheduledRefresherStats.transientFailures + scheduledRefresherStats.reconnectRequired,
+          refreshTicks: scheduledRefresherStats.tickCount,
+          reconnectRequired: scheduledRefresherStats.reconnectRequired,
+          ownerAlertsSent: scheduledRefresherStats.alertsSent,
+          refreshLastError: scheduledRefresherStats.lastError,
         });
       }
       if (subPath === "credentials") {
