@@ -61,20 +61,27 @@ export const PROBE_REGISTRY: Record<string, ProviderProbeDef> = {
     buildRequest: (e) => ({ url: "https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=1", method: "GET", headers: { Authorization: `Bearer ${e.accessToken}` } }),
     isOk: (r) => r.status >= 200 && r.status < 300,
   },
+  // #231: probe URL MUST sit inside the granted scope. These providers request
+  // only Files.ReadWrite (+ offline_access) — Graph endpoint /v1.0/me requires
+  // the User.Read scope and returns 401 UnknownError for a perfectly valid
+  // Files token (this is exactly what the live heartbeat reported after the
+  // 19th publish, falsely marking connections degraded). /me/drive/root needs
+  // only Files.Read — it matches the audited clients (onedrive/client.ts etc.)
+  // and returns 200 with the SAME token (verified read-only 2026-08-18).
   "microsoft-word": {
-    buildRequest: (e) => ({ url: "https://graph.microsoft.com/v1.0/me", method: "GET", headers: { Authorization: `Bearer ${e.accessToken}` } }),
+    buildRequest: (e) => ({ url: "https://graph.microsoft.com/v1.0/me/drive/root", method: "GET", headers: { Authorization: `Bearer ${e.accessToken}` } }),
     isOk: (r) => r.status >= 200 && r.status < 300,
   },
   "microsoft-excel": {
-    buildRequest: (e) => ({ url: "https://graph.microsoft.com/v1.0/me", method: "GET", headers: { Authorization: `Bearer ${e.accessToken}` } }),
+    buildRequest: (e) => ({ url: "https://graph.microsoft.com/v1.0/me/drive/root", method: "GET", headers: { Authorization: `Bearer ${e.accessToken}` } }),
     isOk: (r) => r.status >= 200 && r.status < 300,
   },
   "microsoft-powerpoint": {
-    buildRequest: (e) => ({ url: "https://graph.microsoft.com/v1.0/me", method: "GET", headers: { Authorization: `Bearer ${e.accessToken}` } }),
+    buildRequest: (e) => ({ url: "https://graph.microsoft.com/v1.0/me/drive/root", method: "GET", headers: { Authorization: `Bearer ${e.accessToken}` } }),
     isOk: (r) => r.status >= 200 && r.status < 300,
   },
   onedrive: {
-    buildRequest: (e) => ({ url: "https://graph.microsoft.com/v1.0/me", method: "GET", headers: { Authorization: `Bearer ${e.accessToken}` } }),
+    buildRequest: (e) => ({ url: "https://graph.microsoft.com/v1.0/me/drive/root", method: "GET", headers: { Authorization: `Bearer ${e.accessToken}` } }),
     isOk: (r) => r.status >= 200 && r.status < 300,
   },
   slack: {
@@ -182,6 +189,19 @@ export class ConnectionHealthTracker {
     writeJSON(join(this.dataDir, HEALTH_FILE), Object.fromEntries(this.records));
     return rec;
   }
+  /**
+   * Prune records whose credential key no longer exists in the credential store
+   * (stale fixture rows like `tenant@example.com:xero` must not keep being probed/emailed).
+   * Non-destructive: only removes rows for keys absent from `validKeys`.
+   */
+  prune(validKeys: ReadonlySet<string>): number {
+    let removed = 0;
+    for (const k of [...this.records.keys()]) {
+      if (!validKeys.has(k)) { this.records.delete(k); removed++; }
+    }
+    if (removed > 0) writeJSON(join(this.dataDir, HEALTH_FILE), Object.fromEntries(this.records));
+    return removed;
+  }
   /** Mark reconnect_required from the refresher path (shared failure state). */
   markReconnectRequired(provider: string, email: string, reason: string): void {
     this.record(provider, email, { ok: false, error: reason, attemptedAt: Date.now() }, true);
@@ -206,6 +226,9 @@ export function startHealthHeartbeat(
 
   async function runCycle(): Promise<{ probed: number; ok: number; degraded: number; dead: number }> {
     const tokenData = (readJSON(join(dataDir, "tenant_oauth_credentials.json")) as Record<string, any> | undefined) || {};
+    // Prune health rows whose credential key no longer exists in the store
+    // (stale fixture rows like tenant@example.com:* must not keep being probed/emailed).
+    tracker.prune(new Set(Object.keys(tokenData)));
     let probed = 0, ok = 0, degraded = 0, dead = 0;
     for (const [key, entry] of Object.entries<any>(tokenData)) {
       if (stopped || !entry || typeof entry !== "object") continue;

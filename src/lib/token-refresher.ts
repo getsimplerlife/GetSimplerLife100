@@ -54,10 +54,28 @@ export const REFRESH_REGISTRY: Record<string, OAuthRefreshDef> = {
   // Audited: src/integrations/providers/microsoft-office/graph-auth.ts → tokenUrl
   // (multi-tenant "common" authority — refresh tokens issued for tenant-bound
   // authorities that fail here will surface as auth_failed and need re-auth)
-  onedrive: { tokenUrl: "https://login.microsoftonline.com/common/oauth2/v2.0/token" },
-  "microsoft-word": { tokenUrl: "https://login.microsoftonline.com/common/oauth2/v2.0/token" },
-  "microsoft-excel": { tokenUrl: "https://login.microsoftonline.com/common/oauth2/v2.0/token" },
-  "microsoft-powerpoint": { tokenUrl: "https://login.microsoftonline.com/common/oauth2/v2.0/token" },
+  //
+  // #231: scope MUST repeat the original grant. The provider modules request
+  // ["Files.ReadWrite","offline_access"] (onedrive/auth.ts etc.); a refresh that
+  // omits scope mints an MSA artifact token with NO Graph audience, which Graph
+  // rejects with 401 UnknownError — and the old valid token was being destroyed
+  // (silent connection loss). The scope here mirrors the module's audited grant.
+  onedrive: {
+    tokenUrl: "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+    extraParams: { scope: "Files.ReadWrite offline_access" },
+  },
+  "microsoft-word": {
+    tokenUrl: "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+    extraParams: { scope: "Files.ReadWrite offline_access" },
+  },
+  "microsoft-excel": {
+    tokenUrl: "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+    extraParams: { scope: "Files.ReadWrite offline_access" },
+  },
+  "microsoft-powerpoint": {
+    tokenUrl: "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+    extraParams: { scope: "Files.ReadWrite offline_access" },
+  },
   // Audited: src/integrations/providers/docusign/auth.ts → tokenUrl (authorization_code
   // grant; form-encoded client creds proven by the working connect token exchange)
   docusign: { tokenUrl: "https://account-d.docusign.com/oauth/token" },
@@ -389,7 +407,7 @@ export function noteAlertSent(key: string, reason: string, nowMs: number): void 
 /** Send the owner reconnect-required alert via the repo's email path (throttled). */
 export async function alertOwnerReconnectRequired(opts: {
   provider: string; email: string; reason: string; nowMs?: number;
-  emailImpl?: (o: any) => Promise<{ ok: boolean; error?: string }>;
+  emailImpl?: (o: any) => Promise<{ ok?: boolean; success?: boolean; isMock?: boolean; error?: string }>;
 }): Promise<boolean> {
   const now = opts.nowMs ?? Date.now();
   const key = `${opts.email}:${opts.provider}`;
@@ -408,7 +426,11 @@ export async function alertOwnerReconnectRequired(opts: {
         `Fix: open the portal → Integrations → ${opts.provider} → Connect (one click). ` +
         `The connection stays dead until reauthorized; all ${opts.provider} automations are paused.`,
     });
-    const sent = res?.ok ?? false;
+    // #231: the repo's real sendEmail resolves { success, isMock } — NOT { ok }.
+    // Only counting `ok` meant noteAlertSent never ran for the default path, so
+    // the 6h throttle never engaged and the mock alert fired every cycle
+    // (32 simulated sends, zero real deliveries). Accept either shape.
+    const sent = Boolean(res?.ok ?? res?.success);
     if (sent) noteAlertSent(key, opts.reason, now);
     return sent;
   } catch {
@@ -417,17 +439,34 @@ export async function alertOwnerReconnectRequired(opts: {
 }
 
 /**
+ * Validate a freshly-refreshed access token BEFORE it replaces the stored one.
+ * #231: the token endpoint can return HTTP 200 with an unusable token (the live
+ * heartbeat proved it — Graph 401 UnknownError on a "successfully refreshed"
+ * Files-scoped token). A refresher must NEVER replace a working token with one
+ * the provider itself rejects. Inject the audited probe (connection-health →
+ * probeProvider) so this module avoids a circular import.
+ */
+export type RefreshTokenValidator = (
+  provider: string,
+  accessToken: string,
+  entry: Record<string, any>,
+) => Promise<{ ok: boolean; httpStatus?: number; error?: string }>;
+
+/**
  * Refresh ONE stored credential entry in place with single-writer discipline.
  * Returns the outcome; on success the rotated tokens (access + refresh) are
  * written through writeJSON and an IMMEDIATE durable flush is fired so the
  * single-use rotation reaches Neon without the ≤10-min background window.
+ * When `opts.validateToken` is provided it MUST pass before the new token is
+ * persisted — otherwise the previous (working) token is retained and the
+ * failure is recorded loudly (fail-closed, #231).
  */
 export async function refreshOneCredential(
   dataDir: string,
   tokenData: Record<string, StoredOAuthEntry>,
   connsByEmail: Record<string, any[]>,
   key: string,
-  opts: { now?: number; fetchImpl?: typeof fetch; flushNow?: boolean; leaseOwner?: string } = {},
+  opts: { now?: number; fetchImpl?: typeof fetch; flushNow?: boolean; leaseOwner?: string; validateToken?: RefreshTokenValidator } = {},
 ): Promise<RefreshOutcome> {
   const now = opts.now ?? Date.now();
   const entry = tokenData[key];
@@ -458,6 +497,36 @@ export async function refreshOneCredential(
       clientId: creds.clientId, clientSecret: creds.clientSecret,
       refreshToken: entry.refreshToken, fetchImpl: opts.fetchImpl,
     });
+    // #231 validate-before-replace: run the audited probe against the NEW token
+    // before it can overwrite the stored one. If the provider rejects the token
+    // (e.g. Graph 401 UnknownError on a scoped token), KEEP the previous token,
+    // record the failure loudly, and do NOT rotate the store. A 200 from the
+    // token endpoint is not proof the token works.
+    if (opts.validateToken) {
+      const validation = await opts.validateToken(provider, tokens.accessToken, entry);
+      if (!validation?.ok) {
+        const msg = `refreshed token REJECTED by provider (${validation?.httpStatus ?? "n/a"} ${validation?.error ?? ""}) — previous token RETAINED`;
+        console.error(`[connection-refresher] ⚠️ ${msg} provider=${provider} tenant=${email || "?"}`);
+        const userConns = Array.isArray(connsByEmail[email]) ? connsByEmail[email] : [];
+        const idx = userConns.findIndex((c: any) => c && (c.providerId === provider || c.provider === provider));
+        if (idx >= 0) {
+          userConns[idx] = {
+            ...userConns[idx],
+            status: "auth_failed",
+            lastSync: new Date(now).toISOString(),
+            lastRefreshError: msg.slice(0, 300),
+            refreshFailedAt: new Date(now).toISOString(),
+          };
+          connsByEmail[email] = userConns;
+          writeJSON(join(dataDir, "tenant_integrations.json"), connsByEmail);
+        }
+        scheduledRefresherStats.transientFailures++;
+        scheduledRefresherStats.lastError = msg.slice(0, 300);
+        void drainPendingWrites().catch(() => {});
+        release();
+        return { key, provider, email, refreshed: false, status: "transient", error: msg };
+      }
+    }
     tokenData[key] = {
       ...entry,
       accessToken: tokens.accessToken,
@@ -531,7 +600,7 @@ function isRefreshableKey(entry: any): boolean {
  */
 export function startScheduledTokenRefresher(
   dataDir: string,
-  opts: { tickMs?: number; now?: () => number; fetchImpl?: typeof fetch; onTick?: () => void } = {},
+  opts: { tickMs?: number; now?: () => number; fetchImpl?: typeof fetch; onTick?: () => void; validateToken?: RefreshTokenValidator } = {},
 ): ScheduledRefresherHandle {
   const tickMs = opts.tickMs ?? REFRESHER_TICK_MS;
   const inFlight = new Set<string>();
@@ -561,7 +630,7 @@ export function startScheduledTokenRefresher(
       inFlight.add(key);
       try {
         const outcome = await refreshOneCredential(dataDir, tokenData, conns, key, {
-          now, fetchImpl: opts.fetchImpl, flushNow: true,
+          now, fetchImpl: opts.fetchImpl, flushNow: true, validateToken: opts.validateToken,
         });
         outcomes.push(outcome);
       } finally {
