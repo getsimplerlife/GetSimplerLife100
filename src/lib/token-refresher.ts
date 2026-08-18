@@ -407,7 +407,7 @@ export function noteAlertSent(key: string, reason: string, nowMs: number): void 
 /** Send the owner reconnect-required alert via the repo's email path (throttled). */
 export async function alertOwnerReconnectRequired(opts: {
   provider: string; email: string; reason: string; nowMs?: number;
-  emailImpl?: (o: any) => Promise<{ ok: boolean; error?: string }>;
+  emailImpl?: (o: any) => Promise<{ ok?: boolean; success?: boolean; isMock?: boolean; error?: string }>;
 }): Promise<boolean> {
   const now = opts.nowMs ?? Date.now();
   const key = `${opts.email}:${opts.provider}`;
@@ -426,7 +426,11 @@ export async function alertOwnerReconnectRequired(opts: {
         `Fix: open the portal → Integrations → ${opts.provider} → Connect (one click). ` +
         `The connection stays dead until reauthorized; all ${opts.provider} automations are paused.`,
     });
-    const sent = res?.ok ?? false;
+    // #231: the repo's real sendEmail resolves { success, isMock } — NOT { ok }.
+    // Only counting `ok` meant noteAlertSent never ran for the default path, so
+    // the 6h throttle never engaged and the mock alert fired every cycle
+    // (32 simulated sends, zero real deliveries). Accept either shape.
+    const sent = Boolean(res?.ok ?? res?.success);
     if (sent) noteAlertSent(key, opts.reason, now);
     return sent;
   } catch {

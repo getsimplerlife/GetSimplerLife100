@@ -204,6 +204,32 @@ describe("owner alert throttling", () => {
     expect(await alertOwnerReconnectRequired({ provider: "xero", email: "owner@x.io", reason: "revoked", nowMs: now + 120_000 + RECONNECT_ALERT_THROTTLE_MS + 1, emailImpl })).toBe(true);
     expect(sent).toBe(3);
   });
+  it("REGRESSION #231 — throttle engages when the email impl returns the repo's real shape { success, isMock } instead of { ok }", async () => {
+    // Distinct future base time: the throttle map is module-scoped, so this must not
+    // collide with state left by the prior test (which used 1_800_000_000_000).
+    const now = 2_000_000_000_000;
+    let sent = 0;
+    // Mirrors src/integrations/email.ts sendEmail(): { success, messageId, isMock, recipient } — no `ok`.
+    const emailImpl = async () => { sent++; return { success: true, isMock: true, messageId: "mock-1", recipient: ["owner@x.io"] }; };
+    expect(await alertOwnerReconnectRequired({ provider: "onedrive", email: "owner@x.io", reason: "probe failed", nowMs: now, emailImpl })).toBe(true);
+    // Same cause 1 min later → throttle MUST have recorded the send → blocked.
+    expect(await alertOwnerReconnectRequired({ provider: "onedrive", email: "owner@x.io", reason: "probe failed", nowMs: now + 60_000, emailImpl })).toBe(false);
+    expect(sent).toBe(1);
+    // After the 6h window → allowed again.
+    expect(await alertOwnerReconnectRequired({ provider: "onedrive", email: "owner@x.io", reason: "probe failed", nowMs: now + 60_000 + RECONNECT_ALERT_THROTTLE_MS + 1, emailImpl })).toBe(true);
+    expect(sent).toBe(2);
+  });
+  it("failure from the email impl does not record throttle (not a send)", async () => {
+    // Distinct email key + future base so neither earlier test's throttle state applies.
+    const now = 2_100_000_000_000;
+    let attempts = 0;
+    const emailImpl = async () => { attempts++; return { success: false, isMock: false, messageId: "", recipient: ["fails@x.io"] }; };
+    expect(await alertOwnerReconnectRequired({ provider: "onedrive", email: "fails@x.io", reason: "probe failed", nowMs: now, emailImpl })).toBe(false);
+    expect(attempts).toBe(1);
+    // Not recorded → an immediate retry attempts the sender again (throttle did not engage).
+    expect(await alertOwnerReconnectRequired({ provider: "onedrive", email: "fails@x.io", reason: "probe failed", nowMs: now + 5_000, emailImpl })).toBe(false);
+    expect(attempts).toBe(2);
+  });
 });
 
 describe("health heartbeat — audited probes + status transitions", () => {
