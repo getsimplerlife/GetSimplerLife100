@@ -189,6 +189,19 @@ export class ConnectionHealthTracker {
     writeJSON(join(this.dataDir, HEALTH_FILE), Object.fromEntries(this.records));
     return rec;
   }
+  /**
+   * Prune records whose credential key no longer exists in the credential store
+   * (stale fixture rows like `tenant@example.com:xero` must not keep being probed/emailed).
+   * Non-destructive: only removes rows for keys absent from `validKeys`.
+   */
+  prune(validKeys: ReadonlySet<string>): number {
+    let removed = 0;
+    for (const k of [...this.records.keys()]) {
+      if (!validKeys.has(k)) { this.records.delete(k); removed++; }
+    }
+    if (removed > 0) writeJSON(join(this.dataDir, HEALTH_FILE), Object.fromEntries(this.records));
+    return removed;
+  }
   /** Mark reconnect_required from the refresher path (shared failure state). */
   markReconnectRequired(provider: string, email: string, reason: string): void {
     this.record(provider, email, { ok: false, error: reason, attemptedAt: Date.now() }, true);
@@ -213,6 +226,9 @@ export function startHealthHeartbeat(
 
   async function runCycle(): Promise<{ probed: number; ok: number; degraded: number; dead: number }> {
     const tokenData = (readJSON(join(dataDir, "tenant_oauth_credentials.json")) as Record<string, any> | undefined) || {};
+    // Prune health rows whose credential key no longer exists in the store
+    // (stale fixture rows like tenant@example.com:* must not keep being probed/emailed).
+    tracker.prune(new Set(Object.keys(tokenData)));
     let probed = 0, ok = 0, degraded = 0, dead = 0;
     for (const [key, entry] of Object.entries<any>(tokenData)) {
       if (stopped || !entry || typeof entry !== "object") continue;
