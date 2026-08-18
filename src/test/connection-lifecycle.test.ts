@@ -318,3 +318,84 @@ describe("SINGLE-FLIGHT refresh — Xero single-use token race (regression)", ()
     expect(afterWin["tenant@example.com:xero"].refreshToken).toBe("new-refresh"); // token moved forward
   });
 });
+
+describe("REGRESSION #231 — validate-before-replace (never swap a working token for a provider-rejected one)", () => {
+  const now = () => Date.now();
+  it("provider probe URL for MS providers sits inside the granted Files.ReadWrite scope", () => {
+    // Graph /v1.0/me needs User.Read; the token only carries Files.ReadWrite.
+    // The audited probe must hit /me/drive/root so a VALID token reports ok.
+    for (const prov of ["onedrive", "microsoft-word", "microsoft-excel", "microsoft-powerpoint"]) {
+      const req = PROBE_REGISTRY[prov].buildRequest({ accessToken: "t" });
+      expect(req.url).toBe("https://graph.microsoft.com/v1.0/me/drive/root");
+    }
+  });
+  it("refresh persists when the new token PASSES the audited probe", async () => {
+    const fetchMock = okFetch();
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    seedCreds({
+      "microsoft-word": { provider: "microsoft-word", clientId: "cid", clientSecret: "secret" },
+      "tenant@example.com:microsoft-word": {
+        provider: "microsoft-word", accessToken: "old-access", refreshToken: "old-refresh",
+        expiresAt: now() / 1000 + 60, updatedAt: new Date(now() - 2 * HOUR).toISOString(),
+      },
+    });
+    const validateToken = async () => ({ ok: true });
+    const res = await refreshOneCredential(tmp,
+      readJSON(join(tmp, "tenant_oauth_credentials.json")),
+      readJSON(join(tmp, "tenant_integrations.json")),
+      "tenant@example.com:microsoft-word",
+      { now: now(), fetchImpl: fetchMock as unknown as typeof fetch, validateToken },
+    );
+    expect(res.status).toBe("ok");
+    expect(res.refreshed).toBe(true);
+    const stored = readJSON(join(tmp, "tenant_oauth_credentials.json"));
+    expect(stored["tenant@example.com:microsoft-word"].accessToken).toBe("new-access");
+  });
+  it("DOES NOT overwrite the stored token when the probe REJECTS the new token", async () => {
+    const fetchMock = okFetch(); // token endpoint 200, but...
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    seedCreds({
+      "onedrive": { provider: "onedrive", clientId: "cid", clientSecret: "secret" },
+      "tenant@example.com:onedrive": {
+        provider: "onedrive", accessToken: "valid-working-token", refreshToken: "old-refresh",
+        expiresAt: now() / 1000 + 3600, updatedAt: new Date(now() - 2 * HOUR).toISOString(),
+      },
+    });
+    const validateToken = async () => ({ ok: false, httpStatus: 401, error: "Graph 401 UnknownError (scope)" });
+    const res = await refreshOneCredential(tmp,
+      readJSON(join(tmp, "tenant_oauth_credentials.json")),
+      readJSON(join(tmp, "tenant_integrations.json")),
+      "tenant@example.com:onedrive",
+      { now: now(), fetchImpl: fetchMock as unknown as typeof fetch, validateToken },
+    );
+    expect(res.refreshed).toBe(false);
+    expect(res.status).toBe("transient");
+    expect(res.error).toContain("REJECTED");
+    // The previous valid token is RETAINED — not replaced by the broken one.
+    const stored = readJSON(join(tmp, "tenant_oauth_credentials.json"));
+    expect(stored["tenant@example.com:onedrive"].accessToken).toBe("valid-working-token");
+    // Connection marked auth_failed with the loud error surfaced.
+    const conns = readJSON(join(tmp, "tenant_integrations.json"));
+    const c = conns["tenant@example.com"].find((x: any) => x.providerId === "onedrive");
+    expect(c.status).toBe("auth_failed");
+    expect(c.lastRefreshError).toContain("REJECTED");
+  });
+  it("scheduled refresher with validate-before-replace: rejection never persists a broken token", async () => {
+    const fetchMock = okFetch();
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    seedCreds({
+      "onedrive": { provider: "onedrive", clientId: "cid", clientSecret: "secret" },
+      "tenant@example.com:onedrive": {
+        provider: "onedrive", accessToken: "valid-working-token", refreshToken: "old-refresh",
+        expiresAt: now() / 1000 + 60, updatedAt: new Date(now() - 2 * HOUR).toISOString(),
+      },
+    });
+    const validateToken = async () => ({ ok: false, httpStatus: 401, error: "rejected" });
+    const handle = startScheduledTokenRefresher(tmp, { now, fetchImpl: fetchMock as unknown as typeof fetch, validateToken });
+    await handle.runTick();
+    handle.stop();
+    const stored = readJSON(join(tmp, "tenant_oauth_credentials.json"));
+    expect(stored["tenant@example.com:onedrive"].accessToken).toBe("valid-working-token");
+    expect(stored["tenant@example.com:onedrive"].refreshToken).toBe("old-refresh");
+  });
+});

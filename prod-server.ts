@@ -6,8 +6,8 @@ import { resolveDataDir, isInsidePublishTree, readJSON, writeJSON, seedDataFiles
 import { detectPackType, buildPackPurchase, verifyStripeSignature, matchAgentByPaymentLink, matchAgentByMetadata, detectPlanType, buildPlanPurchase, planAgentIds } from "./src/lib/stripe-webhook";
 import { AGENTS } from "./src/data/agents";
 import { initDurableStore, durableEnabled, durableKeyCount, durableStoreStatus, durableSnapshotBackup } from "./src/lib/durable-store";
-import { startScheduledTokenRefresher, scheduledRefresherStats, REFRESHER_TICK_MS } from "./src/lib/token-refresher";
-import { startHealthHeartbeat } from "./src/lib/connection-health";
+import { startScheduledTokenRefresher, scheduledRefresherStats, REFRESHER_TICK_MS, type RefreshTokenValidator } from "./src/lib/token-refresher";
+import { startHealthHeartbeat, probeProvider } from "./src/lib/connection-health";
 import { sweepExpiredOAuthStates, OAUTH_STATE_TTL_MS } from "./src/lib/oauth-state-sweeper";
 
 // ── Lazy module accessors — loaded on first use to keep server startup under 1s ──
@@ -394,11 +394,20 @@ const CONNECTION_HEALTH_INTERVAL_MS = (() => {
 })();
 const connectionLifecycle: Array<{ stop(): void }> = [];
 function startConnectionLifecycle(): void {
+  // #231: validate a refreshed token against the audited probe BEFORE it can
+  // replace the stored one — a token-endpoint 200 is not proof the token works
+  // (live incident: Graph 401 UnknownError on a fresh Files-scoped token). The
+  // probe is the same audited real read the heartbeat uses; on rejection the
+  // previous (working) token is retained and the failure is recorded loudly.
+  const validateToken: RefreshTokenValidator = async (provider, accessToken, entry) => {
+    const res = await probeProvider(provider, { ...entry, accessToken });
+    return { ok: res.ok, httpStatus: res.httpStatus, error: res.error };
+  };
   connectionLifecycle.push(
-    startScheduledTokenRefresher(DATA_DIR, { tickMs: CONNECTION_TICK_MS }),
+    startScheduledTokenRefresher(DATA_DIR, { tickMs: CONNECTION_TICK_MS, validateToken }),
     startHealthHeartbeat(DATA_DIR, { intervalMs: CONNECTION_HEALTH_INTERVAL_MS }),
   );
-  console.log(`[connection-lifecycle] started: scheduled refresher (tick ${CONNECTION_TICK_MS}ms + boot catch-up) + health heartbeat (every ${CONNECTION_HEALTH_INTERVAL_MS}ms)`);
+  console.log(`[connection-lifecycle] started: scheduled refresher (tick ${CONNECTION_TICK_MS}ms + boot catch-up, validate-before-replace ON) + health heartbeat (every ${CONNECTION_HEALTH_INTERVAL_MS}ms)`);
 }
 startConnectionLifecycle();
 // ── Background backup snapshots (owner mandate: never lose client data) ──

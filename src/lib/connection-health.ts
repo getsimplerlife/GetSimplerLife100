@@ -61,20 +61,27 @@ export const PROBE_REGISTRY: Record<string, ProviderProbeDef> = {
     buildRequest: (e) => ({ url: "https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=1", method: "GET", headers: { Authorization: `Bearer ${e.accessToken}` } }),
     isOk: (r) => r.status >= 200 && r.status < 300,
   },
+  // #231: probe URL MUST sit inside the granted scope. These providers request
+  // only Files.ReadWrite (+ offline_access) — Graph endpoint /v1.0/me requires
+  // the User.Read scope and returns 401 UnknownError for a perfectly valid
+  // Files token (this is exactly what the live heartbeat reported after the
+  // 19th publish, falsely marking connections degraded). /me/drive/root needs
+  // only Files.Read — it matches the audited clients (onedrive/client.ts etc.)
+  // and returns 200 with the SAME token (verified read-only 2026-08-18).
   "microsoft-word": {
-    buildRequest: (e) => ({ url: "https://graph.microsoft.com/v1.0/me", method: "GET", headers: { Authorization: `Bearer ${e.accessToken}` } }),
+    buildRequest: (e) => ({ url: "https://graph.microsoft.com/v1.0/me/drive/root", method: "GET", headers: { Authorization: `Bearer ${e.accessToken}` } }),
     isOk: (r) => r.status >= 200 && r.status < 300,
   },
   "microsoft-excel": {
-    buildRequest: (e) => ({ url: "https://graph.microsoft.com/v1.0/me", method: "GET", headers: { Authorization: `Bearer ${e.accessToken}` } }),
+    buildRequest: (e) => ({ url: "https://graph.microsoft.com/v1.0/me/drive/root", method: "GET", headers: { Authorization: `Bearer ${e.accessToken}` } }),
     isOk: (r) => r.status >= 200 && r.status < 300,
   },
   "microsoft-powerpoint": {
-    buildRequest: (e) => ({ url: "https://graph.microsoft.com/v1.0/me", method: "GET", headers: { Authorization: `Bearer ${e.accessToken}` } }),
+    buildRequest: (e) => ({ url: "https://graph.microsoft.com/v1.0/me/drive/root", method: "GET", headers: { Authorization: `Bearer ${e.accessToken}` } }),
     isOk: (r) => r.status >= 200 && r.status < 300,
   },
   onedrive: {
-    buildRequest: (e) => ({ url: "https://graph.microsoft.com/v1.0/me", method: "GET", headers: { Authorization: `Bearer ${e.accessToken}` } }),
+    buildRequest: (e) => ({ url: "https://graph.microsoft.com/v1.0/me/drive/root", method: "GET", headers: { Authorization: `Bearer ${e.accessToken}` } }),
     isOk: (r) => r.status >= 200 && r.status < 300,
   },
   slack: {
