@@ -338,6 +338,23 @@ export async function handleOAuthCallback(req: Request): Promise<Response> {
       tokens = await exchangeCodeForTokens(oauthConfig, code, "");
     }
 
+    // DocuSign: resolve + persist the default account id / API base URL so
+    // live verification and the client can build URLs without re-resolving
+    // userinfo on every call. Best-effort: if userinfo fails here, the adapter
+    // resolves at runtime (fail-closed, canonical hosts only — never guessed).
+    if (providerId === "docusign") {
+      try {
+        const docusignAuth = await import("../integrations/providers/docusign/auth");
+        const resolved = await docusignAuth.resolveDocuSignDefaultAccount(tokens);
+        if (resolved.accountId) {
+          tokens.accountId = resolved.accountId;
+          tokens.baseUrl = docusignAuth.docusignApiBaseUrl(resolved.baseUri);
+        }
+      } catch (e: any) {
+        console.warn("[integrations] DocuSign account resolution deferred to runtime:", e?.message || e);
+      }
+    }
+
     // Store the connection
     const config: ConnectionConfig = {
       accessToken: tokens.accessToken,
@@ -345,6 +362,8 @@ export async function handleOAuthCallback(req: Request): Promise<Response> {
       expiresAt: tokens.expiresAt,
       scope: tokens.scope,
       instanceUrl: tokens.instanceUrl,
+      accountId: tokens.accountId,
+      baseUrl: tokens.baseUrl,
       raw: tokens,
     };
 

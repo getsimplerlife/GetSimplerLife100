@@ -2816,6 +2816,11 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
           scope: tokens.scope,
           tokenType: tokens.tokenType,
           instanceUrl: tokens.instanceUrl,
+          // DocuSign: accountId + baseUrl captured at connect time (see the
+          // resolve block above) so verification + the client can build API
+          // URLs WITHOUT a live GET /oauth/userinfo round-trip on every run.
+          accountId: tokens.accountId,
+          baseUrl: tokens.baseUrl,
           updatedAt: new Date().toISOString(),
         };
         writeJSON(tokenFile, tokenData);

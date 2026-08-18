@@ -1,10 +1,10 @@
 import { HttpClient } from "../../framework/client"; import { OAuthTokens, isTokenExpired } from "../../framework/oauth"; import { ConnectionConfig } from "../../framework/connection";
 export interface EnvelopeRecipient { email: string; name?: string; roleName?: string; status?: string; tabs?: Array<Record<string, unknown>>; }
 export class DocuSignClient {
-  private client: HttpClient; private tokens: OAuthTokens; private authConfig: any; private accountId: string; private baseUrl: string; private appToken: string;
-  constructor(tokens: OAuthTokens, authConfig: any, accountId: string, baseUrl: string, appToken?: string) {
+  private client: HttpClient; private tokens: OAuthTokens; private authConfig: any; private accountId: string; private baseUrl: string; private appToken: string; private onTokensRefreshed?: (tokens: OAuthTokens) => void;
+  constructor(tokens: OAuthTokens, authConfig: any, accountId: string, baseUrl: string, appToken?: string, onTokensRefreshed?: (tokens: OAuthTokens) => void) {
     this.baseUrl = baseUrl || "https://demo.docusign.net/restapi"; this.client = new HttpClient({ baseUrl: `${this.baseUrl}/v2.1/accounts/${accountId}`, rateLimit: { maxRequestsPerSecond: 20 }, retry: { maxRetries: 3, baseDelay: 1000, maxDelay: 10000 }, timeout: 30000 });
-    this.tokens = tokens; this.authConfig = authConfig; this.accountId = accountId; this.appToken = appToken || "";
+    this.tokens = tokens; this.authConfig = authConfig; this.accountId = accountId; this.appToken = appToken || ""; this.onTokensRefreshed = onTokensRefreshed;
   }
   private get headers() {
     const h: Record<string, string> = { Authorization: `Bearer ${this.tokens.accessToken}`, "Content-Type": "application/json" };
@@ -29,7 +29,15 @@ export class DocuSignClient {
   }
   private async ensureToken() {
     await this.ensureAccount();
-    if (isTokenExpired(this.tokens) && this.tokens.refreshToken) { const { refreshDocuSignToken } = await import("./auth"); this.tokens = await refreshDocuSignToken(this.authConfig, this.tokens.refreshToken); }
+    if (isTokenExpired(this.tokens) && this.tokens.refreshToken) {
+      const { refreshDocuSignToken } = await import("./auth");
+      this.tokens = await refreshDocuSignToken(this.authConfig, this.tokens.refreshToken);
+      // DocuSign rotates the refresh token on EVERY refresh. The rotated token
+      // MUST be persisted (via the callback wired by the verification adapter /
+      // engine) or the stored refresh token goes permanently stale and the next
+      // refresh fails with `refresh_token_mismatch` (observed live 2026-08-17).
+      this.onTokensRefreshed?.(this.tokens);
+    }
   }
 
   // ─── Understand / Read ─────────────────────────────────────────────
@@ -104,5 +112,6 @@ export class DocuSignClient {
 export function createDocuSignClient(config: ConnectionConfig): DocuSignClient {
   return new DocuSignClient({ accessToken: config.accessToken || "", refreshToken: config.refreshToken, expiresAt: config.expiresAt, scope: config.scope, raw: config },
     { clientId: config.clientId || "", clientSecret: config.clientSecret || "", redirectUri: config.redirectUri || "" },
-    config.accountId || "", config.baseUrl || "", config.appToken as string | undefined);
+    config.accountId || "", config.baseUrl || "", config.appToken as string | undefined,
+    config.onTokensRefreshed as ((tokens: { accessToken: string; refreshToken?: string; expiresAt?: number; scope?: string; tokenType?: string }) => void) | undefined);
 }
