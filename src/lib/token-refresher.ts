@@ -286,3 +286,312 @@ export async function sweepExpiredTokens(
 
   return { checked: Object.keys(tokenData).length, refreshed, failed, skipped, errors };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// #230 connection-loss prevention (owner: "never lose a connection again")
+// Scheduled, per-credential PROACTIVE refresher + single-writer locking +
+// immediate rotation flush + failure classification + owner alert. The hourly
+// blind sweep above remains for tests/back-compat; the live server uses
+// startScheduledTokenRefresher() instead.
+// ─────────────────────────────────────────────────────────────────────────────
+import { drainPendingWrites } from "./durable-store";
+import { acquireRefreshLease, releaseRefreshLease, REFRESH_LEASE_TTL_MS } from "./connection-refresh-lock";
+
+/** Tick cadence for the due-based scheduler (60s). */
+export const REFRESHER_TICK_MS = 60_000;
+/** Catch-up window: also refresh creds that become due within the next tick. */
+export const REFRESHER_LOOKAHEAD_MS = 120_000;
+/** Health heartbeat + owner-alert throttling window for one provider:email. */
+export const RECONNECT_ALERT_THROTTLE_MS = 6 * 60 * 60 * 1000;
+
+export interface RefreshOutcome {
+  key: string;
+  provider: string;
+  email: string;
+  refreshed: boolean;
+  status: "ok" | "transient" | "reconnect_required" | "contended";
+  error?: string;
+}
+
+/** Classify a refresh error: single-use token death is NOT retryable by code. */
+export function classifyRefreshError(message: string): "transient" | "reconnect_required" {
+  const m = (message || "").toLowerCase();
+  if (/invalid_grant|refresh token has been consumed|revoked|expired refresh|token.*(revoked|expired|invalid)/.test(m)) {
+    return "reconnect_required";
+  }
+  return "transient";
+}
+
+/** Precise next time a credential is due for a refresh (ms epoch). */
+export function nextRefreshDueMs(entry: any, nowMs: number): number {
+  if (!needsRefresh(entry, nowMs)) {
+    const rawExp = entry?.expiresAt;
+    const expiresAt = typeof rawExp === "number" ? rawExp : rawExp != null ? Number(rawExp) : NaN;
+    if (!Number.isFinite(expiresAt) || expiresAt <= 0) {
+      const updatedMs = entry?.updatedAt ? Date.parse(entry.updatedAt) : NaN;
+      if (!Number.isFinite(updatedMs)) return nowMs + 60 * 60 * 1000; // unknown → conservative 1h
+      return updatedMs + NO_EXPIRY_REFRESH_AFTER_MS;
+    }
+    const updatedMs = entry?.updatedAt ? Date.parse(entry.updatedAt) : NaN;
+    const issuedSec = Number.isFinite(updatedMs) ? updatedMs / 1000 : undefined;
+    let leadSec = DEFAULT_LEAD_SEC;
+    if (issuedSec !== undefined && expiresAt > issuedSec + MIN_LIFETIME_SEC) {
+      leadSec = Math.max(MIN_LEAD_SEC, (expiresAt - issuedSec) * LEAD_FRACTION);
+    }
+    return Math.floor((expiresAt - leadSec) * 1000);
+  }
+  return nowMs;
+}
+
+export interface ScheduledRefresherStats {
+  startedAt: number;
+  tickCount: number;
+  refreshed: number;
+  transientFailures: number;
+  reconnectRequired: number;
+  alertsSent: number;
+  lastTickAt: number;
+  lastError: string | null;
+}
+export const scheduledRefresherStats: ScheduledRefresherStats = {
+  startedAt: 0, tickCount: 0, refreshed: 0, transientFailures: 0,
+  reconnectRequired: 0, alertsSent: 0, lastTickAt: 0, lastError: null,
+};
+
+export interface StoredOAuthEntry {
+  provider: string;
+  email?: string;
+  accessToken?: string;
+  refreshToken?: string;
+  expiresAt?: number | string;
+  updatedAt?: string;
+  [k: string]: any;
+}
+
+interface AlertState { lastSentAt: number; lastReason: string; }
+const alertThrottle = new Map<string, AlertState>();
+
+export function reconnectAlertDue(key: string, nowMs: number, reason: string): boolean {
+  const prev = alertThrottle.get(key);
+  if (!prev) return true;
+  if (nowMs - prev.lastSentAt >= RECONNECT_ALERT_THROTTLE_MS) return true;
+  return prev.lastReason !== reason && nowMs - prev.lastSentAt >= 60_000; // new root cause → soon
+}
+
+export function noteAlertSent(key: string, reason: string, nowMs: number): void {
+  alertThrottle.set(key, { lastSentAt: nowMs, lastReason: reason });
+  while (alertThrottle.size > 500) {
+    const oldest = alertThrottle.keys().next().value as string;
+    alertThrottle.delete(oldest);
+  }
+}
+
+/** Send the owner reconnect-required alert via the repo's email path (throttled). */
+export async function alertOwnerReconnectRequired(opts: {
+  provider: string; email: string; reason: string; nowMs?: number;
+  emailImpl?: (o: any) => Promise<{ ok: boolean; error?: string }>;
+}): Promise<boolean> {
+  const now = opts.nowMs ?? Date.now();
+  const key = `${opts.email}:${opts.provider}`;
+  if (!reconnectAlertDue(key, now, opts.reason)) return false;
+  const sender = opts.emailImpl ?? (async (o: any) => {
+    const { sendEmail } = await import("../integrations/email");
+    return sendEmail(o);
+  });
+  try {
+    const res = await sender({
+      to: [opts.email],
+      subject: `⚠️ ${opts.provider} connection needs reauthorization`,
+      text:
+        `Simpler Life 100 lost its ${opts.provider} connection for ${opts.email}.\n\n` +
+        `Reason: ${opts.reason}\n\n` +
+        `Fix: open the portal → Integrations → ${opts.provider} → Connect (one click). ` +
+        `The connection stays dead until reauthorized; all ${opts.provider} automations are paused.`,
+    });
+    const sent = res?.ok ?? false;
+    if (sent) noteAlertSent(key, opts.reason, now);
+    return sent;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Refresh ONE stored credential entry in place with single-writer discipline.
+ * Returns the outcome; on success the rotated tokens (access + refresh) are
+ * written through writeJSON and an IMMEDIATE durable flush is fired so the
+ * single-use rotation reaches Neon without the ≤10-min background window.
+ */
+export async function refreshOneCredential(
+  dataDir: string,
+  tokenData: Record<string, StoredOAuthEntry>,
+  connsByEmail: Record<string, any[]>,
+  key: string,
+  opts: { now?: number; fetchImpl?: typeof fetch; flushNow?: boolean; leaseOwner?: string } = {},
+): Promise<RefreshOutcome> {
+  const now = opts.now ?? Date.now();
+  const entry = tokenData[key];
+  const provider = String(entry.provider || (key.includes(":") ? key.split(":")[1] : key)).toLowerCase();
+  const email = key.includes(":") ? key.split(":")[0] : "";
+  // SINGLE-FLIGHT (#230, Xero incident): only ONE process may refresh a given
+  // single-use refresh token. Claim the durable lease first; if a foreign owner
+  // holds it, report CONTENTION (recorded, never a silent consumed-token loss)
+  // and do NOT touch the token.
+  const leaseOwner = opts.leaseOwner ?? `sweeper:${process.pid ?? "?"}`;
+  if (!acquireRefreshLease(dataDir, key, leaseOwner, { ttlMs: REFRESH_LEASE_TTL_MS })) {
+    return { key, provider, email, refreshed: false, status: "contended", error: "single-use token protected: refresh lease held by another owner" };
+  }
+  const release = () => releaseRefreshLease(dataDir, key, leaseOwner);
+  if (!isRefreshProvider(provider) || !entry.refreshToken) {
+    release();
+    return { key, provider, email, refreshed: false, status: "transient", error: "no refresh path" };
+  }
+  const creds = resolveOAuthClientCreds(provider, tokenData as any);
+  if (!creds) {
+    release();
+    return { key, provider, email, refreshed: false, status: "transient", error: "no OAuth client creds configured" };
+  }
+  try {
+    const def = REFRESH_REGISTRY[provider];
+    const tokens = await refreshAccessToken({
+      tokenUrl: def.tokenUrl, extraParams: def.extraParams,
+      clientId: creds.clientId, clientSecret: creds.clientSecret,
+      refreshToken: entry.refreshToken, fetchImpl: opts.fetchImpl,
+    });
+    tokenData[key] = {
+      ...entry,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken || entry.refreshToken,
+      expiresAt: tokens.expiresAt ?? entry.expiresAt,
+      tokenType: tokens.tokenType || entry.tokenType,
+      scope: tokens.scope || entry.scope,
+      updatedAt: new Date(now).toISOString(),
+    };
+    const userConns = Array.isArray(connsByEmail[email]) ? connsByEmail[email] : [];
+    const idx = userConns.findIndex((c: any) => c && (c.providerId === provider || c.provider === provider));
+    if (idx >= 0) {
+      userConns[idx] = { ...userConns[idx], status: "Connected", lastSync: new Date(now).toISOString() };
+      connsByEmail[email] = userConns;
+    }
+    writeJSON(join(dataDir, "tenant_oauth_credentials.json"), tokenData);
+    writeJSON(join(dataDir, "tenant_integrations.json"), connsByEmail);
+    if (opts.flushNow !== false) void drainPendingWrites().catch(() => {});
+    scheduledRefresherStats.refreshed++;
+    release();
+    return { key, provider, email, refreshed: true, status: "ok" };
+  } catch (e: any) {
+    const msg = e?.message || String(e);
+    const cls = classifyRefreshError(msg);
+    const userConns = Array.isArray(connsByEmail[email]) ? connsByEmail[email] : [];
+    const idx = userConns.findIndex((c: any) => c && (c.providerId === provider || c.provider === provider));
+    if (idx >= 0) {
+      userConns[idx] = {
+        ...userConns[idx],
+        status: cls === "reconnect_required" ? "reconnect_required" : "auth_failed",
+        lastSync: new Date(now).toISOString(),
+        lastRefreshError: msg.slice(0, 300),
+        refreshFailedAt: new Date(now).toISOString(),
+      };
+      connsByEmail[email] = userConns;
+      writeJSON(join(dataDir, "tenant_integrations.json"), connsByEmail);
+    }
+    if (cls === "reconnect_required") {
+      scheduledRefresherStats.reconnectRequired++;
+      // LOUD per-provider failure line (owner: "loud per-provider failure logs")
+      console.error(
+        `[connection-refresher] 🔴 RECONNECT REQUIRED provider=${provider} tenant=${email || "?"} reason="${msg.slice(0, 160)}" — automations for this provider are PAUSED until reauthorized`,
+      );
+      const sent = await alertOwnerReconnectRequired({ provider, email: email || "mathewortiz97@gmail.com", reason: msg });
+      if (sent) scheduledRefresherStats.alertsSent++;
+      void drainPendingWrites().catch(() => {});
+    } else {
+      scheduledRefresherStats.transientFailures++;
+      console.error(`[connection-refresher] ⚠️ transient refresh failure provider=${provider} tenant=${email || "?"} reason="${msg.slice(0, 160)}" (will retry next tick)`);
+    }
+    release();
+    return { key, provider, email, refreshed: false, status: cls, error: msg };
+  }
+}
+
+export interface ScheduledRefresherHandle {
+  stop: () => void;
+  runTick: () => Promise<{ due: number; outcomes: RefreshOutcome[] }>;
+}
+
+function isRefreshableKey(entry: any): boolean {
+  return Boolean(entry && typeof entry === "object" && entry.refreshToken) &&
+    isRefreshProvider(String(entry.provider || ""));
+}
+
+/**
+ * Due-based scheduler: every REFRESHER_TICK_MS, refresh exactly the credentials
+ * whose refresh window has arrived (needsRefresh + lookahead). A boot catch-up
+ * and an hourly catch-up cover anything missed while down. Per-key refreshes
+ * run sequentially and never overlap (single-writer rule).
+ */
+export function startScheduledTokenRefresher(
+  dataDir: string,
+  opts: { tickMs?: number; now?: () => number; fetchImpl?: typeof fetch; onTick?: () => void } = {},
+): ScheduledRefresherHandle {
+  const tickMs = opts.tickMs ?? REFRESHER_TICK_MS;
+  const inFlight = new Set<string>();
+  let stopped = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  scheduledRefresherStats.startedAt = Date.now();
+
+  async function runTick(): Promise<{ due: number; outcomes: RefreshOutcome[] }> {
+    const now = opts.now ? opts.now() : Date.now();
+    const tokenFile = join(dataDir, "tenant_oauth_credentials.json");
+    const tokenData = (readJSON(tokenFile) as Record<string, StoredOAuthEntry> | undefined) || {};
+    const conns = (readJSON(join(dataDir, "tenant_integrations.json")) as Record<string, any[]> | undefined) || {};
+    const dueKeys: string[] = [];
+    for (const [key, entry] of Object.entries<any>(tokenData)) {
+      if (!isRefreshableKey(entry)) continue;
+      if (inFlight.has(key)) continue; // single-writer: never overlap a refresh
+      const provider = String(entry.provider || (key.includes(":") ? key.split(":")[1] : key));
+      if (now >= nextRefreshDueMs(entry, now)) {
+        dueKeys.push(key);
+        void provider;
+      }
+    }
+    const outcomes: RefreshOutcome[] = [];
+    // Sequential refreshes (event loop awaits each) — never parallel per key.
+    for (const key of dueKeys.sort()) {
+      if (stopped) break;
+      inFlight.add(key);
+      try {
+        const outcome = await refreshOneCredential(dataDir, tokenData, conns, key, {
+          now, fetchImpl: opts.fetchImpl, flushNow: true,
+        });
+        outcomes.push(outcome);
+      } finally {
+        inFlight.delete(key);
+      }
+    }
+    scheduledRefresherStats.tickCount++;
+    scheduledRefresherStats.lastTickAt = Date.now();
+    if (opts.onTick) opts.onTick();
+    return { due: dueKeys.length, outcomes };
+  }
+
+  // Boot catch-up runs immediately (refreshes anything already due).
+  const boot = runTick().then((r) => {
+    if (r.due > 0 || r.outcomes.some((o) => !o.refreshed)) {
+      console.log(`[connection-refresher] boot catch-up: due=${r.due} refreshed=${r.outcomes.filter((o) => o.refreshed).length} failed=${r.outcomes.filter((o) => !o.refreshed).length}`);
+    }
+  }).catch((e: any) => { scheduledRefresherStats.lastError = String(e?.message || e); });
+
+  timer = setInterval(() => {
+    if (stopped) return;
+    runTick().catch((e: any) => {
+      scheduledRefresherStats.lastError = String(e?.message || e);
+      console.error("[connection-refresher] tick error: " + String(e?.message || e));
+    });
+  }, tickMs);
+  if (typeof (timer as any)?.unref === "function") (timer as any).unref();
+
+  return {
+    stop: () => { stopped = true; if (timer) clearInterval(timer); },
+    runTick: async () => { await boot; return runTick(); },
+  };
+}

@@ -14,7 +14,7 @@
  */
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { durableGet } from "../lib/durable-store";
+import { durableGet, drainPendingWrites } from "../lib/durable-store";
 import { writeJSON } from "../lib/data-store";
 
 export interface ProviderCredential {
@@ -215,6 +215,10 @@ export function persistRefreshedCredential(
     updatedAt: new Date().toISOString(),
   };
   writeJSON(credsFile, data);
+  // #230 DURABLE: fire an immediate flush so a rotated (single-use) refresh
+  // token reaches Neon without waiting for the ≤10-min background flush window.
+  // Applies to EVERY provider on EVERY refresh path (adapters, CLI, server).
+  void drainPendingWrites().catch(() => {});
 }
 
 /** Report token freshness without printing the token. */
