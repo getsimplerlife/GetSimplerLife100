@@ -16,6 +16,24 @@
 
 ## Design — four layers
 
+### 0. SINGLE-FLIGHT / EXCLUSIVE REFRESH — the Xero incident (FIRST-CLASS)
+Live incident 2026-08-17/18: Xero (and every rotating-refresh OAuth2 provider) issues
+**single-use refresh tokens**. The verification batch and the live sweeper both read the
+SAME stored refresh token and both called the token endpoint — whichever finished second
+persisted a DEAD token (`invalid_grant "Refresh token has been consumed"`) → Xero 0/26
+until reconnect. New `src/lib/connection-refresh-lock.ts` gives every provider-key a
+**durable, cross-process lease** (`refresh_leases.json`, TTL 5 min, owned `sweeper:<pid>`):
+- Only the lease holder may refresh a token; a second process (`verify`/reconnect) that
+  calls `refreshOneCredential` while a foreign lease is live is returned a **contended**
+  outcome (counted in `refreshContentionStats`) and never touches the token — no silent
+  consumed-token loss. Lease expires so a crashed holder can't deadlock refreshes.
+- On any other path, callers consult `hasActiveRefreshLease(providerKey)` before refreshing
+  (verification CLI/adapter gate) and otherwise read the freshest stored token.
+- The rotated token is written atomically with the refresh (writeJSON + immediate
+  drainPendingWrites) BEFORE the lease is released, so the next reader always sees the
+  fresh token. Regression test: two concurrent attempts on a single-use token → exactly
+  one refresh call, token moves forward, other recorded as contention.
+
 ### 1. PROACTIVE — due-based refresher (`src/lib/token-refresher.ts`)
 - New `startScheduledTokenRefresher(dataDir, {tickMs})`: every **60s** (default), refresh exactly
   the credentials whose refresh window has arrived (`nextRefreshDueMs` — same 70%-of-lifetime

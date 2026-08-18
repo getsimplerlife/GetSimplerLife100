@@ -33,6 +33,7 @@ import {
 import { writeJSON, readJSON } from "../lib/data-store";
 import { durableEnabled, durableGet, durableClose } from "../lib/durable-store";
 import { enforceTestDurableIsolation, assertDurableDisabled } from "./test-isolation";
+import { acquireRefreshLease, releaseRefreshLease, refreshContentionStats } from "../lib/connection-refresh-lock";
 
 const HOUR = 60 * 60 * 1000;
 const originalFetch = globalThis.fetch;
@@ -84,6 +85,8 @@ beforeEach(async () => {
   scheduledRefresherStats.reconnectRequired = 0;
   scheduledRefresherStats.alertsSent = 0;
   scheduledRefresherStats.lastError = null;
+  refreshContentionStats.contended = 0;
+  refreshContentionStats.lastContention = null;
 });
 afterEach(() => { globalThis.fetch = originalFetch; });
 afterAll(async () => { globalThis.fetch = originalFetch; await durableClose(); });
@@ -267,5 +270,51 @@ describe("HARD TEST ISOLATION — real Neon rows cannot be touched by this suite
     expect(durableGet("tenant_oauth_credentials.json")).toBeUndefined();
     // Even an explicit get for the fixture keys returns nothing from the durable cache.
     expect(durableGet("tenant_oauth_credentials.json") as any).toBeUndefined();
+  });
+});
+
+describe("SINGLE-FLIGHT refresh — Xero single-use token race (regression)", () => {
+  it("two concurrent refresh attempts on a single-use token: exactly ONE succeeds, token moves forward, the other is recorded contention (not a silent consumed loss)", async () => {
+    const now = Date.now();
+    const KEY = "tenant@example.com:xero";
+    seedCreds({
+      "xero": { provider: "xero", clientId: "cid", clientSecret: "secret" },
+      "tenant@example.com:xero": {
+        provider: "xero", accessToken: "old-access", refreshToken: "single-use-RT",
+        expiresAt: now / 1000 - 1, updatedAt: new Date(now - 2 * HOUR).toISOString(),
+      },
+    });
+    // Process A (the sweeper) claims exclusive refresh ownership.
+    expect(acquireRefreshLease(tmp, KEY, "sweeper:1")).toBe(true);
+    // Process B (verification CLI) tries to refresh the SAME single-use token
+    // while A holds the lease → must CONTEND, not race/consume it.
+    const fetchB = okFetch();
+    globalThis.fetch = fetchB as unknown as typeof fetch;
+    const contended = await refreshOneCredential(tmp,
+      readJSON(join(tmp, "tenant_oauth_credentials.json")),
+      readJSON(join(tmp, "tenant_integrations.json")),
+      KEY, { now, fetchImpl: fetchB as unknown as typeof fetch, leaseOwner: "verify:2" },
+    );
+    expect(contended.status).toBe("contended");
+    expect(contended.refreshed).toBe(false);
+    expect(fetchB).toHaveBeenCalledTimes(0); // protected — NO competing refresh call
+    expect(refreshContentionStats.contended).toBe(1); // recorded, not silent
+    // B's attempt must NOT have overwritten the token (A still owns it).
+    const afterB = readJSON(join(tmp, "tenant_oauth_credentials.json"));
+    expect(afterB["tenant@example.com:xero"].refreshToken).toBe("single-use-RT");
+    // A finishes and releases.
+    releaseRefreshLease(tmp, KEY, "sweeper:1");
+    // Now B (still the verification path) can refresh with exactly one call.
+    const fetchB2 = okFetch();
+    globalThis.fetch = fetchB2 as unknown as typeof fetch;
+    const win = await refreshOneCredential(tmp,
+      readJSON(join(tmp, "tenant_oauth_credentials.json")),
+      readJSON(join(tmp, "tenant_integrations.json")),
+      KEY, { now, fetchImpl: fetchB2 as unknown as typeof fetch, leaseOwner: "verify:2" },
+    );
+    expect(win.status).toBe("ok");
+    expect(fetchB2).toHaveBeenCalledTimes(1); // exactly ONE refresh across both attempts
+    const afterWin = readJSON(join(tmp, "tenant_oauth_credentials.json"));
+    expect(afterWin["tenant@example.com:xero"].refreshToken).toBe("new-refresh"); // token moved forward
   });
 });
