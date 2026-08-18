@@ -11,6 +11,7 @@
  */
 import { createHubSpotClient } from "../../integrations/providers/hubspot/client";
 import { refreshHubSpotToken } from "../../integrations/providers/hubspot/auth";
+import { refreshDocuSignToken } from "../../integrations/providers/docusign/auth";
 import { isTokenExpired } from "../../integrations/framework/oauth";
 import { createSlackClient } from "../../integrations/providers/slack/client";
 import { createJiraClient } from "../../integrations/providers/jira/client";
@@ -65,6 +66,43 @@ async function ensureFreshHubSpotCredential(
   cred.refreshToken = refreshed.refreshToken;
   cred.expiresAt = refreshed.expiresAt;
   if (refreshed.scope) cred.scope = refreshed.scope;
+}
+
+/**
+ * Refresh the DocuSign access token once if it is expired. Mutates `cred` so
+ * every later contract call in the same run reuses the fresh token AND the
+ * batch runner's post-run persistence sees the rotated refresh token.
+ * DocuSign rotates refresh tokens on EVERY refresh — dropping the rotation
+ * (as the client's in-memory-only refresh used to) leaves the stored
+ * credential permanently dead with `refresh_token_mismatch` on the next
+ * refresh (observed live 2026-08-17).
+ */
+async function ensureFreshDocuSignCredential(
+  cred: ProviderCredential,
+  app?: { clientId?: string; clientSecret?: string },
+): Promise<void> {
+  const tokenLike = { accessToken: cred.accessToken, refreshToken: cred.refreshToken, expiresAt: cred.expiresAt };
+  if (!cred.refreshToken || !isTokenExpired(tokenLike as never)) return;
+  if (!app?.clientId || !app?.clientSecret) {
+    throw new Error("DocuSign access token expired and OAUTH_DOCUSIGN_CLIENT_ID/SECRET are not configured — cannot refresh (see .env)");
+  }
+  const base = process.env.OAUTH_REDIRECT_BASE || process.env.SITE_ORIGIN || "";
+  const refreshed = await refreshDocuSignToken(
+    { clientId: app.clientId, clientSecret: app.clientSecret, redirectUri: base ? `${base}/api/oauth/callback?provider=docusign` : "" },
+    cred.refreshToken,
+  );
+  cred.accessToken = refreshed.accessToken;
+  cred.refreshToken = refreshed.refreshToken;
+  cred.expiresAt = refreshed.expiresAt;
+  if (refreshed.scope) cred.scope = refreshed.scope;
+}
+
+/** Copy tokens refreshed mid-run (client callback) back onto the adapter credential. */
+function applyDocuSignRefreshToCred(cred: ProviderCredential, tokens: { accessToken: string; refreshToken?: string; expiresAt?: number; scope?: string }): void {
+  cred.accessToken = tokens.accessToken;
+  if (tokens.refreshToken) cred.refreshToken = tokens.refreshToken;
+  if (tokens.expiresAt) cred.expiresAt = tokens.expiresAt;
+  if (tokens.scope) cred.scope = tokens.scope;
 }
 
 function baseAuth(cred: Record<string, unknown>, provider: string, ctx: { app?: { clientId?: string; clientSecret?: string } }) {
@@ -486,6 +524,11 @@ async function resolveDocuSignAccount(accessToken: string): Promise<{ accountId:
 export const docusignAdapter: CapabilityAdapter = async (contract, ctx) => {
   const cred = ctx.credentials;
   if (!cred.accessToken) throw new Error("DocuSign credential has no accessToken");
+  // Refresh once up-front if expired. Mutating `cred` is what lets the batch
+  // runner persist the ROTATED refresh token after the run — without this the
+  // stored DocuSign refresh token goes stale and every later refresh fails
+  // with `refresh_token_mismatch` (observed live 2026-08-17).
+  await ensureFreshDocuSignCredential(cred, ctx.app);
   const storedAccountId = (cred.accountId as string) || "";
   const storedBaseUrl = (cred.baseUrl as string) || "https://demo.docusign.net/restapi";
   // Use the pre-stored account when the connect flow captured it; otherwise
@@ -495,7 +538,15 @@ export const docusignAdapter: CapabilityAdapter = async (contract, ctx) => {
     ? { accountId: storedAccountId, baseUrl: storedBaseUrl }
     : await resolveDocuSignAccount(cred.accessToken).catch(() => ({ accountId: "", baseUrl: storedBaseUrl }));
   if (!account.accountId) throw new Error("DocuSign account id unresolved (connect flow must capture accountId; userinfo returned no usable account)");
-  const client = createDocuSignClient({ ...baseAuth(cred, "docusign", ctx), accountId: account.accountId, baseUrl: account.baseUrl, appToken: (cred.appToken as string) || "" });
+  const client = createDocuSignClient({
+    ...baseAuth(cred, "docusign", ctx),
+    accountId: account.accountId,
+    baseUrl: account.baseUrl,
+    appToken: (cred.appToken as string) || "",
+    // Mid-run client refreshes (token expiring during a long run) must ALSO
+    // land on `cred` so the runner persists the rotation.
+    onTokensRefreshed: (t) => applyDocuSignRefreshToCred(cred, t),
+  });
 
   switch (contract.capabilityId) {
     /* ── understand (read) ── */
