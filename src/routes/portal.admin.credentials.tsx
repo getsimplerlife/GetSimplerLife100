@@ -49,7 +49,9 @@ function AdminCredentialsPage() {
         // .map(). (configured credentials below use /api/admin/credentials,
         // which returns a bare array, and are handled separately.)
         const json = await providersRes.json();
-        providerList = Array.isArray(json) ? json : (json.data || []);
+        providerList = (Array.isArray(json) ? json : (json.data || [])).filter(
+          (p: any) => p && p.id && typeof p.category === "string"
+        );
         setProviders(providerList);
       }
 

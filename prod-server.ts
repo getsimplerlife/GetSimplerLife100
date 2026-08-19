@@ -1356,6 +1356,9 @@ serve({
         };
 
         const total = filtered.length;
+        // Fail-closed: never emit null/sparse entries or providers without a
+        // category — both consuming pages read .category and would crash.
+        filtered = filtered.filter((p: any) => p && typeof p.category === "string");
         const slice = filtered.slice(page * limit, (page + 1) * limit);
         // Augment with connection requirements
         const augmented = slice.map((p: any) => ({
