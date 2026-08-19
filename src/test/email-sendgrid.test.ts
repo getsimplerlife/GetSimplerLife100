@@ -8,14 +8,17 @@
  * status or a network throw returns { success: false, error } — never a
  * success, so the #231 6h throttle cannot suppress a real alert.
  */
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, afterAll, vi } from "vitest";
 import { sendEmail } from "../integrations/email";
 
 const originalFetch = globalThis.fetch;
+// Canonical env pattern (per repo convention, verify-infra.test.ts): snapshot
+// process.env once and restore it in afterAll — vitest env helpers like
+// vi.stubEnv/unstubAllEnvs are NOT available on Bun 1.3.14.
+const originalEnv = { ...process.env };
 let fetchMock: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
-  vi.unstubAllEnvs();
   // Isolate from any real env (SendGrid + SMTP unset → mock fallback by default).
   delete process.env.SENDGRID_API_KEY;
   delete process.env.SMTP_HOST;
@@ -27,6 +30,9 @@ beforeEach(() => {
 afterEach(() => {
   globalThis.fetch = originalFetch;
   vi.restoreAllMocks();
+});
+afterAll(() => {
+  process.env = { ...originalEnv };
 });
 
 /** Minimal fetch-like response (no reliance on global Response in test env). */
