@@ -19,6 +19,7 @@ import {
   startScheduledTokenRefresher,
   classifyRefreshError,
   alertOwnerReconnectRequired,
+  resolveOwnerAlertEmail,
   reconnectAlertDue,
   noteAlertSent,
   scheduledRefresherStats,
@@ -232,6 +233,58 @@ describe("owner alert throttling", () => {
   });
 });
 
+describe("owner alert recipient (#233 owner decision)", () => {
+  const savedOwner = process.env.OWNER_ALERT_EMAIL;
+  const savedFrom = process.env.SMTP_FROM;
+  beforeEach(() => {
+    delete process.env.OWNER_ALERT_EMAIL;
+    delete process.env.SMTP_FROM;
+  });
+  afterEach(() => {
+    if (savedOwner) process.env.OWNER_ALERT_EMAIL = savedOwner; else delete process.env.OWNER_ALERT_EMAIL;
+    if (savedFrom) process.env.SMTP_FROM = savedFrom; else delete process.env.SMTP_FROM;
+  });
+  it("resolveOwnerAlertEmail precedence: OWNER_ALERT_EMAIL -> SMTP_FROM (bare) -> connection email", () => {
+    expect(resolveOwnerAlertEmail("conn@x.io")).toBe("conn@x.io");
+    process.env.SMTP_FROM = "Simpler Life 100 <owner@firm.com>";
+    expect(resolveOwnerAlertEmail("conn@x.io")).toBe("owner@firm.com");
+    process.env.OWNER_ALERT_EMAIL = "electric.vortexz@gmail.com";
+    expect(resolveOwnerAlertEmail("conn@x.io")).toBe("electric.vortexz@gmail.com");
+  });
+  it("sends the alert to the OWNER inbox (OWNER_ALERT_EMAIL) with the tenant referenced in the body", async () => {
+    const now = 2_400_000_000_000;
+    process.env.OWNER_ALERT_EMAIL = "electric.vortexz@gmail.com";
+    let captured: any;
+    const emailImpl = async (o: any) => { captured = o; return { ok: true }; };
+    expect(await alertOwnerReconnectRequired({ provider: "xero", email: "mathewortiz97@gmail.com", reason: "consumed", nowMs: now, emailImpl })).toBe(true);
+    expect(captured.to).toEqual(["electric.vortexz@gmail.com"]);
+    expect(captured.subject).toContain("xero connection needs reauthorization");
+    expect(captured.text).toContain("mathewortiz97@gmail.com");
+  });
+  it("defaults TO to SMTP_FROM when OWNER_ALERT_EMAIL is unset - the live case", async () => {
+    const now = 2_500_000_000_000;
+    process.env.SMTP_FROM = "electric.vortexz@gmail.com";
+    let captured: any;
+    const emailImpl = async (o: any) => { captured = o; return { ok: true }; };
+    expect(await alertOwnerReconnectRequired({ provider: "hubspot", email: "mathewortiz97@gmail.com", reason: "revoked", nowMs: now, emailImpl })).toBe(true);
+    expect(captured.to).toEqual(["electric.vortexz@gmail.com"]);
+  });
+  it("extracts a bare address when SMTP_FROM is 'Name <addr>'", async () => {
+    const now = 2_600_000_000_000;
+    process.env.SMTP_FROM = "Simpler Life 100 <electric.vortexz@gmail.com>";
+    let captured: any;
+    const emailImpl = async (o: any) => { captured = o; return { ok: true }; };
+    expect(await alertOwnerReconnectRequired({ provider: "google-drive", email: "mathewortiz97@gmail.com", reason: "probe failed", nowMs: now, emailImpl })).toBe(true);
+    expect(captured.to).toEqual(["electric.vortexz@gmail.com"]);
+  });
+  it("falls back to the connection email when no owner/sender is configured", async () => {
+    const now = 2_700_000_000_000;
+    let captured: any;
+    const emailImpl = async (o: any) => { captured = o; return { ok: true }; };
+    expect(await alertOwnerReconnectRequired({ provider: "slack", email: "tenant@example.com", reason: "consumed", nowMs: now, emailImpl })).toBe(true);
+    expect(captured.to).toEqual(["tenant@example.com"]);
+  });
+});
 describe("health heartbeat — audited probes + status transitions", () => {
   it("probe registry contains ONLY audited, known provider endpoints", () => {
     const allowHosts = new Set([

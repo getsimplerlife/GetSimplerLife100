@@ -404,6 +404,21 @@ export function noteAlertSent(key: string, reason: string, nowMs: number): void 
   }
 }
 
+/**
+ * #233 owner decision (2026-08-19): reconnect-required alerts are sent to the
+ * OWNER's inbox, not the tenant's email. Recipient resolution:
+ *   OWNER_ALERT_EMAIL → SMTP_FROM (bare address; "Name <addr>" is parsed) →
+ *   the connection's own email (last resort).
+ * Live result: OWNER_ALERT_EMAIL is unset and SMTP_FROM=electric.vortexz@gmail.com,
+ * so every ⚠️ reconnect alert lands in the owner's inbox (mathewortiz97@gmail.com
+ * is the tenant the alert is ABOUT, referenced in the body).
+ */
+export function resolveOwnerAlertEmail(fallbackEmail: string): string {
+  const raw = process.env.OWNER_ALERT_EMAIL || process.env.SMTP_FROM || fallbackEmail;
+  const m = /^\s*(?:.*?)\s*<([^>]+)>\s*$/.exec(raw);
+  return (m ? m[1] : raw).trim();
+}
+
 /** Send the owner reconnect-required alert via the repo's email path (throttled). */
 export async function alertOwnerReconnectRequired(opts: {
   provider: string; email: string; reason: string; nowMs?: number;
@@ -418,7 +433,10 @@ export async function alertOwnerReconnectRequired(opts: {
   });
   try {
     const res = await sender({
-      to: [opts.email],
+      // #233: TO is the owner's alert inbox (OWNER_ALERT_EMAIL → SMTP_FROM →
+      // connection email); the tenant's email still identifies the connection
+      // in the body below.
+      to: [resolveOwnerAlertEmail(opts.email)],
       subject: `⚠️ ${opts.provider} connection needs reauthorization`,
       text:
         `Simpler Life 100 lost its ${opts.provider} connection for ${opts.email}.\n\n` +
