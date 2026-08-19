@@ -624,10 +624,12 @@ serve({
     if (pathname === "/api/data/connected-accounts") {
       const user = await getUserFromSession(req);
       if (user === null || user === undefined) return Response.json({ error: "Not authenticated" }, { status: 401 });
-      const { connectionHealthSnapshot, applyHealthToConnections } = await import("./src/lib/connection-health");
-      const health = connectionHealthSnapshot(DATA_DIR);
-      const all = readJSON(TENANT_INTEGRATIONS_FILE);
-      const userConns = applyHealthToConnections(all[user.email] || [], health, user.email);
+      // Portal data-truth (#236): read the REAL OAuth credential store
+      // (tenant_oauth_credentials.json keyed email:provider) — not the stale
+      // legacy tenant_integrations.json fixtures — so the owner's live
+      // connections actually show. Health overlay applied inside the builder.
+      const { buildConnectedAccountsFromCredentials } = await import("./src/lib/connected-accounts");
+      const userConns = buildConnectedAccountsFromCredentials(user.email, DATA_DIR);
       const { crm: crmConns, erp: erpConns, other: otherConns } = bucketConnectionsByCategory(userConns);
       const getSlotInfo = (packType: string) => {
         if (user.email === "mathewortiz97@gmail.com") return { totalSlots: 999, usedSlots: 0, remainingSlots: 999, isOwner: true };
@@ -1243,12 +1245,12 @@ serve({
       const userPurchases = (user.email !== "mathewortiz97@gmail.com") ? (purchases[user.email] || []) : [{ status: "active", type: "owner" }];
       const hasActivePurchase = userPurchases.some((p: any) => p.status === "active");
 
-      const { connectionHealthSnapshot, applyHealthToConnections } = await import("./src/lib/connection-health");
-      const health = connectionHealthSnapshot(DATA_DIR);
-      const all = readJSON(TENANT_INTEGRATIONS_FILE);
-      // #232 item 3: never show a stale "Connected" — surface the live health
-      // status (degraded / reconnect_required) instead of the stored row.
-      return Response.json({ data: applyHealthToConnections(all[user.email] || [], health, user.email) });
+      // #232 item 3 + data-truth (#236): the connected list comes from the REAL
+      // OAuth credential store with the live health overlay — never the stale
+      // tenant_integrations.json fixtures. This is also what the /portal
+      // dashboard "integrations connected" count reads.
+      const { buildConnectedAccountsFromCredentials } = await import("./src/lib/connected-accounts");
+      return Response.json({ data: buildConnectedAccountsFromCredentials(user.email, DATA_DIR) });
     }
 
     if (pathname === "/api/integrations/providers") {
@@ -2291,7 +2293,8 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
 
       if (subPath === "employees" || subPath === "employees/") {
         const employees = readJSON(AI_EMPLOYEES_FILE);
-        // Only return purchased agents — owner sees all
+        const { enrichEmployeesAttention } = await import("./src/lib/employee-attention");
+        const employeesAtt = enrichEmployeesAttention(employees, user.email, DATA_DIR);
         if (user.email !== "mathewortiz97@gmail.com") {
           const purchases = readJSON(TENANT_PURCHASES_FILE);
           const userPurchases = purchases[user.email] || [];
@@ -2300,13 +2303,12 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
             if (p.agentId) purchasedIds.add(p.agentId);
             if (Array.isArray(p.agentIds)) for (const id of p.agentIds) purchasedIds.add(id);
           }
-          const filtered = employees
+          const filtered = employeesAtt
             .filter((e: any) => purchasedIds.has(e.id))
             .map((e: any) => ({ ...e, purchased: true }));
           return Response.json({ data: filtered });
         }
-        // Owner: return all, all purchased
-        return Response.json({ data: employees.map((e: any) => ({ ...e, purchased: true })) });
+        return Response.json({ data: employeesAtt.map((e: any) => ({ ...e, purchased: true })) });
       }
 
       if (subPath === "billing" || subPath === "billing/") {
@@ -2315,6 +2317,86 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
         return Response.json({ data: userPurchases });
       }
 
+
+      if (subPath === "documents" || subPath === "documents/") {
+        if (req.method !== "GET") return Response.json({ error: "Method not allowed" }, { status: 405 });
+        const docs = readJSON(join(DATA_DIR, "tenant_documents.json"));
+        const userDocs = Array.isArray(docs) ? docs : (docs[user.email] || []);
+        return Response.json({ data: userDocs });
+      }
+      if (subPath === "tasks" || subPath === "tasks/") {
+        const tasksFile = join(DATA_DIR, "tenant_tasks.json");
+        const allTasks = readJSON(tasksFile);
+        const isObj = !Array.isArray(allTasks);
+        const userTasks = isObj ? (allTasks[user.email] || []) : allTasks;
+        if (req.method === "POST") {
+          const body = await req.json().catch(() => ({}));
+          if (body.action === "purge_failed_tasks") {
+            const kept = userTasks.filter((t: any) => String(t.status || "").toLowerCase() !== "failed");
+            const next = isObj ? { ...allTasks, [user.email]: kept } : kept;
+            writeJSON(tasksFile, next);
+            return Response.json({ success: true, purged: userTasks.length - kept.length });
+          }
+          const newTask = {
+            id: "task-" + Math.random().toString(36).substr(2, 9),
+            aiEmployee: body.aiEmployee || "AI Employee",
+            customer: user.email,
+            status: body.status || "completed",
+            startedAt: new Date().toISOString(),
+            summary: body.summary || body.details?.action || "",
+            createdAt: new Date().toISOString(),
+          };
+          const nextList = [...userTasks, newTask];
+          writeJSON(tasksFile, isObj ? { ...allTasks, [user.email]: nextList } : nextList);
+          return Response.json({ success: true, task: newTask });
+        }
+        const runs = readJSON(join(DATA_DIR, "workflow_runs.json"));
+        const userRuns = Array.isArray(runs) ? runs : (runs[user.email] || []);
+        const taskLike = (userRuns || []).map((r: any) => ({
+          id: r.id || r.runId || "run-" + (r.startedAt || Date.now()),
+          aiEmployee: r.agentName || r.agentId || "AI Employee",
+          status: String(r.status || "completed").toLowerCase(),
+          customer: r.email || user.email,
+          startedAt: r.startedAt || r.completedAt || null,
+          summary: r.output || r.summary || "",
+        }));
+        return Response.json({ data: [...userTasks, ...taskLike] });
+      }
+      if (subPath.startsWith("workflows/")) {
+        const id = decodeURIComponent(subPath.slice("workflows/".length));
+        const wfFile = join(DATA_DIR, "tenant_workflows.json");
+        const all = readJSON(wfFile);
+        const isObj = !Array.isArray(all);
+        const list = isObj ? (all[user.email] || []) : all;
+        if (req.method === "DELETE") {
+          const next = (list || []).filter((w: any) => String(w.id || w.name) !== id);
+          writeJSON(wfFile, isObj ? { ...all, [user.email]: next } : next);
+          return Response.json({ success: true });
+        }
+        const found = (list || []).find((w: any) => String(w.id || w.name) === id);
+        return found ? Response.json({ data: found }) : Response.json({ data: null });
+      }
+      if (subPath === "workflows" || subPath === "workflows/") {
+        const wfFile = join(DATA_DIR, "tenant_workflows.json");
+        const all = readJSON(wfFile);
+        const isObj = !Array.isArray(all);
+        const list = isObj ? (all[user.email] || []) : all;
+        if (req.method === "GET") return Response.json({ data: list });
+        if (req.method === "POST") {
+          const body = await req.json().catch(() => ({}));
+          const entry = {
+            id: body.id || "wf-" + Math.random().toString(36).substr(2, 9),
+            ...body,
+            updatedAt: new Date().toISOString(),
+          };
+          const existing = (list || []).find((w: any) => w.id === entry.id);
+          const next = existing
+            ? (list || []).map((w: any) => (w.id === entry.id ? entry : w))
+            : [...(list || []), entry];
+          writeJSON(wfFile, isObj ? { ...all, [user.email]: next } : next);
+          return Response.json({ success: true, workflow: entry });
+        }
+      }
       // Generic: return data from matching JSON file
       const fileName = `${subPath.replace(/\/$/, "")}.json`;
       const filePath = join(DATA_DIR, fileName);
