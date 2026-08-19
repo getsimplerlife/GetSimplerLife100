@@ -1,5 +1,5 @@
 import { join } from "path";
-import { readJSON, readJSONLive, writeJSON } from "./data-store";
+import { readJSON, readJSONLive, writeJSON, mergeDurableCredential } from "./data-store";
 
 /**
  * token-refresher.ts — keep every OAuth client connection usable 24/7.
@@ -230,6 +230,7 @@ export async function sweepExpiredTokens(
   let failed = 0;
   let skipped = 0;
   const errors: string[] = [];
+  const changedTokenKeys: string[] = []; // #235: keys this sweep changed
 
   for (const [key, entry] of Object.entries<any>(tokenData)) {
     if (!entry || typeof entry !== "object") { skipped++; continue; }
@@ -281,6 +282,7 @@ export async function sweepExpiredTokens(
         allConns[email] = userConns;
       }
       refreshed++;
+      changedTokenKeys.push(key);
     } catch (e: any) {
       failed++;
       errors.push(`${key}: ${e?.message || String(e)}`);
@@ -295,7 +297,12 @@ export async function sweepExpiredTokens(
   }
 
   if (refreshed > 0 || failed > 0) {
-    writeJSON(tokenFile, tokenData);
+    // #235 merge-on-write: persist ONLY the keys this sweep changed against the
+    // CURRENT durable value so rows added by other instances (a fresh reconnect
+    // on another live host) are never wiped by this sweep's older snapshot.
+    if (changedTokenKeys.length > 0) {
+      await mergeDurableCredential(tokenFile, changedTokenKeys.map((k) => ({ type: "set", key: k, value: tokenData[k] })));
+    }
     writeJSON(connsFile, allConns);
   }
 
@@ -562,8 +569,12 @@ export async function refreshOneCredential(
       userConns[idx] = { ...userConns[idx], status: "Connected", lastSync: new Date(now).toISOString() };
       connsByEmail[email] = userConns;
     }
-    writeJSON(join(dataDir, "tenant_oauth_credentials.json"), tokenData);
     writeJSON(join(dataDir, "tenant_integrations.json"), connsByEmail);
+    // #235 merge-on-write: persist ONLY this refreshed key against the CURRENT
+    // durable value (readJSONLive inside the helper). The caller's tokenData is
+    // a snapshot taken at tick start — writing it wholesale would erase any row
+    // another instance added since (e.g. the owner's fresh Xero reconnect).
+    await mergeDurableCredential(join(dataDir, "tenant_oauth_credentials.json"), [{ type: "set", key, value: tokenData[key] }]);
     if (opts.flushNow !== false) void drainPendingWrites().catch(() => {});
     scheduledRefresherStats.refreshed++;
     release();

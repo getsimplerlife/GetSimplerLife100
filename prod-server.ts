@@ -2,7 +2,7 @@ import { serve } from "bun";
 import { join, basename } from "path";
 import { readFileSync, writeFileSync, existsSync, readdirSync } from "fs";
 import { createHash, randomBytes } from "crypto";
-import { resolveDataDir, isInsidePublishTree, readJSON, readJSONLive, writeJSON, seedDataFiles, bucketConnectionsByCategory, migrateLegacyData, findLegacyDataDir, countConnections } from "./src/lib/data-store";
+import { resolveDataDir, isInsidePublishTree, readJSON, readJSONLive, writeJSON, seedDataFiles, bucketConnectionsByCategory, migrateLegacyData, findLegacyDataDir, countConnections, mergeDurableCredential } from "./src/lib/data-store";
 import { detectPackType, buildPackPurchase, verifyStripeSignature, matchAgentByPaymentLink, matchAgentByMetadata, detectPlanType, buildPlanPurchase, planAgentIds } from "./src/lib/stripe-webhook";
 import { AGENTS } from "./src/data/agents";
 import { initDurableStore, durableEnabled, durableKeyCount, durableStoreStatus, durableSnapshotBackup, durableFlush } from "./src/lib/durable-store";
@@ -2576,19 +2576,20 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
         const { clientId, clientSecret } = body;
         if (!clientId) return Response.json({ error: "clientId required" }, { status: 400 });
         const credsFile = join(DATA_DIR, "tenant_oauth_credentials.json");
-        const creds = readJSON(credsFile);
+        // #235 merge-on-write: read the CURRENT durable value (never a stale
+        // snapshot) and persist only this provider's app-creds key so sibling
+        // tenant token rows are never wiped by an admin write.
+        const creds = ((await readJSONLive(credsFile)) as Record<string, any>) || {};
         const existing = creds[providerId] || {};
         const keepSecret = !clientSecret || clientSecret === "••••••••••••••••" || clientSecret.trim() === "";
-        creds[providerId] = { clientId, clientSecret: keepSecret ? (existing.clientSecret || "") : clientSecret };
-        writeJSON(credsFile, creds);
+        await mergeDurableCredential(credsFile, [{ type: "set", key: providerId, value: { clientId, clientSecret: keepSecret ? (existing.clientSecret || "") : clientSecret } }]);
         return Response.json({ success: true, providerId });
       }
       if (subPath.startsWith("credentials/") && req.method === "DELETE") {
         const providerId = subPath.replace("credentials/", "");
         const credsFile = join(DATA_DIR, "tenant_oauth_credentials.json");
-        const creds = readJSON(credsFile);
-        delete creds[providerId];
-        writeJSON(credsFile, creds);
+        // #235 merge-on-write: delete exactly this key against the live value.
+        await mergeDurableCredential(credsFile, [{ type: "delete", key: providerId }]);
         return Response.json({ success: true, providerId });
       }
       return Response.json({ error: "Unknown admin resource: " + subPath }, { status: 404 });
@@ -3003,9 +3004,12 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
             console.warn("[oauth-callback] DocuSign account resolution deferred to runtime:", e?.message || e);
           }
         }
-        // Store tokens in tenant_oauth_credentials.json
+        // Store tokens in tenant_oauth_credentials.json — #235 merge-on-write:
+        // read the CURRENT durable value live (never a boot-hydrated snapshot)
+        // and set exactly this one tokenKey, so rows added by other instances
+        // (fresh reconnects) are preserved. Flush BEFORE the connect response.
         const tokenFile = join(DATA_DIR, "tenant_oauth_credentials.json");
-        const tokenData = readJSON(tokenFile);
+        const tokenData = ((await readJSONLive(tokenFile)) as Record<string, any>) || {};
         const tokenKey = `${user.email}:${canonicalProvider}`;
         tokenData[tokenKey] = {
           provider: canonicalProvider,
@@ -3024,6 +3028,7 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
           updatedAt: new Date().toISOString(),
         };
         writeJSON(tokenFile, tokenData);
+        await durableFlush();
         
         // Create connection record in tenant_integrations.json
         const allConns = readJSON(TENANT_INTEGRATIONS_FILE);
