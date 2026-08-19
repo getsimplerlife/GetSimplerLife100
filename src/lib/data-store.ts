@@ -1,6 +1,6 @@
 import { join } from "path";
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync, copyFileSync } from "fs";
-import { durableEnabled, durableGet, durableHas, durableKeyFor, durableSet, durableGetLive, isPlainObject } from "./durable-store";
+import { durableEnabled, durableGet, durableHas, durableKeyFor, durableSet, durableGetLive, durableFlush, isPlainObject } from "./durable-store";
 import { AGENTS } from "../data/agents";
 
 /**
@@ -143,6 +143,53 @@ export async function readJSONLive(path: string): Promise<any> {
 export function writeJSON(path: string, data: any): void {
   durableSet(durableKeyFor(path), data);
   writeFileSync(path, JSON.stringify(data, null, 2));
+}
+
+/**
+ * Merge-on-write for the credential store (P0 #235).
+ *
+ * The store is a single JSON object keyed `${email}:${provider}` and whole-object
+ * writes (writeJSON of a caller's in-memory snapshot) are destructive: a writer
+ * whose snapshot predates another instance's fresh row (e.g. an OAuth reconnect
+ * persisted by the callback) silently erases that row from the authoritative
+ * store and the local file. This helper makes EVERY credential change a
+ * read-live → mutate-exactly-the-intended-key(s) → write cycle, so a writer can
+ * never clobber a row it didn't know about (the owner's Xero reconnect kept
+ * being wiped by an older instance's refresh tick — #235).
+ *
+ * Fail-closed: if the live read yields something that is not a plain object we
+ * THROW instead of overwriting the store with a stale/unknown snapshot. The live
+ * read uses readJSONLive (durable store → cache → file), so when the durable
+ * store is disabled this is a plain file read and behavior is unchanged.
+ */
+export type CredentialMutation =
+  | { type: "set"; key: string; value: any }
+  | { type: "delete"; key: string };
+
+export async function mergeDurableCredential(
+  file: string,
+  mutations: CredentialMutation[],
+): Promise<void> {
+  const current = await readJSONLive(file);
+  if (current === null || typeof current !== "object" || Array.isArray(current)) {
+    throw new Error(
+      `mergeDurableCredential: authoritative store at ${file} is not a plain object; refusing to overwrite`,
+    );
+  }
+  const tokenData = current as Record<string, any>;
+  let changed = false;
+  for (const m of mutations) {
+    if (m.type === "set") {
+      tokenData[m.key] = m.value;
+      changed = true;
+    } else if (Object.prototype.hasOwnProperty.call(tokenData, m.key)) {
+      delete tokenData[m.key];
+      changed = true;
+    }
+  }
+  if (!changed) return;
+  writeJSON(file, tokenData);
+  await durableFlush();
 }
 
 /** True when the file exists on disk OR the durable store holds its key. */
