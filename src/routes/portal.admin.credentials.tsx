@@ -44,7 +44,12 @@ function AdminCredentialsPage() {
       const providersRes = await fetch("/api/integrations/providers");
       let providerList: Provider[] = [];
       if (providersRes.ok) {
-        providerList = await providersRes.json();
+        // /api/integrations/providers returns { data: [...] } (registry), NOT a
+        // bare array — unwrap defensively so a {data:[...]} shape never reaches
+        // .map(). (configured credentials below use /api/admin/credentials,
+        // which returns a bare array, and are handled separately.)
+        const json = await providersRes.json();
+        providerList = Array.isArray(json) ? json : (json.data || []);
         setProviders(providerList);
       }
 
