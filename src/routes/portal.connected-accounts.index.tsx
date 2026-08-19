@@ -129,6 +129,11 @@ function ConnectedAccountsPage() {
 
   const crmCanConnect = crmSlots.isOwner || crmSlots.remainingSlots > 0;
   const erpCanConnect = erpSlots.isOwner || erpSlots.remainingSlots > 0;
+  // A customer with NO purchased pack has 0 total slots: that is "not yet
+  // purchased", NOT "All slots used" (the contradiction shown before: a fresh
+  // customer saw 0/0 used + "All slots used"). Show the explainer instead.
+  const crmRequiresPack = !crmSlots.isOwner && crmSlots.totalSlots === 0;
+  const erpRequiresPack = !erpSlots.isOwner && erpSlots.totalSlots === 0;
 
   const renderConnectionCard = (conn: EnrichedConnection, type: "crm" | "erp" | "other") => (
     <div
@@ -188,11 +193,13 @@ function ConnectedAccountsPage() {
             <div>
               <div className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-1">👥 CRM Slots</div>
               <div className={`text-2xl font-black ${crmCanConnect ? "text-emerald-400" : "text-amber-400"}`}>
-                {crmConns.length} <span className="text-base font-normal text-stone-400">/ {crmSlots.isOwner ? "∞" : crmSlots.totalSlots} used</span>
+                {crmConns.length} <span className="text-base font-normal text-stone-400">{crmRequiresPack ? "connected" : "/ " + (crmSlots.isOwner ? "∞" : crmSlots.totalSlots) + " used"}</span>
               </div>
             </div>
             <div className="flex flex-col items-end gap-1">
-              {!crmSlots.isOwner && crmSlots.remainingSlots === 0 ? (
+              {crmRequiresPack ? (
+                <span className="text-[10px] font-bold text-amber-400 text-right leading-tight">Requires CRM Pack — connect after purchase</span>
+              ) : !crmSlots.isOwner && crmSlots.remainingSlots === 0 ? (
                 <span className="text-2xl">🔒</span>
               ) : (
                 <span className={`text-xs font-bold ${crmSlots.remainingSlots > 0 ? "text-emerald-400" : "text-amber-400"}`}>
@@ -201,7 +208,7 @@ function ConnectedAccountsPage() {
               )}
               {!crmCanConnect && (
                 <Link to="/portal/marketplace" className="text-[10px] text-amber-400 hover:text-amber-300 font-bold">
-                  Get more slots →
+                  {crmRequiresPack ? "View plans →" : "Get more slots →"}
                 </Link>
               )}
             </div>
@@ -214,11 +221,13 @@ function ConnectedAccountsPage() {
             <div>
               <div className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-1">🏢 ERP Slots</div>
               <div className={`text-2xl font-black ${erpCanConnect ? "text-emerald-400" : "text-amber-400"}`}>
-                {erpConns.length} <span className="text-base font-normal text-stone-400">/ {erpSlots.isOwner ? "∞" : erpSlots.totalSlots} used</span>
+                {erpConns.length} <span className="text-base font-normal text-stone-400">{erpRequiresPack ? "connected" : "/ " + (erpSlots.isOwner ? "∞" : erpSlots.totalSlots) + " used"}</span>
               </div>
             </div>
             <div className="flex flex-col items-end gap-1">
-              {!erpSlots.isOwner && erpSlots.remainingSlots === 0 ? (
+              {erpRequiresPack ? (
+                <span className="text-[10px] font-bold text-amber-400 text-right leading-tight">Requires ERP Pack — connect after purchase</span>
+              ) : !erpSlots.isOwner && erpSlots.remainingSlots === 0 ? (
                 <span className="text-2xl">🔒</span>
               ) : (
                 <span className={`text-xs font-bold ${erpSlots.remainingSlots > 0 ? "text-emerald-400" : "text-amber-400"}`}>
@@ -227,7 +236,7 @@ function ConnectedAccountsPage() {
               )}
               {!erpCanConnect && (
                 <Link to="/portal/marketplace" className="text-[10px] text-amber-400 hover:text-amber-300 font-bold">
-                  Get more slots →
+                  {erpRequiresPack ? "View plans →" : "Get more slots →"}
                 </Link>
               )}
             </div>
@@ -241,7 +250,7 @@ function ConnectedAccountsPage() {
           <div className="flex items-center gap-3">
             <h2 className="text-lg font-black text-white">👥 CRM Accounts</h2>
             <span className="text-xs text-stone-500 font-mono">{crmConns.length} connected</span>
-            {!crmCanConnect && <span className="text-xs text-amber-400 font-bold">🔒 All slots used</span>}
+            {!crmCanConnect && <span className="text-xs text-amber-400 font-bold">{crmRequiresPack ? "Requires CRM Pack — connect after purchase" : "🔒 All slots used"}</span>}
           </div>
           {crmCanConnect && (
             <Link to="/portal/crm" className="text-[10px] text-emerald-400 hover:text-emerald-300 font-bold">
@@ -273,7 +282,7 @@ function ConnectedAccountsPage() {
           <div className="flex items-center gap-3">
             <h2 className="text-lg font-black text-white">🏢 ERP & Accounting</h2>
             <span className="text-xs text-stone-500 font-mono">{erpConns.length} connected</span>
-            {!erpCanConnect && <span className="text-xs text-amber-400 font-bold">🔒 All slots used</span>}
+            {!erpCanConnect && <span className="text-xs text-amber-400 font-bold">{erpRequiresPack ? "Requires ERP Pack — connect after purchase" : "🔒 All slots used"}</span>}
           </div>
           {erpCanConnect && (
             <Link to="/portal/erp" className="text-[10px] text-emerald-400 hover:text-emerald-300 font-bold">

@@ -71,7 +71,12 @@ function ActivityHubDashboard() {
 
   const activeEmployees = employees.filter((e: any) => e.status === "Active");
   const idleEmployees = employees.filter((e: any) => e.status === "Idle");
-  const errorEmployees = employees.filter((e: any) => e.status !== "Active" && e.status !== "Idle");
+  // Portal data-truth (#236): only REAL failure signals raise the "needs
+  // attention" banner. An unconfigured/purchasable catalog agent (status
+  // "available"/"paused", no recent activity) is NOT a failure — the server
+  // computes needsAttention from the employee's own error record and the live
+  // #230 connection-health snapshot.
+  const errorEmployees = employees.filter((e: any) => e.needsAttention === true);
 
   const pendingApprovals = approvals.length;
   const hasActionItems = pendingApprovals > 0 || errorEmployees.length > 0;
