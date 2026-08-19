@@ -261,6 +261,32 @@ export function durableGet(key: string): any | undefined {
   try { return JSON.parse(raw); } catch { return undefined; }
 }
 
+/**
+ * LIVE read straight from the durable store (Postgres), bypassing the
+ * boot-hydrated in-memory cache. This is the cross-instance read: when the
+ * public site is served by more than one process/instance, a value written by
+ * instance A (authorize) is only visible to instance B (callback) by querying
+ * the DB directly — B's cache was hydrated at boot and never sees A's write.
+ *
+ * - Returns the parsed value for `key`, or undefined when absent/unreachable.
+ * - On a DB error it falls back to the cache (same contract as durableGet).
+ * - Never throws.
+ */
+export async function durableGetLive(key: string): Promise<any | undefined> {
+  if (!enabled || !driver) return durableGet(key);
+  try {
+    const rows: any[] = await driver.unsafe(`SELECT key, value FROM kv_store WHERE key = $1`, [key]);
+    const row = (rows || []).find((r: any) => r && String(r.key) === key);
+    if (!row) return undefined;
+    let raw = row.value;
+    if (typeof raw === "string") { try { raw = JSON.parse(raw); } catch { /* keep raw string */ } }
+    return raw;
+  } catch (e: any) {
+    console.log(`[durable-store] live read failed key=${key} err=${e?.message || String(e)}`);
+    return durableGet(key);
+  }
+}
+
 export function durableHas(key: string): boolean {
   return enabled && cache.has(key);
 }

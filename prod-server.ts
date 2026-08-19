@@ -2,10 +2,10 @@ import { serve } from "bun";
 import { join, basename } from "path";
 import { readFileSync, writeFileSync, existsSync, readdirSync } from "fs";
 import { createHash, randomBytes } from "crypto";
-import { resolveDataDir, isInsidePublishTree, readJSON, writeJSON, seedDataFiles, bucketConnectionsByCategory, migrateLegacyData, findLegacyDataDir, countConnections } from "./src/lib/data-store";
+import { resolveDataDir, isInsidePublishTree, readJSON, readJSONLive, writeJSON, seedDataFiles, bucketConnectionsByCategory, migrateLegacyData, findLegacyDataDir, countConnections } from "./src/lib/data-store";
 import { detectPackType, buildPackPurchase, verifyStripeSignature, matchAgentByPaymentLink, matchAgentByMetadata, detectPlanType, buildPlanPurchase, planAgentIds } from "./src/lib/stripe-webhook";
 import { AGENTS } from "./src/data/agents";
-import { initDurableStore, durableEnabled, durableKeyCount, durableStoreStatus, durableSnapshotBackup } from "./src/lib/durable-store";
+import { initDurableStore, durableEnabled, durableKeyCount, durableStoreStatus, durableSnapshotBackup, durableFlush } from "./src/lib/durable-store";
 import { startScheduledTokenRefresher, scheduledRefresherStats, REFRESHER_TICK_MS, type RefreshTokenValidator } from "./src/lib/token-refresher";
 import { startHealthHeartbeat, probeProvider } from "./src/lib/connection-health";
 import { sweepExpiredOAuthStates, OAUTH_STATE_TTL_MS } from "./src/lib/oauth-state-sweeper";
@@ -451,7 +451,7 @@ async function runOAuthStateSweep(): Promise<void> {
   if (oauthStateSweepRunning) return; // never overlap sweeps
   oauthStateSweepRunning = true;
   try {
-    const result = sweepExpiredOAuthStates(DATA_DIR, OAUTH_STATE_TTL_MS);
+    const result = await sweepExpiredOAuthStates(DATA_DIR, OAUTH_STATE_TTL_MS);
     console.log(`[oauth-state-sweeper] sweep done: checked=${result.checked} removed=${result.removed} ttlMs=${result.ttlMs}` + (result.errors.length ? ` errors=${result.errors.length}` : ""));
   } catch (e: any) {
     oauthStateSweepStats.lastError = e?.message || String(e);
@@ -624,8 +624,10 @@ serve({
     if (pathname === "/api/data/connected-accounts") {
       const user = await getUserFromSession(req);
       if (user === null || user === undefined) return Response.json({ error: "Not authenticated" }, { status: 401 });
+      const { connectionHealthSnapshot, applyHealthToConnections } = await import("./src/lib/connection-health");
+      const health = connectionHealthSnapshot(DATA_DIR);
       const all = readJSON(TENANT_INTEGRATIONS_FILE);
-      const userConns = all[user.email] || [];
+      const userConns = applyHealthToConnections(all[user.email] || [], health, user.email);
       const { crm: crmConns, erp: erpConns, other: otherConns } = bucketConnectionsByCategory(userConns);
       const getSlotInfo = (packType: string) => {
         if (user.email === "mathewortiz97@gmail.com") return { totalSlots: 999, usedSlots: 0, remainingSlots: 999, isOwner: true };
@@ -1236,8 +1238,12 @@ serve({
       const userPurchases = (user.email !== "mathewortiz97@gmail.com") ? (purchases[user.email] || []) : [{ status: "active", type: "owner" }];
       const hasActivePurchase = userPurchases.some((p: any) => p.status === "active");
 
+      const { connectionHealthSnapshot, applyHealthToConnections } = await import("./src/lib/connection-health");
+      const health = connectionHealthSnapshot(DATA_DIR);
       const all = readJSON(TENANT_INTEGRATIONS_FILE);
-      return Response.json({ data: all[user.email] || [] });
+      // #232 item 3: never show a stale "Connected" — surface the live health
+      // status (degraded / reconnect_required) instead of the stored row.
+      return Response.json({ data: applyHealthToConnections(all[user.email] || [], health, user.email) });
     }
 
     if (pathname === "/api/integrations/providers") {
@@ -2751,8 +2757,11 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
         return Response.redirect(`/portal/integrations?error=${encodeURIComponent("Missing code or state parameter")}`, 302);
       }
       
-      // Validate CSRF state
-      const states = readJSON(OAUTH_STATES_FILE);
+      // Validate CSRF state — LIVE read (multi-instance fix #232): the state was
+      // written by the authorize handler, possibly on a DIFFERENT instance whose
+      // write reached Neon but never this process's boot-hydrated cache or local
+      // file. readJSONLive queries the durable store directly before falling back.
+      const states = await readJSONLive(OAUTH_STATES_FILE);
       const stateEntry = states[state];
       const callbackUser = await getUserFromSession(req);
       if (!callbackUser?.email) {
@@ -2763,8 +2772,9 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
         return Response.redirect(`/portal/integrations?error=${encodeURIComponent("OAuth state belongs to a different tenant")}`, 302);
       }
       if (stateError === "expired") {
-        await await consumeOAuthState(states, state);
+        await consumeOAuthState(states, state);
         writeJSON(OAUTH_STATES_FILE, states);
+        await durableFlush();
         return Response.redirect(`/portal/integrations?error=${encodeURIComponent("OAuth state expired. Please try again.")}`, 302);
       }
       if (stateError) {
@@ -2785,9 +2795,11 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
       const authProvider = stateEntry.provider;
       const verifier = stateEntry.verifier;
       
-      // Clean up consumed state (single-process serialized file update)
+      // Clean up consumed state (single-process serialized file update) and
+      // flush so a concurrent/other instance never replays the same state.
       consumeOAuthState(states, state);
       writeJSON(OAUTH_STATES_FILE, states);
+      await durableFlush();
       
       // Get user from session (for connection record)
       const user = callbackUser;
@@ -2933,9 +2945,10 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
         const sfCodeChallenge = Buffer.from(new Bun.SHA256().update(sfCodeVerifier).digest()).toString("base64url").replace(/=+$/, "");
         const sfState = crypto.randomUUID();
         // Store state with email for callback validation
-        const sfStates = readJSON(OAUTH_STATES_FILE);
+        const sfStates = await readJSONLive(OAUTH_STATES_FILE);
         sfStates[sfState] = { provider: "salesforce", email: sfEmail, verifier: sfCodeVerifier, createdAt: Date.now() };
         writeJSON(OAUTH_STATES_FILE, sfStates);
+        await durableFlush(); // state must be in Neon before the provider round-trip (multi-instance #232)
         const sfUrl = `https://login.salesforce.com/services/oauth2/authorize?response_type=code&client_id=${encodeURIComponent(sfClientId)}&redirect_uri=${encodeURIComponent(sfRedirectUri)}&state=${sfState}&scope=api+refresh_token+offline_access&code_challenge=${sfCodeChallenge}&code_challenge_method=S256`;
         return Response.redirect(sfUrl, 302);
       }
@@ -2952,9 +2965,10 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
       const initiatingUser = await getUserFromSession(req);
       if (!initiatingUser?.email) return Response.json({ error: "Not authenticated" }, { status: 401 });
       let state = randomBytes(32).toString("hex");
-      const states = readJSON(OAUTH_STATES_FILE);
+      const states = await readJSONLive(OAUTH_STATES_FILE);
       states[state] = { provider, email: initiatingUser.email, createdAt: Date.now() };
       writeJSON(OAUTH_STATES_FILE, states);
+      await durableFlush(); // multi-instance #232: durable before redirect
       // Build OAuth redirect URL dynamically via provider auth modules
       const redirectUri = getOAuthRedirectUri(provider, req);
       const canonicalProvider = getCanonicalProvider(provider);
@@ -2994,6 +3008,7 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
           }
           
           writeJSON(OAUTH_STATES_FILE, states);
+          await durableFlush(); // module may swap the state — keep Neon authoritative
         }
       } catch (_) {
         // Auth module not available — fall through to env-var-based URL

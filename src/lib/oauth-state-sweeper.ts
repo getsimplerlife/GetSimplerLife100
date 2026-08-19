@@ -14,7 +14,8 @@
  *    rest of the runtime (so the Neon mirror stays consistent).
  */
 import { join } from "path";
-import { readJSON, writeJSON } from "./data-store";
+import { readJSONLive, writeJSON } from "./data-store";
+import { durableFlush } from "./durable-store";
 
 export interface OAuthStateSweepResult {
   checked: number;
@@ -31,15 +32,17 @@ export const OAUTH_STATE_TTL_MS = 24 * 60 * 60 * 1000; // 24h
  *
  * `nowMs` is injectable for deterministic tests (defaults to Date.now()).
  */
-export function sweepExpiredOAuthStates(
+export async function sweepExpiredOAuthStates(
   dataDir: string,
   ttlMs: number = OAUTH_STATE_TTL_MS,
   nowMs: number = Date.now(),
-): OAuthStateSweepResult {
+): Promise<OAuthStateSweepResult> {
   const file = join(dataDir, "oauth_states.json");
   const result: OAuthStateSweepResult = { checked: 0, removed: 0, ttlMs, errors: [] };
   try {
-    const states = readJSON(file);
+    // LIVE read (multi-instance fix #232): a stale per-process cache must never
+    // prune (or resurrect) states another instance wrote.
+    const states = await readJSONLive(file);
     // Fail-safe: only sweep a plain object we recognize. Arrays, primitives,
     // and unparseable data are left untouched (repair logic lives elsewhere).
     if (!states || typeof states !== "object" || Array.isArray(states)) {
@@ -64,6 +67,7 @@ export function sweepExpiredOAuthStates(
     result.removed = removed;
     if (removed > 0) {
       writeJSON(file, kept);
+      await durableFlush();
     }
     return result;
   } catch (e: any) {

@@ -1,6 +1,6 @@
 import { join } from "path";
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync, copyFileSync } from "fs";
-import { durableEnabled, durableGet, durableHas, durableKeyFor, durableSet, isPlainObject } from "./durable-store";
+import { durableEnabled, durableGet, durableHas, durableKeyFor, durableSet, durableGetLive, isPlainObject } from "./durable-store";
 import { AGENTS } from "../data/agents";
 
 /**
@@ -121,6 +121,22 @@ export function readJSON(path: string): any {
     console.log("[data-store] FAILED read path=" + path + " err=" + (e?.message || String(e)));
     return {};
   }
+}
+
+/**
+ * LIVE cross-instance read: query the durable store (Neon) directly before
+ * falling back to the per-process cache, then the local file. Guarantees a
+ * value written by ANOTHER instance (e.g. OAuth state persisted by the authorize
+ * handler) is visible to THIS instance even though its boot-hydrated cache never
+ * saw it. Used by the OAuth callback — the multi-instance divergence fix (#232).
+ * When the durable store is disabled this is a plain readJSON.
+ */
+export async function readJSONLive(path: string): Promise<any> {
+  if (durableEnabled()) {
+    const live = await durableGetLive(durableKeyFor(path));
+    if (live !== undefined) return live;
+  }
+  return readJSON(path);
 }
 
 /** Write a JSON file (pretty-printed). Mirrors to the durable store too. */
