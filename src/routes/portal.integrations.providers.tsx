@@ -24,7 +24,12 @@ function ProviderDirectoryPage() {
       const provRes = await fetch("/api/integrations/providers", { credentials: "include" });
       let provData: Provider[] = [];
       if (provRes.ok) {
-        provData = await provRes.json();
+        const json = await provRes.json();
+        // Endpoint returns { data: [...] } after the admin-gate fix; unwrap
+        // defensively and drop null/sparse entries (they crash .category reads).
+        provData = (Array.isArray(json) ? json : (json.data || [])).filter(
+          (p: any) => p && p.id && typeof p.category === "string"
+        );
       }
 
       // Load connected connections to show badge
