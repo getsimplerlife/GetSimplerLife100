@@ -879,10 +879,15 @@ serve({
       return Response.json({ data: userData });
     }
 
-    // ── /api/data/users (GET) ──────────────────────────────────────
+    // ── /api/data/users (GET/POST) — OWNER-ONLY (SECURITY) ─────────
     if (pathname === "/api/data/users") {
       const user = await getUserFromSession(req);
       if (user === null || user === undefined) return Response.json({ error: "Not authenticated" }, { status: 401 });
+      // Cross-tenant leak: this endpoint lists EVERY registered user. Mirror the
+      // /api/admin/* gate so only the owner can read/mutate the user directory.
+      if (user.email !== "mathewortiz97@gmail.com") {
+        return Response.json({ error: "Admin access required" }, { status: 403 });
+      }
       const users = readJSON(USERS_FILE);
       const userList = Object.values(users).map((u: any) => ({
         id: u.email, email: u.email, role: u.role || "user", createdAt: u.createdAt,
@@ -2220,6 +2225,20 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
       const user = await getUserFromSession(req);
       if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
       const subPath = pathname.replace("/api/data/", "");
+      // SECURITY: admin diagnostics under /api/data/* are OWNER-ONLY — mirror
+      // the /api/admin/* gate. users/credentials/health/datadir leak cross-tenant
+      // data or server internals; a non-owner must get 403 before any handler
+      // runs (covers GET + PUT/DELETE credentials/<id>). Customer-facing
+      // subpaths (analytics/marketplace/employees/billing) stay open.
+      const adminDataSubPaths = ["users", "credentials", "health", "datadir"];
+      if (
+        adminDataSubPaths.includes(subPath) ||
+        subPath.startsWith("credentials/")
+      ) {
+        if (user.email !== "mathewortiz97@gmail.com") {
+          return Response.json({ error: "Admin access required" }, { status: 403 });
+        }
+      }
 
       if (subPath === "analytics" || subPath === "analytics/") {
         const employees = readJSON(AI_EMPLOYEES_FILE);
