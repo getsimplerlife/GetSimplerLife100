@@ -269,3 +269,34 @@ export function startHealthHeartbeat(
 export function connectionHealthSnapshot(dataDir: string): ConnectionHealthRecord[] {
   return new ConnectionHealthTracker(dataDir).all();
 }
+
+/**
+ * Overlay live health status onto tenant_integrations rows (#232 item 3).
+ * A stored row may say "Connected" while the credential is actually dead
+ * (degraded / reconnect_required in connection_health.json) — the owner UI
+ * must show the HEALTH truth, never the stale row. Returns new objects;
+ * the stored rows are never mutated.
+ *
+ * - A health record with status "ok" keeps the stored status (display "Connected").
+ * - "degraded" / "reconnect_required" OVERRIDE the stored status with the
+ *   health wording (so the UI badge reads "Degraded" / "Reconnect Required").
+ * - Providers with no health record (non-refresh, never probed) pass through.
+ */
+export function applyHealthToConnections(
+  conns: any[],
+  health: ConnectionHealthRecord[],
+  email: string,
+): any[] {
+  const byKey = new Map<string, ConnectionHealthRecord>();
+  for (const h of health) {
+    byKey.set(h.email ? `${h.email}:${h.provider}` : h.provider, h);
+    byKey.set(`${email}:${h.provider}`, h); // match tenant rows even without email field
+  }
+  return (conns || []).map((c: any) => {
+    const provider = String(c.providerId || c.provider || "").toLowerCase();
+    const rec = byKey.get(`${email}:${provider}`);
+    if (!rec || rec.status === "ok") return c;
+    const status = rec.status === "reconnect_required" ? "Reconnect Required" : "Degraded";
+    return { ...c, status, healthStatus: rec.status, lastHealthError: rec.lastError ?? null };
+  });
+}

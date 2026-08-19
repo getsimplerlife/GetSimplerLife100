@@ -39,12 +39,12 @@ function readStates(dir: string): Record<string, unknown> {
 }
 
 describe("sweepExpiredOAuthStates — TTL behavior", () => {
-  it("removes entries older than 24h and keeps fresh ones", () => {
+  it("removes entries older than 24h and keeps fresh ones", async () => {
     writeStates(dir, {
       old_state: { provider: "xero", createdAt: Date.now() - TTL - 60_000 },
       fresh_state: { provider: "slack", createdAt: Date.now() - 60_000 },
     });
-    const result = sweepExpiredOAuthStates(dir);
+    const result = await sweepExpiredOAuthStates(dir);
     expect(result.removed).toBe(1);
     expect(result.checked).toBe(2);
     const kept = readStates(dir);
@@ -52,7 +52,7 @@ describe("sweepExpiredOAuthStates — TTL behavior", () => {
     expect(kept).not.toHaveProperty("old_state");
   });
 
-  it("keeps an entry exactly at the TTL boundary (strictly-older rule)", () => {
+  it("keeps an entry exactly at the TTL boundary (strictly-older rule)", async () => {
     // Use a fixed reference time so the boundary is deterministic — under
     // load, the ms elapsed between writing createdAt=Date.now()-TTL and the
     // sweep's own Date.now() used to push the entry past the boundary and
@@ -61,18 +61,18 @@ describe("sweepExpiredOAuthStates — TTL behavior", () => {
     writeStates(dir, {
       boundary: { provider: "hubspot", createdAt: now - TTL },
     });
-    const result = sweepExpiredOAuthStates(dir, TTL, now);
+    const result = await sweepExpiredOAuthStates(dir, TTL, now);
     expect(result.removed).toBe(0);
     expect(readStates(dir)).toHaveProperty("boundary");
   });
 
-  it("never removes entries with missing/invalid createdAt (fail-safe)", () => {
+  it("never removes entries with missing/invalid createdAt (fail-safe)", async () => {
     writeStates(dir, {
       no_ts: { provider: "xero" },
       bad_ts: { provider: "slack", createdAt: "yesterday" },
       null_ts: { provider: "stripe", createdAt: null },
     });
-    const result = sweepExpiredOAuthStates(dir);
+    const result = await sweepExpiredOAuthStates(dir);
     expect(result.removed).toBe(0);
     const kept = readStates(dir);
     expect(kept).toHaveProperty("no_ts");
@@ -80,23 +80,23 @@ describe("sweepExpiredOAuthStates — TTL behavior", () => {
     expect(kept).toHaveProperty("null_ts");
   });
 
-  it("respects a custom TTL", () => {
+  it("respects a custom TTL", async () => {
     writeStates(dir, {
       fifteen_min_old: { provider: "xero", createdAt: Date.now() - 15 * 60_000 },
       just_created: { provider: "slack", createdAt: Date.now() },
     });
-    const result = sweepExpiredOAuthStates(dir, 10 * 60_000);
+    const result = await sweepExpiredOAuthStates(dir, 10 * 60_000);
     expect(result.removed).toBe(1);
     expect(result.ttlMs).toBe(10 * 60_000);
     expect(readStates(dir)).toHaveProperty("just_created");
   });
 
-  it("is idempotent — a second sweep removes nothing more", () => {
+  it("is idempotent — a second sweep removes nothing more", async () => {
     writeStates(dir, {
       old_state: { provider: "xero", createdAt: Date.now() - TTL - 60_000 },
     });
-    const first = sweepExpiredOAuthStates(dir);
-    const second = sweepExpiredOAuthStates(dir);
+    const first = await sweepExpiredOAuthStates(dir);
+    const second = await sweepExpiredOAuthStates(dir);
     expect(first.removed).toBe(1);
     expect(second.removed).toBe(0);
     expect(second.checked).toBe(0); // nothing left to check
@@ -104,32 +104,32 @@ describe("sweepExpiredOAuthStates — TTL behavior", () => {
 });
 
 describe("sweepExpiredOAuthStates — containment and no-ops", () => {
-  it("leaves other files in the data dir untouched", () => {
+  it("leaves other files in the data dir untouched", async () => {
     writeStates(dir, {
       old_state: { provider: "xero", createdAt: Date.now() - TTL - 60_000 },
     });
     writeFileSync(join(dir, "users.json"), JSON.stringify({ real: { email: "real@x.com" } }));
     const usersBefore = readFileSync(join(dir, "users.json"), "utf-8");
-    sweepExpiredOAuthStates(dir);
+    await sweepExpiredOAuthStates(dir);
     expect(readFileSync(join(dir, "users.json"), "utf-8")).toBe(usersBefore);
   });
 
-  it("does nothing when the store is missing", () => {
-    const result = sweepExpiredOAuthStates(dir);
+  it("does nothing when the store is missing", async () => {
+    const result = await sweepExpiredOAuthStates(dir);
     expect(result.removed).toBe(0);
     expect(result.checked).toBe(0);
     expect(result.errors).toEqual([]);
   });
 
-  it("does nothing on a non-object store (array or primitive)", () => {
+  it("does nothing on a non-object store (array or primitive)", async () => {
     writeFileSync(join(dir, "oauth_states.json"), JSON.stringify(["a", "b"]));
-    const result = sweepExpiredOAuthStates(dir);
+    const result = await sweepExpiredOAuthStates(dir);
     expect(result.removed).toBe(0);
     expect(JSON.parse(readFileSync(join(dir, "oauth_states.json"), "utf-8"))).toEqual(["a", "b"]);
   });
 
-  it("does not create the file when sweeping a missing store", () => {
-    sweepExpiredOAuthStates(dir);
+  it("does not create the file when sweeping a missing store", async () => {
+    await sweepExpiredOAuthStates(dir);
     expect(existsSync(join(dir, "oauth_states.json"))).toBe(false);
   });
 });
