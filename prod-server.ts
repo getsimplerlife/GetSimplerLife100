@@ -1493,6 +1493,51 @@ serve({
 
       try {
         const body = await req.json();
+        // ── Authoritative removal (P0 — #178 regression) ─────────────────────
+        // Since #178, Connected Accounts reads the durable
+        // tenant_oauth_credentials.json (keyed `${email}:${provider}`). The legacy
+        // TENANT_INTEGRATIONS_FILE cleanup below alone never clears the card, so
+        // Disconnect returned success while the credential row (and the card)
+        // stayed — the owner couldn't clear Xero to reconnect. Remove the durable
+        // row via the same readJSONLive/writeJSON/durableFlush pattern as
+        // persistOAuthTokenDurable so it lands in the Neon durable store.
+        let disconnectProvider = String(body.providerId || "").trim();
+        if (!disconnectProvider && body.connectionId) {
+          const parts = String(body.connectionId).split(":");
+          if (parts.length >= 2) {
+            const connEmail = (parts[0] || "").trim();
+            // Fail closed: never trust a connectionId whose email isn't the
+            // session user (prevents cross-tenant removal).
+            if (connEmail && connEmail !== user.email) {
+              return Response.json({ error: "connectionId does not match session user" }, { status: 403 });
+            }
+            disconnectProvider = (parts.slice(1).join(":") || "").trim();
+          }
+        }
+        if (disconnectProvider) {
+          const credsFile = join(DATA_DIR, "tenant_oauth_credentials.json");
+          const creds = ((await readJSONLive(credsFile)) as Record<string, any>) || {};
+          let credsChanged = false;
+          for (const k of Object.keys(creds)) {
+            const sep = k.indexOf(":");
+            if (sep === -1) continue;
+            const kEmail = k.slice(0, sep);
+            const kProv = k.slice(sep + 1);
+            if (kEmail === user.email && kProv === disconnectProvider) {
+              delete creds[k];
+              credsChanged = true;
+            }
+          }
+          if (credsChanged) {
+            writeJSON(credsFile, creds);
+            await durableFlush();
+          }
+        }
+        // NOTE (health): the durable ConnectionHealthTracker prunes any health row
+        // whose credential key is absent from tenant_oauth_credentials.json on the
+        // next heartbeat (prune() in connection-health.ts), so removing the key
+        // above also stops further probing/emailing for this provider+tenant. No
+        // manual health pruning needed.
         const all = readJSON(TENANT_INTEGRATIONS_FILE);
         const userConns = all[user.email] || [];
         // Find the connection to check if it's CRM/ERP before removing
