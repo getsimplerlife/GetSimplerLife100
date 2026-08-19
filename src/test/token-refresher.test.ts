@@ -47,8 +47,13 @@ beforeEach(() => {
   }) as unknown as Response);
   globalThis.fetch = fetchMock as unknown as typeof globalThis.fetch;
 });
-afterEach(() => {
+afterEach(async () => {
   globalThis.fetch = originalFetch;
+  // #234 durable-first reads: tests that init the durable store must not let a
+  // flushed stale driver bleed into the next test — close it after every test
+  // so later reads hit the per-test file (readJSONLive must see the seed, not
+  // a previous test's flushed snapshot).
+  await durableClose();
 });
 afterAll(async () => {
   globalThis.fetch = originalFetch;

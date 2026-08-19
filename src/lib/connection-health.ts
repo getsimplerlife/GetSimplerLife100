@@ -21,7 +21,7 @@
  *   unknown            — no stored credential
  */
 import { join } from "path";
-import { readJSON, writeJSON } from "./data-store";
+import { readJSON, readJSONLive, writeJSON } from "./data-store";
 import { isRefreshProvider, REFRESH_REGISTRY } from "./token-refresher";
 
 export interface ProbeResult {
@@ -225,7 +225,11 @@ export function startHealthHeartbeat(
   let timer: ReturnType<typeof setInterval> | undefined;
 
   async function runCycle(): Promise<{ probed: number; ok: number; degraded: number; dead: number }> {
-    const tokenData = (readJSON(join(dataDir, "tenant_oauth_credentials.json")) as Record<string, any> | undefined) || {};
+    // #234 durable-first: a connection persisted on another instance (OAuth
+    // callback) must be probed even when this instance's boot-hydrated cache
+    // and local file predate it. readJSONLive queries the durable store
+    // directly with file/cache fallback (plain readJSON when store disabled).
+    const tokenData = ((await readJSONLive(join(dataDir, "tenant_oauth_credentials.json"))) as Record<string, any> | undefined) || {};
     // Prune health rows whose credential key no longer exists in the store
     // (stale fixture rows like tenant@example.com:* must not keep being probed/emailed).
     tracker.prune(new Set(Object.keys(tokenData)));

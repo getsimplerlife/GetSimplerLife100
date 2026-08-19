@@ -1,5 +1,5 @@
 import { join } from "path";
-import { readJSON, writeJSON } from "./data-store";
+import { readJSON, readJSONLive, writeJSON } from "./data-store";
 
 /**
  * token-refresher.ts — keep every OAuth client connection usable 24/7.
@@ -222,7 +222,9 @@ export async function sweepExpiredTokens(
   const now = optsIn.now ?? Date.now();
   const tokenFile = join(dataDir, "tenant_oauth_credentials.json");
   const connsFile = join(dataDir, "tenant_integrations.json");
-  const tokenData = readJSON(tokenFile) || {};
+  // #234 durable-first: scan the durable store directly (file/cache fallback)
+  // so tokens persisted on another instance are refreshed, not missed.
+  const tokenData = (await readJSONLive(tokenFile)) || {};
   const allConns = readJSON(connsFile) || {};
   let refreshed = 0;
   let failed = 0;
@@ -629,7 +631,10 @@ export function startScheduledTokenRefresher(
   async function runTick(): Promise<{ due: number; outcomes: RefreshOutcome[] }> {
     const now = opts.now ? opts.now() : Date.now();
     const tokenFile = join(dataDir, "tenant_oauth_credentials.json");
-    const tokenData = (readJSON(tokenFile) as Record<string, StoredOAuthEntry> | undefined) || {};
+    // #234 durable-first: the tick must see tokens persisted on other
+    // instances (OAuth callback) even when this instance's cache/file predate
+    // them — otherwise a reconnect appears healthy on the writer and dead here.
+    const tokenData = ((await readJSONLive(tokenFile)) as Record<string, StoredOAuthEntry> | undefined) || {};
     const conns = (readJSON(join(dataDir, "tenant_integrations.json")) as Record<string, any[]> | undefined) || {};
     const dueKeys: string[] = [];
     for (const [key, entry] of Object.entries<any>(tokenData)) {

@@ -156,7 +156,7 @@ describe("/api/integrations/disconnect — removes the durable credential row", 
     expect(res.json).toEqual({ success: true });
 
     expect(credRowExists()).toBe(false);
-    const accounts = buildConnectedAccountsFromCredentials(EMAIL, TEST_DATA_DIR);
+    const accounts = await buildConnectedAccountsFromCredentials(EMAIL, TEST_DATA_DIR);
     expect(accounts.some((a: any) => a.provider === PROVIDER)).toBe(false);
     const hit = loadStoredCredential(PROVIDER, { tenant: EMAIL, dataDir: TEST_DATA_DIR });
     expect(hit.credential).toBeUndefined();
