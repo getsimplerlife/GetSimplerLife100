@@ -24,6 +24,9 @@ import {
   type OAuthConfig,
 } from "../integrations/framework/oauth";
 import { getUserFromRequest } from "./auditLogs";
+import { readJSONLive, writeJSON, resolveDataDir } from "../lib/data-store";
+import { durableFlush } from "../lib/durable-store";
+import { join } from "node:path";
 
 const SITE_ORIGIN = process.env.SITE_ORIGIN || "https://simplerlife100.ctonew.app";
 
@@ -371,19 +374,92 @@ export async function handleOAuthCallback(req: Request): Promise<Response> {
     const user = await getUserFromRequest(req);
     const userId = user?.userId || "anonymous";
 
-    await createConnection({
-      userId,
-      provider: providerId,
-      displayName: providerMeta.name,
-      config,
-      status: "active",
-    });
+    // ── Durable persist (P1 — #230 "never silently lost") ──────────────────
+    // The exchanged token MUST land in the authoritative
+    // `tenant_oauth_credentials.json` (Neon kv_store, keyed `${email}:${provider}`)
+    // BEFORE "Connected!" is returned — that is the store Connected Accounts
+    // (connected-accounts.ts), health (connection-health.ts), and the
+    // verification CLI (credential-source.ts) all read. Writing ONLY to the
+    // legacy LibSQL `integrations` table (as before) meant every reconnect
+    // reported success while its token vanished from the authoritative store
+    // (owner's three Xero reconnects on 08-19 all dropped theirs).
+    // writeJSON() mirrors to the durable store; durableFlush() pushes queued
+    // upserts to Neon before the response (#232 rule: state that must survive
+    // the round-trip is written durable BEFORE the response).
+    const tokenEmail =
+      user?.userEmail ||
+      user?.userId ||
+      (tokens as any)?.email ||
+      (tokens as any)?.userEmail ||
+      "";
+    if (tokenEmail) {
+      await persistOAuthTokenDurable(tokenEmail, providerId, tokens);
+    }
+
+    // Best-effort legacy LibSQL `integrations` write — kept for anything that
+    // still reads that table. The durable store above is the source of truth
+    // for the three readers; a LibSQL failure must never mask a durable success.
+    try {
+      await createConnection({
+        userId,
+        provider: providerId,
+        displayName: providerMeta.name,
+        config,
+        status: "active",
+      });
+    } catch (legacyErr: any) {
+      console.warn(
+        `[integrations] legacy createConnection skipped for ${providerId}:`,
+        legacyErr?.message || legacyErr,
+      );
+    }
 
     return html(`<html><body><h2>✅ Connected!</h2><p>${providerMeta.name} has been connected successfully.</p><script>setTimeout(() => { window.location.href = '/portal/integrations'; }, 1500);</script></body></html>`);
   } catch (err: any) {
     console.error(`[integrations] OAuth callback error for ${providerId}:`, err);
     return html(`<html><body><h2>OAuth Error</h2><p>${err.message || "Failed to complete OAuth flow"}</p><a href="/portal/integrations">Back to integrations</a></body></html>`);
   }
+}
+
+export async function persistOAuthTokenDurable(
+  tokenEmail: string,
+  providerId: string,
+  tokens: Record<string, any>,
+): Promise<{ key: string }> {
+  // Shared by the OAuth callback so the exchanged token is durably persisted
+  // into the authoritative tenant_oauth_credentials.json (Neon kv_store, keyed
+  // `${tokenEmail}:${providerId}`) BEFORE "Connected!" is returned.
+  // writeJSON() mirrors to the durable store; durableFlush() pushes queued
+  // upserts to Neon so the write is visible to a fresh process/cross-instance
+  // (#230/#232 — state that must survive the round-trip is written durable
+  // before the response).
+  const dataDir = resolveDataDir(
+    process.env.DATA_DIR,
+    typeof import.meta?.dir !== "undefined" ? import.meta.dir : process.cwd(),
+  );
+  const tokenFile = join(dataDir, "tenant_oauth_credentials.json");
+  const key = `${tokenEmail}:${providerId}`;
+  const tokenData = ((await readJSONLive(tokenFile)) as Record<string, any>) || {};
+  const prev = tokenData[key] && typeof tokenData[key] === "object" ? tokenData[key] : {};
+  const nowIso = new Date().toISOString();
+  tokenData[key] = {
+    email: tokenEmail,
+    provider: providerId,
+    scope: tokens.scope || prev.scope || "",
+    tenantId: tokens.tenantId || tokens.orgId || prev.tenantId || undefined,
+    expiresAt: tokens.expiresAt ?? prev.expiresAt,
+    tokenType: tokens.tokenType || prev.tokenType || "Bearer",
+    updatedAt: nowIso,
+    connectedAt: nowIso,
+    accessToken: tokens.accessToken,
+    refreshToken: tokens.refreshToken || prev.refreshToken,
+  };
+  if (!tokenData[key].accessToken) {
+    throw new Error(`OAuth exchange produced no access token for ${providerId}`);
+  }
+  writeJSON(tokenFile, tokenData);
+  await durableFlush();
+  return { key };
 }
 
 // ─── 3. Connection Management ─────────────────────────────────────────────────
