@@ -20,13 +20,28 @@ export interface EmailResult {
   messageId: string;
   isMock: boolean;
   recipient: string | string[];
+  /** Present only on failure (fail-closed paths return success:false instead of throwing). */
+  error?: string;
 }
 
 /**
- * Sends an email via SMTP. Bypasses to a simulation/mock logger if SMTP is not configured.
+ * Sends an email. Precedence (#233):
+ *   1. SendGrid (HTTP POST /v3/mail/send) when SENDGRID_API_KEY is set —
+ *      this is the LIVE path today (SENDGRID_API_KEY + SMTP_FROM configured,
+ *      no SMTP_*), so owner reconnect alerts now deliver for real.
+ *   2. nodemailer SMTP when SMTP_HOST/USER/PASS are set (unchanged behavior).
+ *   3. Mock/simulation logger (unchanged fallback) — never claims delivery.
+ * SendGrid was chosen above SMTP because the verified, working credential in
+ * the live environment is the SendGrid key (mail.send scope confirmed), while
+ * SMTP_* is unset everywhere; SMTP remains for deployments that configure it.
  */
 export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
   const { to, subject, text, html } = options;
+  const sendgridKey = process.env.SENDGRID_API_KEY || "";
+
+  if (sendgridKey) {
+    return sendViaSendGrid({ to, subject, text, html, apiKey: sendgridKey });
+  }
 
   // If no SMTP configured, fallback to Mock/Simulation mode
   if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
@@ -99,6 +114,74 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
   } catch (err: any) {
     console.error("[Email SMTP] Send failed:", err);
     throw new Error(`SMTP Send Failure: ${err.message}`);
+  }
+}
+
+/** Parse "Name <addr>" or "addr" into SendGrid's from object. */
+function parseFromAddress(from: string): { email: string; name?: string } {
+  const m = /^\s*(.*?)\s*<([^>]+)>\s*$/.exec(from);
+  if (m) return { email: m[2].trim(), name: m[1].trim() || undefined };
+  return { email: from.trim() };
+}
+
+/**
+ * SendGrid HTTP path (#233). Fail-closed: ONLY HTTP 202 counts as delivered —
+ * any other status (or a network throw) returns { success: false, error } and
+ * is never reported as sent, so the #231 throttle logic cannot be fooled into
+ * suppressing a real alert.
+ */
+async function sendViaSendGrid(opts: {
+  to: string | string[];
+  subject: string;
+  text?: string;
+  html?: string;
+  apiKey: string;
+}): Promise<EmailResult> {
+  const toList = Array.isArray(opts.to) ? opts.to : [opts.to];
+  const from = parseFromAddress(process.env.SMTP_FROM || SMTP_FROM);
+  const content: { type: string; value: string }[] = [];
+  if (opts.text) content.push({ type: "text/plain", value: opts.text });
+  if (opts.html) content.push({ type: "text/html", value: opts.html });
+  if (content.length === 0) content.push({ type: "text/plain", value: "" });
+  try {
+    const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + opts.apiKey,
+      },
+      body: JSON.stringify({
+        personalizations: [{ to: toList.map((email) => ({ email })) }],
+        from,
+        subject: opts.subject,
+        content,
+      }),
+    });
+    if (response.status === 202) {
+      // SendGrid returns 202 Accepted; the message id is in the X-Message-Id
+      // header when the API exposes it (body is empty).
+      const messageId = response.headers?.get("x-message-id") || `sg-${crypto.randomUUID()}`;
+      console.log(`[Email SendGrid] Sent email to ${opts.to}. MessageID: ${messageId}`);
+      return { success: true, messageId, isMock: false, recipient: opts.to };
+    }
+    const errText = await response.text().catch(() => "");
+    console.error(`[Email SendGrid] Send failed: HTTP ${response.status}: ${errText.slice(0, 500)}`);
+    return {
+      success: false,
+      messageId: "",
+      isMock: false,
+      recipient: opts.to,
+      error: `SendGrid HTTP ${response.status}: ${errText}`,
+    };
+  } catch (err: any) {
+    console.error("[Email SendGrid] Send failed:", err);
+    return {
+      success: false,
+      messageId: "",
+      isMock: false,
+      recipient: opts.to,
+      error: err?.message || String(err),
+    };
   }
 }
 
