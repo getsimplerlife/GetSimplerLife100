@@ -629,7 +629,7 @@ serve({
       // legacy tenant_integrations.json fixtures — so the owner's live
       // connections actually show. Health overlay applied inside the builder.
       const { buildConnectedAccountsFromCredentials } = await import("./src/lib/connected-accounts");
-      const userConns = buildConnectedAccountsFromCredentials(user.email, DATA_DIR);
+      const userConns = await buildConnectedAccountsFromCredentials(user.email, DATA_DIR);
       const { crm: crmConns, erp: erpConns, other: otherConns } = bucketConnectionsByCategory(userConns);
       const getSlotInfo = (packType: string) => {
         if (user.email === "mathewortiz97@gmail.com") return { totalSlots: 999, usedSlots: 0, remainingSlots: 999, isOwner: true };
@@ -1250,7 +1250,7 @@ serve({
       // tenant_integrations.json fixtures. This is also what the /portal
       // dashboard "integrations connected" count reads.
       const { buildConnectedAccountsFromCredentials } = await import("./src/lib/connected-accounts");
-      return Response.json({ data: buildConnectedAccountsFromCredentials(user.email, DATA_DIR) });
+      return Response.json({ data: await buildConnectedAccountsFromCredentials(user.email, DATA_DIR) });
     }
 
     if (pathname === "/api/integrations/providers") {

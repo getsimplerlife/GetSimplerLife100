@@ -18,7 +18,7 @@
  * dashboard "integrations connected" count reflects the same truth.
  */
 import { join } from "path";
-import { readJSON } from "./data-store";
+import { readJSON, readJSONLive } from "./data-store";
 import { applyHealthToConnections, connectionHealthSnapshot } from "./connection-health";
 import { integrations } from "../content/integrations";
 
@@ -54,12 +54,16 @@ export interface ConnectedAccount {
   _provider: { name: string; icon: string; category: string };
 }
 
-export function buildConnectedAccountsFromCredentials(
+export async function buildConnectedAccountsFromCredentials(
   email: string,
   dataDir: string,
-): ConnectedAccount[] {
+): Promise<ConnectedAccount[]> {
+  // #234 durable-first: the live host runs multiple instances; only the one
+  // that handled the OAuth callback has the new row in its boot-hydrated cache
+  // + local file. Query the durable store directly (file/cache fallback) so a
+  // token persisted on another instance is never invisible to this one.
   const tokenData =
-    (readJSON(join(dataDir, "tenant_oauth_credentials.json")) as Record<string, any>) || {};
+    ((await readJSONLive(join(dataDir, "tenant_oauth_credentials.json"))) as Record<string, any>) || {};
   const conns: ConnectedAccount[] = [];
   for (const [key, entry] of Object.entries<any>(tokenData)) {
     if (!entry || typeof entry !== "object") continue;
