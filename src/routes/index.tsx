@@ -61,7 +61,7 @@ const industryExamples = [
 ];
 
 const ecosystemLogos = [
-  "Salesforce", "HubSpot", "Microsoft", "Google Workspace", "QuickBooks", "Slack", "Teams", "SAP"
+  "Xero", "HubSpot", "Slack", "Microsoft 365", "Google Workspace", "DocuSign"
 ];
 
 const journeySteps = [
@@ -77,11 +77,11 @@ const journeySteps = [
   {
     step: "02",
     name: "Design",
-    benefit: "Blueprint",
-    description: "We build a technical roadmap and workflow that fits your business, showing exactly how the agents will work.",
-    price: "$2,500",
-    cta: "Get Your Custom Blueprint",
-    link: "https://buy.stripe.com/4gMfZj88TfMz6Hh8TS2Fa1K"
+    benefit: "Design",
+    description: "We build a technical roadmap and workflow that fits your business, showing exactly how the AI employees will work.",
+    price: "Included in Build",
+    cta: "Start Your Build",
+    link: "/pricing"
   },
   {
     step: "03",
@@ -97,9 +97,9 @@ const journeySteps = [
     name: "Support",
     benefit: "Managed Ops",
     description: "We keep every automation running, improving, and adapting as your business changes.",
-    price: "From $750/mo",
-    cta: "See Support Tiers",
-    link: "/support"
+    price: "Monthly per AI employee",
+    cta: "View Pricing",
+    link: "/pricing"
   }
 ];
 
@@ -109,7 +109,7 @@ const blueprintTemplates = {
     steps: [
       { label: "Intake Trigger", icon: "📥", desc: "Ivy Invoice monitors incoming email attachments & files." },
       { label: "OCR Extraction", icon: "🧠", desc: "Extracts table line items, totals, and invoice IDs." },
-      { label: "ERP/GL Match", icon: "🔌", desc: "Synchronizes validated bills directly into QuickBooks/SAP." },
+      { label: "ERP/GL Match", icon: "🔌", desc: "Synchronizes validated bills directly into Xero/QuickBooks." },
       { label: "Dispatch Ping", icon: "💬", desc: "Dispatches structural audit log to Slack #finance channel." }
     ]
   },
@@ -685,16 +685,6 @@ function Home() {
                 <div className="space-y-4">
                   <div className="p-6 bg-stone-950 rounded-2xl border border-stone-800 flex justify-between items-center">
                     <div>
-                      <div className="font-black text-white text-xl">Blueprint</div>
-                      <div className="text-sm text-stone-400 font-bold">Audit & Strategy • Credited toward build</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-black text-emerald-400 text-2xl">$2,500</div>
-                      <div className="text-[10px] text-stone-400 font-bold uppercase tracking-tighter">One-Time</div>
-                    </div>
-                  </div>
-                  <div className="p-6 bg-stone-950 rounded-2xl border border-stone-800 flex justify-between items-center">
-                    <div>
                       <div className="font-black text-white text-xl">Small Team</div>
                       <div className="text-sm text-stone-400 font-bold">2 AI Agents • 3 Workflows • 1 CRM Connection</div>
                     </div>
@@ -724,52 +714,14 @@ function Home() {
                     </div>
                   </div>
                 </div>
-                <div className="mt-8">
-                  <p className="text-sm text-stone-400 font-medium italic">*The $2,500 Blueprint fee is credited toward any implementation package.</p>
-                </div>
               </div>
 
-              {/* Monthly Add-Ons */}
+              {/* Monthly per AI Employee */}
               <div className="bg-stone-900 rounded-[3rem] p-12 border border-stone-900">
-                <h3 className="text-xl font-bold text-emerald-400 mb-8 uppercase tracking-widest">Monthly Add-Ons</h3>
-                <div className="space-y-4">
-                  <div className="p-6 bg-stone-950 rounded-2xl border border-stone-800 flex justify-between items-center">
-                    <div>
-                      <div className="font-black text-white text-xl">CRM Integration</div>
-                      <div className="text-sm text-stone-400 font-bold">Salesforce, HubSpot, Dynamics — full sync</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-black text-emerald-400 text-2xl">$2,000/mo</div>
-                    </div>
-                  </div>
-                  <div className="p-6 bg-stone-950 rounded-2xl border border-stone-800 flex justify-between items-center">
-                    <div>
-                      <div className="font-black text-white text-xl">ERP Integration</div>
-                      <div className="text-sm text-stone-400 font-bold">SAP, NetSuite, Dynamics — deep integration</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-black text-emerald-400 text-2xl">$3,500/mo</div>
-                    </div>
-                  </div>
-                  <div className="p-6 bg-stone-950 rounded-2xl border border-stone-800 flex justify-between items-center">
-                    <div>
-                      <div className="font-black text-white text-xl">Managed Operations</div>
-                      <div className="text-sm text-stone-400 font-bold">Monitoring • Bug fixes • Model updates</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-black text-emerald-400 text-2xl">$750/mo</div>
-                    </div>
-                  </div>
-                  <div className="p-6 bg-stone-950 rounded-2xl border border-stone-800 flex justify-between items-center">
-                    <div>
-                      <div className="font-black text-white text-xl">Professional Ops</div>
-                      <div className="text-sm text-stone-400 font-bold">New automations • Strategy calls • Priority</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-black text-emerald-400 text-2xl">$2,000/mo</div>
-                    </div>
-                  </div>
-                </div>
+                <h3 className="text-xl font-bold text-emerald-400 mb-8 uppercase tracking-widest">Monthly per AI Employee</h3>
+                <p className="text-sm text-stone-400 mb-6">
+                  In addition to the one-time build package, you pay a monthly fee for each AI employee you deploy at that employee's listed price. Live integrations today: Xero, Slack, Google, Microsoft 365, HubSpot, and DocuSign (QuickBooks in development), with more added on request.
+                </p>
               </div>
             </div>
 
@@ -794,8 +746,8 @@ function Home() {
                       <svg className="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
                     </div>
                     <div>
-                      <h4 className="text-xl font-bold mb-2">Audit Fee Credit</h4>
-                      <p className="text-stone-400">The $2,500 blueprint fee is applied directly to your implementation costs. We only win when you build.</p>
+                      <h4 className="text-xl font-bold mb-2">One-Time Build Package</h4>
+                      <p className="text-stone-400">A fixed build package ($7,500 / $15,000 / $30,000) plus a monthly fee per AI employee, deployed to achieve specific time-saving results.</p>
                     </div>
                   </div>
                   <div className="flex gap-6">

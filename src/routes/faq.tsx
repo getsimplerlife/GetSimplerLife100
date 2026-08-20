@@ -50,7 +50,7 @@ const faqCategories = [
     items: [
       {
         q: "Will it work with our existing software?",
-        a: "Yes. Our agents are pre-integrated directly with standard systems like Salesforce, HubSpot, Microsoft 365, Google Workspace, Slack, Teams, QuickBooks, SAP, and most modern APIs. If you have legacy on-prem software, we custom-build secure API connectors during development."
+        a: "Yes. Today our agents are live with Xero, Slack, Google Workspace, Microsoft 365, HubSpot, and DocuSign, and QuickBooks integration is in development. We build secure API connectors during development for the specific systems your firm uses."
       },
       {
         q: "How long does it take to deploy?",
@@ -58,7 +58,7 @@ const faqCategories = [
       },
       {
         q: "Do we need an internal IT team to maintain this?",
-        a: "Not at all. Under our Managed Operations tiers, our team handles all model updates, prompt tweaking, system monitoring, API patches, and security auditing for you."
+        a: "Not at all. As part of your build package, our team handles all model updates, prompt tweaking, system monitoring, API patches, and security auditing for you."
       }
     ]
   },
@@ -67,7 +67,7 @@ const faqCategories = [
     items: [
       {
         q: "Is our business data secure?",
-        a: "Absolutely. We follow strict data privacy standards. Your data stays within your existing systems (Salesforce, Google, internal servers, etc.), and we use bank-level encryption protocols. We do not store, copy, or resell your proprietary operational credentials."
+        a: "Absolutely. We follow strict data privacy standards. Your data stays within your existing systems (Xero, Google, Microsoft 365, Slack, HubSpot, DocuSign, and more), and we use bank-level encryption protocols. We do not store, copy, or resell your proprietary operational credentials."
       },
       {
         q: "Do you train models on our company data?",
@@ -185,23 +185,7 @@ function FaqPage() {
         </div>
       </main>
 
-      <footer className="px-6 py-12 border-t border-stone-800 bg-stone-950">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
-          <div>
-            <div className="text-2xl font-black text-emerald-400 mb-2">{businessName}</div>
-            <p className="text-sm text-stone-400">AI coworkers for operations teams. Work less, live more.</p>
-          </div>
-          <div className="text-sm font-bold flex gap-6">
-            <Link to="/" className="text-stone-400 hover:text-emerald-400">Home</Link>
-            <Link to="/how-it-works" className="text-stone-400 hover:text-emerald-400">How It Works</Link>
-            <Link to="/faq" className="text-stone-400 hover:text-emerald-400">FAQ</Link>
-            <Link to="/about" className="text-stone-400 hover:text-emerald-400">About</Link>
-            <Link to="/contact" className="text-stone-400 hover:text-emerald-400">Contact</Link>
-          </div>
-          <div className="text-xs text-stone-400">&copy; {new Date().getFullYear()} {businessName}. All rights reserved.</div>
-        </div>
-      </footer>
-    <Footer />
+      <Footer />
     </div>
   );
 }

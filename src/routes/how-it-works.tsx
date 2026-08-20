@@ -29,8 +29,8 @@ function HowItWorksPage() {
   const { businessName, user } = Route.useLoaderData();
 
   return (
-    <div className="flex flex-col min-h-screen selection:bg-emerald-100 selection:text-emerald-900 bg-stone-50">
-      <header className="px-6 py-6 bg-stone-950 sticky top-0 z-50 border-b border-stone-800 backdrop-blur-md bg-white/80">
+    <div className="flex flex-col min-h-screen selection:bg-emerald-500/30 selection:text-emerald-200 bg-stone-950">
+      <header className="px-6 py-6 bg-stone-950 sticky top-0 z-50 border-b border-stone-800 backdrop-blur-md">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <Link to="/" className="text-2xl font-black text-emerald-400 tracking-tight">
             {businessName}
@@ -74,7 +74,7 @@ function HowItWorksPage() {
               <div className="grid grid-cols-2 gap-4">
                 {[
                   "Read & analyze emails",
-                  "Update HubSpot & Salesforce",
+                  "Update HubSpot & Xero",
                   "Generate reports & charts",
                   "Call REST, GraphQL & SOAP APIs",
                   "Interact with customers",
@@ -165,7 +165,7 @@ function HowItWorksPage() {
               <div className="text-3xl">🛡️</div>
               <h4 className="text-lg font-black text-stone-900">Data Stays Local</h4>
               <p className="text-sm text-stone-400 leading-relaxed">
-                Our agents connect directly within your existing systems (Salesforce, Google, etc.). We never store or resell your operational credentials.
+                Our agents connect directly within your existing systems (Xero, Slack, Google, Microsoft 365, HubSpot, DocuSign, and more). We never store or resell your operational credentials.
               </p>
             </div>
             <div className="p-8 bg-stone-950 border border-stone-800 rounded-3xl space-y-4">
