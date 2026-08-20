@@ -176,3 +176,88 @@ describe("LivenessMonitor anti-flicker + alert policy", () => {
     expect(new LivenessMonitor(baseOpts(dir, { alerts })).acquire()).toBeNull();
   });
 });
+
+describe("liveness-watchdog standalone daemon stays alive", () => {
+  let dir: string;
+  let server: import("node:http").Server;
+  let port = 0;
+  const intervalMs = 400; // short interval so the test runs fast
+  const statusFile = () => join(dir, "liveness-status.json");
+
+  beforeEach(async () => {
+    dir = mkdtempSync(join(tmpdir(), "lv-daemon-"));
+    const http = await import("node:http");
+    server = http.createServer((_req, res) => { res.writeHead(200, { "content-type": "application/json" }); res.end("{\"status\":\"ok\"}"); });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const addr = server.address();
+    if (addr && typeof addr === "object") port = addr.port;
+  });
+  afterEach(() => {
+    if (server) server.close();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  async function readStatus() {
+    try {
+      return JSON.parse(readFileSync(statusFile(), "utf-8"));
+    } catch {
+      return null;
+    }
+  }
+  function childAlive(child: import("node:child_process").ChildProcess): boolean {
+    try { process.kill(child.pid!, 0); return true; } catch { return false; }
+  }
+
+  it(
+    "runs continuously (multiple probes, probeCount increments), not exiting after the first tick; cleans up on SIGTERM",
+    async () => {
+      const { spawn } = await import("node:child_process");
+      const child = spawn("bun", ["run", "src/server/liveness-watchdog.ts"], {
+        cwd: join(__dirname, "..", ".."),
+        env: {
+          ...process.env,
+          LV_PORT: String(port),
+          LV_HEALTH_PATH: "/",
+          LV_STATUS_DIR: dir,
+          LV_INTERVAL_MS: String(intervalMs),
+          LV_DOWN_AFTER_FAILS: "3",
+          LV_TIMEOUT_MS: "500",
+          LV_ALERT_EMAIL: "owner@example.com",
+          DATABASE_URL: "",
+        },
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+      try {
+        // Wait for the daemon to start and complete its initial tick (probeCount 1).
+        let status: any = null;
+        for (let i = 0; i < 50 && !status; i++) {
+          await new Promise((r) => setTimeout(r, 50));
+          status = await readStatus();
+        }
+        expect(status).not.toBeNull();
+        expect(status.probeCount).toBeGreaterThanOrEqual(1);
+
+        // Wait > 2x the interval so a healthy daemon must have ticked again.
+        await new Promise((r) => setTimeout(r, intervalMs * 2.2));
+
+        status = await readStatus();
+        // THE BUG: the daemon would have exited (unref'd interval) after the first
+        // tick and probeCount would stay 1. The fix keeps it alive and ticking.
+        expect(childAlive(child)).toBe(true);
+        expect(status).not.toBeNull();
+        expect(status.probeCount).toBeGreaterThanOrEqual(2);
+        expect(status.pid).toBe(child.pid);
+      } finally {
+        // Graceful cleanup: SIGTERM should release the lock and exit 0.
+        child.kill("SIGTERM");
+        await new Promise<void>((resolve) => {
+          child.once("exit", () => resolve());
+          setTimeout(() => resolve(), 1500); // don't hang if already dead
+        });
+        expect(childAlive(child)).toBe(false);
+      }
+    },
+    20_000,
+  );
+});
+

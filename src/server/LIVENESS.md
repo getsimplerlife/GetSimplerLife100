@@ -57,6 +57,7 @@ Environment overrides (all optional):
 | `LV_STATUS_DIR` | `DATA_DIR` or `/var/lib/simplerlife100/.data` | Where lock + `liveness-status.json` live |
 | `LV_ALERT_EMAIL` | `OWNER_ALERT_EMAIL` or `electric.vortexz@gmail.com` | Alert recipient |
 | `LV_RELAUNCH_SCRIPT` | `/home/agent-lead/run-live-server.sh` | Relaunch script used when no server PID found |
+| `LV_DETACH` | unset (daemon keeps running) | Set to `1`/`true` to detach the probe interval so the process can exit (auto-run/embed context). **Do NOT set in production** — the watchdog must stay alive to accumulate consecutive failures and alert. |
 
 ## What it does on failure
 
