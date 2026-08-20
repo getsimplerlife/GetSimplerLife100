@@ -29,7 +29,7 @@ const agents = [
 ];
 
 const builderTiers = [
-  { name: "Starter", price: 7500, link: "https://buy.stripe.com/3cI8wR88Tasfc1B9XW2Fa2K", desc: "2 AI employees + 3 workflows", features: ["2 AI employees", "3 workflows", "1 CRM or ERP slot", "Standard setup & deployment", "Email support"] },
+  { name: "Starter", price: 7500, link: "https://buy.stripe.com/3cI8wR88Tasfc1B9XW2Fa2K", desc: "2 AI employees + 3 workflows", features: ["2 AI employees", "3 workflows", "1 Connection Pack (CRM or ERP — your choice)", "Standard setup & deployment", "Email support"] },
   { name: "Growth", price: 15000, link: "https://buy.stripe.com/5kQ6oJbl5dErc1B1rq2Fa2L", desc: "5 AI employees + full integrations", features: ["5 AI employees", "Full integrations", "All workflow templates", "Priority support", "1 Connection Pack (CRM or ERP — your choice)"], highlight: true },
   { name: "Scale", price: 30000, link: "https://buy.stripe.com/aFa7sN60LdErc1B5HG2Fa2M", desc: "Unlimited AI employees", features: ["Unlimited AI employees", "Custom workflows", "Dedicated account manager", "24/7 support", "1 Connection Pack (CRM or ERP — your choice)", "API access", "SLA guarantee"] },
 ];
