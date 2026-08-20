@@ -28,6 +28,25 @@ import { readJSON, readJSONLive, writeJSON, mergeDurableCredential } from "./dat
  *  - On failure the connection is marked auth_failed, the error is logged,
  *    and the sweep does NOT crash or hot-retry — the next hourly sweep backs
  *    off naturally.
+ *
+ * The LIVE server uses startScheduledTokenRefresher() instead (below), which
+ * adds:
+ *  - FAST RETRY: a transient refresh failure is re-attempted immediately with
+ *    short exponential backoff (5s → 15s → 45s), so a one-off provider blip
+ *    never lingers into an actual connection close. reconnect_required
+ *    (consumed/revoked token) is NOT retryable — it goes to the one-click
+ *    re-consent path. Retries re-acquire the single-flight lease (no clash).
+ *  - PRE-EMPTIVE RENEWAL: per-provider refresh-token tenure (REFRESH_TENURE_REGISTRY)
+ *    rotates a refresh token well before a provider would age it out.
+ *
+ * HONESTY GUARDRAIL: this can never be a hard "never closes". Access/refresh
+ * token lifetimes and revocation are the provider's domain. Even with fast
+ * retry + pre-emptive renewal, a provider-issued short-lived or revoked token
+ * (or a customer disconnecting at the provider) cannot and MUST NOT be forced.
+ * When a refresh can't be renewed despite retries, the connection is kept in a
+ * clearly-marked reconnect_required state (never deleted, never silently grey)
+ * with a structured lastError + attempt history, and the owner (and opted-in
+ * tenant) is alerted so re-authorization is one click and never silent.
  */
 
 // ── Per-provider refresh registry ────────────────────────────────────────────
@@ -98,6 +117,58 @@ const DEFAULT_LEAD_SEC = 60 * 60;
 /** No-expiry tokens refresh only after this age (12h). */
 const NO_EXPIRY_REFRESH_AFTER_MS = 12 * 60 * 60 * 1000;
 
+// ── Per-provider refresh-token tenure (pre-emptive renewal) ──────────────────
+// Some providers cap how long they honor a refresh token before it must be
+// re-issued (security rotation, "inactive" windows, etc.). Even when the ACCESS
+// token is still inside its lifetime, renewing via the normal refresh endpoint
+// rotates the refresh token and keeps it from aging into a dead one. These are
+// CONSERVATIVE documented estimates of how long a provider keeps a refresh token
+// valid; we renew well before the cap. Only providers that permit standard
+// refresh are listed — nothing here circumvents provider policy (an audited
+// REFRESH_REGISTRY entry is still required to actually refresh).
+export interface RefreshTenureDef {
+  /** Approx. how long the provider honors a refresh token before it must be
+   *  re-issued (ms). Conservative. */
+  tenureMs: number;
+  /** Fraction of tenure to leave as a renewal lead (renew early). */
+  leadFraction: number;
+}
+export const REFRESH_TENURE_REGISTRY: Record<string, RefreshTenureDef> = {
+  // Xero refresh tokens are single-use and valid ~60 days; we rotate on every
+  // access refresh, so this is a guardrail for an access token with a very long
+  // lifetime stalling refresh-token rotation.
+  xero: { tenureMs: 60 * 24 * 60 * 60 * 1000, leadFraction: 0.2 },
+  hubspot: { tenureMs: 180 * 24 * 60 * 60 * 1000, leadFraction: 0.2 },
+  "google-drive": { tenureMs: 180 * 24 * 60 * 60 * 1000, leadFraction: 0.2 },
+  "google-docs": { tenureMs: 180 * 24 * 60 * 60 * 1000, leadFraction: 0.2 },
+  "google-sheets": { tenureMs: 180 * 24 * 60 * 60 * 1000, leadFraction: 0.2 },
+  "google-slides": { tenureMs: 180 * 24 * 60 * 60 * 1000, leadFraction: 0.2 },
+  "google-calendar": { tenureMs: 180 * 24 * 60 * 60 * 1000, leadFraction: 0.2 },
+  onedrive: { tenureMs: 90 * 24 * 60 * 60 * 1000, leadFraction: 0.2 },
+  "microsoft-word": { tenureMs: 90 * 24 * 60 * 60 * 1000, leadFraction: 0.2 },
+  "microsoft-excel": { tenureMs: 90 * 24 * 60 * 60 * 1000, leadFraction: 0.2 },
+  "microsoft-powerpoint": { tenureMs: 90 * 24 * 60 * 60 * 1000, leadFraction: 0.2 },
+  docusign: { tenureMs: 90 * 24 * 60 * 60 * 1000, leadFraction: 0.2 },
+};
+
+/**
+ * True when a credential's refresh token is nearing its provider tenure cap and
+ * should be renewed early (even if the access token is not yet due) so it never
+ * ages into a dead token. Only applies to providers with a structured tenure
+ * entry. `updatedAt` is used as a proxy for when the refresh token was last
+ * issued (it rotates on each access refresh for most providers).
+ */
+export function refreshTokenNearingTenure(entry: any, nowMs: number): boolean {
+  if (!entry || typeof entry !== "object") return false;
+  const provider = String(entry.provider || "").toLowerCase();
+  const def = REFRESH_TENURE_REGISTRY[provider];
+  if (!def) return false;
+  const updatedMs = entry.updatedAt ? Date.parse(entry.updatedAt) : NaN;
+  if (!Number.isFinite(updatedMs)) return false;
+  const lead = def.tenureMs * def.leadFraction;
+  return nowMs >= updatedMs + (def.tenureMs - lead);
+}
+
 // ── Sweep stats (admin visibility: GET /api/admin/datadir) ──────────────────
 export const tokenSweepStats = {
   lastSweep: 0,          // epoch ms of the last completed sweep
@@ -123,6 +194,11 @@ export interface SweepResult {
  */
 export function needsRefresh(entry: any, nowMs: number): boolean {
   if (!entry || typeof entry !== "object") return false;
+  // Pre-emptive renewal: refresh before the provider's refresh-token tenure cap
+  // so the refresh token never ages into a dead one (even if the access token is
+  // not yet due). Rotating early is safe for every provider that permits
+  // standard refresh (audited in REFRESH_TENURE_REGISTRY).
+  if (refreshTokenNearingTenure(entry, nowMs)) return true;
   const rawExp = entry.expiresAt;
   const expiresAt = typeof rawExp === "number" ? rawExp : rawExp != null ? Number(rawExp) : NaN;
   if (!Number.isFinite(expiresAt) || expiresAt <= 0) {
@@ -331,6 +407,31 @@ export const REFRESHER_LOOKAHEAD_MS = 120_000;
 /** Health heartbeat + owner-alert throttling window for one provider:email. */
 export const RECONNECT_ALERT_THROTTLE_MS = 6 * 60 * 60 * 1000;
 
+// ── Fast-retry on transient refresh failure ─────────────────────────────────
+// A transient blip (5xx from a provider, a one-off network error, a momentary
+// 429) should never linger into an actual connection close. Instead of waiting
+// for the next scheduled tick (60s), a transiently-failed refresh is re-attempted
+// with short exponential backoff. Each retry re-acquires the single-flight lease,
+// so retries never clash with each other or with a scheduled refresh. A refresh
+// failing with reconnect_required (consumed/revoked token) is NOT retryable by
+// code — it goes straight to the one-click re-consent path (no retry loop).
+export const TRANSIENT_RETRY_DELAYS_MS = [5_000, 15_000, 45_000];
+/** How often the retry scheduler wakes to process due retries. */
+export const TRANSIENT_RETRY_POLL_MS = 2_000;
+
+export interface TransientRetryState {
+  attempt: number; // 0-based; index into TRANSIENT_RETRY_DELAYS_MS for the next delay
+  nextAt: number;  // epoch ms when the retry is due (0 = immediate/now)
+}
+
+/** Pass to refreshOneCredential to report a retry (for structured stats). */
+export const transientRetryStats = {
+  scheduled: 0,
+  attempted: 0,
+  recovered: 0,
+  exhausted: 0,
+};
+
 export interface RefreshOutcome {
   key: string;
   provider: string;
@@ -431,6 +532,10 @@ export function resolveOwnerAlertEmail(fallbackEmail: string): string {
 /** Send the owner reconnect-required alert via the repo's email path (throttled). */
 export async function alertOwnerReconnectRequired(opts: {
   provider: string; email: string; reason: string; nowMs?: number;
+  /** When the tenant is known to have an opted-in relationship (they authorized
+   *  this connection), also notify them directly so it's never silent on their
+   *  side. Only set for valid existing relationships — never cold-email. */
+  notifyTenantEmail?: string;
   emailImpl?: (o: any) => Promise<{ ok?: boolean; success?: boolean; isMock?: boolean; error?: string }>;
 }): Promise<boolean> {
   const now = opts.nowMs ?? Date.now();
@@ -459,6 +564,25 @@ export async function alertOwnerReconnectRequired(opts: {
     // (32 simulated sends, zero real deliveries). Accept either shape.
     const sent = Boolean(res?.ok ?? res?.success);
     if (sent) noteAlertSent(key, opts.reason, now);
+    // Also notify the tenant directly when we have a valid opted-in relationship
+    // (they authorized this connection) — service message about their own
+    // account, never a cold solicitation. This is best-effort and not throttled
+    // separately: the owner alert is the authoritative throttle.
+    if (opts.notifyTenantEmail && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(opts.notifyTenantEmail)) {
+      try {
+        await sender({
+          to: [opts.notifyTenantEmail],
+          subject: `Action needed: reconnect your ${opts.provider} integration`,
+          text:
+            `Your ${opts.provider} integration in your Simpler Life 100 portal needs to be reconnected.\n\n` +
+            `Reason: ${opts.reason}\n\n` +
+            `Fix (one click): open your portal → Integrations → ${opts.provider} → Connect.\n` +
+            `Until you reconnect, your ${opts.provider} automations are paused.`,
+        });
+      } catch {
+        // best-effort — the owner alert already fired
+      }
+    }
     return sent;
   } catch {
     return false;
@@ -616,12 +740,15 @@ export async function refreshOneCredential(
       console.error(
         `[connection-refresher] 🔴 RECONNECT REQUIRED provider=${provider} tenant=${email || "?"} reason="${msg.slice(0, 160)}" — automations for this provider are PAUSED until reauthorized`,
       );
-      const sent = await alertOwnerReconnectRequired({ provider, email: email || "mathewortiz97@gmail.com", reason: msg });
+      const sent = await alertOwnerReconnectRequired({
+        provider, email: email || "mathewortiz97@gmail.com", reason: msg,
+        notifyTenantEmail: email && email !== "mathewortiz97@gmail.com" ? email : undefined,
+      });
       if (sent) scheduledRefresherStats.alertsSent++;
       void drainPendingWrites().catch(() => {});
     } else {
       scheduledRefresherStats.transientFailures++;
-      console.error(`[connection-refresher] ⚠️ transient refresh failure provider=${provider} tenant=${email || "?"} reason="${msg.slice(0, 160)}" (will retry next tick)`);
+      console.error(`[connection-refresher] ⚠️ transient refresh failure provider=${provider} tenant=${email || "?"} reason="${msg.slice(0, 160)}" (scheduling fast backoff retry)`);
     }
     await release();
     return { key, provider, email, refreshed: false, status: cls, error: msg };
@@ -631,6 +758,9 @@ export async function refreshOneCredential(
 export interface ScheduledRefresherHandle {
   stop: () => void;
   runTick: () => Promise<{ due: number; outcomes: RefreshOutcome[] }>;
+  /** Process any fast-backoff retries whose window has arrived (testable hook;
+   *  also driven by an internal poll in production). */
+  runRetries: () => Promise<void>;
 }
 
 function isRefreshableKey(entry: any): boolean {
@@ -650,9 +780,63 @@ export function startScheduledTokenRefresher(
 ): ScheduledRefresherHandle {
   const tickMs = opts.tickMs ?? REFRESHER_TICK_MS;
   const inFlight = new Set<string>();
+  const retryQueue = new Map<string, TransientRetryState>();
   let stopped = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let retryTimer: ReturnType<typeof setTimeout> | undefined;
   scheduledRefresherStats.startedAt = Date.now();
+
+  // Run ONE credential refresh, record the outcome, and (on a transient
+  // failure) schedule a fast backoff retry. Shared by the scheduled tick and
+  // the retry poll so both honor single-flight + the retry policy.
+  async function refreshOneWithRetry(
+    key: string,
+    tokenData: Record<string, StoredOAuthEntry>,
+    conns: Record<string, any[]>,
+    now: number,
+    retryAttempt: number, // 0 for a fresh scheduled pass, else 1-based retry
+  ): Promise<RefreshOutcome> {
+    inFlight.add(key);
+    try {
+      const outcome = await refreshOneCredential(dataDir, tokenData, conns, key, {
+        now, fetchImpl: opts.fetchImpl, flushNow: true, validateToken: opts.validateToken,
+        leaseOwner: `sweeper:${process.pid ?? "?"}:${retryAttempt > 0 ? "retry" : "tick"}`,
+      });
+      if (retryAttempt > 0) transientRetryStats.attempted++;
+      if (outcome.status === "transient" && !outcome.refreshed) {
+        // Schedule/advance a fast retry. reconnect_required is NOT retryable —
+        // it goes straight to the one-click re-consent path. The backoff delay
+        // is indexed by how many attempts have already failed (retryAttempt):
+        // first failure schedules 5s, next 15s, next 45s, then exhausted.
+        if (retryAttempt < TRANSIENT_RETRY_DELAYS_MS.length) {
+          retryQueue.set(key, { attempt: retryAttempt + 1, nextAt: now + TRANSIENT_RETRY_DELAYS_MS[retryAttempt] });
+          transientRetryStats.scheduled++;
+        } else {
+          retryQueue.delete(key);
+          transientRetryStats.exhausted++;
+        }
+      } else if (outcome.status !== "contended") {
+        // Success, reconnect_required, or exhausted — clear any pending retry.
+        if (retryQueue.delete(key) && outcome.refreshed) transientRetryStats.recovered++;
+      }
+      return outcome;
+    } finally {
+      inFlight.delete(key);
+    }
+  }
+
+  // Process retries whose backoff window has arrived.
+  async function processRetries(forceNow: number): Promise<void> {
+    for (const [key, state] of Array.from(retryQueue.entries())) {
+      if (stopped) break;
+      if (inFlight.has(key)) continue; // a scheduled tick owns it — retry next poll
+      if (state.nextAt > forceNow) continue; // still backing off
+      retryQueue.delete(key);
+      const tokenData = ((await readJSONLive(join(dataDir, "tenant_oauth_credentials.json"))) as Record<string, StoredOAuthEntry> | undefined) || {};
+      const conns = (readJSON(join(dataDir, "tenant_integrations.json")) as Record<string, any[]> | undefined) || {};
+      await refreshOneWithRetry(key, tokenData, conns, forceNow, state.attempt);
+    }
+  }
 
   async function runTick(): Promise<{ due: number; outcomes: RefreshOutcome[] }> {
     const now = opts.now ? opts.now() : Date.now();
@@ -676,15 +860,7 @@ export function startScheduledTokenRefresher(
     // Sequential refreshes (event loop awaits each) — never parallel per key.
     for (const key of dueKeys.sort()) {
       if (stopped) break;
-      inFlight.add(key);
-      try {
-        const outcome = await refreshOneCredential(dataDir, tokenData, conns, key, {
-          now, fetchImpl: opts.fetchImpl, flushNow: true, validateToken: opts.validateToken,
-        });
-        outcomes.push(outcome);
-      } finally {
-        inFlight.delete(key);
-      }
+      outcomes.push(await refreshOneWithRetry(key, tokenData, conns, now, 0));
     }
     scheduledRefresherStats.tickCount++;
     scheduledRefresherStats.lastTickAt = Date.now();
@@ -708,8 +884,25 @@ export function startScheduledTokenRefresher(
   }, tickMs);
   if (typeof (timer as any)?.unref === "function") (timer as any).unref();
 
+  // Fast-retry poll: wakes frequently but only does work when a retry is due.
+  retryTimer = setInterval(() => {
+    if (stopped) return;
+    const now = opts.now ? opts.now() : Date.now();
+    if (retryQueue.size === 0) return;
+    processRetries(now).catch((e: any) => {
+      scheduledRefresherStats.lastError = String(e?.message || e);
+      console.error("[connection-refresher] retry error: " + String(e?.message || e));
+    });
+  }, TRANSIENT_RETRY_POLL_MS);
+  if (typeof (retryTimer as any)?.unref === "function") (retryTimer as any).unref();
+
   return {
-    stop: () => { stopped = true; if (timer) clearInterval(timer); },
+    stop: () => { stopped = true; if (timer) clearInterval(timer); if (retryTimer) clearInterval(retryTimer); },
     runTick: async () => { await boot; return runTick(); },
+    runRetries: async () => {
+      const now = opts.now ? opts.now() : Date.now();
+      if (retryQueue.size === 0) return;
+      await processRetries(now);
+    },
   };
 }
