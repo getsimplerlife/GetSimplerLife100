@@ -52,6 +52,17 @@ import { getDb, initDbSchema, pingDb, dbAll, closeDb } from "./db";
 export interface KvDriver {
   /** Execute a SQL statement; returns rows (array of objects) or empty. */
   unsafe<T = any>(sql: string, values?: any[]): Promise<T>;
+  /**
+   * OPTIONAL atomic single-row lease primitives (P0 #2ecd8f refresh-rotation
+   * single-flight). When present the durable store uses these for the
+   * refresh lease so acquire is an ATOMIC compare-and-set against the SHARED
+   * backing store — two processes/instances can never both acquire. When
+   * absent, the durable store falls back to an equivalent conditional SQL
+   * (works for the real Postgres driver).
+   */
+  atomicLeaseAcquire?(leaseKey: string, owner: string, ttlMs: number, nowMs: number): Promise<boolean>;
+  atomicLeaseHas?(leaseKey: string, nowMs: number): Promise<boolean>;
+  atomicLeaseRelease?(leaseKey: string, owner: string): Promise<void>;
 }
 
 /**
@@ -101,6 +112,25 @@ export class MemoryKvDriver implements KvDriver {
   get size(): number { return this.tables.get("kv_store")!.size; }
   has(key: string): boolean { return this.tables.get("kv_store")!.has(key); }
   get(key: string): any { return this.tables.get("kv_store")!.get(key); }
+  // Atomic lease primitives (P0 #2ecd8f): operate on the kv_store map with a
+  // check-then-set that contains no `await`, so two callers sharing this driver
+  // (simulating two live instances sharing one Postgres) can never both acquire.
+  async atomicLeaseAcquire(leaseKey: string, owner: string, ttlMs: number, nowMs: number): Promise<boolean> {
+    const t = this.tables.get("kv_store")!;
+    const cur = t.get(leaseKey);
+    if (cur && typeof cur === "object" && !Array.isArray(cur) && Number(cur.expiresAt) > nowMs) return false;
+    t.set(leaseKey, { owner, acquiredAt: nowMs, expiresAt: nowMs + ttlMs });
+    return true;
+  }
+  async atomicLeaseHas(leaseKey: string, nowMs: number): Promise<boolean> {
+    const cur = this.tables.get("kv_store")!.get(leaseKey);
+    return Boolean(cur && typeof cur === "object" && Number(cur.expiresAt) > nowMs);
+  }
+  async atomicLeaseRelease(leaseKey: string, owner: string): Promise<void> {
+    const t = this.tables.get("kv_store")!;
+    const cur = t.get(leaseKey);
+    if (cur && typeof cur === "object" && cur.owner === owner) t.delete(leaseKey);
+  }
   dump(): Record<string, any> { return this.dumpTable("kv_store"); }
   dumpTable(name: string): Record<string, any> {
     const t = this.tables.get(name) || new Map();
@@ -289,6 +319,83 @@ export async function durableGetLive(key: string): Promise<any | undefined> {
 
 export function durableHas(key: string): boolean {
   return enabled && cache.has(key);
+}
+
+// ── Atomic refresh lease (P0 #2ecd8f — cross-instance single-flight) ────────
+// Each provider-key owns ONE durable row (`refresh_lease:<providerKey>`) so the
+// lease can be acquired/released with an ATOMIC compare-and-set against the
+// SHARED backing store. This closes the gap where the previous file-backed
+// lease (`refresh_leases.json`) was read-modify-write on a LOCAL file: two live
+// instances each saw their own empty file and both acquired, then both redeemed
+// the same single-use refresh token — the second got "Refresh token has been
+// consumed" (Xero / QBO). When the durable store is disabled these return
+// false/noop and the caller falls back to its file-based lease (single-process).
+export const REFRESH_LEASE_PREFIX = "refresh_lease:";
+export function durableLeaseKey(providerKey: string): string {
+  return REFRESH_LEASE_PREFIX + providerKey;
+}
+
+/**
+ * ATOMIC acquire of the refresh lease for `providerKey`. Only ONE owner across
+ * ALL instances sharing the durable store can hold it at a time (fail-closed:
+ * an unexpired foreign lease is never overwritten). Returns true only when the
+ * lease is now ours.
+ */
+export async function durableTryLease(
+  providerKey: string,
+  owner: string,
+  ttlMs: number,
+  nowMs: number = Date.now(),
+): Promise<boolean> {
+  if (!enabled || !driver) return false; // durable disabled → caller uses file lease
+  const key = durableLeaseKey(providerKey);
+  if (typeof driver.atomicLeaseAcquire === "function") {
+    return driver.atomicLeaseAcquire(key, owner, ttlMs, nowMs);
+  }
+  const val = { owner, acquiredAt: nowMs, expiresAt: nowMs + ttlMs };
+  try {
+    const rows: any[] = await driver.unsafe(
+      `INSERT INTO kv_store (key, value, updated_at) VALUES ($1, $2::jsonb, now()) ` +
+        `ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now() ` +
+        `WHERE (kv_store.value->>'expiresAt')::bigint < $3 RETURNING key`,
+      [key, JSON.stringify(val), nowMs],
+    );
+    return (rows || []).length > 0;
+  } catch (e: any) {
+    console.log(`[durable-store] durableTryLease FAILED key=${key} err=${e?.message || String(e)}`);
+    return false; // fail-closed: never force a lease on a DB error
+  }
+}
+
+/** True when `providerKey` currently has a live lease held by ANY owner. */
+export async function durableHasLease(providerKey: string, nowMs: number = Date.now()): Promise<boolean> {
+  if (!enabled || !driver) return false;
+  const key = durableLeaseKey(providerKey);
+  if (typeof driver.atomicLeaseHas === "function") {
+    return driver.atomicLeaseHas(key, nowMs);
+  }
+  try {
+    const rows: any[] = await driver.unsafe(
+      `SELECT key FROM kv_store WHERE key = $1 AND (value->>'expiresAt')::bigint > $2`,
+      [key, nowMs],
+    );
+    return (rows || []).length > 0;
+  } catch {
+    return false;
+  }
+}
+
+/** Release OUR lease (owner must match; never clears a foreign lease). */
+export async function durableReleaseLease(providerKey: string, owner: string): Promise<void> {
+  if (!enabled || !driver) return;
+  const key = durableLeaseKey(providerKey);
+  if (typeof driver.atomicLeaseRelease === "function") {
+    await driver.atomicLeaseRelease(key, owner);
+    return;
+  }
+  try {
+    await driver.unsafe(`DELETE FROM kv_store WHERE key = $1 AND value->>'owner' = $2`, [key, owner]);
+  } catch { /* best effort */ }
 }
 
 /**

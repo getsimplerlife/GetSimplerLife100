@@ -364,7 +364,7 @@ describe("SINGLE-FLIGHT refresh — Xero single-use token race (regression)", ()
       },
     });
     // Process A (the sweeper) claims exclusive refresh ownership.
-    expect(acquireRefreshLease(tmp, KEY, "sweeper:1")).toBe(true);
+    expect(await acquireRefreshLease(tmp, KEY, "sweeper:1")).toBe(true);
     // Process B (verification CLI) tries to refresh the SAME single-use token
     // while A holds the lease → must CONTEND, not race/consume it.
     const fetchB = okFetch();
@@ -382,7 +382,7 @@ describe("SINGLE-FLIGHT refresh — Xero single-use token race (regression)", ()
     const afterB = readJSON(join(tmp, "tenant_oauth_credentials.json"));
     expect(afterB["tenant@example.com:xero"].refreshToken).toBe("single-use-RT");
     // A finishes and releases.
-    releaseRefreshLease(tmp, KEY, "sweeper:1");
+    await releaseRefreshLease(tmp, KEY, "sweeper:1");
     // Now B (still the verification path) can refresh with exactly one call.
     const fetchB2 = okFetch();
     globalThis.fetch = fetchB2 as unknown as typeof fetch;
