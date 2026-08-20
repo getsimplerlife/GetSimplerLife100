@@ -23,7 +23,7 @@
  */
 import { join } from "path";
 import { readJSON, writeJSON } from "./data-store";
-import { drainPendingWrites } from "./durable-store";
+import { drainPendingWrites, durableEnabled, durableTryLease, durableHasLease, durableReleaseLease } from "./durable-store";
 
 export const REFRESH_LEASE_TTL_MS = 5 * 60 * 1000;
 const LEASES_FILE = "refresh_leases.json";
@@ -56,8 +56,13 @@ function persistLeases(dataDir: string, next: Record<string, RefreshLease>): voi
   void drainPendingWrites().catch(() => {});
 }
 
-/** True when a non-expired lease exists for the key (any owner). */
-export function hasActiveRefreshLease(dataDir: string, key: string, nowMs: number = Date.now()): boolean {
+/**
+ * True when a non-expired lease exists for the key (any owner).
+ * Durable-backed (cross-instance) when the durable store is enabled; falls back
+ * to the local lease file when disabled (single-process tests / local dev).
+ */
+export async function hasActiveRefreshLease(dataDir: string, key: string, nowMs: number = Date.now()): Promise<boolean> {
+  if (durableEnabled()) return durableHasLease(key, nowMs);
   const cur = leases(dataDir)[key];
   return Boolean(cur && cur.expiresAt > nowMs);
 }
@@ -66,15 +71,27 @@ export function hasActiveRefreshLease(dataDir: string, key: string, nowMs: numbe
  * Try to claim exclusive refresh ownership for `key`. Returns true when the
  * lease is now ours (no other live lease), false when another owner holds it.
  * Fail-closed: a live foreign lease is NEVER overwritten.
+ *
+ * When the durable store is enabled the acquire is an ATOMIC compare-and-set
+ * against the SHARED backing store — two live instances can never both acquire
+ * (the P0 Xero/QBO single-use-token race). When disabled it uses the local
+ * lease file (single-process only).
  */
-export function acquireRefreshLease(
+export async function acquireRefreshLease(
   dataDir: string,
   key: string,
   owner: string,
   opts: { ttlMs?: number; nowMs?: number } = {},
-): boolean {
+): Promise<boolean> {
   const now = opts.nowMs ?? Date.now();
   const ttl = opts.ttlMs ?? REFRESH_LEASE_TTL_MS;
+  if (durableEnabled()) {
+    const got = await durableTryLease(key, owner, ttl, now);
+    if (got) return true;
+    refreshContentionStats.contended++;
+    refreshContentionStats.lastContention = `${key} (held by another instance — single-use token protected)`;
+    return false;
+  }
   const all = leases(dataDir);
   const cur = all[key];
   if (cur && cur.expiresAt > now) {
@@ -88,7 +105,11 @@ export function acquireRefreshLease(
 }
 
 /** Release our own lease (owner must match; never clears a foreign lease). */
-export function releaseRefreshLease(dataDir: string, key: string, owner: string): void {
+export async function releaseRefreshLease(dataDir: string, key: string, owner: string): Promise<void> {
+  if (durableEnabled()) {
+    await durableReleaseLease(key, owner);
+    return;
+  }
   const all = leases(dataDir);
   if (all[key] && all[key].owner === owner) {
     delete all[key];
@@ -104,13 +125,13 @@ export async function withRefreshLease<T>(
   fn: () => Promise<T>,
   opts: { ttlMs?: number } = {},
 ): Promise<{ ok: true; value: T } | { ok: false; reason: string }> {
-  if (!acquireRefreshLease(dataDir, key, owner, opts)) {
+  if (!(await acquireRefreshLease(dataDir, key, owner, opts))) {
     return { ok: false, reason: `refresh lease for ${key} held by another owner (single-use token protected)` };
   }
   try {
     const value = await fn();
     return { ok: true, value };
   } finally {
-    releaseRefreshLease(dataDir, key, owner);
+    await releaseRefreshLease(dataDir, key, owner);
   }
 }

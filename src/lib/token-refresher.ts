@@ -504,25 +504,40 @@ export async function refreshOneCredential(
   // holds it, report CONTENTION (recorded, never a silent consumed-token loss)
   // and do NOT touch the token.
   const leaseOwner = opts.leaseOwner ?? `sweeper:${process.pid ?? "?"}`;
-  if (!acquireRefreshLease(dataDir, key, leaseOwner, { ttlMs: REFRESH_LEASE_TTL_MS })) {
+  // SINGLE-FLIGHT (#230, Xero incident; P0 #2ecd8f): only ONE process/instance
+  // may refresh a given single-use refresh token. The lease is an ATOMIC
+  // durable acquire (cross-instance) when the store is enabled; if a foreign
+  // owner holds it, report CONTENTION (recorded, never a silent consumed-token
+  // loss) and do NOT touch the token.
+  if (!(await acquireRefreshLease(dataDir, key, leaseOwner, { ttlMs: REFRESH_LEASE_TTL_MS }))) {
     return { key, provider, email, refreshed: false, status: "contended", error: "single-use token protected: refresh lease held by another owner" };
   }
-  const release = () => releaseRefreshLease(dataDir, key, leaseOwner);
+  const release = async () => { await releaseRefreshLease(dataDir, key, leaseOwner); };
   if (!isRefreshProvider(provider) || !entry.refreshToken) {
-    release();
+    await release();
     return { key, provider, email, refreshed: false, status: "transient", error: "no refresh path" };
   }
   const creds = resolveOAuthClientCreds(provider, tokenData as any);
   if (!creds) {
-    release();
+    await release();
     return { key, provider, email, refreshed: false, status: "transient", error: "no OAuth client creds configured" };
   }
   try {
     const def = REFRESH_REGISTRY[provider];
+    // RE-READ the live credential at refresh time (P0 #2ecd8f): the caller's
+    // tokenData is a snapshot taken at tick start. If another instance already
+    // rotated this single-use token, the LIVE refreshToken is the valid one and
+    // the snapshot may hold a token that is already consumed. Using the freshest
+    // durable value prevents a stale-token refresh (which is exactly the
+    // "Refresh token has been consumed" cascade seen live on Xero).
+    const liveTokenFile = join(dataDir, "tenant_oauth_credentials.json");
+    const liveStore = ((await readJSONLive(liveTokenFile)) as Record<string, any> | null) || {};
+    const liveEntry = liveStore[key] && typeof liveStore[key] === "object" ? (liveStore[key] as Record<string, any>) : entry;
+    const refreshTokenToUse = typeof liveEntry.refreshToken === "string" ? (liveEntry.refreshToken as string) : (entry.refreshToken as string);
     const tokens = await refreshAccessToken({
       tokenUrl: def.tokenUrl, extraParams: def.extraParams,
       clientId: creds.clientId, clientSecret: creds.clientSecret,
-      refreshToken: entry.refreshToken, fetchImpl: opts.fetchImpl,
+      refreshToken: refreshTokenToUse, fetchImpl: opts.fetchImpl,
     });
     // #231 validate-before-replace: run the audited probe against the NEW token
     // before it can overwrite the stored one. If the provider rejects the token
@@ -530,7 +545,7 @@ export async function refreshOneCredential(
     // record the failure loudly, and do NOT rotate the store. A 200 from the
     // token endpoint is not proof the token works.
     if (opts.validateToken) {
-      const validation = await opts.validateToken(provider, tokens.accessToken, entry);
+      const validation = await opts.validateToken(provider, tokens.accessToken, liveEntry as any);
       if (!validation?.ok) {
         const msg = `refreshed token REJECTED by provider (${validation?.httpStatus ?? "n/a"} ${validation?.error ?? ""}) — previous token RETAINED`;
         console.error(`[connection-refresher] ⚠️ ${msg} provider=${provider} tenant=${email || "?"}`);
@@ -550,17 +565,17 @@ export async function refreshOneCredential(
         scheduledRefresherStats.transientFailures++;
         scheduledRefresherStats.lastError = msg.slice(0, 300);
         void drainPendingWrites().catch(() => {});
-        release();
+        await release();
         return { key, provider, email, refreshed: false, status: "transient", error: msg };
       }
     }
     tokenData[key] = {
-      ...entry,
+      ...(liveEntry as Record<string, any>),
       accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken || entry.refreshToken,
-      expiresAt: tokens.expiresAt ?? entry.expiresAt,
-      tokenType: tokens.tokenType || entry.tokenType,
-      scope: tokens.scope || entry.scope,
+      refreshToken: tokens.refreshToken || (liveEntry.refreshToken as string) || entry.refreshToken,
+      expiresAt: tokens.expiresAt ?? (liveEntry.expiresAt ?? entry.expiresAt),
+      tokenType: tokens.tokenType || liveEntry.tokenType || entry.tokenType,
+      scope: tokens.scope || liveEntry.scope || entry.scope,
       updatedAt: new Date(now).toISOString(),
     };
     const userConns = Array.isArray(connsByEmail[email]) ? connsByEmail[email] : [];
@@ -577,7 +592,7 @@ export async function refreshOneCredential(
     await mergeDurableCredential(join(dataDir, "tenant_oauth_credentials.json"), [{ type: "set", key, value: tokenData[key] }]);
     if (opts.flushNow !== false) void drainPendingWrites().catch(() => {});
     scheduledRefresherStats.refreshed++;
-    release();
+    await release();
     return { key, provider, email, refreshed: true, status: "ok" };
   } catch (e: any) {
     const msg = e?.message || String(e);
@@ -608,7 +623,7 @@ export async function refreshOneCredential(
       scheduledRefresherStats.transientFailures++;
       console.error(`[connection-refresher] ⚠️ transient refresh failure provider=${provider} tenant=${email || "?"} reason="${msg.slice(0, 160)}" (will retry next tick)`);
     }
-    release();
+    await release();
     return { key, provider, email, refreshed: false, status: cls, error: msg };
   }
 }
