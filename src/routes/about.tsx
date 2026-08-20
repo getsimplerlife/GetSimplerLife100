@@ -29,8 +29,8 @@ function AboutPage() {
   const { businessName } = Route.useLoaderData();
 
   return (
-    <div className="flex flex-col min-h-screen selection:bg-emerald-100 selection:text-emerald-900 bg-stone-50">
-      <header className="px-6 py-6 bg-stone-950 sticky top-0 z-50 border-b border-stone-800 backdrop-blur-md bg-white/80">
+    <div className="flex flex-col min-h-screen selection:bg-emerald-500/30 selection:text-emerald-200 bg-stone-950">
+      <header className="px-6 py-6 bg-stone-950 sticky top-0 z-50 border-b border-stone-800 backdrop-blur-md">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <Link to="/" className="text-2xl font-black text-emerald-400 tracking-tight">
             {businessName}

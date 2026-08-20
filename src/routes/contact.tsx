@@ -57,29 +57,29 @@ function Contact() {
       if (problem.includes('existing') || problem.includes('already') || problem.includes('maintain') || problem.includes('current')) {
         recommendation = {
           tier: 'Support',
-          title: 'Managed Operations',
-          price: 'From $750/mo',
-          explanation: `You already have systems in motion. Rather than rebuilding, we can deploy AI agents that monitor and maintain your ${industry} workflows, handling volume spikes and freeing your team to focus on exceptions.`,
-          cta: 'Explore Support Plans',
-          link: '#pricing'
+          title: 'Growth Package',
+          price: 'From $15,000',
+          explanation: `You already have systems in motion. Rather than rebuilding, we can deploy AI operations that monitor and maintain your ${industry} workflows, handling volume spikes and freeing your team to focus on exceptions.`,
+          cta: 'View Builder Packages',
+          link: '/pricing'
         };
       } else if (problem.length > 60 && (problem.includes('every') || problem.includes('daily') || problem.includes('each') || problem.includes('repeat') || problem.includes('process') || problem.includes('approve') || problem.includes('review') || problem.includes('enter') || problem.includes('copy'))) {
         recommendation = {
           tier: 'Build',
-          title: 'Implementation',
+          title: 'Starter Package',
           price: 'From $7,500',
-          explanation: `This is exactly the kind of repeatable workflow AI handles best. For a ${industry} company, we'd build a custom agent to automate this process end-to-end — integrating with your existing tools and cutting the time spent to near zero.`,
-          cta: 'View Implementation Packages',
-          link: '#pricing'
+          explanation: `This is exactly the kind of repeatable workflow AI handles best. For a ${industry} company, we'd build an AI employee to automate this process end-to-end — a one-time build package plus a monthly fee per AI employee — integrating with your existing tools.`,
+          cta: 'View Builder Packages',
+          link: '/pricing'
         };
       } else if (problem.length > 30) {
         recommendation = {
           tier: 'Design',
-          title: 'Automation Blueprint',
-          price: '$2,500',
-          explanation: `You've identified a real opportunity in ${industry}. Before we build, we recommend a Deep-Dive Blueprint — a full analysis of your workflow, a technical roadmap, and projected ROI. This fee is credited toward implementation.`,
-          cta: 'Get Your Blueprint',
-          link: '/audit'
+          title: 'Growth Package',
+          price: 'From $15,000',
+          explanation: `You've identified a real opportunity in ${industry}. Let's map how an AI employee fits your workflow — a one-time build package plus a monthly fee per AI employee, with live integrations for Xero, Slack, Google, Microsoft, HubSpot, and DocuSign today.`,
+          cta: 'View Builder Packages',
+          link: '/pricing'
         };
       } else {
         recommendation = {
@@ -102,8 +102,8 @@ function Contact() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <header className="px-6 py-4 border-b bg-white">
+    <div className="flex flex-col min-h-screen bg-stone-950 text-stone-100">
+      <header className="px-6 py-4 border-b border-stone-800 bg-stone-950">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <Link to="/" className="text-2xl font-black text-emerald-400 tracking-tight">
             Simpler Life 100
@@ -115,18 +115,18 @@ function Contact() {
             {user ? (
               <Link to="/portal" className="text-sm font-bold text-emerald-400 border border-emerald-600 px-4 py-1.5 rounded-lg hover:bg-emerald-500/10 transition-colors">Dashboard</Link>
             ) : (
-              <Link to="/login" className="text-sm font-bold text-emerald-400 hover:text-emerald-700">Login</Link>
+              <Link to="/login" className="text-sm font-bold text-emerald-400 hover:text-emerald-300">Login</Link>
             )}
           </div>
         </div>
       </header>
 
-      <main className="flex-1 bg-stone-900 py-20 px-6">
+      <main className="flex-1 bg-stone-950 py-20 px-6">
         <div className="max-w-3xl mx-auto">
           {assessment ? (
             /* Assessment Result */
-            <div className="bg-stone-950 rounded-[2.5rem] p-12 lg:p-16 shadow-xl border border-stone-800 text-center">
-              <div className="inline-block px-4 py-1.5 rounded-full bg-emerald-100 text-emerald-400 font-bold text-sm uppercase tracking-wider mb-6">
+            <div className="bg-stone-900 rounded-[2.5rem] p-12 lg:p-16 shadow-xl border border-stone-800 text-center">
+              <div className="inline-block px-4 py-1.5 rounded-full bg-emerald-500/10 text-emerald-400 font-bold text-sm uppercase tracking-wider mb-6 border border-emerald-500/20">
                 Recommended: {assessment.tier}
               </div>
               <h2 className="text-4xl lg:text-5xl font-black text-white mb-6 leading-tight">
@@ -141,7 +141,7 @@ function Contact() {
               <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
                 <Link
                   to={assessment.link as any}
-                  className="bg-emerald-600 text-white px-10 py-4 rounded-xl font-bold text-lg hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100"
+                  className="bg-emerald-600 text-white px-10 py-4 rounded-xl font-bold text-lg hover:bg-emerald-500 transition-all shadow-lg"
                 >
                   {assessment.cta}
                 </Link>
@@ -161,11 +161,11 @@ function Contact() {
                   Free AI Workflow Assessment
                 </h1>
                 <p className="text-xl text-stone-400 max-w-2xl mx-auto leading-relaxed">
-                  Tell us what's slowing your team down. We'll analyze your workflow and recommend the best next step — no commitment, no call required.
+                  Tell us what's slowing your team down. We'll analyze your workflow and recommend the best next step — no commitment, no call required. Prefer email? Reach us at <a href="mailto:electric.vortexz@gmail.com" className="text-emerald-400 hover:text-emerald-300 underline">electric.vortexz@gmail.com</a>.
                 </p>
               </div>
 
-              <div className="bg-stone-950 rounded-[2.5rem] p-10 lg:p-14 shadow-xl border border-stone-100">
+              <div className="bg-stone-900 rounded-[2.5rem] p-10 lg:p-14 shadow-xl border border-stone-800">
                 <form onSubmit={handleSubmit} className="space-y-8">
                   <div className="grid sm:grid-cols-2 gap-6">
                     <div>
@@ -174,7 +174,7 @@ function Contact() {
                         type="text"
                         required
                         placeholder="Jane Smith"
-                        className="w-full rounded-xl border border-stone-900 px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition text-lg"
+                        className="w-full rounded-xl border border-stone-800 bg-stone-950 px-4 py-3 placeholder-stone-500 text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition text-lg"
                         value={formData.name}
                         onChange={e => setFormData({ ...formData, name: e.target.value })}
                       />
@@ -185,7 +185,7 @@ function Contact() {
                         type="email"
                         required
                         placeholder="jane@company.com"
-                        className="w-full rounded-xl border border-stone-900 px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition text-lg"
+                        className="w-full rounded-xl border border-stone-800 bg-stone-950 px-4 py-3 placeholder-stone-500 text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition text-lg"
                         value={formData.email}
                         onChange={e => setFormData({ ...formData, email: e.target.value })}
                       />
@@ -198,7 +198,7 @@ function Contact() {
                       type="text"
                       required
                       placeholder="Company name"
-                      className="w-full rounded-xl border border-stone-900 px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition text-lg"
+                      className="w-full rounded-xl border border-stone-800 bg-stone-950 px-4 py-3 placeholder-stone-500 text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition text-lg"
                       value={formData.company}
                       onChange={e => setFormData({ ...formData, company: e.target.value })}
                     />
@@ -208,7 +208,7 @@ function Contact() {
                     <label className="block text-sm font-bold text-stone-300 mb-2">Industry</label>
                     <select
                       required
-                      className="w-full rounded-xl border border-stone-900 px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition text-lg bg-white"
+                      className="w-full rounded-xl border border-stone-800 bg-stone-950 px-4 py-3 placeholder-stone-500 text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition text-lg"
                       value={formData.industry}
                       onChange={e => setFormData({ ...formData, industry: e.target.value })}
                     >
@@ -225,14 +225,14 @@ function Contact() {
                       rows={5}
                       required
                       placeholder="Describe the repetitive task or workflow that's slowing your team down. The more detail you share, the better our recommendation."
-                      className="w-full rounded-xl border border-stone-900 px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition text-lg resize-none"
+                      className="w-full rounded-xl border border-stone-800 bg-stone-950 px-4 py-3 placeholder-stone-500 text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition text-lg resize-none"
                       value={formData.problem}
                       onChange={e => setFormData({ ...formData, problem: e.target.value })}
                     />
                   </div>
 
                   {error && (
-                    <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm font-medium">
+                    <div className="bg-red-950/40 border border-red-800 text-red-300 px-4 py-3 rounded-xl text-sm font-medium">
                       {error}
                     </div>
                   )}
@@ -240,7 +240,7 @@ function Contact() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full bg-emerald-600 text-white py-4 rounded-xl font-bold text-xl hover:bg-emerald-700 transition-all disabled:opacity-50 shadow-lg shadow-emerald-100"
+                    className="w-full bg-emerald-600 text-white py-4 rounded-xl font-bold text-xl hover:bg-emerald-700 transition-all disabled:opacity-50 shadow-lg"
                   >
                     {loading ? 'Analyzing...' : 'Get My Recommendation →'}
                   </button>
@@ -255,7 +255,7 @@ function Contact() {
         </div>
       </main>
 
-      <footer className="px-6 py-12 border-t text-center text-sm text-stone-400 bg-white">
+      <footer className="px-6 py-12 border-t border-stone-800 text-center text-sm text-stone-400 bg-stone-950">
         <p>&copy; {new Date().getFullYear()} Simpler Life 100. All rights reserved.</p>
       </footer>
     </div>
