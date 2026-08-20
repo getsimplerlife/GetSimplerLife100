@@ -15,10 +15,21 @@
  *
  * Status semantics:
  *   ok                 — last probe succeeded (or no probe yet and refresh is healthy)
- *   degraded           — probe failed but a refresh may heal it (e.g. 401/expired)
+ *   degraded           — N CONSECUTIVE probes failed (e.g. 401/expired) and a
+ *                        refresh may still heal it; only surfaced once we are
+ *                        confident it is genuinely unhealthy, NOT on a single
+ *                        transient blip (owner: "stop the always-degraded noise")
  *   reconnect_required — refresh already failed with a fatal grant error; only a
  *                        human reauthorization can fix it (loud log + alert)
  *   unknown            — no stored credential
+ *
+ * Anti-flicker policy (#248, Deliverable B): a single failed probe no longer
+ * flips a connection LIVE → degraded. A probe failure is BUFFERED by a
+ * consecutive-failure counter; the record only becomes "degraded" once the
+ * counter reaches `DEGRADE_AFTER_CONSECUTIVE_FAILURES`, and a single success
+ * resets it. Fatal refresh errors (consumed / invalid_grant / revoked) STILL
+ * escalate immediately to reconnect_required regardless of the threshold, so
+ * loud escalation for genuinely broken connections is preserved.
  */
 import { join } from "path";
 import { readJSON, readJSONLive, writeJSON } from "./data-store";
@@ -30,6 +41,16 @@ export interface ProbeResult {
   error?: string;
   attemptedAt: number;
 }
+
+/**
+ * Anti-flicker threshold (#248, Deliverable B): a connection is only surfaced
+ * as "degraded" after this many CONSECUTIVE failed probes. A single transient
+ * blip (e.g. Xero tenant resolution mid-refresh, a slow provider, a one-off
+ * network error) no longer flips the owner-facing status LIVE → Degraded —
+ * internal refresher retries keep running silently. Fatal refresh errors are
+ * NOT subject to this threshold (they go straight to reconnect_required).
+ */
+export const DEGRADE_AFTER_CONSECUTIVE_FAILURES = 2;
 
 export interface ProviderProbeDef {
   /** Build the request for a stored credential entry. */
@@ -207,13 +228,27 @@ export class ConnectionHealthTracker {
     const k = this.key(provider, email);
     const prev = this.records.get(k);
     const failures = result.ok ? 0 : (prev?.consecutiveFailures || 0) + 1;
+    let status: ConnectionStatus;
+    if (refreshFatal) {
+      // Fatal grant error (consumed / invalid_grant / revoked) — loud, immediate.
+      status = "reconnect_required";
+    } else if (result.ok) {
+      status = "ok";
+    } else if (failures >= DEGRADE_AFTER_CONSECUTIVE_FAILURES) {
+      // Genuinely unhealthy after N consecutive failed probes — surface it.
+      status = "degraded";
+    } else {
+      // Transient blip below the threshold — keep showing the previous live
+      // state (normally "ok"). The refresher keeps trying silently.
+      status = prev?.status || "ok";
+    }
     const rec: ConnectionHealthRecord = {
       provider, email,
-      status: refreshFatal ? "reconnect_required" : result.ok ? "ok" : "degraded",
+      status,
+      consecutiveFailures: failures,
       lastProbeAt: result.attemptedAt,
       lastOkAt: result.ok ? result.attemptedAt : prev?.lastOkAt,
       lastError: result.ok ? undefined : result.error,
-      consecutiveFailures: failures,
     };
     // Loud per-provider transition logs (owner: "loud per-provider failure logs").
     const prevStatus = prev?.status;
