@@ -2,7 +2,15 @@ import { describe, expect, it } from "vitest";
 import { financeCapabilities, readTransactions, createInvoice } from "../agents/capabilities/finance";
 
 describe("Finance / QuickBooks capability slice", () => {
-  it("keeps contracts unverified", () => expect(financeCapabilities.map((c) => c.status)).toEqual(["unverified", "unverified"]));
+  it("keeps contracts unverified", () =>
+    expect(financeCapabilities.map((c) => c.status)).toEqual(Array(financeCapabilities.length).fill("unverified")));
+  it("exposes quote-to-cash QBO contracts read, write and monitor", () => {
+    const ids = financeCapabilities.map((c) => c.capabilityId);
+    expect(ids).toEqual(
+      expect.arrayContaining(["quickbooks-read-transactions", "quickbooks-create-invoice", "quickbooks-read-invoices", "quickbooks-read-customers", "quickbooks-create-estimate", "quickbooks-create-customer", "quickbooks-monitor-invoice-created", "quickbooks-monitor-customer-created"]),
+    );
+    expect(financeCapabilities.length).toBe(8);
+  });
   it("fails closed without tenant or auth", async () => {
     const adapter = { listTransactions: async () => [] } as any;
     await expect(readTransactions(adapter, { tenantId: "", authToken: "x", audit: () => {} })).rejects.toThrow("Tenant scope");

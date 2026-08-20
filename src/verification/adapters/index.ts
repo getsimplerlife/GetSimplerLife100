@@ -10,6 +10,7 @@ import type { ProviderCredential } from "../credential-source";
 import { xeroAdapter } from "./xero";
 import { googleAdapter } from "./google";
 import { microsoftAdapter } from "./microsoft";
+import { quickbooksAdapter } from "./quickbooks";
 import { anaplanAdapter, coupaAdapter, docusignAdapter, hubspotAdapter, intercomAdapter, jiraAdapter, marketoAdapter, mondayComAdapter, onfleetAdapter, salesforceAdapter, servicenowAdapter, shopifyAdapter, slackAdapter, tableauAdapter, workdayAdapter, zendeskAdapter } from "./priority";
 
 export interface AdapterContext {
@@ -35,6 +36,10 @@ export const adapterRegistry: Record<string, CapabilityAdapter | undefined> = {
   // Capability contracts reference Monday.com as providerId "monday" (MONDAY_PROVIDER_ID in
   // src/agents/capabilities/operations.ts) while the provider module id is "monday-com".
   monday: mondayComAdapter,
+  // QuickBooks Online (capability contracts use providerId "quickbooks"; module id is
+  // "quickbooks-online" — both map to the same fail-closed live adapter).
+  quickbooks: quickbooksAdapter,
+  "quickbooks-online": quickbooksAdapter,
   intercom: intercomAdapter,
   salesforce: salesforceAdapter,
   zendesk: zendeskAdapter,
