@@ -296,23 +296,37 @@ describe("health heartbeat — audited probes + status transitions", () => {
       expect(allowHosts.has(host), `${provider} probe host ${host} must be audited`).toBe(true);
     }
   });
-  it("tracks ok → degraded → ok with loud-state persistence", async () => {
+  it("tracks ok → degraded → ok with loud-state persistence (anti-flicker threshold #248)", async () => {
     const ok = okFetch();
     globalThis.fetch = ok as unknown as typeof fetch;
     const tracker = new ConnectionHealthTracker(tmp);
     await probeProvider("hubspot", { accessToken: "t" }, ok as unknown as typeof fetch).then((r) => tracker.record("hubspot", "tenant@example.com", r, false));
     expect(tracker.get("hubspot", "tenant@example.com")?.status).toBe("ok");
     const bad = failFetch(401, "unauthorized");
+    // A SINGLE transient probe failure must NOT flip LIVE → degraded (anti-flicker).
+    // The counter increments silently and the status stays ok so the owner does not
+    // see an "always degraded" blip that the refresher will heal a moment later.
     await probeProvider("hubspot", { accessToken: "dead" }, bad as unknown as typeof fetch).then((r) => tracker.record("hubspot", "tenant@example.com", r, false));
-    const rec = tracker.get("hubspot", "tenant@example.com")!;
-    expect(rec.status).toBe("degraded");
+    let rec = tracker.get("hubspot", "tenant@example.com")!;
+    expect(rec.status).toBe("ok");
     expect(rec.consecutiveFailures).toBe(1);
-    // refreshFatal flips the status to reconnect_required
+    // A SECOND consecutive failure crosses the threshold → degraded (genuinely unhealthy).
+    await probeProvider("hubspot", { accessToken: "dead" }, bad as unknown as typeof fetch).then((r) => tracker.record("hubspot", "tenant@example.com", r, false));
+    rec = tracker.get("hubspot", "tenant@example.com")!;
+    expect(rec.status).toBe("degraded");
+    expect(rec.consecutiveFailures).toBe(2);
+    // Success resets the counter and recovers to ok immediately.
+    await probeProvider("hubspot", { accessToken: "t" }, ok as unknown as typeof fetch).then((r) => tracker.record("hubspot", "tenant@example.com", r, false));
+    rec = tracker.get("hubspot", "tenant@example.com")!;
+    expect(rec.status).toBe("ok");
+    expect(rec.consecutiveFailures).toBe(0);
+    // A fatal refresh error escalates to reconnect_required IMMEDIATELY (not gated
+    // by the threshold) — loud escalation for genuinely broken connections is preserved.
     await probeProvider("hubspot", { accessToken: "dead" }, bad as unknown as typeof fetch).then((r) => tracker.record("hubspot", "tenant@example.com", r, true));
     expect(tracker.get("hubspot", "tenant@example.com")?.status).toBe("reconnect_required");
     // persistence file written
     const stored = readJSON(join(tmp, "connection_health.json"));
-    expect(stored["tenant@example.com:hubspot"].consecutiveFailures).toBe(2);
+    expect(stored["tenant@example.com:hubspot"].consecutiveFailures).toBe(1);
   });
   it("heartbeat cycle probes only refreshable, audited providers (fail-closed)", async () => {
     const now = Date.now();

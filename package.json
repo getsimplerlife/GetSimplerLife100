@@ -17,7 +17,8 @@
     "typecheck": "tsc --noEmit",
     "vercel-build": "NITRO_PRESET=bun vite build",
     "clean": "rm -rf dist .tanstack .run .vercel/output node_modules/.cache",
-    "check": "bun run lint && bun run typecheck && bun run test"
+    "check": "bun run lint && bun run typecheck && bun run test",
+    "liveness": "bun run src/server/liveness-watchdog.ts"
   },
   "dependencies": {
     "@libsql/client": "^0.17.4",

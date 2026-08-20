@@ -1,0 +1,28 @@
+# systemd unit for the Simpler Life 100 liveness watchdog (src/server/liveness-watchdog.ts).
+# Install:
+#   sudo cp scripts/liveness-watchdog.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now liveness-watchdog
+# Adjust WorkingDirectory/Environment to the live checkout + config as needed.
+[Unit]
+Description=Simpler Life 100 external liveness watchdog (probes :3000, alerts owner, supervises relaunch)
+After=network.target
+
+[Service]
+Type=simple
+# The watchdog probes from OUTSIDE prod-server, so it must outlive/out-separate it.
+Restart=always
+RestartSec=5
+# Set these to your live checkout and data dir:
+WorkingDirectory=/home/team/shared/site
+Environment=LV_PORT=3000
+Environment=LV_HEALTH_PATH=/api/health
+Environment=LV_INTERVAL_MS=180000
+Environment=LV_DOWN_AFTER_FAILS=3
+Environment=LV_STATUS_DIR=/var/lib/simplerlife100/.data
+# LV_ALERT_EMAIL is inherited from the service environment; set it here or in the .env
+# WorkingDirectory/LV_RELAUNCH_SCRIPT default to the canonical live watchdog script.
+ExecStart=/usr/local/bin/bun run src/server/liveness-watchdog.ts
+
+[Install]
+WantedBy=multi-user.target
