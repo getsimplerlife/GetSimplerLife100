@@ -5,7 +5,7 @@ import { join } from "path";
 import {
   acquireSingleInstanceOwnership,
   portAlreadyBound,
-} from "../src/lib/single-instance";
+} from "../lib/single-instance";
 
 const dirs: string[] = [];
 function tmpDataDir(): string {
@@ -31,8 +31,8 @@ describe("single-instance guard", () => {
   it("refuses to start when another LIVE instance holds the lock", () => {
     const d = tmpDataDir();
     const lockFile = join(d, "prod-server.lock");
-    // Simulate a live owner: our own PID is alive.
-    writeFileSync(lockFile, JSON.stringify({ pid: process.pid, port: 3000, startedAt: new Date().toISOString() }));
+    // Simulate a live DIFFERENT owner: our parent (a real live process) is not us.
+    writeFileSync(lockFile, JSON.stringify({ pid: process.ppid, port: 3000, startedAt: new Date().toISOString() }));
     const own = acquireSingleInstanceOwnership(d, 3000);
     expect(own.ok).toBe(false);
     expect(own.reason).toMatch(/another live prod-server instance holds ownership/);
