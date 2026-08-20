@@ -45,15 +45,15 @@ describe("F5 — dead serve.ts removed entirely (owner-approved I5)", () => {
 
 describe("Pricing copy — plan tiers state the included Connection Pack", () => {
   const pricingSrc = readRepoFile("src/routes/pricing.tsx");
-  const PACK_LINE = "Includes 1 Connection Pack (CRM or ERP — your choice)";
+  const PACK_LINE = "1 Connection Pack (CRM or ERP — your choice)";
   it("all three plan tiers advertise the included Connection Pack slot", () => {
     // Each tier is a one-line object literal; count occurrences per tier name.
-    const starter = pricingSrc.slice(pricingSrc.indexOf('name: "Starter"'), pricingSrc.indexOf('name: "Professional"'));
-    const professional = pricingSrc.slice(pricingSrc.indexOf('name: "Professional"'), pricingSrc.indexOf('name: "Enterprise"'));
-    const enterprise = pricingSrc.slice(pricingSrc.indexOf('name: "Enterprise"'));
+    const starter = pricingSrc.slice(pricingSrc.indexOf('name: "Starter"'), pricingSrc.indexOf('name: "Growth"'));
+    const growth = pricingSrc.slice(pricingSrc.indexOf('name: "Growth"'), pricingSrc.indexOf('name: "Scale"'));
+    const scale = pricingSrc.slice(pricingSrc.indexOf('name: "Scale"'));
     expect(starter).toContain(PACK_LINE);
-    expect(professional).toContain(PACK_LINE);
-    expect(enterprise).toContain(PACK_LINE);
+    expect(growth).toContain(PACK_LINE);
+    expect(scale).toContain(PACK_LINE);
   });
   it("no longer advertises packs as 'enabled' on plans without stating the slot", () => {
     expect(pricingSrc).not.toContain("CRM / ERP enabled");
