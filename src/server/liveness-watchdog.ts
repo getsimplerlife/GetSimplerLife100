@@ -96,6 +96,9 @@ export interface LivenessOptions {
   findServerPid?: () => number | undefined;
   now?: () => number;
   log?: (...args: unknown[]) => void;
+  /** If true, do not keep the event loop alive with the probe interval (detached
+   *  mode, LV_DETACH=1). The default false keeps the daemon running. */
+  detach?: boolean;
 }
 
 export const DEFAULT_PORT = 3000;
@@ -380,6 +383,7 @@ export function resolveOptionsFromEnv(): LivenessOptions {
     alertEmail: process.env.LV_ALERT_EMAIL || process.env.OWNER_ALERT_EMAIL || DEFAULT_ALERT_EMAIL,
     fetchImpl: fetch,
     relaunchScript: process.env.LV_RELAUNCH_SCRIPT || DEFAULT_RELAUNCH_SCRIPT,
+    detach: ["1", "true", "yes"].includes((process.env.LV_DETACH || "").toLowerCase()),
   };
 }
 
@@ -405,7 +409,14 @@ export async function main(): Promise<void> {
   const timer = setInterval(() => {
     void monitor.tick().catch((e: any) => monitor.log(`[liveness-watchdog] tick error: ${e?.message || String(e)}`));
   }, opts.intervalMs);
-  if (typeof (timer as any)?.unref === "function") (timer as any).unref();
+  // CRITICAL: DO NOT unref this interval by default. The watchdog is a dedicated
+  // long-running process — the interval is what keeps the event loop alive so it
+  // probes continuously and the consecutive-failure counter can accumulate across
+  // ticks. An unref'd timer lets the process exit (code 0) right after the first
+  // tick, which would reset the counter on every restart and make DOWN-after-N
+  // failures (and alerting) unreachable. Opt out (e.g. an embed context that
+  // wants the loop detached) only via LV_DETACH=1.
+  if (opts.detach && typeof (timer as any)?.unref === "function") (timer as any).unref();
 }
 
 if (import.meta.main) {
