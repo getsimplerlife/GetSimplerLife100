@@ -110,14 +110,55 @@ export const PROBE_REGISTRY: Record<string, ProviderProbeDef> = {
   },
 };
 
-export function probeProvider(
+/** Xero connections endpoint — lists tenant(s) for an access token (no tenant header needed). */
+const XERO_CONNECTIONS_URL = "https://api.xero.com/connections";
+
+/**
+ * Resolve the Xero tenantId for a credential entry. Prefers the stored value
+ * (tenantId/orgId/organizationId); when absent, calls GET /connections with the
+ * access token (audited — verification/adapters/xero.ts resolveTenantId; the
+ * connections endpoint lists the connected organisation and does NOT require a
+ * Xero-tenant-id header). Returns undefined when it cannot be resolved.
+ */
+export async function resolveXeroTenantId(
+  entry: Record<string, any>,
+  fetchImpl: typeof fetch = fetch,
+): Promise<string | undefined> {
+  const stored = entry.tenantId || entry.orgId || entry.organizationId;
+  if (stored) return String(stored);
+  if (!entry.accessToken) return undefined;
+  try {
+    const res = await fetchImpl(XERO_CONNECTIONS_URL, { headers: { Authorization: `Bearer ${entry.accessToken}`, Accept: "application/json" } });
+    if (!res.ok) return undefined;
+    const data = await res.json().catch(() => null);
+    if (Array.isArray(data) && data.length > 0 && data[0]?.tenantId) return String(data[0].tenantId);
+    return undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export async function probeProvider(
   provider: string,
   entry: Record<string, any>,
   fetchImpl: typeof fetch = fetch,
 ): Promise<ProbeResult> {
   const def = PROBE_REGISTRY[provider];
   if (!def) return Promise.resolve({ ok: false, error: "no audited probe for provider", attemptedAt: Date.now() });
-  const req = def.buildRequest(entry);
+  // P0 hotfix: Xero's /Organisation REQUIRES the Xero-tenant-id header. The
+  // credential row may not have tenantId stored, but the access token can resolve
+  // it via GET /connections. NEVER send a header-less Xero probe (it 403s on a
+  // perfectly valid token and would wrongly reject a freshly-rotated token).
+  let resolvedEntry = entry;
+  if (provider === "xero") {
+    const tid = await resolveXeroTenantId(entry, fetchImpl);
+    if (tid) resolvedEntry = { ...entry, tenantId: tid } as Record<string, any>;
+    else {
+      // Fail closed: without a tenant id we cannot perform a valid Xero read.
+      return { ok: false, error: `xero probe not sent: could not resolve Xero tenantId (no stored tenant and /connections returned none)`, attemptedAt: Date.now() };
+    }
+  }
+  const req = def.buildRequest(resolvedEntry);
   return fetchImpl(req.url, { method: req.method, headers: { Accept: "application/json", ...(req.headers || {}) }, body: req.body })
     .then(async (res) => {
       const text = await res.text().catch(() => "");
