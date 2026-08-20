@@ -66,6 +66,11 @@ function durableOnlyToken(over: { expiresAt?: number; withAppCreds?: boolean } =
     provider: PROVIDER,
     accessToken: "at-durable-only",
     refreshToken: "rt-durable-only",
+    // The token lives ONLY in the durable store; a stored Xero tenant means the
+    // health probe resolves it without a header-less /Organisation call (the
+    // #185 tenant-resolution hotfix is fail-closed: no stored tenant + no
+    // /connections result ⇒ no probe). Assertion (probed=1, ok=1) is unchanged.
+    tenantId: "tenant-durable-only",
     expiresAt: over.expiresAt ?? Math.floor((now - 60_000) / 1000), // expired → refresh due
     scope: "accounting.transactions",
     tokenType: "Bearer",
