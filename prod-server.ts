@@ -9,6 +9,7 @@ import { initDurableStore, durableEnabled, durableKeyCount, durableStoreStatus, 
 import { startScheduledTokenRefresher, scheduledRefresherStats, REFRESHER_TICK_MS, type RefreshTokenValidator } from "./src/lib/token-refresher";
 import { startHealthHeartbeat, probeProvider } from "./src/lib/connection-health";
 import { sweepExpiredOAuthStates, OAUTH_STATE_TTL_MS } from "./src/lib/oauth-state-sweeper";
+import { acquireSingleInstanceOwnership, portAlreadyBound } from "./src/lib/single-instance";
 
 // ── Lazy module accessors — loaded on first use to keep server startup under 1s ──
 let _bcryptjs: any;
@@ -408,6 +409,30 @@ function startConnectionLifecycle(): void {
     startHealthHeartbeat(DATA_DIR, { intervalMs: CONNECTION_HEALTH_INTERVAL_MS }),
   );
   console.log(`[connection-lifecycle] started: scheduled refresher (tick ${CONNECTION_TICK_MS}ms + boot catch-up, validate-before-replace ON) + health heartbeat (every ${CONNECTION_HEALTH_INTERVAL_MS}ms)`);
+}
+// ── Single-instance guard (fail-fast; never run bg workers from a non-owning instance) ──
+// Hardening for the recurring outage: a stray prod-server (dev checkout) seized port 3000,
+// EADDRINUSE restart-looped the correct server, so the refresher ran due=6 refreshed=0 and
+// Xero's token expired with no renewal. Before ANY background worker starts, assert sole
+// ownership: refuse if the canonical port is already bound, or if another live instance holds
+// the ownership lock. Exit loudly on refusal — a non-owning instance must never spawn the
+// refresher/sweepers/heartbeat.
+{
+  const guardPort = resolveServerPort(process.env.PORT);
+  const bound = await portAlreadyBound(guardPort);
+  if (bound) {
+    console.error(`[single-instance] FAIL: port ${guardPort} is already bound by another process; refusing to start a competing instance (exit 1).`);
+    process.exit(1);
+  }
+  const own = acquireSingleInstanceOwnership(DATA_DIR, guardPort);
+  if (!own.ok) {
+    console.error(`[single-instance] FAIL: ${own.reason} (exit 1).`);
+    process.exit(1);
+  }
+  const release = own.release!;
+  process.once("SIGTERM", () => release());
+  process.once("SIGINT", () => release());
+  console.log(`[single-instance] ownership acquired: pid=${process.pid} port=${guardPort}`);
 }
 startConnectionLifecycle();
 // ── Background backup snapshots (owner mandate: never lose client data) ──
