@@ -1,3 +1,9 @@
+
+import { useState, useRef } from "react";
+import { Link } from "@tanstack/react-router";
+import { Header } from "~/components/Header";
+import { Footer } from "~/components/Footer";
+import { analyzeDescription, getFollowUpQuestions } from "~/tools/automation-analyzer";
 // ── Chat Flow Types ──────────────────────────────────────────────────────
 
 type AdvisorStep = "greeting" | "listening" | "followup" | "results";

@@ -1,3 +1,10 @@
+
+import { useState, useRef } from "react";
+import { Link } from "@tanstack/react-router";
+import { Header } from "~/components/Header";
+import { Footer } from "~/components/Footer";
+import { assessmentQuestions, runAssessment, generateReportText, type AssessmentAnswers, type AssessmentReport } from "~/tools/assessment-engine";
+import { workflows } from "~/content/workflows";
 const initialAnswers: AssessmentAnswers = {
   industry: "",
   companySize: "",

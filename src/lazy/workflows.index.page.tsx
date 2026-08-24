@@ -1,3 +1,7 @@
+
+import { useState, useMemo } from "react";
+import { Link } from "@tanstack/react-router";
+import { automationLibrary, type AutomationCard } from "~/content/automation-library";
 const INDUSTRIES = [
   { value: "all", label: "All Industries", icon: "🌐" },
   { value: "manufacturing", label: "Manufacturing", icon: "🏭" },

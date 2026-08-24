@@ -1,3 +1,8 @@
+
+import { useState } from "react";
+import { analyzeDescription } from "~/tools/automation-analyzer";
+import { Header } from "~/components/Header";
+import { Footer } from "~/components/Footer";
 function ToolsHub() {
   const [quickInput, setQuickInput] = useState("");
   const [quickResult, setQuickResult] = useState<string | null>(null);

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { Route } from '~/routes/audit';
+import { getUser } from "~/db/queries";
 
 const VERTICALS = [
   {

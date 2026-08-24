@@ -1,3 +1,8 @@
+
+import { Link } from "@tanstack/react-router";
+import { caseStudies } from "~/content/case-studies";
+import { Header } from "~/components/Header";
+import { Footer } from "~/components/Footer";
 function CaseStudiesIndexPage() {
   return (
     <div className="flex flex-col min-h-screen selection:bg-emerald-500/30 selection:text-emerald-200 bg-stone-950">
