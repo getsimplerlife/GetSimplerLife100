@@ -109,7 +109,7 @@ const blueprintTemplates = {
     steps: [
       { label: "Intake Trigger", icon: "📥", desc: "Ivy Invoice monitors incoming email attachments & files." },
       { label: "OCR Extraction", icon: "🧠", desc: "Extracts table line items, totals, and invoice IDs." },
-      { label: "ERP/GL Match", icon: "🔌", desc: "Synchronizes validated bills directly into Xero/QuickBooks." },
+      { label: "ERP/GL Match", icon: "🔌", desc: "Synchronizes validated bills directly into Xero (QuickBooks in development)." },
       { label: "Dispatch Ping", icon: "💬", desc: "Dispatches structural audit log to Slack #finance channel." }
     ]
   },

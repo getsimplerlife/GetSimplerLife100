@@ -9,23 +9,23 @@ export const Route = createFileRoute("/pricing")({
 });
 
 const agents = [
-  { name: "Invoice Processor", price: 950, link: "https://buy.stripe.com/dRm3cx60Lbwj7Lleec2Fa29", desc: "Automatically reads invoices, extracts line items, matches against POs, and syncs to accounting", icon: "🧾" },
-  { name: "CRM Sync Agent", price: 2000, link: "https://buy.stripe.com/5kQ5kFexhcAn5Ddgmk2Fa2j", desc: "Keeps Salesforce, HubSpot, and Pipedrive in sync with real-time bidirectional updates", icon: "🔄" },
-  { name: "Email Assistant", price: 1800, link: "https://buy.stripe.com/eVq28t60LgQDc1Bgmk2Fa2f", desc: "Drafts, categorizes, and routes emails based on context — works with Gmail, Outlook, Slack", icon: "✉️" },
-  { name: "Data Entry Bot", price: 499, link: "https://buy.stripe.com/6oUbJ3cp9dErghRc642Fa24", desc: "Copies data between spreadsheets, Airtable, and CRMs — zero manual entry", icon: "🤖" },
+  { name: "Invoice Processor", price: 950, link: "https://buy.stripe.com/dRm3cx60Lbwj7Lleec2Fa29", desc: "Automatically reads invoices, extracts line items, and syncs to Xero accounting (QuickBooks in development)", icon: "🧾" },
+  { name: "CRM Sync Agent", price: 2000, link: "https://buy.stripe.com/5kQ5kFexhcAn5Ddgmk2Fa2j", desc: "Keeps HubSpot contacts, deals, and pipelines in sync with real-time updates (Salesforce and Pipedrive in development)", icon: "🔄" },
+  { name: "Email Assistant", price: 1800, link: "https://buy.stripe.com/eVq28t60LgQDc1Bgmk2Fa2f", desc: "Drafts, categorizes, and routes emails based on context — works with Gmail, Microsoft Outlook, and Slack", icon: "✉️" },
+  { name: "Data Entry Bot", price: 499, link: "https://buy.stripe.com/6oUbJ3cp9dErghRc642Fa24", desc: "Copies data between Google Sheets, Microsoft Excel, and HubSpot — zero manual entry", icon: "🤖" },
   { name: "Compliance Auditor", price: 750, link: "https://buy.stripe.com/eVq28t60Lbwj8Pp1rq2Fa25", desc: "Reviews records against regulatory rules, flags anomalies, generates audit trails", icon: "🔍" },
-  { name: "Inventory Tracker", price: 1200, link: "https://buy.stripe.com/28E00l2Oz1VJghRda82Fa2a", desc: "Monitors stock levels across NetSuite, Shopify, Zoho — auto-reorders when low", icon: "📦" },
-  { name: "Production Scheduler", price: 850, link: "https://buy.stripe.com/28EbJ374P8k71mX8TS2Fa27", desc: "Optimizes production timelines across SAP and Monday.com based on demand forecasts", icon: "📅" },
-  { name: "HR Onboarding Agent", price: 850, link: "https://buy.stripe.com/4gMfZjfBlasf3v56LK2Fa26", desc: "Automates new hire paperwork, BambooHR setup, Workday entries, and equipment ordering", icon: "👋" },
-  { name: "Social Media Manager", price: 1200, link: "https://buy.stripe.com/dRm5kF0GrdEr6Hh6LK2Fa2b", desc: "Schedules posts, monitors engagement, and generates content across LinkedIn, Meta, Hootsuite", icon: "📱" },
-  { name: "Route Optimizer", price: 1800, link: "https://buy.stripe.com/3cI28tgFp7g37Llb202Fa2g", desc: "Plans optimal delivery routes using Google Maps and Onfleet — saves fuel and time", icon: "🗺️" },
-  { name: "Support Triage Agent", price: 1800, link: "https://buy.stripe.com/dRm7sN74PfMzaXx9XW2Fa2h", desc: "Categorizes and routes Zendesk, Intercom, and Freshdesk tickets to the right team", icon: "🎫" },
-  { name: "Lead Scoring Agent", price: 2000, link: "https://buy.stripe.com/7sYeVf4WHcAn2r1b202Fa2k", desc: "Scores and prioritizes leads across Salesforce, HubSpot, and Marketo based on behavior", icon: "🎯" },
+  { name: "Inventory Tracker", price: 1200, link: "https://buy.stripe.com/28E00l2Oz1VJghRda82Fa2a", desc: "Monitors stock levels and flags low-stock items for reorder (NetSuite, Shopify, and Zoho integrations in development)", icon: "📦" },
+  { name: "Production Scheduler", price: 850, link: "https://buy.stripe.com/28EbJ374P8k71mX8TS2Fa27", desc: "Optimizes production timelines based on demand forecasts (SAP and Monday.com integrations in development)", icon: "📅" },
+  { name: "HR Onboarding Agent", price: 850, link: "https://buy.stripe.com/4gMfZjfBlasf3v56LK2Fa26", desc: "Automates new hire paperwork and onboarding tasks via Slack, Google Workspace, and Microsoft 365 (BambooHR and Workday in development)", icon: "👋" },
+  { name: "Social Media Manager", price: 1200, link: "https://buy.stripe.com/dRm5kF0GrdEr6Hh6LK2Fa2b", desc: "Plans and drafts content with approval routing via Slack (LinkedIn, Meta, and Hootsuite publishing in development)", icon: "📱" },
+  { name: "Route Optimizer", price: 1800, link: "https://buy.stripe.com/3cI28tgFp7g37Llb202Fa2g", desc: "Plans optimal delivery routes to save fuel and time (Google Maps and Onfleet dispatch integrations in development)", icon: "🗺️" },
+  { name: "Support Triage Agent", price: 1800, link: "https://buy.stripe.com/dRm7sN74PfMzaXx9XW2Fa2h", desc: "Categorizes and routes incoming support requests to the right team via Slack and shared inboxes (Zendesk, Intercom, and Freshdesk in development)", icon: "🎫" },
+  { name: "Lead Scoring Agent", price: 2000, link: "https://buy.stripe.com/7sYeVf4WHcAn2r1b202Fa2k", desc: "Scores and prioritizes leads in HubSpot based on behavior (Salesforce and Marketo integrations in development)", icon: "🎯" },
   { name: "Customer Onboarding", price: 1500, link: "https://buy.stripe.com/dRm4gBah1cAn7Ll8TS2Fa2e", desc: "Guides new customers through setup, sends welcome sequences, configures accounts", icon: "🚀" },
-  { name: "Support Ticket Router", price: 1800, link: "https://buy.stripe.com/dRm9AV88T6bZ0iT3zy2Fa2i", desc: "Intelligently routes support requests to the right team using Jira and ServiceNow", icon: "🎯" },
-  { name: "Sales Follow-Up", price: 1200, link: "https://buy.stripe.com/7sYfZj3SD0RF7Ll1rq2Fa2c", desc: "Automates follow-up sequences in Salesforce, HubSpot, and Outreach after meetings", icon: "📞" },
-  { name: "PO Management", price: 1200, link: "https://buy.stripe.com/fZubJ3dtdcAnghR1rq2Fa2d", desc: "Processes purchase orders across SAP Ariba, Coupa, and QuickBooks automatically", icon: "📋" },
-  { name: "Payroll Reconciliation", price: 850, link: "https://buy.stripe.com/fZucN74WH7g3e9J1rq2Fa28", desc: "Reconciles ADP, Gusto, and QuickBooks Payroll against timesheets and bank records", icon: "💰" },
+  { name: "Support Ticket Router", price: 1800, link: "https://buy.stripe.com/dRm9AV88T6bZ0iT3zy2Fa2i", desc: "Intelligently routes support requests to the right team via Slack and email (Jira and ServiceNow integrations in development)", icon: "🎯" },
+  { name: "Sales Follow-Up", price: 1200, link: "https://buy.stripe.com/7sYfZj3SD0RF7Ll1rq2Fa2c", desc: "Automates follow-up sequences in HubSpot after meetings (Salesforce and Outreach integrations in development)", icon: "📞" },
+  { name: "PO Management", price: 1200, link: "https://buy.stripe.com/fZubJ3dtdcAnghR1rq2Fa2d", desc: "Processes purchase orders with approval routing via Slack and email (SAP Ariba, Coupa, and QuickBooks in development)", icon: "📋" },
+  { name: "Payroll Reconciliation", price: 850, link: "https://buy.stripe.com/fZucN74WH7g3e9J1rq2Fa28", desc: "Reconciles payroll against timesheets in Google Sheets and Microsoft Excel (ADP, Gusto, and QuickBooks Payroll in development)", icon: "💰" },
 ];
 
 const builderTiers = [
