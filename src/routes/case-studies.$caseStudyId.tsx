@@ -1,17 +1,8 @@
-import { createFileRoute } from '@tanstack/react-router';
-import CaseStudyPage from '~/components/CaseStudyPage';
-import { caseStudies } from '~/content/case-studies';
+import { createFileRoute, lazyRouteComponent } from "@tanstack/react-router";
 import { pageHead } from "~/lib/site-meta";
 
 export const Route = createFileRoute('/case-studies/$caseStudyId')({
   head: () => pageHead("/case-studies"),
-  component: CaseStudyRoutePage,
+  component: lazyRouteComponent(() => import('~/lazy/case-studies.$caseStudyId.page')),
   notFoundComponent: () => <div className="text-center py-20 text-stone-400">Case study not found</div>,
 });
-
-function CaseStudyRoutePage() {
-  const { caseStudyId } = Route.useParams();
-  const data = caseStudies.find(cs => cs.id === caseStudyId);
-  if (!data) return <div className="text-center py-20 text-stone-400">Case study not found</div>;
-  return <CaseStudyPage data={data} />;
-}
