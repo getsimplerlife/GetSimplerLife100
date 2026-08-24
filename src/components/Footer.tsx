@@ -45,8 +45,8 @@ export function Footer() {
         <div className="border-t border-stone-900 pt-6 flex flex-col sm:flex-row justify-between items-center gap-4">
           <p className="text-stone-600 text-xs">&copy; {new Date().getFullYear()} Simpler Life 100. All rights reserved.</p>
           <div className="flex gap-6">
-            <a href="#" className="text-stone-600 hover:text-stone-400 text-xs transition-colors">Privacy Policy</a>
-            <a href="#" className="text-stone-600 hover:text-stone-400 text-xs transition-colors">Terms of Service</a>
+            <Link to="/privacy" className="text-stone-600 hover:text-stone-400 text-xs transition-colors">Privacy Policy</Link>
+            <Link to="/terms" className="text-stone-600 hover:text-stone-400 text-xs transition-colors">Terms of Service</Link>
           </div>
         </div>
       </div>

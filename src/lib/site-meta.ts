@@ -51,7 +51,7 @@ export const PAGE_TITLES: Record<string, PageMeta> = {
   "/build": {
     title: "Build Your AI Team | Simpler Life 100",
     description:
-      "Build your custom AI Operations Team. Choose from 17 AI agents across 3 builder packages with instant deployment and 180+ integrations.",
+      "Build your custom AI Operations Team. Choose from 17 AI agents across 3 builder packages with instant deployment and live integrations including Xero, Slack, Google, Microsoft, HubSpot, and DocuSign.",
   },
   "/case-studies": {
     title: "Case Studies | Simpler Life 100",
@@ -86,7 +86,7 @@ export const PAGE_TITLES: Record<string, PageMeta> = {
   "/how-it-works": {
     title: "How It Works | Simpler Life 100",
     description:
-      "Purchase AI employees, deploy instantly, and connect to 180+ integration providers via OAuth or API key. See how Simpler Life 100 works.",
+      "Purchase AI employees, deploy instantly, and connect to Xero, Slack, Google, Microsoft 365, HubSpot, and DocuSign — with more integrations in development. See how Simpler Life 100 works.",
   },
   "/industries": {
     title: "Industries | Simpler Life 100",
@@ -96,7 +96,7 @@ export const PAGE_TITLES: Record<string, PageMeta> = {
   "/integrations": {
     title: "Integrations | Simpler Life 100",
     description:
-      "Browse the 180+ integrations that AI employees connect to — CRMs, ERPs, productivity, and communication tools.",
+      "Explore the apps AI employees connect to. Live today: Xero, Slack, Google, Microsoft 365, HubSpot, and DocuSign — with more in development.",
   },
   "/login": {
     title: "Login | Simpler Life 100",
@@ -106,7 +106,17 @@ export const PAGE_TITLES: Record<string, PageMeta> = {
   "/pricing": {
     title: "Pricing | Simpler Life 100 AI Employees",
     description:
-      "AI Operations Teams from $7,500 one-time. Individual agents from $499/mo, or builder packages with live deployment. 180+ integrations available.",
+      "AI Operations Teams from $7,500 one-time. Individual agents from $499/mo, or builder packages with live deployment. Live integrations: Xero, Slack, Google, Microsoft, HubSpot, DocuSign.",
+  },
+  "/privacy": {
+    title: "Privacy Policy | Simpler Life 100",
+    description:
+      "How Simpler Life 100 collects, uses, and protects your information. Contact: electric.vortexz@gmail.com.",
+  },
+  "/terms": {
+    title: "Terms of Service | Simpler Life 100",
+    description:
+      "The terms that govern use of Simpler Life 100's AI Operations Team platform and services. Contact: electric.vortexz@gmail.com.",
   },
   "/register": {
     title: "Register | Simpler Life 100",

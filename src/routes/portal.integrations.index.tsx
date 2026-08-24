@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { PROVIDERS } from "~/data/providers";
-import { isPlaceholderProvider, PLACEHOLDER_CONTACT_COPY, PLACEHOLDER_CONTACT_EMAIL, PLACEHOLDER_STATUS_COPY } from "~/lib/provider-placeholders";
+import { isPlaceholderProvider, getRealProviders, PLACEHOLDER_CONTACT_COPY, PLACEHOLDER_CONTACT_EMAIL, PLACEHOLDER_STATUS_COPY } from "~/lib/provider-placeholders";
 
 export const Route = createFileRoute("/portal/integrations/")({
   component: ConnectedServices,
@@ -463,6 +463,12 @@ function ConnectedServices() {
   const uniqueCategories = Array.from(new Set((providers||[]).filter(Boolean).map((p) => (p||{}).category)))
     .filter(cat => !CRM_ERP_EXCLUDE.some(c => (cat || "").toLowerCase().includes(c.toLowerCase())));
 
+  // Honest connectable counts: only real, live-verified providers count as "available";
+  // the rest of the catalog is in development (rendered as placeholder cards above).
+  const catalogProviders = (providers || []).filter(Boolean);
+  const connectableNowCount = getRealProviders(catalogProviders).length;
+  const inDevelopmentCount = catalogProviders.length - connectableNowCount;
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto text-stone-100 select-none pb-12">
       
@@ -487,7 +493,7 @@ function ConnectedServices() {
                 : "text-stone-400 hover:text-white"
             }`}
           >
-            🔌 App Connections ({(filteredConnections||[]).filter(c => c.status === "Connected").length}/{(providers||[]).length})
+            🔌 App Connections ({(filteredConnections||[]).filter(c => c.status === "Connected").length}/{connectableNowCount})
           </button>
           <button
             onClick={() => setActiveTab("intake")}
@@ -567,10 +573,11 @@ function ConnectedServices() {
               </span>
             </div>
             <div className="bg-stone-950 border border-stone-900 p-4 rounded-2xl flex flex-col justify-between">
-              <span className="text-[9px] font-mono font-bold tracking-wider text-stone-500 uppercase">AVAILABLE PROVIDERS</span>
+              <span className="text-[9px] font-mono font-bold tracking-wider text-stone-500 uppercase">CONNECTABLE PROVIDERS</span>
               <span className="text-2xl font-black text-white mt-1">
-                {(providers||[]).length} <span className="text-stone-600 text-sm font-semibold">platforms</span>
+                {connectableNowCount} <span className="text-stone-600 text-sm font-semibold">connectable now</span>
               </span>
+              <span className="text-[10px] text-stone-500 font-semibold mt-1">{inDevelopmentCount} more in development</span>
             </div>
             <div className="bg-stone-950 border border-stone-900 p-4 rounded-2xl flex flex-col justify-between">
               <span className="text-[9px] font-mono font-bold tracking-wider text-stone-500 uppercase">ATTENTION NEEDED</span>

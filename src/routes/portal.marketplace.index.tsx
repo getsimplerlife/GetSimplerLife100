@@ -12,7 +12,7 @@ export const Route = createFileRoute("/portal/marketplace/")({
 const CRM_PACK = {
   id: "crm-connection-pack",
   name: "CRM Connection Pack",
-  description: "Unlock 1 connection slot for CRM platforms. Connect Salesforce, HubSpot, Zoho, Pipedrive, and more. Each slot supports one provider connection. Purchase again to add more slots.",
+  description: "Unlock 1 connection slot for your CRM. Connect HubSpot today. Each slot supports one provider connection. Purchase again to add more slots. More CRM integrations (Salesforce, Zoho, Pipedrive) are in development.",
   category: "Operations" as const,
   price: "$2,000",
   installed: false,
@@ -30,7 +30,7 @@ const CRM_PACK = {
 const ERP_PACK = {
   id: "erp-connection-pack",
   name: "ERP Connection Pack",
-  description: "Unlock 1 connection slot for ERP and accounting platforms. Connect NetSuite, QuickBooks, SAP, Xero, Sage Intacct, and more. Each slot supports one provider connection. Purchase again to add more slots.",
+  description: "Unlock 1 connection slot for your ERP and accounting. Connect Xero today; QuickBooks is in development. Each slot supports one provider connection. Purchase again to add more slots. More ERP integrations (NetSuite, SAP, Sage Intacct) are in development.",
   category: "Operations" as const,
   price: "$3,500",
   installed: false,

@@ -571,14 +571,14 @@ function IntegrationExplorerPage() {
                   <h4 className="font-extrabold text-sm text-white">Custom Connector Multi-App Pipeline</h4>
                 </div>
                 <p className="text-xs text-stone-300 leading-relaxed">
-                  Your selected combination is fully supported! Simpler Life 100 handles custom multi-system endpoints across our entire library of over 175 integrated applications.
+                  We can build a custom pipeline for your selected combination. Live today you can connect Xero, Slack, Google, Microsoft 365, HubSpot, and DocuSign; QuickBooks is in development, and the many other tools in our catalog are each marked in development until they are verified live. Nothing on this page should be read as working until it is.
                 </p>
                 <div className="bg-stone-950/40 p-4 rounded-xl space-y-2">
-                  <h5 className="text-[10px] font-mono font-bold text-stone-400 uppercase">Selected Services Connected:</h5>
+                  <h5 className="text-[10px] font-mono font-bold text-stone-400 uppercase">Selected Services:</h5>
                   <div className="flex flex-wrap gap-1.5">
                     {selectedApps.map((app) => (
                       <span key={app} className="text-xs font-mono font-bold text-stone-300 bg-stone-900 border border-stone-850 px-2.5 py-1 rounded">
-                        {app.toUpperCase()} CONNECTOR ACTIVE
+                        {app.toUpperCase()} — SELECTED
                       </span>
                     ))}
                   </div>
