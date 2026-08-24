@@ -157,13 +157,31 @@ async function registerAndGetCookie(email: string): Promise<string | null> {
   });
   let setCookie = reg.headers.get("set-cookie") || "";
   if (!setCookie && reg.status === 409) {
-    // Account already exists (re-run) — log in instead.
-    const login = await fetch(`${BASE_URL}/api/login`, {
+    // Account already exists (re-run, or pre-created password-less by a
+    // purchase webhook) — log in instead.
+    let login = await fetch(`${BASE_URL}/api/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password: PASSWORD }),
     });
     setCookie = login.headers.get("set-cookie") || "";
+    if (!setCookie) {
+      // Account-creation-on-purchase pre-created a password-less account
+      // (the customer sets a password via /api/set-password after buying).
+      // Mirror that real flow so the wrapper can authenticate as the buyer
+      // and verify entitlements.
+      await fetch(`${BASE_URL}/api/set-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password: PASSWORD }),
+      });
+      login = await fetch(`${BASE_URL}/api/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password: PASSWORD }),
+      });
+      setCookie = login.headers.get("set-cookie") || "";
+    }
   }
   const m = setCookie.match(/session=([^;]+)/);
   return m ? m[1] : null;

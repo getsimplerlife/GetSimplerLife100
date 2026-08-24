@@ -4,6 +4,7 @@ import { readFileSync, writeFileSync, existsSync, readdirSync } from "fs";
 import { createHash, randomBytes } from "crypto";
 import { resolveDataDir, isInsidePublishTree, readJSON, readJSONLive, writeJSON, seedDataFiles, bucketConnectionsByCategory, migrateLegacyData, findLegacyDataDir, countConnections, mergeDurableCredential } from "./src/lib/data-store";
 import { detectPackType, buildPackPurchase, verifyStripeSignature, matchAgentByPaymentLink, matchAgentByMetadata, detectPlanType, buildPlanPurchase, planAgentIds } from "./src/lib/stripe-webhook";
+import { buildOwnerSaleEvent, provisionAccountForPurchase, ownerSaleEmailBody } from "./src/lib/purchase-sales-events";
 import { AGENTS } from "./src/data/agents";
 import { initDurableStore, durableEnabled, durableKeyCount, durableStoreStatus, durableSnapshotBackup, durableFlush } from "./src/lib/durable-store";
 import { startScheduledTokenRefresher, scheduledRefresherStats, REFRESHER_TICK_MS, type RefreshTokenValidator } from "./src/lib/token-refresher";
@@ -58,6 +59,7 @@ const PENDING_EMAILS_FILE = join(DATA_DIR, "pending_emails.json");
 const CHAT_SESSIONS_FILE = join(DATA_DIR, "chat_sessions.json");
 const OAUTH_STATES_FILE = join(DATA_DIR, "oauth_states.json");
 const TENANT_PURCHASES_FILE = join(DATA_DIR, "tenant_purchases.json");
+const SALES_EVENTS_FILE = join(DATA_DIR, "sales_events.json");
 
 const AUDIT_LOG_FILE = join(DATA_DIR, "tenant_audit_logs.json");
 
@@ -1676,6 +1678,108 @@ async function sendEmailSMTP(opts: { to: string; subject: string; body: string }
 }
 
 
+/**
+ * Shared on-purchase-completed handler — called exactly once per real,
+ * verified Stripe purchase (pack / plan / agent / generic). It:
+ *  1. Provisions/upgrades the purchaser's portal account in the REAL users
+ *     store (users.json keyed by email), non-destructively (never overwrites
+ *     password/role/login/createdAt, never deletes, only touches the
+ *     purchaser's own row).
+ *  2. Builds a durable structured owner sale event and sends the owner sale
+ *     email via the SAME SendGrid/SMTP path the lead notifications use
+ *     (sendEmailSMTP + pending_emails.json fallback — no invented mail path).
+ *  3. Persists the sale event durably in sales_events.json keyed by
+ *     session.id with attempt tracking, and is idempotent on session.id so
+ *     Stripe at-least-once redelivery can never double-notify or
+ *     double-provision.
+ * Fails closed: without a verified purchaser email / session id it does
+ * nothing.
+ */
+async function handlePurchaseCompleted(args: {
+  customerEmail: string;
+  productName: string;
+  opportunityType: string;
+  amountTotal: number;
+  sessionId: string;
+}): Promise<void> {
+  try {
+    const { customerEmail, productName, opportunityType, amountTotal, sessionId } = args;
+    const email = String(customerEmail || "").trim().toLowerCase();
+    if (!email || !sessionId) return; // fail closed: nothing to notify/provision
+
+    // Idempotency — a sale event already recorded for this session means this
+    // purchase was already provisioned + notified (Stripe delivers at-least-once).
+    const salesEventsRaw = readJSON(SALES_EVENTS_FILE);
+    const salesEvents = (salesEventsRaw && typeof salesEventsRaw === "object" && !Array.isArray(salesEventsRaw))
+      ? salesEventsRaw
+      : {};
+    if (salesEvents[sessionId]) return;
+
+    // 1. Provision / upgrade the purchaser's portal account (users.json).
+    const users = readJSON(USERS_FILE);
+    const { users: nextUsers, outcome } = provisionAccountForPurchase(users, email);
+    if (outcome !== "none" && nextUsers && nextUsers !== users) {
+      writeJSON(USERS_FILE, nextUsers);
+    }
+
+    // 2. Build the durable structured owner sale event.
+    const event = buildOwnerSaleEvent({
+      productName,
+      opportunityType,
+      amountCents: amountTotal,
+      customerEmail: email,
+      provisioned: outcome,
+    });
+    if (!event) {
+      // No event could be built (defensive — email present) — record the
+      // attempt so we never loop, then bail.
+      salesEvents[sessionId] = { event: null, notified: false, skipped: true, at: new Date().toISOString() };
+      writeJSON(SALES_EVENTS_FILE, salesEvents);
+      return;
+    }
+
+    // 3. Send the owner sale email via the SAME SendGrid/SMTP path as leads.
+    const recipient = process.env.LEAD_NOTIFICATION_EMAIL || "electric.vortexz@gmail.com";
+    const smtpResult = await sendEmailSMTP({
+      to: recipient,
+      subject: "New Purchase — " + productName,
+      body: ownerSaleEmailBody(event),
+    });
+
+    // 4. Persist the sale event durably with attempt tracking (idempotent on session.id).
+    salesEvents[sessionId] = {
+      event,
+      at: new Date().toISOString(),
+      notified: smtpResult.sent,
+      sentAt: smtpResult.sent ? new Date().toISOString() : undefined,
+      error: smtpResult.sent ? undefined : (smtpResult.error || "unknown"),
+    };
+    writeJSON(SALES_EVENTS_FILE, salesEvents);
+
+    if (smtpResult.sent) {
+      console.log("[webhook] Owner sale email sent for " + productName + " (" + email + ")");
+    } else {
+      // SMTP failed/unavailable — queue for retry (never silently drop).
+      console.log("[webhook] Owner sale email FAILED (" + (smtpResult.error || "unknown") + ") — queued to pending_emails.json");
+      const pending = readJSON(PENDING_EMAILS_FILE);
+      const pendingArr = Array.isArray(pending) ? pending : [];
+      pendingArr.push({
+        id: "sale-" + Math.random().toString(36).substr(2, 9),
+        sessionId,
+        to: recipient,
+        subject: "New Purchase — " + productName,
+        body: ownerSaleEmailBody(event),
+        timestamp: new Date().toISOString(),
+        sent: false,
+        kind: "purchase",
+      });
+      writeJSON(PENDING_EMAILS_FILE, pendingArr);
+    }
+  } catch (e: any) {
+    console.log("[webhook] handlePurchaseCompleted failed (non-fatal): " + (e?.message || String(e)));
+  }
+}
+
 function buildLeadEmail(email: string, toolName: string, result: any): { subject: string; body: string; matchedAgents: any[]; bestPlan: string; planLink: string } {
   // Collect all matched agents across any tool type
   const matched: { name: string; paymentLink: string; price: number }[] = [];
@@ -2833,6 +2937,13 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
             writeJSON(TENANT_PURCHASES_FILE, purchases);
             configureTenant(customerEmail, { purchased: true, status: "Active" });
             console.log(`[webhook] Provisioned ${packSpec.productName} (${packSpec.slots} slots) for ${customerEmail}`);
+            await handlePurchaseCompleted({
+              customerEmail,
+              productName: packSpec.productName,
+              opportunityType: packSpec.type || "crm-pack",
+              amountTotal,
+              sessionId: session.id,
+            });
             return Response.json({ received: true });
           }
 
@@ -2851,6 +2962,13 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
             writeJSON(TENANT_PURCHASES_FILE, purchases);
             configureTenant(customerEmail, { purchased: true, status: "Active" });
             console.log(`[webhook] Provisioned ${planSpec.productName} (${agentIds.length} agents) for ${customerEmail}`);
+            await handlePurchaseCompleted({
+              customerEmail,
+              productName: planSpec.productName,
+              opportunityType: "plan",
+              amountTotal,
+              sessionId: session.id,
+            });
             return Response.json({ received: true });
           }
 
@@ -2895,6 +3013,23 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
             writeJSON(TENANT_PURCHASES_FILE, purchases);
             configureTenant(customerEmail, { purchased: true, status: "Active" });
             console.log(`[webhook] Recorded purchase for ${customerEmail}`);
+          }
+
+          // Notify the owner + provision the account — exactly once per real
+          // session (handlePurchaseCompleted is idempotent on session.id).
+          if (customerEmail && session.id) {
+            const saleInfo = (matchedAgent && customerEmail)
+              ? { productName: matchedAgent.name, opportunityType: "agent" }
+              : { productName: "AI Automation Package", opportunityType: "other" };
+            if (saleInfo) {
+              await handlePurchaseCompleted({
+                customerEmail,
+                productName: saleInfo.productName,
+                opportunityType: saleInfo.opportunityType,
+                amountTotal,
+                sessionId: session.id,
+              });
+            }
           }
         }
         return Response.json({ received: true });
