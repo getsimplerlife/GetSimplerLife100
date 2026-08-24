@@ -17,7 +17,10 @@ import {
   PLACEHOLDER_STATUS_COPY,
   PLACEHOLDER_CONTACT_EMAIL,
 } from "../lib/provider-placeholders";
-import ConnectedServices from "../routes/portal.integrations.index";
+// PR #196 route-level split moved the page component to src/lazy/*.page.tsx;
+// the route file now only exports the Route (no component). Render the lazy
+// page directly so this SSR guard exercises the real component.
+import ConnectedServices from "../lazy/portal.integrations.index.page";
 
 // Same exclusion the page applies (see CRM_ERP_EXCLUDE in the route file).
 const EXCLUDED_CATEGORIES = ["CRM", "ERP", "Accounting"];
