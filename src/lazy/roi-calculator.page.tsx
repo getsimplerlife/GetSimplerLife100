@@ -1,3 +1,6 @@
+
+import { Link } from "@tanstack/react-router";
+import { RicherROICalculator } from "~/components/RicherROICalculator";
 function ROICalculatorPage() {
   return (
     <div className="min-h-screen bg-stone-950 flex flex-col selection:bg-emerald-500 selection:text-stone-950">

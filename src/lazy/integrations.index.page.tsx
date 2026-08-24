@@ -1,3 +1,7 @@
+
+import { useState, useMemo, useEffect } from "react";
+import { Link } from "@tanstack/react-router";
+import { integrations, type Integration } from "~/content/integrations";
 // Define common cross-app automation suggestions based on selected tool types
 interface CrossAppAutomation {
   name: string;

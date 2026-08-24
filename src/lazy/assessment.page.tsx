@@ -4,6 +4,8 @@ import {
   type AssessmentAnswers,
   type AssessmentReport
 } from "../tools/assessment-engine";
+import { useState, useRef } from "react";
+import { Link } from "@tanstack/react-router";
 
 
 

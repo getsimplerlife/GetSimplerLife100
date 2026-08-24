@@ -1,3 +1,8 @@
+
+import { useState } from "react";
+import { Link } from "@tanstack/react-router";
+import { Header } from "~/components/Header";
+import { Footer } from "~/components/Footer";
 const examplePrompts = [
   "Every morning I download PDF invoices from email, type the amounts into QuickBooks, then email customers a receipt",
   "Our warehouse team manually counts inventory each week and types updates into a spreadsheet",
