@@ -4,7 +4,10 @@ import { mkdtempSync, rmSync, writeFileSync, existsSync, readFileSync, mkdirSync
 import { tmpdir } from "os";
 import { join } from "path";
 import { renderToString } from "react-dom/server";
-import FileLibrary from "../routes/portal.files.index";
+// PR #196 route-level split moved the page component to src/lazy/*.page.tsx;
+// the route file now only exports the Route (no component). Render the lazy
+// page directly so this SSR guard exercises the real component.
+import FileLibrary from "../lazy/portal.files.index.page";
 import {
   CLIENT_FILES_KEY,
   listClientFiles,

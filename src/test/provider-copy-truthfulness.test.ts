@@ -46,7 +46,7 @@ const NON_LIVE_PROVIDERS = [
 ];
 
 describe("Marketplace Connection Packs — only real providers connectable now", () => {
-  const src = readRepoFile("src/routes/portal.marketplace.index.tsx");
+  const src = readRepoFile("src/lazy/portal.marketplace.index.page.tsx");
   const crmDesc = src.slice(
     src.indexOf("name: \"CRM Connection Pack\""),
     src.indexOf("category: \"Operations\" as const,", src.indexOf("CRM Connection Pack"))
@@ -125,7 +125,7 @@ describe("Pricing AI-employee agent cards — non-live providers only with an in
 });
 
 describe("Portal integrations page — honest provider counts", () => {
-  const src = readRepoFile("src/routes/portal.integrations.index.tsx");
+  const src = readRepoFile("src/lazy/portal.integrations.index.page.tsx");
 
   it("no longer advertises the full catalog count as available platforms", () => {
     // The 179/180 inflated claim is gone; we now disclose real-vs-in-development.
@@ -146,7 +146,7 @@ describe("Portal integrations page — honest provider counts", () => {
 });
 
 describe("Public integrations explorer — no inflated capability claims", () => {
-  const src = readRepoFile("src/routes/integrations.index.tsx");
+  const src = readRepoFile("src/lazy/integrations.index.page.tsx");
 
   it("does not claim all 175+ catalog apps are fully supported / working", () => {
     expect(src).not.toContain("over 175 integrated applications");
