@@ -1,0 +1,568 @@
+import { Link } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
+import { AnimatedNumber } from "~/components/ui";
+import { usePortalContext } from "~/routes/portal.context";
+
+// Dashboard data is loaded client-side via useEffect.
+// (createServerFn was removed because it crashes during SSR
+//  with "globalThis.app.config" — vinxi/http requires the Vinxi
+//  context which isn't available in the SSR environment.)
+
+
+
+type TimeFilter = "24h" | "7d" | "30d";
+
+function ActivityHubDashboard() {
+  const { userEmail } = usePortalContext();
+
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [approvals, setApprovals] = useState<any[]>([]);
+  const [connectedCount, setConnectedCount] = useState(0);
+  const [integrationCount, setIntegrationCount] = useState(0);
+  const [billing, setBilling] = useState<any[]>([]);
+
+  const [loading, setLoading] = useState(true);
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>("24h");
+  const [feedback, setFeedback] = useState("");
+
+  // Client-side refresh for subsequent navigations (SSR covers initial load)
+  const fetchDashboardData = async () => {
+    try {
+      const [rEmp, rTasks, rApp, rBil, rCon] = await Promise.allSettled([
+        fetch("/api/data/employees", { credentials: "include" }).then(r => r.ok ? r.json() : null),
+        fetch("/api/data/tasks", { credentials: "include" }).then(r => r.ok ? r.json() : null),
+        fetch("/api/portal/approvals", { credentials: "include" }).then(r => r.ok ? r.json() : null),
+        fetch("/api/data/billing", { credentials: "include" }).then(r => r.ok ? r.json() : null),
+        fetch("/api/integrations", { credentials: "include" }).then(r => r.ok ? r.json() : null),
+      ]);
+      if (rEmp.status === "fulfilled" && rEmp.value) setEmployees(rEmp.value.data || []);
+      if (rTasks.status === "fulfilled" && rTasks.value) setTasks(rTasks.value.data || []);
+      if (rApp.status === "fulfilled" && rApp.value) setApprovals(rApp.value.data?.pending || []);
+      if (rBil.status === "fulfilled" && rBil.value) setBilling(rBil.value.data || []);
+      if (rCon.status === "fulfilled" && rCon.value) {
+        const conns = rCon.value.data || [];
+        setConnectedCount(conns.length);
+        setIntegrationCount(conns.length);
+      }
+    } catch { /* keep SSR data */ }
+  };
+
+  // Always fetch dashboard data on mount since we don't use SSR preload
+  useEffect(() => {
+    fetchDashboardData().finally(() => setLoading(false));
+  }, []);
+
+  // ── Derived data ──────────────────────────────────────────────────
+
+  const filterHours = timeFilter === "24h" ? 24 : timeFilter === "7d" ? 168 : 720;
+  const now = Date.now();
+  const filteredTasks = tasks.filter((t: any) => {
+    const ts = t.timestamp ? new Date(t.timestamp).getTime() : (t.createdAt ? new Date(t.createdAt).getTime() : 0);
+    return (now - ts) <= filterHours * 3600 * 1000;
+  });
+
+  const totalFilteredTasks = filteredTasks.length;
+
+  // Real metrics only — no fabricated multipliers.
+  const tasksCompleted = filteredTasks.filter((t: any) => t.status === 'Completed').length;
+
+  const activeEmployees = employees.filter((e: any) => e.status === "Active");
+  const idleEmployees = employees.filter((e: any) => e.status === "Idle");
+  // Portal data-truth (#236): only REAL failure signals raise the "needs
+  // attention" banner. An unconfigured/purchasable catalog agent (status
+  // "available"/"paused", no recent activity) is NOT a failure — the server
+  // computes needsAttention from the employee's own error record and the live
+  // #230 connection-health snapshot.
+  const errorEmployees = employees.filter((e: any) => e.needsAttention === true);
+
+  const pendingApprovals = approvals.length;
+  const hasActionItems = pendingApprovals > 0 || errorEmployees.length > 0;
+
+  // ── Onboarding ────────────────────────────────────────────────────
+
+  const isNewUser = employees.length === 0;
+  const onboardingSteps = [
+    { label: "Deploy your first AI Employee", done: employees.length > 0, link: "/portal/marketplace" },
+    { label: "Connect at least one integration", done: connectedCount > 0, link: "/portal/integrations" },
+    { label: "Run your first workflow", done: tasks.length > 0, link: "/portal/workflows" },
+    { label: "Review AI activity feed", done: tasks.length >= 3, link: "/portal" },
+  ];
+  const onboardingProgress = onboardingSteps.filter(s => s.done).length;
+
+  // ── Approval actions ──────────────────────────────────────────────
+
+  const handleApprovalAction = async (actionId: string, action: "approve" | "reject") => {
+    try {
+      setFeedback(`Processing: ${action}...`);
+      await fetch("/api/portal/approvals", {
+        method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+        body: JSON.stringify({ actionId, decision: action }),
+      });
+      setApprovals(approvals.filter(a => a.actionId !== actionId));
+      setFeedback(`✓ ${action === "approve" ? "Approved" : "Rejected"}`);
+      setTimeout(() => setFeedback(""), 3000);
+    } catch { setFeedback("Failed"); setTimeout(() => setFeedback(""), 3000); }
+  };
+
+  // ── Health status ─────────────────────────────────────────────────
+
+  const healthDot = (status: string) => {
+    if (status === "Active") return "🟢";
+    if (status === "Idle") return "🟡";
+    return "🔴";
+  };
+
+  // ── Loading (skeleton) ─────────────────────────────────────────────
+
+  const SkeletonBox = ({ className = "" }: { className?: string }) => (
+    <div className={`bg-stone-900/60 rounded-lg animate-pulse ${className}`} />
+  );
+
+  if (loading) {
+    return (
+      <div className="space-y-8 text-stone-100 max-w-6xl mx-auto">
+        {/* Header skeleton */}
+        <div className="space-y-4">
+          <SkeletonBox className="w-32 h-3 rounded" />
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+            <div className="space-y-2">
+              <SkeletonBox className="w-72 h-8 rounded" />
+              <SkeletonBox className="w-96 h-4 rounded" />
+            </div>
+          </div>
+        </div>
+
+        {/* Stat cards skeleton */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="bg-stone-950 border border-stone-900 rounded-2xl p-5 space-y-3">
+              <SkeletonBox className="w-20 h-3 rounded" />
+              <SkeletonBox className="w-16 h-8 rounded" />
+              <SkeletonBox className="w-28 h-3 rounded" />
+            </div>
+          ))}
+        </div>
+
+        {/* Activity feed skeleton */}
+        <div className="bg-stone-950 border border-stone-900 rounded-2xl p-6 space-y-4">
+          <SkeletonBox className="w-32 h-4 rounded" />
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-4 py-3 border-b border-stone-900/50 last:border-0">
+              <SkeletonBox className="w-8 h-8 rounded-full shrink-0" />
+              <div className="flex-1 space-y-1.5">
+                <SkeletonBox className="w-3/4 h-3 rounded" />
+                <SkeletonBox className="w-1/2 h-2.5 rounded" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  const firstName = userEmail ? userEmail.split("@")[0] : "there";
+  const timeLabel = timeFilter === "24h" ? "today" : timeFilter === "7d" ? "this week" : "this month";
+
+  return (
+    <div className="space-y-8 text-stone-100 max-w-6xl mx-auto">
+
+      {/* ── Hero Header ─────────────────────────────────────────── */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="text-[10px] font-mono tracking-widest text-stone-500 uppercase">Activity Hub</span>
+        </div>
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-black text-white tracking-tight">
+              Good {new Date().getHours() < 12 ? "Morning" : new Date().getHours() < 18 ? "Afternoon" : "Evening"}, {firstName}.
+            </h1>
+            <p className="text-stone-400 text-sm mt-1 max-w-xl leading-relaxed">
+              {totalFilteredTasks > 0
+                ? `Your AI workforce completed ${totalFilteredTasks} tasks ${timeLabel}.`
+                : `Your Activity Hub — monitor your AI workforce and take action ${timeLabel}.`}
+            </p>
+          </div>
+          {/* Time filter toggles */}
+          <div className="flex items-center gap-1 bg-stone-950 border border-stone-900 rounded-xl p-1 shrink-0">
+            {(["24h", "7d", "30d"] as TimeFilter[]).map((tf) => (
+              <button
+                key={tf}
+                onClick={() => setTimeFilter(tf)}
+                className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                  timeFilter === tf
+                    ? "bg-stone-800 text-white"
+                    : "text-stone-500 hover:text-stone-300"
+                }`}
+              >
+                {tf}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Action-Needed Banner ────────────────────────────────── */}
+      {hasActionItems && (
+        <div className="bg-amber-950/20 border border-amber-900/40 rounded-xl px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="text-lg">⚠️</span>
+            <div>
+              <span className="font-bold text-amber-400 text-sm">Action Needed</span>
+              <span className="text-stone-400 text-xs ml-3">
+                {pendingApprovals > 0 && `${pendingApprovals} approval${pendingApprovals > 1 ? "s" : ""} pending`}
+                {pendingApprovals > 0 && errorEmployees.length > 0 && " · "}
+                {errorEmployees.length > 0 && `${errorEmployees.length} AI${errorEmployees.length > 1 ? "s" : ""} need${errorEmployees.length === 1 ? "s" : ""} attention`}
+              </span>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            {pendingApprovals > 0 && (
+              <button onClick={() => document.getElementById("approvals-section")?.scrollIntoView({ behavior: "smooth" })}
+                className="bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs px-4 py-2 rounded-lg transition-all">
+                Review Approvals
+              </button>
+            )}
+            {errorEmployees.length > 0 && (
+              <Link to="/portal/employees" className="bg-stone-800 hover:bg-stone-700 text-stone-200 font-bold text-xs px-4 py-2 rounded-lg transition-all">
+                Check Health →
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── AI Health Summary Row ───────────────────────────────── */}
+      {employees.length > 0 && (
+        <div className="bg-stone-950 border border-stone-900 rounded-xl px-5 py-3">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-stone-500 font-bold">AI Health</span>
+            <Link to="/portal/employees" className="text-[10px] font-mono text-blue-400 hover:text-blue-300 font-bold">All Employees →</Link>
+          </div>
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+            {employees.slice(0, 8).map((emp: any) => (
+              <Link key={emp.id || emp._id} to="/portal/employees/$id" params={{ id: emp.id || emp._id }}
+                className="flex items-center gap-2 text-xs group">
+                <span>{healthDot(emp.status)}</span>
+                <span className="text-stone-300 group-hover:text-white transition-colors font-medium truncate max-w-[120px]">{emp.name}</span>
+              </Link>
+            ))}
+            {employees.length > 8 && (
+              <span className="text-[10px] text-stone-600 font-mono">+{employees.length - 8} more</span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Onboarding checklist for new users ──────────────────── */}
+      {isNewUser && (
+        <div className="bg-stone-950 border border-stone-900 rounded-2xl p-8 text-center max-w-xl mx-auto">
+          <div className="text-4xl mb-4">🚀</div>
+          <h3 className="text-lg font-bold text-white mb-2">Welcome to Simpler Life 100</h3>
+          <p className="text-sm text-stone-400 mb-6 max-w-sm mx-auto leading-relaxed">
+            Your AI workforce dashboard populates once you deploy your first AI Employee. Here's how to get started:
+          </p>
+          <div className="space-y-3 text-left max-w-xs mx-auto mb-6">
+            {onboardingSteps.map((step, i) => (
+              <Link key={i} to={step.link as any}
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all ${
+                  step.done
+                    ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 line-through opacity-60"
+                    : "bg-stone-900 border border-stone-800 text-stone-200 hover:border-stone-700 hover:bg-stone-800"
+                }`}>
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] shrink-0 ${
+                  step.done ? "bg-emerald-500/20 text-emerald-400" : "bg-stone-800 text-stone-400"
+                }`}>{step.done ? "✓" : i + 1}</span>
+                {step.label}
+              </Link>
+            ))}
+          </div>
+          <Link to="/portal/marketplace"
+            className="inline-flex items-center justify-center bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold px-6 py-3 rounded-xl transition-all font-mono text-xs shadow-lg active:scale-95">
+            🛒 Browse AI Employees
+          </Link>
+        </div>
+      )}
+
+      {/* ── Hero Metrics ────────────────────────────────────────── */}
+      {!isNewUser && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            { label: "Tasks", value: `${totalFilteredTasks}`, subtitle: `${timeLabel}`, color: "text-emerald-400", bg: "bg-emerald-500/5 border-emerald-500/20" },
+            { label: "Completed", value: `${tasksCompleted}`, subtitle: `${timeLabel}`, color: "text-blue-400", bg: "bg-blue-500/5 border-blue-500/20" },
+            { label: "Active AIs", value: `${activeEmployees.length}`, subtitle: `${employees.length} total`, color: "text-purple-400", bg: "bg-purple-500/5 border-purple-500/20" },
+            { label: "Integrations", value: `${integrationCount}`, subtitle: `${connectedCount} connected`, color: "text-amber-400", bg: "bg-amber-500/5 border-amber-500/20" },
+          ].map((m, i) => (
+            <div key={i} className={`rounded-xl border p-5 ${m.bg} flex flex-col justify-between gap-3`}>
+              <span className="text-[10px] font-mono uppercase tracking-widest text-stone-500 font-bold">{m.label}</span>
+              <div>
+                <p className={`text-2xl font-black ${m.color}`}><AnimatedNumber value={m.value} /></p>
+                <span className="text-[10px] text-stone-500 font-mono">{m.subtitle}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── Weekly Agent Performance Reports ─────────────────── */}
+      {!isNewUser && activeEmployees.length > 0 && (
+        <div className="bg-stone-950 border border-stone-900 rounded-2xl p-6 space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-sm font-black text-white">📊 Weekly Agent Performance</h2>
+            <span className="text-[10px] font-mono text-stone-500">Last 7 days</span>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="bg-stone-900/60 border border-stone-800 rounded-xl p-4 text-center">
+              <div className="text-2xl font-black text-emerald-400">{activeEmployees.length}</div>
+              <div className="text-[10px] font-mono text-stone-500 mt-1">Active Agents</div>
+            </div>
+            <div className="bg-stone-900/60 border border-stone-800 rounded-xl p-4 text-center">
+              <div className="text-2xl font-black text-blue-400">{filteredTasks.filter((t: any) => t.status === 'Completed').length}</div>
+              <div className="text-[10px] font-mono text-stone-500 mt-1">Tasks Completed</div>
+            </div>
+            <div className="bg-stone-900/60 border border-stone-800 rounded-xl p-4 text-center">
+              <div className="text-2xl font-black text-rose-400">{errorEmployees.length}</div>
+              <div className="text-[10px] font-mono text-stone-500 mt-1">Alerts</div>
+            </div>
+            <div className="bg-stone-900/60 border border-stone-800 rounded-xl p-4 text-center">
+              <div className="text-2xl font-black text-purple-400">{idleEmployees.length}</div>
+              <div className="text-[10px] font-mono text-stone-500 mt-1">Idle Agents</div>
+            </div>
+            <div className="bg-stone-900/60 border border-stone-800 rounded-xl p-4 text-center">
+              <div className="text-2xl font-black text-amber-400">{integrationCount}</div>
+              <div className="text-[10px] font-mono text-stone-500 mt-1">Integrations</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Main Grid ───────────────────────────────────────────── */}
+      {!isNewUser && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+          {/* Left: AI Employees + Activity Feed */}
+          <div className="lg:col-span-2 space-y-8">
+
+            {/* AI Employee Cards */}
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h2 className="text-sm font-black tracking-tight text-white">🤖 AI Workforce</h2>
+                <Link to="/portal/employees" className="text-[10px] font-mono font-bold text-blue-400 hover:text-blue-300">Manage →</Link>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {employees.slice(0, 4).map((emp: any) => {
+                  const empTasks = tasks.filter((t: any) => t.aiEmployee === emp.name).slice(0, 2);
+                  return (
+                    <Link key={emp.id || emp._id} to="/portal/employees/$id" params={{ id: emp.id || emp._id }}
+                      className="bg-stone-950 border border-stone-900 rounded-xl p-5 hover:border-stone-800 transition-all block group">
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <h3 className="text-xs font-bold text-white group-hover:text-blue-400 transition-colors">{emp.name}</h3>
+                          <p className="text-[10px] text-stone-500 mt-0.5">{emp.agentType?.replace(/_/g, " ") || "AI Agent"}</p>
+                        </div>
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-mono uppercase font-bold ${
+                          emp.status === "Active" ? "bg-emerald-950/40 text-emerald-400 border border-emerald-900" :
+                          emp.status === "Idle" ? "bg-stone-900 text-stone-400 border border-stone-800" :
+                          "bg-red-950/40 text-red-400 border border-red-900"
+                        }`}>
+                          {healthDot(emp.status)} {emp.status}
+                        </span>
+                      </div>
+                      {/* Recent Activity */}
+                      {empTasks.length > 0 ? (
+                        <div className="space-y-1.5 pt-3 border-t border-stone-900">
+                          {empTasks.map((t: any, i: number) => (
+                            <div key={i} className="flex items-center gap-2 text-[10px]">
+                              <span className="text-stone-600 shrink-0">{t.status === "Completed" ? "✓" : "⚡"}</span>
+                              <span className="text-stone-400 truncate">{t.result}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="pt-3 border-t border-stone-900 text-[10px] text-stone-600">No recent activity</div>
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Activity Feed */}
+            <div className="space-y-4">
+              <h2 className="text-sm font-black tracking-tight text-white">⚡ Activity Feed</h2>
+              <div className="bg-stone-950 border border-stone-900 rounded-xl divide-y divide-stone-900 overflow-hidden">
+                {filteredTasks.slice(0, 8).length === 0 ? (
+                  <div className="p-6 text-center text-stone-500 text-xs">No activity {timeLabel}.</div>
+                ) : (
+                  filteredTasks.slice(0, 8).map((task: any, idx: number) => (
+                    <div key={idx} className="p-4 hover:bg-stone-900/30 transition-colors flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className={`shrink-0 text-[10px] ${task.status === "Completed" ? "text-emerald-500" : "text-blue-400"}`}>
+                          {task.status === "Completed" ? "✓" : "⚡"}
+                        </span>
+                        <div className="min-w-0">
+                          <span className="font-bold text-white text-[11px]">{task.aiEmployee}</span>
+                          <span className="text-stone-600 mx-1.5 text-[10px]">•</span>
+                          <span className="text-stone-400 text-[11px] truncate">{task.result}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {task.status !== 'Completed' && (
+                          <button
+                            onClick={async (e) => {
+                              e.preventDefault();
+                              try {
+                                await fetch('/api/data/tasks', { method: 'POST', headers: {'Content-Type':'application/json'}, credentials: 'include', body: JSON.stringify({ action: 'complete', resource: task.id || task._id }) });
+                                fetchDashboardData();
+                              } catch {}
+                            }}
+                            className="text-[9px] font-bold text-emerald-400 hover:text-emerald-300 bg-emerald-950/20 border border-emerald-900/40 px-2 py-1 rounded-lg"
+                          >
+                            ✓ Complete
+                          </button>
+                        )}
+                        <span className="text-stone-600 text-[10px] font-mono">
+                          {task.timestamp ? new Date(task.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+          </div>
+
+          {/* Right: Sidebar widgets */}
+          <div className="space-y-6" id="approvals-section">
+
+            {/* Pending Approvals */}
+            <div className="bg-stone-950 border border-stone-900 rounded-xl p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-black text-white">📥 Pending Approvals</h3>
+                {pendingApprovals > 0 && (
+                  <span className="bg-amber-500/10 text-amber-400 text-[9px] font-bold px-2 py-0.5 rounded-md border border-amber-500/20">{pendingApprovals}</span>
+                )}
+              </div>
+              {approvals.length === 0 ? (
+                <div className="text-center py-6">
+                  <div className="text-xl mb-1">🎉</div>
+                  <p className="text-[10px] font-bold text-stone-400">All clear</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {approvals.slice(0, 3).map((app: any) => (
+                    <div key={app.actionId} className="bg-stone-900/50 border border-stone-800 rounded-lg p-3 space-y-2">
+                      <div className="flex justify-between text-[9px] font-mono">
+                        <span className="text-stone-500 truncate">{app.actionId?.slice(0, 12) || "PENDING"}</span>
+                        <span className="text-blue-400">{app.provider || "unknown"}</span>
+                      </div>
+                      <p className="text-[10px] font-bold text-white leading-snug">{app.actionType}</p>
+                      <p className="text-[9px] text-stone-400 leading-relaxed bg-stone-950 rounded-lg p-2">{(app.summary?.what || "No details") + (app.summary?.where ? " \u2192 " + app.summary.where : "")}</p>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <button onClick={() => handleApprovalAction(app.actionId, "approve")}
+                          className="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold py-1.5 rounded-lg transition-all">Approve</button>
+                        <button onClick={() => handleApprovalAction(app.actionId, "reject")}
+                          className="bg-stone-800 hover:bg-stone-700 text-stone-300 text-[10px] font-bold py-1.5 rounded-lg border border-stone-700 transition-all">Reject</button>
+                      </div>
+                    </div>
+                  ))}
+                  {approvals.length > 3 && (
+                    <Link to="/portal/approvals" className="block text-center text-[10px] font-mono text-blue-400 hover:text-blue-300 pt-1">
+                      +{approvals.length - 3} more →
+                    </Link>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Billing / Usage Alert */}
+            {billing.length === 0 && employees.length > 0 && (
+              <div className="bg-blue-950/20 border border-blue-900/30 rounded-xl p-4 space-y-2">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-blue-400 font-bold">💳 Billing</span>
+                <p className="text-[10px] text-stone-400 leading-relaxed">
+                  No active billing plan detected. Your AI workforce is running on trial mode.
+                </p>
+                <Link to="/portal/billing"
+                  className="block text-center text-[10px] font-bold bg-blue-600 hover:bg-blue-500 text-white py-2 rounded-lg transition-all">
+                  View Plans
+                </Link>
+              </div>
+            )}
+            {billing.length > 0 && (
+              <div className="bg-emerald-950/20 border border-emerald-900/30 rounded-xl p-4 space-y-2">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-400 font-bold">💳 Active Plan</span>
+                <p className="text-[10px] text-stone-400 leading-relaxed">
+                  Your billing plan is active. {billing.length} invoice{billing.length > 1 ? "s" : ""} on record.
+                </p>
+                <Link to="/portal/billing"
+                  className="block text-center text-[10px] font-bold bg-stone-800 hover:bg-stone-700 text-stone-200 py-2 rounded-lg border border-stone-700 transition-all">
+                  View Billing →
+                </Link>
+              </div>
+            )}
+
+            {/* Connected Integrations */}
+            <div className="bg-stone-950 border border-stone-900 rounded-xl p-5 space-y-4">
+              <h3 className="text-xs font-black text-white">🔌 Connected Integrations</h3>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-stone-400 font-mono">Available</span>
+                  <span className="text-[10px] font-bold text-white">{integrationCount}+</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-stone-400 font-mono">Connected</span>
+                  <span className="text-[10px] font-bold text-emerald-400">{connectedCount}</span>
+                </div>
+                <div className="w-full bg-stone-900 rounded-full h-1.5 overflow-hidden">
+                  <div className="bg-emerald-500 h-full rounded-full transition-all"
+                    style={{ width: `${integrationCount > 0 ? Math.min((connectedCount / integrationCount) * 100, 100) : 0}%` }} />
+                </div>
+              </div>
+              <Link to="/portal/integrations"
+                className="block text-center text-[10px] font-bold bg-stone-800 hover:bg-stone-700 text-stone-200 py-2 rounded-lg border border-stone-700 transition-all">
+                Connect Tools →
+              </Link>
+            </div>
+
+            {/* Onboarding progress (returning users with incomplete setup) */}
+            {!isNewUser && onboardingProgress < 4 && (
+              <div className="bg-stone-950 border border-stone-900 rounded-xl p-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-black text-white">🚀 Setup Progress</h3>
+                  <span className="text-[9px] font-mono text-stone-500">{onboardingProgress}/4</span>
+                </div>
+                <div className="w-full bg-stone-900 rounded-full h-1.5 overflow-hidden">
+                  <div className="bg-blue-500 h-full rounded-full transition-all"
+                    style={{ width: `${(onboardingProgress / 4) * 100}%` }} />
+                </div>
+                <div className="space-y-1">
+                  {onboardingSteps.filter(s => !s.done).slice(0, 2).map((step, i) => (
+                    <Link key={i} to={step.link as any}
+                      className="flex items-center gap-2 text-[10px] text-stone-400 hover:text-white transition-colors py-1">
+                      <span className="w-4 h-4 rounded-full bg-stone-800 flex items-center justify-center text-[8px] text-stone-500 shrink-0">{i + 1}</span>
+                      {step.label} →
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+          </div>
+        </div>
+      )}
+
+      {/* ── Feedback Toast ──────────────────────────────────────── */}
+      {feedback && (
+        <div className="fixed bottom-6 right-6 bg-stone-900 border border-stone-800 text-white px-5 py-3 rounded-xl shadow-xl z-50 flex items-center gap-3 animate-slideUp font-mono text-xs">
+          <span className="text-emerald-400">✓</span>
+          <span className="font-bold">{feedback}</span>
+        </div>
+      )}
+
+    </div>
+  );
+}
+
+export default ActivityHubDashboard;

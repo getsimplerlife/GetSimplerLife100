@@ -1,17 +1,8 @@
-import { createFileRoute } from '@tanstack/react-router';
-import IndustryHub from '~/components/IndustryHub';
-import { industries } from '~/content/industries';
+import { createFileRoute, lazyRouteComponent } from "@tanstack/react-router";
 import { pageHead } from "~/lib/site-meta";
 
 export const Route = createFileRoute('/industries/$industryId')({
   head: () => pageHead("/industries"),
-  component: IndustryPage,
+  component: lazyRouteComponent(() => import('~/lazy/industries.$industryId.page')),
   notFoundComponent: () => <div className="text-center py-20 text-stone-400">Industry not found</div>,
 });
-
-function IndustryPage() {
-  const { industryId } = Route.useParams();
-  const data = industries.find(i => i.id === industryId);
-  if (!data) return <div className="text-center py-20 text-stone-400">Industry not found</div>;
-  return <IndustryHub data={data} />;
-}
