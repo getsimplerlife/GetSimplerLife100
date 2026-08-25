@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState } from "react";
 import { Header } from "~/components/Header";
 import { Footer } from "~/components/Footer";
 import { pageHead } from "~/lib/site-meta";
@@ -33,6 +34,130 @@ const builderTiers = [
   { name: "Growth", price: 15000, link: "https://buy.stripe.com/5kQ6oJbl5dErc1B1rq2Fa2L", desc: "5 AI employees + full integrations", features: ["5 AI employees", "Full integrations", "All workflow templates", "Priority support", "1 Connection Pack (CRM or ERP — your choice)"], highlight: true },
   { name: "Scale", price: 30000, link: "https://buy.stripe.com/aFa7sN60LdErc1B5HG2Fa2M", desc: "Unlimited AI employees", features: ["Unlimited AI employees", "Custom workflows", "Dedicated account manager", "24/7 support", "1 Connection Pack (CRM or ERP — your choice)", "API access", "SLA guarantee"] },
 ];
+// Number of AI employees included in each builder package's monthly billing.
+// Starter = 2, Growth = 5, Scale = unlimited (null). Selecting more than this
+// count adds their catalog monthly price on top.
+const TIER_INCLUDED: Record<string, number | null> = {
+  Starter: 2,
+  Growth: 5,
+  Scale: null,
+};
+function PricingCalculator() {
+  const [tierName, setTierName] = useState<string>(builderTiers[1].name);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const tier = builderTiers.find((t) => t.name === tierName) ?? builderTiers[1];
+
+  const toggleAgent = (name: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  };
+
+  const setupTotal = tier.price;
+  // Every selected AI employee is billed monthly at its catalog price. The
+  // package's included count is surfaced for clarity; employees beyond that
+  // count simply add their monthly price on top.
+  const monthlyTotal = agents
+    .filter((a) => selected.has(a.name))
+    .reduce((sum, a) => sum + a.price, 0);
+  const selectedCount = agents.filter((a) => selected.has(a.name)).length;
+
+  return (
+    <section id="calculator" className="max-w-6xl mx-auto px-6 pb-16">
+      <h2 className="text-2xl font-black text-center mb-2">Pricing Calculator</h2>
+      <p className="text-stone-400 text-center text-sm max-w-2xl mx-auto mb-8">
+        Pick a builder package and select AI employees. The one-time package is setup only — your AI employees are billed <span className="text-white font-bold">monthly, separately</span>.
+      </p>
+      {/* Tier radios */}
+      <div className="grid md:grid-cols-3 gap-4 mb-8">
+        {builderTiers.map((t) => {
+          const active = t.name === tierName;
+          const inc = TIER_INCLUDED[t.name];
+          return (
+            <button
+              key={t.name}
+              type="button"
+              onClick={() => setTierName(t.name)}
+              aria-pressed={active}
+              className={`text-left rounded-2xl border p-5 transition-all ${
+                active
+                  ? "border-emerald-500/60 bg-emerald-500/10 ring-1 ring-emerald-500/30"
+                  : "border-stone-800 bg-stone-900/50 hover:border-stone-700"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="font-black text-white">{t.name}</span>
+                <span className={`w-4 h-4 rounded-full border-2 grid place-items-center ${active ? "border-emerald-400" : "border-stone-600"}`}>
+                  {active && <span className="w-2 h-2 rounded-full bg-emerald-400" />}
+                </span>
+              </div>
+              <div className="mt-2 text-lg font-black text-white">
+                ${t.price.toLocaleString("en-US")}
+                <span className="text-stone-500 text-xs font-normal"> one-time setup</span>
+              </div>
+              <div className="text-xs text-stone-400 mt-1">
+                {inc === null ? "Unlimited" : `${inc}`} AI employee{inc === 1 ? "" : "s"} included
+              </div>
+            </button>
+          );
+        })}
+      </div>
+      {/* Employee selection */}
+      <div className="bg-stone-900/40 border border-stone-800 rounded-2xl p-5 sm:p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-black text-white">Select AI employees</h3>
+          <span className="text-xs text-stone-400">
+            {selectedCount} selected · {TIER_INCLUDED[tierName] === null ? "all included" : `${TIER_INCLUDED[tierName]} included, extra billed monthly`}
+          </span>
+        </div>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+          {agents.map((agent) => {
+            const checked = selected.has(agent.name);
+            return (
+              <label
+                key={agent.name}
+                className={`flex items-start gap-2 rounded-xl border p-3 cursor-pointer transition-all ${
+                  checked ? "border-emerald-500/50 bg-emerald-500/5" : "border-stone-800 bg-stone-950 hover:border-stone-700"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => toggleAgent(agent.name)}
+                  className="mt-1 accent-emerald-500"
+                />
+                <span className="flex-1 min-w-0">
+                  <span className="block text-xs font-bold text-white leading-tight">{agent.icon} {agent.name}</span>
+                  <span className="block text-[11px] text-emerald-400 font-bold mt-0.5">${agent.price}/mo</span>
+                </span>
+              </label>
+            );
+          })}
+        </div>
+      </div>
+      {/* Live total panel */}
+      <div className="mt-8 bg-stone-950 border border-emerald-500/20 rounded-2xl p-6 sm:p-8">
+        <h3 className="text-sm font-mono font-black text-emerald-400 uppercase tracking-wider mb-4">Your estimate</h3>
+        <div className="space-y-3">
+          <div className="flex items-baseline justify-between gap-4 border-b border-stone-800 pb-3">
+            <span className="text-sm text-stone-300">One-time setup (due at purchase)</span>
+            <span className="text-2xl font-black text-white">${setupTotal.toLocaleString("en-US")}</span>
+          </div>
+          <div className="flex items-baseline justify-between gap-4">
+            <span className="text-sm text-stone-300">Monthly AI-employee fees (first bill 1 month after purchase)</span>
+            <span className="text-2xl font-black text-emerald-400">${monthlyTotal.toLocaleString("en-US")}/mo</span>
+          </div>
+        </div>
+        <p className="text-xs text-stone-500 mt-4">
+          Your first AI-employee bill is due 1 month after your purchase date, then monthly.
+        </p>
+      </div>
+    </section>
+  );
+}
 
 function PricingPage() {
   return (
@@ -95,6 +220,8 @@ function PricingPage() {
         </div>
       </section>
 
+      {/* Pricing Calculator */}
+      <PricingCalculator />
       {/* Individual Agents */}
       <section className="max-w-6xl mx-auto px-6 pb-16">
         <h2 className="text-2xl font-black text-center mb-2">Individual AI Employees</h2>

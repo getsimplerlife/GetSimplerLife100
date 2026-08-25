@@ -12,11 +12,11 @@ export const Route = createFileRoute("/")({
 });
 
 const topVerticals = [
-  { name: "Energy", slug: "energy", result: "25–40 hours saved per analyst/mo", icon: "⚡", color: "#059669", demo: "/demos/energy" },
-  { name: "Manufacturing", slug: "manufacturing", result: "Reduced order processing time by 85%", icon: "🏭", color: "#0891b2", demo: "/demos/manufacturing" },
-  { name: "Automotive", slug: "automotive", result: "3-month implementation payback", icon: "🚗", color: "#ca8a04" },
-  { name: "Financial Services", slug: "financial-services", result: "100% data extraction accuracy", icon: "💰", color: "#15803d" },
-  { name: "Logistics", slug: "logistics", result: "Saved 140 labor hours every month", icon: "🚚", color: "#d97706" },
+  { name: "Energy", slug: "energy", result: "Automates invoice & compliance data entry", icon: "⚡", color: "#059669", demo: "/demos/energy" },
+  { name: "Manufacturing", slug: "manufacturing", result: "Automates order & invoice processing", icon: "🏭", color: "#0891b2", demo: "/demos/manufacturing" },
+  { name: "Automotive", slug: "automotive", result: "Automates supplier & purchase-order workflows", icon: "🚗", color: "#ca8a04" },
+  { name: "Financial Services", slug: "financial-services", result: "Automates document & ledger data entry", icon: "💰", color: "#15803d" },
+  { name: "Logistics", slug: "logistics", result: "Automates dispatch & routing workflows", icon: "🚚", color: "#d97706" },
 ];
 
 const allIndustries = [
@@ -107,7 +107,7 @@ const blueprintTemplates = {
   invoice: {
     title: "Invoice & AP Integration Map",
     steps: [
-      { label: "Intake Trigger", icon: "📥", desc: "Ivy Invoice monitors incoming email attachments & files." },
+      { label: "Intake Trigger", icon: "📥", desc: "Monitors incoming email attachments & files." },
       { label: "OCR Extraction", icon: "🧠", desc: "Extracts table line items, totals, and invoice IDs." },
       { label: "ERP/GL Match", icon: "🔌", desc: "Synchronizes validated bills directly into Xero (QuickBooks in development)." },
       { label: "Dispatch Ping", icon: "💬", desc: "Dispatches structural audit log to Slack #finance channel." }
@@ -117,7 +117,7 @@ const blueprintTemplates = {
     title: "Carrier Dispatch Automation Map",
     steps: [
       { label: "Carrier Inquiry", icon: "📧", desc: "Monitors and filters high-volume carrier bid streams." },
-      { label: "TMS Rule Evaluation", icon: "🧠", desc: "Quentin Quote queries shipment matching criteria." },
+      { label: "TMS Rule Evaluation", icon: "🧠", desc: "Queries shipment matching criteria against your TMS rules." },
       { label: "Conditional Review", icon: "🎛️", desc: "Routes outliers above budget thresholds for manual signoff." },
       { label: "Auto-Confirm", icon: "✅", desc: "Dispatches route confirmation to carrier, closing loop." }
     ]
@@ -209,9 +209,9 @@ function Home() {
 
               {/* Stats Bar */}
               <div className="flex flex-wrap gap-4 text-[10px] font-mono text-stone-400">
-                <span className="bg-stone-900 border border-stone-800 px-3 py-1.5 rounded-lg"><span className="text-emerald-400 font-bold">18</span> AI Employees</span>
-                <span className="bg-stone-900 border border-stone-800 px-3 py-1.5 rounded-lg"><span className="text-emerald-400 font-bold">14</span> Portal Tools</span>
-                <span className="bg-stone-900 border border-stone-800 px-3 py-1.5 rounded-lg"><span className="text-emerald-400 font-bold">23</span> Industries</span>
+                <span className="bg-stone-900 border border-stone-800 px-3 py-1.5 rounded-lg">💼 AI Employees on demand</span>
+                <span className="bg-stone-900 border border-stone-800 px-3 py-1.5 rounded-lg">🧰 Full portal toolkit</span>
+                <span className="bg-stone-900 border border-stone-800 px-3 py-1.5 rounded-lg">🏭 Industry-specific agents</span>
                 <span className="bg-stone-900 border border-stone-800 px-3 py-1.5 rounded-lg"><span className="text-emerald-400 font-bold">🔐</span> Real Credential Validation</span>
               </div>
 
@@ -271,7 +271,7 @@ function Home() {
                   <div className="bg-stone-950 border border-stone-800/80 rounded-2xl p-4 space-y-4 animate-fadeIn">
                     <div className="flex justify-between items-center border-b border-stone-800 pb-2.5">
                       <h4 className="text-xs font-black text-white font-mono tracking-tight">{activeTemplate.title}</h4>
-                      <span className="text-[9px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded font-black">99.2% ACCURACY</span>
+                      <span className="text-[9px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded font-black">SAMPLE BLUEPRINT</span>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                       {activeTemplate.steps.map((st, i) => (
@@ -369,70 +369,44 @@ function Home() {
           </div>
         </section>
 
-        {/* ─── Detailed Case Study Card ( fold-area ) ─── */}
+        {/* ─── How an AI Operations Team Works ─── */}
         <section className="px-4 py-16 bg-stone-900 border-b border-stone-800/80">
           <div className="max-w-7xl mx-auto space-y-8">
             <div className="border-l-4 border-emerald-600 pl-4">
-              <span className="text-[10px] font-mono font-bold tracking-widest text-stone-400 uppercase block">CUSTOMER TRIAL SUCCESS</span>
-              <h2 className="text-3xl font-black tracking-tight text-stone-950">Vanguard Precision Manufacturing</h2>
+              <span className="text-[10px] font-mono font-bold tracking-widest text-stone-400 uppercase block">HOW AN AI OPERATIONS TEAM WORKS</span>
+              <h2 className="text-3xl font-black tracking-tight text-stone-950">From bottleneck to automation blueprint</h2>
             </div>
 
             <div className="bg-stone-950 border border-stone-900 rounded-[2.5rem] p-6 lg:p-12 shadow-black/20 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-              
               {/* Context Block */}
               <div className="lg:col-span-7 space-y-6">
-                <div>
-                  <span className="text-[9px] font-mono bg-stone-900 text-stone-400 border border-stone-900 px-2 py-0.5 rounded font-bold uppercase mr-2">INDUSTRY</span>
-                  <span className="text-xs text-stone-400 font-bold">Aviation & Aerospace Defense (50-person manufacturer)</span>
-                </div>
                 <h3 className="text-2xl font-black text-stone-100 leading-tight">
-                  Reclaiming AP labor: Reducing fax and PDF processing from 18 minutes to 2 minutes.
+                  Tell us your most repetitive manual process. We map the workflow, choose the right AI employees, and connect your tools.
                 </h3>
                 <div className="space-y-4 text-stone-400 text-sm leading-relaxed">
                   <p>
-                    Vanguard precision manufacturing processed hundreds of supply-chain supplier invoice PDFs, handwritten faxes, and delivery logs manually. Staff was burdened copying records, tracking line-items, and verifying data values against ERP entries.
+                    Every Simpler Life 100 deployment starts the same way: you describe a specific operational bottleneck, and we build the AI operations team around it — the right employees, the right workflows, and the integrations already live on the platform (Xero, Slack, Google, Microsoft, HubSpot, and DocuSign today).
                   </p>
                   <p>
-                    Simpler Life deployed **Ivy Invoice (Billing Coordinator)** to auto-monitor accounts, utilize advanced OCR to parse table records, reconcile items against standard inventories, and sync clean logs.
+                    Nothing is claimed as working until it is verified. Every integration is live-tested before it is listed, and every AI action goes through a human approval queue before it touches your systems.
                   </p>
                 </div>
               </div>
 
-              {/* Visual Before/After & Metrics Block */}
+              {/* Process Steps */}
               <div className="lg:col-span-5 bg-stone-900 border border-stone-900 rounded-3xl p-6 sm:p-8 space-y-6">
-                
-                {/* Timeline Visual comparison */}
                 <div className="space-y-4">
                   <div className="space-y-1">
-                    <div className="flex justify-between text-[10px] font-mono text-stone-400 uppercase font-black">
-                      <span>BEFORE (Manual Entry)</span>
-                      <span className="text-rose-600">18 minutes / bill</span>
-                    </div>
-                    <div className="w-full bg-stone-700 h-3 rounded-full overflow-hidden">
-                      <div className="bg-rose-600 h-full rounded-full" style={{ width: "100%" }} />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-[10px] font-mono text-stone-400 uppercase font-black">
-                      <span>AFTER (Simpler Life Employee)</span>
-                      <span className="text-emerald-600">2 minutes / bill</span>
-                    </div>
-                    <div className="w-full bg-stone-700 h-3 rounded-full overflow-hidden">
-                      <div className="bg-emerald-600 h-full rounded-full animate-pulse" style={{ width: "11%" }} />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Metrics Grid */}
-                <div className="grid grid-cols-2 gap-4 border-t border-stone-900 pt-5 text-center">
-                  <div className="space-y-1">
-                    <div className="text-[9px] font-mono text-stone-400 uppercase block font-bold">Labor Reclaimed</div>
-                    <div className="text-xl font-black text-stone-100">$12,000 / mo</div>
+                    <div className="text-[10px] font-mono text-stone-300 uppercase font-black">1 · Describe the bottleneck</div>
+                    <p className="text-sm text-stone-400">You tell us which manual process eats the most time.</p>
                   </div>
                   <div className="space-y-1">
-                    <div className="text-[9px] font-mono text-stone-400 uppercase block font-bold">Data Accuracy</div>
-                    <div className="text-xl font-black text-stone-100">100% Correct</div>
+                    <div className="text-[10px] font-mono text-stone-300 uppercase font-black">2 · We map the workflow</div>
+                    <p className="text-sm text-stone-400">We lay out the steps, choose the AI employees, and plan the integrations.</p>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="text-[10px] font-mono text-stone-300 uppercase font-black">3 · Deploy with approvals</div>
+                    <p className="text-sm text-stone-400">Your team reviews every action before it runs, with connections kept valid and monitored.</p>
                   </div>
                 </div>
               </div>
@@ -550,36 +524,33 @@ function Home() {
           </div>
         </section>
 
-        {/* Customer Results Section */}
+        {/* What We Build — honest capabilities */}
         <section className="px-6 py-16 sm:py-32 bg-stone-950">
           <div className="max-w-7xl mx-auto">
             <div className="grid md:grid-cols-3 gap-12">
               <div className="p-8 border-l-4 border-emerald-600 bg-stone-900 rounded-r-3xl">
-                <div className="text-stone-400 font-bold uppercase tracking-widest text-xs mb-2">Manufacturing Client</div>
-                <div className="text-3xl font-black text-white mb-4">18 mins → 2 mins</div>
-                <p className="text-stone-400 font-medium">Reduced manual order processing time by over 85% per transaction.</p>
+                <div className="text-stone-400 font-bold uppercase tracking-widest text-xs mb-2">Built around your real workflow</div>
+                <p className="text-stone-400 font-medium">We start from the specific process you describe — not a generic template — and map the steps, tools, and AI employees that fit it.</p>
               </div>
               <div className="p-8 border-l-4 border-emerald-600 bg-stone-900 rounded-r-3xl">
-                <div className="text-stone-400 font-bold uppercase tracking-widest text-xs mb-2">Logistics Client</div>
-                <div className="text-3xl font-black text-white mb-4">140 hours / month</div>
-                <p className="text-stone-400 font-medium">Total labor hours saved across the dispatch team in the first 30 days.</p>
+                <div className="text-stone-400 font-bold uppercase tracking-widest text-xs mb-2">Live integrations only</div>
+                <p className="text-stone-400 font-medium">Xero, Slack, Google, Microsoft, HubSpot, and DocuSign are connected and verified today. Everything else in the catalog is marked in development until it's proven.</p>
               </div>
               <div className="p-8 border-l-4 border-emerald-600 bg-stone-900 rounded-r-3xl">
-                <div className="text-stone-400 font-bold uppercase tracking-widest text-xs mb-2">Healthcare Practice</div>
-                <div className="text-3xl font-black text-white mb-4">73% Reduction</div>
-                <p className="text-stone-400 font-medium">Decrease in scheduling-related phone calls via automated patient reminders.</p>
+                <div className="text-stone-400 font-bold uppercase tracking-widest text-xs mb-2">Humans stay in control</div>
+                <p className="text-stone-400 font-medium">Every AI action runs through an approval queue, and connections keep alive on their own — failures escalate loudly, never silently.</p>
               </div>
             </div>
           </div>
         </section>
 
-        {/* ROI Table by Industry */}
+        {/* Automation Opportunities by Industry */}
         <section id="industries" className="px-6 py-16 sm:py-32 bg-stone-950 text-white">
           <div className="max-w-7xl mx-auto">
             <div className="mb-20 space-y-4">
-              <h2 className="text-4xl lg:text-6xl font-black tracking-tight">Proven Time Savings by Industry</h2>
+              <h2 className="text-4xl lg:text-6xl font-black tracking-tight">Automation Opportunities by Industry</h2>
               <p className="text-xl text-stone-400 max-w-2xl">
-                Average time reclaimed for clients within the first 6 months of deployment.
+                The highest-friction workflows we automate across industries.
               </p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -595,7 +566,7 @@ function Home() {
             </div>
             <div className="mt-16 text-center">
               <Link to="/assessment" className="inline-flex items-center gap-2 font-bold text-emerald-400 hover:text-emerald-300 transition-colors">
-                View all industry benchmarks <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+                View all industry workflows <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
               </Link>
             </div>
           </div>
