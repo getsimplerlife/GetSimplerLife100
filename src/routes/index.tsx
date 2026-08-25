@@ -201,10 +201,10 @@ function Home() {
                 ACTIVE COGNITIVE WORKFORCES
               </span>
               <h1 className="text-4xl sm:text-5xl lg:text-7xl font-black tracking-tight text-white leading-[1.1] max-w-2xl">
-                Stop copy-pasting. Reclaim <span className="text-emerald-600">80%</span> of your team's time.
+                Your proposal-to-cash runs on copy-paste. We automate it end to end.
               </h1>
               <p className="text-lg lg:text-xl text-stone-400 max-w-xl leading-relaxed">
-                Describe your worst operational bottleneck in English. Our AI analyzes, maps, and compiles a custom automation blueprint instantly.
+For professional-services firms on Xero and HubSpot. Every signed proposal currently means hours of re-keying deals into HubSpot, drafting invoices, and chasing file saves. That step disappears — automatically.
               </p>
 
               {/* Stats Bar */}
@@ -234,9 +234,9 @@ function Home() {
                 <div className="flex flex-wrap gap-2 items-center">
                   <span className="text-[10px] text-stone-400 font-mono">QUICK EXAMPLES:</span>
                   {[
-                    { label: "AP/Invoice Parsing", prompt: "Auto-read scanned invoice PDFs, extract line-items, update QuickBooks and notify Slack" },
-                    { label: "Logistics Dispatching", prompt: "Filter incoming carrier route bid faxes, match capacity on TMS, and send confirmation" },
-                    { label: "Patient Registration", prompt: "Process patient registration faxes, run eligibility checks, and update clinical EMR data" }
+                    { label: "Proposal → e-sign", prompt: "Send the signed proposal to e-signature, then move it into our workflow" },
+                    { label: "Deal → HubSpot", prompt: "Create the HubSpot deal and contact from every signed proposal" },
+                    { label: "Invoice → Xero", prompt: "Draft the invoice in Xero and notify the team on Slack" }
                   ].map(ex => (
                     <button
                       key={ex.label}
@@ -292,7 +292,7 @@ function Home() {
               <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
               
               <div className="space-y-1 relative z-10">
-                <h3 className="text-lg font-black tracking-tight text-white">Live ROI Calculator</h3>
+                <h3 className="text-lg font-black tracking-tight text-white">Quote-to-Cash Time, Reclaimed</h3>
                 <p className="text-stone-400 text-xs font-mono">Calculate your team's labor savings instantly</p>
               </div>
 
@@ -741,13 +741,49 @@ function Home() {
                   </div>
                 </div>
               </div>
-              <div className="bg-stone-900/50 backdrop-blur-lg p-12 rounded-[3rem] border border-white/10 text-center space-y-8">
+              <div className="bg-stone-900/50 backdrop-blur-lg p-12 rounded-[3rem] border border-white/10 space-y-8">
                 <div className="text-emerald-400 font-bold uppercase tracking-widest text-xs">Start Today</div>
-                <h3 className="text-4xl font-black leading-tight">Identify where AI can save you the most time.</h3>
+                <h3 className="text-4xl font-black leading-tight">That's our day, too. Here's what disappears.</h3>
+                <p className="text-stone-400 text-sm md:text-base leading-relaxed max-w-3xl mx-auto">
+                  Your ops lead knows the quote-to-cash drill by heart. A proposal gets signed, then a human spends
+                  hours re-keying the deal into HubSpot, drafting the Xero invoice, drafting the Slack message, and
+                  filing the PDF somewhere it'll never be found again.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-left text-stone-300">
+                  {[
+                    { icon: "📝", t: "Proposal", d: "Prepared and sent for e-signature." },
+                    { icon: "✍️", t: "DocuSign", d: "Signed, and we're notified the moment it lands." },
+                    { icon: "🤝", t: "HubSpot", d: "Deal + contact created and updated automatically." },
+                    { icon: "🧾", t: "Xero", d: "Invoice drafted and ready for your review." },
+                    { icon: "💬", t: "Slack", d: "Team notified — nothing siloed." },
+                    { icon: "📁", t: "Google / Microsoft", d: "Docs filed where they belong." }
+                  ].map((st) => (
+                    <div key={st.t} className="flex items-start gap-3 bg-stone-950/40 border border-stone-900 rounded-2xl p-4">
+                      <span className="text-xl">{st.icon}</span>
+                      <div>
+                        <div className="text-xs font-black text-white uppercase tracking-wider">{st.t}</div>
+                        <div className="text-xs text-stone-400 mt-0.5">{st.d}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="bg-stone-950/50 border border-emerald-500/20 rounded-2xl p-6 text-left">
+                  <div className="text-emerald-400 text-xs font-black uppercase tracking-widest mb-2">Built on honest, verified integration</div>
+                  <p className="text-stone-400 text-sm leading-relaxed">
+                    Xero, HubSpot, DocuSign, Slack, and Google/Microsoft connections are real and live-tested — nothing on
+                    this page is claimed working until it is. Every action passes a human approval queue before it runs.
+                    QuickBooks is in development and will be added soon.
+                  </p>
+                  <div className="mt-4 text-sm text-stone-200">
+                    <span className="font-black text-white">Design-Partner Program: </span>
+                    we're onboarding a small number of professional-services firms for early access and discounted
+                    onboarding in exchange for being a reference. If that's you, start the assessment below.
+                  </div>
+                </div>
                 <Link to="/contact" className="inline-flex items-center justify-center w-full bg-stone-950 text-stone-100 py-5 rounded-2xl font-bold text-xl hover:bg-stone-900 transition-all min-h-[56px]">
-                  Stop Copy-Pasting. Reclaim Your Time ➜
+                  Start the 30-Second Assessment ➜
                 </Link>
-                <p className="text-stone-400 text-sm font-medium">No credit card required. 30-minute assessment.</p>
+                <p className="text-stone-400 text-sm font-medium">Returns a personalized quote-to-cash plan you can keep. No credit card required.</p>
               </div>
             </div>
           </div>
