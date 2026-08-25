@@ -115,6 +115,7 @@ function QuoteToCashFlow() {
 const EXAMPLES = [
   { label: "Signed deal → HubSpot", prompt: "Every signed proposal: create the HubSpot deal and contact and notify Slack" },
   { label: "Invoice draft → Xero", prompt: "When a proposal is signed, draft the Xero invoice and post to Slack" },
+  { label: "Monitor Xero → Slack", prompt: "Watch Xero for new invoices and overdue balances and alert the team in Slack" },
   { label: "Docs → Drive", prompt: "File each signed proposal's docs into the right Google Drive folder" },
 ];
 
@@ -170,19 +171,21 @@ function Home() {
               <div className="space-y-8">
                 <Reveal>
                   <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-1.5 text-xs font-bold text-emerald-300">
-                    Built for professional-services firms on Xero &amp; HubSpot
+                    Automate + monitor your operations — across your stack and industry
                   </div>
                 </Reveal>
                 <Reveal delay={80}>
                   <h1 className="max-w-2xl text-4xl font-black leading-[1.08] tracking-tight text-white sm:text-5xl lg:text-6xl">
-                    Your proposal-to-cash runs on copy-paste.
-                    <span className="text-emerald-400"> We automate it end to end.</span>
+                    Your operations shouldn't run on manual work.
+                    <span className="text-emerald-400"> We automate and monitor them — end to end.</span>
                   </h1>
                 </Reveal>
                 <Reveal delay={140}>
                   <p className="max-w-xl text-lg leading-relaxed text-stone-400">
-                    Every signed proposal means hours of re-keying the deal into HubSpot, drafting the invoice, chasing
-                    Slack, and filing docs. That step disappears — automatically, from proposal to payment.
+                    Simpler Life 100 is an AI operations team that automates the repetitive work and keeps watch over
+                    your authorized systems — for your firm and for your customers, across your stack and industry.
+                    For professional-services firms, quote-to-cash is the natural first anchor: a signed proposal moves
+                    itself through HubSpot, Xero (or QuickBooks), Slack, and your document filing.
                   </p>
                 </Reveal>
                 <Reveal delay={200} className="flex flex-wrap items-center gap-4">
@@ -242,9 +245,9 @@ function Home() {
                     {compiling === "done" ? (
                       <span className="font-semibold text-emerald-400">✓ Ready</span>
                     ) : (
-                      <span className="font-semibold">Drawing your quote-to-cash map…</span>
+                      <span className="font-semibold">Mapping it to your tools…</span>
                     )}{" "}
-                    — proposal → e-sign → HubSpot → Xero → Slack → filed.
+                    — automate and monitor, end to end.
                   </div>
                 </div>
               </Reveal>
@@ -257,7 +260,7 @@ function Home() {
           <div className="mx-auto max-w-7xl">
             <div className="mb-12 max-w-2xl space-y-4">
               <Reveal>
-                <div className="text-xs font-black uppercase tracking-widest text-emerald-400">That's my day</div>
+                <div className="text-xs font-black uppercase tracking-widest text-emerald-400">A concrete example</div>
               </Reveal>
               <Reveal delay={60}>
                 <h2 className="text-3xl font-black leading-tight text-white sm:text-4xl lg:text-5xl">
@@ -266,8 +269,10 @@ function Home() {
               </Reveal>
               <Reveal delay={120}>
                 <p className="text-lg leading-relaxed text-stone-400">
-                  Today, a human spends hours copy-pasting and re-keying. With Simpler Life 100, one signed proposal
-                  moves itself through each step below — every one a real, verified connection.
+                  Quote-to-cash is one example of what an AI operations team does. Today a human spends hours
+                  copy-pasting and re-keying; with Simpler Life 100, one signed proposal moves itself through each step
+                  below — every one a real, verified connection. The same pattern automates and monitors the rest of
+                  your operations.
                 </p>
               </Reveal>
             </div>
