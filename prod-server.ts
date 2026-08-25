@@ -5,6 +5,15 @@ import { createHash, randomBytes } from "crypto";
 import { resolveDataDir, isInsidePublishTree, readJSON, readJSONLive, writeJSON, seedDataFiles, bucketConnectionsByCategory, migrateLegacyData, findLegacyDataDir, countConnections, mergeDurableCredential } from "./src/lib/data-store";
 import { detectPackType, buildPackPurchase, verifyStripeSignature, matchAgentByPaymentLink, matchAgentByMetadata, detectPlanType, buildPlanPurchase, planAgentIds } from "./src/lib/stripe-webhook";
 import { buildOwnerSaleEvent, provisionAccountForPurchase, ownerSaleEmailBody } from "./src/lib/purchase-sales-events";
+import {
+  generateResetCode,
+  hashResetCode,
+  newPasswordResetRecord,
+  verifyPasswordReset,
+  isPasswordResetRateLimited,
+  MAX_RESET_SENDS_PER_WINDOW,
+  MAX_RESET_VERIFY_ATTEMPTS,
+} from "./src/lib/password-reset";
 import { AGENTS } from "./src/data/agents";
 import { initDurableStore, durableEnabled, durableKeyCount, durableStoreStatus, durableSnapshotBackup, durableFlush } from "./src/lib/durable-store";
 import { startScheduledTokenRefresher, scheduledRefresherStats, REFRESHER_TICK_MS, type RefreshTokenValidator } from "./src/lib/token-refresher";
@@ -50,6 +59,7 @@ const BUILD_ID = Date.now().toString(36);
 const DIST_CLIENT = join(typeof import.meta?.dir !== "undefined" ? import.meta.dir : __dirname, "dist");
 const DATA_DIR = resolveDataDir(process.env.DATA_DIR, typeof import.meta?.dir !== "undefined" ? import.meta.dir : __dirname);
 const USERS_FILE = join(DATA_DIR, "users.json");
+const PASSWORD_RESETS_FILE = join(DATA_DIR, "password_resets.json");
 const SESSIONS_FILE = join(DATA_DIR, "sessions.json");
 const TENANT_INTEGRATIONS_FILE = join(DATA_DIR, "tenant_integrations.json");
 const AI_EMPLOYEES_FILE = join(DATA_DIR, "ai_employees.json");
@@ -573,16 +583,72 @@ serve({
       } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e))); return Response.json({ error: "Invalid request" }, { status: 400 }); }
     }
 
+    // ── Password reset — proof-of-ownership OTP flow (owner-flagged 08-25) ──
+    // Step 1: request a one-time code. It is emailed to the account address via
+    // the real SendGrid/SMTP path and stored ONLY as a secret-salted SHA-256 hash
+    // (never plaintext), short TTL, single-use, send+attempt rate-limited. A
+    // generic response is returned for unknown emails so this endpoint does not
+    // become an account-enumeration oracle.
+    if (pathname === "/api/request-password-reset" && req.method === "POST") {
+      try {
+        const body = await req.json();
+        const email = String(body?.email || "").toLowerCase().trim();
+        if (!email) return Response.json({ error: "Email required" }, { status: 400 });
+        const users = readJSON(USERS_FILE);
+        const resets = readJSON(PASSWORD_RESETS_FILE);
+        const now = Date.now();
+        // Only issue codes for existing accounts, but always answer generically.
+        if (users[email]) {
+          if (isPasswordResetRateLimited(resets[email], now)) {
+            return Response.json({ success: false, error: "Too many reset requests. Please try again later." }, { status: 429 });
+          }
+          const code = generateResetCode();
+          resets[email] = newPasswordResetRecord(code, now, resets[email]);
+          writeJSON(PASSWORD_RESETS_FILE, resets);
+          const smtp = await sendEmailSMTP({
+            to: email,
+            subject: "Your Simpler Life 100 password reset code",
+            body: "We received a request to reset the password for " + email + ".\n\nYour one-time reset code is: " + code + "\n\nThis code expires in 10 minutes and can only be used once. If you did not request a password reset, you can safely ignore this email.",
+          });
+          // NEVER log the plaintext code or any new password.
+          console.log("[auth] password-reset code issued for " + email + " (delivered=" + (smtp.sent ? "yes" : "no") + ")");
+          return Response.json({ success: true, sent: smtp.sent });
+        }
+        return Response.json({ success: true, sent: false });
+      } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e))); return Response.json({ error: "Invalid request" }, { status: 400 }); }
+    }
+    // Step 2: exchange a valid, unexpired, unused OTP for a new password. Without
+    // a correct code — proof the requester controls the account email — the
+    // password is NEVER changed. Failed attempts (and expiry/exhaustion) burn the
+    // code so it cannot be brute-forced or replayed.
     if (pathname === "/api/set-password" && req.method === "POST") {
       try {
-        const { email, password } = await req.json();
-        if (!email || !password) return Response.json({ error: "Email and password required" }, { status: 400 });
-        if (password.length < 6) return Response.json({ error: "Password must be at least 6 characters" }, { status: 400 });
+        const body = await req.json();
+        const email = String(body?.email || "").toLowerCase().trim();
+        const code = String(body?.code || "");
+        const password = String(body?.password || "");
+        if (!email || !code || !password) return Response.json({ error: "Email, reset code, and new password are required" }, { status: 400 });
+        if (password.length < 8) return Response.json({ error: "Password must be at least 8 characters" }, { status: 400 });
+        const resets = readJSON(PASSWORD_RESETS_FILE);
+        const rec = resets[email];
+        const now = Date.now();
+        const status = verifyPasswordReset(rec, code, now);
+        if (status !== "ok") {
+          if (rec) {
+            rec.attempts = (rec.attempts || 0) + 1;
+            if (status === "expired" || rec.attempts >= MAX_RESET_VERIFY_ATTEMPTS) rec.used = true;
+            writeJSON(PASSWORD_RESETS_FILE, resets);
+          }
+          return Response.json({ error: "Invalid or expired reset code. Request a new one." }, { status: 400 });
+        }
         const { hash } = await import("bcryptjs");
         const hashedPassword = await hash(password, 10);
         const users = readJSON(USERS_FILE);
-        users[email] = { email, password: hashedPassword, role: users[email]?.role || "user", createdAt: users[email]?.createdAt || Date.now() };
+        const existing = users[email] || {};
+        users[email] = { ...existing, email, password: hashedPassword, role: existing.role || "user", createdAt: existing.createdAt || Date.now() };
         writeJSON(USERS_FILE, users);
+        rec.used = true;
+        writeJSON(PASSWORD_RESETS_FILE, resets);
         return Response.json({ success: true });
       } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e))); return Response.json({ error: "Invalid request" }, { status: 400 }); }
     }

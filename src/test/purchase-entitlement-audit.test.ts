@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { join } from "path";
 import { createHmac } from "crypto";
 import { ensureTestServer, testBaseUrl, testDataDir } from "./test-env";
+import { hashResetCode, newPasswordResetRecord } from "../lib/password-reset";
 
 /**
  * purchase-entitlement-audit.test.ts — post-deploy purchase-flow integrity
@@ -46,6 +47,7 @@ const TEST_DATA_DIR = testDataDir();
 const PURCHASES_FILE = join(TEST_DATA_DIR, "tenant_purchases.json");
 const USERS_FILE = join(TEST_DATA_DIR, "users.json");
 const SESSIONS_FILE = join(TEST_DATA_DIR, "sessions.json");
+const RESETS_FILE = join(TEST_DATA_DIR, "password_resets.json");
 
 const BASE_URL = testBaseUrl();
 const PASSWORD = "audit-pass-2026";
@@ -168,12 +170,18 @@ async function registerAndGetCookie(email: string): Promise<string | null> {
     if (!setCookie) {
       // Account-creation-on-purchase pre-created a password-less account
       // (the customer sets a password via /api/set-password after buying).
-      // Mirror that real flow so the wrapper can authenticate as the buyer
-      // and verify entitlements.
+      // That flow now requires proof of ownership — a one-time code delivered
+      // to the account email. Mirror it by seeding a valid (unused, unexpired)
+      // reset record for this test email (same hashing the server verifies),
+      // then exchanging it for the password.
+      const resetCode = String(TS).slice(-6);
+      const resets = readJSONFile(RESETS_FILE);
+      resets[email.toLowerCase()] = newPasswordResetRecord(resetCode, Date.now());
+      writeFileSync(RESETS_FILE, JSON.stringify(resets, null, 2));
       await fetch(`${BASE_URL}/api/set-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password: PASSWORD }),
+        body: JSON.stringify({ email, code: resetCode, password: PASSWORD }),
       });
       login = await fetch(`${BASE_URL}/api/login`, {
         method: "POST",
