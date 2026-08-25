@@ -7,6 +7,18 @@ export interface Integration {
   capabilities: string[];
   industries: string[];
   relatedWorkflows: string[];
+  /**
+   * LIVE vs ROADMAP classification - the ONE canonical field the UI reads to
+   * segment the integration explorer. "live" means we have a real, live-verified
+   * connected integration (see src/lib/provider-placeholders.ts
+   * REAL_INTEGRATION_PROVIDERS). Absent (default) = "roadmap": in development or
+   * planned, never presented as a working connection. FAIL-CLOSED to roadmap.
+   */
+  status?: "live" | "roadmap";
+}
+/** Resolve an integration's canonical tier; unknown/absent fails closed to roadmap. */
+export function isLiveIntegration(i: Integration): boolean {
+  return i.status === "live";
 }
 
 export const integrations: Integration[] = [
@@ -1127,6 +1139,7 @@ export const integrations: Integration[] = [
   },
   {
     id: "google-calendar",
+    status: "live",
     name: "Google Calendar",
     icon: "google-calendar",
     category: "Scheduling",
@@ -1748,6 +1761,7 @@ export const integrations: Integration[] = [
   },
   {
     id: "microsoft-excel",
+    status: "live",
     name: "Microsoft Excel",
     icon: "excel",
     category: "Microsoft Ecosystem",
@@ -1763,6 +1777,7 @@ export const integrations: Integration[] = [
   },
   {
     id: "microsoft-word",
+    status: "live",
     name: "Microsoft Word",
     icon: "word",
     category: "Microsoft Ecosystem",
@@ -1778,6 +1793,7 @@ export const integrations: Integration[] = [
   },
   {
     id: "microsoft-powerpoint",
+    status: "live",
     name: "Microsoft PowerPoint",
     icon: "powerpoint",
     category: "Microsoft Ecosystem",
@@ -1809,6 +1825,7 @@ export const integrations: Integration[] = [
   },
   {
     id: "google-docs",
+    status: "live",
     name: "Google Docs",
     icon: "google-docs",
     category: "Google Ecosystem",
@@ -1824,6 +1841,7 @@ export const integrations: Integration[] = [
   },
   {
     id: "google-sheets",
+    status: "live",
     name: "Google Sheets",
     icon: "google-sheets",
     category: "Google Ecosystem",
@@ -1839,6 +1857,7 @@ export const integrations: Integration[] = [
   },
   {
     id: "google-slides",
+    status: "live",
     name: "Google Slides",
     icon: "google-slides",
     category: "Google Ecosystem",
@@ -1852,6 +1871,7 @@ export const integrations: Integration[] = [
   },
   {
     id: "google-drive",
+    status: "live",
     name: "Google Drive",
     icon: "google-drive",
     category: "Google Ecosystem",
@@ -1900,6 +1920,7 @@ export const integrations: Integration[] = [
   },
   {
     id: "hubspot",
+    status: "live",
     name: "HubSpot",
     icon: "hubspot",
     category: "CRM",
@@ -2024,6 +2045,7 @@ export const integrations: Integration[] = [
   // ======================================================================
   {
     id: "xero",
+    status: "live",
     name: "Xero",
     icon: "xero",
     category: "Accounting",
