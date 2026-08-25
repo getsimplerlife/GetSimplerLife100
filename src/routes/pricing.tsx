@@ -173,7 +173,7 @@ function PricingPage() {
           AI Operations Teams
         </h1>
         <p className="text-stone-400 text-lg max-w-2xl mx-auto">
-          One-time build package plus a monthly fee per AI employee. Live integrations today: Xero, Slack, Google, Microsoft, HubSpot and DocuSign (QuickBooks in development). No long-term contracts.
+          One-time build package plus a monthly fee per AI employee. Live integrations today: Xero, Slack, Google, Microsoft, HubSpot and DocuSign (QuickBooks in development). No long-term contracts — monthly AI-employee fees you can adjust or cancel anytime.
         </p>
       </section>
 
