@@ -501,27 +501,6 @@ function Home() {
         </section>
       </main>
 
-      <footer className="border-t border-stone-800 bg-stone-950 px-6 py-12">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-12 md:flex-row">
-          <div>
-            <div className="mb-4 text-2xl font-black text-emerald-400">{businessName}</div>
-            <p className="max-w-sm text-stone-400">AI coworkers for operations teams. Work less, live more.</p>
-          </div>
-          <div className="flex flex-col items-center gap-6 md:items-end">
-            <div className="flex flex-wrap justify-center gap-8 font-bold text-stone-600">
-              <Link to="/build" className="hover:text-emerald-400">Builder</Link>
-              <Link to="/support" className="hover:text-emerald-400">Support</Link>
-              <Link to="/how-it-works" className="hover:text-emerald-400">How It Works</Link>
-              <Link to="/faq" className="hover:text-emerald-400">FAQ</Link>
-              <Link to="/about" className="hover:text-emerald-400">About</Link>
-              <Link to="/demos/audit-portal" className="underline underline-offset-4 hover:text-emerald-400">Audit Workflow Demo</Link>
-            </div>
-            <div className="text-sm text-stone-400">
-              &copy; {new Date().getFullYear()} {businessName}. All rights reserved.
-            </div>
-          </div>
-        </div>
-      </footer>
       <Footer />
     </div>
   );
