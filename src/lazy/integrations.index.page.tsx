@@ -1,7 +1,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { Link } from "@tanstack/react-router";
-import { integrations, type Integration } from "~/content/integrations";
+import { integrations, isLiveIntegration, type Integration } from "~/content/integrations";
 // Define common cross-app automation suggestions based on selected tool types
 interface CrossAppAutomation {
   name: string;
@@ -329,7 +329,40 @@ function IntegrationExplorerPage() {
       return matchesCategory && matchesSearch;
     });
   }, [explorerSearch, activeCategory]);
-
+  // Derived tier groups from the single canonical source (integrations.ts status field).
+  const liveIntegrations = filteredIntegrations.filter(isLiveIntegration);
+  const roadmapIntegrations = filteredIntegrations.filter((i) => !isLiveIntegration(i));
+  const [tierFilter, setTierFilter] = useState<"all" | "live" | "roadmap">("all");
+  const showLive = tierFilter !== "roadmap";
+  const showRoadmap = tierFilter !== "live";
+  // "Notify me when live" capture (reuses the capture-lead pattern wired via SendGrid).
+  const [notifyOpenId, setNotifyOpenId] = useState<string | null>(null);
+  const [notifyEmail, setNotifyEmail] = useState("");
+  const [notifyBusy, setNotifyBusy] = useState(false);
+  const [notified, setNotified] = useState<Record<string, boolean>>({});
+  const submitNotify = async (id: string, name: string) => {
+    const email = notifyEmail.trim();
+    if (!email || notifyBusy || notified[id]) return;
+    setNotifyBusy(true);
+    try {
+      await fetch("/api/tools/capture-lead", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          toolName: "integration-notify-" + id,
+          result: { integrationId: id, integrationName: name, action: "notify-when-live", tier: "roadmap" },
+        }),
+      });
+      setNotified((prev) => ({ ...prev, [id]: true }));
+    } catch {
+      // fail silently on the client; the visitor is informed it was requested
+    } finally {
+      setNotifyBusy(false);
+      setNotifyOpenId(null);
+      setNotifyEmail("");
+    }
+  };
   // Toggle app selection in Explorer
   const toggleAppSelection = (id: string) => {
     if (selectedApps.includes(id)) {
@@ -423,6 +456,26 @@ function IntegrationExplorerPage() {
               <h3 className="font-extrabold text-sm text-white">1. Select Your Software Stack</h3>
               <p className="text-xs text-stone-500">Pick any combination of tools below to query connections.</p>
             </div>
+            {/* Tier Segmentation Pills (canonical status: live vs in development) */}
+            <div className="flex gap-1.5 pt-1">
+              {(["all", "live", "roadmap"] as const).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setTierFilter(t)}
+                  className={`text-[9px] font-mono font-bold px-2.5 py-1 rounded border transition-colors ${
+                    tierFilter === t
+                      ? t === "live"
+                        ? "bg-emerald-600 border-emerald-500 text-white"
+                        : t === "roadmap"
+                          ? "bg-amber-600 border-amber-500 text-white"
+                          : "bg-stone-700 border-stone-600 text-white"
+                      : "bg-stone-900 border-stone-800 text-stone-400 hover:text-stone-300"
+                  }`}
+                >
+                  {t === "all" ? "All" : t === "live" ? "● Live now" : "◌ In development"}
+                </button>
+              ))}
+            </div>
 
             {/* Selector Search */}
             <input
@@ -448,35 +501,115 @@ function IntegrationExplorerPage() {
               ))}
             </div>
 
-            {/* App List */}
-            <div className="max-h-80 overflow-y-auto space-y-1.5 pr-1.5 scrollbar-thin scrollbar-thumb-stone-850">
-              {filteredIntegrations.map((app) => {
-                const isSelected = selectedApps.includes(app.id);
-                return (
-                  <div
-                    key={app.id}
-                    onClick={() => toggleAppSelection(app.id)}
-                    className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all ${
-                      isSelected
-                        ? "bg-indigo-950/20 border-indigo-500/40 text-white"
-                        : "bg-stone-950/40 border-stone-850 hover:border-stone-800 text-stone-400 hover:text-stone-200"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <span className="text-xs uppercase font-mono px-1.5 py-0.5 rounded bg-stone-900 border border-stone-850/60 font-black text-indigo-400">
-                        {app.id.slice(0, 3)}
-                      </span>
-                      <span className="text-xs font-bold leading-none">{app.name}</span>
-                    </div>
-                    <div className={`h-4 w-4 rounded-full border flex items-center justify-center text-[8px] ${
-                      isSelected ? "bg-indigo-600 border-indigo-500 text-white" : "border-stone-800"
-                    }`}>
-                      {isSelected && "✓"}
-                    </div>
+            {/* App List — segmented into Live now vs In development / Roadmap (canonical status) */}
+            <div className="max-h-80 overflow-y-auto space-y-2 pr-1.5 scrollbar-thin scrollbar-thumb-stone-850">
+              {showLive && (
+                <div>
+                  <div className="flex items-center gap-1.5 px-1 pt-0.5 pb-1">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="text-[9px] font-mono font-black text-emerald-400 uppercase tracking-wider">Live now</span>
+                    <span className="text-[8px] font-mono text-stone-600">({liveIntegrations.length})</span>
                   </div>
-                );
-              })}
+                  <div className="space-y-1.5">
+                    {liveIntegrations.map((app) => {
+                      const isSelected = selectedApps.includes(app.id);
+                      return (
+                        <div
+                          key={app.id}
+                          onClick={() => toggleAppSelection(app.id)}
+                          className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all ${
+                            isSelected
+                              ? "bg-indigo-950/20 border-indigo-500/40 text-white"
+                              : "bg-stone-950/40 border-stone-850 hover:border-stone-800 text-stone-400 hover:text-stone-200"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <span className="text-xs uppercase font-mono px-1.5 py-0.5 rounded bg-stone-900 border border-stone-850/60 font-black text-emerald-400">
+                              {app.id.slice(0, 3)}
+                            </span>
+                            <span className="text-xs font-bold leading-none">{app.name}</span>
+                          </div>
+                          <div className={`h-4 w-4 rounded-full border flex items-center justify-center text-[8px] ${
+                            isSelected ? "bg-indigo-600 border-indigo-500 text-white" : "border-stone-800"
+                          }`}>
+                            {isSelected && "✓"}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              {showRoadmap && (
+                <div className="pt-1">
+                  <div className="flex items-center gap-1.5 px-1 pt-0.5 pb-1">
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500/70" />
+                    <span className="text-[9px] font-mono font-black text-amber-500/90 uppercase tracking-wider">In development / Roadmap</span>
+                    <span className="text-[8px] font-mono text-stone-600">({roadmapIntegrations.length})</span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {roadmapIntegrations.map((app) => {
+                      const isSelected = selectedApps.includes(app.id);
+                      const isOpen = notifyOpenId === app.id;
+                      const done = notified[app.id];
+                      return (
+                        <div key={app.id} className="rounded-xl border border-stone-850/70 overflow-hidden">
+                          <div
+                            onClick={() => toggleAppSelection(app.id)}
+                            className={`flex items-center justify-between p-2.5 cursor-pointer transition-all ${
+                              isSelected ? "bg-indigo-950/20 border-indigo-500/30" : "hover:bg-stone-900/30"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <span className="text-xs uppercase font-mono px-1.5 py-0.5 rounded bg-stone-900 border border-stone-850/60 font-black text-amber-500/80">
+                                {app.id.slice(0, 3)}
+                              </span>
+                              <span className="text-xs font-bold leading-none text-stone-400">{app.name}</span>
+                            </div>
+                            <span className="text-[8px] font-mono font-bold text-amber-500/70 uppercase border border-amber-500/20 bg-amber-500/5 px-1.5 py-0.5 rounded">
+                              In development
+                            </span>
+                          </div>
+                          <div className="px-2.5 pb-2">
+                            {done ? (
+                              <span className="text-[9px] font-mono text-emerald-400 font-bold">✓ You're on the list — we'll notify you when {app.name} goes live.</span>
+                            ) : isOpen ? (
+                              <div className="flex gap-1.5">
+                                <input
+                                  value={notifyEmail}
+                                  onChange={(e) => setNotifyEmail(e.target.value)}
+                                  type="email"
+                                  placeholder="Your email"
+                                  className="min-w-0 flex-1 bg-stone-950 border border-stone-800 rounded-lg px-2 py-1 text-[10px] text-stone-200 outline-none placeholder:text-stone-700"
+                                />
+                                <button
+                                  onClick={() => submitNotify(app.id, app.name)}
+                                  disabled={notifyBusy}
+                                  className="shrink-0 text-[9px] font-mono font-bold text-emerald-400 border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 rounded-lg disabled:opacity-50"
+                                >
+                                  {notifyBusy ? "…" : "Notify me"}
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => setNotifyOpenId(app.id)}
+                                className="text-[9px] font-mono font-bold text-amber-400/80 hover:text-amber-300 underline"
+                              >
+                                ✉️ Notify me when live
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              {liveIntegrations.length === 0 && roadmapIntegrations.length === 0 && (
+                <div className="text-[10px] text-stone-500 text-center py-8 px-2">No integrations match your filters.</div>
+              )}
             </div>
+
 
             {selectedApps.length > 0 && (
               <button

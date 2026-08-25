@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import type { Integration as IntegrationType } from "~/content/integrations";
+import { isLiveIntegration } from "~/content/integrations";
 
 export default function IntegrationPage({ data }: { data: IntegrationType }) {
   const i = data;
@@ -30,6 +31,17 @@ export default function IntegrationPage({ data }: { data: IntegrationType }) {
           <div className="max-w-4xl mx-auto relative z-10 space-y-6">
             <div className="inline-block px-3 py-1 text-xs font-mono font-bold tracking-wider rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase">
               {i.category} CONNECTOR
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {isLiveIntegration(i) ? (
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-mono font-black tracking-wider uppercase rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" /> Live now
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-mono font-black tracking-wider uppercase rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 px-3 py-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400/80" /> In development / Roadmap
+                </span>
+              )}
             </div>
             
             <h1 className="text-4xl lg:text-7xl font-black tracking-tight text-white leading-tight">
