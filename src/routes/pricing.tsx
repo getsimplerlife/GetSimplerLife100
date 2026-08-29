@@ -260,7 +260,7 @@ function PricingPage() {
           </p>
           <div className="text-3xl font-black text-white mb-4">$2,500</div>
           <a
-            href="https://buy.stripe.com/aFa7sN60LdErc1B5HG2Fa2M"
+            href="https://buy.stripe.com/14AbJ3cp91VJc1Bfig2Fa2N"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-block bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-3 rounded-xl font-bold text-sm transition-all"
