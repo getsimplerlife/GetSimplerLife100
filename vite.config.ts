@@ -1,8 +1,16 @@
+import { fileURLToPath } from "node:url";
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackRouterGenerator } from "@tanstack/router-plugin/vite";
 import viteReact from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import tsConfigPaths from "vite-tsconfig-paths";
+
+// Resolve the vinxi/http + node:async_hooks stubs relative to THIS repo instead
+// of a hardcoded absolute path. The previous alias pointed at
+// /home/agent-lead/repos/... which no longer exists after the environment
+// rebuild, so builds failed with ENOENT on every clone. Relative resolution
+// works for any checkout location.
+const VINXI_STUB = fileURLToPath(new URL("./src/lib/vinxi-stub.ts", import.meta.url));
 export default defineConfig({
   server: {
     port: 3000,
@@ -31,8 +39,8 @@ export default defineConfig({
   resolve: {
     dedupe: ["react", "react-dom"],
     alias: {
-      "vinxi/http": "/home/agent-lead/repos/GetSimplerLife100/src/lib/vinxi-stub.ts",
-      "node:async_hooks": "/home/agent-lead/repos/GetSimplerLife100/src/lib/vinxi-stub.ts",
+      "vinxi/http": VINXI_STUB,
+      "node:async_hooks": VINXI_STUB,
     },
   },
   plugins: [
