@@ -635,7 +635,7 @@ function AssessmentPage() {
                 <Link to="/audit" className="bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-sm px-6 py-3 rounded-xl transition-all">
                   🔍 Start Deep-Dive Audit →
                 </Link>
-                <a href="https://buy.stripe.com/fZufZj2OzdEr6Hh0nm2Fa00" target="_blank" rel="noopener"
+                <a href="https://buy.stripe.com/14AbJ3cp91VJc1Bfig2Fa2N" target="_blank" rel="noopener"
                   className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm px-6 py-3 rounded-xl transition-all">
                   💳 Purchase Audit — $2,500
                 </a>
