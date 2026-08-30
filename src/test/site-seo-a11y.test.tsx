@@ -30,7 +30,7 @@ const PUBLIC_ROUTES = [
   "/audit",
   "/build",
   "/case-studies",
-  "/case-studies/meridian-manufacturing", // dynamic child → prefix match
+  "/case-studies/quote-to-cash", // dynamic child → prefix match
   "/contact",
   "/demo",
   "/demos",
