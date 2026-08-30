@@ -103,6 +103,9 @@ function AutomationLibraryPage() {
             <p className="text-stone-400 text-sm md:text-base max-w-2xl mx-auto leading-relaxed">
               Explore 70+ industry-specific autonomous workflows ready to deploy. Connect directly to your existing software stack and start automating manual workloads.
             </p>
+            <p className="text-[11px] font-mono text-stone-500 max-w-xl mx-auto leading-relaxed">
+              Time-saved and ROI figures on this page are illustrative capacity estimates, not measured client results.
+            </p>
           </div>
         </section>
 
@@ -200,7 +203,7 @@ function AutomationLibraryPage() {
                     {/* Meta Section */}
                     <div className="pt-4 border-t border-stone-850/60 mt-auto">
                       <div className="flex items-center justify-between text-[11px] font-mono text-stone-400 mb-2">
-                        <span>⏱ SAVED:</span>
+                        <span>⏱ ILLUSTRATIVE SAVED:</span>
                         <span className="text-emerald-400 font-bold">{w.timeSaved}</span>
                       </div>
                       <div className="flex items-center justify-between text-[11px] font-mono text-stone-400 mb-3">
@@ -301,7 +304,7 @@ function AutomationLibraryPage() {
                     {/* Standard Metrics */}
                     <div className="grid grid-cols-2 gap-4 bg-stone-950/40 border border-stone-850/60 p-5 rounded-2xl">
                       <div>
-                        <div className="text-[10px] font-mono text-stone-400 uppercase mb-1">⏱ Weekly Reclaimed Hours</div>
+                        <div className="text-[10px] font-mono text-stone-400 uppercase mb-1">⏱ Illustrative Reclaimed Hours</div>
                         <div className="text-sm font-bold text-emerald-400">{selectedCard.timeSaved}</div>
                       </div>
                       <div>
@@ -320,7 +323,7 @@ function AutomationLibraryPage() {
 
                     {/* ROI estimate */}
                     <div className="space-y-2">
-                      <h3 className="text-xs font-mono font-bold text-stone-400 uppercase tracking-wider">Strategic Return (ROI)</h3>
+                      <h3 className="text-xs font-mono font-bold text-stone-400 uppercase tracking-wider">Illustrative ROI Estimate</h3>
                       <p className="text-sm text-indigo-400 leading-relaxed font-bold">
                         {selectedCard.roi}
                       </p>
