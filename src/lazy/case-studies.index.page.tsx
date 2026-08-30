@@ -1,4 +1,3 @@
-
 import { Link } from "@tanstack/react-router";
 import { caseStudies } from "~/content/case-studies";
 import { Header } from "~/components/Header";
@@ -12,18 +11,20 @@ function CaseStudiesIndexPage() {
           {/* Hero */}
           <div className="text-center space-y-6">
             <span className="inline-block px-3 py-1 text-xs font-mono font-bold tracking-wider rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase">
-              CASE STUDIES
+              LIVE DEMONSTRATIONS
             </span>
             <h1 className="text-5xl lg:text-7xl font-black text-white tracking-tight">
-              Real Results. <span className="text-emerald-500">Real Impact.</span>
+              Verified Automation. <span className="text-emerald-500">Real Capability.</span>
             </h1>
             <p className="text-xl text-stone-400 max-w-2xl mx-auto">
-              See how companies across industries use AI operations teams to reduce costs,
-              eliminate errors, and scale their operations.
+              We run these workflows on our own live-verified integrations — Xero, HubSpot,
+              DocuSign, Slack, Google, and Microsoft 365. Each is a demonstration of what the
+              platform can do with your own authorized systems. We don't publish client results
+              we can't prove.
             </p>
           </div>
 
-          {/* Case Studies Grid */}
+          {/* Verified capability grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {caseStudies.map((cs) => (
               <Link
@@ -33,12 +34,12 @@ function CaseStudiesIndexPage() {
                 className="group bg-stone-900 border border-stone-800 rounded-2xl p-6 hover:border-emerald-500/30 transition-all hover:-translate-y-1"
               >
                 <div className="flex items-center gap-3 mb-3">
-                  <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-stone-800 text-stone-400 uppercase tracking-wider">
-                    {cs.industry?.replace(/-/g, ' ') || 'General'}
+                  <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-stone-800 text-emerald-400 uppercase tracking-wider">
+                    Verified Blueprint
                   </span>
-                  {cs.results?.[0] && (
-                    <span className="text-xs font-bold text-emerald-400">
-                      {cs.results[0].metric}: {cs.results[0].value}
+                  {cs.illustrativeEstimate?.[0] && (
+                    <span className="text-xs font-bold text-stone-400">
+                      {cs.illustrativeEstimate[0].metric}
                     </span>
                   )}
                 </div>
@@ -46,33 +47,39 @@ function CaseStudiesIndexPage() {
                   {cs.title}
                 </h3>
                 <p className="text-sm text-stone-400 leading-relaxed line-clamp-3 mb-3">
-                  {cs.challenge}
+                  {cs.blueprint}
                 </p>
-                {cs.quote && (
-                  <p className="text-xs text-stone-500 italic border-l-2 border-stone-700 pl-3">
-                    "{cs.quote.text?.slice(0, 120)}..."
-                  </p>
-                )}
-                <div className="mt-3 flex items-center gap-2">
+                <div className="mt-3 flex items-center gap-3 flex-wrap">
                   <span className="text-xs font-bold text-emerald-500 group-hover:underline">
-                    Read full case study →
+                    View demonstration →
                   </span>
-                  {cs.timeline && (
-                    <span className="text-xs text-stone-500 ml-auto">{cs.timeline}</span>
-                  )}
+                  <span className="text-xs text-stone-500">
+                    {cs.integrations.join(" · ")}
+                  </span>
                 </div>
               </Link>
             ))}
           </div>
 
+          {/* Disclaimer */}
+          <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6">
+            <p className="text-xs text-stone-400 leading-relaxed">
+              <span className="font-bold text-stone-300">Illustrative estimates.</span> Any
+              timing or efficiency figure on these pages is an illustrative estimate of a
+              typical workflow, not a delivered result for any client. We make no claim about
+              outcomes at a specific company. Integrations shown are live-verified by our team;
+              a few (e.g. QuickBooks) are code-ready and pending live credentials.
+            </p>
+          </div>
+
           {/* Bottom CTA */}
           <div className="bg-stone-900 border border-stone-800 rounded-[2.5rem] p-10 lg:p-14 text-center space-y-6">
             <h3 className="text-2xl lg:text-3xl font-black text-white">
-              Ready to transform your operations?
+              See these run in your stack.
             </h3>
             <p className="text-stone-400 max-w-xl mx-auto text-sm leading-relaxed">
-              Get a custom blueprint for your industry. Our deep-dive audit includes a technical
-              roadmap, ROI projection, and implementation plan.
+              We'll map your operational bottlenecks to verified automation patterns and give
+              you a technical roadmap — no fabricated promises.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
@@ -91,25 +98,8 @@ function CaseStudiesIndexPage() {
           </div>
         </div>
       </main>
-      <footer className="px-6 py-12 border-t border-stone-800 bg-stone-950">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
-          <div>
-            <div className="text-2xl font-black text-emerald-400 mb-2">Simpler Life 100</div>
-            <p className="text-sm text-stone-400">AI coworkers for operations teams. Work less, live more.</p>
-          </div>
-          <div className="text-sm font-bold flex gap-6">
-            <Link to="/" className="text-stone-400 hover:text-emerald-400">Home</Link>
-            <Link to="/how-it-works" className="text-stone-400 hover:text-emerald-400">How It Works</Link>
-            <Link to="/faq" className="text-stone-400 hover:text-emerald-400">FAQ</Link>
-            <Link to="/about" className="text-stone-400 hover:text-emerald-400">About</Link>
-            <Link to="/contact" className="text-stone-400 hover:text-emerald-400">Contact</Link>
-          </div>
-          <div className="text-xs text-stone-400">&copy; {new Date().getFullYear()} Simpler Life 100. All rights reserved.</div>
-        </div>
-      </footer>
-    <Footer />
+      <Footer />
     </div>
   );
 }
-
 export default CaseStudiesIndexPage;
