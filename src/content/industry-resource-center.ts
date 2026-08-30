@@ -10,7 +10,6 @@ export interface IndustryResource {
     breakEvenMonths: number;
   };
   checklistTopics: string[];
-  caseStudySnippets: string[];
   commonIntegrations: string[];
   faqs: { question: string; answer: string }[];
 }
@@ -60,14 +59,9 @@ export const industryResources: IndustryResource[] = [
       "Quality document automation step-by-step",
       "Production reporting setup guide",
     ],
-    caseStudySnippets: [
-      "Meridian Manufacturing reduced invoice processing from 11 minutes to 90 seconds per invoice, saving $340,000 annually across 3 facilities.",
-      "A mid-market automotive parts supplier automated PO processing, cutting procurement cycle time from 3 days to 4 hours and achieving 98% on-time delivery.",
-      "A food manufacturer deployed inventory reconciliation automation, improving accuracy from 84% to 99.7% and eliminating $2.1M in annual stockout losses.",
-    ],
     commonIntegrations: ["SAP S/4HANA", "Oracle NetSuite", "Microsoft Dynamics 365", "Plex Systems", "QuickBooks Enterprise", "Epicor"],
     faqs: [
-      { question: "How long does it take to deploy an AI Operations Team for manufacturing?", answer: "Most manufacturing clients see their first automation live within 2 weeks. Full deployment across all workflows typically completes in 6-8 weeks, with measurable ROI appearing in the first month." },
+      { question: "How long does it take to deploy an AI Operations Team for manufacturing?", answer: "Deployment timelines are scoped to each client's systems and processes rather than a fixed schedule. We outline expected timing and an illustrative ROI projection during your audit — actual results always depend on your specific operations." },
       { question: "Can the AI team work with our existing ERP system?", answer: "Yes. We connect directly to SAP, Oracle NetSuite, Dynamics 365, Epicor, Plex, and 25+ other manufacturing ERP systems through official APIs. No rip-and-replace required." },
       { question: "How does the system handle proprietary part numbers and BOM structures?", answer: "The AI Operations Team learns your specific data schemas during deployment. It maps your part numbering conventions, BOM hierarchies, and routing structures so every update is accurate and contextual." },
     ],
@@ -111,11 +105,6 @@ export const industryResources: IndustryResource[] = [
       "Carrier onboarding automation workflow",
       "POD digital transformation checklist",
     ],
-    caseStudySnippets: [
-      "Coastline Logistics deployed dispatch automation and saw a single dispatcher handle 2.3x the shipment volume while on-time delivery improved from 84% to 97%.",
-      "A regional LTL carrier automated freight invoice auditing, recovering 4.2% in overcharges ($620K annual) and reducing audit staffing needs by 60%.",
-      "A national fleet implemented route optimization across 340 trucks, cutting fuel costs 12% and eliminating 340,000 excess miles in the first quarter.",
-    ],
     commonIntegrations: ["McLeod Software", "MercuryGate TMS", "Trimble TMS", "Samsara", "Motive", "Project44", "DAT", "Truckstop"],
     faqs: [
       { question: "Can the AI team work with our existing TMS?", answer: "Yes. We integrate with McLeod, MercuryGate, Trimble, and 15+ other transportation management systems. The AI team reads dispatch boards, tracks loads, and updates your TMS automatically." },
@@ -152,14 +141,9 @@ export const industryResources: IndustryResource[] = [
       "Denial management improvement workflow",
       "HIPAA compliance automation checklist",
     ],
-    caseStudySnippets: [
-      "A 12-provider medical group automated insurance verification, reducing verification time from 8 minutes to 45 seconds per patient and cutting denial rates from 14% to 3%.",
-      "A regional hospital deployed medical coding automation, achieving 97% coding accuracy and reducing the coding backlog from 14 days to 2 days.",
-      "A multi-specialty practice automated claims processing, improving clean claim rate from 72% to 95% and reducing days in AR from 45 to 18.",
-    ],
     commonIntegrations: ["Epic", "Cerner", "athenahealth", "NextGen", "Salesforce Health Cloud"],
     faqs: [
-      { question: "Is the AI team HIPAA compliant?", answer: "Yes. All patient data is encrypted at rest and in transit. The system maintains BAA coverage, conducts annual SOC 2 audits, and never stores phi outside your secure environment." },
+      { question: "Is the AI team HIPAA compliant?", answer: "Yes. All patient data is encrypted at rest and in transit. We follow healthcare data-handling best practices, execute BAA coverage where applicable, and do not store PHI outside your secure environment." },
       { question: "Will this integrate with our EHR system?", answer: "We connect directly to Epic, Cerner, athenahealth, and NextGen through their official API and FHIR interfaces. No screen scraping or fragile integrations." },
     ],
   },
@@ -189,10 +173,6 @@ export const industryResources: IndustryResource[] = [
       "Certified payroll compliance checklist",
       "Change order tracking best practices",
       "Field report digitization workflow",
-    ],
-    caseStudySnippets: [
-      "A general contractor automated submittal review for a $47M hospital project, cutting review cycles from 21 to 8 days and reducing RFIs by 35%.",
-      "A mid-size contractor deployed automated timecard and certified payroll processing, cutting payroll admin time 75% and eliminating prevailing wage compliance errors.",
     ],
     commonIntegrations: ["Procore", "Autodesk", "QuickBooks Enterprise", "Sage 50", "ADP"],
     faqs: [
@@ -227,13 +207,9 @@ export const industryResources: IndustryResource[] = [
       "Expense policy automation setup",
       "Bank reconciliation automation workflow",
     ],
-    caseStudySnippets: [
-      "A regional bank automated AP processing across 14 branches, reducing invoice processing cost from $12.40 to $0.80 per invoice and accelerating month-end close by 5 days.",
-      "A financial services firm deployed AR automation, reducing DSO from 47 to 28 days and improving collections efficiency by 300%.",
-    ],
     commonIntegrations: ["QuickBooks", "Xero", "SAP", "Oracle NetSuite", "Bill.com", "Expensify", "Ramp", "Brex"],
     faqs: [
-      { question: "Is this secure enough for financial services?", answer: "Yes. We maintain SOC 2 Type II certification, encrypt all data with AES-256, and support role-based access controls required for financial audits." },
+      { question: "Is this secure enough for financial services?", answer: "Yes. We follow information-security best practices, encrypt data in transit and at rest, and support role-based access controls required for financial audits." },
       { question: "Can it handle multi-entity and multi-currency?", answer: "Yes. The AI team manages intercompany transactions, currency conversions, and consolidated reporting across entities and currencies automatically." },
     ],
   },
@@ -260,10 +236,6 @@ export const industryResources: IndustryResource[] = [
       "Revenue distribution automation workflow",
       "Supply chain optimization for oil & gas",
       "Regulatory filing automation checklist",
-    ],
-    caseStudySnippets: [
-      "An independent operator with 47 wells automated production reporting, reducing report generation from 3 days to 20 minutes and identifying 3 underperforming wells for workover intervention.",
-      "A midstream company deployed environmental compliance monitoring across 23 emission points, achieving 100% regulatory filing accuracy and reducing compliance event response time by 75%.",
     ],
     commonIntegrations: ["SAP", "Oracle NetSuite", "Power BI", "Tableau", "ServiceNow"],
     faqs: [
@@ -294,10 +266,6 @@ export const industryResources: IndustryResource[] = [
       "Vendor onboarding digitization",
       "Customer communication automation guide",
     ],
-    caseStudySnippets: [
-      "A multi-channel retailer automated order processing across 8 stores and 4 online channels, reducing processing time from 8 minutes to 30 seconds per order.",
-      "An e-commerce brand deployed returns automation, cutting processing time from 7 days to 24 hours and improving customer satisfaction scores by 22%.",
-    ],
     commonIntegrations: ["Shopify", "WooCommerce", "BigCommerce", "Amazon Seller Central", "NetSuite", "Fishbowl"],
     faqs: [
       { question: "Can this handle flash sales and high-volume periods?", answer: "Yes. The AI team scales automatically during peak periods. Black Friday volumes that would require 5 temporary staff are handled at normal capacity." },
@@ -326,10 +294,6 @@ export const industryResources: IndustryResource[] = [
       "Conflict checking optimization workflow",
       "Time entry improvement checklist",
       "Discovery document processing guide",
-    ],
-    caseStudySnippets: [
-      "A 50-attorney firm deployed contract review automation, reducing review time by 70% and increasing risk identification accuracy 3x over manual review.",
-      "A litigation firm automated document discovery for a 500,000-document production, reducing review costs by 60% and completing the review in 3 weeks instead of 12.",
     ],
     commonIntegrations: ["Salesforce", "HubSpot", "SharePoint", "Adobe Sign", "Outlook"],
     faqs: [
@@ -360,10 +324,6 @@ export const industryResources: IndustryResource[] = [
       "Underwriting support automation setup",
       "Compliance reporting automation guide",
     ],
-    caseStudySnippets: [
-      "A mid-market P&C insurer automated claims intake and triage, reducing FNOW processing from 4 hours to 15 minutes and achieving 94% accurate claim routing.",
-      "An insurance carrier deployed subrogation automation, improving recovery rates from 34% to 52% and reducing the recovery cycle by 40%.",
-    ],
     commonIntegrations: ["ServiceNow", "Salesforce", "HubSpot", "Outlook"],
     faqs: [
       { question: "How does the AI team handle complex claims with multiple policies?", answer: "The AI team evaluates all applicable policies, determines primary and excess coverage, calculates proportional liability, and generates comprehensive claim summaries for the adjuster." },
@@ -392,10 +352,6 @@ export const industryResources: IndustryResource[] = [
       "Rent collection automation workflow",
       "Tenant communication digitization guide",
       "ASC 842 compliance automation setup",
-    ],
-    caseStudySnippets: [
-      "A commercial real estate firm with 1.2M sq ft deployed lease document processing, reducing abstraction time by 80% and achieving ASC 842 compliance with zero audit findings.",
-      "A property management company automated work order processing across 2,400 units, reducing response time by 60% and maintenance costs by 15%.",
     ],
     commonIntegrations: ["QuickBooks", "Xero", "SAP", "NetSuite", "Adobe Sign", "Outlook"],
     faqs: [

@@ -119,7 +119,7 @@ export function IndustryResourceCenter({ industryId }: IndustryResourceCenterPro
               />
             </div>
             <p className="text-xs text-stone-500 leading-relaxed">
-              Click column headers to sort by workflow name or weekly hours recovered. Fully auditable on S1 platform.
+              Click column headers to sort by workflow name or estimated weekly hours recovered. Estimates are illustrative planning figures, not guarantees.
             </p>
           </div>
 
@@ -177,7 +177,7 @@ export function IndustryResourceCenter({ industryId }: IndustryResourceCenterPro
           <div className="bg-stone-900/30 border border-stone-850 p-6 rounded-3xl space-y-6">
             <div className="space-y-1">
               <h3 className="text-base font-black text-white flex items-center gap-2">
-                <span>🪙</span> Custom ROI Projections
+                <span>🪙</span> Illustrative ROI Projections
               </h3>
               <p className="text-xs text-stone-500 leading-relaxed">
                 Adjust sliders to model financial payback thresholds based on your typical overhead rate.
@@ -273,7 +273,7 @@ export function IndustryResourceCenter({ industryId }: IndustryResourceCenterPro
 
           {/* COMMON INTEGRATIONS TAGS */}
           <div className="bg-stone-900/30 border border-stone-850 p-6 rounded-3xl space-y-3">
-            <h3 className="text-xs font-mono font-bold text-stone-400 uppercase tracking-widest">[ Certified Connectors ]</h3>
+            <h3 className="text-xs font-mono font-bold text-stone-400 uppercase tracking-widest">[ Commonly Integrated Tools ]</h3>
             <div className="flex flex-wrap gap-1.5">
               {data.commonIntegrations.map((intg) => (
                 <span key={intg} className="px-2.5 py-1 bg-stone-950 border border-stone-850 text-xs font-mono font-bold text-stone-300 rounded-xl">
@@ -282,30 +282,6 @@ export function IndustryResourceCenter({ industryId }: IndustryResourceCenterPro
               ))}
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Case Studies Snippets Section */}
-      <div className="max-w-6xl mx-auto space-y-8">
-        <div className="border-b border-stone-900 pb-3">
-          <h3 className="text-lg font-black text-white flex items-center gap-2">
-            <span>🏆</span> Peer Success Stories & Impact Metrics
-          </h3>
-          <p className="text-xs text-stone-500">How other firms deployed custom automation roadmaps.</p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {data.caseStudySnippets.map((snippet, sIdx) => (
-            <div key={sIdx} className="bg-stone-900/20 border border-stone-850 p-6 rounded-2xl relative overflow-hidden flex flex-col justify-between">
-              <span className="absolute top-2 right-2 text-3xl opacity-10 pointer-events-none font-mono">0{sIdx + 1}</span>
-              <p className="text-xs text-stone-300 leading-relaxed font-medium">
-                "{snippet}"
-              </p>
-              <div className="pt-4 border-t border-stone-850/60 mt-4 text-[10px] font-mono text-stone-500">
-                VERIFIED OUTCOME SN-{(sIdx + 1)}
-              </div>
-            </div>
-          ))}
         </div>
       </div>
 

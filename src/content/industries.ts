@@ -15,8 +15,6 @@ export interface IndustryHub {
     efficiency: { price: string; features: string[] };
     deepDive: { price: string; features: string[] };
   };
-  relatedCaseStudies: string[];
-  resultsHeadline: string;
 }
 
 export const industries: IndustryHub[] = [
@@ -63,10 +61,10 @@ export const industries: IndustryHub[] = [
       },
     ],
     kpis: [
-      { value: "2.1x", label: "Measured efficiency gain" },
-      { value: "50%", label: "Reduction in QC overhead" },
-      { value: "99.9%", label: "Inventory data accuracy" },
-      { value: "85%", label: "Faster order processing" },
+      { value: "2.1x", label: "Illustrative efficiency gain" },
+      { value: "50%", label: "Illustrative reduction in QC overhead" },
+      { value: "99.9%", label: "Illustrative inventory data accuracy" },
+      { value: "85%", label: "Illustrative faster order processing" },
     ],
     workflows: [
       "invoice-automation",
@@ -111,13 +109,6 @@ export const industries: IndustryHub[] = [
         ],
       },
     },
-    relatedCaseStudies: [
-      "meridian-manufacturing",
-      "redwood-industrial",
-      "pioneer-aerospace",
-    ],
-    resultsHeadline:
-      "Manufacturing clients reclaim 2.1x efficiency and cut QC overhead by 50% within the first quarter.",
   },
   {
     id: "logistics",
@@ -162,10 +153,10 @@ export const industries: IndustryHub[] = [
       },
     ],
     kpis: [
-      { value: "98%", label: "On-time delivery rate" },
-      { value: "22%", label: "Fuel cost reduction" },
-      { value: "2.0x", label: "ROI on automation investment" },
-      { value: "140 hrs", label: "Monthly labor hours saved" },
+      { value: "98%", label: "Illustrative on-time delivery rate" },
+      { value: "22%", label: "Illustrative fuel cost reduction" },
+      { value: "2.0x", label: "Illustrative ROI on automation investment" },
+      { value: "140 hrs", label: "Illustrative monthly labor hours saved" },
     ],
     workflows: [
       "dispatch-scheduling",
@@ -210,13 +201,6 @@ export const industries: IndustryHub[] = [
         ],
       },
     },
-    relatedCaseStudies: [
-      "coastline-logistics",
-      "thunder-freight",
-      "harbor-supply-chain",
-    ],
-    resultsHeadline:
-      "Logistics operators reclaim 140+ labor hours monthly while boosting on-time delivery to 98%.",
   },
   {
     id: "healthcare",
@@ -261,10 +245,10 @@ export const industries: IndustryHub[] = [
       },
     ],
     kpis: [
-      { value: "18+ hrs", label: "Saved per provider weekly" },
-      { value: "94%", label: "No-show reduction achieved" },
-      { value: "100%", label: "HIPAA compliance assured" },
-      { value: "60%", label: "Faster claims processing" },
+      { value: "18+ hrs", label: "Illustrative saved per provider weekly" },
+      { value: "94%", label: "Illustrative no-show reduction achieved" },
+      { value: "100%", label: "Illustrative hIPAA compliance assured" },
+      { value: "60%", label: "Illustrative faster claims processing" },
     ],
     workflows: [
       "patient-intake",
@@ -309,13 +293,6 @@ export const industries: IndustryHub[] = [
         ],
       },
     },
-    relatedCaseStudies: [
-      "mercy-health-partners",
-      "premier-dental-group",
-      "northstar-urgent-care",
-    ],
-    resultsHeadline:
-      "Healthcare providers save 18+ hours per provider weekly while cutting no-show rates by 94%.",
   },
   {
     id: "construction",
@@ -360,10 +337,10 @@ export const industries: IndustryHub[] = [
       },
     ],
     kpis: [
-      { value: "20+ hrs", label: "Saved per estimator weekly" },
-      { value: "35%", label: "Faster project closeouts" },
-      { value: "2.5x", label: "Bid submission speed increase" },
-      { value: "15%", label: "Margin improvement" },
+      { value: "20+ hrs", label: "Illustrative saved per estimator weekly" },
+      { value: "35%", label: "Illustrative faster project closeouts" },
+      { value: "2.5x", label: "Illustrative bid submission speed increase" },
+      { value: "15%", label: "Illustrative margin improvement" },
     ],
     workflows: [
       "invoice-automation",
@@ -408,13 +385,6 @@ export const industries: IndustryHub[] = [
         ],
       },
     },
-    relatedCaseStudies: [
-      "summit-construction",
-      "pacific-builders",
-      "atlantic-infrastructure",
-    ],
-    resultsHeadline:
-      "Construction firms save 20+ hours per estimator each week and close out projects 35% faster.",
   },
   {
     id: "financial-services",
@@ -459,10 +429,10 @@ export const industries: IndustryHub[] = [
       },
     ],
     kpis: [
-      { value: "100%", label: "Audit pass rate achieved" },
-      { value: "80%", label: "Faster regulatory reporting" },
-      { value: "14 days", label: "Client onboarding time" },
-      { value: "3.5x", label: "Compliance team productivity" },
+      { value: "100%", label: "Illustrative audit pass rate achieved" },
+      { value: "80%", label: "Illustrative faster regulatory reporting" },
+      { value: "14 days", label: "Illustrative client onboarding time" },
+      { value: "3.5x", label: "Illustrative compliance team productivity" },
     ],
     workflows: [
       "compliance-reporting",
@@ -509,13 +479,6 @@ export const industries: IndustryHub[] = [
         ],
       },
     },
-    relatedCaseStudies: [
-      "meridian-trust-bank",
-      "pacific-capital-group",
-      "horizon-wealth-management",
-    ],
-    resultsHeadline:
-      "Financial services firms achieve 100% audit pass rates and cut client onboarding from 5 days to 14 hours.",
   },
   {
     id: "finance",
@@ -560,10 +523,10 @@ export const industries: IndustryHub[] = [
       },
     ],
     kpis: [
-      { value: "100%", label: "Audit pass rate achieved" },
-      { value: "80%", label: "Faster regulatory reporting" },
-      { value: "14 days", label: "Client onboarding time" },
-      { value: "3.5x", label: "Compliance team productivity" },
+      { value: "100%", label: "Illustrative audit pass rate achieved" },
+      { value: "80%", label: "Illustrative faster regulatory reporting" },
+      { value: "14 days", label: "Illustrative client onboarding time" },
+      { value: "3.5x", label: "Illustrative compliance team productivity" },
     ],
     workflows: [
       "compliance-reporting",
@@ -610,13 +573,6 @@ export const industries: IndustryHub[] = [
         ],
       },
     },
-    relatedCaseStudies: [
-      "meridian-trust-bank",
-      "pacific-capital-group",
-      "horizon-wealth-management",
-    ],
-    resultsHeadline:
-      "Financial services firms achieve 100% audit pass rates and cut client onboarding from 5 days to 14 hours.",
   },
   {
     id: "energy",
@@ -661,10 +617,10 @@ export const industries: IndustryHub[] = [
       },
     ],
     kpis: [
-      { value: "2.2x", label: "Average efficiency gain" },
-      { value: "65%", label: "Reduction in reporting time" },
-      { value: "24/7", label: "Automated monitoring availability" },
-      { value: "40%", label: "Maintenance cost reduction" },
+      { value: "2.2x", label: "Illustrative efficiency gain" },
+      { value: "65%", label: "Illustrative reduction in reporting time" },
+      { value: "24/7", label: "Illustrative automated monitoring availability" },
+      { value: "40%", label: "Illustrative maintenance cost reduction" },
     ],
     workflows: [
       "data-entry-automation",
@@ -709,13 +665,6 @@ export const industries: IndustryHub[] = [
         ],
       },
     },
-    relatedCaseStudies: [
-      "sovereign-energy",
-      "cascade-power-group",
-      "northern-ridge-wind",
-    ],
-    resultsHeadline:
-      "Energy operators report 2.2x efficiency gains and cut reporting time by 65% within 60 days.",
   },
   {
     id: "retail",
@@ -760,10 +709,10 @@ export const industries: IndustryHub[] = [
       },
     ],
     kpis: [
-      { value: "99.5%", label: "Inventory accuracy achieved" },
-      { value: "55%", label: "Shrinkage reduction" },
-      { value: "1.6x", label: "ROI on automation investment" },
-      { value: "70%", label: "Faster fulfillment cycle" },
+      { value: "99.5%", label: "Illustrative inventory accuracy achieved" },
+      { value: "55%", label: "Illustrative shrinkage reduction" },
+      { value: "1.6x", label: "Illustrative ROI on automation investment" },
+      { value: "70%", label: "Illustrative faster fulfillment cycle" },
     ],
     workflows: [
       "inventory-reconciliation",
@@ -810,13 +759,6 @@ export const industries: IndustryHub[] = [
         ],
       },
     },
-    relatedCaseStudies: [
-      "coastal-outfitters-retail",
-      "summit-sports-group",
-      "harbor-markets",
-    ],
-    resultsHeadline:
-      "Retailers achieve 99.5% inventory accuracy and reduce shrinkage by 55% with AI-operated fulfillment.",
   },
   {
     id: "legal",
@@ -861,10 +803,10 @@ export const industries: IndustryHub[] = [
       },
     ],
     kpis: [
-      { value: "12+ hrs", label: "Billable hours recovered weekly" },
-      { value: "60%", label: "Faster document turnaround" },
-      { value: "99.9%", label: "Deadline compliance rate" },
-      { value: "18%", label: "Revenue increase per attorney" },
+      { value: "12+ hrs", label: "Illustrative billable hours recovered weekly" },
+      { value: "60%", label: "Illustrative faster document turnaround" },
+      { value: "99.9%", label: "Illustrative deadline compliance rate" },
+      { value: "18%", label: "Illustrative revenue increase per attorney" },
     ],
     workflows: [
       "contract-review",
@@ -911,13 +853,6 @@ export const industries: IndustryHub[] = [
         ],
       },
     },
-    relatedCaseStudies: [
-      "stonebridge-law-group",
-      "crescent-city-legal",
-      "maple-ridge-attorneys",
-    ],
-    resultsHeadline:
-      "Law firms recover 12+ billable hours per attorney weekly and boost per-attorney revenue by 18%.",
   },
   {
     id: "insurance",
@@ -962,10 +897,10 @@ export const industries: IndustryHub[] = [
       },
     ],
     kpis: [
-      { value: "80%", label: "Faster claims processing" },
-      { value: "65%", label: "Claim leakage reduction" },
-      { value: "1.8x", label: "ROI on automation investment" },
-      { value: "95%", label: "Data accuracy rate" },
+      { value: "80%", label: "Illustrative faster claims processing" },
+      { value: "65%", label: "Illustrative claim leakage reduction" },
+      { value: "1.8x", label: "Illustrative ROI on automation investment" },
+      { value: "95%", label: "Illustrative data accuracy rate" },
     ],
     workflows: [
       "claims-processing",
@@ -1012,13 +947,6 @@ export const industries: IndustryHub[] = [
         ],
       },
     },
-    relatedCaseStudies: [
-      "shield-insurance-group",
-      "pacific-ridge-underwriters",
-      "heritage-life-accident",
-    ],
-    resultsHeadline:
-      "Insurance carriers process claims 80% faster and reduce claim leakage by 65% with AI-operated workflows.",
   },
   {
     id: "real-estate",
@@ -1063,10 +991,10 @@ export const industries: IndustryHub[] = [
       },
     ],
     kpis: [
-      { value: "45 sec", label: "Lead response time achieved" },
-      { value: "3.4x", label: "More leads converted" },
-      { value: "22 hrs", label: "Saved per agent weekly" },
-      { value: "60%", label: "Faster contract turnaround" },
+      { value: "45 sec", label: "Illustrative lead response time achieved" },
+      { value: "3.4x", label: "Illustrative more leads converted" },
+      { value: "22 hrs", label: "Illustrative saved per agent weekly" },
+      { value: "60%", label: "Illustrative faster contract turnaround" },
     ],
     workflows: [
       "client-intake",
@@ -1113,13 +1041,6 @@ export const industries: IndustryHub[] = [
         ],
       },
     },
-    relatedCaseStudies: [
-      "premier-properties-realty",
-      "summit-homes-realty",
-      "coastal-living-group",
-    ],
-    resultsHeadline:
-      "Real estate agents respond to leads in 45 seconds flat, convert 3.4x more prospects, and save 22 hours weekly.",
   },
   // ============================================================
   // 13 NEW ENTRIES — aerospace through transportation
@@ -1162,10 +1083,10 @@ export const industries: IndustryHub[] = [
       },
     ],
     kpis: [
-      { value: "65%", label: "Faster ECN cycle time" },
-      { value: "4.2x", label: "First-year ROI multiplier" },
-      { value: "99.8%", label: "Documentation accuracy" },
-      { value: "$48K", label: "Avoided compliance penalties" },
+      { value: "65%", label: "Illustrative faster ECN cycle time" },
+      { value: "4.2x", label: "Illustrative first-year ROI multiplier" },
+      { value: "99.8%", label: "Illustrative documentation accuracy" },
+      { value: "$48K", label: "Illustrative avoided compliance penalties" },
     ],
     workflows: [
       "document-processing",
@@ -1210,13 +1131,6 @@ export const industries: IndustryHub[] = [
         ],
       },
     },
-    relatedCaseStudies: [
-      "pioneer-aerospace",
-      "redwood-industrial",
-      "meridian-manufacturing",
-    ],
-    resultsHeadline:
-      "Aerospace manufacturers cut ECN cycle time by 65% and achieve 99.8% documentation accuracy for every audit.",
   },
   {
     id: "agriculture",
@@ -1255,10 +1169,10 @@ export const industries: IndustryHub[] = [
       },
     ],
     kpis: [
-      { value: "78%", label: "Faster traceability response" },
-      { value: "62%", label: "Reduction in invoice processing time" },
-      { value: "99.5%", label: "Settlement accuracy" },
-      { value: "3.1x", label: "First-year ROI multiplier" },
+      { value: "78%", label: "Illustrative faster traceability response" },
+      { value: "62%", label: "Illustrative reduction in invoice processing time" },
+      { value: "99.5%", label: "Illustrative settlement accuracy" },
+      { value: "3.1x", label: "Illustrative first-year ROI multiplier" },
     ],
     workflows: [
       "invoice-automation",
@@ -1303,12 +1217,6 @@ export const industries: IndustryHub[] = [
         ],
       },
     },
-    relatedCaseStudies: [
-      "meridian-manufacturing",
-      "sovereign-energy",
-    ],
-    resultsHeadline:
-      "Agribusinesses achieve 78% faster traceability response and 99.5% settlement accuracy — audit-ready in minutes, not days.",
   },
   {
     id: "automotive",
@@ -1347,10 +1255,10 @@ export const industries: IndustryHub[] = [
       },
     ],
     kpis: [
-      { value: "85%", label: "Faster PPAP submissions" },
-      { value: "$120K", label: "Annual premium freight savings" },
-      { value: "99.2%", label: "EDI order accuracy" },
-      { value: "5.0x", label: "First-year ROI multiplier" },
+      { value: "85%", label: "Illustrative faster PPAP submissions" },
+      { value: "$120K", label: "Illustrative annual premium freight savings" },
+      { value: "99.2%", label: "Illustrative eDI order accuracy" },
+      { value: "5.0x", label: "Illustrative first-year ROI multiplier" },
     ],
     workflows: [
       "document-processing",
@@ -1396,13 +1304,6 @@ export const industries: IndustryHub[] = [
         ],
       },
     },
-    relatedCaseStudies: [
-      "meridian-manufacturing",
-      "redwood-industrial",
-      "pioneer-aerospace",
-    ],
-    resultsHeadline:
-      "Automotive suppliers cut PPAP submission time by 85% and save $120K annually in premium freight alone.",
   },
   {
     id: "e-commerce",
@@ -1441,10 +1342,10 @@ export const industries: IndustryHub[] = [
       },
     ],
     kpis: [
-      { value: "82%", label: "Auto-resolved support tickets" },
-      { value: "99.7%", label: "Order reconciliation accuracy" },
-      { value: "15%", label: "Inventory carrying cost reduction" },
-      { value: "5.5x", label: "First-year ROI multiplier" },
+      { value: "82%", label: "Illustrative auto-resolved support tickets" },
+      { value: "99.7%", label: "Illustrative order reconciliation accuracy" },
+      { value: "15%", label: "Illustrative inventory carrying cost reduction" },
+      { value: "5.5x", label: "Illustrative first-year ROI multiplier" },
     ],
     workflows: [
       "invoice-automation",
@@ -1492,12 +1393,6 @@ export const industries: IndustryHub[] = [
         ],
       },
     },
-    relatedCaseStudies: [
-      "coastal-outfitters-retail",
-      "meridian-manufacturing",
-    ],
-    resultsHeadline:
-      "E-commerce brands auto-resolve 82% of support tickets and achieve 99.7% order reconciliation accuracy across every channel.",
   },
   {
     id: "education",
@@ -1536,10 +1431,10 @@ export const industries: IndustryHub[] = [
       },
     ],
     kpis: [
-      { value: "70%", label: "Faster enrollment processing" },
-      { value: "85%", label: "Faster procurement cycle" },
-      { value: "99.3%", label: "Enrollment document accuracy" },
-      { value: "3.5x", label: "First-year ROI multiplier" },
+      { value: "70%", label: "Illustrative faster enrollment processing" },
+      { value: "85%", label: "Illustrative faster procurement cycle" },
+      { value: "99.3%", label: "Illustrative enrollment document accuracy" },
+      { value: "3.5x", label: "Illustrative first-year ROI multiplier" },
     ],
     workflows: [
       "document-processing",
@@ -1585,12 +1480,6 @@ export const industries: IndustryHub[] = [
         ],
       },
     },
-    relatedCaseStudies: [
-      "mercy-health-partners",
-      "meridian-trust-bank",
-    ],
-    resultsHeadline:
-      "Educational institutions cut enrollment processing time by 70% and accelerate procurement cycles by 85%.",
   },
   {
     id: "government",
@@ -1629,10 +1518,10 @@ export const industries: IndustryHub[] = [
       },
     ],
     kpis: [
-      { value: "75%", label: "Reduction in FOIA backlog" },
-      { value: "68%", label: "Faster permit issuance" },
-      { value: "99.1%", label: "Records request completeness" },
-      { value: "3.3x", label: "First-year ROI multiplier" },
+      { value: "75%", label: "Illustrative reduction in FOIA backlog" },
+      { value: "68%", label: "Illustrative faster permit issuance" },
+      { value: "99.1%", label: "Illustrative records request completeness" },
+      { value: "3.3x", label: "Illustrative first-year ROI multiplier" },
     ],
     workflows: [
       "document-processing",
@@ -1677,12 +1566,6 @@ export const industries: IndustryHub[] = [
         ],
       },
     },
-    relatedCaseStudies: [
-      "meridian-trust-bank",
-      "summit-construction",
-    ],
-    resultsHeadline:
-      "Government agencies reduce FOIA backlogs by 75% and issue permits 68% faster while meeting every statutory deadline.",
   },
   {
     id: "hospitality",
@@ -1721,10 +1604,10 @@ export const industries: IndustryHub[] = [
       },
     ],
     kpis: [
-      { value: "65%", label: "Faster month-end close" },
-      { value: "4.2%", label: "Group revenue recovery" },
-      { value: "99.2%", label: "Invoice coding accuracy" },
-      { value: "3.8x", label: "First-year ROI multiplier" },
+      { value: "65%", label: "Illustrative faster month-end close" },
+      { value: "4.2%", label: "Illustrative group revenue recovery" },
+      { value: "99.2%", label: "Illustrative invoice coding accuracy" },
+      { value: "3.8x", label: "Illustrative first-year ROI multiplier" },
     ],
     workflows: [
       "invoice-automation",
@@ -1770,12 +1653,6 @@ export const industries: IndustryHub[] = [
         ],
       },
     },
-    relatedCaseStudies: [
-      "coastal-outfitters-retail",
-      "premier-properties-realty",
-    ],
-    resultsHeadline:
-      "Hospitality operators close month-end 65% faster and recover 4.2% of group revenue through automated block management.",
   },
   {
     id: "media",
@@ -1814,10 +1691,10 @@ export const industries: IndustryHub[] = [
       },
     ],
     kpis: [
-      { value: "100%", label: "Rights compliance achieved" },
-      { value: "65%", label: "Faster vendor payments" },
-      { value: "90%", label: "Reduction in metadata errors" },
-      { value: "3.2x", label: "First-year ROI multiplier" },
+      { value: "100%", label: "Illustrative rights compliance achieved" },
+      { value: "65%", label: "Illustrative faster vendor payments" },
+      { value: "90%", label: "Illustrative reduction in metadata errors" },
+      { value: "3.2x", label: "Illustrative first-year ROI multiplier" },
     ],
     workflows: [
       "contract-review",
@@ -1863,12 +1740,6 @@ export const industries: IndustryHub[] = [
         ],
       },
     },
-    relatedCaseStudies: [
-      "stonebridge-law-group",
-      "coastal-outfitters-retail",
-    ],
-    resultsHeadline:
-      "Media companies achieve 100% rights compliance and reduce metadata errors by 90% across all distribution platforms.",
   },
   {
     id: "pharmaceuticals",
@@ -1907,10 +1778,10 @@ export const industries: IndustryHub[] = [
       },
     ],
     kpis: [
-      { value: "70%", label: "Faster batch release" },
-      { value: "$180K", label: "Avoided compliance findings" },
-      { value: "100%", label: "Batch record review completeness" },
-      { value: "5.8x", label: "First-year ROI multiplier" },
+      { value: "70%", label: "Illustrative faster batch release" },
+      { value: "$180K", label: "Illustrative avoided compliance findings" },
+      { value: "100%", label: "Illustrative batch record review completeness" },
+      { value: "5.8x", label: "Illustrative first-year ROI multiplier" },
     ],
     workflows: [
       "document-processing",
@@ -1955,12 +1826,6 @@ export const industries: IndustryHub[] = [
         ],
       },
     },
-    relatedCaseStudies: [
-      "mercy-health-partners",
-      "hartford-healthcare-network",
-    ],
-    resultsHeadline:
-      "Pharmaceutical manufacturers achieve 100% batch record completeness and save $180K annually in avoided compliance findings.",
   },
   {
     id: "professional-services",
@@ -1999,10 +1864,10 @@ export const industries: IndustryHub[] = [
       },
     ],
     kpis: [
-      { value: "7%", label: "Billable hour recovery" },
-      { value: "12 days", label: "DSO improvement" },
-      { value: "99.5%", label: "Invoicing accuracy" },
-      { value: "5.5x", label: "First-year ROI multiplier" },
+      { value: "7%", label: "Illustrative billable hour recovery" },
+      { value: "12 days", label: "Illustrative dSO improvement" },
+      { value: "99.5%", label: "Illustrative invoicing accuracy" },
+      { value: "5.5x", label: "Illustrative first-year ROI multiplier" },
     ],
     workflows: [
       "invoice-automation",
@@ -2049,12 +1914,6 @@ export const industries: IndustryHub[] = [
         ],
       },
     },
-    relatedCaseStudies: [
-      "stonebridge-law-group",
-      "meridian-trust-bank",
-    ],
-    resultsHeadline:
-      "Professional services firms recover 7% of lost billable hours and improve DSO by 12 days — adding millions to the bottom line.",
   },
   {
     id: "technology",
@@ -2093,10 +1952,10 @@ export const industries: IndustryHub[] = [
       },
     ],
     kpis: [
-      { value: "40%", label: "Auto-resolved IT tickets" },
-      { value: "20%", label: "SaaS spend reduction" },
-      { value: "99.5%", label: "Order accuracy" },
-      { value: "6.0x", label: "First-year ROI multiplier" },
+      { value: "40%", label: "Illustrative auto-resolved IT tickets" },
+      { value: "20%", label: "Illustrative saaS spend reduction" },
+      { value: "99.5%", label: "Illustrative order accuracy" },
+      { value: "6.0x", label: "Illustrative first-year ROI multiplier" },
     ],
     workflows: [
       "service-desk-automation",
@@ -2145,12 +2004,6 @@ export const industries: IndustryHub[] = [
         ],
       },
     },
-    relatedCaseStudies: [
-      "meridian-trust-bank",
-      "coastline-logistics",
-    ],
-    resultsHeadline:
-      "Tech companies auto-resolve 40% of IT tickets and reduce SaaS spend by 20% — achieving 6.0x first-year ROI.",
   },
   {
     id: "telecom",
@@ -2189,10 +2042,10 @@ export const industries: IndustryHub[] = [
       },
     ],
     kpis: [
-      { value: "65%", label: "Faster service delivery" },
-      { value: "5%", label: "Carrier cost recovery" },
-      { value: "98%", label: "Network inventory accuracy" },
-      { value: "4.8x", label: "First-year ROI multiplier" },
+      { value: "65%", label: "Illustrative faster service delivery" },
+      { value: "5%", label: "Illustrative carrier cost recovery" },
+      { value: "98%", label: "Illustrative network inventory accuracy" },
+      { value: "4.8x", label: "Illustrative first-year ROI multiplier" },
     ],
     workflows: [
       "invoice-automation",
@@ -2238,12 +2091,6 @@ export const industries: IndustryHub[] = [
         ],
       },
     },
-    relatedCaseStudies: [
-      "coastline-logistics",
-      "meridian-manufacturing",
-    ],
-    resultsHeadline:
-      "Telecom providers recover 5% of carrier costs through automated audit and drive network inventory accuracy to 98%.",
   },
   {
     id: "transportation",
@@ -2282,10 +2129,10 @@ export const industries: IndustryHub[] = [
       },
     ],
     kpis: [
-      { value: "95%", label: "PM compliance rate" },
-      { value: "12%", label: "On-time performance improvement" },
-      { value: "100%", label: "Driver compliance achieved" },
-      { value: "4.2x", label: "First-year ROI multiplier" },
+      { value: "95%", label: "Illustrative pM compliance rate" },
+      { value: "12%", label: "Illustrative on-time performance improvement" },
+      { value: "100%", label: "Illustrative driver compliance achieved" },
+      { value: "4.2x", label: "Illustrative first-year ROI multiplier" },
     ],
     workflows: [
       "inventory-reconciliation",
@@ -2331,11 +2178,5 @@ export const industries: IndustryHub[] = [
         ],
       },
     },
-    relatedCaseStudies: [
-      "coastline-logistics",
-      "thunder-freight",
-    ],
-    resultsHeadline:
-      "Transportation operators achieve 95% PM compliance and 100% driver qualification compliance — with 12% better on-time performance.",
   },
 ];

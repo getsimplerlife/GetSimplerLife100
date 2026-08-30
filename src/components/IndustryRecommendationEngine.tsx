@@ -215,7 +215,7 @@ export function IndustryRecommendationEngine({ industry }: IndustryRecommendatio
               </span>
               <h3 className="text-2xl font-black text-white">Your Custom AI ROI</h3>
               <p className="text-stone-400 text-xs leading-relaxed">
-                By automating these selected operational workflows, your team can eliminate manual bottlenecks, improve processing accuracy, and reduce data input errors to zero.
+                By automating these selected operational workflows, your team can eliminate manual bottlenecks and reduce repetitive data entry.
               </p>
               <div className="pt-4 flex flex-wrap gap-4 justify-center md:justify-start">
                 <Link

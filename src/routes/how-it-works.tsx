@@ -92,7 +92,7 @@ function HowItWorksPage() {
               </div>
             </div>
             <div className="bg-stone-900 rounded-[2.5rem] p-10 lg:p-14 text-white shadow-2xl space-y-8">
-              <h3 className="text-xl font-black text-emerald-400">Real Deployment Blueprints</h3>
+              <h3 className="text-xl font-black text-emerald-400">Illustrative Deployment Blueprints</h3>
               <div className="space-y-6">
                 <div className="pb-6 border-b border-white/10">
                   <div className="text-white font-bold mb-2 text-lg">Example: Logistics Dispatch</div>
