@@ -2,7 +2,6 @@ import { Link } from "@tanstack/react-router";
 import type { IndustryHub as IndustryHubType } from "~/content/industries";
 import { IndustryRecommendationEngine } from "./IndustryRecommendationEngine";
 import { HowItWorksTimeline } from "./HowItWorksTimeline";
-import { SocialProofBanner } from "./SocialProofBanner";
 import { IndustryResourceCenter } from "./IndustryResourceCenter";
 
 export default function IndustryHub({ data }: { data: IndustryHubType }) {
@@ -58,6 +57,9 @@ export default function IndustryHub({ data }: { data: IndustryHubType }) {
 
         {/* KPI Displays */}
         <section className="px-6 py-8 max-w-5xl mx-auto relative z-20">
+          <p className="text-center text-[11px] font-mono uppercase tracking-widest text-stone-500 mb-4">
+            Illustrative capacity estimates — not measured client results
+          </p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {c.kpis.map((kpi, i) => (
               <div key={i} className="p-6 bg-stone-900/60 border border-stone-850 rounded-2xl shadow-xl hover:border-stone-700 transition-colors text-center">
@@ -67,9 +69,6 @@ export default function IndustryHub({ data }: { data: IndustryHubType }) {
             ))}
           </div>
         </section>
-
-        {/* Social Proof Snippets */}
-        <SocialProofBanner industry={c.id} />
 
         {/* Dynamic Recommendation Engine Section */}
         <section id="recommendations" className="px-6 py-20 max-w-7xl mx-auto">
@@ -173,48 +172,15 @@ export default function IndustryHub({ data }: { data: IndustryHubType }) {
           </div>
         </section>
 
-        {/* Case Studies Section */}
-        {c.relatedCaseStudies && c.relatedCaseStudies.length > 0 && (
-          <section className="px-6 py-20 bg-stone-950 border-b border-stone-900">
-            <div className="max-w-5xl mx-auto">
-              <div className="text-center mb-16 space-y-3">
-                <span className="text-xs font-mono font-bold tracking-widest text-stone-500 uppercase">[ Verifiable Results ]</span>
-                <h2 className="text-3xl lg:text-5xl font-extrabold text-white mt-2">Measurable Customer Success</h2>
-                <p className="text-stone-400 text-xs lg:text-sm max-w-md mx-auto leading-relaxed">
-                  See how other leading organizations have scaled operations with custom AI coworkers.
-                </p>
-              </div>
-              <div className="grid gap-6">
-                {c.relatedCaseStudies.map((csId, i) => (
-                  <div key={i} className="p-8 bg-stone-900/40 border border-stone-900 rounded-3xl flex flex-col md:flex-row gap-6 justify-between items-center hover:bg-stone-900/60 transition-colors">
-                    <div className="space-y-4">
-                      <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
-                        {c.name} Case Study
-                      </span>
-                      <h3 className="text-xl font-bold text-white">{csId.replace(/-/g, " ").toUpperCase()}</h3>
-                      <p className="text-sm text-stone-400 leading-relaxed max-w-2xl">
-                        A deep dive into how {c.name.toLowerCase()} businesses use autonomous AI coworkers to cut overhead costs by up to 50% in the first 30 days.
-                      </p>
-                    </div>
-                    <Link to="/portal" className="bg-stone-900 hover:bg-stone-800 text-white border border-stone-800 px-6 py-2.5 rounded-xl text-xs font-bold shrink-0 transition-colors font-mono">
-                      [ Read Case Study ]
-                    </Link>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-        )}
-
         {/* CTA Section */}
         <section className="px-6 py-24 bg-stone-900 text-center relative overflow-hidden border-t border-stone-800">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-emerald-950/30 via-transparent to-transparent opacity-50" />
           <div className="max-w-3xl mx-auto relative z-10 space-y-6">
             <h2 className="text-4xl lg:text-6xl font-black tracking-tight text-white leading-tight">
-              {c.resultsHeadline}
+              Automation that works the way your team already works
             </h2>
             <p className="text-stone-400 text-base max-w-xl mx-auto leading-relaxed">
-              Automate your key business units, free up your high-value employees, and cut daily operations costs by up to 80%.
+              Automate the repetitive manual work your team does every day, inside the tools you already use — with human review where it matters.
             </p>
             <div className="pt-6">
               <Link to="/register" className="bg-emerald-500 hover:bg-emerald-400 text-stone-950 px-8 py-3.5 rounded-xl text-sm font-black tracking-wide inline-block transition-all transform hover:-translate-y-0.5 shadow-lg shadow-emerald-950/20">
