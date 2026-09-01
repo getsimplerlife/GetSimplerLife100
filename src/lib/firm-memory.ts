@@ -55,10 +55,21 @@ export interface FirmMemory {
   rules: Record<string, string>;
   recentInsights: MemoryEntry[];
   auditTail: MemoryEntry[];
+  /** Numeric snapshots per run (e.g. { spend: 1200, duplicateRate: 0.1 }) used as
+   *  the firm's baseline for anomaly detection (upgrade #5). Size-capped. */
+  metricHistory: MetricSnapshot[];
   updatedAt: number;
 }
 
 export type FirmMemoryIndex = Record<string, FirmMemory>;
+
+/** A per-run numeric metric snapshot (firm baseline). */
+export interface MetricSnapshot {
+  ts: number;
+  values: Record<string, number>;
+}
+
+export const MAX_METRIC_HISTORY = 40;
 
 /** Composed per-tenant context handed to each run/chain (buildAgentContext). */
 export interface AgentContext {
@@ -70,6 +81,8 @@ export interface AgentContext {
     auditTail: MemoryEntry[];
     updatedAt: number;
   };
+  /** Firm's numeric metric history (for anomaly baselines). */
+  metricHistory: MetricSnapshot[];
   /** Optional attributed retrieval excerpts (RAG-lite) for the run's query. */
   retrieval?: RetrievalHit[];
 }
@@ -97,7 +110,7 @@ function writeIndex(index: FirmMemoryIndex, dataDir?: string): void {
   writeJSON(firmMemoryPath(dataDir), index);
 }
 
-const EMPTY_MEMORY = (): FirmMemory => ({ rules: {}, recentInsights: [], auditTail: [], updatedAt: 0 });
+const EMPTY_MEMORY = (): FirmMemory => ({ rules: {}, recentInsights: [], auditTail: [], metricHistory: [], updatedAt: 0 });
 
 function requireTenant(tenantEmail: string): void {
   if (!tenantEmail?.trim()) throw new Error("firm-memory requires a tenantEmail");
@@ -116,6 +129,7 @@ export function readFirmMemory(tenantEmail: string, dataDir?: string): FirmMemor
     rules: mem.rules && typeof mem.rules === "object" && !Array.isArray(mem.rules) ? mem.rules : {},
     recentInsights: Array.isArray(mem.recentInsights) ? mem.recentInsights : [],
     auditTail: Array.isArray(mem.auditTail) ? mem.auditTail : [],
+    metricHistory: Array.isArray(mem.metricHistory) ? mem.metricHistory : [],
     updatedAt: typeof mem.updatedAt === "number" ? mem.updatedAt : 0,
   };
 }
@@ -183,6 +197,21 @@ export function setFirmRule(
   });
 }
 
+/** Record a numeric metric snapshot into a tenant's baseline history (internal
+ *  metadata — never a provider write). Size-capped (newest-K kept). */
+export function recordMetrics(
+  tenantEmail: string,
+  values: Record<string, number>,
+  dataDir?: string,
+): void {
+  requireTenant(tenantEmail);
+  if (!values || typeof values !== "object") return;
+  mutateMemory(tenantEmail, dataDir, (mem) => ({
+    ...mem,
+    metricHistory: [...mem.metricHistory, { ts: Date.now(), values }].slice(-MAX_METRIC_HISTORY),
+  }));
+}
+
 // ── Composed context ────────────────────────────────────────────────────────
 
 /**
@@ -220,6 +249,7 @@ export function buildAgentContext(tenantEmail: string, dataDir?: string, query?:
       auditTail: mem.auditTail,
       updatedAt: mem.updatedAt,
     },
+    metricHistory: mem.metricHistory,
   };
 
   if (query && query.trim()) {

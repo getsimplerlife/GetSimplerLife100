@@ -21,6 +21,8 @@ import {
   DEFAULT_PROCESSOR_CALIBRATION,
   type ProcessorCalibration,
 } from "./tenant-settings";
+import { detectAnomaly, routeAlert, type AlertRouting } from "./escalation";
+import { buildAgentContext, recordMetrics, type MetricSnapshot } from "./firm-memory";
 
 /** Coerce an unknown/string/number to a finite number, else undefined. */
 function num(v: unknown): number | undefined {
@@ -74,6 +76,16 @@ export interface Alert {
   level: "info" | "warning" | "error" | "critical";
   message: string;
   requiresAttention: boolean;
+  /** Upgrade #5: route an alert to the portal — "you need to decide"
+   *  (requires_approval) vs "here's a heads-up" (read_recommendation). */
+  routing?: AlertRouting;
+}
+
+/** Per-run escalation inputs (upgrade #5) for anomaly detection vs firm history. */
+export interface EscalationContext {
+  tenantEmail: string;
+  dataDir?: string;
+  metricHistory: MetricSnapshot[];
 }
 
 export interface ProcessorResult {
@@ -99,6 +111,7 @@ function processFinance(
   results: ProviderResult[],
   _connections: ProviderConnection[],
   calibration: Required<ProcessorCalibration> = DEFAULT_PROCESSOR_CALIBRATION,
+  escalation?: EscalationContext,
 ): ProcessorResult {
   const filtered: any[] = [];
   const enriched: any[] = [];
@@ -220,6 +233,36 @@ function processFinance(
     joinedRecords,
   };
 
+  // Upgrade #5 — anomaly detection vs the firm's OWN history (spend baseline).
+  if (escalation) {
+    const spend = filtered.reduce((sum, r) => {
+      const amt = num(pickValue(r, AMOUNT_KEYS));
+      return amt === undefined ? sum : sum + amt;
+    }, 0);
+    try {
+      recordMetrics(escalation.tenantEmail, { spend }, escalation.dataDir);
+    } catch {
+      // internal metadata write — never blocks
+    }
+    try {
+      const anomaly = detectAnomaly("spend", spend, escalation.metricHistory, {
+        thresholdPercent: calibration.anomalyDeltaPercent,
+        minSamples: calibration.minAnomalySamples,
+      });
+      if (anomaly.isAnomaly) {
+        alerts.push({
+          level: "warning",
+          message: anomaly.reason,
+          requiresAttention: false, // heads-up only; nothing executes
+          routing: routeAlert(false),
+        });
+        metrics.anomalyFlagged = "spend";
+      }
+    } catch {
+      // fall back to today's behavior on any failure (additive/back-compat)
+    }
+  }
+
   // Recommended actions
   if (financeSystems.length >= 2 && matched.length === 0) {
     actions.push({
@@ -267,6 +310,7 @@ function processSales(
   results: ProviderResult[],
   _connections: ProviderConnection[],
   calibration: Required<ProcessorCalibration> = DEFAULT_PROCESSOR_CALIBRATION,
+  escalation?: EscalationContext,
 ): ProcessorResult {
   const filtered: any[] = [];
   const enriched: any[] = [];
@@ -339,6 +383,33 @@ function processSales(
       status: "pending",
       detail: `Merge/verify ${exactDuplicates.length + fuzzyCount} duplicate contact group(s) across connected CRMs`,
     });
+  }
+
+  // Upgrade #5 — duplicate-rate drift vs the firm's OWN history.
+  const dupGroupCount = exactDuplicates.length + fuzzyCount;
+  if (escalation && totalRecords > 0) {
+    const duplicateRate = round2(dupGroupCount / totalRecords);
+    try {
+      recordMetrics(escalation.tenantEmail, { duplicateRate }, escalation.dataDir);
+    } catch {
+      // internal metadata write — never blocks
+    }
+    try {
+      const anomaly = detectAnomaly("duplicateRate", duplicateRate, escalation.metricHistory, {
+        thresholdPercent: calibration.anomalyDeltaPercent,
+        minSamples: calibration.minAnomalySamples,
+      });
+      if (anomaly.isAnomaly) {
+        alerts.push({
+          level: "warning",
+          message: anomaly.reason,
+          requiresAttention: false, // heads-up; the merge decision is separately gated
+          routing: routeAlert(false),
+        });
+      }
+    } catch {
+      // additive/back-compat: fall back to today's behavior on failure
+    }
   }
 
   // Lead scoring insight
@@ -862,7 +933,7 @@ function processGeneric(
 
 const CATEGORY_PROCESSORS: Record<
   string,
-  (agent: AgentDefinition, results: ProviderResult[], connections: ProviderConnection[], calibration?: Required<ProcessorCalibration>) => ProcessorResult
+  (agent: AgentDefinition, results: ProviderResult[], connections: ProviderConnection[], calibration?: Required<ProcessorCalibration>, escalation?: EscalationContext) => ProcessorResult
 > = {
   finance: processFinance,
   sales: processSales,
@@ -904,7 +975,25 @@ export function processAgentResults(
       ? getProcessorCalibration(opts.tenantEmail, opts.dataDir)
       : DEFAULT_PROCESSOR_CALIBRATION;
 
-    const result = processor(agent, queryResult.integrationsUsed, userConnections, calibration);
+    // Upgrade #5 — build an optional escalation context (firm's own metric
+    // history baseline) when a tenant is known, so finance/sales can flag
+    // anomalies vs that firm's history. Fail-soft: absent on any error.
+    let escalation: EscalationContext | undefined;
+    if (opts?.tenantEmail) {
+      try {
+        const ctx = buildAgentContext(opts.tenantEmail, opts.dataDir);
+        escalation = { tenantEmail: opts.tenantEmail, dataDir: opts.dataDir, metricHistory: ctx.metricHistory };
+      } catch {
+        escalation = undefined;
+      }
+    }
+    const result = processor(agent, queryResult.integrationsUsed, userConnections, calibration, escalation);
+    // Upgrade #5 — derive a routing category for every alert: requires_approval
+    // when it demands a decision, read_recommendation as a pure heads-up.
+    result.alerts = result.alerts.map((a) => ({
+      ...a,
+      routing: a.routing ?? routeAlert(a.requiresAttention),
+    }));
 
     // Add a top-level summary insight
     result.insights.unshift({
@@ -921,7 +1010,7 @@ export function processAgentResults(
       processedData: { filtered: [], enriched: [], matched: [], metrics: { error: e.message } },
       actionsTaken: [],
       insights: [{ type: "summary", severity: "info", message: `Agent "${agent.name}" completed (processing skipped: ${e.message}). Raw query results available.` }],
-      alerts: [{ level: "warning", message: `Post-query processing failed: ${e.message}`, requiresAttention: false }],
+      alerts: [{ level: "warning", message: `Post-query processing failed: ${e.message}`, requiresAttention: false, routing: routeAlert(false) }],
     };
   }
 }
