@@ -40,6 +40,10 @@ export interface ExecutionOptions {
   /** When true, bypasses the Approval Queue gate (used ONLY by the portal
    *  approve path, after a human approved the stored payload). */
   bypassApproval?: boolean;
+  /** Data dir for the approval store (isolation in tests; default otherwise). */
+  dataDir?: string;
+  /** When a write is proposed by a multi-employee chain, record the chain id. */
+  chainId?: string;
 }
 
 // ── Action Handler Registry ──────────────────────────────────────────────
@@ -208,6 +212,8 @@ export async function executeAction(
       const { approvalGate } = await import("../lib/approval-queue");
       const gate = approvalGate(userId, actionName, providerId, params || {}, {
         agentId: options?.agentId,
+        chainId: options?.chainId,
+        dataDir: options?.dataDir,
       });
       if (!gate.allowed) {
         return {

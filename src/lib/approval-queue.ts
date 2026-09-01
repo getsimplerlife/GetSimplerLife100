@@ -36,6 +36,8 @@ export interface PendingAction {
   payload: Record<string, any>; // full params captured at enqueue time
   status: ApprovalStatus;
   createdAt: number;
+  /** When the write was proposed by a multi-employee chain, the chain id it came from. */
+  chainId?: string;
   decidedAt?: number;
   decidedBy?: string;
   /** Result of the executed write (approved actions only). */
@@ -244,7 +246,7 @@ export function approvalGate(
   actionName: string,
   provider: string,
   params: Record<string, any>,
-  opts?: { agentId?: string; dataDir?: string },
+  opts?: { agentId?: string; dataDir?: string; chainId?: string },
 ): ApprovalGateOutcome {
   if (!isWriteAction(actionName)) return { allowed: true };
   if (approvalModeForTenant(tenantId, opts?.dataDir) === "auto") return { allowed: true };
@@ -257,6 +259,7 @@ export function approvalGate(
         provider,
         summary: summarizeAction(actionName, provider, params),
         payload: params || {},
+        chainId: opts?.chainId,
       },
       opts?.dataDir,
     );
