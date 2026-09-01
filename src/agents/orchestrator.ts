@@ -225,7 +225,15 @@ export async function runChain(input: RunChainInput): Promise<ChainRunResult> {
 
     // snapshot the context this step receives (proves forward feeding)
     outcome.input = { ...stepContext };
-    outcome.processed = processAgentResults(agent, queryResult, input.connections ?? []);
+    outcome.processed = processAgentResults(
+      agent,
+      queryResult,
+      input.connections ?? [],
+      {
+        tenantEmail: input.tenantEmail,
+        dataDir: input.dataDir,
+      },
+    );
 
     // Feed this step's processed data into the shared context for downstream steps.
     stepContext[`${step.agentType}`] = outcome.processed.processedData;

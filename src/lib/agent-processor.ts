@@ -6,6 +6,37 @@
 // the original query results still flow through. Never blocks the agent run.
 
 import type { ProviderResult, ProviderConnection, AgentIntegrationResult } from "./provider-api";
+import {
+  normEmail,
+  pickValue,
+  EMAIL_KEYS,
+  AMOUNT_KEYS,
+  scoreEntityMatch,
+  fuzzyDuplicates,
+  crossJoin,
+  round2,
+} from "./match";
+import {
+  getProcessorCalibration,
+  DEFAULT_PROCESSOR_CALIBRATION,
+  type ProcessorCalibration,
+} from "./tenant-settings";
+
+/** Coerce an unknown/string/number to a finite number, else undefined. */
+function num(v: unknown): number | undefined {
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string" && v.trim() !== "") {
+    const n = Number(String(v).replace(/[^0-9.\-]/g, ""));
+    if (Number.isFinite(n)) return n;
+  }
+  return undefined;
+}
+
+/** Per-tenant options for processor reasoning (optional → global defaults). */
+export interface ProcessorOptions {
+  tenantEmail?: string;
+  dataDir?: string;
+}
 
 // ────────────────────────────────────────────────────────────────────────
 // Types
@@ -66,7 +97,8 @@ export interface AgentDefinition {
 function processFinance(
   agent: AgentDefinition,
   results: ProviderResult[],
-  _connections: ProviderConnection[]
+  _connections: ProviderConnection[],
+  calibration: Required<ProcessorCalibration> = DEFAULT_PROCESSOR_CALIBRATION,
 ): ProcessorResult {
   const filtered: any[] = [];
   const enriched: any[] = [];
@@ -83,13 +115,16 @@ function processFinance(
     }
   }
 
-  // Match records across finance systems (e.g., invoice amounts across QB/Xero)
+  // Match records across finance systems (e.g. invoice/customer records across
+  // QB/Xero/Netsuite) — confidence-scored across email > name-variant > phone.
   const qb = results.find(r => r.providerId === "quickbooks" && r.status === "ok");
   const xero = results.find(r => r.providerId === "xero" && r.status === "ok");
   const netsuite = results.find(r => r.providerId === "netsuite" && r.status === "ok");
 
-  // Build cross-system matching
   const financeSystems = [qb, xero, netsuite].filter(Boolean) as ProviderResult[];
+  const minConf = calibration.minMatchConfidence;
+  let scoredMatchCount = 0;
+
   if (financeSystems.length >= 2) {
     for (let i = 0; i < financeSystems.length - 1; i++) {
       for (let j = i + 1; j < financeSystems.length; j++) {
@@ -98,9 +133,27 @@ function processFinance(
         const crossMatches: any[] = [];
         for (const s of src.sampleData) {
           for (const t of tgt.sampleData) {
-            if (s.name && t.name && s.name.toLowerCase() === t.name.toLowerCase()) {
-              crossMatches.push({ sourceRecord: s, targetRecord: t });
+            const sc = scoreEntityMatch(s, t);
+            if (sc.confidence < minConf) continue;
+            // Amount discrepancy on matched pairs, using calibrated thresholds.
+            let discrepancy: { pct: number; abs: number } | undefined;
+            const amtA = num(pickValue(s, AMOUNT_KEYS));
+            const amtB = num(pickValue(t, AMOUNT_KEYS));
+            if (amtA !== undefined && amtB !== undefined && amtB !== 0) {
+              const pct = Math.abs((amtA - amtB) / amtB) * 100;
+              const abs = Math.abs(amtA - amtB);
+              if (pct > calibration.discrepancyPercent || abs > calibration.discrepancyAbs) {
+                discrepancy = { pct: round2(pct), abs: round2(abs) };
+              }
             }
+            scoredMatchCount++;
+            crossMatches.push({
+              sourceRecord: s,
+              targetRecord: t,
+              confidence: sc.confidence,
+              matchedOn: sc.matchedOn,
+              discrepancy,
+            });
           }
         }
         if (crossMatches.length > 0) {
@@ -110,21 +163,52 @@ function processFinance(
     }
   }
 
-  // Flag discrepancies
+  // Flag discrepancies (scored > threshold, or none matched at all).
   if (financeSystems.length >= 2 && matched.length === 0) {
     insights.push({
       type: "discrepancy",
       severity: "high",
-      message: `${financeSystems.map(f => f.provider).join(" and ")} show no matching customer/vendor records — possible data sync gap.`,
+      message: `${financeSystems.map(f => f.provider).join(" and ")} show no matching records — possible data sync gap.`,
     });
     alerts.push({ level: "warning", message: "Cross-system records don't match. Reconciliation needed.", requiresAttention: true });
   } else if (matched.length > 0) {
     const totalMatches = matched.reduce((s, m) => s + m.matches.length, 0);
+    const amountMismatches = matched.flatMap(m => m.matches).filter(m => m.discrepancy).length;
     insights.push({
       type: "summary",
       severity: "info",
-      message: `Found ${totalMatches} matching records across ${matched.length} system pair(s).`,
+      message: `Found ${totalMatches} matching record(s) across ${matched.length} system pair(s) (confidence ≥ ${Math.round(minConf * 100)}%).${amountMismatches ? ` ${amountMismatches} amount mismatch(es) detected.` : ""}`,
     });
+    if (amountMismatches > 0) {
+      alerts.push({
+        level: "warning",
+        message: `${amountMismatches} matched record(s) exceed the amount calibration threshold (rel > ${calibration.discrepancyPercent}% or abs > ${calibration.discrepancyAbs}).`,
+        requiresAttention: true,
+      });
+    }
+  }
+
+  // Cross-record joins (finance ↔ sales) — emit higher-value readiness insight.
+  const otherSales = results.find(r => (r.providerId === "hubspot" || r.providerId === "salesforce") && r.status === "ok");
+  let joinedRecords = 0;
+  if (financeSystems.length && otherSales) {
+    const financeRecords = financeSystems.flatMap(f => f.sampleData);
+    const salesRecords = otherSales.sampleData;
+    const joins = crossJoin(financeRecords, (r) => normEmail(pickValue(r, EMAIL_KEYS)), salesRecords, (r) => normEmail(pickValue(r, EMAIL_KEYS)));
+    joinedRecords = joins.length;
+    if (joinedRecords > 0) {
+      insights.push({
+        type: "recommendation",
+        severity: "medium",
+        message: `Joined ${joinedRecords} finance record(s) to sales contacts by email — ready for quote-to-cash reconciliation.`,
+      });
+    } else {
+      insights.push({
+        type: "summary",
+        severity: "info",
+        message: "No finance↔sales email joins found in the current sample — either unrelated or needing contact email enrichment.",
+      });
+    }
   }
 
   // Calculate totals
@@ -132,6 +216,8 @@ function processFinance(
     totalRecords,
     systemsQueried: financeSystems.length,
     crossSystemMatches: matched.reduce((s, m) => s + m.matches.length, 0),
+    scoredMatches: scoredMatchCount,
+    joinedRecords,
   };
 
   // Recommended actions
@@ -179,7 +265,8 @@ function processFinance(
 function processSales(
   agent: AgentDefinition,
   results: ProviderResult[],
-  _connections: ProviderConnection[]
+  _connections: ProviderConnection[],
+  calibration: Required<ProcessorCalibration> = DEFAULT_PROCESSOR_CALIBRATION,
 ): ProcessorResult {
   const filtered: any[] = [];
   const enriched: any[] = [];
@@ -208,34 +295,49 @@ function processSales(
     }
   }
 
-  // Deduplicate contacts
-  const dedupeMap = new Map<string, any[]>();
+  // Deduplicate contacts — exact first (back-compat), then confidence-scored
+  // fuzzy variants (casing/initials/common-prefix) using tenant calibration.
+  const exactDedupeMap = new Map<string, any[]>();
   for (const c of allContacts) {
     const key = (c.email || c.name || "").toLowerCase().trim();
     if (!key) continue;
-    if (!dedupeMap.has(key)) dedupeMap.set(key, []);
-    dedupeMap.get(key)!.push(c);
+    if (!exactDedupeMap.has(key)) exactDedupeMap.set(key, []);
+    exactDedupeMap.get(key)!.push(c);
   }
-  const duplicates = Array.from(dedupeMap.entries()).filter(([_, v]) => v.length > 1);
+  const exactDuplicates = Array.from(exactDedupeMap.entries()).filter(([_, v]) => v.length > 1);
 
-  for (const [key, dups] of duplicates) {
+  for (const [key, dups] of exactDuplicates) {
     const sources = [...new Set(dups.map(d => d.provider))];
-    matched.push({ source: sources[0], target: sources[1] || sources[0], matches: dups.map(d => ({ ...d, dedupeKey: key })) });
+    matched.push({ source: sources[0], target: sources[1] || sources[0], matches: dups.map(d => ({ ...d, dedupeKey: key, confidence: 1 })) });
   }
 
-  if (duplicates.length > 0) {
+  // Fuzzy/near-duplicate pairs (initial-variant, casing, word-order) that share
+  // strong signals but aren't exact string duplicates.
+  let fuzzyCount = 0;
+  const fuzzyPairs = fuzzyDuplicates(allContacts, { minConfidence: calibration.fuzzyDedupeConfidence });
+  for (const pair of fuzzyPairs) {
+    const aProv = pair.a.provider, bProv = pair.b.provider;
+    matched.push({
+      source: aProv || bProv,
+      target: bProv && bProv !== aProv ? bProv : aProv,
+      matches: [{ ...pair.a, ...pair.b, confidence: pair.confidence, dedupeKey: pair.key, matchedOn: pair.matchedOn, fuzzy: true }],
+    });
+    fuzzyCount++;
+  }
+
+  if (exactDuplicates.length + fuzzyCount > 0) {
     insights.push({
       type: "discrepancy",
       severity: "medium",
-      message: `Found ${duplicates.length} duplicate contact(s) across CRM systems.`,
+      message: `Found ${exactDuplicates.length + fuzzyCount} duplicate contact group(s) across CRM systems (${exactDuplicates.length} exact, ${fuzzyCount} near-match).`,
     });
-    alerts.push({ level: "warning", message: `${duplicates.length} duplicate contacts detected — consider merging.`, requiresAttention: true });
+    alerts.push({ level: "warning", message: `${exactDuplicates.length + fuzzyCount} duplicate/near-duplicate contact group(s) detected — consider merging.`, requiresAttention: true });
     actions.push({
       provider: "hubspot",
       providerId: "hubspot",
       action: "deduplicate_contacts",
       status: "pending",
-      detail: `Merge ${duplicates.length} duplicate contact(s) across connected CRMs`,
+      detail: `Merge/verify ${exactDuplicates.length + fuzzyCount} duplicate contact group(s) across connected CRMs`,
     });
   }
 
@@ -276,7 +378,7 @@ function processSales(
   }
 
   return {
-    processedData: { filtered, enriched, matched, metrics: { totalRecords, duplicates: duplicates.length, scopedContacts: allContacts.length } },
+    processedData: { filtered, enriched, matched, metrics: { totalRecords, duplicates: exactDuplicates.length + fuzzyCount, fuzzyDuplicates: fuzzyCount, scopedContacts: allContacts.length } },
     actionsTaken: actions,
     insights,
     alerts,
@@ -760,7 +862,7 @@ function processGeneric(
 
 const CATEGORY_PROCESSORS: Record<
   string,
-  (agent: AgentDefinition, results: ProviderResult[], connections: ProviderConnection[]) => ProcessorResult
+  (agent: AgentDefinition, results: ProviderResult[], connections: ProviderConnection[], calibration?: Required<ProcessorCalibration>) => ProcessorResult
 > = {
   finance: processFinance,
   sales: processSales,
@@ -790,13 +892,19 @@ const CATEGORY_PROCESSORS: Record<
 export function processAgentResults(
   agent: AgentDefinition,
   queryResult: AgentIntegrationResult,
-  userConnections: ProviderConnection[]
+  userConnections: ProviderConnection[],
+  opts?: ProcessorOptions,
 ): ProcessorResult {
   try {
     const category = (agent.category || "").toLowerCase();
     const processor = CATEGORY_PROCESSORS[category] || processGeneric;
 
-    const result = processor(agent, queryResult.integrationsUsed, userConnections);
+    // Per-tenant calibration for deterministic reasoning (defaults when unset).
+    const calibration: Required<ProcessorCalibration> = opts?.tenantEmail
+      ? getProcessorCalibration(opts.tenantEmail, opts.dataDir)
+      : DEFAULT_PROCESSOR_CALIBRATION;
+
+    const result = processor(agent, queryResult.integrationsUsed, userConnections, calibration);
 
     // Add a top-level summary insight
     result.insights.unshift({
