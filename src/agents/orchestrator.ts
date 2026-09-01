@@ -149,9 +149,99 @@ export const DOC_INTAKE_TO_CONTRACT_REVIEW: OrchestrationChain = {
   ],
 };
 
+// Capability upgrade #6 — QUOTE-TO-CASH demo spine on verified integrations
+// only (DocuSign, HubSpot, Xero, Slack, Google Drive). No QuickBooks/QBO
+// claims — QBO stays unclaimed until the owner adds Intuit creds and it is
+// live-verified. Every provider write is declared on `write`, so runChain
+// routes EACH one through the unchanged approval gate (fail-closed default
+// ON) — the chain pauses awaiting_approval at the first gated write and ZERO
+// provider calls fire until a human approves. The full spine is defined so a
+// resume path can step through the remaining gated writes in order.
+export const QUOTE_TO_CASH: OrchestrationChain = {
+  chainId: "quote-to-cash",
+  name: "Quote → cash (proposal → e-sign → deal → invoice → notify → file)",
+  steps: [
+    {
+      agentType: "sales_outreach",
+      agentName: "Sales Outreach AI",
+      category: "sales",
+      instructions: "Prepare and qualify the opportunity proposal from the CRM context.",
+    },
+    {
+      agentType: "document_intake",
+      agentName: "Document Intake AI",
+      category: "operations",
+      instructions: "Send the proposal for e-signature via DocuSign.",
+      write: {
+        actionName: "sendDocuSignEnvelope",
+        provider: "docusign",
+        summary: "Send the proposal envelope for e-signature in DocuSign.",
+        params: {
+          emailSubject: "Proposal for signature",
+          documents: [{ name: "Proposal.pdf" }],
+          recipients: { email: "client@example.com", name: "Client" },
+        },
+      },
+    },
+    {
+      agentType: "sales_outreach",
+      agentName: "Sales Outreach AI",
+      category: "sales",
+      instructions: "Create the won deal and contact in HubSpot from the signed proposal.",
+      write: {
+        actionName: "createHubSpotDeal",
+        provider: "hubspot",
+        summary: "Create the won deal in HubSpot.",
+        params: { dealname: "New deal", dealstage: "closedwon", amount: 15000 },
+      },
+    },
+    {
+      agentType: "invoice_ledger",
+      agentName: "Invoice & Ledger AI",
+      category: "finance",
+      instructions: "Draft the invoice in Xero from the signed deal.",
+      write: {
+        actionName: "createXeroInvoice",
+        provider: "xero",
+        summary: "Draft the invoice in Xero (ACCREC).",
+        params: {
+          Type: "ACCREC",
+          Contact: { Name: "Client" },
+          LineItems: [{ Description: "Professional services", Quantity: 1, UnitAmount: 15000 }],
+        },
+      },
+    },
+    {
+      agentType: "audit_logger",
+      agentName: "Operations Audit Logger AI",
+      category: "operations",
+      instructions: "Notify the revenue team in Slack that the deal closed and the invoice is drafted.",
+      write: {
+        actionName: "postSlackMessage",
+        provider: "slack",
+        summary: "Notify the revenue team in Slack.",
+        params: { channel: "#revenue", text: "Deal closed — invoice drafted in Xero." },
+      },
+    },
+    {
+      agentType: "document_intake",
+      agentName: "Document Intake AI",
+      category: "operations",
+      instructions: "File the signed proposal to Google Drive for the permanent record.",
+      write: {
+        actionName: "uploadGDriveFile",
+        provider: "google-drive",
+        summary: "File the signed proposal to Google Drive.",
+        params: { name: "signed-proposal.pdf", content: "signed-proposal-rendered", mimeType: "application/pdf" },
+      },
+    },
+  ],
+};
+
 export const CHAINS: Record<string, OrchestrationChain> = {
   [INVOICE_INGEST_TO_LEDGER.chainId]: INVOICE_INGEST_TO_LEDGER,
   [DOC_INTAKE_TO_CONTRACT_REVIEW.chainId]: DOC_INTAKE_TO_CONTRACT_REVIEW,
+  [QUOTE_TO_CASH.chainId]: QUOTE_TO_CASH,
 };
 
 export function getChain(chainId: string): OrchestrationChain | undefined {
