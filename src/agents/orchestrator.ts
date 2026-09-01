@@ -26,6 +26,7 @@ import type { AgentDefinition, ProcessorResult } from "../lib/agent-processor";
 import { processAgentResults } from "../lib/agent-processor";
 import type { ProviderConnection, ProviderResult, AgentIntegrationResult } from "../lib/provider-api";
 import { AGENT_CHAIN_MAP } from "./agentChains";
+import { buildAgentContext, recordInsight, recordAudit } from "../lib/firm-memory";
 
 // ── Chain model ─────────────────────────────────────────────────────────────
 
@@ -182,6 +183,14 @@ export async function runChain(input: RunChainInput): Promise<ChainRunResult> {
   const outcomes: ChainStepOutcome[] = [];
   // Shared step context: fed by each step's processed data, read by downstream steps.
   const stepContext: Record<string, any> = {};
+  // Seed the per-tenant operational memory (firm rules + calibration + recent
+  // insights/audit tail) into the shared context so every step/chain step is
+  // grounded on the firm's history. Additive — a memory failure never blocks a run.
+  try {
+    stepContext.agentContext = buildAgentContext(input.tenantEmail, input.dataDir);
+  } catch {
+    // leave agentContext unset; the chain proceeds with no memory (fail-soft)
+  }
 
   for (let i = 0; i < chain.steps.length; i++) {
     const step = chain.steps[i];
@@ -238,6 +247,18 @@ export async function runChain(input: RunChainInput): Promise<ChainRunResult> {
     // Feed this step's processed data into the shared context for downstream steps.
     stepContext[`${step.agentType}`] = outcome.processed.processedData;
     stepContext[`step${i + 1}`] = outcome.processed.processedData;
+    try {
+      const summary =
+        outcome.processed.insights[0]?.message?.slice(0, 200) ||
+        `Chain '${input.chainId}' step ${i + 1} (${step.agentType}) processed.`;
+      recordInsight(
+        input.tenantEmail,
+        { summary, source: step.agentType, action: step.agentType, provider: step.write?.provider },
+        input.dataDir,
+      );
+    } catch {
+      // memory write failure is non-fatal
+    }
 
     // Gate any declared write through the existing Approval Queue path.
     if (step.write) {
@@ -255,6 +276,15 @@ export async function runChain(input: RunChainInput): Promise<ChainRunResult> {
           actionId: writeResult.actionId,
           summary: step.write.summary || `Proposed ${step.write.actionName}`,
         };
+        try {
+          recordAudit(
+            input.tenantEmail,
+            { summary: `Proposed ${step.write.actionName} on ${step.write.provider} (awaiting approval)`, source: step.agentType, action: step.write.actionName, provider: step.write.provider, approved: false },
+            input.dataDir,
+          );
+        } catch {
+          // non-fatal
+        }
         outcomes.push(outcome);
         return {
           chainId: input.chainId,
@@ -272,6 +302,15 @@ export async function runChain(input: RunChainInput): Promise<ChainRunResult> {
         executed: writeResult.success,
         error: writeResult.error,
       };
+      try {
+        recordAudit(
+          input.tenantEmail,
+          { summary: `${step.write.actionName} on ${step.write.provider} ${writeResult.success ? "approved+executed" : "rejected/not-executed"}`, source: step.agentType, action: step.write.actionName, provider: step.write.provider, approved: writeResult.success },
+          input.dataDir,
+        );
+      } catch {
+        // non-fatal
+      }
     }
 
     outcomes.push(outcome);
