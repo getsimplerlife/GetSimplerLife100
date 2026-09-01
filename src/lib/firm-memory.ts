@@ -27,6 +27,7 @@ import {
   getProcessorCalibration,
   type ProcessorCalibration,
 } from "./tenant-settings";
+import { retrieveDocs, type RetrievalHit } from "./retrieval";
 
 export const FIRM_MEMORY_KEY = "firm_memory.json";
 
@@ -69,6 +70,8 @@ export interface AgentContext {
     auditTail: MemoryEntry[];
     updatedAt: number;
   };
+  /** Optional attributed retrieval excerpts (RAG-lite) for the run's query. */
+  retrieval?: RetrievalHit[];
 }
 
 // ── Store plumbing ──────────────────────────────────────────────────────────
@@ -188,9 +191,13 @@ export function setFirmRule(
  * recent memory (insights + audit tail). Strictly per-tenant; safe when the
  * tenant has no memory yet (defaults).
  *
+ * Optional `query` triggers RAG-lite retrieval: top-K attributed excerpts from
+ * the tenant's keyword index are attached as `context.retrieval`. Retrieval is
+ * a pure read that is fail-soft (indexing failure → no excerpts, never throws).
+ *
  * `dataDir` isolates the store in tests; production uses the default data dir.
  */
-export function buildAgentContext(tenantEmail: string, dataDir?: string): AgentContext {
+export function buildAgentContext(tenantEmail: string, dataDir?: string, query?: string): AgentContext {
   if (!tenantEmail?.trim()) {
     throw new Error("buildAgentContext requires a tenantEmail");
   }
@@ -204,7 +211,7 @@ export function buildAgentContext(tenantEmail: string, dataDir?: string): AgentC
     approvalMode: settings.approvalMode || "on",
   };
 
-  return {
+  const context: AgentContext = {
     tenantEmail,
     firmRules,
     calibration,
@@ -214,4 +221,14 @@ export function buildAgentContext(tenantEmail: string, dataDir?: string): AgentC
       updatedAt: mem.updatedAt,
     },
   };
+
+  if (query && query.trim()) {
+    try {
+      context.retrieval = retrieveDocs(tenantEmail, query, undefined, dataDir);
+    } catch {
+      // fail-soft: retrieval failure never blocks a run
+    }
+  }
+
+  return context;
 }

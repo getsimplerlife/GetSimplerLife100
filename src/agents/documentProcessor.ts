@@ -6,6 +6,7 @@
 
 import { registry } from "./tools";
 import { createNotification, extractTextFromUpload } from "./schema";
+import { indexDocument } from "../lib/retrieval";
 
 export interface ProcessDocumentInput {
   filePath: string;
@@ -47,7 +48,20 @@ export async function processDocument(input: ProcessDocumentInput): Promise<Proc
       text: text.slice(0, 5000),
     }, ctx);
 
-    // Step 4: Notify user
+    // Step 4: Index the extracted text into the per-tenant retrieval index
+    // (RAG-lite). Best-effort — a failure here never fails the run.
+    try {
+      indexDocument(userId, {
+        docId: filePath,
+        source: "upload",
+        filename: filename || undefined,
+        text: text.slice(0, 20000), // bound what we index
+      });
+    } catch {
+      // fail-soft: indexing failure is a no-op for the document pipeline
+    }
+
+    // Step 5: Notify user
     await createNotification(
       userId,
       `📄 Document Processed: ${docType}`,
