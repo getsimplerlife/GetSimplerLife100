@@ -44,6 +44,10 @@ export interface ProcessorCalibration {
   discrepancyAbs?: number;
   /** Minimum confidence for a fuzzy duplicate to be reported. Default 0.65. */
   fuzzyDedupeConfidence?: number;
+  /** Anomaly detection: |delta %| vs the firm's own history beyond which to WARN. Default 25. */
+  anomalyDeltaPercent?: number;
+  /** Anomaly detection: minimum prior samples required to establish a baseline. Default 2. */
+  minAnomalySamples?: number;
 }
 
 export const DEFAULT_PROCESSOR_CALIBRATION: Required<ProcessorCalibration> = {
@@ -51,6 +55,8 @@ export const DEFAULT_PROCESSOR_CALIBRATION: Required<ProcessorCalibration> = {
   discrepancyPercent: 5,
   discrepancyAbs: 500,
   fuzzyDedupeConfidence: 0.65,
+  anomalyDeltaPercent: 25,
+  minAnomalySamples: 2,
 };
 
 /** A tenant's calibration with all defaults applied (never partial/undefined). */
@@ -64,6 +70,8 @@ export function getProcessorCalibration(
     discrepancyPercent: cal?.discrepancyPercent ?? DEFAULT_PROCESSOR_CALIBRATION.discrepancyPercent,
     discrepancyAbs: cal?.discrepancyAbs ?? DEFAULT_PROCESSOR_CALIBRATION.discrepancyAbs,
     fuzzyDedupeConfidence: cal?.fuzzyDedupeConfidence ?? DEFAULT_PROCESSOR_CALIBRATION.fuzzyDedupeConfidence,
+    anomalyDeltaPercent: cal?.anomalyDeltaPercent ?? DEFAULT_PROCESSOR_CALIBRATION.anomalyDeltaPercent,
+    minAnomalySamples: cal?.minAnomalySamples ?? DEFAULT_PROCESSOR_CALIBRATION.minAnomalySamples,
   };
 }
 
