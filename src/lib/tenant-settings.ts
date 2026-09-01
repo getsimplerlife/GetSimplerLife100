@@ -29,6 +29,57 @@ export interface TenantSettings {
   /** Approval Queue mode: "on" (default — writes await human approval) or
    *  "auto" (explicit per-tenant opt-out: writes execute immediately). */
   approvalMode?: "on" | "auto";
+  /** Calibration for deterministic agent-processor reasoning (matching,
+   *  dedup, discrepancy thresholds). Optional — defaults apply when unset. */
+  processorCalibration?: ProcessorCalibration;
+}
+
+/** Per-tenant tuning of deterministic reasoning (all optional → defaults). */
+export interface ProcessorCalibration {
+  /** Minimum confidence (0–1) for a cross-system match to count. Default 0.6. */
+  minMatchConfidence?: number;
+  /** Relative amount-discrepancy threshold (percent) to flag. Default 5 (%). */
+  discrepancyPercent?: number;
+  /** Absolute amount-discrepancy threshold (currency units) to flag. Default 500. */
+  discrepancyAbs?: number;
+  /** Minimum confidence for a fuzzy duplicate to be reported. Default 0.65. */
+  fuzzyDedupeConfidence?: number;
+}
+
+export const DEFAULT_PROCESSOR_CALIBRATION: Required<ProcessorCalibration> = {
+  minMatchConfidence: 0.6,
+  discrepancyPercent: 5,
+  discrepancyAbs: 500,
+  fuzzyDedupeConfidence: 0.65,
+};
+
+/** A tenant's calibration with all defaults applied (never partial/undefined). */
+export function getProcessorCalibration(
+  tenantId: string,
+  dataDir?: string,
+): Required<ProcessorCalibration> {
+  const cal = getTenantSettings(tenantId, dataDir).processorCalibration;
+  return {
+    minMatchConfidence: cal?.minMatchConfidence ?? DEFAULT_PROCESSOR_CALIBRATION.minMatchConfidence,
+    discrepancyPercent: cal?.discrepancyPercent ?? DEFAULT_PROCESSOR_CALIBRATION.discrepancyPercent,
+    discrepancyAbs: cal?.discrepancyAbs ?? DEFAULT_PROCESSOR_CALIBRATION.discrepancyAbs,
+    fuzzyDedupeConfidence: cal?.fuzzyDedupeConfidence ?? DEFAULT_PROCESSOR_CALIBRATION.fuzzyDedupeConfidence,
+  };
+}
+
+/** Set a tenant's processor calibration (merges with existing settings). */
+export function setProcessorCalibration(
+  tenantId: string,
+  calibration: ProcessorCalibration,
+  dataDir?: string,
+): TenantSettings {
+  if (!tenantId?.trim()) throw new Error("setProcessorCalibration requires a tenant id");
+  const index = readIndex(dataDir);
+  const current = index[tenantId] || {};
+  const next: TenantSettings = { ...current, processorCalibration: calibration };
+  index[tenantId] = next;
+  writeIndex(index, dataDir);
+  return next;
 }
 
 export type TenantSettingsIndex = Record<string, TenantSettings>;
