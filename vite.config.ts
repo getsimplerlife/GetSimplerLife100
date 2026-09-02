@@ -25,6 +25,18 @@ export default defineConfig({
       external: ['@libsql/client', 'drizzle-orm/libsql'],
       output: {
         manualChunks(id) {
+          // Vite 7 injects its modulepreload machinery into the client entry:
+          // - `vite/modulepreload-polyfill` (legacy relList fallback)
+          // - `vite/preload-helper` (`__vitePreload`), which is shared by the
+          //   eagerly-loaded entry AND every lazy chunk.
+          // Both must live in an eagerly-preloaded chunk (react-vendor), NOT
+          // beside jspdf/html2canvas. If the preload-helper lands in vendor-pdf,
+          // the entry statically imports vendor-pdf just for the helper and
+          // every first-time visitor pays ~167K gzipped for PDF code via
+          // <link rel="modulepreload">. See "lazy-load PDF vendor chunk".
+          if (id.includes('vite/preload-helper') || id.includes('vite/modulepreload-polyfill')) {
+            return 'react-vendor';
+          }
           if (id.includes('node_modules/react-dom') || id.includes('node_modules/react/') || id.includes('node_modules/react-router') || id.includes('node_modules/@tanstack/react-router') || id.includes('node_modules/@tanstack/history') || id.includes('node_modules/@tanstack/store')) {
             return 'react-vendor';
           }
