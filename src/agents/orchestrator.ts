@@ -27,6 +27,7 @@ import { processAgentResults } from "../lib/agent-processor";
 import type { ProviderConnection, ProviderResult, AgentIntegrationResult } from "../lib/provider-api";
 import { AGENT_CHAIN_MAP } from "./agentChains";
 import { buildAgentContext, recordInsight, recordAudit } from "../lib/firm-memory";
+import { runReasoningStage, type ReasoningEmployeeConfig, type ReasoningDeps } from "../lib/llm/reasoningStage";
 
 // ── Chain model ─────────────────────────────────────────────────────────────
 
@@ -91,6 +92,16 @@ export interface RunChainInput {
   connections?: ProviderConnection[];
   /** Optional explicit chain (advanced/test use; defaults to the registry). */
   chain?: OrchestrationChain;
+  /** Phase 1 LLM reasoning — per-employee opt-in, OFF by default. When set and
+   *  the employee's `reasoningEnabled` is true (AND env enabled), the step runs
+   *  an optional reasoning call that ENRICHES the step's write summary. It is
+   *  purely advisory: it never gates, never executes, and the approval path is
+   *  byte-for-byte unchanged. Omitted/OFF → current behavior exactly. */
+  reasoning?: ReasoningEmployeeConfig;
+  /** Test-only: inject the model client / tracker into the reasoning stage
+   *  (the canonical suite drives it with a MockModelClient; prod leaves unset
+   *  and the stage resolves env-driven deps itself). */
+  reasoningDeps?: ReasoningDeps;
 }
 
 // ── Real chains (only already-verified integrations) ────────────────────────
@@ -350,6 +361,36 @@ export async function runChain(input: RunChainInput): Promise<ChainRunResult> {
       // memory write failure is non-fatal
     }
 
+    // Phase 1 LLM reasoning — OPTIONAL advisory layer between the deterministic
+    // processor output and the approval gate. OFF by default (requires env
+    // LLM_INTELLIGENCE_ENABLED=true AND input.reasoning.reasoningEnabled=true).
+    // When it runs, its plan text enriches the step's write summary (draft "why"
+    // on the approval card). It NEVER gates, NEVER executes, and on any decline
+    // or error the deterministic flow continues untouched (match current behavior).
+    let reasoningSnippet = "";
+    if (input.reasoning) {
+      const reasoningOutcome = await runReasoningStage(
+        {
+          tenantEmail: input.tenantEmail,
+          agentId: step.agentType,
+          dataDir: input.dataDir,
+          employee: input.reasoning,
+          processed: outcome.processed.processedData,
+          insights: outcome.processed.insights,
+          alerts: outcome.processed.alerts,
+          actions: outcome.processed.actionsTaken,
+          context: stepContext.agentContext,
+        },
+        input.reasoningDeps,
+        // In the canonical suite (LLM off) the stage is a no-op and returns
+        // instantly with plannedActions=[] / status declined_*. This call is
+        // bounded by the stage's own caps and tracker — never unbounded.
+      );
+      if (reasoningOutcome.status === "ran" && reasoningOutcome.plan?.trim()) {
+        reasoningSnippet = reasoningOutcome.plan.slice(0, 120).trim();
+      }
+    }
+
     // Gate any declared write through the existing Approval Queue path.
     if (step.write) {
       const { executeAction } = await import("../engine/action-executor");
@@ -364,7 +405,9 @@ export async function runChain(input: RunChainInput): Promise<ChainRunResult> {
           actionName: step.write.actionName,
           provider: step.write.provider,
           actionId: writeResult.actionId,
-          summary: step.write.summary || `Proposed ${step.write.actionName}`,
+          summary: reasoningSnippet
+            ? `${step.write.summary || `Proposed ${step.write.actionName}`} — ${reasoningSnippet}`
+            : step.write.summary || `Proposed ${step.write.actionName}`,
         };
         try {
           recordAudit(
