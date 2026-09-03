@@ -551,12 +551,21 @@ function Home() {
             <div className="grid gap-12 lg:grid-cols-2">
               {/* Implementation Packages */}
               <div className="rounded-[3rem] border border-stone-900 bg-stone-900 p-12">
-                <h3 className="mb-8 text-xl font-bold uppercase tracking-widest text-emerald-400">Implementation Packages</h3>
+                <div className="mb-8 flex items-center justify-between gap-4">
+                  <h3 className="text-xl font-bold uppercase tracking-widest text-emerald-400">Implementation Packages</h3>
+                  <Link
+                    to="/pricing"
+                    className="shrink-0 text-xs font-bold text-emerald-400 hover:text-emerald-300"
+                  >
+                    ⚡ Start with the $2,500 Automation Sprint →
+                  </Link>
+                </div>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between rounded-2xl border border-stone-800 bg-stone-950 p-6">
                     <div>
-                      <div className="text-xl font-black text-white">Small Team</div>
-                      <div className="text-sm font-bold text-stone-400">2 AI Agents • 3 Workflows • 1 CRM Connection</div>
+                      <div className="text-xl font-black text-white">Starter</div>
+                      <div className="text-sm font-bold text-stone-400">Automate your first 3 high-value workflows</div>
+                      <div className="mt-2 text-[11px] text-stone-500">Typical opportunity (illustrative): ~$2,000–$4,000/mo of manual labor · potential payback ~2–4 months</div>
                     </div>
                     <div className="text-right">
                       <div className="text-2xl font-black text-emerald-400">$7,500</div>

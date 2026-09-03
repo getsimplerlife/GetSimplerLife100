@@ -1,19 +1,27 @@
 /**
  * pricing-blueprint-checkout.test.ts — regression guardrail for the
- * "Industry Blueprint Assessment" checkout button on /pricing.
+ * $2,500 entry on /pricing (site name "Automation Sprint"; Stripe catalog
+ * name "Industry Blueprint Assessment" — the owner renames the catalog).
  *
  * Bug (d40f2677): the $2,500 Blueprint button's href pointed at
  * aFa7sN60LdErc1B5HG2Fa2M — the SAME Stripe Payment Link as the $30,000
  * Scale Build Package. A customer clicking "Get Your Blueprint" expecting
  * $2,500 landed on a $30,000 checkout.
  *
- * Fix: the Blueprint button now points at its own real $2,500 Blueprint
+ * Fix: the $2,500 button now points at its own real $2,500 Blueprint
  * Payment Link (https://buy.stripe.com/14AbJ3cp91VJc1Bfig2Fa2N, generated
  * from price_1Tv7GiRcz95wEmJa2nEHrpaZ / prod_UuxBKQU2FvfQsB).
  *
+ * SITE P3 rework: the section is now the low-risk "Automation Sprint" entry.
+ * Truthfulness: the site calls it "Automation Sprint" but the Stripe
+ * catalog/checkout still shows "Industry Blueprint Assessment" (the owner's
+ * rename step) — so the CTA must link to the canonical $2,500 link AND the
+ * page must disclose the checkout label to avoid implying the checkout says
+ * "Automation Sprint".
+ *
  * These assertions read the source of src/routes/pricing.tsx (source of
- * truth) so any future accidental re-binding of Blueprint to Scale's link
- * fails CI immediately.
+ * truth) so any future accidental re-binding of the $2,500 CTA to Scale's
+ * link — or removal of the checkout-label disclosure — fails CI immediately.
  */
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
@@ -23,28 +31,32 @@ const PRICING = readFileSync("src/routes/pricing.tsx", "utf8");
 const SCALE_LINK = "https://buy.stripe.com/aFa7sN60LdErc1B5HG2Fa2M";
 const BLUEPRINT_LINK = "https://buy.stripe.com/14AbJ3cp91VJc1Bfig2Fa2N";
 
-describe("pricing Blueprint checkout button", () => {
-  it("Blueprint button points at the real $2,500 Blueprint link (not Scale's $30k link)", () => {
-    // The Blueprint block in /pricing: find the "Get Your Blueprint" CTA and
-    // assert its href is the canonical Blueprint link.
-    const blueprintIdx = PRICING.indexOf("Get Your Blueprint");
-    expect(blueprintIdx).toBeGreaterThan(0);
-    const blueprintBlock = PRICING.slice(0, blueprintIdx);
-    const hrefIn = blueprintBlock.lastIndexOf("href=");
+describe("pricing $2,500 Automation Sprint checkout button", () => {
+  it("Sprint CTA points at the real $2,500 Blueprint link (not Scale's $30k link)", () => {
+    // The Sprint block in /pricing: find the "Start the Sprint" CTA and
+    // assert its href is the canonical $2,500 link.
+    const sprintIdx = PRICING.indexOf("Start the Sprint");
+    expect(sprintIdx).toBeGreaterThan(0);
+    const sprintBlock = PRICING.slice(0, sprintIdx);
+    const hrefIn = sprintBlock.lastIndexOf("href=");
     expect(hrefIn).toBeGreaterThan(0);
-    const href = (blueprintBlock.slice(hrefIn).match(/href="([^"]+)"/) || [])[1];
+    const href = (sprintBlock.slice(hrefIn).match(/href="([^"]+)"/) || [])[1];
     expect(href).toBe(BLUEPRINT_LINK);
     // Critically, it must NOT be Scale's link.
     expect(href).not.toBe(SCALE_LINK);
   });
 
-  it("Blueprint block still advertises $2,500 with the same CTA", () => {
-    const blueprintIdx = PRICING.indexOf('href="' + BLUEPRINT_LINK + '"');
-    expect(blueprintIdx).toBeGreaterThan(0);
-    const block = PRICING.slice(0, blueprintIdx);
+  it("Sprint block advertises $2,500, names 'Automation Sprint', and discloses the checkout label", () => {
+    const sprintIdx = PRICING.indexOf('href="' + BLUEPRINT_LINK + '"');
+    expect(sprintIdx).toBeGreaterThan(0);
+    const block = PRICING.slice(0, sprintIdx);
     expect(block).toContain("$2,500");
-    expect(PRICING).toContain("Get Your Blueprint →");
-    expect(PRICING).toContain("Industry Blueprint Assessment");
+    expect(block).toContain("Automation Sprint");
+    // Truthfulness: the site names it Automation Sprint, and the checkout
+    // is disclosed as "Industry Blueprint Assessment" — the catalog name
+    // the owner will rename in Stripe.
+    expect(PRICING).toContain('At checkout you\'ll see the item as "Industry Blueprint Assessment"');
+    expect(PRICING).toContain("the same $2,500 one-time engagement");
   });
 
   it("Scale button still points at the $30,000 Scale link", () => {
