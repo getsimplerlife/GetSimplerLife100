@@ -181,7 +181,7 @@ function Home() {
       <Header businessName={businessName} />
       <main className="flex-1">
         {/* ── 1 · HERO (problem → solution → CTA) ── */}
-        <section className="hero-glow relative overflow-hidden border-b border-stone-800 bg-stone-950 px-4 py-16 lg:py-28">
+        <section className="hero-glow hero-mesh relative overflow-hidden border-b border-stone-800 bg-stone-950 px-4 py-16 lg:py-28">
           <div className="mx-auto max-w-7xl">
             <div className="grid items-center gap-12 lg:grid-cols-2">
               <div className="space-y-8">
@@ -193,7 +193,7 @@ function Home() {
                 <Reveal delay={80}>
                   <h1 className="max-w-2xl text-4xl font-black leading-[1.08] tracking-tight text-white sm:text-5xl lg:text-6xl">
                     Your team is entering the same information into{" "}
-                    <span className="text-emerald-400">three different systems.</span>
+                    <span className="bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-400 bg-clip-text text-transparent">three different systems.</span>
                   </h1>
                 </Reveal>
                 <Reveal delay={140}>
@@ -205,7 +205,7 @@ function Home() {
                 <Reveal delay={200} className="flex flex-wrap items-center gap-4">
                   <Link
                     to="/assessment"
-                    className="inline-flex min-h-[56px] items-center justify-center rounded-2xl bg-emerald-600 px-8 py-4 text-lg font-bold text-white shadow-lg shadow-emerald-900/40 transition-all hover:bg-emerald-500"
+                    className="premium-btn inline-flex min-h-[56px] items-center justify-center rounded-2xl px-8 py-4 text-lg font-bold text-white"
                   >
                     Find My First Automation ➜
                   </Link>
@@ -227,7 +227,7 @@ function Home() {
 
               {/* Hero visual: the quote-to-cash promise, condensed */}
               <Reveal delay={160}>
-                <div className="rounded-[2rem] border border-stone-800 bg-stone-900/70 p-6 shadow-2xl shadow-black/40">
+                <div className="premium-card float-slow rounded-[2rem] p-6 shadow-2xl shadow-black/40">
                   <div className="mb-4 text-xs font-black uppercase tracking-widest text-emerald-400">
                     A signed proposal moves itself
                   </div>
@@ -255,6 +255,7 @@ function Home() {
           </div>
         </section>
 
+        <div className="section-accent mx-auto w-40" aria-hidden="true" />
         {/* ── 2 · THAT'S MY DAY — the quote-to-cash hero workflow (visually dominant) ── */}
         <section className="border-b border-stone-800 bg-stone-900 px-4 py-16 lg:py-24">
           <div className="mx-auto max-w-7xl">
@@ -283,7 +284,7 @@ function Home() {
             </Reveal>
             <Reveal delay={100}>
               <figure className="mt-10">
-                <div className="overflow-hidden rounded-2xl border border-stone-800 bg-stone-950 shadow-2xl">
+                <div className="premium-card overflow-hidden rounded-2xl shadow-2xl">
                   <video
                     className="w-full aspect-video"
                     controls
@@ -321,7 +322,7 @@ function Home() {
               </Reveal>
               <Reveal delay={80}>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="rounded-3xl border border-stone-800 bg-stone-900/60 p-6">
+                  <div className="premium-card rounded-3xl p-6">
                     <div className="text-xs font-black uppercase tracking-widest text-stone-500">Before</div>
                     <ul className="mt-4 space-y-2 text-sm text-stone-400">
                       <li>✋ Proposal lands in the inbox</li>
@@ -331,7 +332,7 @@ function Home() {
                       <li>📁 Someone saves the file — maybe</li>
                     </ul>
                   </div>
-                  <div className="rounded-3xl border border-emerald-500/40 bg-emerald-950/30 p-6">
+                  <div className="premium-card premium-card-accent rounded-3xl p-6">
                     <div className="text-xs font-black uppercase tracking-widest text-emerald-400">After</div>
                     <ul className="mt-4 space-y-2 text-sm text-stone-300">
                       <li>📝 Proposal signed — AI employee notified</li>
@@ -370,7 +371,7 @@ function Home() {
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {OUTCOMES.map((o, i) => (
                 <Reveal key={o.t} delay={i * 60}>
-                  <div className="h-full rounded-3xl border border-stone-800 bg-stone-950/60 p-6">
+                  <div className="premium-card h-full rounded-3xl p-6">
                     <div className="text-3xl">{o.icon}</div>
                     <h3 className="mt-3 text-lg font-black text-white">{o.t}</h3>
                     <p className="mt-1.5 text-sm leading-relaxed text-stone-400">{o.d}</p>
@@ -409,13 +410,42 @@ function Home() {
                 ["ESTIMATED PAYBACK", "Implementation ÷ annual savings, in months — typically inside year one."],
               ].map(([t, d], i) => (
                 <Reveal key={t} delay={i * 60}>
-                  <div className="h-full rounded-3xl border border-stone-800 bg-stone-900/60 p-6">
-                    <div className="text-[10px] font-mono text-stone-400">{t}</div>
+                  <div className="premium-card h-full rounded-3xl p-6">
+                    <div className="text-[10px] font-mono text-emerald-300/80">{t}</div>
                     <p className="mt-3 text-sm leading-relaxed text-stone-400">{d}</p>
                   </div>
                 </Reveal>
               ))}
             </div>
+            <Reveal delay={100}>
+              <div className="premium-card mt-10 rounded-3xl p-6 lg:p-8">
+                <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+                  <div className="text-xs font-black uppercase tracking-widest text-emerald-400">
+                    Illustrative example — weekly hours on one quote-to-cash process
+                  </div>
+                  <span className="rounded-full border border-stone-700 px-3 py-1 text-[10px] font-mono text-stone-400">
+                    Illustrative · not customer data
+                  </span>
+                </div>
+                <div className="space-y-5">
+                  {[
+                    { label: "Manual today", pct: 84, value: "~21 hrs/wk", note: "re-keying, chasing, filing" },
+                    { label: "With an AI employee", pct: 26, value: "~6.5 hrs/wk", note: "review + approvals only" },
+                  ].map((row) => (
+                    <div key={row.label}>
+                      <div className="mb-1.5 flex items-baseline justify-between gap-3">
+                        <span className="text-sm font-bold text-stone-200">{row.label}</span>
+                        <span className="text-sm font-black text-emerald-300">{row.value}</span>
+                      </div>
+                      <div className="chart-bar-track" role="img" aria-label={`${row.label}: ${row.value} — illustrative`}>
+                        <div className="chart-bar-fill" style={{ width: `${row.pct}%` }} />
+                      </div>
+                      <p className="mt-1 text-[11px] text-stone-500">{row.note}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </Reveal>
             <Reveal delay={120}>
               <p className="mt-4 text-xs italic text-stone-500">
                 Illustrative estimate — your real numbers depend on your process, systems, and team.
@@ -425,7 +455,7 @@ function Home() {
               <div className="mt-6 flex flex-wrap items-center gap-4">
                 <Link
                   to="/roi-calculator"
-                  className="inline-flex min-h-[48px] items-center justify-center rounded-2xl bg-emerald-600 px-6 py-3 text-base font-bold text-white shadow-lg shadow-emerald-900/40 transition-all hover:bg-emerald-500"
+                  className="premium-btn inline-flex min-h-[48px] items-center justify-center rounded-2xl px-6 py-3 text-base font-bold text-white"
                 >
                   Run the interactive ROI calculator ➜
                 </Link>
@@ -457,7 +487,7 @@ function Home() {
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
               {STEPS.map((s, i) => (
                 <Reveal key={s.n} delay={i * 60}>
-                  <div className="h-full rounded-3xl border border-stone-800 bg-stone-950/60 p-6">
+                  <div className="premium-card h-full rounded-3xl p-6">
                     <div className="text-[10px] font-mono text-emerald-400">{s.n}</div>
                     <h3 className="mt-2 text-lg font-black text-white">{s.t}</h3>
                     <p className="mt-1.5 text-sm leading-relaxed text-stone-400">{s.d}</p>
@@ -505,7 +535,7 @@ function Home() {
               </Reveal>
 
               <Reveal delay={80} className="lg:col-span-1">
-                <div className="flex h-full flex-col rounded-[2rem] border border-stone-800 bg-stone-900/60 p-8">
+                <div className="premium-card flex h-full flex-col rounded-[2rem] p-8">
                   <div className="mb-4 text-xs font-black uppercase tracking-widest text-emerald-400">Human approval queue</div>
                   <p className="text-base leading-relaxed text-stone-400">
                     An AI employee won't send an invoice, move a dollar, or post to your channel on its own. Every
@@ -515,11 +545,11 @@ function Home() {
                     How your team stays in control →
                   </Link>
                   <div className="mt-6 space-y-3 text-sm text-stone-300">
-                    <div className="flex items-center justify-between rounded-xl border border-stone-800 bg-stone-950 px-4 py-3">
+                    <div className="premium-card flex items-center justify-between rounded-xl px-4 py-3">
                       <span>Draft Xero invoice — $4,800</span>
                       <span className="font-bold text-amber-400">Awaiting review</span>
                     </div>
-                    <div className="flex items-center justify-between rounded-xl border border-stone-800 bg-stone-950 px-4 py-3">
+                    <div className="premium-card flex items-center justify-between rounded-xl px-4 py-3">
                       <span>Create HubSpot deal — Acme Co.</span>
                       <span className="font-bold text-emerald-400">Approved</span>
                     </div>
@@ -528,7 +558,7 @@ function Home() {
               </Reveal>
 
               <Reveal delay={160} className="lg:col-span-1">
-                <div className="flex h-full flex-col rounded-[2rem] border border-stone-800 bg-stone-900/60 p-8">
+                <div className="premium-card flex h-full flex-col rounded-[2rem] p-8">
                   <div className="mb-4 text-xs font-black uppercase tracking-widest text-emerald-400">Your portal</div>
                   <p className="text-base leading-relaxed text-stone-400">
                     One place to see every AI employee, every workflow, and every integration's live health — plus the
@@ -544,7 +574,7 @@ function Home() {
                       ["🔌", "Connections"],
                       ["📜", "Audit log"],
                     ].map(([i, l]) => (
-                      <div key={l} className="rounded-xl border border-stone-800 bg-stone-950 px-3 py-4 text-sm font-bold text-stone-200">
+                      <div key={l} className="premium-card rounded-xl px-3 py-4 text-sm font-bold text-stone-200">
                         <div className="mb-1 text-2xl">{i}</div>
                         {l}
                       </div>
@@ -572,7 +602,7 @@ function Home() {
 
             <div className="grid gap-12 lg:grid-cols-2">
               {/* Implementation Packages */}
-              <div className="rounded-[3rem] border border-stone-900 bg-stone-900 p-12">
+              <div className="premium-card rounded-[3rem] p-12">
                 <div className="mb-8 flex items-center justify-between gap-4">
                   <h3 className="text-xl font-bold uppercase tracking-widest text-emerald-400">Implementation Packages</h3>
                   <Link
@@ -583,24 +613,24 @@ function Home() {
                   </Link>
                 </div>
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between rounded-2xl border border-stone-800 bg-stone-950 p-6">
+                  <div className="premium-card flex items-center justify-between rounded-2xl p-6">
                     <div>
                       <div className="text-xl font-black text-white">Starter</div>
                       <div className="text-sm font-bold text-stone-400">Automate your first 3 high-value workflows</div>
                       <div className="mt-2 text-[11px] text-stone-500">Typical opportunity (illustrative): ~$2,000–$4,000/mo of manual labor · potential payback ~2–4 months</div>
                     </div>
                     <div className="text-right">
-                      <div className="text-2xl font-black text-emerald-400">$7,500</div>
+                      <div className="key-number text-2xl font-black">$7,500</div>
                       <div className="text-[10px] font-bold uppercase tracking-tighter text-stone-400">One-Time</div>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between rounded-2xl border border-stone-800 bg-stone-950 p-6">
+                  <div className="premium-card flex items-center justify-between rounded-2xl p-6">
                     <div>
                       <div className="text-xl font-black text-white">Growth</div>
                       <div className="text-sm font-bold text-stone-400">5 AI Agents • Cross-Department • 1 CRM Connection</div>
                     </div>
                     <div className="text-right">
-                      <div className="text-2xl font-black text-emerald-400">$15,000</div>
+                      <div className="key-number text-2xl font-black">$15,000</div>
                       <div className="text-[10px] font-bold uppercase tracking-tighter text-stone-400">One-Time</div>
                     </div>
                   </div>
@@ -610,7 +640,7 @@ function Home() {
                       <div className="text-sm font-bold text-emerald-100">Unlimited Agents • Custom Modeling • 1 CRM Connection</div>
                     </div>
                     <div className="text-right">
-                      <div className="text-2xl font-black">$30,000</div>
+                      <div className="text-2xl font-black [text-shadow:0_0_24px_rgba(255,255,255,0.35)]">$30,000</div>
                       <div className="text-[10px] font-bold uppercase tracking-tighter text-emerald-200">One-Time</div>
                     </div>
                   </div>
@@ -625,7 +655,10 @@ function Home() {
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {AGENTS.map((agent) => (
-                    <div key={agent.id} className="flex items-center justify-between gap-3 rounded-xl border border-stone-800 bg-stone-950 px-4 py-3">
+                    <div
+                      key={agent.id}
+                      className="premium-card flex items-center justify-between gap-3 rounded-xl px-4 py-3"
+                    >
                       <span className="text-sm font-bold text-stone-200">{agent.name}</span>
                       <span className="text-sm font-black text-emerald-400">${agent.price}/mo</span>
                     </div>
@@ -645,7 +678,7 @@ function Home() {
             <div className="mt-20 space-y-4 text-center">
               <Link
                 to="/assessment"
-                className="inline-flex min-h-[56px] items-center justify-center rounded-2xl bg-emerald-600 px-12 py-5 text-2xl font-bold text-white shadow-lg transition-all hover:bg-emerald-700"
+                className="premium-btn inline-flex min-h-[56px] items-center justify-center rounded-2xl px-12 py-5 text-2xl font-bold text-white"
               >
                 Find the first process worth automating ➜
               </Link>
@@ -658,7 +691,7 @@ function Home() {
         <section className="relative overflow-hidden bg-stone-900 px-4 py-16 lg:py-28">
           <div className="hero-glow absolute inset-0" aria-hidden="true" />
           <div className="relative z-10 mx-auto max-w-4xl">
-            <div className="space-y-8 rounded-[3rem] border border-stone-800 bg-stone-950 p-10 lg:p-16">
+            <div className="premium-card space-y-8 rounded-[3rem] p-10 lg:p-16">
               <Reveal>
                 <div className="text-xs font-black uppercase tracking-widest text-emerald-400">Design-Partner Program</div>
               </Reveal>
@@ -678,7 +711,7 @@ function Home() {
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
                   <Link
                     to="/assessment"
-                    className="inline-flex min-h-[56px] items-center justify-center rounded-2xl bg-emerald-600 px-8 py-4 text-lg font-bold text-white shadow-lg shadow-emerald-900/40 transition-all hover:bg-emerald-500"
+                    className="premium-btn inline-flex min-h-[56px] items-center justify-center rounded-2xl px-8 py-4 text-lg font-bold text-white"
                   >
                     Find the first process worth automating ➜
                   </Link>
@@ -686,7 +719,7 @@ function Home() {
                 </div>
               </Reveal>
               <Reveal delay={200}>
-                <div className="rounded-2xl border border-stone-800 bg-stone-900/60 p-6">
+                <div className="premium-card rounded-2xl p-6">
                   <div className="mb-3 text-sm font-bold text-stone-300">
                     Run on QuickBooks? Get notified the moment it goes live.
                   </div>
