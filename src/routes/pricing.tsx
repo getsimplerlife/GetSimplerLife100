@@ -30,7 +30,7 @@ const agents = [
 ];
 
 const builderTiers = [
-  { name: "Starter", price: 7500, link: "https://buy.stripe.com/3cI8wR88Tasfc1B9XW2Fa2K", desc: "2 AI employees + 3 workflows", features: ["2 AI employees", "3 workflows", "1 Connection Pack (CRM or ERP — your choice)", "Standard setup & deployment", "Email support"] },
+  { name: "Starter", price: 7500, link: "https://buy.stripe.com/3cI8wR88Tasfc1B9XW2Fa2K", desc: "Automate your first 3 high-value workflows", features: ["2 AI employees", "3 high-value workflows", "1 Connection Pack (CRM or ERP — your choice)", "Standard setup & deployment", "Email support"] },
   { name: "Growth", price: 15000, link: "https://buy.stripe.com/5kQ6oJbl5dErc1B1rq2Fa2L", desc: "5 AI employees + full integrations", features: ["5 AI employees", "Full integrations", "All workflow templates", "Priority support", "1 Connection Pack (CRM or ERP — your choice)"], highlight: true },
   { name: "Scale", price: 30000, link: "https://buy.stripe.com/aFa7sN60LdErc1B5HG2Fa2M", desc: "Unlimited AI employees", features: ["Unlimited AI employees", "Custom workflows", "Dedicated account manager", "24/7 support", "1 Connection Pack (CRM or ERP — your choice)", "API access", "SLA guarantee"] },
 ];
@@ -177,9 +177,52 @@ function PricingPage() {
         </p>
       </section>
 
+      {/* Automation Sprint — low-risk entry (P3) */}
+      <section className="max-w-6xl mx-auto px-6 pb-16">
+        <div className="bg-gradient-to-br from-emerald-900/30 to-stone-900 border border-emerald-500/30 rounded-3xl p-8 md:p-12 text-center">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-bold tracking-wider mb-6">
+            ⚡ LOW-RISK START
+          </div>
+          <h2 className="text-3xl md:text-4xl font-black text-white mb-3">Automation Sprint</h2>
+          <p className="text-stone-400 text-lg max-w-2xl mx-auto mb-6">
+            The low-risk first step: one $2,500 one-time engagement where we{" "}
+            <span className="text-white font-bold">identify and build one high-value workflow</span> end-to-end. If it works, expand into a full AI Operations Team.
+          </p>
+          <div className="text-5xl font-black text-white mb-2">
+            $2,500<span className="text-stone-500 text-lg font-normal"> one-time</span>
+          </div>
+          <p className="text-sm text-stone-400 max-w-xl mx-auto mb-8">
+            We map one process end-to-end, design the workflow, and deliver a build-ready plan.{" "}
+            <span className="text-stone-300 font-bold">The fee is credited toward a build package</span> when you move forward.
+          </p>
+          <div className="flex flex-wrap justify-center gap-4">
+            <a
+              href="https://buy.stripe.com/14AbJ3cp91VJc1Bfig2Fa2N"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-3.5 rounded-xl font-bold text-sm transition-all"
+            >
+              Start the Sprint →
+            </a>
+            <Link
+              to="/assessment"
+              className="inline-flex items-center justify-center border border-stone-700 hover:border-emerald-500/50 text-stone-200 hover:text-white px-8 py-3.5 rounded-xl font-bold text-sm transition-all"
+            >
+              Prefer to map it first? Free assessment →
+            </Link>
+          </div>
+          <p className="text-xs text-stone-500 mt-5 max-w-xl mx-auto">
+            At checkout you'll see the item as "Industry Blueprint Assessment" — the same $2,500 one-time engagement. The site calls it Automation Sprint; the catalog name is the owner's to update.
+          </p>
+        </div>
+      </section>
+
       {/* Builder Packages */}
       <section className="max-w-6xl mx-auto px-6 pb-16">
-        <h2 className="text-2xl font-black text-center mb-8">Builder Packages</h2>
+        <h2 className="text-2xl font-black text-center mb-4">Builder Packages</h2>
+        <p className="text-stone-500 text-center text-sm mb-8 max-w-2xl mx-auto">
+          One-time setup package + monthly AI-employee fees billed separately. Illustrative opportunity and payback shown for planning — not a promise.
+        </p>
         <div className="grid md:grid-cols-3 gap-6">
           {builderTiers.map((tier) => (
             <div key={tier.name} className={`relative rounded-2xl border p-6 flex flex-col ${
@@ -196,6 +239,14 @@ function PricingPage() {
                 <span className="text-stone-500 text-sm"> one-time</span>
               </div>
               <p className="text-stone-400 text-sm mb-4">{tier.desc}</p>
+              {tier.name === "Starter" && (
+                <div className="rounded-xl border border-stone-800 bg-stone-950 p-3 mb-4 text-xs text-stone-400 space-y-1">
+                  <div className="flex justify-between"><span>Typical opportunity</span><span className="text-stone-200 font-bold">~$2,000–$4,000/mo of manual labor</span></div>
+                  <div className="flex justify-between"><span>Implementation</span><span className="text-stone-200 font-bold">$7,500 one-time</span></div>
+                  <div className="flex justify-between"><span>Potential payback</span><span className="text-emerald-400 font-bold">~2–4 months</span></div>
+                  <div className="text-[10px] text-stone-500 pt-1 border-t border-stone-800">Illustrative estimate — actual results vary.</div>
+                </div>
+              )}
               <ul className="space-y-2 mb-6 flex-1">
                 {tier.features.map((f) => (
                   <li key={f} className="flex items-start gap-2 text-sm text-stone-300">
@@ -253,20 +304,17 @@ function PricingPage() {
       {/* Industry Audits */}
       <section className="max-w-6xl mx-auto px-6 pb-16">
         <div className="bg-stone-900/50 border border-stone-800 rounded-2xl p-8 text-center">
-          <div className="text-4xl mb-4">📊</div>
-          <h2 className="text-2xl font-black text-white mb-2">Industry Blueprint Assessment</h2>
+          <div className="text-4xl mb-4">🧭</div>
+          <h2 className="text-2xl font-black text-white mb-2">Need help deciding?</h2>
           <p className="text-stone-400 max-w-lg mx-auto mb-6">
-            Get a custom AI operations blueprint for your industry. We analyze your workflows and recommend the right agents.
+            Start with the free 30-second assessment — we'll map your workflows and recommend the right first step (Sprint or a build package).
           </p>
-          <div className="text-3xl font-black text-white mb-4">$2,500</div>
-          <a
-            href="https://buy.stripe.com/14AbJ3cp91VJc1Bfig2Fa2N"
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            to="/assessment"
             className="inline-block bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-3 rounded-xl font-bold text-sm transition-all"
           >
-            Get Your Blueprint →
-          </a>
+            Find the first process worth automating →
+          </Link>
         </div>
       </section>
 
