@@ -24,6 +24,13 @@ function CaseStudiesIndexPage() {
             </p>
           </div>
 
+          <div className="max-w-2xl mx-auto">
+            <p className="text-sm text-stone-500 border border-stone-800 rounded-2xl bg-stone-900/50 px-5 py-4 leading-relaxed">
+              📋 <strong className="text-stone-300">When you become a customer, this page will host your real case study</strong> —
+              actual numbers, actual timeline, actual outcome, published only with your sign-off. Until then, everything here is
+              verified capability and clearly-labeled illustrative estimates. We do not invent logos, testimonials, or metrics.
+            </p>
+          </div>
           {/* Verified capability grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {caseStudies.map((cs) => (
