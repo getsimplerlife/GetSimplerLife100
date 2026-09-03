@@ -295,9 +295,9 @@ function Home() {
                   </video>
                 </div>
                 <figcaption className="mt-3 text-xs leading-relaxed text-stone-500">
-                  <span className="font-bold text-stone-300">1m 15s — live demo walkthrough.</span> A real recording of
-                  the Simpler Life 100 interactive demo: the signed-proposal flow (proposal → DocuSign → HubSpot → Xero → Slack → Drive)
-                  with a human approval gate on every write. Illustrative demo data only — no customer records.
+                  <span className="font-bold text-stone-300">1m 15s — interactive demo walkthrough.</span> A real recording of
+                  the Simpler Life 100 demo, illustrating the signed-proposal flow (proposal → DocuSign → HubSpot → Xero → Slack → Drive)
+                  with a human approval gate on every write. Interactive demo with illustrative data — no live provider connections, no customer records.
                 </figcaption>
               </figure>
             </Reveal>
