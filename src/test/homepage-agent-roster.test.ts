@@ -68,13 +68,13 @@ describe("homepage AI-employee roster", () => {
   it("homepage renders each price from the agent's catalog price (/mo)", () => {
     // Renders "$" + agent.price + "/mo" — the minified bundle splits these
     // fragments, so assert the source expression (proves catalog wiring).
-    expect(homeSource).toMatch(/agent\.price\}\/mo/);
+    expect(homeSource).toMatch(/agent\.price\.toLocaleString\("en-US"\)\}\/mo/);
   });
 
   it("all 17 names AND prices are wired into the homepage roster", () => {
     // Names and prices live in the canonical data module (the single source of
     // truth /pricing also uses); the homepage renders them via {agent.name} +
-    // ${agent.price}/mo (map over AGENTS). So the truthful invariants are:
+    // ${agent.price.toLocaleString("en-US")}/mo (map over AGENTS). So the truthful invariants are:
     //  1) every full name exists in the data module,
     //  2) every catalog price exists in the data module,
     //  3) the homepage maps over that module and renders name + price from it
@@ -88,6 +88,6 @@ describe("homepage AI-employee roster", () => {
     }
     expect(homeSource).toMatch(/AGENTS\.map\(/);
     expect(homeSource).toMatch(/agent\.name/);
-    expect(homeSource).toMatch(/agent\.price\}\/mo/);
+    expect(homeSource).toMatch(/agent\.price\.toLocaleString\("en-US"\)\}\/mo/);
   });
 });
