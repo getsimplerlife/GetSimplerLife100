@@ -240,25 +240,33 @@ export function RicherROICalculator({ embed = false }: RicherROICalculatorProps)
         <div className="lg:col-span-5 space-y-5">
           {/* Key Stats */}
           <div className="bg-stone-900/60 rounded-3xl p-6 lg:p-8 border border-stone-800/80 space-y-5">
-            <h3 className="text-lg font-black text-white">Your AI Operations Savings</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-stone-950/60 rounded-xl p-4 text-center">
-                <div className="text-2xl font-black text-emerald-400">{Math.round(annualHoursSaved).toLocaleString()}</div>
-                <div className="text-[10px] font-mono text-stone-400 mt-1">HOURS SAVED / YEAR</div>
+            <h3 className="text-lg font-black text-white">What this problem costs you</h3>
+            {/* Flow: Current annual labor cost → Potential annual savings → Implementation → Payback → 3-year opportunity */}
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between rounded-xl bg-stone-950/60 border border-stone-800/50 px-4 py-3">
+                <span className="text-xs font-mono text-stone-400">CURRENT ANNUAL LABOR COST</span>
+                <span className="text-sm font-black text-white">${(employees * tasksPerDay * (timePerTask / 60) * 250 * hourlyCost).toLocaleString()}</span>
               </div>
-              <div className="bg-stone-950/60 rounded-xl p-4 text-center">
-                <div className="text-2xl font-black text-emerald-400">${Math.round(totalAnnualSavings).toLocaleString()}</div>
-                <div className="text-[10px] font-mono text-stone-400 mt-1">ANNUAL SAVINGS</div>
+              <div className="flex items-center justify-between rounded-xl bg-stone-950/60 border border-emerald-500/20 px-4 py-3">
+                <span className="text-xs font-mono text-emerald-400">POTENTIAL ANNUAL SAVINGS</span>
+                <span className="text-sm font-black text-emerald-400">${Math.round(totalAnnualSavings).toLocaleString()}</span>
               </div>
-              <div className="bg-stone-950/60 rounded-xl p-4 text-center">
-                <div className="text-2xl font-black text-emerald-400">{paybackMonths.toFixed(1)} mo</div>
-                <div className="text-[10px] font-mono text-stone-400 mt-1">PAYBACK PERIOD</div>
+              <div className="flex items-center justify-between rounded-xl bg-stone-950/60 border border-stone-800/50 px-4 py-3">
+                <span className="text-xs font-mono text-stone-400">ESTIMATED IMPLEMENTATION</span>
+                <span className="text-sm font-black text-white">${implementationCost.toLocaleString()}</span>
               </div>
-              <div className="bg-stone-950/60 rounded-xl p-4 text-center">
-                <div className="text-2xl font-black text-emerald-400">${Math.round(threeYearNetImpact).toLocaleString()}</div>
-                <div className="text-[10px] font-mono text-stone-400 mt-1">3-YEAR NET IMPACT</div>
+              <div className="flex items-center justify-between rounded-xl bg-stone-950/60 border border-stone-800/50 px-4 py-3">
+                <span className="text-xs font-mono text-stone-400">ESTIMATED PAYBACK</span>
+                <span className="text-sm font-black text-white">{paybackMonths.toFixed(1)} months</span>
+              </div>
+              <div className="flex items-center justify-between rounded-xl bg-emerald-950/40 border border-emerald-500/30 px-4 py-3">
+                <span className="text-xs font-mono text-emerald-300">3-YEAR OPPORTUNITY</span>
+                <span className="text-sm font-black text-emerald-300">${Math.round(threeYearNetImpact).toLocaleString()}</span>
               </div>
             </div>
+            <p className="text-[10px] text-stone-500 italic">
+              Illustrative estimate based on your inputs — your real numbers depend on your process.
+            </p>
 
             {/* Timeline */}
             <div className="space-y-2">
