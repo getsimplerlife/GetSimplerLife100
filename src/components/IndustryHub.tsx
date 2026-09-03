@@ -55,6 +55,20 @@ export default function IndustryHub({ data }: { data: IndustryHubType }) {
           </div>
         </section>
 
+        {/* Problem-first strip */}
+        <section className="px-6 py-14 max-w-5xl mx-auto">
+          <div className="rounded-3xl border border-stone-800 bg-stone-900/50 p-8 lg:p-10">
+            <div className="text-xs font-mono font-bold tracking-widest text-emerald-400 uppercase mb-3">[ The problem ]</div>
+            <p className="text-xl lg:text-2xl font-bold text-white leading-relaxed">
+              {c.hook}
+            </p>
+            {c.painPoints[0] && (
+              <p className="text-sm lg:text-base text-stone-400 mt-4 leading-relaxed">
+                {c.painPoints[0].description}
+              </p>
+            )}
+          </div>
+        </section>
         {/* KPI Displays */}
         <section className="px-6 py-8 max-w-5xl mx-auto relative z-20">
           <p className="text-center text-[11px] font-mono uppercase tracking-widest text-stone-500 mb-4">

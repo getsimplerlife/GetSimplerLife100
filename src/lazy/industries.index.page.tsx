@@ -38,33 +38,82 @@ function IndustriesIndexPage() {
               INDUSTRY SOLUTIONS
             </span>
             <h1 className="text-5xl lg:text-7xl font-black text-white tracking-tight">
-              23 Industries. <span className="text-emerald-500">One AI Operations Platform.</span>
+              7 Industries. <span className="text-emerald-500">One AI Operations Platform.</span>
             </h1>
             <p className="text-xl text-stone-400 max-w-2xl mx-auto">
-              Purpose-built AI operations teams for every industry. Choose your vertical to see
-              specialized agents, workflows, integrations, and real customer results.
+              We start with the seven verticals where the operational pain is sharpest — claims, billing,
+              intake, margins, compliance. Choose yours to see the specific problem, the workflows we
+              automate, the AI coworkers we deploy, and how they fit your existing stack.
             </p>
           </div>
 
-          {/* Industry Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-            {industries.map((industry) => (
-              <Link
-                key={industry.id}
-                to="/industries/$industryId"
-                params={{ industryId: industry.id }}
-                className="group bg-stone-900 border border-stone-800 rounded-2xl p-6 hover:border-emerald-500/30 transition-all hover:-translate-y-1"
-              >
-                <span className="text-4xl mb-4 block">{industry.icon}</span>
-                <h3 className="text-lg font-black text-white mb-1.5 group-hover:text-emerald-400 transition-colors">
-                  {industry.name}
-                </h3>
-                <p className="text-sm text-stone-400 leading-relaxed">
-                  {industry.tagline}
-                </p>
-              </Link>
-            ))}
-          </div>
+          {/* Focused Industries */}
+          {(() => {
+            const focusedIds = ["insurance", "legal", "real-estate", "healthcare", "construction", "professional-services", "financial-services"];
+            const focused = industries.filter((i) => focusedIds.includes(i.id));
+            const rest = industries.filter((i) => !focusedIds.includes(i.id));
+            const problemLines: Record<string, string> = {
+              insurance: "Claims processing is manual, slow, and error-prone — adjusters lose days per file to data re-keying.",
+              legal: "Firms lose 15+ billable hours a week to time entry, matter setup, and invoice assembly.",
+              "real-estate": "Speed-to-lead decides the deal — manual listing sync and follow-up lose hours of momentum.",
+              healthcare: "Patient intake, scheduling, and compliance paperwork consume staff hours that should go to care.",
+              construction: "Estimates, field reports, and change orders are re-keyed by hand — margins leak at every handoff.",
+              "professional-services": "10–15% of billable time never gets billed because tracking and invoicing are manual.",
+              "financial-services": "Regulatory reporting and client onboarding are re-keyed across systems — audit exposure grows.",
+            };
+            return (
+              <>
+                <div className="mb-4">
+                  <div className="text-xs font-mono font-bold tracking-widest text-emerald-400 uppercase">Focus verticals</div>
+                  <p className="text-sm text-stone-500 mt-1">Where the operational pain is sharpest — built first, proven first.</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {focused.map((industry) => (
+                    <Link
+                      key={industry.id}
+                      to="/industries/$industryId"
+                      params={{ industryId: industry.id }}
+                      className="group bg-stone-900 border border-emerald-500/20 rounded-2xl p-6 hover:border-emerald-500/50 transition-all hover:-translate-y-1 flex flex-col gap-3"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-3xl">{industry.icon}</span>
+                        <h3 className="text-lg font-black text-white group-hover:text-emerald-400 transition-colors">
+                          {industry.name}
+                        </h3>
+                      </div>
+                      <p className="text-sm font-bold text-emerald-300 leading-relaxed">
+                        {problemLines[industry.id] ?? industry.tagline}
+                      </p>
+                      <p className="text-xs text-stone-500 leading-relaxed mt-auto">
+                        {industry.tagline}
+                      </p>
+                    </Link>
+                  ))}
+                </div>
+                {rest.length > 0 && (
+                  <div className="mt-14 pt-10 border-t border-stone-800">
+                    <div className="mb-4">
+                      <div className="text-xs font-mono font-bold tracking-widest text-stone-500 uppercase">All industries</div>
+                      <p className="text-sm text-stone-600 mt-1">The platform adapts to any vertical — these pages remain live.</p>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                      {rest.map((industry) => (
+                        <Link
+                          key={industry.id}
+                          to="/industries/$industryId"
+                          params={{ industryId: industry.id }}
+                          className="group bg-stone-900/60 border border-stone-800 rounded-xl px-4 py-3 hover:border-stone-600 transition-all flex items-center gap-2.5"
+                        >
+                          <span className="text-xl">{industry.icon}</span>
+                          <span className="text-sm font-bold text-stone-300 group-hover:text-white transition-colors">{industry.name}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            );
+          })()}
 
           {/* Bottom CTA */}
           <div className="bg-stone-900 border border-stone-800 rounded-[2.5rem] p-10 lg:p-14 text-center space-y-6">

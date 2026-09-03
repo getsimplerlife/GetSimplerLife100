@@ -91,7 +91,7 @@ export const PAGE_TITLES: Record<string, PageMeta> = {
   "/industries": {
     title: "Industries | Simpler Life 100",
     description:
-      "Industry-specific AI Operations Teams for 23 verticals. From logistics to healthcare, deploy AI employees that understand your domain.",
+      "AI Operations Teams for 7 focus verticals — insurance, legal, real estate, healthcare, construction, professional services, and financial services. See the specific operational problem, the workflows we automate, and how AI coworkers fit your stack.",
   },
   "/integrations": {
     title: "Integrations | Simpler Life 100",
