@@ -3413,7 +3413,7 @@ OAUTH_${provUpper}_CLIENT_SECRET=your_client_secret</pre><p style="font-size:0.8
     }
     if (pathname.startsWith("/assets/") || pathname.startsWith("/_build/") ||
         pathname === "/manifest.json" || pathname === "/sw.js" || pathname.startsWith("/icon-") ||
-        pathname === "/robots.txt" || pathname === "/sitemap.xml") {
+        pathname === "/robots.txt" || pathname === "/sitemap.xml" || pathname.startsWith("/videos/")) {
       const f = Bun.file(join(DIST_CLIENT, pathname));
       if (await f.exists()) {
         // Hashed assets (fingerprinted JS/CSS): cache long-term
