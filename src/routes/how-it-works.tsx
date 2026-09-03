@@ -111,19 +111,63 @@ function HowItWorksPage() {
           </div>
         </section>
 
+        {/* P4.1 + P4.5: See it working + Done-for-you (lazy links preserved) */}
+        <section className="px-6 py-20 bg-stone-900/40 border-b border-stone-800">
+          <div className="max-w-5xl mx-auto space-y-10">
+            <div className="text-center space-y-4">
+              <span className="inline-block px-3 py-1 text-xs font-mono font-bold tracking-wider rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase">
+                FULLY DONE-FOR-YOU
+              </span>
+              <h2 className="text-3xl lg:text-4xl font-black text-white tracking-tight">
+                You don't need to learn automation. <span className="text-emerald-500">We run it for you.</span>
+              </h2>
+              <p className="text-lg text-stone-400 max-w-3xl mx-auto leading-relaxed">
+                We don't hand you a new tool to figure out. We <strong className="text-stone-200">build, integrate, deploy, monitor, and support</strong> your AI employees for you — so your team keeps working in the systems they already use, while the repetitive work stops being theirs.
+              </p>
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 text-center">
+              <div className="p-6 bg-stone-950 border border-stone-800 rounded-2xl">
+                <div className="text-2xl mb-2">🏗️</div>
+                <div className="text-white font-black">We build</div>
+                <p className="text-xs text-stone-400 mt-1">the workflows and agent logic end-to-end.</p>
+              </div>
+              <div className="p-6 bg-stone-950 border border-stone-800 rounded-2xl">
+                <div className="text-2xl mb-2">🔌</div>
+                <div className="text-white font-black">We integrate</div>
+                <p className="text-xs text-stone-400 mt-1">your real systems — Xero, HubSpot, DocuSign, Slack, Google, Microsoft.</p>
+              </div>
+              <div className="p-6 bg-stone-950 border border-stone-800 rounded-2xl">
+                <div className="text-2xl mb-2">🚀</div>
+                <div className="text-white font-black">We deploy</div>
+                <p className="text-xs text-stone-400 mt-1">with a human approval gate on every write.</p>
+              </div>
+              <div className="p-6 bg-stone-950 border border-stone-800 rounded-2xl">
+                <div className="text-2xl mb-2">📡</div>
+                <div className="text-white font-black">We monitor & support</div>
+                <p className="text-xs text-stone-400 mt-1">connections self-heal and failures escalate loudly — never silently lost.</p>
+              </div>
+            </div>
+            <div className="flex flex-wrap justify-center gap-3 pt-4">
+              <Link to="/demo" className="px-5 py-2.5 rounded-xl bg-emerald-600 text-white font-black text-sm hover:bg-emerald-500 transition-colors">See it working — live demo →</Link>
+              <Link to="/security" className="px-5 py-2.5 rounded-xl border border-stone-700 text-stone-200 font-bold text-sm hover:border-emerald-500/40 transition-colors">Security & data access</Link>
+              <Link to="/you-stay-in-control" className="px-5 py-2.5 rounded-xl border border-stone-700 text-stone-200 font-bold text-sm hover:border-emerald-500/40 transition-colors">You stay in control</Link>
+              <Link to="/after-purchase" className="px-5 py-2.5 rounded-xl border border-stone-700 text-stone-200 font-bold text-sm hover:border-emerald-500/40 transition-colors">What happens after purchase</Link>
+            </div>
+          </div>
+        </section>
         {/* Traditional Automation vs AI Agent */}
         <section className="px-6 py-20 bg-stone-950 text-white">
           <div className="max-w-5xl mx-auto">
             <div className="text-center mb-16">
               <h2 className="text-3xl lg:text-4xl font-black tracking-tight mb-4">Traditional Software vs. AI Agents</h2>
-              <p className="text-stone-400">Why simple macro triggers fail, and how cognitive agents succeed.</p>
+              <p className="text-stone-400">Why scripting and connector tools fall short of a cognitive coworker — and what changes when you have one.</p>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-white/10 text-stone-400 font-mono text-xs uppercase tracking-wider">
                     <th className="py-4 pr-6">Feature</th>
-                    <th className="py-4 px-6">Traditional Automation (Zapier/Macros)</th>
+                    <th className="py-4 px-6">Traditional Automation Tools</th>
                     <th className="py-4 pl-6 text-emerald-400">AI Operations Coworker</th>
                   </tr>
                 </thead>
