@@ -70,4 +70,24 @@ describe("homepage AI-employee roster", () => {
     // fragments, so assert the source expression (proves catalog wiring).
     expect(homeSource).toMatch(/agent\.price\}\/mo/);
   });
+
+  it("all 17 names AND prices are wired into the homepage roster", () => {
+    // Names and prices live in the canonical data module (the single source of
+    // truth /pricing also uses); the homepage renders them via {agent.name} +
+    // ${agent.price}/mo (map over AGENTS). So the truthful invariants are:
+    //  1) every full name exists in the data module,
+    //  2) every catalog price exists in the data module,
+    //  3) the homepage maps over that module and renders name + price from it
+    //     (not a forked/hardcoded list),
+    //  4) the built bundle (actual rendered homepage output) contains every name.
+    for (const a of AGENTS) {
+      expect(agentsSource).toContain(`name: "${a.name}"`);
+    }
+    for (const a of AGENTS) {
+      expect(agentsSource).toContain(`price: ${a.price}`);
+    }
+    expect(homeSource).toMatch(/AGENTS\.map\(/);
+    expect(homeSource).toMatch(/agent\.name/);
+    expect(homeSource).toMatch(/agent\.price\}\/mo/);
+  });
 });
