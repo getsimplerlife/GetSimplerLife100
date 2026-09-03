@@ -212,7 +212,7 @@ function Home() {
                     to="/demo"
                     className="inline-flex min-h-[56px] items-center justify-center rounded-2xl border border-stone-700 px-8 py-4 text-lg font-bold text-stone-200 transition-all hover:border-emerald-500/50 hover:text-white"
                   >
-                    See it working — 60-second demo
+                    See it working — live demo
                   </Link>
                 </Reveal>
                 <Reveal delay={240}>
