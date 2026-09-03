@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Header } from "~/components/Header";
 import { Footer } from "~/components/Footer";
 import { pageHead } from "~/lib/site-meta";
+import { AGENTS } from "~/data/agents";
 
 export const Route = createFileRoute("/")({
   head: () => pageHead("/"),
@@ -620,11 +621,24 @@ function Home() {
               <div className="rounded-[3rem] border border-stone-900 bg-stone-900 p-12">
                 <h3 className="mb-8 text-xl font-bold uppercase tracking-widest text-emerald-400">Monthly per AI Employee</h3>
                 <p className="mb-6 text-sm text-stone-400">
-                  In addition to the one-time build package, you pay a monthly fee for each AI employee you deploy at that employee's listed price. Live integrations today: Xero, Slack, Google, Microsoft 365, HubSpot, and DocuSign (QuickBooks in development), with more added on request.
+                  In addition to the one-time build package, you pay a monthly fee for each AI employee you deploy at that employee's listed price — billed monthly, no long-term contracts, adjust or cancel anytime. Live integrations today: Xero, Slack, Google, Microsoft 365, HubSpot, and DocuSign (QuickBooks in development), with more added on request.
                 </p>
-                <p className="mb-6 text-sm text-stone-400">
-                  No long-term contracts — monthly AI-employee fees you can adjust or cancel anytime.
-                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {AGENTS.map((agent) => (
+                    <div key={agent.id} className="flex items-center justify-between gap-3 rounded-xl border border-stone-800 bg-stone-950 px-4 py-3">
+                      <span className="text-sm font-bold text-stone-200">{agent.name}</span>
+                      <span className="text-sm font-black text-emerald-400">${agent.price}/mo</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-6 text-center">
+                  <Link
+                    to="/pricing"
+                    className="inline-flex items-center gap-2 rounded-xl border border-stone-700 px-5 py-2.5 text-sm font-bold text-stone-300 transition-colors hover:border-emerald-500/50 hover:text-emerald-300"
+                  >
+                    View all AI employees & build your team →
+                  </Link>
+                </div>
               </div>
             </div>
 
