@@ -660,7 +660,7 @@ function Home() {
                       className="premium-card flex items-center justify-between gap-3 rounded-xl px-4 py-3"
                     >
                       <span className="text-sm font-bold text-stone-200">{agent.name}</span>
-                      <span className="text-sm font-black text-emerald-400">${agent.price}/mo</span>
+                      <span className="text-sm font-black text-emerald-400">${agent.price.toLocaleString("en-US")}/mo</span>
                     </div>
                   ))}
                 </div>
