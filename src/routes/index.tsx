@@ -126,11 +126,11 @@ function QuoteToCashFlow() {
 
 /* ── Outcomes grid ("What your AI team does" — sell outcomes, not agent counts) ── */
 const OUTCOMES = [
-  { icon: "🧾", t: "Invoice processing", d: "Drafts invoices from signed deals and PO-matched intake.", systems: "Xero · QuickBooks · HubSpot" },
+  { icon: "🧾", t: "Invoice processing", d: "Drafts invoices from signed deals and PO-matched intake.", systems: "Xero · HubSpot" },
   { icon: "🤝", t: "CRM updates", d: "Creates deals + contacts the moment a proposal is signed.", systems: "HubSpot" },
   { icon: "📋", t: "Client intake", d: "Captures and classifies incoming client info, then routes it.", systems: "Forms · Google · Microsoft" },
   { icon: "🗓️", t: "Scheduling", d: "Books time and sends reminders from approved requests.", systems: "Google Calendar · Microsoft" },
-  { icon: "🔄", t: "Reconciliation", d: "Matches invoices to payments and flags variances for review.", systems: "Xero · QuickBooks" },
+  { icon: "🔄", t: "Reconciliation", d: "Matches invoices to payments and flags variances for review.", systems: "Xero" },
   { icon: "📄", t: "Document processing", d: "Files, classifies, and extracts from signed agreements.", systems: "DocuSign · Google Drive · Microsoft" },
 ];
 
