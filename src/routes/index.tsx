@@ -489,6 +489,9 @@ function Home() {
                     An AI employee won't send an invoice, move a dollar, or post to your channel on its own. Every
                     write waits in a queue your team approves — fail-closed by default.
                   </p>
+                  <Link to="/you-stay-in-control" className="mt-3 inline-block text-sm font-bold text-emerald-400 hover:text-emerald-300">
+                    How your team stays in control →
+                  </Link>
                   <div className="mt-6 space-y-3 text-sm text-stone-300">
                     <div className="flex items-center justify-between rounded-xl border border-stone-800 bg-stone-950 px-4 py-3">
                       <span>Draft Xero invoice — $4,800</span>
@@ -509,6 +512,9 @@ function Home() {
                     One place to see every AI employee, every workflow, and every integration's live health — plus the
                     approval queue and an audit trail of every action taken.
                   </p>
+                  <Link to="/security" className="mt-3 inline-block text-sm font-bold text-emerald-400 hover:text-emerald-300">
+                    How your data stays protected →
+                  </Link>
                   <div className="mt-6 grid grid-cols-2 gap-2 text-center">
                     {[
                       ["🧑‍💼", "AI employees"],

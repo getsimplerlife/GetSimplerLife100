@@ -128,6 +128,21 @@ export const PAGE_TITLES: Record<string, PageMeta> = {
     description:
       "Guides, templates, and operational playbooks to help you plan and deploy AI automation for your business.",
   },
+  "/security": {
+    title: "Security | Simpler Life 100",
+    description:
+      "Your data stays under your control: scoped permissions, human approval on every write, audit trails, fail-closed behavior, and self-healing connections.",
+  },
+  "/you-stay-in-control": {
+    title: "You Stay in Control | Simpler Life 100",
+    description:
+      "AI doesn't get to make the final decision — your team does. Human approval queue, audit trail, fail-closed behavior, and connections that self-heal.",
+  },
+  "/after-purchase": {
+    title: "What Happens After You Buy | Simpler Life 100",
+    description:
+      "The concrete journey from purchase to deployed: Day 1 discovery, workflow design, build, testing with human approval, then ongoing monitoring and support.",
+  },
   "/roi-assessment": {
     title: "ROI Assessment | Simpler Life 100",
     description:

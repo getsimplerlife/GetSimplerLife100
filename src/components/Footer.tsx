@@ -4,7 +4,7 @@ export function Footer() {
   return (
     <footer className="bg-stone-950 border-t border-stone-900 py-12 px-6">
       <div className="max-w-7xl mx-auto">
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-10">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-8 mb-10">
           <div>
             <Link to="/" className="text-xl font-black text-emerald-500 tracking-tight">
               Simpler Life 100
@@ -30,6 +30,14 @@ export function Footer() {
               <Link to="/case-studies" className="block text-stone-400 hover:text-white text-sm transition-colors">Case Studies</Link>
               <Link to="/contact" className="block text-stone-400 hover:text-white text-sm transition-colors">Contact</Link>
               <Link to="/demo" className="block text-stone-400 hover:text-white text-sm transition-colors">Request Demo</Link>
+            </div>
+          </div>
+          <div>
+            <h4 className="text-white font-bold text-sm mb-3">Trust &amp; Security</h4>
+            <div className="space-y-2">
+              <Link to="/security" className="block text-stone-400 hover:text-white text-sm transition-colors">Security</Link>
+              <Link to="/you-stay-in-control" className="block text-stone-400 hover:text-white text-sm transition-colors">You Stay in Control</Link>
+              <Link to="/after-purchase" className="block text-stone-400 hover:text-white text-sm transition-colors">After You Buy</Link>
             </div>
           </div>
           <div>

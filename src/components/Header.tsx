@@ -36,6 +36,9 @@ export function Header({ businessName, user }: HeaderProps) {
     { to: "/about", label: "ℹ️ About" },
     { to: "/contact", label: "📬 Contact" },
     { to: "/how-it-works", label: "🔧 How It Works" },
+    { to: "/security", label: "🛡️ Security" },
+    { to: "/you-stay-in-control", label: "🧑‍⚖️ You Stay in Control" },
+    { to: "/after-purchase", label: "📦 After You Buy" },
     { to: "/support", label: "🛟 Support" },
   ];
 
