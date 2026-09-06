@@ -174,7 +174,7 @@ function AutomationLibraryPage() {
                   <div
                     key={w.id}
                     onClick={() => setSelectedCard(w)}
-                    className="bg-stone-900/30 border border-stone-850/80 hover:border-indigo-500/40 rounded-2xl p-5 hover:translate-y-[-2px] hover:shadow-xl hover:shadow-indigo-950/15 cursor-pointer transition-all duration-200 flex flex-col justify-between group h-full"
+                    className="premium-card-soft rounded-2xl p-5 cursor-pointer flex flex-col justify-between group h-full"
                   >
                     <div>
                       {/* Top Badges */}
@@ -235,7 +235,7 @@ function AutomationLibraryPage() {
             </div>
           ) : (
             /* Empty State */
-            <div className="text-center py-20 bg-stone-900/10 border border-stone-900 rounded-3xl p-8 max-w-xl mx-auto space-y-4">
+            <div className="premium-card text-center rounded-3xl p-8 max-w-xl mx-auto space-y-4">
               <div className="text-3xl">🔍</div>
               <h3 className="text-lg font-black text-white">No workflows matched your filters</h3>
               <p className="text-xs text-stone-400 max-w-sm mx-auto leading-relaxed">

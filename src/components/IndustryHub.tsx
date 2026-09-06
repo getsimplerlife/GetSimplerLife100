@@ -57,7 +57,7 @@ export default function IndustryHub({ data }: { data: IndustryHubType }) {
 
         {/* Problem-first strip */}
         <section className="px-6 py-14 max-w-5xl mx-auto">
-          <div className="rounded-3xl border border-stone-800 bg-stone-900/50 p-8 lg:p-10">
+          <div className="premium-card rounded-3xl p-8 lg:p-10">
             <div className="text-xs font-mono font-bold tracking-widest text-emerald-400 uppercase mb-3">[ The problem ]</div>
             <p className="text-xl lg:text-2xl font-bold text-white leading-relaxed">
               {c.hook}
@@ -147,7 +147,7 @@ export default function IndustryHub({ data }: { data: IndustryHubType }) {
                     ))}
                   </ul>
                 </div>
-                <Link to="/assessment" className="w-full bg-emerald-600 hover:bg-emerald-500 text-stone-950 text-center py-3 rounded-xl text-sm font-bold transition-colors shadow-md">
+                <Link to="/assessment" className="premium-btn w-full text-stone-950 text-center py-3 rounded-xl text-sm font-bold">
                   Launch Free AI Assessment Tool
                 </Link>
               </div>

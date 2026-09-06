@@ -106,7 +106,7 @@ function PricingCalculator() {
         })}
       </div>
       {/* Employee selection */}
-      <div className="bg-stone-900/40 border border-stone-800 rounded-2xl p-5 sm:p-6">
+      <div className="premium-card rounded-2xl p-5 sm:p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-black text-white">Select AI employees</h3>
           <span className="text-xs text-stone-400">
@@ -139,7 +139,7 @@ function PricingCalculator() {
         </div>
       </div>
       {/* Live total panel */}
-      <div className="mt-8 bg-stone-950 border border-emerald-500/20 rounded-2xl p-6 sm:p-8">
+      <div className="premium-card premium-card-accent mt-8 rounded-2xl p-6 sm:p-8">
         <h3 className="text-sm font-mono font-black text-emerald-400 uppercase tracking-wider mb-4">Your estimate</h3>
         <div className="space-y-3">
           <div className="flex items-baseline justify-between gap-4 border-b border-stone-800 pb-3">
@@ -179,7 +179,7 @@ function PricingPage() {
 
       {/* Automation Sprint — low-risk entry (P3) */}
       <section className="max-w-6xl mx-auto px-6 pb-16">
-        <div className="bg-gradient-to-br from-emerald-900/30 to-stone-900 border border-emerald-500/30 rounded-3xl p-8 md:p-12 text-center">
+        <div className="premium-card premium-card-accent rounded-3xl p-8 md:p-12 text-center">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-bold tracking-wider mb-6">
             ⚡ LOW-RISK START
           </div>
@@ -200,7 +200,7 @@ function PricingPage() {
               href="https://buy.stripe.com/14AbJ3cp91VJc1Bfig2Fa2N"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center justify-center bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-3.5 rounded-xl font-bold text-sm transition-all"
+              className="premium-btn inline-flex items-center justify-center text-white px-8 py-3.5 rounded-xl font-bold text-sm"
             >
               Start the Sprint →
             </a>
@@ -225,7 +225,7 @@ function PricingPage() {
         </p>
         <div className="grid md:grid-cols-3 gap-6">
           {builderTiers.map((tier) => (
-            <div key={tier.name} className={`relative rounded-2xl border p-6 flex flex-col ${
+            <div key={tier.name} className={`premium-card relative rounded-2xl p-6 flex flex-col ${
               tier.highlight
                 ? "border-emerald-500/50 bg-emerald-500/5 ring-1 ring-emerald-500/20"
                 : "border-stone-800 bg-stone-900/50"
@@ -279,7 +279,7 @@ function PricingPage() {
         <p className="text-stone-500 text-center text-sm mb-8">$499–$2,000/mo each. Deploy instantly with Stripe checkout.</p>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {agents.map((agent) => (
-            <div key={agent.name} className="bg-stone-900/50 border border-stone-800 rounded-xl p-5 hover:border-stone-700 transition-all flex flex-col">
+            <div key={agent.name} className="premium-card rounded-xl p-5 flex flex-col">
               <div className="flex items-center gap-3 mb-3">
                 <span className="text-2xl">{agent.icon}</span>
                 <div className="flex-1 min-w-0">
@@ -303,7 +303,7 @@ function PricingPage() {
 
       {/* Industry Audits */}
       <section className="max-w-6xl mx-auto px-6 pb-16">
-        <div className="bg-stone-900/50 border border-stone-800 rounded-2xl p-8 text-center">
+        <div className="premium-card rounded-2xl p-8 text-center">
           <div className="text-4xl mb-4">🧭</div>
           <h2 className="text-2xl font-black text-white mb-2">Need help deciding?</h2>
           <p className="text-stone-400 max-w-lg mx-auto mb-6">
@@ -311,7 +311,7 @@ function PricingPage() {
           </p>
           <Link
             to="/assessment"
-            className="inline-block bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-3 rounded-xl font-bold text-sm transition-all"
+            className="premium-btn inline-block text-white px-8 py-3 rounded-xl font-bold text-sm"
           >
             Find the first process worth automating →
           </Link>

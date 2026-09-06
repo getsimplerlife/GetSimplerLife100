@@ -102,7 +102,7 @@ function IndustriesIndexPage() {
                           key={industry.id}
                           to="/industries/$industryId"
                           params={{ industryId: industry.id }}
-                          className="group bg-stone-900/60 border border-stone-800 rounded-xl px-4 py-3 hover:border-stone-600 transition-all flex items-center gap-2.5"
+                          className="premium-card-soft group rounded-xl px-4 py-3 flex items-center gap-2.5"
                         >
                           <span className="text-xl">{industry.icon}</span>
                           <span className="text-sm font-bold text-stone-300 group-hover:text-white transition-colors">{industry.name}</span>
@@ -116,7 +116,7 @@ function IndustriesIndexPage() {
           })()}
 
           {/* Bottom CTA */}
-          <div className="bg-stone-900 border border-stone-800 rounded-[2.5rem] p-10 lg:p-14 text-center space-y-6">
+          <div className="premium-card premium-card-accent rounded-[2.5rem] p-10 lg:p-14 text-center space-y-6">
             <h3 className="text-2xl lg:text-3xl font-black text-white">
               Don't see your industry?
             </h3>

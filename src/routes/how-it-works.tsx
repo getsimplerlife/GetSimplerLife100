@@ -126,22 +126,22 @@ function HowItWorksPage() {
               </p>
             </div>
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 text-center">
-              <div className="p-6 bg-stone-950 border border-stone-800 rounded-2xl">
+              <div className="premium-card-soft p-6 rounded-2xl">
                 <div className="text-2xl mb-2">🏗️</div>
                 <div className="text-white font-black">We build</div>
                 <p className="text-xs text-stone-400 mt-1">the workflows and agent logic end-to-end.</p>
               </div>
-              <div className="p-6 bg-stone-950 border border-stone-800 rounded-2xl">
+              <div className="premium-card-soft p-6 rounded-2xl">
                 <div className="text-2xl mb-2">🔌</div>
                 <div className="text-white font-black">We integrate</div>
                 <p className="text-xs text-stone-400 mt-1">your real systems — Xero, HubSpot, DocuSign, Slack, Google, Microsoft.</p>
               </div>
-              <div className="p-6 bg-stone-950 border border-stone-800 rounded-2xl">
+              <div className="premium-card-soft p-6 rounded-2xl">
                 <div className="text-2xl mb-2">🚀</div>
                 <div className="text-white font-black">We deploy</div>
                 <p className="text-xs text-stone-400 mt-1">with a human approval gate on every write.</p>
               </div>
-              <div className="p-6 bg-stone-950 border border-stone-800 rounded-2xl">
+              <div className="premium-card-soft p-6 rounded-2xl">
                 <div className="text-2xl mb-2">📡</div>
                 <div className="text-white font-black">We monitor & support</div>
                 <p className="text-xs text-stone-400 mt-1">connections self-heal and failures escalate loudly — never silently lost.</p>
@@ -205,21 +205,21 @@ function HowItWorksPage() {
             <p className="text-stone-400 mt-2">Enterprise-grade guardrails for complete peace of mind.</p>
           </div>
           <div className="grid md:grid-cols-3 gap-8">
-            <div className="p-8 bg-stone-950 border border-stone-800 rounded-3xl space-y-4">
+            <div className="premium-card p-8 rounded-3xl space-y-4">
               <div className="text-3xl">🛡️</div>
               <h4 className="text-lg font-black text-stone-900">Data Stays Local</h4>
               <p className="text-sm text-stone-400 leading-relaxed">
                 Our agents connect directly within your existing systems (Xero, Slack, Google, Microsoft 365, HubSpot, DocuSign, and more). We never store or resell your operational credentials.
               </p>
             </div>
-            <div className="p-8 bg-stone-950 border border-stone-800 rounded-3xl space-y-4">
+            <div className="premium-card p-8 rounded-3xl space-y-4">
               <div className="text-3xl">👥</div>
               <h4 className="text-lg font-black text-stone-900">Human-In-The-Loop</h4>
               <p className="text-sm text-stone-400 leading-relaxed">
                 High-stakes financial or logistical decisions can be routed to an approval dashboard. Your human employees maintain final authority where it counts.
               </p>
             </div>
-            <div className="p-8 bg-stone-950 border border-stone-800 rounded-3xl space-y-4">
+            <div className="premium-card p-8 rounded-3xl space-y-4">
               <div className="text-3xl">🔄</div>
               <h4 className="text-lg font-black text-stone-900">Operational Redundancy</h4>
               <p className="text-sm text-stone-400 leading-relaxed">

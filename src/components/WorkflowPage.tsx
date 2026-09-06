@@ -132,7 +132,7 @@ export default function WorkflowPage({ data }: { data: WorkflowType }) {
             </div>
             <div className="flex flex-wrap gap-2">
               {w.systemsRequired.map((sys, i) => (
-                <div key={i} className="px-4 py-2.5 bg-stone-900/60 border border-stone-850 rounded-xl text-xs font-mono font-bold text-stone-300 flex items-center gap-2">
+                <div key={i} className="premium-card-soft px-4 py-2.5 rounded-xl text-xs font-mono font-bold text-stone-300 flex items-center gap-2">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                   {sys}
                 </div>
@@ -143,7 +143,7 @@ export default function WorkflowPage({ data }: { data: WorkflowType }) {
 
         {/* Pricing Tier Section */}
         <section className="px-6 py-16 bg-stone-900/20 border-t border-stone-900">
-          <div className="max-w-4xl mx-auto p-8 bg-stone-950 border border-stone-850 rounded-3xl flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="premium-card max-w-4xl mx-auto p-8 rounded-3xl flex flex-col md:flex-row justify-between items-center gap-6">
             <div className="space-y-2">
               <span className="text-xs font-mono font-bold text-emerald-400 uppercase tracking-widest">[ One-time setup fee ]</span>
               <h3 className="text-2xl font-black text-white">{currentPrice.name} Automated Deployment</h3>

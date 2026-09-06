@@ -60,7 +60,7 @@ export default function AfterPurchasePage() {
                 d: "We monitor connections 24/7, self-heal what we can, alert you loudly when something needs you, and support the workflow as your business changes.",
               },
             ].map((s) => (
-              <div key={s.when} className="flex gap-5 p-6 bg-stone-900/40 border border-stone-800 rounded-2xl">
+              <div key={s.when} className="premium-card-soft flex gap-5 p-6 rounded-2xl">
                 <div className="text-3xl shrink-0">{s.icon}</div>
                 <div>
                   <div className="flex items-baseline gap-3">
