@@ -25,7 +25,7 @@ function CaseStudiesIndexPage() {
           </div>
 
           <div className="max-w-2xl mx-auto">
-            <p className="text-sm text-stone-500 border border-stone-800 rounded-2xl bg-stone-900/50 px-5 py-4 leading-relaxed">
+            <p className="premium-card-soft text-sm text-stone-500 rounded-2xl px-5 py-4 leading-relaxed">
               📋 <strong className="text-stone-300">When you become a customer, this page will host your real case study</strong> —
               actual numbers, actual timeline, actual outcome, published only with your sign-off. Until then, everything here is
               verified capability and clearly-labeled illustrative estimates. We do not invent logos, testimonials, or metrics.
@@ -38,7 +38,7 @@ function CaseStudiesIndexPage() {
                 key={cs.id}
                 to="/case-studies/$caseStudyId"
                 params={{ caseStudyId: cs.id }}
-                className="group bg-stone-900 border border-stone-800 rounded-2xl p-6 hover:border-emerald-500/30 transition-all hover:-translate-y-1"
+                className="premium-card-soft group rounded-2xl p-6"
               >
                 <div className="flex items-center gap-3 mb-3">
                   <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-stone-800 text-emerald-400 uppercase tracking-wider">
@@ -69,7 +69,7 @@ function CaseStudiesIndexPage() {
           </div>
 
           {/* Disclaimer */}
-          <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6">
+          <div className="premium-card rounded-2xl p-6">
             <p className="text-xs text-stone-400 leading-relaxed">
               <span className="font-bold text-stone-300">Illustrative estimates.</span> Any
               timing or efficiency figure on these pages is an illustrative estimate of a
@@ -80,7 +80,7 @@ function CaseStudiesIndexPage() {
           </div>
 
           {/* Bottom CTA */}
-          <div className="bg-stone-900 border border-stone-800 rounded-[2.5rem] p-10 lg:p-14 text-center space-y-6">
+          <div className="premium-card premium-card-accent rounded-[2.5rem] p-10 lg:p-14 text-center space-y-6">
             <h3 className="text-2xl lg:text-3xl font-black text-white">
               See these run in your stack.
             </h3>
@@ -91,7 +91,7 @@ function CaseStudiesIndexPage() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
                 to="/build"
-                className="inline-flex items-center justify-center bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm px-8 py-3.5 rounded-xl transition-all"
+                className="premium-btn inline-flex items-center justify-center text-white font-black text-sm px-8 py-3.5 rounded-xl"
               >
                 Build Your AI Team
               </Link>
