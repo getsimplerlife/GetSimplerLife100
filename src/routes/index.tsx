@@ -210,10 +210,10 @@ function Home() {
                     Find My First Automation ➜
                   </Link>
                   <Link
-                    to="/demo"
+                    to="/how-it-works"
                     className="inline-flex min-h-[56px] items-center justify-center rounded-2xl border border-stone-700 px-8 py-4 text-lg font-bold text-stone-200 transition-all hover:border-emerald-500/50 hover:text-white"
                   >
-                    See it working — interactive demo
+                    See our approach
                   </Link>
                 </Reveal>
                 <Reveal delay={240}>
@@ -281,27 +281,6 @@ function Home() {
               <p className="mt-8 text-sm text-stone-500">
                 QuickBooks is in development and will slot in the same way for firms that run on it.
               </p>
-            </Reveal>
-            <Reveal delay={100}>
-              <figure className="mt-10">
-                <div className="premium-card overflow-hidden rounded-2xl shadow-2xl">
-                  <video
-                    className="w-full aspect-video"
-                    controls
-                    preload="metadata"
-                    poster="/videos/quote-to-cash-demo-poster.jpg"
-                    aria-label="Quote-to-cash demo walkthrough of the Simpler Life 100 interactive demo"
-                  >
-                    <source src="/videos/quote-to-cash-demo.mp4" type="video/mp4" />
-                    Your browser does not support HTML5 video.
-                  </video>
-                </div>
-                <figcaption className="mt-3 text-xs leading-relaxed text-stone-500">
-                  <span className="font-bold text-stone-300">1m 15s — interactive demo walkthrough.</span> A real recording of
-                  the Simpler Life 100 demo, illustrating the signed-proposal flow (proposal → DocuSign → HubSpot → Xero → Slack → Drive)
-                  with a human approval gate on every write. Interactive demo with illustrative data — no live provider connections, no customer records.
-                </figcaption>
-              </figure>
             </Reveal>
           </div>
         </section>
