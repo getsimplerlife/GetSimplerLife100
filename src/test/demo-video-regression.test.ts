@@ -51,6 +51,32 @@ describe("P4.3 — quote-to-cash demo video (truthful, self-hosted)", () => {
     expect(src).toMatch(/illustrating the signed-proposal flow/i);
   });
 
+  it("site-wide sweep: no user-facing 'live demo' / 'live provider' claims in routes/lazy/components", () => {
+    const { readdirSync, statSync } = require("fs");
+    const dirs = ["src/routes", "src/lazy", "src/components"];
+    const files: string[] = [];
+    for (const d of dirs) {
+      const walk = (p: string) => {
+        for (const e of readdirSync(p)) {
+          const full = join(p, e);
+          if (statSync(full).isDirectory()) walk(full);
+          else if (e.endsWith(".tsx")) files.push(full);
+        }
+      };
+      walk(join(REPO, d));
+    }
+    const bad: string[] = [];
+    for (const f of files) {
+      const src = readFileSync(f, "utf8");
+      // Only flag the claim phrases in render copy — the caption's explicit
+      // negation "no live provider connections" is REQUIRED and allowed.
+      for (const m of src.matchAll(/live[- ]?demo|live[- ]?provider/gi)) {
+        if (/no live ?provider connections/i.test(m[0]) || /live[- ]?demo walkthrough/i.test(m[0])) continue;
+        bad.push(`${f}: ${m[0]}`);
+      }
+    }
+    expect(bad, `live-demo/live-provider claims found:\n${bad.join("\n")}`).toEqual([]);
+  });
   it("prod-server statically serves /videos/*", () => {
     const src = readFileSync(join(REPO, "prod-server.ts"), "utf8");
     expect(src).toMatch(/pathname\.startsWith\("\/videos\/"\)/);
