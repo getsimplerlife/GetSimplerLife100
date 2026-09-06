@@ -71,7 +71,13 @@ describe("P4.3 — quote-to-cash demo video (truthful, self-hosted)", () => {
       // Only flag the claim phrases in render copy — the caption's explicit
       // negation "no live provider connections" is REQUIRED and allowed.
       for (const m of src.matchAll(/live[- ]?demo|live[- ]?provider/gi)) {
-        if (/no live ?provider connections/i.test(m[0]) || /live[- ]?demo walkthrough/i.test(m[0])) continue;
+        // Allow only the caption's explicit negation ("no live provider
+        // connections") and the "live demo walkthrough" description — both are
+        // the truthful framing the owner-approved caption requires. Anything
+        // else ("live demo", "live provider", "live-demo", …) is a claim.
+        const line = src.slice(Math.max(0, m.index - 80), m.index + 40);
+        if (/no live ?provider connections/i.test(line)) continue;
+        if (/live[- ]?demo walkthrough/i.test(line)) continue;
         bad.push(`${f}: ${m[0]}`);
       }
     }
