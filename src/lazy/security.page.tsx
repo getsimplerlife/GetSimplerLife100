@@ -145,7 +145,7 @@ export default function SecurityPage() {
                 to="/demo"
                 className="premium-btn inline-flex min-h-[48px] items-center justify-center rounded-2xl px-6 py-3 font-bold text-white"
               >
-                See the live demo
+                See the interactive demo
               </Link>
               <Link
                 to="/assessment"

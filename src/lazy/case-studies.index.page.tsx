@@ -11,7 +11,7 @@ function CaseStudiesIndexPage() {
           {/* Hero */}
           <div className="text-center space-y-6">
             <span className="inline-block px-3 py-1 text-xs font-mono font-bold tracking-wider rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase">
-              LIVE DEMONSTRATIONS
+              INTERACTIVE DEMONSTRATIONS
             </span>
             <h1 className="text-5xl lg:text-7xl font-black text-white tracking-tight">
               Verified Automation. <span className="text-emerald-500">Real Capability.</span>

@@ -148,7 +148,7 @@ function HowItWorksPage() {
               </div>
             </div>
             <div className="flex flex-wrap justify-center gap-3 pt-4">
-              <Link to="/demo" className="px-5 py-2.5 rounded-xl bg-emerald-600 text-white font-black text-sm hover:bg-emerald-500 transition-colors">See it working — live demo →</Link>
+              <Link to="/demo" className="px-5 py-2.5 rounded-xl bg-emerald-600 text-white font-black text-sm hover:bg-emerald-500 transition-colors">See it working — interactive demo →</Link>
               <Link to="/security" className="px-5 py-2.5 rounded-xl border border-stone-700 text-stone-200 font-bold text-sm hover:border-emerald-500/40 transition-colors">Security & data access</Link>
               <Link to="/you-stay-in-control" className="px-5 py-2.5 rounded-xl border border-stone-700 text-stone-200 font-bold text-sm hover:border-emerald-500/40 transition-colors">You stay in control</Link>
               <Link to="/after-purchase" className="px-5 py-2.5 rounded-xl border border-stone-700 text-stone-200 font-bold text-sm hover:border-emerald-500/40 transition-colors">What happens after purchase</Link>

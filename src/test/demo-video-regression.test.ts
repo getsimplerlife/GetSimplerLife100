@@ -51,6 +51,38 @@ describe("P4.3 — quote-to-cash demo video (truthful, self-hosted)", () => {
     expect(src).toMatch(/illustrating the signed-proposal flow/i);
   });
 
+  it("site-wide sweep: no user-facing 'live demo' / 'live provider' claims in routes/lazy/components", () => {
+    const { readdirSync, statSync } = require("fs");
+    const dirs = ["src/routes", "src/lazy", "src/components"];
+    const files: string[] = [];
+    for (const d of dirs) {
+      const walk = (p: string) => {
+        for (const e of readdirSync(p)) {
+          const full = join(p, e);
+          if (statSync(full).isDirectory()) walk(full);
+          else if (e.endsWith(".tsx")) files.push(full);
+        }
+      };
+      walk(join(REPO, d));
+    }
+    const bad: string[] = [];
+    for (const f of files) {
+      const src = readFileSync(f, "utf8");
+      // Only flag the claim phrases in render copy — the caption's explicit
+      // negation "no live provider connections" is REQUIRED and allowed.
+      for (const m of src.matchAll(/live[- ]?demo|live[- ]?provider/gi)) {
+        // Allow only the caption's explicit negation ("no live provider
+        // connections") and the "live demo walkthrough" description — both are
+        // the truthful framing the owner-approved caption requires. Anything
+        // else ("live demo", "live provider", "live-demo", …) is a claim.
+        const line = src.slice(Math.max(0, m.index - 80), m.index + 40);
+        if (/no live ?provider connections/i.test(line)) continue;
+        if (/live[- ]?demo walkthrough/i.test(line)) continue;
+        bad.push(`${f}: ${m[0]}`);
+      }
+    }
+    expect(bad, `live-demo/live-provider claims found:\n${bad.join("\n")}`).toEqual([]);
+  });
   it("prod-server statically serves /videos/*", () => {
     const src = readFileSync(join(REPO, "prod-server.ts"), "utf8");
     expect(src).toMatch(/pathname\.startsWith\("\/videos\/"\)/);
