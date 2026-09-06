@@ -81,7 +81,7 @@ export default function CaseStudyPage({ data }: { data: CaseStudyType }) {
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {cs.illustrativeEstimate.map((res, i) => (
-                <div key={i} className="p-5 bg-stone-950 border border-stone-850 rounded-2xl">
+                <div key={i} className="premium-card-soft p-5 rounded-2xl">
                   <div className="text-sm font-bold text-stone-400">{res.metric}</div>
                   <div className="text-lg font-black text-emerald-400 mt-1">{res.value}</div>
                 </div>
@@ -97,7 +97,7 @@ export default function CaseStudyPage({ data }: { data: CaseStudyType }) {
               <h2 className="text-2xl font-black text-white">More demonstrations</h2>
               <div className="grid gap-4">
                 {related.map((rcs) => (
-                  <div key={rcs.id} className="p-6 bg-stone-950 border border-stone-850 rounded-2xl hover:border-emerald-500/20 transition-all flex justify-between items-center">
+                  <div key={rcs.id} className="premium-card-soft p-6 rounded-2xl flex justify-between items-center">
                     <div>
                       <span className="text-xs font-mono text-stone-500 uppercase tracking-widest block mb-1">
                         {rcs.integrations.join(" · ")}
@@ -122,7 +122,7 @@ export default function CaseStudyPage({ data }: { data: CaseStudyType }) {
               AI employees that run them safely against your own systems.
             </p>
             <div className="pt-4">
-              <Link to="/build" className="bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-3.5 rounded-xl text-sm font-black inline-block transition-all transform hover:-translate-y-0.5 shadow-xl">
+              <Link to="/build" className="premium-btn text-white px-8 py-3.5 rounded-xl text-sm font-black inline-block">
                 Configure Your Solution
               </Link>
             </div>
