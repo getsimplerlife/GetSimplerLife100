@@ -53,7 +53,7 @@ export default function SecurityPage() {
                   d: "Each client (tenant) keeps its own isolated data store. There are no cross-tenant data paths — your data is never mixed with another customer's.",
                 },
               ].map((c) => (
-                <div key={c.title} className="p-6 bg-stone-900/40 border border-stone-800 rounded-2xl space-y-2">
+                <div key={c.title} className="premium-card-soft p-6 rounded-2xl space-y-2">
                   <div className="text-3xl">{c.icon}</div>
                   <h3 className="text-lg font-black text-white">{c.title}</h3>
                   <p className="text-sm text-stone-400 leading-relaxed">{c.d}</p>
@@ -113,7 +113,7 @@ export default function SecurityPage() {
                   d: "If an action can't be safely verified, it doesn't run. Unknown or unverifiable operations fail closed rather than guessing.",
                 },
               ].map((c) => (
-                <div key={c.title} className="p-6 bg-stone-900/40 border border-stone-800 rounded-2xl space-y-2">
+                <div key={c.title} className="premium-card-soft p-6 rounded-2xl space-y-2">
                   <div className="text-3xl">{c.icon}</div>
                   <h3 className="text-lg font-black text-white">{c.title}</h3>
                   <p className="text-sm text-stone-400 leading-relaxed">{c.d}</p>
@@ -143,7 +143,7 @@ export default function SecurityPage() {
             <div className="flex flex-wrap gap-4 justify-center pt-2">
               <Link
                 to="/demo"
-                className="inline-flex min-h-[48px] items-center justify-center rounded-2xl bg-emerald-600 px-6 py-3 font-bold text-white hover:bg-emerald-500 transition-all"
+                className="premium-btn inline-flex min-h-[48px] items-center justify-center rounded-2xl px-6 py-3 font-bold text-white"
               >
                 See the live demo
               </Link>

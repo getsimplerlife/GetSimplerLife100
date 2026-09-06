@@ -36,15 +36,15 @@ export default function YouStayInControlPage() {
               A human reviews it and approves or rejects it. Only then does the action run.
             </p>
             <div className="mt-4 space-y-2.5 text-sm text-stone-300">
-              <div className="flex items-center justify-between rounded-xl border border-stone-800 bg-stone-950 px-4 py-3">
+              <div className="premium-card-soft flex items-center justify-between rounded-xl px-4 py-3">
                 <span>Draft Xero invoice — $4,800</span>
                 <span className="font-bold text-amber-400">Awaiting review</span>
               </div>
-              <div className="flex items-center justify-between rounded-xl border border-stone-800 bg-stone-950 px-4 py-3">
+              <div className="premium-card-soft flex items-center justify-between rounded-xl px-4 py-3">
                 <span>Create HubSpot deal — Acme Co.</span>
                 <span className="font-bold text-emerald-400">Approved</span>
               </div>
-              <div className="flex items-center justify-between rounded-xl border border-stone-800 bg-stone-950 px-4 py-3">
+              <div className="premium-card-soft flex items-center justify-between rounded-xl px-4 py-3">
                 <span>Post to Slack — #revenue</span>
                 <span className="font-bold text-rose-400">Rejected</span>
               </div>
@@ -90,7 +90,7 @@ export default function YouStayInControlPage() {
                   d: "You decide what each AI employee can and cannot touch — which systems, which scopes, which actions.",
                 },
               ].map((c) => (
-                <div key={c.title} className="p-6 bg-stone-900/40 border border-stone-800 rounded-2xl space-y-2">
+                <div key={c.title} className="premium-card-soft p-6 rounded-2xl space-y-2">
                   <div className="text-3xl">{c.icon}</div>
                   <h3 className="text-lg font-black text-white">{c.title}</h3>
                   <p className="text-sm text-stone-400 leading-relaxed">{c.d}</p>
@@ -100,7 +100,7 @@ export default function YouStayInControlPage() {
           </section>
 
           {/* Why it matters */}
-          <section className="p-8 bg-stone-900/40 border border-stone-800 rounded-3xl space-y-4">
+          <section className="premium-card p-8 rounded-3xl space-y-4">
             <h2 className="text-2xl font-black text-white">Why this matters</h2>
             <p className="text-stone-400 leading-relaxed">
               Automation fails when it makes decisions people didn't ask for. Our approach is the opposite: the AI

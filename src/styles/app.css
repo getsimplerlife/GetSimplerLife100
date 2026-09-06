@@ -140,6 +140,21 @@
   border-color: rgba(16, 185, 129, 0.45);
   box-shadow: 0 18px 40px -18px rgba(16, 185, 129, 0.25);
 }
+/* Same hover lift/glow but defers border-radius to the element's own rounded-* (site-wide small cards). */
+.premium-card-soft {
+  position: relative;
+  border: 1px solid var(--color-stone-800, #292524);
+  background:
+    linear-gradient(180deg, rgba(16, 185, 129, 0.04), transparent 40%),
+    rgba(12, 10, 9, 0.6);
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.35s ease, box-shadow 0.35s ease;
+}
+.premium-card-soft:hover {
+  transform: translateY(-3px);
+  border-color: rgba(16, 185, 129, 0.45);
+  box-shadow: 0 14px 32px -16px rgba(16, 185, 129, 0.25);
+}
 /* Accent border for highlight cards (After, Scale, etc.). */
 .premium-card-accent {
   border-color: rgba(16, 185, 129, 0.5);
