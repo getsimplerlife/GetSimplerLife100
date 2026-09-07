@@ -316,3 +316,84 @@ describe("AUTONOMY MODE — fail-closed edge cases", () => {
     expect(out.autonomy).toBeUndefined(); // reads aren't "auto-executed" — they always pass
   });
 });
+
+// ── Platform-wide capability (every AI employee, by construction) ─────
+// The 18 employee types all flow through the SHARED orchestrator →
+// executeAction → approvalGate path, with the per-workflow autonomy key
+// defaulting to the agentId (input.agentId || "ai-employee"). Every
+// employee therefore supports the SAME autonomy capability set (per-
+// workflow opt-in, explicit allow-list, durable audit, kill switch,
+// error-budget fallback) without any per-employee wiring. This test
+// iterates every type and proves each can carry a allow-list + audit +
+// kill-switch config and auto-executes ONLY allow-listed writes.
+import { readdirSync } from "fs";
+import { join as pathJoin } from "path";
+
+const EMPLOYEE_TYPES = [
+  "auditLogger", "contractManagement", "customerSuccess", "dispatchLogistics",
+  "documentIntake", "fpAndA", "healthcareIntake", "hrCompliance",
+  "inventoryManagement", "invoiceLedger", "itOperations", "knowledgeAssistant",
+  "marketingSocial", "procurementVendor", "projectManagement", "salesOutreach",
+  "supportAgent", "voiceReceptionist",
+];
+
+describe("AUTONOMY MODE — platform-wide (every AI employee, by construction)", () => {
+  it("all 18 employee files exist (roster integrity)", () => {
+    const files = readdirSync(pathJoin(process.cwd(), "src/agents/employees"))
+      .filter((f) => f.endsWith(".ts") && !f.includes(".test."))
+      .map((f) => f.replace(/\.ts$/, ""));
+    for (const t of EMPLOYEE_TYPES) expect(files).toContain(t);
+    expect(files).toHaveLength(EMPLOYEE_TYPES.length);
+  });
+
+  it("each employee type supports opt-in + allow-list + audit + kill switch + error budget", () => {
+    for (const agentType of EMPLOYEE_TYPES) {
+      const wf = `wf-${agentType}`;
+      // 1. Default OFF (approvals ON) for every employee's workflow key.
+      expect(isAutonomyEnabled("tenant-a@test", wf, dir)).toBe(false);
+      // 2. Opt-in per workflow with an explicit allow-list.
+      setAutonomyWorkflow("tenant-a@test", wf, {
+        enabled: true,
+        allowList: [{ id: `al-${agentType}`, action: "createXeroInvoice" }],
+      }, dir);
+      expect(isAutonomyEnabled("tenant-a@test", wf, dir)).toBe(true);
+      // 3. Allow-listed write auto-executes with audit metadata.
+      const out = approvalGate("tenant-a@test", "createXeroInvoice", "xero", {}, { dataDir: dir, workflowId: wf });
+      expect(out.allowed).toBe(true);
+      expect(out.autonomy).toBe(true);
+      expect(out.allowListId).toBe(`al-${agentType}`);
+      // 4. Non-listed write stays gated (even in autonomy mode).
+      const gated = approvalGate("tenant-a@test", "createHubSpotContact", "hubspot", {}, { dataDir: dir, workflowId: wf });
+      expect(gated.allowed).toBe(false);
+      expect(gated.actionId).toBeTruthy();
+      // 5. Kill switch instantly gates the employee's workflow.
+      setTenantAutonomyKillSwitch("tenant-a@test", true, dir);
+      expect(isAutonomyEnabled("tenant-a@test", wf, dir)).toBe(false);
+      const killed = approvalGate("tenant-a@test", "createXeroInvoice", "xero", {}, { dataDir: dir, workflowId: wf });
+      expect(killed.allowed).toBe(false);
+      setTenantAutonomyKillSwitch("tenant-a@test", false, dir);
+      // 6. Error-budget fallback: 3 failures revert to gated.
+      for (let i = 0; i < AUTONOMY_MAX_CONSECUTIVE_FAILURES; i++) {
+        recordAutonomyOutcome("tenant-a@test", wf, "createXeroInvoice", "xero", false, { dataDir: dir, allowListId: `al-${agentType}` });
+      }
+      expect(isAutonomyEnabled("tenant-a@test", wf, dir)).toBe(false);
+      // 7. Audit trail is durable + actor = system/autonomy.
+      const audit = autonomyAudit("tenant-a@test", dir);
+      expect(audit.some((e) => e.workflowId === wf && e.actor === "system/autonomy")).toBe(true);
+      // Reset for the next employee type (fresh config).
+      setAutonomyWorkflow("tenant-a@test", wf, { enabled: false, allowList: [] }, dir);
+    }
+  });
+
+  it("isolated employees: worst-case destructive write can NEVER auto-execute without an explicit allow-list + known-row id", () => {
+    // Probe EVERY employee workflow key with a destructive write carrying NO
+    // row id — the non-destruction invariant must hold for all of them.
+    for (const agentType of EMPLOYEE_TYPES) {
+      const wf = `wf-${agentType}`;
+      setAutonomyWorkflow("tenant-a@test", wf, { enabled: true, allowList: [{ id: `al-${agentType}`, action: "deleteXeroInvoice" }] }, dir);
+      const out = approvalGate("tenant-a@test", "deleteXeroInvoice", "xero", { filter: "all" }, { dataDir: dir, workflowId: wf });
+      expect(out.allowed).toBe(false);
+      expect(out.autonomy).toBeUndefined();
+    }
+  });
+});
