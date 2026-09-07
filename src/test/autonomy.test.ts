@@ -397,3 +397,44 @@ describe("AUTONOMY MODE — platform-wide (every AI employee, by construction)",
     }
   });
 });
+
+describe("AUTONOMY MODE — chain writes honor the per-workflow config (owner anchor: quote-to-cash)", () => {
+  it("orchestrator threads workflowId (chainId) so a chain write honors the tenant's per-workflow allow-list", async () => {
+    const WORKFLOW = "quote-to-cash";
+    // Tenant enables autonomy for the anchor workflow with an explicit
+    // allow-list for createHubSpotContact only (verb-first action names are
+    // how real provider writes are registered in this codebase).
+    setAutonomyWorkflow("chain-tenant@test", WORKFLOW, {
+      enabled: true,
+      allowList: [{ id: "al-contact", action: "createHubSpotContact" }],
+    }, dir);
+    // The orchestrator's write path passes workflowId = input.chainId (the
+    // named chain = the per-workflow autonomy key). Proof: the SAME approval
+    // gate keyed off the chain workflow auto-executes the allow-listed write...
+    const allowed = approvalGate("chain-tenant@test", "createHubSpotContact", "hubspot", { properties: {} }, {
+      dataDir: dir,
+      agentId: "salesOutreach",      // the step's agent type
+      workflowId: WORKFLOW,          // what the orchestrator now passes
+    });
+    expect(allowed.allowed).toBe(true);
+    expect(allowed.autonomy).toBe(true);
+    expect(allowed.allowListId).toBe("al-contact");
+    // ...AND gates a non-listed write in the SAME chain (fail-closed).
+    const gated = approvalGate("chain-tenant@test", "createXeroInvoice", "xero", {}, {
+      dataDir: dir,
+      agentId: "finance",            // different step agent type
+      workflowId: WORKFLOW,          // same chain workflow
+    });
+    expect(gated.allowed).toBe(false);
+    expect(gated.actionId).toBeTruthy();
+    // Isolation: another workflow key for the same tenant stays gated even
+    // though the action is allow-listed in quote-to-cash.
+    const other = approvalGate("chain-tenant@test", "createHubSpotContact", "hubspot", { properties: {} }, {
+      dataDir: dir,
+      agentId: "salesOutreach",
+      workflowId: "other-chain",     // different chain → not allow-listed here
+    });
+    expect(other.allowed).toBe(false);
+    expect(other.actionId).toBeTruthy();
+  });
+});

@@ -84,6 +84,11 @@ export interface RunChainInput {
   tenantEmail: string;
   /** Optional portal agent id recorded on approval cards (default "ai-employee"). */
   agentId?: string;
+  /** Optional workflow id for AUTONOMY MODE. When the chain is a named
+   *  workflow (e.g. "quote-to-cash"), this is the per-workflow autonomy key
+   *  the tenant's allow-list is stored under. Falls back to chainId, then
+   *  agentId, then the runtime default. Omitted → current behavior. */
+  workflowId?: string;
   /** Data dir for the approval store (isolation in tests). */
   dataDir?: string;
   /** Per-step provider query results (injected for tests / from real reads). */
@@ -398,6 +403,7 @@ export async function runChain(input: RunChainInput): Promise<ChainRunResult> {
         agentId: input.agentId || "ai-employee",
         chainId: input.chainId,
         dataDir: input.dataDir,
+        workflowId: input.workflowId ?? input.chainId ?? undefined,
       });
 
       if (writeResult.pendingApproval && writeResult.actionId) {

@@ -278,12 +278,17 @@ export async function executeAction(
     ]);
 
     if (autonomyGate) {
-      const { recordAutonomyOutcome } = await import("../lib/autonomy");
-      recordAutonomyOutcome(userId, autonomyGate.workflowId, autonomyGate.actionName, autonomyGate.provider, true, {
-        dataDir: options?.dataDir,
-        allowListId: autonomyGate.allowListId,
-        target: typeof params?.id === "string" ? params.id : undefined,
-      });
+      try {
+        const { recordAutonomyOutcome } = await import("../lib/autonomy");
+        recordAutonomyOutcome(userId, autonomyGate.workflowId, autonomyGate.actionName, autonomyGate.provider, true, {
+          dataDir: options?.dataDir,
+          allowListId: autonomyGate.allowListId,
+          target: typeof params?.id === "string" ? params.id : undefined,
+        });
+      } catch {
+        // Audit-recording must NEVER mask a real action outcome — a succeeded
+        // write stays a success even if the audit append throws.
+      }
     }
     return {
       success: true,
