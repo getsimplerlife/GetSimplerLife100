@@ -51,7 +51,7 @@ export default function AfterPurchasePage() {
                 when: "Week 2",
                 icon: "🧪",
                 title: "Testing + deploy + human approval",
-                d: "We test the workflow end to end, confirm every write pauses for human approval, deploy it, and show your team how to use the approval queue and audit log.",
+                d: "We test the workflow end to end, confirm every write pauses for human approval by default (full-auto is opt-in per workflow), deploy it, and show your team how to use the approval queue and audit log.",
               },
               {
                 when: "Ongoing",
@@ -79,7 +79,7 @@ export default function AfterPurchasePage() {
             <ul className="space-y-3 text-stone-400 leading-relaxed">
               <li className="flex gap-3"><span className="text-emerald-400">✓</span> You don't learn automation or configure workflows — we build them.</li>
               <li className="flex gap-3"><span className="text-emerald-400">✓</span> You don't manage AI agents or monitor connections — we do.</li>
-              <li className="flex gap-3"><span className="text-emerald-400">✓</span> You don't lose control — every write pauses for your team's approval.</li>
+              <li className="flex gap-3"><span className="text-emerald-400">✓</span> You stay in control — approval by default; full auto only for what you explicitly allow, audit-logged, with a kill switch.</li>
               <li className="flex gap-3"><span className="text-emerald-400">✓</span> You see everything — approval queue, audit log, and live connection health in one portal.</li>
             </ul>
           </section>

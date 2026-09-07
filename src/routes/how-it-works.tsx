@@ -139,7 +139,7 @@ function HowItWorksPage() {
               <div className="premium-card-soft p-6 rounded-2xl">
                 <div className="text-2xl mb-2">🚀</div>
                 <div className="text-white font-black">We deploy</div>
-                <p className="text-xs text-stone-400 mt-1">with a human approval gate on every write.</p>
+                <p className="text-xs text-stone-400 mt-1">with a human approval gate on every write by default — full-auto opt-in per workflow.</p>
               </div>
               <div className="premium-card-soft p-6 rounded-2xl">
                 <div className="text-2xl mb-2">📡</div>

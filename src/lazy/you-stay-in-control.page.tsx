@@ -61,8 +61,8 @@ export default function YouStayInControlPage() {
               {[
                 {
                   icon: "🧑‍⚖️",
-                  title: "Human approval queue",
-                  d: "Every write pauses for a named human decision. No exceptions, no silent auto-runs.",
+                  title: "Approval by default",
+                  d: "Every write is gated for your team's yes/no — until a workflow is set to full-auto. Opt-in per workflow, with a durable audit log and an instant kill switch.",
                 },
                 {
                   icon: "📜",

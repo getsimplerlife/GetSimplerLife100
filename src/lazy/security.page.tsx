@@ -40,7 +40,7 @@ export default function SecurityPage() {
                 {
                   icon: "🧠",
                   title: "What AI can and cannot do",
-                  d: "An AI employee can read what you authorize, draft what the workflow requires, and propose actions. It cannot execute a write on its own — every write waits in the human approval queue.",
+                  d: "An AI employee can read what you authorize, draft what the workflow requires, and propose actions. Writes wait in the human approval queue by default — and if you enable full-auto per workflow, only explicitly allow-listed actions run, every one is audit-logged, and you can kill the automation instantly.",
                 },
                 {
                   icon: "🛡️",

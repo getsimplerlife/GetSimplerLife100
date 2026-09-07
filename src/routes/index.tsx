@@ -247,7 +247,7 @@ function Home() {
                     ))}
                   </ol>
                   <p className="mt-4 text-xs leading-relaxed text-stone-500">
-                    Every step is a real, verified connection. Your team does zero keystrokes — and approves every write.
+                    Every step is a real, verified connection. Your team does zero keystrokes — and approves every write by default (or sets a workflow to full auto with an audit trail).
                   </p>
                 </div>
               </Reveal>
@@ -296,7 +296,7 @@ function Home() {
                 </h2>
                 <p className="mt-4 text-lg leading-relaxed text-stone-400">
                   A signed proposal moves itself through DocuSign → HubSpot → Xero → Slack → Drive. Every step is a
-                  verified connection, and every write pauses for a human to approve before it runs.
+                  verified connection, and every write pauses for a human to approve before it runs — unless you've opted that workflow into full auto.
                 </p>
               </Reveal>
               <Reveal delay={80}>
@@ -319,7 +319,7 @@ function Home() {
                       <li>🧾 Invoice drafted in Xero</li>
                       <li>💬 Team notified in Slack</li>
                       <li>📁 Docs filed where they belong</li>
-                      <li className="font-bold text-emerald-300">✅ A human approves every write</li>
+                      <li className="font-bold text-emerald-300">✅ Approval by default — full auto only when you allow it</li>
                     </ul>
                   </div>
                 </div>
@@ -494,7 +494,7 @@ function Home() {
                 </h2>
                 <p className="mt-3 text-base leading-relaxed text-stone-400">
                   Nothing on this page is claimed working until it's live-tested. Every action an AI employee takes
-                  passes a human approval queue before it runs. No silent failures — if something disconnects, you're
+                  passes a human approval queue before it runs (or your own allow-list, audited). No silent failures — if something disconnects, you're
                   told immediately and reconnected in one click.
                 </p>
                 <div className="mt-6 flex flex-wrap gap-2">
