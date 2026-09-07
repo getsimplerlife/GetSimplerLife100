@@ -105,12 +105,17 @@ describe("approvalGate", () => {
     approvalGate("tenant-a@test", "createXeroInvoice", "xero", {}, { dataDir: dir });
     expect(listPendingActions("tenant-a@test", dir)[0].agentId).toBe("ai-employee");
   });
-  it("explicit per-tenant opt-out (auto) lets writes execute", () => {
+  it("AUTONOMY: legacy tenant-wide 'auto' WITHOUT an allow-list is fail-closed (write still gated)", () => {
     setApprovalMode("tenant-a@test", "auto", dir);
     expect(approvalModeForTenant("tenant-a@test", dir)).toBe("auto");
-    const out = approvalGate("tenant-a@test", "createXeroInvoice", "xero", {}, { dataDir: dir });
-    expect(out.allowed).toBe(true);
-    expect(listPendingActions("tenant-a@test", dir)).toHaveLength(0);
+    // Owner decision 09-07: auto mode only auto-executes EXPLICITLY
+    // allow-listed actions in an ENABLED per-workflow autonomy config.
+    // A tenant with the legacy "auto" flag but no allow-list gets nothing
+    // auto-executed — the write stays approval-gated (fail-closed).
+    const out = approvalGate("tenant-a@test", "createXeroInvoice", "xero", {}, { dataDir: dir, workflowId: "quote-to-cash.v1" });
+    expect(out.allowed).toBe(false);
+    expect(out.actionId).toBeTruthy();
+    expect(listPendingActions("tenant-a@test", dir)).toHaveLength(1);
   });
   it("approvalMode defaults to on (fail-closed) for unknown/empty tenants", () => {
     expect(approvalModeForTenant("", dir)).toBe("on");
@@ -223,10 +228,12 @@ describe("engine integration (executeAction gate)", () => {
     expect(result.pendingApproval).toBeUndefined();
     expect(result.error).toMatch(/no connection found/i);
   });
-  it("auto mode (opt-out) lets a write reach the connection stage", async () => {
+  it("AUTONOMY: the engine's approvalGate reads the tenant mode (auto does NOT auto-execute without allow-list)", async () => {
     setApprovalMode("auto-tenant@test", "auto", dir);
-    // Can't inject the dataDir into the engine (it uses the runtime default),
-    // so verify the mode check itself: approvalModeForTenant reflects "auto".
+    // The engine uses the runtime default dataDir, so verify the mode check
+    // itself: approvalModeForTenant reflects "auto". Actual auto-execution
+    // additionally requires an ENABLED workflow + explicit allow-list entry
+    // (covered in autonomy.test.ts — fail-closed without them).
     expect(approvalModeForTenant("auto-tenant@test", dir)).toBe("auto");
   });
 });

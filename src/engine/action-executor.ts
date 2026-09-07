@@ -44,6 +44,11 @@ export interface ExecutionOptions {
   dataDir?: string;
   /** When a write is proposed by a multi-employee chain, record the chain id. */
   chainId?: string;
+  /** Workflow id for AUTONOMY MODE: the per-workflow autonomy config this
+   *  action belongs to (e.g. "quote-to-cash.v1"). Enables allow-list gating,
+   *  audit + error-budget fallback. When omitted, the agentId is used as the
+   *  workflow key (fail-closed: unknown workflows stay approval-gated). */
+  workflowId?: string;
 }
 
 // ── Action Handler Registry ──────────────────────────────────────────────
@@ -187,6 +192,12 @@ export async function executeAction(
   const timeout = options?.timeout || 30000;
   const retryOnRefresh = options?.retryOnRefresh !== false;
 
+  // Hoisted to function scope so BOTH the try (gate) and catch (error-budget
+  // hook) can read it. Undefined when the gate was bypassed (portal approve).
+  let autonomyGate:
+    | { autonomy: true; allowListId: string; workflowId: string; provider: string; actionName: string }
+    | undefined;
+
   try {
     // 1. Resolve the action
     const entry = actionRegistry.handlers.get(actionName);
@@ -214,6 +225,7 @@ export async function executeAction(
         agentId: options?.agentId,
         chainId: options?.chainId,
         dataDir: options?.dataDir,
+        workflowId: options?.workflowId,
       });
       if (!gate.allowed) {
         return {
@@ -224,6 +236,15 @@ export async function executeAction(
           duration: Date.now() - startTime,
           pendingApproval: true,
           actionId: gate.actionId,
+        };
+      }
+      if (gate.autonomy && gate.allowListId && gate.workflowId) {
+        autonomyGate = {
+          autonomy: true,
+          allowListId: gate.allowListId,
+          workflowId: gate.workflowId,
+          provider: providerId,
+          actionName,
         };
       }
     }
@@ -256,6 +277,19 @@ export async function executeAction(
       ),
     ]);
 
+    if (autonomyGate) {
+      try {
+        const { recordAutonomyOutcome } = await import("../lib/autonomy");
+        recordAutonomyOutcome(userId, autonomyGate.workflowId, autonomyGate.actionName, autonomyGate.provider, true, {
+          dataDir: options?.dataDir,
+          allowListId: autonomyGate.allowListId,
+          target: typeof params?.id === "string" ? params.id : undefined,
+        });
+      } catch {
+        // Audit-recording must NEVER mask a real action outcome — a succeeded
+        // write stays a success even if the audit append throws.
+      }
+    }
     return {
       success: true,
       data: result,
@@ -304,6 +338,19 @@ export async function executeAction(
       }
     }
 
+    if (autonomyGate) {
+      try {
+        const { recordAutonomyOutcome } = await import("../lib/autonomy");
+        recordAutonomyOutcome(userId, autonomyGate.workflowId, autonomyGate.actionName, autonomyGate.provider, false, {
+          dataDir: options?.dataDir,
+          allowListId: autonomyGate.allowListId,
+          error: err?.message || "Unknown error during action execution",
+          target: typeof params?.id === "string" ? params.id : undefined,
+        });
+      } catch {
+        // Error-budget recording must never mask the original action error.
+      }
+    }
     return {
       success: false,
       error: err.message || "Unknown error during action execution",
