@@ -21,6 +21,13 @@
 import { join } from "path";
 import { readJSON, writeJSON, resolveDataDir } from "./data-store";
 import { getTenantSettings } from "./tenant-settings";
+import {
+  isAutonomyEnabled,
+  isAutonomyEligible,
+  getAutonomyWorkflow,
+  appendAutonomyAudit,
+  recordAutonomyOutcome,
+} from "./autonomy";
 
 export const APPROVAL_QUEUE_KEY = "tenant_approvals.json";
 
@@ -54,6 +61,12 @@ export interface ApprovalGateOutcome {
   /** Set when the write was routed to the pending queue instead. */
   actionId?: string;
   error?: string;
+  /** True when this write auto-executed via AUTONOMY MODE (allow-listed). */
+  autonomy?: boolean;
+  /** The allow-list entry id that matched (autonomy only). */
+  allowListId?: string;
+  /** Workflow id the gate evaluated (enables audit + error budget). */
+  workflowId?: string;
 }
 
 // ── Write-action classification ─────────────────────────────────────────
@@ -246,10 +259,31 @@ export function approvalGate(
   actionName: string,
   provider: string,
   params: Record<string, any>,
-  opts?: { agentId?: string; dataDir?: string; chainId?: string },
+  opts?: { agentId?: string; dataDir?: string; chainId?: string; workflowId?: string },
 ): ApprovalGateOutcome {
   if (!isWriteAction(actionName)) return { allowed: true };
-  if (approvalModeForTenant(tenantId, opts?.dataDir) === "auto") return { allowed: true };
+  const mode = approvalModeForTenant(tenantId, opts?.dataDir);
+  // Legacy tenant-wide "auto" opt-out is honored ONLY when the workflow is
+  // explicitly autonomy-enabled AND the action is allow-listed. Anything
+  // else stays approval-gated (fail-closed). A tenant that enabled "auto"
+  // but never set an allow-list gets nothing auto-executed.
+  const workflowId = opts?.workflowId || opts?.agentId || "default";
+  if (mode === "auto" || isAutonomyEnabled(tenantId, workflowId, opts?.dataDir)) {
+    const wf = getAutonomyWorkflow(tenantId, workflowId, opts?.dataDir);
+    const matched = wf.allowList.find((e) => isAutonomyEligible(e, actionName, params));
+    if (matched && isAutonomyEnabled(tenantId, workflowId, opts?.dataDir)) {
+      // Explicit allow-listed write → auto-execute (audit recorded by the
+      // caller via recordAutonomyOutcome; the gate is the ALLOW decision).
+      return {
+        allowed: true,
+        autonomy: true,
+        allowListId: matched.id,
+        workflowId,
+      };
+    }
+    // Fall through to gated: NOT allow-listed (or kill-switched / budget
+    // reverted) → the write still needs human approval.
+  }
   try {
     const record = enqueueApproval(
       {
@@ -263,10 +297,10 @@ export function approvalGate(
       },
       opts?.dataDir,
     );
-    return { allowed: false, actionId: record.actionId };
+    return { allowed: false, actionId: record.actionId, workflowId };
   } catch (e: any) {
     // Fail-closed: store unavailable → never execute the write.
-    return { allowed: false, error: `Approval store unavailable — write blocked: ${e?.message || String(e)}` };
+    return { allowed: false, error: `Approval store unavailable — write blocked: ${e?.message || String(e)}`, workflowId };
   }
 }
 
