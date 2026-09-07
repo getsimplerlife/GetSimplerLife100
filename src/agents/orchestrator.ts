@@ -403,7 +403,7 @@ export async function runChain(input: RunChainInput): Promise<ChainRunResult> {
         agentId: input.agentId || "ai-employee",
         chainId: input.chainId,
         dataDir: input.dataDir,
-        workflowId: input.workflowId ?? input.chainId ?? undefined,
+        workflowId: input.chainId ?? input.workflowId ?? undefined,
       });
 
       if (writeResult.pendingApproval && writeResult.actionId) {
