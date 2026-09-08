@@ -85,6 +85,11 @@ export function migrateLegacyData(dataDir: string, candidates: string[] = legacy
   try {
     mkdirSync(dataDir, { recursive: true });
     for (const name of readdirSync(legacyDir)) {
+      // Never resurrect the source's ownership lock (prod-server.lock is a
+      // runtime artifact naming the LIVE server's pid; copying it into a fresh
+      // dir makes the single-instance guard refuse to boot the new instance —
+      // a boot trap). Locks are re-created on start, never data.
+      if (name.endsWith(".lock")) continue;
       const src = join(legacyDir, name);
       const dst = join(dataDir, name);
       if (!statSync(src).isFile()) continue;
