@@ -2790,6 +2790,19 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
       return Response.json({ error: "Unknown admin resource: " + subPath }, { status: 404 });
     }
 
+    // ── /api/webhooks/quickbooks — QuickBooks Online receiver (REAL Intuit ──
+    // endpoint; registered on Intuit's "Set up endpoints" page). Legacy
+    // envelope; X-Intuit-Signature = base64 HMAC-SHA256(rawBody, verifier).
+    // Fail-closed on missing/unset QBO_WEBHOOK_VERIFIER or bad signature;
+    // records durable receipts only (no business dispatch yet) — see
+    // src/monitoring/quickbooks-webhook.ts. Non-destructive: never mutates the org.
+    if (pathname === "/api/webhooks/quickbooks") {
+      const qboWh = await import("./src/monitoring/quickbooks-webhook");
+      return qboWh.handleQuickbooksWebhook(req, {
+        getVerifierToken: () => process.env.QBO_WEBHOOK_VERIFIER,
+        recordReceipt: (receipt) => qboWh.recordQboWebhookReceipt(receipt, DATA_DIR),
+      });
+    }
     // ── /api/stripe/webhook + /api/stripe-webhook ────────────────
     // ── /api/monitoring/webhook/:providerId ─────────────────────────
     const monitorMatch = pathname.match(/^\/api\/monitoring\/webhook\/([a-z0-9_-]+)$/);
