@@ -45,7 +45,7 @@ function baseAuth(cred: Record<string, unknown>, provider: string, ctx: { app?: 
     clientId: ctx.app?.clientId || "",
     clientSecret: ctx.app?.clientSecret || "",
     tenantId: (cred.tenantId as string) || "common",
-    redirectUri: base ? `${base}/api/oauth/callback?provider=${provider}` : "",
+    redirectUri: base ? `${base}/api/oauth/callback/${provider}` : "",
   };
 }
 
@@ -59,7 +59,7 @@ async function ensureFreshCredential(cred: ProviderCredential, app?: { clientId?
   const cfg = {
     clientId: app.clientId,
     clientSecret: app.clientSecret,
-    redirectUri: base ? `${base}/api/oauth/callback?provider=${cred.provider ?? "onedrive"}` : "",
+    redirectUri: base ? `${base}/api/oauth/callback/${cred.provider ?? "onedrive"}` : "",
     tenantId: (cred.tenantId as string) || "common",
   };
   let refreshed;

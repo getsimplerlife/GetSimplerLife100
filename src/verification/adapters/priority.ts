@@ -59,7 +59,7 @@ async function ensureFreshHubSpotCredential(
   }
   const base = process.env.OAUTH_REDIRECT_BASE || process.env.SITE_ORIGIN || "";
   const refreshed = await refreshHubSpotToken(
-    { clientId: app.clientId, clientSecret: app.clientSecret, redirectUri: base ? `${base}/api/oauth/callback?provider=hubspot` : "" },
+    { clientId: app.clientId, clientSecret: app.clientSecret, redirectUri: base ? `${base}/api/oauth/callback/hubspot` : "" },
     cred.refreshToken,
   );
   cred.accessToken = refreshed.accessToken;
@@ -88,7 +88,7 @@ async function ensureFreshDocuSignCredential(
   }
   const base = process.env.OAUTH_REDIRECT_BASE || process.env.SITE_ORIGIN || "";
   const refreshed = await refreshDocuSignToken(
-    { clientId: app.clientId, clientSecret: app.clientSecret, redirectUri: base ? `${base}/api/oauth/callback?provider=docusign` : "" },
+    { clientId: app.clientId, clientSecret: app.clientSecret, redirectUri: base ? `${base}/api/oauth/callback/docusign` : "" },
     cred.refreshToken,
   );
   cred.accessToken = refreshed.accessToken;
@@ -114,7 +114,7 @@ function baseAuth(cred: Record<string, unknown>, provider: string, ctx: { app?: 
     scope: (cred.scope as string) || undefined,
     clientId: ctx.app?.clientId,
     clientSecret: ctx.app?.clientSecret,
-    redirectUri: base ? `${base}/api/oauth/callback?provider=${provider}` : "",
+    redirectUri: base ? `${base}/api/oauth/callback/${provider}` : "",
   };
 }
 

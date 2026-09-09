@@ -108,8 +108,7 @@ async function resolveTenantId(accessToken: string, known?: string): Promise<str
 function redirectUriFor(provider: string): string {
   const base = process.env.OAUTH_REDIRECT_BASE || process.env.SITE_ORIGIN || "";
   if (!base) return "";
-  if (provider === "xero") return `${base}/api/xero-callback`;
-  return `${base}/api/oauth/callback?provider=${provider}`;
+  return `${base}/api/oauth/callback/${provider}`;
 }
 
 /**

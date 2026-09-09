@@ -199,9 +199,7 @@ export async function handleOAuthAuthorize(req: Request): Promise<Response> {
   // Fallback: if registry doesn't have the provider, try direct OAuth handling
   // for providers we know about (e.g., added to .env but not yet in registry snapshot)
   if (providerId === "salesforce") {
-    const redirectUri = process.env.OAUTH_REDIRECT_BASE
-      ? `${process.env.OAUTH_REDIRECT_BASE}/api/oauth/callback`
-      : "https://simplerlife100.ctonew.app/api/oauth/callback";
+    const redirectUri = `${process.env.OAUTH_REDIRECT_BASE || "https://simplerlife100.ctonew.app"}/api/oauth/callback/salesforce`;
     const clientId = process.env.SALESFORCE_CLIENT_ID || process.env.OAUTH_SALESFORCE_CLIENT_ID || "3MVG9dAEux2v1sLtBkctu8cCTG9trew18uFCjes2Ziz.L3d0DD34_ca3AQ4Gd8ok0bALQNnRxvkgaRpV.Z3Kk";
     if (clientId) {
       const state = crypto.randomUUID();
@@ -236,9 +234,7 @@ export async function handleOAuthAuthorize(req: Request): Promise<Response> {
     const result = await buildFn({
       clientId,
       clientSecret,
-      redirectUri: providerId === "xero"
-        ? `${SITE_ORIGIN}/api/oauth/callback/${providerId}`
-        : `${SITE_ORIGIN}/api/oauth/callback?provider=${providerId}`,
+      redirectUri: `${SITE_ORIGIN}/api/oauth/callback/${providerId}`,
       ...(providerMeta.defaultConfig || {}),
     });
     authorizeUrl = result.url;
@@ -254,9 +250,7 @@ export async function handleOAuthAuthorize(req: Request): Promise<Response> {
     const oauthConfig: OAuthConfig = {
       clientId,
       clientSecret,
-      redirectUri: providerId === "xero"
-        ? `${SITE_ORIGIN}/api/oauth/callback/${providerId}`
-        : `${SITE_ORIGIN}/api/oauth/callback?provider=${providerId}`,
+      redirectUri: `${SITE_ORIGIN}/api/oauth/callback/${providerId}`,
       scopes: providerMeta.scopes || [],
       authorizeUrl: providerMeta.authorizeUrl || "",
       tokenUrl: providerMeta.tokenUrl || "",
@@ -319,9 +313,7 @@ export async function handleOAuthCallback(req: Request): Promise<Response> {
       tokens = await exchangeFn({
         clientId,
         clientSecret,
-        redirectUri: providerId === "xero"
-        ? `${SITE_ORIGIN}/api/oauth/callback/${providerId}`
-        : `${SITE_ORIGIN}/api/oauth/callback?provider=${providerId}`,
+        redirectUri: `${SITE_ORIGIN}/api/oauth/callback/${providerId}`,
         ...(providerMeta.defaultConfig || {}),
       }, code, "");
     } else {
@@ -330,9 +322,7 @@ export async function handleOAuthCallback(req: Request): Promise<Response> {
       const oauthConfig: OAuthConfig = {
         clientId,
         clientSecret,
-        redirectUri: providerId === "xero"
-        ? `${SITE_ORIGIN}/api/oauth/callback/${providerId}`
-        : `${SITE_ORIGIN}/api/oauth/callback?provider=${providerId}`,
+        redirectUri: `${SITE_ORIGIN}/api/oauth/callback/${providerId}`,
         scopes: providerMeta.scopes || [],
         authorizeUrl: providerMeta.authorizeUrl || "",
         tokenUrl: providerMeta.tokenUrl || "",
