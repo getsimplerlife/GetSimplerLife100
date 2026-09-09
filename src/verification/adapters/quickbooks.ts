@@ -51,7 +51,7 @@ async function ensureFreshCredential(cred: ProviderCredential, app?: { clientId?
   }
   const base = process.env.OAUTH_REDIRECT_BASE || process.env.SITE_ORIGIN || "";
   const refreshed = await refreshQBToken(
-    { clientId: app.clientId, clientSecret: app.clientSecret, redirectUri: `${base}/api/oauth/callback?provider=quickbooks` },
+    { clientId: app.clientId, clientSecret: app.clientSecret, redirectUri: `${base}/api/oauth/callback/quickbooks` },
     cred.refreshToken,
   );
   cred.accessToken = refreshed.accessToken;
@@ -71,7 +71,7 @@ function buildClient(cred: ProviderCredential, app?: { clientId?: string; client
     scope: cred.scope,
     clientId: app?.clientId,
     clientSecret: app?.clientSecret,
-    redirectUri: `${base}/api/oauth/callback?provider=quickbooks`,
+    redirectUri: `${base}/api/oauth/callback/quickbooks`,
     companyId,
   } as never);
 }

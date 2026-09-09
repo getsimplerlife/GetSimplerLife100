@@ -48,7 +48,7 @@ function baseAuth(cred: Record<string, unknown>, provider: string, ctx: { app?: 
     scope: (cred.scope as string) || "",
     clientId: ctx.app?.clientId || "",
     clientSecret: ctx.app?.clientSecret || "",
-    redirectUri: base ? `${base}/api/oauth/callback?provider=${provider}` : "",
+    redirectUri: base ? `${base}/api/oauth/callback/${provider}` : "",
   };
 }
 
@@ -60,7 +60,7 @@ async function ensureFreshCredential(cred: ProviderCredential, app?: { clientId?
   }
   // Google tokens all use the same token endpoint; refresh with the provider's module.
   const base = process.env.OAUTH_REDIRECT_BASE || process.env.SITE_ORIGIN || "";
-  const cfg = { clientId: app.clientId, clientSecret: app.clientSecret, redirectUri: base ? `${base}/api/oauth/callback?provider=${cred.provider ?? "google-docs"}` : "" };
+  const cfg = { clientId: app.clientId, clientSecret: app.clientSecret, redirectUri: base ? `${base}/api/oauth/callback/${cred.provider ?? "google-docs"}` : "" };
   let refreshed;
   const provider = cred.provider ?? "";
   if (provider === "google-drive") refreshed = await refreshGDriveToken(cfg, cred.refreshToken);

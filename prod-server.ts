@@ -106,16 +106,18 @@ function getOAuthCredentials(provider: string): { clientId: string; clientSecret
   return null;
 }
 
-function getOAuthRedirectUri(_provider: string, req?: Request): string {
+function getOAuthRedirectUri(provider: string, req?: Request): string {
   const host = req?.headers.get("x-forwarded-host") || req?.headers.get("host") || "";
   const isLocal = host.includes("localhost") || host.includes("127.0.0.1") || host.startsWith("::1");
   const base = process.env.OAUTH_REDIRECT_BASE
     || (host ? `${isLocal ? "http" : "https"}://${host}` : "http://localhost:3000");
-  // Xero rejects redirect URIs with query parameters — use path-based format
-  if (_provider === "xero") {
-    return `${base}/api/xero-callback`;
-  }
-  return `${base}/api/oauth/callback`;
+  // Canonical path-style redirect URI for EVERY provider — `${base}/api/oauth/callback/{provider}`.
+  // Query-string forms (`?provider=x`) cause exact-match registration failures (observed live:
+  // Intuit rejects "redirect_uri query parameter value is invalid" when the registered URI and
+  // the sent URI differ by provider id spelling or query params). Path-style also lets the
+  // callback handler recover the provider from the URL path (it also resolves from durable
+  // OAuth state, so this is safe for every provider in every flow).
+  return `${base}/api/oauth/callback/${provider}`;
 }
 
 // Provider name → canonical key for module lookup (handles hyphens, etc.)
@@ -3329,7 +3331,7 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
       // Salesforce direct OAuth fallback (v2026-08-10: bypass integrations.json check)
       if (provider === "salesforce") {
         const sfClientId = process.env.SALESFORCE_CLIENT_ID || process.env.OAUTH_SALESFORCE_CLIENT_ID || "3MVG9dAEux2v1sLtBkctu8cCTG9trew18uFCjes2Ziz.L3d0DD34_ca3AQ4Gd8ok0bALQNnRxvkgaRpV.Z3Kk";
-        const sfRedirectUri = process.env.OAUTH_REDIRECT_BASE ? `${process.env.OAUTH_REDIRECT_BASE}/api/oauth/callback` : "https://simplerlife100.ctonew.app/api/oauth/callback";
+        const sfRedirectUri = `${process.env.OAUTH_REDIRECT_BASE || "https://simplerlife100.ctonew.app"}/api/oauth/callback/salesforce`;
         // Get authenticated user for state binding
         const sfUser = await getUserFromSession(req);
         const sfEmail = sfUser?.email || "unknown";
