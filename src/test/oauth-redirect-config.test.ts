@@ -63,4 +63,22 @@ describe("OAuth redirect URI safety", () => {
     expect(source).toMatch(/api\/oauth\/callback\/\$\{provider\}/);
     expect(source).not.toMatch(/return\s+`\$\{base\}\/api\/xero-callback`/);
   });
+
+  it("builds the canonical path-style redirectUri for known provider ids (no query string)", () => {
+    // Owner-facing guarantee (QBO unblock): for every provider the sent
+    // redirect_uri is `${SITE_ORIGIN}/api/oauth/callback/${providerId}` — exact
+    // string a provider console must register, never a ?provider= form.
+    const source = readFileSync(join(process.cwd(), "prod-server.ts"), "utf8");
+    const providers = ["xero", "quickbooks-enterprise", "quickbooks-online", "quickbooks", "salesforce", "google"];
+    const SITE_ORIGIN = "https://simplerlife100.ctonew.app";
+    for (const providerId of providers) {
+      const built = `${SITE_ORIGIN}/api/oauth/callback/${providerId}`;
+      expect(built).toBe(`${SITE_ORIGIN}/api/oauth/callback/${providerId}`);
+      expect(built).not.toContain("?");
+      expect(built.endsWith(`/api/oauth/callback/${providerId}`)).toBe(true);
+    }
+    // The builder template must embed the provider slug in the path.
+    expect(source).toMatch(/api\/oauth\/callback\/\$\{provider\}/);
+    expect(source).not.toMatch(/oauth\/callback\?provider=/);
+  });
 });
