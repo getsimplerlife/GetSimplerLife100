@@ -175,6 +175,7 @@ export interface VaultAuditEntry {
     | "vault.intake"
     | "vault.dedupe.hit"
     | "vault.document.download"
+    | "vault.extraction" // 5b pipeline: run recorded / rejected by reviewer
     | "vault.folder.rule.create"
     | "vault.folder.rule.update"
     | "vault.folder.rule.delete"

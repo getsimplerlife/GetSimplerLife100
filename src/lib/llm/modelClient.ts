@@ -21,9 +21,18 @@ import { existsSync } from "fs";
 
 // ── Types ────────────────────────────────────────────────────────────────
 export type LlmRole = "system" | "user" | "assistant" | "tool";
+/** Optional inline image. dataUrl: `data:<mime>;base64,<bytes>` — the 5b
+ *  extraction pipeline feeds scanned pages this way (vision models). */
+export interface LlmImage {
+  dataUrl: string;
+}
 export interface LlmMessage {
   role: LlmRole;
   content: string;
+  /** When present, the message is serialized as OpenAI-style multimodal
+   *  content blocks (text + image_url) — fully backward compatible: callers
+   *  that never set `images` keep the exact plain-string wire format. */
+  images?: LlmImage[];
 }
 export interface LlmToolDef {
   name: string;
@@ -131,6 +140,22 @@ export function modelForTier(cfg: LlmConfig, tier: LlmTier): string {
 
 // ── HTTP wrapper (single fetch, no SDKs) ────────────────────────────────
 const TIMEOUT_MS = 30_000;
+
+/** Serialize LlmMessages to the OpenAI wire shape. Exported so the
+ *  multimodal content-block form (5b vision extraction) is unit-testable
+ *  without network. Plain messages → identical output to before. */
+export function serializeMessagesForWire(messages: LlmMessage[]): Array<Record<string, unknown>> {
+  return messages.map((m) => {
+    if (!m.images?.length) return { role: m.role, content: m.content };
+    const blocks: Array<Record<string, unknown>> = [];
+    if (m.content) blocks.push({ type: "text", text: m.content });
+    for (const img of m.images) {
+      blocks.push({ type: "image_url", image_url: { url: img.dataUrl } });
+    }
+    return { role: m.role, content: blocks };
+  });
+}
+
 async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = TIMEOUT_MS): Promise<Response> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
@@ -231,7 +256,7 @@ export function createModelClient(cfg: LlmConfig, tier: LlmTier = "fast"): Model
     async complete(req: LlmCompleteRequest): Promise<LlmCompleteResult> {
       const body: Record<string, unknown> = {
         model,
-        messages: req.messages.map((m) => ({ role: m.role, content: m.content })),
+        messages: serializeMessagesForWire(req.messages),
         temperature: req.temperature ?? 0.2,
         max_tokens: req.maxTokens ?? 1024,
       };

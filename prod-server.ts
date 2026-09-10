@@ -1231,6 +1231,62 @@ serve({
       if (pathname === "/api/vault/audit" && req.method === "GET") {
         return Response.json({ data: vaultAudit(DATA_DIR, user.email) });
       }
+      // ── Phase 1.5b: LLM extraction pipeline (never writes; apply is gated) ──
+      // POST /api/vault/extract {docId} — run the extraction pipeline. Output is
+      // persisted as a pending_review result + immutable vault audit. Metadata
+      // is NOT written here — POST /api/vault/extractions/apply to gate that.
+      if (pathname === "/api/vault/extract" && req.method === "POST") {
+        const b = await req.json().catch(() => ({}));
+        const { docId } = b as any;
+        if (!docId || typeof docId !== "string") return Response.json({ error: "docId required" }, { status: 400 });
+        const { runExtraction } = await import("./src/lib/extraction/extraction-runner");
+        const out = await runExtraction({ tenantEmail: user.email, documentId: docId, actor: user.email, dataDir: DATA_DIR });
+        auditPortal("vault.extract", out.ok ? `Extracted ${docId} → ${out.result.category} (${out.result.id})` : `${docId} failed: ${out.error}${out.resultId ? " (result " + out.resultId + ")" : ""}`);
+        if (!out.ok) return Response.json({ data: { ok: false, error: out.error, detail: out.detail, resultId: out.resultId } }, { status: out.error === "quality-blocked" ? 200 : 400 });
+        return Response.json({ data: { ok: true, result: out.result } });
+      }
+      // GET /api/vault/extractions?docId=&status= — human-review lane: results
+      // for this tenant, newest first (summary projection keeps the payload light).
+      if (pathname === "/api/vault/extractions" && req.method === "GET") {
+        const { listExtractions, summarize } = await import("./src/lib/extraction/extraction-store");
+        const docId = P("docId") || undefined;
+        const status = P("status") as any || undefined;
+        const records = listExtractions(DATA_DIR, user.email, { docId, status: ["pending_review", "applied", "rejected"].includes(status) ? status : undefined });
+        return Response.json({ data: summarize(records) });
+      }
+      // GET /api/vault/extractions/full?resultId= — full detail for one result
+      if (pathname === "/api/vault/extractions/full" && req.method === "GET") {
+        const { getExtraction } = await import("./src/lib/extraction/extraction-store");
+        const resultId = P("resultId");
+        if (!resultId) return Response.json({ error: "resultId required" }, { status: 400 });
+        const record = getExtraction(DATA_DIR, user.email, resultId);
+        if (!record) return Response.json({ error: "Extraction result not found" }, { status: 404 });
+        return Response.json({ data: record });
+      }
+      // POST /api/vault/extractions/apply {docId, resultId} — GATED write: the
+      // extraction's metadata/tags/type become an updateVaultDocument PendingAction
+      // through the platform Approval Queue (approval default; autonomy only with
+      // explicit allow-list AND result that does not require review).
+      if (pathname === "/api/vault/extractions/apply" && req.method === "POST") {
+        const b = await req.json().catch(() => ({}));
+        const { docId, resultId } = b as any;
+        if (!docId || !resultId) return Response.json({ error: "docId and resultId required" }, { status: 400 });
+        const { applyExtractedMetadata } = await import("./src/lib/extraction/extraction-gate");
+        const out = applyExtractedMetadata({ tenantEmail: user.email, documentId: String(docId), resultId: String(resultId), actor: user.email, dataDir: DATA_DIR });
+        auditPortal("vault.extract.apply", out.pending ? `Apply ${resultId} pending approval` : out.ok ? `Applied ${resultId}${out.autonomy ? " (autonomy)" : ""}` : `Apply ${resultId} failed: ${out.error || "?"}`);
+        return Response.json({ data: out }, { status: out.ok || out.pending ? 200 : 400 });
+      }
+      // POST /api/vault/extractions/reject {docId, resultId} — reviewer says no.
+      // Mutates only the extraction record (never a vault doc); audited.
+      if (pathname === "/api/vault/extractions/reject" && req.method === "POST") {
+        const b = await req.json().catch(() => ({}));
+        const { docId, resultId } = b as any;
+        if (!docId || !resultId) return Response.json({ error: "docId and resultId required" }, { status: 400 });
+        const { rejectExtraction } = await import("./src/lib/extraction/extraction-gate");
+        const out = rejectExtraction({ tenantEmail: user.email, documentId: String(docId), resultId: String(resultId), actor: user.email, dataDir: DATA_DIR });
+        auditPortal("vault.extract.reject", out.ok ? `Rejected ${resultId}` : `Reject ${resultId} failed: ${out.error || "?"}`);
+        return Response.json({ data: out }, { status: out.ok ? 200 : 400 });
+      }
       // GET /api/vault/route-suggest?docId= — auto-folder rule prediction (pure)
       if (pathname === "/api/vault/route-suggest" && req.method === "GET") {
         const docId = P("docId");
