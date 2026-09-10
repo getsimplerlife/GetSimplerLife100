@@ -4,7 +4,7 @@
  * refused BEFORE inflation — no crash, no hang, bounded memory — and routed
  * to the human-review lane via the `oversize` payload kind.
  */
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import { zipSync, zlibSync, strToU8 } from "fflate";
 import {
   buildExtractPayload,
