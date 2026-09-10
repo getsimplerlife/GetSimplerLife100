@@ -332,7 +332,29 @@ export function destroyDocument(
 ): FilingOutcome {
   const { tenantId, documentId, actor, dataDir } = opts;
   const doc = getVaultDocument(dataDir, tenantId, documentId);
-  if (!doc) return { ok: false, error: "Document not found" }; // never glob-delete
+  if (!doc) {
+    // Idempotent replay: a prior approved destroy is provable from the immutable
+    // audit — re-running the same exact-id destroy is a success no-op (recorded
+    // immutably). An id with NO prior destroy on record is unknown → fail closed:
+    // we never fabricate success for an id this tenant never had.
+    const priorDestroy = listVaultAudit(dataDir, tenantId).find(
+      (e) => e.documentId === documentId && e.action === "deleteVaultDocument" && e.outcome === "ok",
+    );
+    if (priorDestroy) {
+      appendVaultAudit(dataDir, tenantId, {
+        actor: opts.agentId ? `agent:${opts.agentId}` : actor,
+        action: "deleteVaultDocument",
+        documentId,
+        route: priorDestroy.route,
+        sha256: priorDestroy.sha256,
+        version: priorDestroy.version,
+        outcome: "ok",
+        detail: "idempotent replay — document already destroyed (prior approved destroy on record)",
+      });
+      return { ok: true, documentId, unchanged: true };
+    }
+    return { ok: false, error: "Document not found" }; // never glob-delete; unknown ids fail closed
+  }
   const gate = gateVaultWrite(tenantId, VAULT_ACTIONS.destroy, { documentId }, opts);
   if (!gate.allowed) {
     appendVaultAudit(dataDir, tenantId, {
