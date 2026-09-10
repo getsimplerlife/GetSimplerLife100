@@ -622,6 +622,30 @@ for (const mod of providerModules) {
 // ── Re-export all providers ───────────────────────────────────────────────────
 
 export { registry };
+
+// ── Deterministic re-exports for ambiguous star-export names (TS2308) ──
+// Multiple provider modules export these generic names; each explicit export below wins over
+// every `export *` copy, so the barrel exposes ONE canonical implementation (first module in
+// export order). Consumers needing a specific provider's copy should import from that provider
+// module directly.
+export { ActionDefinition } from "./salesforce";
+export { PROVIDER_CATEGORY } from "./salesforce";
+export { PROVIDER_ID } from "./salesforce";
+export { PROVIDER_NAME } from "./salesforce";
+export { WebhookHandler } from "./salesforce";
+export { buildBCAuthUrl } from "./dynamics-365-bc";
+export { createContact } from "./salesforce";
+export { getAuthHeaders } from "./trimble-tms";
+export { getBCOAuthConfig } from "./dynamics-365-bc";
+export { getChannel } from "./iguana";
+export { getHSAuthConfig } from "./dropbox-sign";
+export { getMondayHeaders } from "./monday-crm";
+export { getPipelineStages } from "./salesforce";
+export { handleBCCallback } from "./dynamics-365-bc";
+export { healthCheck } from "./salesforce";
+export { listChannels } from "./iguana";
+export { refreshBCToken } from "./dynamics-365-bc";
+export { searchContacts } from "./salesforce";
 // CRM
 export * from "./salesforce";
 export * from "./hubspot";
