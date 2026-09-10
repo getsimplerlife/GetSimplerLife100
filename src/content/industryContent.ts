@@ -720,6 +720,7 @@ export const industryContent: Record<string, IndustryPageData> = {
       ],
     },
     cta: { headline: "Ready to automate your insurance operations?", buildLink: "/build", assessmentLink: "/tools/assessment" },
+  },
 
   // =============================================================================
   // 13. LEGAL
