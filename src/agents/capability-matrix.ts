@@ -15,6 +15,7 @@ import { marketingCapabilities } from "./capabilities/marketing";
 import { itOperationsCapabilities } from "./capabilities/it-operations";
 import { fpaCapabilities } from "./capabilities/fpa";
 import { documentProcessingCapabilities } from "./capabilities/document-processing";
+import { vaultCapabilities } from "./capabilities/vault";
 import { analyticsCapabilities } from "./capabilities/analytics";
 import { productivityCapabilities } from "./capabilities/productivity";
 import { microsoftProductivityCapabilities } from "./capabilities/productivity-microsoft";
@@ -38,6 +39,7 @@ export const employeeCapabilityMatrix = {
   it_operations: itOperationsCapabilities,
   fpa: fpaCapabilities,
   document_processing: documentProcessingCapabilities,
+  document_vault: vaultCapabilities,
   analytics: analyticsCapabilities,
   productivity: [...productivityCapabilities, ...microsoftProductivityCapabilities],
 } as const;

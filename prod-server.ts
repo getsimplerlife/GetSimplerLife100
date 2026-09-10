@@ -1063,6 +1063,186 @@ serve({
       } catch { /* audit is best-effort */ }
       return new Response(outcome.body, { status: outcome.status, headers: outcome.headers });
     }
+// ── /api/vault/* — NATIVE Document & File Intelligence (Phase 1.5a) ──
+    // Per-tenant document vault: intake (upload), folders/rules, gated filing
+    // contract (file/move/archive/destroy/update), search, download, audit.
+    // EVERY mutating route rides the Approval Queue (#164) by default; files
+    // land in the tenant's own vault only after approval (or an explicit
+    // non-glob autonomy allow-list entry + known doc id, #236). Reads are
+    // tenant-scoped (user.email) — zero cross-tenant paths.
+    if (pathname.startsWith("/api/vault")) {
+      const user = await getUserFromSession(req);
+      if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
+      const { fileDocument, moveDocument, archiveDocument, unarchiveDocument, destroyDocument, updateDocumentMeta, listVault, searchVault, readVaultBytes, vaultAudit } = await import("./src/lib/vault-filing");
+      const { intakeDocument } = await import("./src/lib/vault-intake");
+      const { canonicalizeRoute, listTenantFolders, upsertFolderRule, deleteFolderRule, applyAutoRoute } = await import("./src/lib/vault-folder");
+      const P = (n: string) => url.searchParams.get(n);
+      const auditPortal = (action: string, detail: string) => {
+        try {
+          const alogs = readJSON(AUDIT_LOG_FILE);
+          const alogUser = alogs[user.email] || [];
+          alogUser.push({ id: "log-" + Math.random().toString(36).substr(2, 9), timestamp: new Date().toISOString(), user: user.email, action, resource: "vault", detail, ip: "127.0.0.1" });
+          alogs[user.email] = alogUser;
+          writeJSON(AUDIT_LOG_FILE, alogs);
+        } catch { /* best-effort portal audit */ }
+      };
+      // POST /api/vault/upload — multipart intake (drag-drop / API)
+      if (pathname === "/api/vault/upload" && req.method === "POST") {
+        let form: FormData;
+        try {
+          form = await req.formData();
+        } catch (e: any) {
+          return Response.json({ error: "Expected multipart/form-data: " + (e?.message || String(e)) }, { status: 400 });
+        }
+        const file = form.get("file");
+        if (!file || typeof file === "string" || !file.size) {
+          return Response.json({ error: "file required" }, { status: 400 });
+        }
+        const routeHint = (form.get("route") as string | null) || "";
+        const tagsRaw = (form.get("tags") as string | null) || "";
+        const bytes = new Uint8Array(await (file as File).arrayBuffer());
+        const intake = intakeDocument({
+          tenantEmail: user.email, fileName: file.name || "upload", bytes, actor: user.email,
+          tags: tagsRaw ? tagsRaw.split(",").map((t) => t.trim()).filter(Boolean) : undefined,
+          dataDir: DATA_DIR,
+        });
+        if (!intake.ok || !intake.documentId) return Response.json({ error: intake.error || "Intake rejected" }, { status: 400 });
+        let gate: any = null;
+        if (routeHint) {
+          const canonical = canonicalizeRoute(routeHint);
+          if (canonical) {
+            gate = fileDocument({ tenantId: user.email, documentId: intake.documentId, route: canonical, actor: user.email, dataDir: DATA_DIR });
+          }
+        }
+        auditPortal("vault.upload", `Uploaded ${file.name} (${(intake.checksum || "").slice(0, 12)}…)${gate?.pending ? " — pending approval" : ""}`);
+        return Response.json({ data: { ...intake, pending: gate?.pending || false, actionId: gate?.actionId || undefined, route: gate?.route || "" } });
+      }
+      // GET /api/vault/docs — tenant doc list (+ suggested routes)
+      if (pathname === "/api/vault/docs" && req.method === "GET") {
+        const docs = listVault(DATA_DIR, user.email, { includeArchived: P("includeArchived") === "1" });
+        return Response.json({ data: docs });
+      }
+      // GET /api/vault/search?q=...
+      if (pathname === "/api/vault/search" && req.method === "GET") {
+        const q = P("q") || "";
+        const results = searchVault(DATA_DIR, user.email, q, { includeArchived: P("includeArchived") === "1" });
+        return Response.json({ data: results, query: q });
+      }
+      // GET /api/vault/download?docId=...&version=... — blob stream + audit
+      if (pathname === "/api/vault/download" && req.method === "GET") {
+        const docId = P("docId");
+        if (!docId) return Response.json({ error: "docId required" }, { status: 400 });
+        const version = P("version") ? Number(P("version")) : undefined;
+        const outcome = readVaultBytes(DATA_DIR, user.email, docId, version);
+        if (!outcome) return Response.json({ error: "Document not found" }, { status: 404 });
+        const { doc, bytes } = outcome;
+        const ver = doc.versions.find((v: any) => v.number === (version ?? doc.version));
+        auditPortal("vault.download", `Downloaded ${doc.name} (v${doc.version})`);
+        return new Response(bytes as any as BodyInit, {
+          status: 200,
+          headers: {
+            "Content-Type": ver?.mime || "application/octet-stream",
+            "Content-Disposition": `inline; filename="${String(doc.name).replace(/"/g, "")}"`,
+            "Content-Length": String(bytes.byteLength),
+            "X-Vault-Version": String(ver?.number ?? doc.version),
+          },
+        });
+      }
+      // POST /api/vault/file — structured filing contract: file(doc, route)
+      if (pathname === "/api/vault/file" && req.method === "POST") {
+        const b = await req.json().catch(() => ({}));
+        const { documentId, route } = b as any;
+        if (!documentId || !route) return Response.json({ error: "documentId and route required" }, { status: 400 });
+        const out = fileDocument({ tenantId: user.email, documentId, route: String(route), actor: user.email, dataDir: DATA_DIR });
+        auditPortal("vault.file", out.pending ? `Filing ${documentId} pending approval → ${out.route}` : `Filed ${documentId} → ${out.route}`);
+        return Response.json({ data: out }, { status: out.ok || out.pending ? 200 : 400 });
+      }
+      // POST /api/vault/move — move doc to a new route (gated)
+      if (pathname === "/api/vault/move" && req.method === "POST") {
+        const b = await req.json().catch(() => ({}));
+        const { documentId, route } = b as any;
+        if (!documentId || !route) return Response.json({ error: "documentId and route required" }, { status: 400 });
+        const out = moveDocument({ tenantId: user.email, documentId, route: String(route), actor: user.email, dataDir: DATA_DIR });
+        auditPortal("vault.move", out.pending ? `Move ${documentId} pending → ${out.route}` : `Moved ${documentId} → ${out.route}`);
+        return Response.json({ data: out }, { status: out.ok || out.pending ? 200 : 400 });
+      }
+      // POST /api/vault/archive | /api/vault/unarchive (gated)
+      if ((pathname === "/api/vault/archive" || pathname === "/api/vault/unarchive") && req.method === "POST") {
+        const b = await req.json().catch(() => ({}));
+        const { documentId } = b as any;
+        if (!documentId) return Response.json({ error: "documentId required" }, { status: 400 });
+        const out = pathname === "/api/vault/archive"
+          ? archiveDocument({ tenantId: user.email, documentId, actor: user.email, dataDir: DATA_DIR })
+          : unarchiveDocument({ tenantId: user.email, documentId, actor: user.email, dataDir: DATA_DIR });
+        auditPortal(pathname === "/api/vault/archive" ? "vault.archive" : "vault.unarchive", `${documentId} ${out.pending ? "pending" : out.ok ? "done" : "failed"}`);
+        return Response.json({ data: out }, { status: out.ok || out.pending ? 200 : 400 });
+      }
+      // POST /api/vault/destroy — deletion requires ONE exact known doc id;
+      // gated like every write (autonomy needs an explicit allow-list entry).
+      if (pathname === "/api/vault/destroy" && req.method === "POST") {
+        const b = await req.json().catch(() => ({}));
+        const { documentId } = b as any;
+        if (!documentId || typeof documentId !== "string") return Response.json({ error: "documentId required (exact single id)" }, { status: 400 });
+        const out = destroyDocument({ tenantId: user.email, documentId, actor: user.email, dataDir: DATA_DIR });
+        auditPortal("vault.destroy", out.pending ? `Destroy ${documentId} pending approval` : out.ok ? `Destroyed ${documentId}` : `Destroy ${documentId} failed: ${out.error || "?"}`);
+        return Response.json({ data: out }, { status: out.ok || out.pending ? 200 : 400 });
+      }
+      // POST /api/vault/meta — tags / retention / docType / customer / project (gated)
+      if (pathname === "/api/vault/meta" && req.method === "POST") {
+        const b = await req.json().catch(() => ({}));
+        const { documentId, tags, retention, docType, customer, project } = b as any;
+        if (!documentId) return Response.json({ error: "documentId required" }, { status: 400 });
+        const out = updateDocumentMeta({
+          tenantId: user.email, documentId, actor: user.email, dataDir: DATA_DIR,
+          tags: Array.isArray(tags) ? tags.map(String) : undefined,
+          retention: retention && typeof retention === "object" ? { policy: retention.policy, destroyBy: retention.destroyBy } : undefined,
+          docType, customer, project,
+        });
+        auditPortal("vault.meta", `Metadata update ${documentId} ${out.pending ? "pending" : out.ok ? "done" : "failed"}`);
+        return Response.json({ data: out }, { status: out.ok || out.pending ? 200 : 400 });
+      }
+      // GET /api/vault/folders — folder tree + auto-folder rules
+      if (pathname === "/api/vault/folders" && req.method === "GET") {
+        const folders = listTenantFolders(DATA_DIR, user.email);
+        return Response.json({ data: folders });
+      }
+      // POST /api/vault/folders/rules — upsert auto-folder rule (metadata)
+      if (pathname === "/api/vault/folders/rules" && req.method === "POST") {
+        const b = await req.json().catch(() => ({}));
+        const { id, name, enabled, match, dimensions, target, priority } = b as any;
+        if (!name || !target || !Array.isArray(dimensions)) return Response.json({ error: "name, target, dimensions required" }, { status: 400 });
+        const out = upsertFolderRule(DATA_DIR, user.email, {
+          id: typeof id === "string" ? id : undefined,
+          name: String(name), enabled: enabled !== false, match, dimensions, target: String(target), priority: Number(priority || 100),
+          createdBy: user.email,
+        });
+        auditPortal("vault.rule", out.ok ? `Saved rule ${out.rule?.name}` : `Rule save failed: ${out.error}`);
+        return Response.json({ data: out }, { status: out.ok ? 200 : 400 });
+      }
+      // DELETE /api/vault/folders/rules?id= — delete a rule (exact id)
+      if (pathname === "/api/vault/folders/rules" && req.method === "DELETE") {
+        const ruleId = P("id");
+        if (!ruleId) return Response.json({ error: "id required" }, { status: 400 });
+        const ok = deleteFolderRule(DATA_DIR, user.email, ruleId);
+        auditPortal("vault.rule.delete", ok ? `Deleted rule ${ruleId}` : `Rule ${ruleId} not found`);
+        return Response.json({ data: { ok } }, { status: ok ? 200 : 404 });
+      }
+      // GET /api/vault/audit — immutable tenant vault audit trail
+      if (pathname === "/api/vault/audit" && req.method === "GET") {
+        return Response.json({ data: vaultAudit(DATA_DIR, user.email) });
+      }
+      // GET /api/vault/route-suggest?docId= — auto-folder rule prediction (pure)
+      if (pathname === "/api/vault/route-suggest" && req.method === "GET") {
+        const docId = P("docId");
+        if (!docId) return Response.json({ error: "docId required" }, { status: 400 });
+        const { getVaultDocument } = await import("./src/lib/vault-store");
+        const doc = getVaultDocument(DATA_DIR, user.email, docId);
+        if (!doc) return Response.json({ error: "Document not found" }, { status: 404 });
+        const suggested = applyAutoRoute(DATA_DIR, user.email, doc);
+        return Response.json({ data: { suggestedRoute: suggested?.route || "", suggestedRuleId: suggested?.ruleId } });
+      }
+      return Response.json({ error: "Method not allowed" }, { status: 405 });
+    }
     // ── /api/portal/settings (workspace preference — owner directive 2026-08-13) ──
     // GET  → { data: { workspacePreference } }
     // POST { workspacePreference } → persist (google | microsoft | auto)
