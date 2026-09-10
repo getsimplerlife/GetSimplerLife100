@@ -22,7 +22,7 @@ function vaultAuditPath(dataDir: string): string {
 }
 
 function loadAudit(dataDir: string): Record<string, VaultAuditEntry[]> {
-  const raw = readJSON(vaultAuditPath(dataDir), {}) as Record<string, unknown>;
+  const raw = (readJSON(vaultAuditPath(dataDir)) ?? {}) as Record<string, unknown>;
   const out: Record<string, VaultAuditEntry[]> = {};
   for (const [tenant, entries] of Object.entries(raw)) {
     if (Array.isArray(entries)) out[tenant] = entries as VaultAuditEntry[];

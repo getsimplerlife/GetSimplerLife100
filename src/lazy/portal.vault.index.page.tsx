@@ -41,19 +41,11 @@ interface FolderRule {
   match?: { docType?: string[] };
 }
 
-const STATUS_BADGE: Record<VaultDoc["status"], { label: string; variant: string }> = {
-  pending_filing: { label: "Inbox · pending", variant: "amber" },
+const STATUS_BADGE: Record<VaultDoc["status"], { label: string; variant: "success" | "warning" | "blue" | "violet" | "danger" | "emerald" | "stone" }> = {
+  pending_filing: { label: "Inbox · pending", variant: "warning" },
   active: { label: "Filed", variant: "emerald" },
-  archived: { label: "Archived", variant: "slate" },
+  archived: { label: "Archived", variant: "stone" },
 };
-
-function fdate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
-  } catch {
-    return iso;
-  }
-}
 
 function Vault() {
   const [docs, setDocs] = useState<VaultDoc[]>([]);
@@ -225,7 +217,7 @@ function Vault() {
           </p>
         </div>
         <div className="flex items-center gap-2 text-sm">
-          <Badge variant="amber">Inbox {pendingCount}</Badge>
+          <Badge variant="warning">Inbox {pendingCount}</Badge>
           <Badge variant="emerald">Filed {activeCount}</Badge>
         </div>
       </div>
@@ -305,8 +297,8 @@ function Vault() {
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="truncate font-medium text-slate-100">{doc.name}</span>
-                  <Badge variant={STATUS_BADGE[doc.status].variant as any}>{STATUS_BADGE[doc.status].label}</Badge>
-                  {doc.duplicateOf && <Badge variant="slate">duplicate</Badge>}
+                  <Badge variant={STATUS_BADGE[doc.status].variant}>{STATUS_BADGE[doc.status].label}</Badge>
+                  {doc.duplicateOf && <Badge variant="stone">duplicate</Badge>}
                   <span className="text-xs text-slate-500">v{doc.version}</span>
                 </div>
                 <div className="mt-0.5 truncate text-xs text-slate-400">
@@ -316,7 +308,7 @@ function Vault() {
                 </div>
                 {doc.tags.length > 0 && (
                   <div className="mt-1 flex flex-wrap gap-1 text-[11px] text-slate-400">
-                    {doc.tags.map((t) => <Badge key={t} variant="slate">#{t}</Badge>)}
+                    {doc.tags.map((t) => <Badge key={t} variant="stone">#{t}</Badge>)}
                   </div>
                 )}
               </div>

@@ -162,14 +162,18 @@ export interface VaultAuditEntry {
   actor: string; // user email or "system/autonomy"
   tenantEmail: string;
   action:
+    // Write-verb-first names (must match the Approval Queue WRITE classifier:
+    // every gated vault mutation is a create/update/delete/… action so it can
+    // never silently bypass the gate).
+    | "writeVaultDocument"
+    | "moveVaultDocument"
+    | "archiveVaultDocument"
+    | "restoreVaultDocument"
+    | "deleteVaultDocument"
+    | "updateVaultDocument"
+    // Non-gated lifecycle + metadata audit events.
     | "vault.intake"
     | "vault.dedupe.hit"
-    | "vault.document.file"
-    | "vault.document.move"
-    | "vault.document.archive"
-    | "vault.document.destroy"
-    | "vault.document.unarchive"
-    | "vault.document.update"
     | "vault.document.download"
     | "vault.folder.rule.create"
     | "vault.folder.rule.update"

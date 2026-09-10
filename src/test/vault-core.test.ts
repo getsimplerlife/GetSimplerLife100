@@ -13,8 +13,8 @@ import { join } from "path";
 
 import { createVaultDocument, getVaultDocument, listVaultDocuments, readVaultDocumentBytes, destroyVaultDocument, addVaultDocumentVersion, tenantVaultKey, vaultTenantStats } from "../lib/vault-store";
 import { intakeDocument, sanitizeVaultFileName, sniffFileType } from "../lib/vault-intake";
-import { canonicalizeRoute, upsertFolderRule, applyAutoRoute, listTenantFolders, validateRuleTarget } from "../lib/vault-folder";
-import { fileDocument, moveDocument, archiveDocument, destroyDocument, listVault, searchVault, vaultAudit } from "../lib/vault-filing";
+import { canonicalizeRoute, upsertFolderRule, applyAutoRoute, validateRuleTarget } from "../lib/vault-folder";
+import { fileDocument, destroyDocument, listVault, searchVault, vaultAudit } from "../lib/vault-filing";
 import { appendVaultAudit, listVaultAudit } from "../lib/vault-audit";
 
 let dir: string;

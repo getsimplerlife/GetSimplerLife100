@@ -65,7 +65,7 @@ function loadIndex(dataDir: string): VaultIndex {
   return out;
 }
 
-function saveIndex(dataDir: string, index: VaultIndex, tenantEmail: string): void {
+function saveIndex(dataDir: string, index: VaultIndex, _tenantEmail: string): void {
   // Ensure the blob root exists (index file lives at vault root too).
   mkdirSync(join(vaultRoot(dataDir), "blobs"), { recursive: true });
   writeJSON(indexPath(dataDir), index);

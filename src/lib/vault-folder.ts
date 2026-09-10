@@ -127,7 +127,7 @@ export function validateRuleTarget(target: string): string | null {
 export function upsertFolderRule(
   dataDir: string,
   tenantEmail: string,
-  rule: Omit<VaultFolderRule, "id" | "createdAt">,
+  rule: Omit<VaultFolderRule, "id" | "createdAt"> & { id?: string },
 ): { ok: boolean; rule?: VaultFolderRule; error?: string } {
   const validationError = validateRuleTarget(rule.target);
   if (validationError) return { ok: false, error: validationError };
