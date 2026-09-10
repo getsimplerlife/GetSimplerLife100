@@ -7,7 +7,7 @@
  */
 import { HttpClient } from "../../framework/client";
 import type { ConnectionConfig } from "../../framework/connection";
-import { getIguanaApiUrl, getIguanaAuthHeaders, IguanaAuthConfig } from "./auth";
+import { getIguanaApiUrl, getIguanaAuthHeaders, type IguanaAuthConfig } from "./auth";
 
 // ── Type Definitions ────────────────────────────────────────────────────────
 

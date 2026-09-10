@@ -1,6 +1,6 @@
 import { serve } from "bun";
-import { join, basename } from "path";
-import { readFileSync, writeFileSync, existsSync, readdirSync } from "fs";
+import { join } from "path";
+import { readFileSync, existsSync, readdirSync } from "fs";
 import { createHash, randomBytes } from "crypto";
 import { resolveDataDir, isInsidePublishTree, readJSON, readJSONLive, writeJSON, seedDataFiles, bucketConnectionsByCategory, migrateLegacyData, findLegacyDataDir, countConnections, mergeDurableCredential } from "./src/lib/data-store";
 import { detectPackType, buildPackPurchase, verifyStripeSignature, matchAgentByPaymentLink, matchAgentByMetadata, detectPlanType, buildPlanPurchase, planAgentIds } from "./src/lib/stripe-webhook";
@@ -223,7 +223,7 @@ function appendAudit(user: any, action: string, resource: string, detail: string
 async function testProviderConnection(providerId: string, providerName: string, credentials: any): Promise<{ success: boolean; error?: string }> {
   // Test the connection by making a real HTTP request
   const apiKey = credentials.apiKey || "";
-  const apiSecret = credentials.apiSecret || credentials.apiUrl || "";
+
   
   // Provider-specific connection tests
   const testUrls: Record<string, { url: string; headers: Record<string, string> }> = {

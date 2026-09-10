@@ -18,7 +18,7 @@
  * dashboard "integrations connected" count reflects the same truth.
  */
 import { join } from "path";
-import { readJSON, readJSONLive } from "./data-store";
+import { readJSONLive } from "./data-store";
 import { applyHealthToConnections, connectionHealthSnapshot } from "./connection-health";
 import { integrations } from "../content/integrations";
 

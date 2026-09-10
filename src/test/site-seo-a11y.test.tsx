@@ -13,14 +13,9 @@
  */
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "fs";
-import { createElement } from "react";
-import { renderToString } from "react-dom/server";
-import {
-  PAGE_TITLES,
-  resolvePageMeta,
-  pageHead,
-  DEFAULT_PAGE_META,
-} from "../lib/site-meta";
+;
+;
+import { PAGE_TITLES, resolvePageMeta, pageHead } from "../lib/site-meta";
 
 // Every public (non-portal) route path that must resolve a meta entry.
 const PUBLIC_ROUTES = [

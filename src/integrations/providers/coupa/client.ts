@@ -1,5 +1,5 @@
 import { HttpClient } from "../../framework/client";
-import { ConnectionConfig } from "../../framework/connection";
+import { type ConnectionConfig } from "../../framework/connection";
 
 /**
  * Coupa REST API client.
@@ -13,7 +13,7 @@ import { ConnectionConfig } from "../../framework/connection";
 export class CoupaClient {
   private client: HttpClient;
   private apiKey: string;
-  private instance: string;
+  
 
   constructor(apiKey: string, instance: string) {
     this.client = new HttpClient({
@@ -23,7 +23,7 @@ export class CoupaClient {
       timeout: 30000,
     });
     this.apiKey = apiKey;
-    this.instance = instance;
+    
   }
 
   private get headers() {

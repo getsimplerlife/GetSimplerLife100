@@ -1,4 +1,4 @@
-import { HttpClient } from "../../framework/client"; import { ConnectionConfig } from "../../framework/connection";
+import { HttpClient } from "../../framework/client"; import { type ConnectionConfig } from "../../framework/connection";
 
 export class ZendeskClient {
   private client: HttpClient; private email: string; private apiToken: string;

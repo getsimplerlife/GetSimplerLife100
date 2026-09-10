@@ -37,7 +37,7 @@ describe("Microsoft Word client (Graph)", () => {
     const c = makeClient();
     const { buildMinimalDocx } = await import("../integrations/providers/microsoft-office/ooxml");
     const zip = buildMinimalDocx(["Round trip", "works"]);
-    (globalThis as any).fetch = async (url: string, opts: any) => {
+    (globalThis as any).fetch = async (url: string, _opts: any) => {
       expect(url).toBe("https://graph.microsoft.com/v1.0/me/drive/items/doc-1/content");
       return new Response(zip);
     };

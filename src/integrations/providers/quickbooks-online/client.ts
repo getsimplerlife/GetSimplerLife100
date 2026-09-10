@@ -1,4 +1,4 @@
-import { HttpClient } from "../../framework/client"; import { OAuthTokens, isTokenExpired } from "../../framework/oauth"; import { ConnectionConfig } from "../../framework/connection";
+import { HttpClient } from "../../framework/client"; import { type OAuthTokens, isTokenExpired } from "../../framework/oauth"; import { type ConnectionConfig } from "../../framework/connection";
 
 export class QBOClient {
   private client: HttpClient; private tokens: OAuthTokens; private authConfig: any; private companyId: string;

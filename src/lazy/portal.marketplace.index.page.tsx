@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { AGENTS } from "~/data/agents";
-import { AGENT_SETUP_REQUIREMENTS, getSetupBadge } from "~/agents/setupRequirements";
+import { AGENT_SETUP_REQUIREMENTS } from "~/agents/setupRequirements";
 import { getAgentChainPartners } from "~/agents/agentChains";
 
 
@@ -109,7 +109,7 @@ function MarketplaceHub() {
   const [simulatedTxId, setSimulatedTxId] = useState("");
   const [simulatingLog, setSimulatingLog] = useState<string[]>([]);
 
-  const categories = ["all", "Healthcare", "Finance", "Sales", "Operations", "HR", "Logistics", "IT", "Marketing"];
+
 
   // Core Sync Function
   const loadData = async () => {

@@ -1,5 +1,5 @@
 import { HttpClient } from "../../framework/client";
-import { ConnectionConfig } from "../../framework/connection";
+import { type ConnectionConfig } from "../../framework/connection";
 export class Tray_ioClient {
   private client: HttpClient;
   constructor(apiKey: string) {

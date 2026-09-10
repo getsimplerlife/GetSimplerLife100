@@ -1,4 +1,4 @@
-import { OAuthConfig, buildAuthorizeUrl, exchangeCode, refreshToken, generateState, generateCodeVerifier, isTokenExpired } from "../../framework/oauth";
+import { type OAuthConfig, buildAuthorizeUrl, exchangeCode, refreshToken, generateState, generateCodeVerifier, isTokenExpired } from "../../framework/oauth";
 
 export function getAdobeSignOAuthConfig(config: { clientId: string; clientSecret: string; redirectUri: string }): OAuthConfig {
   return { clientId: config.clientId, clientSecret: config.clientSecret, redirectUri: config.redirectUri, scopes: ["agreement_read", "agreement_write", "agreement_send", "library_read", "library_write", "user_read", "user_write", "webhook_read", "webhook_write", "offline_access"], authorizeUrl: "https://secure.na1.echosign.com/public/oauth/v2", tokenUrl: "https://api.na1.echosign.com/oauth/v2/token", flowType: "authorization_code" };

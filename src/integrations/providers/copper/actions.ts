@@ -1,4 +1,4 @@
-import { createCopperClient } from "./client"; import { ConnectionConfig } from "../../framework/connection"; import type { ActionDefinition } from "../salesforce/actions";
+import { createCopperClient } from "./client"; ; import type { ActionDefinition } from "../salesforce/actions";
 
 export const copperActions: ActionDefinition[] = [
   { name: "searchCopperPeople", description: "Search Copper people", inputSchema: { type: "object", properties: { query: { type: "string" } }, required: ["query"] }, handler: async (config, params) => { const c = createCopperClient(config); return c.searchPeople(params.query); } },

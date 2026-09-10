@@ -3,8 +3,8 @@ import { useState, useRef } from "react";
 import { Link } from "@tanstack/react-router";
 import { Header } from "~/components/Header";
 import { Footer } from "~/components/Footer";
-import { assessmentQuestions, runAssessment, generateReportText, type AssessmentAnswers, type AssessmentReport } from "~/tools/assessment-engine";
-import { workflows } from "~/content/workflows";
+import { assessmentQuestions, runAssessment, type AssessmentAnswers, type AssessmentReport } from "~/tools/assessment-engine";
+;
 const initialAnswers: AssessmentAnswers = {
   industry: "",
   companySize: "",

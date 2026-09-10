@@ -9,7 +9,7 @@
 import { db } from "../../db/index";
 import { integrations } from "../../db/schema";
 import { eq, and } from "drizzle-orm";
-import { createHash, randomBytes, createCipheriv, createDecipheriv } from "node:crypto";
+import { randomBytes, createCipheriv, createDecipheriv } from "node:crypto";
 
 const ENCRYPTION_KEY = process.env.INTEGRATION_ENCRYPTION_KEY || randomBytes(32).toString("hex").slice(0, 32);
 const ALGORITHM = "aes-256-gcm";

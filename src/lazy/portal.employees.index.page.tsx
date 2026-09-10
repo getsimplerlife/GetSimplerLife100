@@ -411,7 +411,7 @@ function PipelineResultsCard({ result, agentName, onDismiss }: { result: any; ag
   const insights = result.insights || [];
   const alerts = result.alerts || [];
   const actions = result.actionsTaken || [];
-  const processed = result.processedData || {};
+
   const totalRecords = result.totalRecordsProcessed || 0;
   const executedActions = actions.filter((a: any) => a.status === "executed").length;
   const failedActions = actions.filter((a: any) => a.status === "failed").length;

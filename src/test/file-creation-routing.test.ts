@@ -11,7 +11,7 @@
  */
 import { describe, expect, it, afterEach } from "vitest";
 import { join } from "path";
-import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readFileSync as fsReadFileSync } from "fs";
+import { mkdtempSync, rmSync, writeFileSync, readFileSync as fsReadFileSync } from "fs";
 import { tmpdir } from "os";
 import { createDataFile, type CreateFileRequest } from "../lib/file-creation";
 import { listClientFiles } from "../lib/client-files";

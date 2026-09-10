@@ -58,7 +58,7 @@ function parseTerraformPlan(planText: string): { success: boolean; data?: Terraf
 
     // Parse human-readable terraform plan output
     let currentResource: Partial<TerraformResourceChange> | null = null;
-    let inChanges = false;
+
     let inOutputs = false;
 
     for (let i = 0; i < lines.length; i++) {
@@ -629,7 +629,7 @@ registry.register({
   },
 });
 
-function extractKeyAttribute(type: string, values: Record<string, any>): string {
+function extractKeyAttribute(_type: string, values: Record<string, any>): string {
   if (values.id) return values.id;
   if (values.name) return values.name;
   if (values.arn) return values.arn;

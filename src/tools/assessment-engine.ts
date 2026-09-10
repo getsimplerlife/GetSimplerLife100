@@ -406,7 +406,7 @@ function estimateImplementationTime(workflowId: string): string {
   return "8-16 weeks";
 }
 
-function determinePriority(workflowId: string, implementationTime: string): "quick-win" | "medium-term" | "long-term" {
+function determinePriority(_workflowId: string, implementationTime: string): "quick-win" | "medium-term" | "long-term" {
   if (implementationTime === "2-4 weeks") return "quick-win";
   if (implementationTime === "4-8 weeks") return "medium-term";
   return "long-term";

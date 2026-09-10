@@ -98,7 +98,7 @@ function AdminCredentialsPage() {
 
     try {
       const isMaskedSecret = formClientSecret === "••••••••••••••••";
-      let finalSecret = formClientSecret;
+
 
       // If masked, we fetch the existing secret to not overwrite with bullet points
       if (isMaskedSecret) {

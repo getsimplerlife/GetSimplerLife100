@@ -1,6 +1,6 @@
 import { HttpClient } from "../../framework/client";
-import { OAuthTokens, isTokenExpired } from "../../framework/oauth";
-import { ConnectionConfig } from "../../framework/connection";
+import { type OAuthTokens, isTokenExpired } from "../../framework/oauth";
+import { type ConnectionConfig } from "../../framework/connection";
 
 interface DynEntity {
   accountid?: string; contactid?: string; opportunityid?: string; leadid?: string;

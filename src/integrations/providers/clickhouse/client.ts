@@ -7,7 +7,7 @@
  */
 import { HttpClient } from "../../framework/client";
 import type { ConnectionConfig } from "../../framework/connection";
-import { buildClickHouseUrl, getClickHouseAuthHeaders, buildClickHouseParams, ClickHouseAuthConfig } from "./auth";
+import { buildClickHouseUrl, getClickHouseAuthHeaders, buildClickHouseParams, type ClickHouseAuthConfig } from "./auth";
 
 export interface ClickHouseTableSchema {
   name: string;

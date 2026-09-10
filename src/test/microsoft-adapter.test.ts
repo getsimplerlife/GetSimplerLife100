@@ -46,7 +46,7 @@ function installFetch(handler: (method: string, url: string, body?: any, headers
 // the matching real binary (docx/pptx/text) for read-back.
 let createdKind: "docx" | "pptx" | "text" = "text";
 
-function defaultRoutes(method: string, url: string, body?: any, headers: Record<string, string> = {}) {
+function defaultRoutes(method: string, url: string, _body?: any, headers: Record<string, string> = {}) {
   // OneDrive listing / delta
   if (method === "GET" && url.endsWith("/me/drive/root/children")) return jsonResponse({ value: [{ id: "f1", name: "x.txt" }] });
   if (method === "GET" && url.includes("/me/drive/root/delta")) return jsonResponse({ value: [{ id: "change-1" }], "@odata.deltaLink": "https://graph.microsoft.com/v1.0/me/drive/root/delta?token=abc" });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { executeMonitoringEvent, MonitoringEvent, MonitoringStore } from "../lib/monitoring-execution";
+import { executeMonitoringEvent, type MonitoringEvent, type MonitoringStore } from "../lib/monitoring-execution";
 
 const event = (overrides: Partial<MonitoringEvent> = {}): MonitoringEvent => ({ eventId: "evt-1", tenantId: "tenant-a", employeeId: "support_agent", connectionId: "conn-a", providerId: "zendesk", objectType: "ticket", eventType: "created", occurredAt: "2026-08-02T00:00:00Z", receivedAt: "2026-08-02T00:00:01Z", payloadHash: "hash", provenance: "provider_webhook", authenticated: true, payload: { ticketId: "t-1" }, ...overrides });
 function store(): MonitoringStore & { records: string[]; audits: string[] } { const records: string[] = []; const audits: string[] = []; return { records, audits, async hasProcessed(key) { return records.includes(key); }, async record(_e, key, outcome) { records.push(key); records.push(outcome); }, async audit(_e, outcome) { audits.push(outcome); } }; }

@@ -21,13 +21,7 @@
 import { join } from "path";
 import { readJSON, writeJSON, resolveDataDir } from "./data-store";
 import { getTenantSettings } from "./tenant-settings";
-import {
-  isAutonomyEnabled,
-  isAutonomyEligible,
-  getAutonomyWorkflow,
-  appendAutonomyAudit,
-  recordAutonomyOutcome,
-} from "./autonomy";
+import { isAutonomyEnabled, isAutonomyEligible, getAutonomyWorkflow } from "./autonomy";
 
 export const APPROVAL_QUEUE_KEY = "tenant_approvals.json";
 

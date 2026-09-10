@@ -1,4 +1,4 @@
-import { OAuthConfig, buildAuthorizeUrl, exchangeCode, refreshToken, generateState, generateCodeVerifier, isTokenExpired } from "../../framework/oauth";
+import { type OAuthConfig, buildAuthorizeUrl, exchangeCode, refreshToken, generateState, generateCodeVerifier, isTokenExpired } from "../../framework/oauth";
 
 export function getDocuSignOAuthConfig(config: { clientId: string; clientSecret: string; redirectUri: string; accountId?: string }): OAuthConfig {
   return { clientId: config.clientId, clientSecret: config.clientSecret, redirectUri: config.redirectUri, scopes: ["signature", "impersonation"], authorizeUrl: "https://account-d.docusign.com/oauth/auth", tokenUrl: "https://account-d.docusign.com/oauth/token", flowType: "authorization_code", usePKCE: true };

@@ -1,4 +1,4 @@
-import { OAuthConfig, buildAuthorizeUrl, exchangeCode, refreshToken, generateState, generateCodeVerifier, isTokenExpired } from "../../framework/oauth";
+import { type OAuthConfig, buildAuthorizeUrl, exchangeCode, refreshToken, generateState, generateCodeVerifier, isTokenExpired } from "../../framework/oauth";
 
 export function getBCOAuthConfig(config: { tenantId: string; clientId: string; clientSecret: string; redirectUri: string }): OAuthConfig {
   return { clientId: config.clientId, clientSecret: config.clientSecret, redirectUri: config.redirectUri, scopes: [`https://api.businesscentral.dynamics.com/.default`, "offline_access"], authorizeUrl: `https://login.microsoftonline.com/${config.tenantId}/oauth2/v2.0/authorize`, tokenUrl: `https://login.microsoftonline.com/${config.tenantId}/oauth2/v2.0/token`, flowType: "authorization_code" };

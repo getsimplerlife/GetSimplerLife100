@@ -1,4 +1,4 @@
-import { OAuthConfig, buildAuthorizeUrl, exchangeCode, refreshToken, generateState, generateCodeVerifier, isTokenExpired } from "../../framework/oauth";
+import { type OAuthConfig, buildAuthorizeUrl, exchangeCode, refreshToken, generateState, generateCodeVerifier, isTokenExpired } from "../../framework/oauth";
 
 /**
  * Microsoft Graph OAuth 2.0 — shared Authorization Code flow (PKCE) for the

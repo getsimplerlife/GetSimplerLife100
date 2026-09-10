@@ -6,15 +6,7 @@ import {
   microsoftProductivityCapabilities,
 } from "../agents/capabilities/productivity-microsoft";
 import { PRODUCTIVITY_EMPLOYEE_ID } from "../agents/capabilities/productivity";
-import {
-  createMicrosoftWordDoc,
-  createMicrosoftExcelWorkbook,
-  writeMicrosoftExcelRange,
-  createMicrosoftPowerPoint,
-  uploadMicrosoftOneDriveFile,
-  type MicrosoftProductivityAdapter,
-  type MicrosoftProductivityExecutionOptions,
-} from "../agents/capabilities/productivity-microsoft";
+import { createMicrosoftWordDoc, createMicrosoftExcelWorkbook, createMicrosoftPowerPoint, uploadMicrosoftOneDriveFile, type MicrosoftProductivityAdapter, type MicrosoftProductivityExecutionOptions } from "../agents/capabilities/productivity-microsoft";
 import { listClientFiles } from "../lib/client-files";
 
 describe("Microsoft Productivity capability contracts", () => {
