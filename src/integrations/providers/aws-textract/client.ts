@@ -1,10 +1,10 @@
-import { HttpClient } from "../../framework/client"; import { ConnectionConfig } from "../../framework/connection";
+import { HttpClient } from "../../framework/client"; import { type ConnectionConfig } from "../../framework/connection";
 
 export class TextractClient {
-  private client: HttpClient; private region: string; private accessKey: string; private secretKey: string;
+  private client: HttpClient;   
   constructor(accessKey: string, secretKey: string, region: string) {
     this.client = new HttpClient({ baseUrl: `https://textract.${region}.amazonaws.com`, rateLimit: { maxRequestsPerSecond: 5 }, retry: { maxRetries: 3, baseDelay: 1000, maxDelay: 30000 }, timeout: 120000 });
-    this.accessKey = accessKey; this.secretKey = secretKey; this.region = region;
+      
   }
   private get headers() { return { "Content-Type": "application/x-amz-json-1.1", "X-Amz-Target": "TextractService.DetectDocumentText" }; }
 

@@ -1,4 +1,4 @@
-import { OAuthConfig, buildAuthorizeUrl, exchangeCode, refreshToken, generateState, generateCodeVerifier, isTokenExpired } from "../../framework/oauth";
+import { type OAuthConfig, buildAuthorizeUrl, exchangeCode, refreshToken, generateState, generateCodeVerifier, isTokenExpired } from "../../framework/oauth";
 
 export function getJiraOAuthConfig(config: { clientId: string; clientSecret: string; redirectUri: string }): OAuthConfig {
   return { clientId: config.clientId, clientSecret: config.clientSecret, redirectUri: config.redirectUri, scopes: ["read:jira-work", "write:jira-work", "read:jira-user", "manage:jira-project", "manage:jira-configuration", "offline_access"], authorizeUrl: "https://auth.atlassian.com/authorize", tokenUrl: "https://auth.atlassian.com/oauth/token", flowType: "authorization_code" };

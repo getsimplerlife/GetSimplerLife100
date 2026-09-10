@@ -1,8 +1,8 @@
-import { HttpClient } from "../../framework/client"; import { ConnectionConfig } from "../../framework/connection";
+import { HttpClient } from "../../framework/client"; import { type ConnectionConfig } from "../../framework/connection";
 
 export class BigCommerceClient {
   private client: HttpClient;
-  constructor(accessToken: string, storeHash: string) {
+  constructor(_accessToken: string, storeHash: string) {
     this.client = new HttpClient({ baseUrl: `https://api.bigcommerce.com/stores/${storeHash}/v3`, rateLimit: { maxRequestsPerSecond: 10 }, retry: { maxRetries: 3, baseDelay: 1000, maxDelay: 10000 }, timeout: 30000 });
   }
   private get headers() { return { "X-Auth-Token": this.accessToken, "Content-Type": "application/json", Accept: "application/json" }; }

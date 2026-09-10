@@ -1,4 +1,4 @@
-import { ConnectionConfig } from "../../framework/connection";
+import { type ConnectionConfig } from "../../framework/connection";
 
 export class SMTPClient {
   private config: any;

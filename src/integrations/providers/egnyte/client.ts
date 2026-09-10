@@ -1,10 +1,10 @@
-import { HttpClient } from "../../framework/client"; import { OAuthTokens, isTokenExpired } from "../../framework/oauth"; import { ConnectionConfig } from "../../framework/connection";
+import { HttpClient } from "../../framework/client"; import { type OAuthTokens, isTokenExpired } from "../../framework/oauth"; import { type ConnectionConfig } from "../../framework/connection";
 
 export class EgnyteClient {
-  private client: HttpClient; private tokens: OAuthTokens; private authConfig: any; private domain: string;
+  private client: HttpClient; private tokens: OAuthTokens; private authConfig: any; 
   constructor(tokens: OAuthTokens, authConfig: any, domain: string) {
     this.client = new HttpClient({ baseUrl: `https://${domain}.egnyte.com/pubapi/v1`, rateLimit: { maxRequestsPerSecond: 10 }, retry: { maxRetries: 3, baseDelay: 1000, maxDelay: 10000 }, timeout: 30000 });
-    this.tokens = tokens; this.authConfig = authConfig; this.domain = domain;
+    this.tokens = tokens; this.authConfig = authConfig; 
   }
   private get headers() { return { Authorization: `Bearer ${this.tokens.accessToken}`, "Content-Type": "application/json" }; }
   private async ensureToken() { if (isTokenExpired(this.tokens) && this.tokens.refreshToken) { const { refreshEgnyteToken } = await import("./auth"); this.tokens = await refreshEgnyteToken(this.authConfig, this.tokens.refreshToken); } }

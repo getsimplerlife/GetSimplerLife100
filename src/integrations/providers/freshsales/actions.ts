@@ -1,4 +1,4 @@
-import { createFreshsalesClient } from "./client"; import { ConnectionConfig } from "../../framework/connection"; import type { ActionDefinition } from "../salesforce/actions";
+import { createFreshsalesClient } from "./client"; ; import type { ActionDefinition } from "../salesforce/actions";
 
 export const freshsalesActions: ActionDefinition[] = [
   { name: "searchFreshsalesContacts", description: "Search Freshsales contacts", inputSchema: { type: "object", properties: { query: { type: "string" } }, required: ["query"] }, handler: async (config, params) => { const c = createFreshsalesClient(config); return c.searchContacts(params.query); } },

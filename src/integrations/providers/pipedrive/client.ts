@@ -1,4 +1,4 @@
-import { HttpClient } from "../../framework/client"; import { OAuthTokens, isTokenExpired } from "../../framework/oauth"; import { ConnectionConfig } from "../../framework/connection";
+import { HttpClient } from "../../framework/client"; import { type OAuthTokens, isTokenExpired } from "../../framework/oauth"; import { type ConnectionConfig } from "../../framework/connection";
 
 interface PdPerson { id?: number; name: string; email?: string; phone?: string; organization_id?: number; [key: string]: any; }
 interface PdDeal { id?: number; title: string; value?: number; currency?: string; status?: string; stage_id?: number; person_id?: number; org_id?: number; [key: string]: any; }

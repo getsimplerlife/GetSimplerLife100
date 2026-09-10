@@ -1,4 +1,4 @@
-import { HttpClient } from "../../framework/client"; import { OAuthTokens } from "../../framework/oauth"; import { ConnectionConfig } from "../../framework/connection";
+; ; import { type ConnectionConfig } from "../../framework/connection";
 
 export class IntacctClient {
   private token: string; private companyId: string; private entityId: string; private baseUrl: string;

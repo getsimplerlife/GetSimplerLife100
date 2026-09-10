@@ -1,8 +1,8 @@
-import { HttpClient } from "../../framework/client"; import { ConnectionConfig } from "../../framework/connection";
+import { HttpClient } from "../../framework/client"; import { type ConnectionConfig } from "../../framework/connection";
 
 export class LookerClient {
   private client: HttpClient;
-  constructor(clientId: string, clientSecret: string, baseUrl: string) {
+  constructor(_clientId: string, _clientSecret: string, baseUrl: string) {
     this.client = new HttpClient({ baseUrl: `${baseUrl}/api/4.0`, rateLimit: { maxRequestsPerSecond: 10 }, retry: { maxRetries: 3, baseDelay: 1000, maxDelay: 10000 }, timeout: 30000 });
   }
   private get headers() { return { Authorization: `token ${this.clientId}:${this.clientSecret}`, "Content-Type": "application/json" }; }

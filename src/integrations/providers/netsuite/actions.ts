@@ -1,4 +1,4 @@
-import { createNetSuiteClient } from "./client"; import { ConnectionConfig } from "../../framework/connection"; import type { ActionDefinition } from "../salesforce/actions";
+import { createNetSuiteClient } from "./client"; ; import type { ActionDefinition } from "../salesforce/actions";
 
 export const netSuiteActions: ActionDefinition[] = [
   { name: "searchNetSuiteCustomers", description: "Search NetSuite customers", inputSchema: { type: "object", properties: { query: { type: "string" } } }, handler: async (config, params) => { const c = createNetSuiteClient(config); return c.list("customer", params.query); } },

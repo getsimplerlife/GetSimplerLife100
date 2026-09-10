@@ -1,4 +1,4 @@
-import { HttpClient } from "../../framework/client"; import { ConnectionConfig } from "../../framework/connection";
+; ;
 
 export async function loginQBWC(config: { webConnectorUrl: string; username: string; password: string }): Promise<string> {
   const r = await fetch(`${config.webConnectorUrl.replace(/\/+$/, "")}/v1/qbwc`, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ user: config.username, password: config.password }).toString() });

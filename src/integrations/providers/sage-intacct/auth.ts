@@ -1,4 +1,4 @@
-import { OAuthConfig, buildAuthorizeUrl, exchangeCode, refreshToken, generateState, generateCodeVerifier, isTokenExpired } from "../../framework/oauth";
+import { type OAuthConfig, buildAuthorizeUrl, exchangeCode, refreshToken, generateState, generateCodeVerifier, isTokenExpired } from "../../framework/oauth";
 
 export function getIntacctOAuthConfig(config: { clientId: string; clientSecret: string; redirectUri: string }): OAuthConfig {
   return { clientId: config.clientId, clientSecret: config.clientSecret, redirectUri: config.redirectUri, scopes: ["openid", "profile", "email", "IntacctEntity"], authorizeUrl: "https://www.intacct.com/ia/oauth2/auth", tokenUrl: "https://www.intacct.com/ia/oauth2/token", flowType: "authorization_code" };

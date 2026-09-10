@@ -2,18 +2,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { mkdtempSync, rmSync, writeFileSync, existsSync, readdirSync, mkdirSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import {
-  isDefaultIsolatedDataDir,
-  TEST_DATA_DIR_DEFAULT,
-  setDefaultIsolatedDataDirForTest,
-  setSpawnLockDirForTest,
-  spawnLockPath,
-  acquireSpawnLock,
-  releaseSpawnLock,
-  wipeIsolatedDataDir,
-  writeBootMarker,
-  isBootMarkerFresh,
-} from "./test-env";
+import { isDefaultIsolatedDataDir, TEST_DATA_DIR_DEFAULT, setDefaultIsolatedDataDirForTest, setSpawnLockDirForTest, acquireSpawnLock, releaseSpawnLock, wipeIsolatedDataDir, writeBootMarker, isBootMarkerFresh } from "./test-env";
 
 /**
  * test-env-hardening.test.ts — regression coverage for the flake fixes

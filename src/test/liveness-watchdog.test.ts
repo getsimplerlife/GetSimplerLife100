@@ -1,13 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdtempSync, rmSync, existsSync, readFileSync } from "node:fs";
+import { mkdtempSync, rmSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import {
-  probeLiveness,
-  LivenessMonitor,
-  RecoveryAction,
-  LivenessOptions,
-} from "../../src/server/liveness-watchdog";
+import { probeLiveness, LivenessMonitor, type RecoveryAction, type LivenessOptions } from "../../src/server/liveness-watchdog";
 
 type Alert = { subject: string; text: string };
 

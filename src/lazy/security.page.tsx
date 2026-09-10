@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Header } from "~/components/Header";
 import { Footer } from "~/components/Footer";
-import { Route } from "~/routes/security";
+;
 
 const businessName = "Simpler Life 100";
 

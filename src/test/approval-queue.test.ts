@@ -39,7 +39,7 @@ import {
   approvalModeForTenant,
   summarizeAction,
 } from "../lib/approval-queue";
-import { setApprovalMode, setWorkspacePreference } from "../lib/tenant-settings";
+import { setApprovalMode } from "../lib/tenant-settings";
 import { ensureTestServer, testBaseUrl, testDataDir } from "./test-env";
 
 let dir: string;

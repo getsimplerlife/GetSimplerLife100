@@ -19,12 +19,12 @@
 //    size-capped.
 //  - When off/unconfigured/failed → deterministic processor output passes
 //    through untouched (no-op), preserving current behavior exactly.
-import { createModelClient, resolveLlmConfig, modelForTier, DEFAULT_LLM_CONFIG, type ModelClient, type LlmCompleteResult, type LlmTier, type LlmToolDef } from "./modelClient";
+import { createModelClient, resolveLlmConfig, type ModelClient, type LlmCompleteResult, type LlmTier, type LlmToolDef } from "./modelClient";
 import { createCostTracker, type CostTracker } from "./modelClient";
-import { readFirmMemory, type AgentContext, buildAgentContext } from "../firm-memory";
+import { type AgentContext, buildAgentContext } from "../firm-memory";
 import type { ActionItem, Insight, Alert, ProcessedData } from "../agent-processor";
-import { join } from "path";
-import { resolveDataDir } from "../data-store";
+;
+;
 import { isWriteAction } from "../approval-queue";
 
 // ── Types ────────────────────────────────────────────────────────────────

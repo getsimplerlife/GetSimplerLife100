@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { createElement } from "react";
-import { mkdtempSync, rmSync, writeFileSync, existsSync, readFileSync, mkdirSync } from "fs";
+import { mkdtempSync, writeFileSync, existsSync, readFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { renderToString } from "react-dom/server";
@@ -18,11 +18,7 @@ import {
   buildEditUrl,
   kindForProvider,
 } from "../lib/client-files";
-import {
-  resolveDownloadSource,
-  refreshProviderToken,
-  handlePortalFileDownload,
-} from "../lib/portal-file-download";
+import { resolveDownloadSource, handlePortalFileDownload } from "../lib/portal-file-download";
 
 function tmpDataDir(): string {
   return mkdtempSync(join(tmpdir(), "client-files-"));

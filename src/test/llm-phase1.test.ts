@@ -208,7 +208,7 @@ describe("LLM Phase 1 — reasoning stage with MockModelClient", () => {
   let dir: string;
   beforeEach(() => {
     dir = tmpDir();
-    const old = process.env.LLM_INTELLIGENCE_ENABLED;
+
     process.env.LLM_INTELLIGENCE_ENABLED = "true";
     process.env.LLM_BASE_URL = "http://localhost:11434/v1";
     process.env.LLM_API_KEY = "ollama";

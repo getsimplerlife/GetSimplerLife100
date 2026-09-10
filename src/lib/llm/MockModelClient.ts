@@ -25,7 +25,7 @@ export class MockModelClient implements ModelClient {
     this.tier = tier;
   }
 
-  async complete(req: LlmCompleteRequest): Promise<LlmCompleteResult> {
+  async complete(_req: LlmCompleteRequest): Promise<LlmCompleteResult> {
     this.callCount += 1;
     const s = this.script;
     if (s.failOnCall && this.callCount >= s.failOnCall) {

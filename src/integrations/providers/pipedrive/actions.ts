@@ -1,4 +1,4 @@
-import { createPipedriveClient } from "./client"; import { ConnectionConfig } from "../../framework/connection"; import type { ActionDefinition } from "../salesforce/actions";
+import { createPipedriveClient } from "./client"; ; import type { ActionDefinition } from "../salesforce/actions";
 
 export const pipedriveActions: ActionDefinition[] = [
   { name: "searchPipedrivePersons", description: "Search Pipedrive persons", inputSchema: { type: "object", properties: { query: { type: "string" } }, required: ["query"] }, handler: async (config, params) => { const c = createPipedriveClient(config); return c.searchPersons(params.query); } },

@@ -1,10 +1,10 @@
-import { HttpClient } from "../../framework/client"; import { OAuthTokens, isTokenExpired } from "../../framework/oauth"; import { ConnectionConfig } from "../../framework/connection";
+import { HttpClient } from "../../framework/client"; import { type OAuthTokens, isTokenExpired } from "../../framework/oauth"; import { type ConnectionConfig } from "../../framework/connection";
 
 export class BCClient {
-  private client: HttpClient; private tokens: OAuthTokens; private authConfig: any; private envName: string; private companyId: string;
+  private client: HttpClient; private tokens: OAuthTokens; private authConfig: any;  
   constructor(tokens: OAuthTokens, authConfig: any, envName: string, companyId: string) {
     this.client = new HttpClient({ baseUrl: `https://api.businesscentral.dynamics.com/v2.0/${authConfig.tenantId}/${envName}/api/v2.0/companies(${companyId})`, rateLimit: { maxRequestsPerSecond: 30 }, retry: { maxRetries: 3, baseDelay: 1000, maxDelay: 10000 }, timeout: 30000 });
-    this.tokens = tokens; this.authConfig = authConfig; this.envName = envName; this.companyId = companyId;
+    this.tokens = tokens; this.authConfig = authConfig;  
   }
   private get headers() { return { Authorization: `Bearer ${this.tokens.accessToken}`, "Content-Type": "application/json" }; }
   private async ensureToken() { if (isTokenExpired(this.tokens) && this.tokens.refreshToken) { const { refreshBCToken } = await import("./auth"); this.tokens = await refreshBCToken(this.authConfig, this.tokens.refreshToken); } }

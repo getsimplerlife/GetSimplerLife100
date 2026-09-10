@@ -1,4 +1,4 @@
-import { OAuthConfig, buildAuthorizeUrl, exchangeCode, refreshToken, generateState, generateCodeVerifier, isTokenExpired } from "../../framework/oauth";
+import { type OAuthConfig, buildAuthorizeUrl, exchangeCode, refreshToken, generateState, generateCodeVerifier, isTokenExpired } from "../../framework/oauth";
 
 export function getWebexOAuthConfig(config: { clientId: string; clientSecret: string; redirectUri: string }): OAuthConfig {
   return { clientId: config.clientId, clientSecret: config.clientSecret, redirectUri: config.redirectUri, scopes: ["spark:all", "spark:admin_people_read", "spark:admin_rooms_read", "spark:admin_rooms_write", "spark:admin_messages_read", "spark:admin_messages_write", "spark:admin_meetings_read", "spark:admin_meetings_write"], authorizeUrl: "https://webexapis.com/v1/authorize", tokenUrl: "https://webexapis.com/v1/access_token", flowType: "authorization_code" };

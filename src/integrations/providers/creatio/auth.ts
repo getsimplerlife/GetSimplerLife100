@@ -1,4 +1,4 @@
-import { OAuthConfig, buildAuthorizeUrl, exchangeCode, refreshToken, generateState, isTokenExpired } from "../../framework/oauth";
+import { type OAuthConfig, buildAuthorizeUrl, exchangeCode, refreshToken, generateState, isTokenExpired } from "../../framework/oauth";
 
 export function getCreatioOAuthConfig(config: { clientId: string; clientSecret: string; redirectUri: string; siteUrl: string }): OAuthConfig {
   return { clientId: config.clientId, clientSecret: config.clientSecret, redirectUri: config.redirectUri, scopes: ["General.Read", "General.Write"], authorizeUrl: `${config.siteUrl.replace(/\/+$/, "")}/ServiceModel/AuthService.svc/Login`, tokenUrl: `${config.siteUrl.replace(/\/+$/, "")}/rest/api/oauth/token`, flowType: "authorization_code" };

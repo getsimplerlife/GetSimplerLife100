@@ -15,22 +15,9 @@ import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import { mkdtempSync, rmSync, readFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import {
-  isAutonomyEnabled,
-  setAutonomyWorkflow,
-  setTenantAutonomyKillSwitch,
-  setOwnerAutonomyKillSwitch,
-  appendAutonomyAudit,
-  autonomyAudit,
-  recordAutonomyOutcome,
-  autonomyStatus,
-  isAutonomyEligible,
-  allowListMatches,
-  AUTONOMY_MAX_CONSECUTIVE_FAILURES,
-  AUTONOMY_AUDIT_KEY,
-} from "../lib/autonomy";
-import { approvalGate, listPendingActions, approvalModeForTenant } from "../lib/approval-queue";
-import { setApprovalMode } from "../lib/tenant-settings";
+import { isAutonomyEnabled, setAutonomyWorkflow, setTenantAutonomyKillSwitch, setOwnerAutonomyKillSwitch, appendAutonomyAudit, autonomyAudit, recordAutonomyOutcome, autonomyStatus, allowListMatches, AUTONOMY_MAX_CONSECUTIVE_FAILURES, AUTONOMY_AUDIT_KEY } from "../lib/autonomy";
+import { approvalGate, listPendingActions } from "../lib/approval-queue";
+;
 
 let dir: string;
 beforeEach(() => {

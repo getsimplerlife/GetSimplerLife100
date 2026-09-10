@@ -1,4 +1,4 @@
-export function getTrelloHeaders(apiKey: string, token: string): Record<string, string> {
+export function getTrelloHeaders(_apiKey: string, _token: string): Record<string, string> {
   return { "Content-Type": "application/json" };
 }
 export function getTrelloAuthParams(apiKey: string, token: string): string {

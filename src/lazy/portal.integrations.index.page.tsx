@@ -325,7 +325,7 @@ function ConnectedServices() {
   };
 
   // Sync / Health Trigger
-  const handleSyncConnection = async (connectionId: string, displayName: string) => {
+  const handleSyncConnection = async (connectionId: string, _displayName: string) => {
     try {
       setFeedback(`Triggering connection sync check...`);
       const res = await fetch(`/api/integrations/${connectionId}/sync`);
@@ -388,7 +388,7 @@ function ConnectedServices() {
       { t: 3800, text: "Cataloging in portal database ledger index..." },
     ];
 
-    steps.forEach((step, idx) => {
+    steps.forEach((step, _idx) => {
       setTimeout(() => {
         if (uploading) {
           setUploadStep(step.text);

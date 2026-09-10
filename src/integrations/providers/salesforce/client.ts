@@ -5,9 +5,9 @@
  * Supports CRUD for standard objects: Contacts, Accounts, Leads, Opportunities, Tasks.
  */
 
-import { HttpClient, HttpClientError, RateLimitError } from "../../framework/client";
-import { OAuthTokens, isTokenExpired } from "../../framework/oauth";
-import { ConnectionConfig } from "../../framework/connection";
+import { HttpClient } from "../../framework/client";
+import { type OAuthTokens, isTokenExpired } from "../../framework/oauth";
+import { type ConnectionConfig } from "../../framework/connection";
 
 export interface SalesforceContact {
   Id?: string;
@@ -216,7 +216,7 @@ export class SalesforceClient {
 
   // ── Bulk API 2.0 ────────────────────────────────────────────────────────
 
-  async bulkCreate(sobject: string, records: Record<string, any>[]): Promise<any> {
+  async bulkCreate(sobject: string, _records: Record<string, any>[]): Promise<any> {
     await this.ensureToken();
     const job = await this.client.post<{ id: string }>(
       "/jobs/ingest",

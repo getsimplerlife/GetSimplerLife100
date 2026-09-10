@@ -1,8 +1,8 @@
-import { HttpClient } from "../../framework/client"; import { ConnectionConfig } from "../../framework/connection";
+import { HttpClient } from "../../framework/client"; import { type ConnectionConfig } from "../../framework/connection";
 
 export class WooClient {
   private client: HttpClient;
-  constructor(consumerKey: string, consumerSecret: string, storeUrl: string) {
+  constructor(_consumerKey: string, _consumerSecret: string, storeUrl: string) {
     this.client = new HttpClient({ baseUrl: `${storeUrl.replace(/\/+$/, "")}/wp-json/wc/v3`, rateLimit: { maxRequestsPerSecond: 5 }, retry: { maxRetries: 3, baseDelay: 1000, maxDelay: 10000 }, timeout: 30000 });
   }
   private get headers() { return { Authorization: `Basic ${Buffer.from(`${this.consumerKey}:${this.consumerSecret}`).toString("base64")}`, "Content-Type": "application/json" }; }

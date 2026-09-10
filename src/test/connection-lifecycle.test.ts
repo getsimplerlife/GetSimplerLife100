@@ -10,21 +10,10 @@
 //    transitions ok→degraded, durable records.
 // All provider calls use a mocked fetch — no live provider traffic in CI.
 import { describe, it, expect, beforeEach, afterEach, afterAll, vi } from "vitest";
-import { mkdtempSync, rmSync } from "fs";
+import { mkdtempSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import {
-  nextRefreshDueMs,
-  refreshOneCredential,
-  startScheduledTokenRefresher,
-  classifyRefreshError,
-  alertOwnerReconnectRequired,
-  resolveOwnerAlertEmail,
-  reconnectAlertDue,
-  noteAlertSent,
-  scheduledRefresherStats,
-  RECONNECT_ALERT_THROTTLE_MS,
-} from "../lib/token-refresher";
+import { nextRefreshDueMs, refreshOneCredential, startScheduledTokenRefresher, classifyRefreshError, alertOwnerReconnectRequired, resolveOwnerAlertEmail, scheduledRefresherStats, RECONNECT_ALERT_THROTTLE_MS } from "../lib/token-refresher";
 import {
   probeProvider,
   PROBE_REGISTRY,

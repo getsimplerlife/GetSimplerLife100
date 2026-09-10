@@ -16,7 +16,7 @@
 //  4. seedDataFiles never replaces durable data with empty seeds.
 //  5. Writes are flushed to the DB (durableFlush awaits the write queue).
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { mkdtempSync, writeFileSync, existsSync, rmSync, mkdirSync } from "fs";
+import { mkdtempSync, writeFileSync, rmSync, mkdirSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import {

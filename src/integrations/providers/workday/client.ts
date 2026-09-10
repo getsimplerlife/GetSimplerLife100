@@ -1,10 +1,10 @@
 import { HttpClient } from "../../framework/client";
-import { ConnectionConfig } from "../../framework/connection";
+import { type ConnectionConfig } from "../../framework/connection";
 
 export class WorkdayClient {
   private client: HttpClient;
   private token: string;
-  private tenant: string;
+  
 
   constructor(token: string, tenant: string) {
     this.client = new HttpClient({
@@ -14,7 +14,7 @@ export class WorkdayClient {
       timeout: 30000,
     });
     this.token = token;
-    this.tenant = tenant;
+    
   }
 
   private get headers() {

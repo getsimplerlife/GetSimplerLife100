@@ -219,7 +219,7 @@ export async function readSprints(adapter: ExtendedCapabilityAdapter, options: E
   return executeExtendedCapability({ read: (id, tenant) => adapter.read!(id, tenant) }, "jira-read-sprints", options);
 }
 
-export async function monitorIssueCreated(adapter: ExtendedCapabilityAdapter, options: ExtendedExecutionOptions, subscription: Record<string, unknown>): Promise<unknown> {
+export async function monitorIssueCreated(adapter: ExtendedCapabilityAdapter, options: ExtendedExecutionOptions, _subscription: Record<string, unknown>): Promise<unknown> {
   if (!adapter.read) throw new Error("Capability adapter method is unavailable");
   return executeExtendedCapability({ read: (id, tenant) => adapter.read!(id, tenant) }, "jira-monitor-issue-created", options);
 }

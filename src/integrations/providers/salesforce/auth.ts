@@ -5,16 +5,7 @@
  * Supports both production and sandbox environments.
  */
 
-import {
-  OAuthConfig,
-  OAuthTokens,
-  buildAuthorizeUrl,
-  exchangeCode,
-  refreshToken,
-  generateState,
-  generateCodeVerifier,
-  isTokenExpired,
-} from "../../framework/oauth";
+import { type OAuthConfig, type OAuthTokens, buildAuthorizeUrl, exchangeCode, refreshToken, generateState, generateCodeVerifier, isTokenExpired } from "../../framework/oauth";
 
 export interface SalesforceAuthConfig {
   clientId: string;

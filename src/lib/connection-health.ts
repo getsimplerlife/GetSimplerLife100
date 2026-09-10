@@ -33,7 +33,7 @@
  */
 import { join } from "path";
 import { readJSON, readJSONLive, writeJSON } from "./data-store";
-import { isRefreshProvider, REFRESH_REGISTRY } from "./token-refresher";
+import { isRefreshProvider } from "./token-refresher";
 
 export interface ProbeResult {
   ok: boolean;

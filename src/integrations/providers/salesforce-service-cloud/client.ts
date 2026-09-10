@@ -1,9 +1,9 @@
-import { HttpClient } from "../../framework/client"; import { OAuthTokens, isTokenExpired } from "../../framework/oauth"; import { ConnectionConfig } from "../../framework/connection";
+import { HttpClient } from "../../framework/client"; import { type OAuthTokens, isTokenExpired } from "../../framework/oauth"; import { type ConnectionConfig } from "../../framework/connection";
 
 export class ServiceCloudClient {
-  private client: HttpClient; private tokens: OAuthTokens; private authConfig: any; private instanceUrl: string;
+  private client: HttpClient; private tokens: OAuthTokens; private authConfig: any; 
   constructor(tokens: OAuthTokens, authConfig: any, instanceUrl: string) {
-    this.instanceUrl = instanceUrl; this.client = new HttpClient({ baseUrl: `${instanceUrl}/services/data/v62.0`, rateLimit: { maxRequestsPerSecond: 25 }, retry: { maxRetries: 3, baseDelay: 1000, maxDelay: 10000 }, timeout: 60000 });
+     this.client = new HttpClient({ baseUrl: `${instanceUrl}/services/data/v62.0`, rateLimit: { maxRequestsPerSecond: 25 }, retry: { maxRetries: 3, baseDelay: 1000, maxDelay: 10000 }, timeout: 60000 });
     this.tokens = tokens; this.authConfig = authConfig;
   }
   private get headers() { return { Authorization: `Bearer ${this.tokens.accessToken}`, "Content-Type": "application/json" }; }

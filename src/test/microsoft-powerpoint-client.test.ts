@@ -42,7 +42,7 @@ describe("Microsoft PowerPoint client (Graph)", () => {
       { title: "Title A", body: "Body A" },
       { title: "Title B" },
     ]);
-    (globalThis as any).fetch = async (url: string, opts: any) => {
+    (globalThis as any).fetch = async (url: string, _opts: any) => {
       expect(url).toBe("https://graph.microsoft.com/v1.0/me/drive/items/deck-1/content");
       return new Response(zip);
     };

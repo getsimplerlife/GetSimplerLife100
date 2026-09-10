@@ -12,13 +12,13 @@ import type { ConnectionConfig } from "../../framework/connection";
 export class ShopifyClient {
   private client: HttpClient;
   private accessToken: string;
-  private storeName: string;
+  
 
   constructor(accessToken: string, storeName: string, apiVersion?: string) {
     if (!accessToken) throw new Error("Shopify accessToken is required");
     if (!storeName) throw new Error("Shopify storeName is required");
     this.accessToken = accessToken;
-    this.storeName = storeName;
+    
     this.client = new HttpClient({
       baseUrl: getShopifyBaseUrl(storeName, apiVersion),
       rateLimit: { maxRequestsPerSecond: 2 },

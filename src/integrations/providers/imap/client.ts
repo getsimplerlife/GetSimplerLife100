@@ -1,4 +1,4 @@
-import { ConnectionConfig } from "../../framework/connection";
+import { type ConnectionConfig } from "../../framework/connection";
 
 export interface IMAPMessage { id: number; uid: number; subject: string; from: string; to: string; date: string; flags: string[]; body?: string; }
 
@@ -25,16 +25,16 @@ export class IMAPClient {
     return [{ id: 0, uid: 0, subject: `IMAP search: ${searchCmd}`, from: "", to: "", date: "", flags: [] }];
   }
 
-  async fetchMessage(mailbox: string, uid: number): Promise<IMAPMessage | null> {
+  async fetchMessage(_mailbox: string, _uid: number): Promise<IMAPMessage | null> {
     // Placeholder - real implementation fetches via IMAP FETCH command
     return null;
   }
 
-  async moveMessage(mailbox: string, uid: number, destination: string): Promise<void> {
+  async moveMessage(_mailbox: string, _uid: number, _destination: string): Promise<void> {
     // IMAP COPY + STORE +EXPUNGE via socket
   }
 
-  async deleteMessage(mailbox: string, uid: number): Promise<void> {
+  async deleteMessage(_mailbox: string, _uid: number): Promise<void> {
     // IMAP STORE +EXPUNGE via socket
   }
 

@@ -1,4 +1,4 @@
-import { OAuthConfig, buildAuthorizeUrl, exchangeCode, refreshToken, generateState, generateCodeVerifier, isTokenExpired } from "../../framework/oauth";
+import { type OAuthConfig, buildAuthorizeUrl, exchangeCode, refreshToken, generateState, generateCodeVerifier, isTokenExpired } from "../../framework/oauth";
 
 export function getDropboxOAuthConfig(config: { appKey: string; appSecret: string; redirectUri: string }): OAuthConfig {
   return { clientId: config.appKey, clientSecret: config.appSecret, redirectUri: config.redirectUri, scopes: ["files.metadata.read", "files.metadata.write", "files.content.read", "files.content.write", "sharing.read", "sharing.write", "file_requests.read", "file_requests.write", "account_info.read"], authorizeUrl: "https://www.dropbox.com/oauth2/authorize", tokenUrl: "https://api.dropboxapi.com/oauth2/token", flowType: "authorization_code" };

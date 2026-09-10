@@ -17,7 +17,7 @@ import { tmpdir } from "os";
 import { join } from "path";
 
 import { processAgentResults, type ProcessorOptions } from "../lib/agent-processor";
-import { scoreEntityMatch, tokenOverlap, vendorNorm, fuzzyDuplicates } from "../lib/match";
+import { scoreEntityMatch, vendorNorm, fuzzyDuplicates } from "../lib/match";
 import { setProcessorCalibration, getProcessorCalibration, DEFAULT_PROCESSOR_CALIBRATION } from "../lib/tenant-settings";
 import type { ProviderResult } from "../lib/provider-api";
 

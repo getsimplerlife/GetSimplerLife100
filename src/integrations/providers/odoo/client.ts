@@ -1,4 +1,4 @@
-import { ConnectionConfig } from "../../framework/connection";
+import { type ConnectionConfig } from "../../framework/connection";
 
 export class OdooClient {
   private baseUrl: string; private db: string; private uid: number; private password: string;

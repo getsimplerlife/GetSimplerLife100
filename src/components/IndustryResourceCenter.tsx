@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { industryResources, type IndustryResource } from "~/content/industry-resource-center";
+import { industryResources } from "~/content/industry-resource-center";
 
 interface IndustryResourceCenterProps {
   industryId: string;

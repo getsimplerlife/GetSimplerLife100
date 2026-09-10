@@ -1,19 +1,11 @@
 import { serve } from "bun";
-import { join, basename } from "path";
-import { readFileSync, writeFileSync, existsSync, readdirSync } from "fs";
+import { join } from "path";
+import { readFileSync, existsSync, readdirSync } from "fs";
 import { createHash, randomBytes } from "crypto";
 import { resolveDataDir, isInsidePublishTree, readJSON, readJSONLive, writeJSON, seedDataFiles, bucketConnectionsByCategory, migrateLegacyData, findLegacyDataDir, countConnections, mergeDurableCredential } from "./src/lib/data-store";
 import { detectPackType, buildPackPurchase, verifyStripeSignature, matchAgentByPaymentLink, matchAgentByMetadata, detectPlanType, buildPlanPurchase, planAgentIds } from "./src/lib/stripe-webhook";
 import { buildOwnerSaleEvent, provisionAccountForPurchase, ownerSaleEmailBody } from "./src/lib/purchase-sales-events";
-import {
-  generateResetCode,
-  hashResetCode,
-  newPasswordResetRecord,
-  verifyPasswordReset,
-  isPasswordResetRateLimited,
-  MAX_RESET_SENDS_PER_WINDOW,
-  MAX_RESET_VERIFY_ATTEMPTS,
-} from "./src/lib/password-reset";
+import { generateResetCode, newPasswordResetRecord, verifyPasswordReset, isPasswordResetRateLimited, MAX_RESET_VERIFY_ATTEMPTS } from "./src/lib/password-reset";
 import { AGENTS } from "./src/data/agents";
 import { initDurableStore, durableEnabled, durableKeyCount, durableStoreStatus, durableSnapshotBackup, durableFlush } from "./src/lib/durable-store";
 import { startScheduledTokenRefresher, scheduledRefresherStats, REFRESHER_TICK_MS, type RefreshTokenValidator } from "./src/lib/token-refresher";
@@ -217,7 +209,7 @@ function appendAudit(user: any, action: string, resource: string, detail: string
 async function testProviderConnection(providerId: string, providerName: string, credentials: any): Promise<{ success: boolean; error?: string }> {
   // Test the connection by making a real HTTP request
   const apiKey = credentials.apiKey || "";
-  const apiSecret = credentials.apiSecret || credentials.apiUrl || "";
+
   
   // Provider-specific connection tests
   const testUrls: Record<string, { url: string; headers: Record<string, string> }> = {

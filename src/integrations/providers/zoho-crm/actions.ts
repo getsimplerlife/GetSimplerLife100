@@ -1,4 +1,4 @@
-import { createZohoClient } from "./client"; import { ConnectionConfig } from "../../framework/connection"; import type { ActionDefinition } from "../salesforce/actions";
+import { createZohoClient } from "./client"; ; import type { ActionDefinition } from "../salesforce/actions";
 
 export const zohoActions: ActionDefinition[] = [
   { name: "searchZohoContacts", description: "Search Zoho contacts", inputSchema: { type: "object", properties: { query: { type: "string" } }, required: ["query"] }, handler: async (config, params) => { const c = createZohoClient(config); return c.searchContacts(params.query); } },

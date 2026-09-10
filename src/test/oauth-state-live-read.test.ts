@@ -19,10 +19,7 @@ import { describe, it, expect, afterAll } from "vitest";
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import {
-  initDurableStore, durableClose, durableSet, durableFlush, durableGet,
-  durableGetLive, MemoryKvDriver,
-} from "../lib/durable-store";
+import { initDurableStore, durableClose, durableFlush, durableGet, durableGetLive, MemoryKvDriver } from "../lib/durable-store";
 import { readJSON, readJSONLive, writeJSON } from "../lib/data-store";
 import { applyHealthToConnections } from "../lib/connection-health";
 

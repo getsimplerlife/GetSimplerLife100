@@ -1,10 +1,10 @@
-import { HttpClient } from "../../framework/client"; import { ConnectionConfig } from "../../framework/connection";
+import { HttpClient } from "../../framework/client"; import { type ConnectionConfig } from "../../framework/connection";
 
 export class BambooHRClient {
-  private client: HttpClient; private apiKey: string; private subdomain: string;
+  private client: HttpClient; private apiKey: string; 
   constructor(apiKey: string, subdomain: string) {
     this.client = new HttpClient({ baseUrl: `https://api.bamboohr.com/api/gateway.php/${subdomain}/v1`, rateLimit: { maxRequestsPerSecond: 10 }, retry: { maxRetries: 3, baseDelay: 1000, maxDelay: 10000 }, timeout: 30000 });
-    this.apiKey = apiKey; this.subdomain = subdomain;
+    this.apiKey = apiKey; 
   }
   private get headers() { return { Authorization: `Basic ${Buffer.from(`${this.apiKey}:`).toString("base64")}`, "Content-Type": "application/json" }; }
 

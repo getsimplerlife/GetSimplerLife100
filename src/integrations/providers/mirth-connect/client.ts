@@ -7,7 +7,7 @@
  */
 import { HttpClient } from "../../framework/client";
 import type { ConnectionConfig } from "../../framework/connection";
-import { getMirthApiUrl, getMirthAuthHeaders, MirthAuthConfig } from "./auth";
+import { getMirthApiUrl, getMirthAuthHeaders, type MirthAuthConfig } from "./auth";
 
 // ── Type Definitions ────────────────────────────────────────────────────────
 
