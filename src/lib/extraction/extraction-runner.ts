@@ -92,6 +92,21 @@ export async function runExtraction(opts: RunExtractionOpts): Promise<Extraction
       return recordReviewOnly(dataDir, tenantEmail, doc, actor, "No readable text layer — human review required", deterministicFlags, now);
     }
     modelVisible = { text: payload.text.slice(0, maxTextChars) };
+  } else if (payload.kind === "oversize") {
+    deterministicFlags.push({
+      code: "oversize",
+      source: "deterministic",
+      detail: "Decompressed document would exceed the extraction size cap — refused before inflation (zip-bomb/PDF-bomb guard)",
+    });
+    return recordReviewOnly(
+      dataDir,
+      tenantEmail,
+      doc,
+      actor,
+      "Decompression would exceed the safety cap — human review required; document was NOT inflated",
+      deterministicFlags,
+      now,
+    );
   } else {
     // No payload for a TEXT format means the extractor found no text layer.
     const isTextFormat = ["pdf", "docx", "xlsx", "csv"].includes(latest.ext);

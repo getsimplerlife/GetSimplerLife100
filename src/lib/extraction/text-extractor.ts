@@ -11,9 +11,18 @@
  *
  * Zero new dependencies: fflate (already vendored) does all zlib/zip work.
  * Everything is fail-closed: a zip that won't open, a stream that won't
- * inflate, or binary garbage produces `null` — never guessed text. Scanned
- * PDFs (no text layer) yield an empty result which the runner flags
- * empty-text → human-review lane (never silent garbage).
+ * inflate, or binary garbage produces `null` — never guessed text.
+ *
+ * Zip-bomb / PDF-bomb DoS guard (owner security hard bar 09-10): decompression
+ * is BOUNDED BEFORE IT HAPPENS. ZIP inputs are checked against the central
+ * directory's declared uncompressed sizes (never inflated when the manifest
+ * exceeds the cap or is structurally uncertain — data-descriptor entries whose
+ * sizes are unknown fail closed). PDF streams are inflated into a
+ * pre-allocated output buffer capped at PDF_MAX_STREAM_UNCOMPRESSED, and
+ * streams with a declared /Length or compressed size above the cap are refused
+ * without inflation. Any doc that trips a bound returns `{ kind: "oversize" }`
+ * which the runner routes to the human-review lane with an `oversize` flag —
+ * never garbage, never a crash, never an unbounded allocation.
  */
 import { unzipSync, unzlibSync, inflateSync, strFromU8 } from "fflate";
 import { EXTRACTION_MAX_VISION_BYTES } from "./extraction-types";
@@ -21,7 +30,14 @@ import { EXTRACTION_MAX_VISION_BYTES } from "./extraction-types";
 export type ExtractPayload =
   | { kind: "text"; text: string }
   | { kind: "raster"; dataUrl: string; mime: string }
+  | { kind: "oversize" }
   | { kind: "empty" };
+
+// ── Decompression bounds (memory safety, not post-hoc checks) ────────────
+export const ZIP_MAX_TOTAL_UNCOMPRESSED = 16 * 1024 * 1024; // 16 MiB total across all entries
+export const ZIP_MAX_ENTRY_UNCOMPRESSED = 8 * 1024 * 1024; //  8 MiB per entry
+export const PDF_MAX_STREAM_COMPRESSED = 8 * 1024 * 1024; //    8 MiB compressed block
+export const PDF_MAX_STREAM_UNCOMPRESSED = 8 * 1024 * 1024; //  8 MiB inflated stream
 
 const RASTER_MIMES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
 
@@ -31,6 +47,52 @@ function utf8(bytes: Uint8Array): string {
   } catch {
     return "";
   }
+}
+
+// ── ZIP central-directory manifest scan (zip-bomb guard) ────────────────
+const ZIP_CD_SIG = 0x02014b50;
+const ZIP_EOCD_SIG = 0x06054b50;
+
+function u16(b: Uint8Array, o: number): number {
+  return b[o] | (b[o + 1] << 8);
+}
+function u32(b: Uint8Array, o: number): number {
+  return (b[o] | (b[o + 1] << 8) | (b[o + 2] << 16) | (b[o + 3] << 24)) >>> 0;
+}
+
+/** True when the ZIP central directory declares in-bounds decompressed sizes.
+ *  Runs BEFORE any inflation so a zip-bomb can never allocate memory here.
+ *  Fail-closed: no EOCD, an unknown-size entry (data-descriptor bit 3), a
+ *  truncated CD walk, or any single entry / total above the cap → false. */
+function scanZipManifest(bytes: Uint8Array): boolean {
+  if (bytes.length < 22) return false;
+  const floor = Math.max(0, bytes.length - 22 - 65535);
+  let eocd = -1;
+  for (let i = bytes.length - 22; i >= floor; i--) {
+    if (u32(bytes, i) === ZIP_EOCD_SIG) {
+      eocd = i;
+      break;
+    }
+  }
+  if (eocd === -1) return false;
+  const cdCount = u16(bytes, eocd + 10);
+  let off = u32(bytes, eocd + 16);
+  if (off >= eocd || cdCount === 0) return false;
+  let total = 0;
+  for (let i = 0; i < cdCount; i++) {
+    if (off + 46 > eocd || u32(bytes, off) !== ZIP_CD_SIG) return false;
+    const gpFlags = u16(bytes, off + 8);
+    if (gpFlags & 0x0008) return false; // data descriptor → sizes unknown → fail closed
+    const uSize = u32(bytes, off + 24);
+    if (uSize > ZIP_MAX_ENTRY_UNCOMPRESSED) return false;
+    total += uSize;
+    if (total > ZIP_MAX_TOTAL_UNCOMPRESSED) return false;
+    const nameLen = u16(bytes, off + 28);
+    const extraLen = u16(bytes, off + 30);
+    const commentLen = u16(bytes, off + 32);
+    off += 46 + nameLen + extraLen + commentLen;
+  }
+  return true;
 }
 
 // ── XML helpers (dependency-free, lenient) ──────────────────────────────
@@ -59,19 +121,21 @@ function xmlToText(xml: string): string {
 }
 
 // ── DOCX ────────────────────────────────────────────────────────────────
-function extractDocx(bytes: Uint8Array): string | null {
+function extractDocx(bytes: Uint8Array): { ok: true; text: string } | { ok: false; oversize: boolean } {
+  if (!scanZipManifest(bytes)) return { ok: false, oversize: true };
   try {
     const zip = unzipSync(bytes);
     const docXml = zip["word/document.xml"];
-    if (!docXml) return null;
-    return xmlToText(utf8(docXml));
+    if (!docXml) return { ok: false, oversize: false };
+    return { ok: true, text: xmlToText(utf8(docXml)) };
   } catch {
-    return null;
+    return { ok: false, oversize: false };
   }
 }
 
 // ── XLSX ────────────────────────────────────────────────────────────────
-function extractXlsx(bytes: Uint8Array): string | null {
+function extractXlsx(bytes: Uint8Array): { ok: true; text: string } | { ok: false; oversize: boolean } {
+  if (!scanZipManifest(bytes)) return { ok: false, oversize: true };
   try {
     const zip = unzipSync(bytes);
     const sharedRaw = zip["xl/sharedStrings.xml"];
@@ -114,9 +178,9 @@ function extractXlsx(bytes: Uint8Array): string | null {
         rowsOut.push(cells.join("\t"));
       }
     }
-    return rowsOut.filter((r) => r.trim()).join("\n") || null;
+    return { ok: true, text: rowsOut.filter((r) => r.trim()).join("\n") || "" };
   } catch {
-    return null;
+    return { ok: false, oversize: false };
   }
 }
 
@@ -202,12 +266,16 @@ function pdfStreamToText(stream: string): string {
   return out.filter((s) => s.trim()).join(" ");
 }
 
+/** Inflate a FlateDecode stream INTO A PRE-ALLOCATED CAPACITY (never grows).
+ *  fflate writes into the provided buffer and throws when output exceeds it,
+ *  so memory is hard-bounded at PDF_MAX_STREAM_UNCOMPRESSED before inflation. */
 function inflatePdfStream(raw: Uint8Array): Uint8Array | null {
+  const out = new Uint8Array(PDF_MAX_STREAM_UNCOMPRESSED);
   try {
-    return unzlibSync(raw); // FlateDecode = zlib container
+    return unzlibSync(raw, out); // FlateDecode = zlib container
   } catch {
     try {
-      return inflateSync(raw); // raw deflate fallback
+      return inflateSync(raw, out); // raw deflate fallback
     } catch {
       return null;
     }
@@ -237,10 +305,28 @@ function indexOfBytes(haystack: Uint8Array, needle: Uint8Array, from = 0): numbe
 const STREAM_MARKER = new TextEncoder().encode("stream");
 const ENDSTREAM_MARKER = new TextEncoder().encode("endstream");
 
-function extractPdf(bytes: Uint8Array): string | null {
+/** Declared `/Length N` of the object dict immediately preceding a PDF stream
+ *  (searched backwards from the `stream` keyword). Indirect references
+ *  (`/Length 5 0 R`) return null — the pre-allocated inflate cap still bounds
+ *  those, so uncertainty never means unbounded allocation. */
+function declaredPdfStreamLength(bytes: Uint8Array, streamIdx: number, from: number): number | null {
+  const start = Math.max(from, streamIdx - 4096);
+  const window_ = bytesToLatin1(bytes.subarray(start, streamIdx));
+  const re = /\/Length\s*(\d+)/g;
+  let m: RegExpExecArray | null;
+  let found: number | null = null;
+  while ((m = re.exec(window_)) !== null) {
+    if (/\/Length\s*\d+\s+\d+\s+R/.test(window_.slice(Math.max(0, m.index - 8), m.index + m[0].length + 12))) continue; // indirect ref
+    found = Number(m[1]);
+  }
+  return found;
+}
+
+function extractPdf(bytes: Uint8Array): { ok: true; text: string } | { ok: false; oversize: boolean } {
   try {
     const parts: string[] = [];
     let pos = 0;
+    let oversizeStream = false;
     while (true) {
       const sIdx = indexOfBytes(bytes, STREAM_MARKER, pos);
       if (sIdx === -1) break;
@@ -250,7 +336,14 @@ function extractPdf(bytes: Uint8Array): string | null {
       if (bytes[dataStart] === 0x0a) dataStart++; // \n
       const eIdx = indexOfBytes(bytes, ENDSTREAM_MARKER, dataStart);
       if (eIdx === -1) break;
+      // Bounds BEFORE inflating: declared length and compressed size.
+      const declared = declaredPdfStreamLength(bytes, sIdx, pos);
       const block = bytes.slice(dataStart, eIdx);
+      if ((declared !== null && declared > PDF_MAX_STREAM_UNCOMPRESSED) || block.length > PDF_MAX_STREAM_COMPRESSED) {
+        oversizeStream = true; // refuse to inflate — bomb guard
+        pos = eIdx + ENDSTREAM_MARKER.length;
+        continue;
+      }
       let text: string | null = null;
       const inflated = inflatePdfStream(block);
       if (inflated) {
@@ -263,9 +356,10 @@ function extractPdf(bytes: Uint8Array): string | null {
       if (text) parts.push(text);
       pos = eIdx + ENDSTREAM_MARKER.length;
     }
-    return parts.join("\n") || null; // null → scanned/empty PDF
+    if (oversizeStream) return { ok: false, oversize: true }; // never trust partial text around a bomb stream
+    return { ok: true, text: parts.join("\n") } as { ok: true; text: string }; // null text caller handles
   } catch {
-    return null;
+    return { ok: false, oversize: false };
   }
 }
 
@@ -273,7 +367,7 @@ function extractPdf(bytes: Uint8Array): string | null {
 /** Format-appropriate payload for a $VaultFileExtension + canonical mime. */
 export function buildExtractPayload(mime: string, ext: string, bytes: Uint8Array): ExtractPayload {
   if (RASTER_MIMES.has(mime)) {
-    if (bytes.byteLength > EXTRACTION_MAX_VISION_BYTES) return { kind: "empty" }; // oversize flagged by caller
+    if (bytes.byteLength > EXTRACTION_MAX_VISION_BYTES) return { kind: "oversize" }; // oversize flagged by caller
     const b64 = Buffer.from(bytes).toString("base64");
     return { kind: "raster", dataUrl: `data:${mime};base64,${b64}`, mime };
   }
@@ -282,16 +376,19 @@ export function buildExtractPayload(mime: string, ext: string, bytes: Uint8Array
     return { kind: "text", text };
   }
   if (mime.includes("officedocument.wordprocessingml") || ext === "docx") {
-    const text = extractDocx(bytes);
-    return text === null ? { kind: "empty" } : { kind: "text", text };
+    const r = extractDocx(bytes);
+    if (!r.ok) return r.oversize ? { kind: "oversize" } : { kind: "empty" };
+    return r.text ? { kind: "text", text: r.text } : { kind: "empty" };
   }
   if (mime.includes("spreadsheetml") || ext === "xlsx") {
-    const text = extractXlsx(bytes);
-    return text === null ? { kind: "empty" } : { kind: "text", text };
+    const r = extractXlsx(bytes);
+    if (!r.ok) return r.oversize ? { kind: "oversize" } : { kind: "empty" };
+    return r.text ? { kind: "text", text: r.text } : { kind: "empty" };
   }
   if (mime === "application/pdf" || ext === "pdf") {
-    const text = extractPdf(bytes);
-    return text === null ? { kind: "empty" } : { kind: "text", text };
+    const r = extractPdf(bytes);
+    if (!r.ok) return r.oversize ? { kind: "oversize" } : { kind: "empty" };
+    return r.text ? { kind: "text", text: r.text } : { kind: "empty" };
   }
   return { kind: "empty" };
 }
