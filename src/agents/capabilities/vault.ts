@@ -79,10 +79,10 @@ export const vaultCapabilities: ReadonlyArray<CapabilityContract> = [
     tenantScoped: true,
     authRequired: true,
     auditRequired: true,
-    idempotencyRequired: false,
+    idempotencyRequired: true,
     retryPolicy: "bounded",
-    rollback: "not_applicable",
-    evidence: "Non-destructive delete: exactly ONE known doc id, approval-gated (autonomy requires an explicit allow-list entry + known id), never glob-delete (#235). Live verification pending.",
+    rollback: "available",
+    evidence: "Non-destructive exact-id delete: approval-gated (autonomy requires an explicit allow-list entry + known id), never glob-delete; re-destroying an already-destroyed exact id returns an audited success no-op (idempotent replay provable from the immutable audit); audit retains route/sha256/version for full attribution; unknown ids fail closed (#235). Live verification pending.",
   }),
   defineCapabilityContract({
     employeeId: DOCUMENT_VAULT_EMPLOYEE_ID,

@@ -156,6 +156,33 @@ describe("gated filing contract (Approval Queue #164 default ON)", () => {
     expect(bogus.ok).toBe(false);
     expect(bogus.error).toContain("not found");
   });
+  it("destroy is idempotent: re-destroying an already-destroyed exact id is an audited success no-op; unknown ids still fail closed", () => {
+    const intake = intakeDocument({ tenantEmail: T1, fileName: "keep.pdf", bytes: PDF, actor: "u", dataDir: dir });
+    const id = intake.documentId!;
+    // Post-approval executor steps (exactly what destroyDocument's ok path does):
+    // store-level destroy + immutable ok audit entry.
+    const removed = destroyVaultDocument(dir, T1, id);
+    expect(removed).not.toBeNull();
+    appendVaultAudit(dir, T1, {
+      actor: "u",
+      action: "deleteVaultDocument",
+      documentId: id,
+      route: removed!.route,
+      version: removed!.version,
+      outcome: "ok",
+    });
+    const replay = destroyDocument({ tenantId: T1, documentId: id, actor: "u", dataDir: dir });
+    expect(replay.ok).toBe(true);
+    expect(replay.unchanged).toBe(true);
+    const audit = listVaultAudit(dir, T1);
+    const destroyEntries = audit.filter((e) => e.documentId === id && e.action === "deleteVaultDocument");
+    expect(destroyEntries.length).toBe(2); // original ok + idempotent replay
+    expect(destroyEntries.at(-1)!.detail).toContain("idempotent replay");
+    // An exact id never seen by this tenant still fails closed (never fabricate success).
+    const neverSeen = destroyDocument({ tenantId: T1, documentId: "doc_never_seen", actor: "u", dataDir: dir });
+    expect(neverSeen.ok).toBe(false);
+    expect(neverSeen.error).toContain("not found");
+  });
 });
 
 describe("autonomy mode (#236): allow-list + known id only", () => {
