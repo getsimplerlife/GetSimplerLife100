@@ -2,6 +2,7 @@
 // In the browser (Vite CSR build), @libsql/client is externalized via vite.config.ts
 
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
+import type * as schemaRef from './schema';
 
 let _dbInstance: any = null;
 
@@ -25,7 +26,8 @@ function createLazyDb(): any {
   });
 }
 
-export const db = createLazyDb() as LibSQLDatabase<any>;
+export type DbSchema = typeof schemaRef;
+export const db = createLazyDb() as unknown as LibSQLDatabase<DbSchema>;
 
 export async function initDb(): Promise<LibSQLDatabase<any>> {
   if (_dbInstance) return _dbInstance;
@@ -39,7 +41,7 @@ export async function initDb(): Promise<LibSQLDatabase<any>> {
     url: process.env.TEAM_DB_URL!,
     authToken: process.env.TEAM_DB_AUTH_TOKEN!,
   });
-  _dbInstance = drizzle(client, { schema: schema.default || schema });
+  _dbInstance = drizzle(client, { schema });
   return _dbInstance;
 }
 

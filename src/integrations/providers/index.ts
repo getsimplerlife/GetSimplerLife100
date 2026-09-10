@@ -80,50 +80,50 @@ function registerProvider(module: {
     "shopifyActions", "wooCommerceActions", "bigCommerceActions",
     "magentoActions", "amazonSellerActions",
     // Logistics
-    "mcleodSoftwareActions", "mercurygateActions", "trimbleTmsActions",
+    "mcleodSoftwareActions", "mercurygateActions", "trimble_tmsActions",
     "samsaraActions", "motiveActions", "project44Actions",
     "fourkitesActions", "datActions", "truckstopActions",
     "onfleetActions",
     "coupaActions",
-    "descartesActions", "pcsTmsActions", "ascendTmsActions",
+    "descartesActions", "pcs_tmsActions", "ascend_tmsActions",
     // Manufacturing
     "plexActions", "katanaActions", "fishbowlActions",
-    "mrpeasyActions", "iqmsActions", "epicorKineticMfgActions",
-    "siemensOpcenterActions",
+    "mrpeasyActions", "iqmsActions", "epicor_kinetic_mfgActions",
+    "siemens_opcenterActions",
     // Healthcare
     "athenahealthActions", "nextgenActions", "eclinicalworksActions",
     // Scheduling
-    "calendlyActions", "microsoftBookingsActions", "googleCalendarActions",
-    "outlookCalendarActions", "acuityActions",
+    "calendlyActions", "microsoft_bookingsActions", "googleCalendarActions",
+    "outlook_calendarActions", "acuityActions",
     // Forms
-    "typeformActions", "jotformActions", "microsoftFormsActions",
-    "googleFormsActions", "formstackActions", "gravityFormsActions",
+    "typeformActions", "jotformActions", "microsoft_formsActions",
+    "google_formsActions", "formstackActions", "gravity_formsActions",
     // Payment
-    "squareActions", "paypalActions", "authorizeNetActions",
+    "squareActions", "paypalActions", "authorize_netActions",
     "braintreeActions",
     // AI Models
-    "openaiActions", "anthropicClaudeActions", "googleGeminiActions",
-    "azureOpenaiActions", "awsBedrockActions", "mistralActions",
+    "openaiActions", "anthropic_claudeActions", "google_geminiActions",
+    "azure_openaiActions", "aws_bedrockActions", "mistralActions",
     "cohereActions",
     // Automation
-    "n8nActions", "makeActions", "zapierActions", "powerAutomateActions",
-    "uipathActions", "workatoActions", "trayIoActions", "boomiActions",
+    "n8nActions", "makeActions", "zapierActions", "power_automateActions",
+    "uipathActions", "workatoActions", "tray_ioActions", "boomiActions",
     // Identity
-    "entraIdActions", "oktaActions", "auth0Actions",
-    "googleWorkspaceIdentityActions",
+    "entra_idActions", "oktaActions", "auth0Actions",
+    "google_workspace_identityActions",
     // Storage
-    "s3Actions", "azureBlobActions", "gcsActions",
+    "s3Actions", "azure_blobActions", "gcsActions",
     // Productivity (Google Workspace file types)
     "googleDocsActions", "googleSheetsActions", "googleSlidesActions",
     // Productivity (Microsoft Office file types)
     "microsoftWordActions", "microsoftExcelActions", "microsoftPowerPointActions",
     // Developer Tools
-    "restApiActions", "graphqlActions", "webhooksBroadActions",
+    "rest_apiActions", "graphqlActions", "webhooks_broadActions",
     "sftpActions", "soapActions", "jsonActions", "xmlActions",
     // Databases
-    "sqlServerActions", "postgresqlActions", "mysqlActions",
-    "oracleDbActions", "mongodbActions", "snowflakeActions",
-    "bigqueryActions", "azureSqlActions", "airtableActions",
+    "sql_serverActions", "postgresqlActions", "mysqlActions",
+    "oracle_dbActions", "mongodbActions", "snowflakeActions",
+    "bigqueryActions", "azure_sqlActions", "airtableActions",
             // New Integrations
             "clickhouseActions", "awsLambdaActions", "airflowActions",
             "iguanaActions", "mirthActions",
@@ -513,7 +513,7 @@ const providerModules = [
   // Logistics
   { ...mcleodSoftware, mcleodSoftwareActions: mcleodSoftware.mcleodSoftwareActions },
   { ...mercurygate, mercurygateActions: mercurygate.mercurygateActions },
-  { ...trimbleTms, trimbleTmsActions: trimbleTms.trimbleTmsActions },
+  { ...trimbleTms, trimble_tmsActions: trimbleTms.trimble_tmsActions },
   { ...samsara, samsaraActions: samsara.samsaraActions },
   { ...motive, motiveActions: motive.motiveActions },
   { ...project44, project44Actions: project44.project44Actions },
@@ -523,63 +523,63 @@ const providerModules = [
   { ...dat, datActions: dat.datActions },
   { ...truckstop, truckstopActions: truckstop.truckstopActions },
   { ...descartes, descartesActions: descartes.descartesActions },
-  { ...pcsTms, pcsTmsActions: pcsTms.pcsTmsActions },
-  { ...ascendTms, ascendTmsActions: ascendTms.ascendTmsActions },
+  { ...pcsTms, pcs_tmsActions: pcsTms.pcs_tmsActions },
+  { ...ascendTms, ascend_tmsActions: ascendTms.ascend_tmsActions },
   // Manufacturing
   { ...plex, plexActions: plex.plexActions },
   { ...katana, katanaActions: katana.katanaActions },
   { ...fishbowl, fishbowlActions: fishbowl.fishbowlActions },
   { ...mrpeasy, mrpeasyActions: mrpeasy.mrpeasyActions },
   { ...iqms, iqmsActions: iqms.iqmsActions },
-  { ...epicorKineticMfg, epicorKineticMfgActions: epicorKineticMfg.epicorKineticMfgActions },
-  { ...siemensOpcenter, siemensOpcenterActions: siemensOpcenter.siemensOpcenterActions },
+  { ...epicorKineticMfg, epicor_kinetic_mfgActions: epicorKineticMfg.epicor_kinetic_mfgActions },
+  { ...siemensOpcenter, siemens_opcenterActions: siemensOpcenter.siemens_opcenterActions },
   // Healthcare
   { ...athenahealth, athenahealthActions: athenahealth.athenahealthActions },
   { ...nextgen, nextgenActions: nextgen.nextgenActions },
   { ...eclinicalworks, eclinicalworksActions: eclinicalworks.eclinicalworksActions },
   // Scheduling
   { ...calendly, calendlyActions: calendly.calendlyActions },
-  { ...microsoftBookings, microsoftBookingsActions: microsoftBookings.microsoftBookingsActions },
+  { ...microsoftBookings, microsoft_bookingsActions: microsoftBookings.microsoft_bookingsActions },
   { ...googleCalendar, googleCalendarActions: googleCalendar.googleCalendarActions },
-  { ...outlookCalendar, outlookCalendarActions: outlookCalendar.outlookCalendarActions },
+  { ...outlookCalendar, outlook_calendarActions: outlookCalendar.outlook_calendarActions },
   { ...acuity, acuityActions: acuity.acuityActions },
   // Forms
   { ...typeform, typeformActions: typeform.typeformActions },
   { ...jotform, jotformActions: jotform.jotformActions },
-  { ...microsoftForms, microsoftFormsActions: microsoftForms.microsoftFormsActions },
-  { ...googleForms, googleFormsActions: googleForms.googleFormsActions },
+  { ...microsoftForms, microsoft_formsActions: microsoftForms.microsoft_formsActions },
+  { ...googleForms, google_formsActions: googleForms.google_formsActions },
   { ...formstack, formstackActions: formstack.formstackActions },
-  { ...gravityForms, gravityFormsActions: gravityForms.gravityFormsActions },
+  { ...gravityForms, gravity_formsActions: gravityForms.gravity_formsActions },
   // Payment
   { ...square, squareActions: square.squareActions },
   { ...paypal, paypalActions: paypal.paypalActions },
-  { ...authorizeNet, authorizeNetActions: authorizeNet.authorizeNetActions },
+  { ...authorizeNet, authorize_netActions: authorizeNet.authorize_netActions },
   { ...braintree, braintreeActions: braintree.braintreeActions },
   // AI Models
   { ...openai, openaiActions: openai.openaiActions },
-  { ...anthropicClaude, anthropicClaudeActions: anthropicClaude.anthropicClaudeActions },
-  { ...googleGemini, googleGeminiActions: googleGemini.googleGeminiActions },
-  { ...azureOpenai, azureOpenaiActions: azureOpenai.azureOpenaiActions },
-  { ...awsBedrock, awsBedrockActions: awsBedrock.awsBedrockActions },
+  { ...anthropicClaude, anthropic_claudeActions: anthropicClaude.anthropic_claudeActions },
+  { ...googleGemini, google_geminiActions: googleGemini.google_geminiActions },
+  { ...azureOpenai, azure_openaiActions: azureOpenai.azure_openaiActions },
+  { ...awsBedrock, aws_bedrockActions: awsBedrock.aws_bedrockActions },
   { ...mistral, mistralActions: mistral.mistralActions },
   { ...cohere, cohereActions: cohere.cohereActions },
   // Automation
   { ...n8n, n8nActions: n8n.n8nActions },
   { ...make, makeActions: make.makeActions },
   { ...zapier, zapierActions: zapier.zapierActions },
-  { ...powerAutomate, powerAutomateActions: powerAutomate.powerAutomateActions },
+  { ...powerAutomate, power_automateActions: powerAutomate.power_automateActions },
   { ...uipath, uipathActions: uipath.uipathActions },
   { ...workato, workatoActions: workato.workatoActions },
-  { ...trayIo, trayIoActions: trayIo.trayIoActions },
+  { ...trayIo, tray_ioActions: trayIo.tray_ioActions },
   { ...boomi, boomiActions: boomi.boomiActions },
   // Identity
-  { ...entraId, entraIdActions: entraId.entraIdActions },
+  { ...entraId, entra_idActions: entraId.entra_idActions },
   { ...okta, oktaActions: okta.oktaActions },
   { ...auth0, auth0Actions: auth0.auth0Actions },
-  { ...googleWorkspaceIdentity, googleWorkspaceIdentityActions: googleWorkspaceIdentity.googleWorkspaceIdentityActions },
+  { ...googleWorkspaceIdentity, google_workspace_identityActions: googleWorkspaceIdentity.google_workspace_identityActions },
   // Storage
   { ...s3, s3Actions: s3.s3Actions },
-  { ...azureBlob, azureBlobActions: azureBlob.azureBlobActions },
+  { ...azureBlob, azure_blobActions: azureBlob.azure_blobActions },
   { ...gcs, gcsActions: gcs.gcsActions },
   // Productivity (Google Workspace file types)
   { ...googleDocs, googleDocsActions: googleDocs.googleDocsActions },
@@ -590,22 +590,22 @@ const providerModules = [
   { ...microsoftExcel, microsoftExcelActions: microsoftExcel.microsoftExcelActions },
   { ...microsoftPowerPoint, microsoftPowerPointActions: microsoftPowerPoint.microsoftPowerPointActions },
   // Developer Tools
-  { ...restApi, restApiActions: restApi.restApiActions },
+  { ...restApi, rest_apiActions: restApi.rest_apiActions },
   { ...graphql, graphqlActions: graphql.graphqlActions },
-  { ...webhooksBroad, webhooksBroadActions: webhooksBroad.webhooksBroadActions },
+  { ...webhooksBroad, webhooks_broadActions: webhooksBroad.webhooks_broadActions },
   { ...sftp, sftpActions: sftp.sftpActions },
   { ...soap, soapActions: soap.soapActions },
   { ...json, jsonActions: json.jsonActions },
   { ...xml, xmlActions: xml.xmlActions },
   // Databases
-  { ...sqlServer, sqlServerActions: sqlServer.sqlServerActions },
+  { ...sqlServer, sql_serverActions: sqlServer.sql_serverActions },
   { ...postgresql, postgresqlActions: postgresql.postgresqlActions },
   { ...mysql, mysqlActions: mysql.mysqlActions },
-  { ...oracleDb, oracleDbActions: oracleDb.oracleDbActions },
+  { ...oracleDb, oracle_dbActions: oracleDb.oracle_dbActions },
   { ...mongodb, mongodbActions: mongodb.mongodbActions },
   { ...snowflake, snowflakeActions: snowflake.snowflakeActions },
   { ...bigquery, bigqueryActions: bigquery.bigqueryActions },
-  { ...azureSql, azureSqlActions: azureSql.azureSqlActions },
+  { ...azureSql, azure_sqlActions: azureSql.azure_sqlActions },
   { ...airtable, airtableActions: airtable.airtableActions },
   // New Integrations
   { ...clickhouse, clickhouseActions: clickhouse.clickhouseActions },
@@ -628,11 +628,11 @@ export { registry };
 // every `export *` copy, so the barrel exposes ONE canonical implementation (first module in
 // export order). Consumers needing a specific provider's copy should import from that provider
 // module directly.
-export { ActionDefinition } from "./salesforce";
+export type { ActionDefinition } from "./salesforce";
 export { PROVIDER_CATEGORY } from "./salesforce";
 export { PROVIDER_ID } from "./salesforce";
 export { PROVIDER_NAME } from "./salesforce";
-export { WebhookHandler } from "./salesforce";
+export type { WebhookHandler } from "./salesforce";
 export { buildBCAuthUrl } from "./dynamics-365-bc";
 export { createContact } from "./salesforce";
 export { getAuthHeaders } from "./trimble-tms";
