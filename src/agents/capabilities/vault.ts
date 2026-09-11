@@ -40,7 +40,7 @@ export const vaultCapabilities: ReadonlyArray<CapabilityContract> = [
     idempotencyRequired: true,
     retryPolicy: "bounded",
     rollback: "available",
-    evidence: "Structured filing contract file(document, route) with route DSL; resolves against per-tenant auto-folder rules; rides the Approval Queue by default and the autonomy allow-list with a known doc id otherwise. Verified 09-10: intake/gating/dedup live-proven on the deployed instance; approve→execute loop proven end-to-end in the isolated harness after registering native vault executors (see feat/vault-verified-5ab).",
+    evidence: "evidence: "Structured filing contract file(document, route); rides the Approval Queue by default (approvals ON) and the autonomy allow-list with a known doc id otherwise. FULL-LOOP SMOKE 09-11 (live ab69e5c, tenant vault-loop-a): file action landed in the approval queue as pending (act-…, mode on) and audit recorded pending-outcome with actor/route/sha; approve→execute proven end-to-end in the isolated harness with the native vault executors registered (PR #241); NOTE: the DEPLOYED instance still returns Unknown action on approve until #241 merges + redeploys — loop completes only after that deploy."",
   }),
   defineCapabilityContract({
     employeeId: DOCUMENT_VAULT_EMPLOYEE_ID,
@@ -54,7 +54,7 @@ export const vaultCapabilities: ReadonlyArray<CapabilityContract> = [
     idempotencyRequired: true,
     retryPolicy: "bounded",
     rollback: "available",
-    evidence: "Re-routes an existing vault document; approval-gated, idempotent, audited. Verified 09-10: intake/gating/dedup live-proven on the deployed instance; approve→execute loop proven end-to-end in the isolated harness after registering native vault executors (see feat/vault-verified-5ab).",
+    evidence: "Re-routes an existing vault document; approval-gated, idempotent, audited. FULL-LOOP SMOKE 09-11 (live ab69e5c): pending-gating live-proven (approval queue + audit pending entry); approve→execute proven in the isolated harness with native executors (PR #241).",
   }),
   defineCapabilityContract({
     employeeId: DOCUMENT_VAULT_EMPLOYEE_ID,
@@ -68,7 +68,7 @@ export const vaultCapabilities: ReadonlyArray<CapabilityContract> = [
     idempotencyRequired: true,
     retryPolicy: "bounded",
     rollback: "available",
-    evidence: "Retention-flag transition to archived; approval-gated; restore available. Verified 09-10: intake/gating/dedup live-proven on the deployed instance; approve→execute loop proven end-to-end in the isolated harness after registering native vault executors (see feat/vault-verified-5ab).",
+    evidence: "Retention-flag transition to archived; approval-gated; restore available. FULL-LOOP SMOKE 09-11 (live ab69e5c): pending-gating live-proven (approval queue + audit pending entry); approve→execute proven in the isolated harness with native executors (PR #241).",
   }),
   defineCapabilityContract({
     employeeId: DOCUMENT_VAULT_EMPLOYEE_ID,
@@ -82,7 +82,7 @@ export const vaultCapabilities: ReadonlyArray<CapabilityContract> = [
     idempotencyRequired: true,
     retryPolicy: "bounded",
     rollback: "available",
-    evidence: "Non-destructive exact-id delete: approval-gated (autonomy requires an explicit allow-list entry + known id), never glob-delete; re-destroying an already-destroyed exact id returns an audited success no-op (idempotent replay provable from the immutable audit); audit retains route/sha256/version for full attribution; unknown ids fail closed (#235). Verified 09-10: intake/gating/dedup live-proven on the deployed instance; approve→execute loop proven end-to-end in the isolated harness after registering native vault executors (see feat/vault-verified-5ab).",
+    evidence: "Non-destructive exact-id delete: approval-gated (autonomy requires explicit allow-list + known id), never glob-delete; re-destroy of an already-destroyed exact id = audited success no-op (idempotent replay provable from the immutable audit); unknown ids fail closed. FULL-LOOP SMOKE 09-11 (live ab69e5c): destroy landed pending in the approval queue + audit pending entry; idempotent-replay + unknown-id fail-closed proven in the isolated harness (vault-approval-execution.test.ts); live approve-execute completes after PR #241 deploys.",
   }),
   defineCapabilityContract({
     employeeId: DOCUMENT_VAULT_EMPLOYEE_ID,
@@ -96,7 +96,7 @@ export const vaultCapabilities: ReadonlyArray<CapabilityContract> = [
     idempotencyRequired: false,
     retryPolicy: "bounded",
     rollback: "not_applicable",
-    evidence: "Full-text search over name/route/tags/type/customer/project/text within the tenant's own vault only. Verified 09-10: intake/gating/dedup live-proven on the deployed instance; approve→execute loop proven end-to-end in the isolated harness after registering native vault executors (see feat/vault-verified-5ab).",
+    evidence: "Full-text search over name/route/tags/type/customer/project/text within the tenant own vault only. FULL-LOOP SMOKE 09-11 (live ab69e5c): search q=invoice returned the tenant doc; cross-tenant probe: tenant B search returned 0 hits.",
   }),
   defineCapabilityContract({
     employeeId: DOCUMENT_VAULT_EMPLOYEE_ID,
@@ -110,13 +110,13 @@ export const vaultCapabilities: ReadonlyArray<CapabilityContract> = [
     idempotencyRequired: true,
     retryPolicy: "bounded",
     rollback: "available",
-    evidence: "Phase 1.5b LLM extraction pipeline: per-doc-type extractors (invoices/receipts/contracts/IDs/forms), classification with confidence, quality flags (blurry/unreadable/oversize/empty-text) routed to the human-review lane; output NEVER writes — applying metadata is an Approval-Queue-gated write. Live verification pending.",
+    evidence: "Phase 1.5b LLM extraction pipeline (#240): per-doc-type extractors, classification with confidence, quality flags routed to the human-review lane; output NEVER writes — applying metadata is an Approval-Queue-gated write. LIVE 09-11: /api/vault/extract returns fail-closed {"error":"not-configured"} — LLM layer disabled in this deployment, so extraction EXECUTION is not yet live-verifiable (no write, no data). Flips to verified once the LLM layer is enabled and a live extract smoke produces a human-review-lane record.",
   }),
   defineCapabilityContract({
     employeeId: DOCUMENT_VAULT_EMPLOYEE_ID,
     capabilityId: "vault-document-download",
     kind: "understand",
-    status: "unverified",
+    status: "verified",
     providerId: VAULT_PROVIDER_ID,
     tenantScoped: true,
     authRequired: true,
@@ -124,6 +124,6 @@ export const vaultCapabilities: ReadonlyArray<CapabilityContract> = [
     idempotencyRequired: false,
     retryPolicy: "bounded",
     rollback: "not_applicable",
-    evidence: "Versioned blob download streamed tenant-scoped with an audit entry per download. Live verification pending.",
+    evidence: "Versioned blob download streamed tenant-scoped with an audit entry per download. FULL-LOOP SMOKE 09-11 (live ab69e5c): GET /api/vault/download returned 200, Content-Type application/pdf, X-Vault-Version 1, Content-Length 458 — bytes byte-identical to the uploaded file (cmp). Cross-tenant: tenant B GET on A docId → 404 Document not found.",
   }),
 ];
