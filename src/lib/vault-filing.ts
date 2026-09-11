@@ -59,6 +59,16 @@ interface VaultWriteOpts {
   agentId?: string;
   workflowId?: string;
   dataDir: string;
+  /**
+   * EXECUTOR-ONLY switch. When true the write is executed without re-gating.
+   * The ONLY caller that may set this is the engine Action Registry's NATIVE
+   * vault executor (src/integrations/providers/vault/actions.ts): the executor
+   * has ALREADY run the platform Approval Queue gate — either a human approved
+   * the exact stored payload (portal approve path) or an autonomy allow-list
+   * entry allowed it — and it never reaches the handler otherwise. Direct API
+   * callers (/api/vault/file etc.) MUST NOT set this; they keep the gate.
+   */
+  bypassApproval?: boolean;
 }
 
 function currentChecksum(doc: VaultDoc): string {
@@ -74,6 +84,11 @@ function gateVaultWrite(
   params: Record<string, any>,
   opts: VaultWriteOpts,
 ): VaultGateDecision {
+  // Executor-approved path: authority was already granted by the executor's
+  // Approval Queue gate (human approve of the exact payload, or autonomy
+  // allow-list). Never reachable from the direct API layer (see
+  // VaultWriteOpts.bypassApproval). Fail-closed everywhere else.
+  if (opts.bypassApproval) return { allowed: true };
   try {
     const gate = approvalGate(tenantId, action, VAULT_PROVIDER_ID, params, {
       agentId: opts.agentId,

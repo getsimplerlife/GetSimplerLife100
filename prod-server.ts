@@ -1502,6 +1502,7 @@ serve({
         const outcome = await executeAction(record.actionType, payload, user.email, {
           bypassApproval: true, // human approved this exact payload
           agentId: record.agentId,
+          dataDir: DATA_DIR, // native vault executors read/write the tenant store here
         });
         const approved = markApproved(user.email, actionId, user.email, outcome.success ? { result: outcome.data } : { error: outcome.error }, DATA_DIR);
         // Audit the decision (best-effort).

@@ -9,6 +9,8 @@
 import { registry } from "../integrations/providers";
 import { listConnectionsByProvider, updateConnectionConfig, type ConnectionConfig } from "../integrations/framework/connection";
 import { isTokenExpired as _isTokenExpired, refreshToken } from "../integrations/framework/oauth";
+import { join } from "path";
+import { resolveDataDir } from "../lib/data-store";
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -58,18 +60,27 @@ export interface ExecutionOptions {
  * to their provider ID and handler function.
  */
 class ActionHandlerRegistry {
-  public handlers = new Map<string, { providerId: string; handler: (config: ConnectionConfig, params: Record<string, any>) => Promise<any> }>();
+  public handlers = new Map<
+    string,
+    { providerId: string; handler: (config: ConnectionConfig, params: Record<string, any>) => Promise<any>; native?: boolean }
+  >();
   private providerActions = new Map<string, ActionDefinition[]>();
 
   /**
    * Register all actions from a provider module
+   * @param native when true the action executes WITHOUT a provider connection:
+   * the handler receives a context object `{ tenantId, dataDir }` in place of a
+   * ConnectionConfig (used by the NATIVE vault executors — vault has no OAuth
+   * connection; the tenant IS the caller). Authority is still always decided by
+   * the Approval Queue gate inside executeAction before the handler runs.
    */
-  registerProvider(providerId: string, actions: ActionDefinition[]): void {
+  registerProvider(providerId: string, actions: ActionDefinition[], opts?: { native?: boolean }): void {
     this.providerActions.set(providerId, actions);
     for (const action of actions) {
       this.handlers.set(action.name, {
         providerId,
         handler: action.handler,
+        native: opts?.native,
       });
     }
   }
@@ -249,7 +260,44 @@ export async function executeAction(
       }
     }
 
-    // 2. Find the user's connection for this provider
+    // 2. NATIVE actions (no provider connection — e.g. the vault): execute
+    // directly with a tenant context. The Approval Queue gate above already
+    // granted authority (human approve or autonomy allow-list), so this is the
+    // post-authority execution path — same guarantees, no connection needed.
+    if (entry.native) {
+      const nativeDataDir =
+        options?.dataDir ??
+        resolveDataDir(
+          process.env.DATA_DIR,
+          typeof import.meta?.dir !== "undefined" ? join(import.meta.dir, "..", "..") : process.cwd(),
+        );
+      const result = await Promise.race([
+        handler({ tenantId: userId, dataDir: nativeDataDir } as any, params || {}),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error(`Action "${actionName}" timed out after ${timeout}ms`)), timeout)
+        ),
+      ]);
+      if (autonomyGate) {
+        try {
+          const { recordAutonomyOutcome } = await import("../lib/autonomy");
+          recordAutonomyOutcome(userId, autonomyGate.workflowId, autonomyGate.actionName, autonomyGate.provider, true, {
+            dataDir: nativeDataDir,
+            allowListId: autonomyGate.allowListId,
+            target: typeof params?.documentId === "string" ? params.documentId : typeof params?.id === "string" ? params.id : undefined,
+          });
+        } catch {
+          // Audit-recording must NEVER mask a real action outcome.
+        }
+      }
+      return {
+        success: true,
+        data: result,
+        actionName,
+        provider: providerId,
+        duration: Date.now() - startTime,
+      };
+    }
+    // 3. Find the user's connection for this provider
     const connections = await listConnectionsByProvider(userId, providerId);
     if (connections.length === 0) {
       return {
@@ -319,9 +367,10 @@ export async function executeAction(
             const updatedConfig = { ...conn.config, accessToken: newTokens.accessToken };
             await updateConnectionConfig(conn.id, userId, updatedConfig);
 
-            // Retry with new token
+            // Retry with new token (never for NATIVE actions — they have no
+            // connection config and must not be invoked with one).
             const entry = actionRegistry.handlers.get(actionName);
-            if (entry) {
+            if (entry && !entry.native) {
               const retryResult = await entry.handler(updatedConfig, params);
               return {
                 success: true,
