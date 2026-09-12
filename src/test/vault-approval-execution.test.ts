@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * vault-approval-execution.test.ts — API-level regression + isolation test.
  *
