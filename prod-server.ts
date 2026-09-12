@@ -1297,6 +1297,90 @@ serve({
         const suggested = applyAutoRoute(DATA_DIR, user.email, doc);
         return Response.json({ data: { suggestedRoute: suggested?.route || "", suggestedRuleId: suggested?.ruleId } });
       }
+      // ── Phase 1.5c: template catalog + document creation ──
+      // Templates are per-tenant CATALOG metadata (create/import/list/get/
+      // version/delete): every mutation is audited immutably, ids are exact
+      // (never glob), input is validated strictly, imports are sniffed with
+      // 1 MiB + 64 KiB body caps. Template writes never touch vault documents.
+      // DOCUMENT CREATION (POST /api/vault/create) is a real vault WRITE and
+      // rides the SAME Approval Queue as every native verb — the only path to
+      // a created document is approve (or an explicit autonomy allow-list).
+      if (pathname === "/api/vault/templates" && req.method === "GET") {
+        const { listVaultTemplates } = await import("./src/lib/vault-template");
+        return Response.json({ data: listVaultTemplates(user.email, DATA_DIR).templates });
+      }
+      if (pathname === "/api/vault/templates/full" && req.method === "GET") {
+        const templateId = P("templateId");
+        if (!templateId) return Response.json({ error: "templateId required" }, { status: 400 });
+        const { getVaultTemplate } = await import("./src/lib/vault-template");
+        const tpl = getVaultTemplate(user.email, templateId, DATA_DIR);
+        if (!tpl) return Response.json({ error: "Template not found" }, { status: 404 });
+        return Response.json({ data: tpl });
+      }
+      if (pathname === "/api/vault/templates" && req.method === "POST") {
+        const b = await req.json().catch(() => ({}));
+        const { name, description, body, fields } = b as any;
+        const { createVaultTemplate } = await import("./src/lib/vault-template");
+        const out = createVaultTemplate({ tenantEmail: user.email, actor: user.email, dataDir: DATA_DIR, name: String(name ?? ""), description: description !== undefined ? String(description) : undefined, body: String(body ?? ""), fields: Array.isArray(fields) ? fields : [] });
+        auditPortal("vault.template.create", out.ok ? `Created template ${out.template?.name} (v${out.template?.version})` : `Template create failed: ${out.error}`);
+        return Response.json({ data: { ok: out.ok, template: out.ok ? { id: out.template?.id, name: out.template?.name, version: out.template?.version } : undefined, error: out.ok ? undefined : out.error } }, { status: out.ok ? 200 : 400 });
+      }
+      if (pathname === "/api/vault/templates/update" && req.method === "POST") {
+        const b = await req.json().catch(() => ({}));
+        const { templateId, name, description, body, fields } = b as any;
+        if (!templateId) return Response.json({ error: "templateId required" }, { status: 400 });
+        const { updateVaultTemplate } = await import("./src/lib/vault-template");
+        const out = updateVaultTemplate({
+          tenantEmail: user.email, templateId: String(templateId), actor: user.email, dataDir: DATA_DIR,
+          name: name !== undefined ? String(name) : undefined,
+          description: description !== undefined ? String(description) : undefined,
+          body: body !== undefined ? String(body) : undefined,
+          fields: fields !== undefined ? (Array.isArray(fields) ? fields : undefined) : undefined,
+        });
+        auditPortal("vault.template.version", out.ok ? `Template ${out.template?.name} → v${out.template?.version}` : `Template update failed: ${out.error}`);
+        return Response.json({ data: { ok: out.ok, version: out.ok ? out.template?.version : undefined, previous: out.ok ? out.template?.version - 1 : undefined, error: out.ok ? undefined : out.error } }, { status: out.ok ? 200 : 400 });
+      }
+      if (pathname === "/api/vault/templates/import" && req.method === "POST") {
+        let form: FormData;
+        try {
+          form = await req.formData();
+        } catch (e: any) {
+          return Response.json({ error: "Expected multipart/form-data" }, { status: 400 });
+        }
+        const file = form.get("file");
+        if (!file || typeof file === "string" || !file.size) {
+          return Response.json({ error: "file required (.json, .txt or .md)" }, { status: 400 });
+        }
+        const bytes = new Uint8Array(await (file as File).arrayBuffer());
+        const { importVaultTemplate } = await import("./src/lib/vault-template");
+        const out = importVaultTemplate({ tenantEmail: user.email, actor: user.email, dataDir: DATA_DIR, fileName: file.name || "template.json", bytes });
+        auditPortal("vault.template.import", out.ok ? `Imported template ${out.template?.name} (v${out.template?.version})` : `Template import failed: ${out.error}`);
+        return Response.json({ data: { ok: out.ok, template: out.ok ? { id: out.template?.id, name: out.template?.name, version: out.template?.version } : undefined, error: out.ok ? undefined : out.error } }, { status: out.ok ? 200 : 400 });
+      }
+      if (pathname === "/api/vault/templates" && req.method === "DELETE") {
+        const templateId = P("templateId") || P("id");
+        if (!templateId) return Response.json({ error: "templateId required (exact single id)" }, { status: 400 });
+        const { deleteVaultTemplate } = await import("./src/lib/vault-template");
+        const out = deleteVaultTemplate(user.email, templateId, DATA_DIR);
+        auditPortal("vault.template.delete", out.ok ? `Deleted template ${templateId}${out.unchanged ? " (idempotent replay)" : ""}` : `Template delete failed: ${out.error}`);
+        return Response.json({ data: out }, { status: out.ok ? 200 : 400 });
+      }
+      // POST /api/vault/create — approval-gated native document creation.
+      if (pathname === "/api/vault/create" && req.method === "POST") {
+        const b = await req.json().catch(() => ({}));
+        const { templateId, name, fields, route } = b as any;
+        if (!templateId || !name) return Response.json({ error: "templateId and name required" }, { status: 400 });
+        if (!fields || typeof fields !== "object" || Array.isArray(fields)) return Response.json({ error: "fields must be an object" }, { status: 400 });
+        const { createVaultDocument } = await import("./src/lib/vault-creation");
+        const out = createVaultDocument({
+          tenantEmail: user.email, templateId: String(templateId), name: String(name),
+          fields: fields as Record<string, unknown>,
+          route: route !== undefined && route !== null ? String(route) : undefined,
+          actor: user.email, dataDir: DATA_DIR,
+        });
+        auditPortal("vault.create", out.pending ? `Create from ${templateId} pending approval (${out.actionId || "?"})` : out.ok ? `Created ${out.documentId}${out.route ? ` → ${out.route}` : ""}` : `Create failed: ${out.error}`);
+        return Response.json({ data: out }, { status: out.ok || out.pending ? 200 : 400 });
+      }
       return Response.json({ error: "Method not allowed" }, { status: 405 });
     }
     // ── /api/portal/settings (workspace preference — owner directive 2026-08-13) ──

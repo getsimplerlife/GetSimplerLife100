@@ -53,6 +53,8 @@ export const VAULT_ACTIONS = {
   unarchive: "restoreVaultDocument",
   destroy: "deleteVaultDocument",
   update: "updateVaultDocument",
+  /** Phase 1.5c: create a document from a tenant template (renders + files). */
+  create: "createVaultDocument",
 } as const;
 
 interface VaultWriteOpts {
