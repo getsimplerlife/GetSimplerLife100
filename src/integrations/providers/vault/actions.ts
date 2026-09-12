@@ -36,6 +36,7 @@ import {
   updateDocumentMeta,
   VAULT_ACTIONS,
 } from "../../../lib/vault-filing";
+import { createVaultDocument } from "../../../lib/vault-creation";
 
 /** Context the executor injects for native (connection-less) actions. */
 export interface NativeActionContext {
@@ -147,6 +148,36 @@ export const vaultActions: ActionDefinition[] = [
       return destroyDocument({
         tenantId,
         documentId: String(params.documentId),
+        actor: `${tenantId}/portal`,
+        dataDir,
+        bypassApproval: true,
+      });
+    },
+  },
+  {
+    name: VAULT_ACTIONS.create,
+    description:
+      "Create a vault document from a tenant template: renders the template (fields) into a PDF, intakes it into the tenant's own vault, and optionally files it to a canonical route. Approval-gated; templateId must be a KNOWN id (unknown/other-tenant templates fail closed). Idempotent by content-hash dedupe.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        templateId: { type: "string", description: "Exact tenant template id" },
+        name: { type: "string", description: "File name for the created document" },
+        fields: { type: "object", description: "Values for the template's declared fields" },
+        route: { type: "string", description: "Optional canonical route, e.g. Acme/Proposals/2026" },
+      },
+      required: ["templateId", "name", "fields"],
+    },
+    handler: async (config: any, params: Record<string, any>) => {
+      const { tenantId, dataDir } = ctx(config);
+      return createVaultDocument({
+        tenantEmail: tenantId,
+        templateId: String(params.templateId),
+        name: String(params.name),
+        fields: params.fields && typeof params.fields === "object" && !Array.isArray(params.fields)
+          ? (params.fields as Record<string, unknown>)
+          : {},
+        route: params.route !== undefined && params.route !== null ? String(params.route) : undefined,
         actor: `${tenantId}/portal`,
         dataDir,
         bypassApproval: true,

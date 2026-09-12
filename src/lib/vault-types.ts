@@ -171,14 +171,20 @@ export interface VaultAuditEntry {
     | "restoreVaultDocument"
     | "deleteVaultDocument"
     | "updateVaultDocument"
+    | "createVaultDocument" // 5c: approval-gated creation (pending / executed / replayed)
     // Non-gated lifecycle + metadata audit events.
     | "vault.intake"
     | "vault.dedupe.hit"
     | "vault.document.download"
+    | "vault.document.create" // 5c: created doc written to the vault store
     | "vault.extraction" // 5b pipeline: run recorded / rejected by reviewer
     | "vault.folder.rule.create"
     | "vault.folder.rule.update"
     | "vault.folder.rule.delete"
+    | "vaultTemplate.create" // 5c template catalog mutations (exact-id, audited)
+    | "vaultTemplate.update"
+    | "vaultTemplate.delete"
+    | "vaultTemplate.import"
     | "vault.denied"; // a gated write was blocked
   documentId?: string;
   route?: string;
