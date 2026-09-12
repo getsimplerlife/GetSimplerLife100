@@ -10,6 +10,7 @@
  */
 
 import { actionRegistry, executeAction } from "./action-executor";
+import { vaultActions } from "../integrations/providers/vault/actions";
 
 // ── Tool Definition Types ────────────────────────────────────────────────
 
@@ -486,6 +487,14 @@ registerProviderActions("aws-lambda", [awsLambdaModule], ["awsLambdaActions"]);
 registerProviderActions("airflow", [airflowModule], ["airflowActions"]);
 registerProviderActions("iguana", [iguanaModule], ["iguanaActions"]);
 registerProviderActions("mirth-connect", [mirthConnectModule], ["mirthActions"]);
+// ── NATIVE vault write executors (provider id "vault", NO connection) ────
+// The vault-filing gate stores pending actions under these exact names; the
+// executor must be able to resolve them on approval/autonomy. Marked native so
+// executeAction skips the provider-connection lookup (vault has no OAuth
+// connection — the tenant IS the caller) and passes { tenantId, dataDir }.
+// See src/integrations/providers/vault/actions.ts. Without this registration,
+// approving a vault write answered "Unknown action" and never executed.
+actionRegistry.registerProvider("vault", vaultActions, { native: true });
 
 // ── Public API ───────────────────────────────────────────────────────────
 
