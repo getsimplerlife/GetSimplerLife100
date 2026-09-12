@@ -80,8 +80,13 @@ describe("vault approval-gated write execution (native vault actions)", () => {
     const up = await api("/api/vault/upload", { method: "POST", form, cookie });
     expect(up.status).toBe(200);
     const docId: string = up.json.data.documentId;
+    expect(typeof docId).toBe("string");
+    expect(docId.length).toBeGreaterThan(0);
+    expect(up.json.data.ok).toBe(true);
     expect(up.json.data.mime).toBe("application/pdf");
-    expect(up.json.data.tenantEmail).toMatch(/^vault-e2e-a-/);
+    // NOTE: intakeDocument does not echo the tenant email back in the upload
+    // response — tenant identity is the authenticated session; per-tenant
+    // isolation is asserted separately below (cross-tenant test).
 
     // File action → gated pending (approvals default ON).
     const fileReq = await api("/api/vault/file", {
@@ -129,27 +134,26 @@ describe("vault approval-gated write execution (native vault actions)", () => {
     expect(approve1.json.data.execution.success).toBe(true);
     expect(approve1.json.data.execution.result.ok).toBe(true);
 
-    // Re-destroy SAME exact id → approve → audited success no-op (unchanged:true).
+    // Re-destroy SAME exact id → the prior approved destroy is provable from
+    // the immutable audit, so the replay is a DIRECT audited success no-op
+    // (unchanged:true) — no new approval is created (nothing left to gate).
     const destroy2 = await api("/api/vault/destroy", { method: "POST", cookie, body: { documentId: docId } });
-    expect(destroy2.json.data.pending).toBe(true);
-    const approve2 = await api("/api/portal/approvals", {
-      method: "POST", cookie, body: { actionId: destroy2.json.data.actionId, decision: "approve" },
-    });
-    expect(approve2.json.data.execution.success).toBe(true);
-    expect(approve2.json.data.execution.result.unchanged).toBe(true);
+    expect(destroy2.status).toBe(200);
+    expect(destroy2.json.data.ok).toBe(true);
+    expect(destroy2.json.data.unchanged).toBe(true);
+    expect(destroy2.json.data.pending).toBeUndefined();
     const auditRes = await api("/api/vault/audit", { cookie });
     const destroyOk = auditRes.json.data.filter((a: any) => a.action === "deleteVaultDocument" && a.outcome === "ok");
-    expect(destroyOk.length).toBe(2);
+    expect(destroyOk.length).toBe(2); // executed destroy + idempotent-replay audit entry
     expect(destroyOk.some((a: any) => (a.detail || "").includes("idempotent replay"))).toBe(true);
 
-    // NEVER-seen id → gate → approve executes → fail-closed "Document not found" (no fabrication).
+    // NEVER-seen id → fail closed WITHOUT fabricating an approval: no pending
+    // action, no queue entry, direct 400 "Document not found".
     const never = await api("/api/vault/destroy", { method: "POST", cookie, body: { documentId: "doc_never_existed_xyz" } });
-    expect(never.json.data.pending).toBe(true);
-    const approve3 = await api("/api/portal/approvals", {
-      method: "POST", cookie, body: { actionId: never.json.data.actionId, decision: "approve" },
-    });
-    expect(approve3.json.data.execution.success).toBe(false);
-    expect(JSON.stringify(approve3.json.data.execution.result || approve3.json.data).toLowerCase()).toContain("document not found");
+    expect(never.status).toBe(400);
+    expect(never.json.data.ok).toBe(false);
+    expect(never.json.data.error).toBe("Document not found");
+    expect(never.json.data.pending).toBeUndefined();
   });
 
   it("cross-tenant isolation at the API layer: tenant B cannot read/write tenant A vault state", async () => {

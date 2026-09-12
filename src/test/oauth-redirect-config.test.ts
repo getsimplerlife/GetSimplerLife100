@@ -1,12 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const providersDir = join(process.cwd(), "src/integrations/providers");
+// Only providers WITH an OAuth auth module are in scope here. Native
+// providers (e.g. "vault" — Document & File Intelligence) have no third-party
+// OAuth flow and no auth.ts; skipping them keeps this guard about OAuth URIs,
+// which is its job (the OAuth redirect-safety rules do not apply to "provider"
+// dirs that never open an OAuth handshake).
 const oauthFiles = readdirSync(providersDir, { withFileTypes: true })
   .filter((entry) => entry.isDirectory())
   .map((entry) => join(providersDir, entry.name, "auth.ts"))
-  .filter((file) => readFileSync(file, "utf8").match(/OAuthConfig|flowType/));
+  .filter((file) => existsSync(file) && readFileSync(file, "utf8").match(/OAuthConfig|flowType/));
 
 const QUERY_STRING_REDIRECT = /oauth\/callback\?provider=/;
 
