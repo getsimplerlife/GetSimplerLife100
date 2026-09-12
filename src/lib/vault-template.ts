@@ -391,7 +391,7 @@ export function importVaultTemplate(
       fields: Array.isArray(rec.fields) ? (rec.fields as VaultTemplateField[]) : [],
     });
     if (!norm.ok) return { ok: false, error: `Import rejected: ${norm.error}` };
-    return createVaultTemplate({
+    return auditImport(input, nameRaw, createVaultTemplate({
       tenantEmail: input.tenantEmail,
       actor: input.actor,
       dataDir: input.dataDir,
@@ -400,7 +400,7 @@ export function importVaultTemplate(
       body: norm.body,
       fields: norm.fields,
       source: "upload",
-    });
+    }));
   }
 
   if (ext === "txt" || ext === "md") {
@@ -411,7 +411,7 @@ export function importVaultTemplate(
     const title = nameRaw.replace(/\.(txt|md)$/i, "").trim() || "Imported template";
     const norm = validateTemplateInput({ name: title, description: "Imported template", body, fields: [] });
     if (!norm.ok) return norm;
-    return createVaultTemplate({
+    return auditImport(input, nameRaw, createVaultTemplate({
       tenantEmail: input.tenantEmail,
       actor: input.actor,
       dataDir: input.dataDir,
@@ -420,10 +420,23 @@ export function importVaultTemplate(
       body: norm.body,
       fields: norm.fields,
       source: "upload",
-    });
+    }));
   }
 
   return { ok: false, error: `Unsupported template file type .${ext} — expected .json, .txt or .md` };
+}
+/**
+ * Provenance audit for template IMPORT: a successful upload must leave a
+ * `vaultTemplate.import` entry in the immutable vault audit (in addition to
+ * the inner `vaultTemplate.create` write audit) so the audit trail can tell
+ * an uploaded template apart from a scratch-created one. Uses the same
+ * fail-closed `audit()` (throws if the audit write fails).
+ */
+function auditImport(input: TemplateWriteOpts, fileName: string, out: TemplateOutcome): TemplateOutcome {
+  if (out.ok && out.template) {
+    audit(input, "vaultTemplate.import", out.template.id, `Imported template ${out.template.name} (v${out.template.version}) from ${sanitizeVaultTemplateFileName(fileName)}`);
+  }
+  return out;
 }
 
 /** Sanitize an uploaded template file name (never a path, never dot-led). */

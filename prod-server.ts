@@ -1338,7 +1338,8 @@ serve({
           fields: fields !== undefined ? (Array.isArray(fields) ? fields : undefined) : undefined,
         });
         auditPortal("vault.template.version", out.ok ? `Template ${out.template?.name} → v${out.template?.version}` : `Template update failed: ${out.error}`);
-        return Response.json({ data: { ok: out.ok, version: out.ok ? out.template?.version : undefined, previous: out.ok ? out.template?.version - 1 : undefined, error: out.ok ? undefined : out.error } }, { status: out.ok ? 200 : 400 });
+        const version = out.ok && out.template ? out.template.version : undefined;
+        return Response.json({ data: { ok: out.ok, version, previous: version !== undefined ? version - 1 : undefined, error: out.ok ? undefined : out.error } }, { status: out.ok ? 200 : 400 });
       }
       if (pathname === "/api/vault/templates/import" && req.method === "POST") {
         let form: FormData;

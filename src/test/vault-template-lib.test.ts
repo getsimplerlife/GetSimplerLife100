@@ -30,6 +30,7 @@ import {
   TEMPLATE_MAX_IMPORT_BYTES,
   type VaultTemplate,
 } from "../lib/vault-template";
+import { listVaultAudit } from "../lib/vault-audit";
 
 let dataDir = "";
 
@@ -207,6 +208,22 @@ describe("import: sniffing + caps (mirrors vault-intake)", () => {
     expect(r2.ok).toBe(true);
     expect((r2 as any).template.source).toBe("upload");
     expect(listVaultTemplates("lib-a@test.local", dataDir).templates).toHaveLength(2);
+  });
+
+  it("records a vaultTemplate.import provenance entry in the immutable vault audit (alongside the inner create write)", () => {
+    const json = new TextEncoder().encode(JSON.stringify({ name: "Audited Import", body: "# {{y}}", fields: [{ key: "y", label: "Y" }] }));
+    const r = importVaultTemplate({ tenantEmail: "lib-a@test.local", actor: "auditor@test.local", dataDir, fileName: "audited.json", bytes: json });
+    expect(r.ok).toBe(true);
+    const tpl = (r as any).template as VaultTemplate;
+    const entries = listVaultAudit(dataDir, "lib-a@test.local");
+    const importEntries = entries.filter((e) => e.action === "vaultTemplate.import" && e.documentId === tpl.id);
+    const createEntries = entries.filter((e) => e.action === "vaultTemplate.create" && e.documentId === tpl.id);
+    // Every successful import = one provenance entry + the inner write audit,
+    // both keyed to the exact template id, with the upload actor recorded.
+    expect(importEntries.length).toBe(1);
+    expect(createEntries.length).toBe(1);
+    expect(importEntries[0].actor).toBe("auditor@test.local");
+    expect(importEntries[0].outcome).toBe("ok");
   });
 
   it("rejects oversized, bad-extension, binary, and non-JSON-content imports (fail-closed)", () => {
