@@ -7,11 +7,9 @@ import { detectPackType, buildPackPurchase, verifyStripeSignature, matchAgentByP
 import { buildOwnerSaleEvent, provisionAccountForPurchase, ownerSaleEmailBody } from "./src/lib/purchase-sales-events";
 import {
   generateResetCode,
-  hashResetCode,
   newPasswordResetRecord,
   verifyPasswordReset,
   isPasswordResetRateLimited,
-  MAX_RESET_SENDS_PER_WINDOW,
   MAX_RESET_VERIFY_ATTEMPTS,
 } from "./src/lib/password-reset";
 import { AGENTS } from "./src/data/agents";
@@ -128,7 +126,8 @@ function generateSessionToken(): string {
 }
 
 async function handleLogin(body: any): Promise<Response> {
-  const { email, password } = body;
+  const email = String(body?.email || "").toLowerCase().trim();
+  const password = body?.password;
   if (!email || !password) {
     return Response.json({ error: "Email and password required" }, { status: 400 });
   }
@@ -152,9 +151,16 @@ async function handleLogin(body: any): Promise<Response> {
 }
 
 async function handleRegister(body: any): Promise<Response> {
-  const { email, password } = body;
+  const email = String(body?.email || "").toLowerCase().trim();
+  const password = body?.password;
   if (!email || !password) {
     return Response.json({ error: "Email and password required" }, { status: 400 });
+  }
+  if (!EMAIL_RE.test(email)) {
+    return Response.json({ error: "A valid email address is required" }, { status: 400 });
+  }
+  if (typeof password !== "string" || password.length < 8) {
+    return Response.json({ error: "Password must be at least 8 characters" }, { status: 400 });
   }
   const users = readJSON(USERS_FILE);
   if (users[email]) {
@@ -516,10 +522,83 @@ if (!process.env.STRIPE_WEBHOOK_SECRET) {
   console.log("[prod-server] WARNING: STRIPE_WEBHOOK_SECRET is not set — /api/stripe/webhook and /api/stripe-webhook accept unsigned payloads (a forged checkout.session.completed could mark any email as purchased). Set STRIPE_WEBHOOK_SECRET before launch; the handler is signature-verification-ready.");
 }
 const serverPort = resolveServerPort(process.env.PORT);
+/** RFC-ish email check for registration (also defends the SSR inline-JS injection of
+ *  session emails: no `<`, `>`, quotes, or control chars can ever enter a user record). */
+const EMAIL_RE = /^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@(?:[A-Za-z0-9-]+\.)*[A-Za-z]{2,}$/;
 console.log(`[prod-server] Starting server on port ${serverPort}...`);
+// ── Security hardening (owner hard bar 09-10) ───────────────────────────────
+// Every response gets hardening headers; HSTS + cookie-Secure only on real
+// https (x-forwarded-proto https from the TLS edge, or direct https).
+const SECURITY_CSP = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "font-src 'self' data:",
+  "connect-src 'self'",
+  "frame-src https:",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+].join("; ");
+
+function isSecureRequest(req: Request): boolean {
+  const proto = (req.headers.get("x-forwarded-proto") || "").split(",")[0]?.trim();
+  return proto === "https" || req.url.startsWith("https:");
+}
+
+/** Post-process every response: fail-closed-headers, and Secure-flag the session
+ *  cookie on https (curl-based local smokes on http keep working unchanged). */
+function applySecurityHeaders(req: Request, res: Response): Response {
+  res.headers.set("X-Content-Type-Options", "nosniff");
+  res.headers.set("X-Frame-Options", "DENY");
+  res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.headers.set("Content-Security-Policy", SECURITY_CSP);
+  res.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  if (!res.headers.has("Cache-Control")) {
+    res.headers.set("Cache-Control", "no-store, must-revalidate");
+  }
+  if (isSecureRequest(req)) {
+    res.headers.set("Strict-Transport-Security", "max-age=31536000");
+    const setCookie = res.headers.get("Set-Cookie");
+    if (setCookie && setCookie.includes("session=") && !/;\s*Secure/i.test(setCookie)) {
+      res.headers.set("Set-Cookie", setCookie + "; Secure");
+    }
+  }
+  return res;
+}
+
+const rateLimitBuckets = new Map<string, number[]>();
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_DEFAULT = 20; // requests per IP per minute
+function clientIp(req: Request): string {
+  const fwd = req.headers.get("x-forwarded-for") || "";
+  return fwd.split(",")[0]?.trim() || "local";
+}
+function rateLimited(req: Request, key: string, max = RATE_LIMIT_DEFAULT): boolean {
+  const bucket = clientIp(req) + ":" + key;
+  const now = Date.now();
+  const hits = (rateLimitBuckets.get(bucket) || []).filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+  if (hits.length >= max) {
+    rateLimitBuckets.set(bucket, hits);
+    return true;
+  }
+  hits.push(now);
+  rateLimitBuckets.set(bucket, hits);
+  return false;
+}
+function rateLimitedResponse(): Response {
+  return Response.json({ error: "Too many requests. Please try again later." }, { status: 429 });
+}
+
 serve({
   port: serverPort, // canonical 3000; platform default PORT=80 ignored; explicit numeric overrides honored (see src/lib/server-port.ts)
   async fetch(req) {
+    return applySecurityHeaders(req, await handleFetch(req));
+  },
+});
+
+async function handleFetch(req: Request): Promise<Response> {
     const url = new URL(req.url);
     const pathname = url.pathname;
     // Health check endpoint (I7: never cached — uptime monitors must see live state)
@@ -562,10 +641,12 @@ serve({
     }
 
     if (pathname === "/api/login" && req.method === "POST") {
+      if (rateLimited(req, "login", 60)) return rateLimitedResponse();
       try { const body = await req.json(); return await handleLogin(body); }
       catch { return Response.json({ error: "Invalid request" }, { status: 400 }); }
     }
     if (pathname === "/api/register" && req.method === "POST") {
+      if (rateLimited(req, "register", 60)) return rateLimitedResponse();
       try { const body = await req.json(); return await handleRegister(body); }
       catch { return Response.json({ error: "Invalid request" }, { status: 400 }); }
     }
@@ -577,6 +658,7 @@ serve({
     }
 
     if (pathname === "/api/check-user-exists" && req.method === "POST") {
+      if (rateLimited(req, "check-user")) return rateLimitedResponse();
       try {
         const { email } = await req.json();
         if (!email) return Response.json({ error: "Email required" }, { status: 400 });
@@ -592,6 +674,7 @@ serve({
     // generic response is returned for unknown emails so this endpoint does not
     // become an account-enumeration oracle.
     if (pathname === "/api/request-password-reset" && req.method === "POST") {
+      if (rateLimited(req, "reset", 10)) return rateLimitedResponse();
       try {
         const body = await req.json();
         const email = String(body?.email || "").toLowerCase().trim();
@@ -2257,6 +2340,7 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
   return { subject, body, matchedAgents: matched, bestPlan, planLink };
 }
     if (pathname === "/api/tools/capture-lead" && req.method === "POST") {
+      if (rateLimited(req, "lead", 10)) return rateLimitedResponse();
       try {
         const body = await req.json();
         // Load agents for lookup
@@ -3858,7 +3942,8 @@ OAUTH_${provUpper}_CLIENT_SECRET=your_client_secret</pre><p style="font-size:0.8
               const sessions = readJSON(SESSIONS_FILE);
               const session = sessions[match[1]];
               if (session?.email) {
-                const userScript = `<script>window.__PORTAL_USER__=${JSON.stringify({email:session.email})};window.__PORTAL_READY__=true;</script>`;
+                const userPayload = JSON.stringify({ email: session.email }).replace(/</g, "\\u003c");
+                const userScript = `<script>window.__PORTAL_USER__=${userPayload};window.__PORTAL_READY__=true;</script>`;
                 html = html.replace("</head>", userScript + "</head>");
               }
             }
@@ -3881,8 +3966,7 @@ OAUTH_${provUpper}_CLIENT_SECRET=your_client_secret</pre><p style="font-size:0.8
       } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
         return new Response("Server error", { status: 500 });
       }
-  },
-});
+}
 console.log(`[prod-server] Port ${serverPort} — SSR mode: server-side rendering + client hydration | API: /api/login, /api/register, /api/logout, /api/me`);
 // Signal readiness — write a file the publish tool can detect
 try { require("fs").writeFileSync("/tmp/slr100-ready", String(Date.now())); } catch (_) {}
