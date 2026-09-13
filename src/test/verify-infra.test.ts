@@ -169,6 +169,56 @@ describe("phase 7 verification infra — credential source", () => {
       rmSync(dir, { recursive: true, force: true });
     }
   });
+  it("FAILS CLOSED: a tenant-scoped lookup never falls back to another tenant's row (oauth-disconnect-durable regression)", async () => {
+    // oauth-disconnect-durable 100%-repro root cause: after the fixture's row
+    // was deleted, findCredentialEntry fell back to `keys.filter(k =>
+    // k.endsWith(":xero"))` and returned ANOTHER tenant's REAL live Xero JWT
+    // for the fixture's tenant. Tenant-scoped reads must be STRICT: has the
+    // tenant got a row? Yes → return it. No → return nothing, never a
+    // different tenant's credential.
+    await durableClose();
+    const dir = mkdtempSync(join(tmpdir(), "verify-cred-"));
+    try {
+      const driver = new MemoryKvDriver({
+        "tenant_oauth_credentials.json": {
+          "other@example.com:xero": { provider: "xero", accessToken: "tok-other-tenant", refreshToken: "rt-other-tenant" },
+          "xero": { provider: "xero", accessToken: "tok-bare" },
+        },
+      });
+      await initDurableStore(dir, driver);
+      // Tenant given, exact key missing → undefined (NOT the other tenant's row).
+      const miss = loadStoredCredential("xero", { tenant: "nobody@example.com", dataDir: dir });
+      expect(miss.credential).toBeUndefined();
+      // Same via the file layer when the durable store is empty.
+      await durableClose();
+      const dir2 = mkdtempSync(join(tmpdir(), "verify-cred-"));
+      try {
+        writeFileSync(
+          join(dir2, "tenant_oauth_credentials.json"),
+          JSON.stringify({ "other@example.com:xero": { provider: "xero", accessToken: "tok-file-other" } }),
+        );
+        const fileMiss = loadStoredCredential("xero", { tenant: "nobody@example.com", dataDir: dir2 });
+        expect(fileMiss.credential).toBeUndefined();
+      } finally {
+        rmSync(dir2, { recursive: true, force: true });
+      }
+      // No tenant (verification CLI mode) keeps the documented "first
+      // `:provider` row wins" behavior — verification runs explicitly have no
+      // tenant to scope by and must still find stored credentials.
+      await initDurableStore(dir, driver);
+      const noTenant = loadStoredCredential("xero", { dataDir: dir });
+      expect(noTenant.credential?.accessToken).toBe("tok-other-tenant");
+      // persistRefreshedCredential must never WRITE another tenant's row when
+      // the requested tenant has no row of its own (same strict lookup).
+      persistRefreshedCredential("xero", { accessToken: "tok-should-not-land", refreshToken: "x" }, { tenant: "nobody@example.com", dataDir: dir });
+      const stored = durableGet("tenant_oauth_credentials.json") as Record<string, any>;
+      expect(stored["other@example.com:xero"].accessToken).toBe("tok-other-tenant");
+      expect(stored["nobody@example.com:xero"]).toBeUndefined();
+    } finally {
+      await durableClose();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
   it("persists a rotated refresh token back to the durable store (Xero single-use refresh tokens)", async () => {
     await durableClose();
     const dir = mkdtempSync(join(tmpdir(), "verify-cred-"));

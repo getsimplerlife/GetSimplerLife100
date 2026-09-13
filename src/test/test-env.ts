@@ -251,6 +251,11 @@ async function spawnServerOnce(): Promise<void> {
     DATA_DIR: testDataDir(),
     // Disable the Neon durable store: file-backed, zero live writes.
     DATABASE_URL: "",
+    // Never let the boot-time legacy migration copy the CANONICAL host's live
+    // store (incl. real OAuth credentials) into the isolated test dir — the
+    // wipe makes the dir empty, and migrateLegacyData would otherwise treat it
+    // as a fresh production boot and copy /home/team/shared/site/.data in.
+    SKIP_LEGACY_MIGRATION: "1",
     STRIPE_WEBHOOK_SECRET: resolveWebhookSecretFromEnv(),
     // Slack route is fail-closed without a signing secret; the isolated test
     // server gets a deterministic one so server-level route tests (PR #169

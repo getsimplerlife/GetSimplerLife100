@@ -85,8 +85,11 @@ export function loadTokenFile(path: string): ProviderCredential {
 /**
  * Find a stored credential, preferring the durable store (Neon) and falling
  * back to `.data/tenant_oauth_credentials.json` for tests / local dev.
- * Lookup order (same for both sources): `${tenant}:${provider}` exact, any key
- * ending `:${provider}` (first tenant found), then a bare `${provider}` key.
+ * Lookup (same for both sources):
+ *   - tenant given → STRICTLY the exact `${tenant}:${provider}` key. Missing
+ *     means missing — never another tenant's row (fail-closed isolation).
+ *   - tenant omitted (verification CLI / batch runner) → the first `:provider`
+ *     key found (documented "first tenant found"), then a bare `${provider}` key.
  */
 export function loadStoredCredential(
   provider: string,
@@ -130,9 +133,23 @@ function findCredentialEntry(
 ): { key: string; entry: ProviderCredential } | undefined {
   const keys = Object.keys(data);
   const candidates: string[] = [];
-  if (tenant && data[`${tenant}:${provider}`]) candidates.push(`${tenant}:${provider}`);
-  candidates.push(...keys.filter((k) => k.endsWith(`:${provider}`)));
-  candidates.push(...keys.filter((k) => k === provider));
+  if (tenant) {
+    // Tenant-scoped lookups are STRICT — only this tenant's exact key
+    // qualifies. Falling back to `keys.filter(k => k.endsWith(":xero"))`
+    // returned ANOTHER tenant's credential when this tenant's row was missing
+    // (a cross-tenant leak — live-proven by oauth-disconnect-durable: the
+    // test tenant received the owner's real Xero JWT). Absent means absent;
+    // callers that know the tenant must fail closed, never leak.
+    const exact = `${tenant}:${provider}`;
+    if (data[exact]) candidates.push(exact);
+  } else {
+    // No tenant (verification CLI / batch runner): first usable `:provider`
+    // row (the documented "first tenant found"), then a bare provider key for
+    // legacy fixture layouts. Only legitimate when the caller has NO tenant to
+    // scope by — it must never be reached from a tenant-scoped path.
+    candidates.push(...keys.filter((k) => k.endsWith(`:${provider}`)));
+    candidates.push(...keys.filter((k) => k === provider));
+  }
   for (const key of candidates) {
     const entry = data[key];
     if (!entry) continue;

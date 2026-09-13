@@ -542,6 +542,16 @@ const SECURITY_CSP = [
   "form-action 'self'",
 ].join("; ");
 
+/** HTML responses carry a per-response nonce and DROP 'unsafe-inline' from
+ *  script-src (the only directive that allowed raw inline execution). The
+ *  nonce is bound to every inline <script> the server emits (template
+ *  error-monitor, SW-unregister, portal user payload), so inline JS still
+ *  runs — but ONLY the exact payloads this server injected for THIS response.
+ *  Post-PR-#246 follow-up (owner hard bar): closes the 'unsafe-inline' gap. */
+function cspWithNonce(nonce: string): string {
+  return SECURITY_CSP.replace("script-src 'self' 'unsafe-inline'", `script-src 'self' 'nonce-${nonce}'`);
+}
+
 function isSecureRequest(req: Request): boolean {
   const proto = (req.headers.get("x-forwarded-proto") || "").split(",")[0]?.trim();
   return proto === "https" || req.url.startsWith("https:");
@@ -553,7 +563,9 @@ function applySecurityHeaders(req: Request, res: Response): Response {
   res.headers.set("X-Content-Type-Options", "nosniff");
   res.headers.set("X-Frame-Options", "DENY");
   res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-  res.headers.set("Content-Security-Policy", SECURITY_CSP);
+  if (!res.headers.has("Content-Security-Policy")) {
+    res.headers.set("Content-Security-Policy", SECURITY_CSP);
+  }
   res.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
   if (!res.headers.has("Cache-Control")) {
     res.headers.set("Cache-Control", "no-store, must-revalidate");
@@ -3892,12 +3904,16 @@ OAUTH_${provUpper}_CLIENT_SECRET=your_client_secret</pre><p style="font-size:0.8
         }
 
         let html = readFileSync(indexPath, "utf-8");
-
+        // Nonce-based CSP (owner hard-bar follow-up): every inline script below
+        // carries a per-response nonce so script-src can drop 'unsafe-inline'
+        // for HTML. Tag the template's inline scripts (they have no `src=`).
+        const nonce = crypto.randomUUID();
+        html = html.replace(/<script(?![^>]*\bsrc=)[^>]*>/g, '<script nonce="' + nonce + '">');
         // Kill all service workers immediately on every page load.
         // This breaks the stale-SW trap where old SWs intercept requests and
         // serve cached JS/CSS from previous deploys, preventing the new SW
         // from ever loading. Runs before any other script on the page.
-        html = html.replace("</head>", `<script>if("serviceWorker" in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(s=>s.unregister()));caches.keys().then(ks=>Promise.all(ks.map(k=>caches.delete(k))))}</script></head>`);
+        html = html.replace("</head>", `<script nonce="${nonce}">if("serviceWorker" in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(s=>s.unregister()));caches.keys().then(ks=>Promise.all(ks.map(k=>caches.delete(k))))}</script></head>`);
         // Cache-bust asset URLs to force CDN revalidation on new deploys
         html = html.replace(
           /(src|href)="(\/assets\/[^"]+)"/g,
@@ -3911,6 +3927,7 @@ OAUTH_${provUpper}_CLIENT_SECRET=your_client_secret</pre><p style="font-size:0.8
             headers: {
               "Content-Type": "text/html; charset=utf-8",
               "Cache-Control": "no-store, must-revalidate",
+              "Content-Security-Policy": cspWithNonce(nonce),
             },
           });
         }
@@ -3943,7 +3960,7 @@ OAUTH_${provUpper}_CLIENT_SECRET=your_client_secret</pre><p style="font-size:0.8
               const session = sessions[match[1]];
               if (session?.email) {
                 const userPayload = JSON.stringify({ email: session.email }).replace(/</g, "\\u003c");
-                const userScript = `<script>window.__PORTAL_USER__=${userPayload};window.__PORTAL_READY__=true;</script>`;
+                const userScript = `<script nonce="${nonce}">window.__PORTAL_USER__=${userPayload};window.__PORTAL_READY__=true;</script>`;
                 html = html.replace("</head>", userScript + "</head>");
               }
             }
@@ -3961,6 +3978,7 @@ OAUTH_${provUpper}_CLIENT_SECRET=your_client_secret</pre><p style="font-size:0.8
             "Content-Type": "text/html; charset=utf-8",
             "Cache-Control": "no-store, must-revalidate",
             "ETag": `"${Date.now().toString(36)}"`,
+            "Content-Security-Policy": cspWithNonce(nonce),
           },
         });
       } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
