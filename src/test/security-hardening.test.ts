@@ -148,4 +148,34 @@ describe("security hardening (headers / cookies / validation / rate limits)", ()
     expect(r.status).toBe(401);
     expect(r.json?.error).toBeTruthy();
   });
+  it("nonce-CSP: HTML responses drop 'unsafe-inline'; every inline script carries the nonce", async () => {
+    const res = await fetch(`${BASE_URL}/`);
+    const csp = res.headers.get("content-security-policy") || "";
+    const scriptSrc = csp.match(/script-src ([^;]+)/)?.[1] || "";
+    expect(scriptSrc).toContain("'nonce-");
+    expect(scriptSrc).not.toContain("'unsafe-inline'");
+    // style-src intentionally keeps 'unsafe-inline' (inline <style> is not an
+    // XSS vector; scoped to CSS only) — verify script-src is the tightened one.
+    expect(csp).toContain("style-src 'self' 'unsafe-inline'");
+    const nonce = csp.match(/'nonce-([A-Za-z0-9_-]+)'/)?.[1];
+    expect(nonce).toBeTruthy();
+    const html = await res.text();
+    const tags = html.match(/<script\b[^>]*>/g) || [];
+    expect(tags.length).toBeGreaterThanOrEqual(2);
+    for (const tag of tags) {
+      if (!/\bsrc=/.test(tag)) {
+        expect(tag).toContain(`nonce="${nonce}"`);
+      }
+    }
+    // External module script untouched (no nonce needed; 'self' covers it).
+    const moduleTag = tags.find((t) => /\bsrc=/.test(t));
+    expect(moduleTag).toBeTruthy();
+    expect(moduleTag).not.toContain("nonce=");
+  });
+  it("nonce-CSP: API/JSON responses keep the static CSP (no inline scripts there)", async () => {
+    const r = await api("/api/health");
+    const csp = r.headers.get("content-security-policy") || "";
+    expect(csp).toContain("script-src 'self' 'unsafe-inline'");
+    expect(csp).not.toContain("'nonce-");
+  });
 });

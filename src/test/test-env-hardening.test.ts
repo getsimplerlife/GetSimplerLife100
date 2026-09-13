@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { mkdtempSync, rmSync, writeFileSync, existsSync, readdirSync, mkdirSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
+import { migrateLegacyData } from "../lib/data-store";
 import {
   isDefaultIsolatedDataDir,
   TEST_DATA_DIR_DEFAULT,
@@ -60,6 +61,46 @@ describe("test-env flake hardening (fresh test state every run)", () => {
     expect(existsSync(dflt)).toBe(true);
     expect(readdirSync(dflt)).toEqual([]);
     rmSync(dflt, { recursive: true, force: true });
+  });
+
+  it("NEVER migrates the live store into the isolated dir (SKIP_LEGACY_MIGRATION)", () => {
+    // Regression (oauth-disconnect-durable 100%-repro): the self-hosted test
+    // server boots with an EMPTY isolated DATA_DIR, so boot-time
+    // migrateLegacyData treated it as a fresh production boot and copied the
+    // canonical host's live store — including REAL OAuth credentials (the
+    // owner's Xero JWT) — into /tmp/simplerlife100-test-data. Any suite could
+    // then read production secrets. The suite must NEVER migrate from the live
+    // tree: test-env.ts spawns the server with SKIP_LEGACY_MIGRATION=1.
+    const legacy = mkdtempSync(join(tmpdir(), "sl100-legacy-"));
+    const target = mkdtempSync(join(tmpdir(), "sl100-target-"));
+    try {
+      writeFileSync(
+        join(legacy, "tenant_oauth_credentials.json"),
+        JSON.stringify({ "a@example.com:xero": { accessToken: "REAL-SECRET" } }),
+      );
+
+      // Default boot: fresh-dir migration still works (production recovery
+      // semantics are unchanged — test-env is the only place that sets the flag).
+      rmSync(target, { recursive: true, force: true });
+      const migrated = migrateLegacyData(target, [legacy]);
+      expect(migrated.migrated).toBe(1);
+      expect(existsSync(join(target, "tenant_oauth_credentials.json"))).toBe(true);
+      rmSync(target, { recursive: true, force: true });
+      mkdirSync(target);
+
+      // Spawned-test-server env: migration skipped — the isolated dir stays clean.
+      process.env.SKIP_LEGACY_MIGRATION = "1";
+      try {
+        const skipped = migrateLegacyData(target, [legacy]);
+        expect(skipped.migrated).toBe(0);
+        expect(readdirSync(target)).toEqual([]);
+      } finally {
+        delete process.env.SKIP_LEGACY_MIGRATION;
+      }
+    } finally {
+      rmSync(legacy, { recursive: true, force: true });
+      rmSync(target, { recursive: true, force: true });
+    }
   });
 
   it("reuses a server ONLY while its boot marker is fresh AND its spawner is alive", () => {

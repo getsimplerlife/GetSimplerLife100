@@ -72,6 +72,15 @@ export function findLegacyDataDir(candidates: string[] = legacyDataDirCandidates
  * Returns the number of files copied (0 = nothing to migrate / no-op).
  */
 export function migrateLegacyData(dataDir: string, candidates: string[] = legacyDataDirCandidates()): { migrated: number; legacyDir: string | null } {
+  // Test isolation (security gate): the self-hosted test suite boots
+  // prod-server with an ISOLATED data dir under /tmp. It must NEVER copy the
+  // canonical host's live store into that dir — the legacy candidate includes
+  // /home/team/shared/site/.data, which holds REAL OAuth credentials. That
+  // spill made oauth-disconnect-durable read the owner's live Xero JWT from
+  // the "isolated" test dir (and any suite could). test-env.ts sets
+  // SKIP_LEGACY_MIGRATION=1 for every spawned test server; production boots
+  // never set it, so the post-deploy recovery migration is unchanged.
+  if (process.env.SKIP_LEGACY_MIGRATION === "1") return { migrated: 0, legacyDir: null };
   // Target already populated → never touch it.
   if (existsSync(dataDir)) {
     try {
