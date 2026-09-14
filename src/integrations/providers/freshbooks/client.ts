@@ -1,10 +1,10 @@
-import { HttpClient } from "../../framework/client"; import { OAuthTokens, isTokenExpired } from "../../framework/oauth"; import { ConnectionConfig } from "../../framework/connection";
+import { HttpClient } from "../../framework/client"; import { type OAuthTokens, isTokenExpired } from "../../framework/oauth"; import { type ConnectionConfig } from "../../framework/connection";
 
 export class FreshBooksClient {
-  private client: HttpClient; private tokens: OAuthTokens; private authConfig: any; private accountId: string;
+  private client: HttpClient; private tokens: OAuthTokens; private authConfig: any; 
   constructor(tokens: OAuthTokens, authConfig: any, accountId: string) {
     this.client = new HttpClient({ baseUrl: `https://api.freshbooks.com/accounting/account/${accountId}`, rateLimit: { maxRequestsPerSecond: 20 }, retry: { maxRetries: 3, baseDelay: 1000, maxDelay: 10000 }, timeout: 30000 });
-    this.tokens = tokens; this.authConfig = authConfig; this.accountId = accountId;
+    this.tokens = tokens; this.authConfig = authConfig; 
   }
   private get headers() { return { Authorization: `Bearer ${this.tokens.accessToken}`, "Content-Type": "application/json", "Api-Version": "alpha" }; }
   private async ensureToken() { if (isTokenExpired(this.tokens) && this.tokens.refreshToken) { const { refreshFBToken } = await import("./auth"); this.tokens = await refreshFBToken(this.authConfig, this.tokens.refreshToken); } }

@@ -79,7 +79,7 @@ export const googleAdapter: CapabilityAdapter = async (contract, ctx) => {
   const accessToken = (cred.accessToken as string) || "";
   if (!accessToken) throw new Error("Google credential has no accessToken");
   await ensureFreshCredential(cred, ctx.app);
-  const provider = contract.providerId ?? "";
+
 
   switch (contract.capabilityId) {
     /* ── google-drive: understand ── */

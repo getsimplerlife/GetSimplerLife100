@@ -26,7 +26,7 @@ export const Route = createFileRoute('/how-it-works')({
 });
 
 function HowItWorksPage() {
-  const { businessName, user } = Route.useLoaderData();
+  const { businessName, user: _user } = Route.useLoaderData();
 
   return (
     <div className="flex flex-col min-h-screen selection:bg-emerald-500/30 selection:text-emerald-200 bg-stone-950">

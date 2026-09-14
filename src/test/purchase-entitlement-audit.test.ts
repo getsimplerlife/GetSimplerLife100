@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { join } from "path";
 import { createHmac } from "crypto";
 import { ensureTestServer, testBaseUrl, testDataDir } from "./test-env";
-import { hashResetCode, newPasswordResetRecord } from "../lib/password-reset";
+import { newPasswordResetRecord } from "../lib/password-reset";
 
 /**
  * purchase-entitlement-audit.test.ts — post-deploy purchase-flow integrity

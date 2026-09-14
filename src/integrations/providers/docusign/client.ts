@@ -1,4 +1,4 @@
-import { HttpClient } from "../../framework/client"; import { OAuthTokens, isTokenExpired } from "../../framework/oauth"; import { ConnectionConfig } from "../../framework/connection";
+import { HttpClient } from "../../framework/client"; import { type OAuthTokens, isTokenExpired } from "../../framework/oauth"; import { type ConnectionConfig } from "../../framework/connection";
 export interface EnvelopeRecipient { email: string; name?: string; roleName?: string; status?: string; tabs?: Array<Record<string, unknown>>; }
 export class DocuSignClient {
   private client: HttpClient; private tokens: OAuthTokens; private authConfig: any; private accountId: string; private baseUrl: string; private appToken: string; private onTokensRefreshed?: (tokens: OAuthTokens) => void;

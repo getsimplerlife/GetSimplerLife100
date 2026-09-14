@@ -10,7 +10,6 @@
 import {
   DOC_CATEGORIES,
   clampConfidence,
-  EXTRACTION_MIN_CONFIDENCE,
   EXTRACTION_MAX_LINE_ITEMS,
   type DocCategory,
   type ExtractionField,

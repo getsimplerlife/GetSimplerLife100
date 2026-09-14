@@ -1,6 +1,6 @@
 import { serve } from "bun";
-import { join, basename } from "path";
-import { readFileSync, writeFileSync, existsSync, readdirSync } from "fs";
+import { join } from "path";
+import { readFileSync, existsSync, readdirSync } from "fs";
 import { createHash, randomBytes } from "crypto";
 import { resolveDataDir, isInsidePublishTree, readJSON, readJSONLive, writeJSON, seedDataFiles, bucketConnectionsByCategory, migrateLegacyData, findLegacyDataDir, countConnections, mergeDurableCredential } from "./src/lib/data-store";
 import { detectPackType, buildPackPurchase, verifyStripeSignature, matchAgentByPaymentLink, matchAgentByMetadata, detectPlanType, buildPlanPurchase, planAgentIds } from "./src/lib/stripe-webhook";
@@ -223,7 +223,7 @@ function appendAudit(user: any, action: string, resource: string, detail: string
 async function testProviderConnection(providerId: string, providerName: string, credentials: any): Promise<{ success: boolean; error?: string }> {
   // Test the connection by making a real HTTP request
   const apiKey = credentials.apiKey || "";
-  const apiSecret = credentials.apiSecret || credentials.apiUrl || "";
+
   
   // Provider-specific connection tests
   const testUrls: Record<string, { url: string; headers: Record<string, string> }> = {
@@ -290,7 +290,7 @@ async function testProviderConnection(providerId: string, providerName: string, 
               return { success: false, error: `Invalid credentials for ${providerName}: ${body.error}.` };
             }
           }
-        } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
+        } catch (e: any) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
           // Non-JSON body on 200 — accept cautiously
         }
       }
@@ -362,7 +362,7 @@ function getProviderCategory(providerId: string): string {
 // ── Background init: monitoring gates + SSR preload (non-blocking) ──
 let ssrReady = false;
 let configureTenant: ((email: string, config: { purchased?: boolean; status?: string }) => void) | null = null;
-const _bgInit = (async () => {
+void (async () => {
   const gates = await import("./src/monitoring/gates");
   configureTenant = gates.configureTenant;
   const _initialPurchases = readJSON(TENANT_PURCHASES_FILE);
@@ -647,7 +647,7 @@ async function handleFetch(req: Request): Promise<Response> {
             "Set-Cookie": "session=" + token + "; Path=/; HttpOnly; SameSite=Lax; Max-Age=" + (60 * 60 * 24 * 7),
           },
         });
-      } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
+      } catch (e: any) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
         return new Response(null, { status: 302, headers: { Location: "/login?error=Something+went+wrong" } });
       }
     }
@@ -676,7 +676,7 @@ async function handleFetch(req: Request): Promise<Response> {
         if (!email) return Response.json({ error: "Email required" }, { status: 400 });
         const users = readJSON(USERS_FILE);
         return Response.json({ exists: !!users[email] });
-      } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e))); return Response.json({ error: "Invalid request" }, { status: 400 }); }
+      } catch (e: any) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e))); return Response.json({ error: "Invalid request" }, { status: 400 }); }
     }
 
     // ── Password reset — proof-of-ownership OTP flow (owner-flagged 08-25) ──
@@ -712,7 +712,7 @@ async function handleFetch(req: Request): Promise<Response> {
           return Response.json({ success: true, sent: smtp.sent });
         }
         return Response.json({ success: true, sent: false });
-      } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e))); return Response.json({ error: "Invalid request" }, { status: 400 }); }
+      } catch (e: any) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e))); return Response.json({ error: "Invalid request" }, { status: 400 }); }
     }
     // Step 2: exchange a valid, unexpired, unused OTP for a new password. Without
     // a correct code — proof the requester controls the account email — the
@@ -747,7 +747,7 @@ async function handleFetch(req: Request): Promise<Response> {
         rec.used = true;
         writeJSON(PASSWORD_RESETS_FILE, resets);
         return Response.json({ success: true });
-      } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e))); return Response.json({ error: "Invalid request" }, { status: 400 }); }
+      } catch (e: any) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e))); return Response.json({ error: "Invalid request" }, { status: 400 }); }
     }
 
     // ── Purchase Verification ─────────────────────────────────────
@@ -775,7 +775,7 @@ async function handleFetch(req: Request): Promise<Response> {
           p.feature === feature || p.agentType === feature || p.productId === feature
         );
         return Response.json({ hasAccess: hasFeature, reason: hasFeature ? "purchased" : "not purchased" });
-      } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
+      } catch (e: any) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
         return Response.json({ hasAccess: false, reason: "error" });
       }
     }
@@ -863,7 +863,7 @@ async function handleFetch(req: Request): Promise<Response> {
         data[user.email] = userData;
         writeJSON(COMMS_FILE, data);
         return Response.json({ success: true, data: newMsg });
-      } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
+      } catch (e: any) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
         return Response.json({ error: "Invalid request" }, { status: 400 });
       }
     }
@@ -894,7 +894,7 @@ async function handleFetch(req: Request): Promise<Response> {
           data[user.email] = userData;
           writeJSON(COMMS_FILE, data);
           return Response.json({ success: true, data: newMsg });
-        } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
+        } catch (e: any) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
           return Response.json({ error: "Invalid request" }, { status: 400 });
         }
       }
@@ -925,7 +925,7 @@ async function handleFetch(req: Request): Promise<Response> {
           }
           console.log(`[inbox] POST by ${user.email}:`, body);
           return Response.json({ success: true });
-        } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
+        } catch (e: any) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
           return Response.json({ error: "Invalid request" }, { status: 400 });
         }
       }
@@ -944,7 +944,7 @@ async function handleFetch(req: Request): Promise<Response> {
           const body = await req.json();
           console.log(`[notifications] POST by ${user.email}:`, body);
           return Response.json({ success: true });
-        } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
+        } catch (e: any) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
           return Response.json({ error: "Invalid request" }, { status: 400 });
         }
       }
@@ -1003,7 +1003,7 @@ async function handleFetch(req: Request): Promise<Response> {
           }
           console.log(`[industries] POST by ${user.email}:`, body);
           return Response.json({ success: true });
-        } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
+        } catch (e: any) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
           return Response.json({ error: "Invalid request" }, { status: 400 });
         }
       }
@@ -1043,7 +1043,7 @@ async function handleFetch(req: Request): Promise<Response> {
           const body = await req.json();
           console.log(`[reports] POST by ${user.email}:`, body);
           return Response.json({ success: true });
-        } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
+        } catch (e: any) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
           return Response.json({ error: "Invalid request" }, { status: 400 });
         }
       }
@@ -1062,7 +1062,7 @@ async function handleFetch(req: Request): Promise<Response> {
           const body = await req.json();
           console.log(`[training] POST by ${user.email}:`, body);
           return Response.json({ success: true });
-        } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
+        } catch (e: any) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
           return Response.json({ error: "Invalid request" }, { status: 400 });
         }
       }
@@ -1753,9 +1753,6 @@ async function handleFetch(req: Request): Promise<Response> {
       if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
       // Purchase gating: non-owners need active purchases for CRM/ERP/Accounting.
       // Other integrations (Communication, Marketing, Data, etc.) are ungated.
-      const purchases = readJSON(join(DATA_DIR, "tenant_purchases.json"));
-      const userPurchases = (user.email !== "mathewortiz97@gmail.com") ? (purchases[user.email] || []) : [{ status: "active", type: "owner" }];
-      const hasActivePurchase = userPurchases.some((p: any) => p.status === "active");
 
       // #232 item 3 + data-truth (#236): the connected list comes from the REAL
       // OAuth credential store with the live health overlay — never the stale
@@ -1878,7 +1875,7 @@ async function handleFetch(req: Request): Promise<Response> {
           connectionRequirements: connectionRequirements[p.id] || null,
         }));
         return Response.json({ data: augmented, total, page, limit });
-      } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
+      } catch (e: any) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
         return Response.json({ data: [], total: 0 });
       }
     }
@@ -1888,9 +1885,6 @@ async function handleFetch(req: Request): Promise<Response> {
       if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
       // Purchase gating: non-owners need active purchases for CRM/ERP/Accounting.
       // Other integrations (Communication, Marketing, Data, etc.) are ungated.
-      const purchases = readJSON(join(DATA_DIR, "tenant_purchases.json"));
-      const userPurchases = (user.email !== "mathewortiz97@gmail.com") ? (purchases[user.email] || []) : [{ status: "active", type: "owner" }];
-      const hasActivePurchase = userPurchases.some((p: any) => p.status === "active");
 
       try {
         const body = await req.json();
@@ -1999,9 +1993,6 @@ async function handleFetch(req: Request): Promise<Response> {
       if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
       // Purchase gating: non-owners need active purchases for CRM/ERP/Accounting.
       // Other integrations (Communication, Marketing, Data, etc.) are ungated.
-      const purchases = readJSON(join(DATA_DIR, "tenant_purchases.json"));
-      const userPurchases = (user.email !== "mathewortiz97@gmail.com") ? (purchases[user.email] || []) : [{ status: "active", type: "owner" }];
-      const hasActivePurchase = userPurchases.some((p: any) => p.status === "active");
 
       try {
         const body = await req.json();
@@ -2079,7 +2070,7 @@ async function handleFetch(req: Request): Promise<Response> {
         alogs3[user.email] = alogUser3;
         writeJSON(AUDIT_LOG_FILE, alogs3);
         return Response.json({ success: true });
-      } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
+      } catch (e: any) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
         return Response.json({ error: "Invalid request" }, { status: 400 });
       }
     }
@@ -2102,7 +2093,7 @@ async function handleFetch(req: Request): Promise<Response> {
           suggestedAgentName: top?.name || "Automation AI",
           paymentLink: top?.paymentLink || ""
         }});
-      } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e))); return Response.json({ analysis: { topMatch: "Automation AI", allMatches: [] } }); }
+      } catch (e: any) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e))); return Response.json({ analysis: { topMatch: "Automation AI", allMatches: [] } }); }
     }
 function lookupAgent(agentName: string): { name: string; paymentLink: string; description: string } | null {
   if (!agentName) return null;
@@ -2382,7 +2373,7 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
           console.log("[SSR] auto-send failed (non-fatal): " + (sendErr?.message || String(sendErr)));
         }
         return Response.json({ success: true });
-      } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e))); return Response.json({ success: false }, { status: 400 }); }
+      } catch (e: any) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e))); return Response.json({ success: false }, { status: 400 }); }
     }
 
     // ── /api/notifications/send ────────────────────────────────────────────────
@@ -2422,7 +2413,7 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
         writeJSON(LEAD_NOTIFICATIONS_FILE, notifs);
         console.log("[SSR] SMTP unavailable (" + smtpResult.error + ") — email queued to pending_emails.json");
         return Response.json({ success: true, sent: false, queued: true });
-      } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e))); return Response.json({ success: false }, { status: 400 }); }
+      } catch (e: any) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e))); return Response.json({ success: false }, { status: 400 }); }
     }
 
     // ── /api/notifications/pending ─────────────────────────────────────────────
@@ -2432,7 +2423,7 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
         const notifs = Array.isArray(notifsRaw) ? notifsRaw : [];
         const pending = notifs.filter((n: any) => !n.notified);
         return Response.json({ notifications: pending });
-      } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e))); return Response.json({ notifications: [] }, { status: 500 }); }
+      } catch (e: any) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e))); return Response.json({ notifications: [] }, { status: 500 }); }
     }
 
     // ── /api/upload ─────────────────────────────────────────────
@@ -2816,7 +2807,6 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
         // {}.length is undefined -> "undefined AI employees". Fall back to the
         // canonical AGENTS list so the count is always real.
         const employees = Array.isArray(employeesData) && employeesData.length > 0 ? employeesData : AGENTS;
-        const integrationMap = readJSON(join(DATA_DIR, "agent_integration_map.json"));
         const userIntegrations = readJSON(TENANT_INTEGRATIONS_FILE);
         const userConns = userIntegrations[user.email] || [];
         // ── File-creation intents (owner directive 2026-08-13) ──
@@ -2880,7 +2870,7 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
         all[user.email] = userSessions;
         writeJSON(CHAT_SESSIONS_FILE, all);
         return Response.json({ sessionId: session.id, reply, session });
-      } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
+      } catch (e: any) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
         return Response.json({ error: "Invalid request" }, { status: 400 });
       }
     }
@@ -3070,7 +3060,7 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
         // Always return an array so the client can safely call .filter(), .map(), etc.
         const userData = Array.isArray(data) ? data : (data[user.email] || []);
         return Response.json({ data: userData });
-      } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
+      } catch (e: any) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
         return Response.json({ data: [] });
       }
     }
@@ -3550,7 +3540,6 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
     if (pathname === "/api/oauth/callback" || pathname === "/api/xero-callback" || pathname.match(/^\/api\/oauth\/callback\/(.+)$/)) {
       console.log("[oauth-callback] HIT - pathname:", pathname, "params:", Object.fromEntries(url.searchParams));
       // Path-based providers (e.g. xero) embed the provider ID in the URL path
-      const pathProvider = pathname === "/api/xero-callback" ? "xero" : (pathname.match(/^\/api\/oauth\/callback\/(.+)$/) || [])[1] || null;
       const code = url.searchParams.get("code");
       const state = url.searchParams.get("state");
       const errorParam = url.searchParams.get("error");
@@ -3558,7 +3547,6 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
       
       // Provider denied authorization
       if (errorParam) {
-        const msg = encodeURIComponent(errorDesc || errorParam);
         return Response.redirect(`/portal/integrations?error=${encodeURIComponent("Authorization denied: " + (errorDesc || errorParam))}`, 302);
       }
       
@@ -3789,7 +3777,6 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
       
       // Try to use a real provider auth module
       let authUrl: string | null = null;
-      let verifier: string | undefined;
       
       try {
         const authModulePath = `./src/integrations/providers/${canonicalProvider}/auth.ts`;
@@ -3817,7 +3804,6 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
           // Store PKCE verifier if the module generated one
           if (result.verifier) {
             states[state].verifier = result.verifier;
-            verifier = result.verifier;
           }
           
           writeJSON(OAUTH_STATES_FILE, states);
@@ -3940,7 +3926,7 @@ OAUTH_${provUpper}_CLIENT_SECRET=your_client_secret</pre><p style="font-size:0.8
           if (result.html && !result.html.includes("SSR fallback")) {
             ssrHtml = result.html;
           }
-        } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
+        } catch (e: any) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
           // SSR import may fail if route tree not generated or browser APIs break
           // Silently fall back to SPA mode
         }
@@ -3964,7 +3950,7 @@ OAUTH_${provUpper}_CLIENT_SECRET=your_client_secret</pre><p style="font-size:0.8
                 html = html.replace("</head>", userScript + "</head>");
               }
             }
-          } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));}
+          } catch (e: any) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));}
         }
 
         // Inject method/action on login form for no-JS fallback
@@ -3981,7 +3967,7 @@ OAUTH_${provUpper}_CLIENT_SECRET=your_client_secret</pre><p style="font-size:0.8
             "Content-Security-Policy": cspWithNonce(nonce),
           },
         });
-      } catch (e) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
+      } catch (e: any) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
         return new Response("Server error", { status: 500 });
       }
 }

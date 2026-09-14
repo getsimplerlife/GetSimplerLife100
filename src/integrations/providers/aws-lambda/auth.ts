@@ -32,7 +32,7 @@ export function getLambdaApiUrl(region: string): string {
  * For simplicity, we use the AWS SDK-like approach with
  * access key-based authentication.
  */
-export function getAwsAuthHeaders(config: AwsLambdaAuthConfig): Record<string, string> {
+export function getAwsAuthHeaders(_config: AwsLambdaAuthConfig): Record<string, string> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     "X-Amz-Date": new Date().toISOString().replace(/[:-]|\.\d{3}/g, ""),
@@ -47,10 +47,10 @@ export function getAwsAuthHeaders(config: AwsLambdaAuthConfig): Record<string, s
  */
 export function buildAwsAuthorizationHeader(
   config: AwsLambdaAuthConfig,
-  method: string,
+  _method: string,
   service: string,
-  canonicalUri: string,
-  payloadHash: string,
+  _canonicalUri: string,
+  _payloadHash: string,
   headers: Record<string, string>,
 ): string {
   const algorithm = "AWS4-HMAC-SHA256";

@@ -7,7 +7,7 @@
  */
 import { HttpClient } from "../../framework/client";
 import type { ConnectionConfig } from "../../framework/connection";
-import { AwsLambdaAuthConfig, getLambdaApiUrl, getApiGatewayManagementUrl, getAwsAuthHeaders } from "./auth";
+import { type AwsLambdaAuthConfig, getLambdaApiUrl, getApiGatewayManagementUrl, getAwsAuthHeaders } from "./auth";
 
 // ── Type Definitions ────────────────────────────────────────────────────────
 
@@ -320,7 +320,7 @@ export class AwsLambdaClient {
    */
   async getLambdaMetrics(functionName: string): Promise<{ invocations: number; errors: number; duration: number }> {
     // Simulated metrics - in production, query CloudWatch
-    const res = await this.lambdaClient.get<any>(
+    await this.lambdaClient.get<any>(
       `/2015-03-31/functions/${encodeURIComponent(functionName)}/configuration`,
       this.authHeaders,
     );
@@ -335,7 +335,7 @@ export class AwsLambdaClient {
    * Get API Gateway metrics for a specific API and stage
    * (simulated - would use CloudWatch in production)
    */
-  async getApiGatewayMetrics(apiId: string, stageName: string): Promise<{
+  async getApiGatewayMetrics(_apiId: string, _stageName: string): Promise<{
     count: number;
     errorCount: number;
     latency: number;

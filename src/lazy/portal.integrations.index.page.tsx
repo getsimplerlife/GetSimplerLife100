@@ -172,7 +172,7 @@ function ConnectedServices() {
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadStep, setUploadStep] = useState<string>("");
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [, setSelectedFile] = useState<File | null>(null);
   const [documentsHistory, setDocumentsHistory] = useState<DocumentItem[]>([]);
   const [loadingDocs, setLoadingDocs] = useState(false);
   const [selectedDocDetails, setSelectedDocDetails] = useState<DocumentItem | null>(null);
@@ -298,51 +298,10 @@ function ConnectedServices() {
   };
 
   // Disconnect Handler
-  const handleDisconnect = async (connectionId: string, displayName: string) => {
-    if (!confirm(`Are you sure you want to disconnect ${displayName}? This will delete the active OAuth access key tokens.`)) {
-      return;
-    }
 
-    try {
-      setFeedback(`Disconnecting platform...`);
-      const res = await fetch(`/api/integrations/${connectionId}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-      
-      if (res.ok) {
-        setFeedback(`Success: disconnected ${displayName}`);
-        fetchConnectionsData();
-      } else {
-        const data = await res.json();
-        setFeedback(`Error: ${data.error || "Failed to disconnect"}`);
-      }
-      setTimeout(() => setFeedback(""), 3000);
-    } catch (err) {
-      console.error("Disconnect error:", err);
-      setFeedback("Failed to disconnect platform.");
-    }
-  };
 
   // Sync / Health Trigger
-  const handleSyncConnection = async (connectionId: string, displayName: string) => {
-    try {
-      setFeedback(`Triggering connection sync check...`);
-      const res = await fetch(`/api/integrations/${connectionId}/sync`);
-      const result = await res.json();
-      
-      if (result.synced) {
-        setFeedback(`Success: connection checked! Health: ${result.health ? "Healthy" : "Attention needed"}`);
-        fetchConnectionsData();
-      } else {
-        setFeedback(`Failed to verify connection sync.`);
-      }
-      setTimeout(() => setFeedback(""), 3500);
-    } catch (err) {
-      console.error("Sync error:", err);
-      setFeedback("Failed to check sync status.");
-    }
-  };
+
 
   // Drag & Drop Handlers
   const handleDrag = (e: React.DragEvent) => {
@@ -388,7 +347,7 @@ function ConnectedServices() {
       { t: 3800, text: "Cataloging in portal database ledger index..." },
     ];
 
-    steps.forEach((step, idx) => {
+    steps.forEach((step, _idx) => {
       setTimeout(() => {
         if (uploading) {
           setUploadStep(step.text);

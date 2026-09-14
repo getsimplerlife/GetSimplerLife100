@@ -1,4 +1,4 @@
-import { createSugarClient } from "./client"; import { ConnectionConfig } from "../../framework/connection"; import type { ActionDefinition } from "../salesforce/actions";
+import { createSugarClient } from "./client"; ; import type { ActionDefinition } from "../salesforce/actions";
 
 export const sugarActions: ActionDefinition[] = [
   { name: "searchSugarContacts", description: "List SugarCRM contacts", inputSchema: { type: "object", properties: { filter: { type: "string" } } }, handler: async (config, params) => { const c = createSugarClient(config); return c.list("Contacts", params.filter); } },

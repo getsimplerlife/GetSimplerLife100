@@ -215,7 +215,7 @@ export class LivenessMonitor {
     this.startedAt = (opts.now ?? Date.now)();
   }
 
-  private log(...a: unknown[]): void {
+  public log(...a: unknown[]): void {
     (this.opts.log ?? console.log)(...a);
   }
   private now(): number {
@@ -286,7 +286,6 @@ export class LivenessMonitor {
   async tick(): Promise<TickResult> {
     const probe = await probeLiveness(this.opts.port, this.opts.healthPath, this.opts.fetchImpl ?? fetch, this.opts.timeoutMs);
     this.probes++;
-    const now = this.now();
     if (probe.up) {
       const wasDown = this.up === false;
       this.fails = 0;

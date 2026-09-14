@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { submitFeedback } from "~/db/queries";
 import { Route } from '~/routes/portal.$auditId';
-import { redirect } from "@tanstack/react-router";
+;
 import { getUser, getAudit } from "~/db/queries";
 
 function AuditDetail() {

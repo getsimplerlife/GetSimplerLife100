@@ -2,7 +2,7 @@
  * HubSpot Integration — Actions
  */
 import { createHubSpotClient } from "./client";
-import { ConnectionConfig } from "../../framework/connection";
+import { type ConnectionConfig } from "../../framework/connection";
 
 export interface ActionDefinition {
   name: string;

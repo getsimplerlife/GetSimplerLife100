@@ -19,12 +19,12 @@
 //    size-capped.
 //  - When off/unconfigured/failed → deterministic processor output passes
 //    through untouched (no-op), preserving current behavior exactly.
-import { createModelClient, resolveLlmConfig, modelForTier, DEFAULT_LLM_CONFIG, type ModelClient, type LlmCompleteResult, type LlmTier, type LlmToolDef } from "./modelClient";
+import { createModelClient, resolveLlmConfig, type ModelClient, type LlmCompleteResult, type LlmTier, type LlmToolDef } from "./modelClient";
 import { createCostTracker, type CostTracker } from "./modelClient";
-import { readFirmMemory, type AgentContext, buildAgentContext } from "../firm-memory";
+import { type AgentContext, buildAgentContext } from "../firm-memory";
 import type { ActionItem, Insight, Alert, ProcessedData } from "../agent-processor";
-import { join } from "path";
-import { resolveDataDir } from "../data-store";
+;
+;
 import { isWriteAction } from "../approval-queue";
 
 // ── Types ────────────────────────────────────────────────────────────────
@@ -75,10 +75,7 @@ export const DEFAULT_ALLOWED_WRITE_VERBS: string[] = [];
 /** Cap on the memory/context snippet in tokens (size-capped, cannot blow budget). */
 export const MAX_CONTEXT_SNIPPET_TOKENS = 4000;
 
-function snippetTokens(text: string): number {
-  // Rough heuristic: ~4 chars/token for structured English.
-  return Math.ceil(text.length / 4);
-}
+
 
 function truncateToTokens(text: string, maxTokens: number): string {
   const maxChars = maxTokens * 4;

@@ -6,7 +6,7 @@
  */
 import { HttpClient } from "../../framework/client";
 import type { ConnectionConfig } from "../../framework/connection";
-import { getAirflowApiUrl, getAirflowAuthHeaders, AirflowAuthConfig } from "./auth";
+import { getAirflowApiUrl, getAirflowAuthHeaders, type AirflowAuthConfig } from "./auth";
 
 // ── Type Definitions ────────────────────────────────────────────────────────
 

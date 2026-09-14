@@ -1,4 +1,4 @@
-import { HttpClient } from "../../framework/client"; import { ConnectionConfig } from "../../framework/connection";
+; ;
 
 export interface AcumaticaAuth { siteUrl: string; username: string; password: string; tenant?: string; branch?: string; }
 

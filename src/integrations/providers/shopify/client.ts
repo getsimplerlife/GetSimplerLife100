@@ -12,7 +12,7 @@ import type { ConnectionConfig } from "../../framework/connection";
 export class ShopifyClient {
   private client: HttpClient;
   private accessToken: string;
-  private storeName: string;
+  public storeName: string;
 
   constructor(accessToken: string, storeName: string, apiVersion?: string) {
     if (!accessToken) throw new Error("Shopify accessToken is required");

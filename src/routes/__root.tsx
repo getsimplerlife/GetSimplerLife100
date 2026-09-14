@@ -127,7 +127,7 @@ function RootComponent() {
   );
 }
 
-function RootDocument({ children, pageMeta }: { children: ReactNode; pageMeta: { title: string; description: string } | null }) {
+function RootDocument({ children, pageMeta: _pageMeta }: { children: ReactNode; pageMeta: { title: string; description: string } | null }) {
   // In CSR mode, we render into a <div id="root"> inside the HTML shell.
   // We do NOT render <html>/<head>/<body> — those are in the static index.html.
   // TanStack Router handles <head> mgmt via HeadContent.

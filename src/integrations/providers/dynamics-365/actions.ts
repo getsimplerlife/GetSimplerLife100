@@ -1,5 +1,5 @@
 import { createDynamicsClient } from "./client";
-import { ConnectionConfig } from "../../framework/connection";
+;
 import type { ActionDefinition } from "../salesforce/actions";
 
 export const dynamicsActions: ActionDefinition[] = [

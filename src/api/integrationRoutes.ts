@@ -6,23 +6,8 @@
  */
 
 import { registry } from "../integrations/providers";
-import {
-  createConnection,
-  getConnection,
-  listConnections,
-  deleteConnection,
-  updateConnectionConfig,
-  updateConnectionStatus,
-  testConnection,
-  type ConnectionConfig,
-} from "../integrations/framework/connection";
-import {
-  generateState,
-  generateCodeVerifier,
-  isTokenExpired,
-  buildAuthorizeUrl,
-  type OAuthConfig,
-} from "../integrations/framework/oauth";
+import { createConnection, getConnection, deleteConnection, updateConnectionConfig, updateConnectionStatus, testConnection, type ConnectionConfig } from "../integrations/framework/connection";
+import { generateState, generateCodeVerifier, buildAuthorizeUrl, type OAuthConfig } from "../integrations/framework/oauth";
 import { getUserFromRequest } from "./auditLogs";
 import { readJSONLive, writeJSON, resolveDataDir } from "../lib/data-store";
 import { durableFlush } from "../lib/durable-store";
@@ -283,7 +268,6 @@ export async function handleOAuthCallback(req: Request): Promise<Response> {
     if (pathMatch) providerId = pathMatch[1];
   }
   const code = url.searchParams.get("code");
-  const state = url.searchParams.get("state");
 
   if (!providerId || !code) {
     return html(`<html><body><h2>OAuth Error</h2><p>Missing code or provider.</p><a href="/portal/integrations">Back to integrations</a></body></html>`);
@@ -625,7 +609,6 @@ export async function handleHealthCheck(req: Request): Promise<Response> {
 
 export async function handleBackgroundHealthCheck(): Promise<void> {
   try {
-    const { listConnections } = await import("../integrations/framework/connection");
     const { testConnection } = await import("../integrations/framework/connection");
     // Get all connections across all users — this requires a broad query
     const { db } = await import("../db/index");

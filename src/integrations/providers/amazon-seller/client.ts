@@ -1,7 +1,7 @@
-import { HttpClient } from "../../framework/client"; import { ConnectionConfig } from "../../framework/connection";
+import { HttpClient } from "../../framework/client"; import { type ConnectionConfig } from "../../framework/connection";
 
 export class SPApiClient {
-  private client: HttpClient; private refreshToken: string; private clientId: string; private clientSecret: string; private awsAccessKey: string; private awsSecretKey: string; private roleArn: string; private marketplaceId: string;
+  private client: HttpClient; private refreshToken: string; private clientId: string; private clientSecret: string;    private marketplaceId: string;
   constructor(conf: { refreshToken: string; clientId: string; clientSecret: string; awsAccessKey: string; awsSecretKey: string; roleArn: string; marketplaceId: string; region: string }) {
     this.client = new HttpClient({ baseUrl: `https://sellingpartnerapi-${conf.region || "na"}.amazon.com`, rateLimit: { maxRequestsPerSecond: 5 }, retry: { maxRetries: 3, baseDelay: 1000, maxDelay: 10000 }, timeout: 30000 });
     this.refreshToken = conf.refreshToken; this.clientId = conf.clientId; this.clientSecret = conf.clientSecret; this.awsAccessKey = conf.awsAccessKey; this.awsSecretKey = conf.awsSecretKey; this.roleArn = conf.roleArn; this.marketplaceId = conf.marketplaceId;

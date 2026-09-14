@@ -13,14 +13,9 @@
  */
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "fs";
-import { createElement } from "react";
-import { renderToString } from "react-dom/server";
-import {
-  PAGE_TITLES,
-  resolvePageMeta,
-  pageHead,
-  DEFAULT_PAGE_META,
-} from "../lib/site-meta";
+;
+;
+import { PAGE_TITLES, resolvePageMeta, pageHead } from "../lib/site-meta";
 
 // Every public (non-portal) route path that must resolve a meta entry.
 const PUBLIC_ROUTES = [
@@ -137,8 +132,7 @@ describe("I9 — SEO: every public route has unique, accurate meta", () => {
 
   it("pageHead emits title, description, og:title, og:description, og:url, twitter card", () => {
     const head = pageHead("/pricing").meta as any[];
-    const props = head.map((m: any) => Object.entries(m)[0]);
-    expect(head.some((m) => m.title === PAGE_TITLES["/pricing"].title)).toBe(true);
+      expect(head.some((m) => m.title === PAGE_TITLES["/pricing"].title)).toBe(true);
     expect(head.some((m) => m.name === "description" && m.content)).toBe(true);
     expect(head.some((m) => m.property === "og:title" && m.content)).toBe(true);
     expect(head.some((m) => m.property === "og:description" && m.content)).toBe(true);

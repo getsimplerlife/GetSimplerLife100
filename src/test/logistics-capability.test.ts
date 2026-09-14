@@ -65,7 +65,7 @@ describe("Logistics / Onfleet capability slice", () => {
     let calls = 0;
     const out: string[] = [];
     const adapter = {
-      readWorkers: async (tenantId: string) => {
+      readWorkers: async (_tenantId: string) => {
         calls++;
         if (calls < 2) throw Error("temporary");
         return ["worker"];

@@ -1,4 +1,4 @@
-import { createCreatioClient } from "./client"; import { ConnectionConfig } from "../../framework/connection"; import type { ActionDefinition } from "../salesforce/actions";
+import { createCreatioClient } from "./client"; ; import type { ActionDefinition } from "../salesforce/actions";
 
 export const creatioActions: ActionDefinition[] = [
   { name: "searchCreatioContacts", description: "List Creatio contacts", inputSchema: { type: "object", properties: { filter: { type: "string" } } }, handler: async (config, params) => { const c = createCreatioClient(config); return c.list("Contact", params.filter); } },

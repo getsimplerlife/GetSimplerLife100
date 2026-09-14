@@ -1,17 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  analyticsCapabilities,
-  readReports,
-  readDashboards,
-  readWorkbooks,
-  readDataSources,
-  readProjects,
-  readUsers,
-  monitorWorkbooks,
-  monitorDatasources,
-  createProject,
-  addSiteUser,
-} from "../agents/capabilities/analytics";
+import { analyticsCapabilities, readReports, readProjects, readUsers, monitorWorkbooks, monitorDatasources, createProject, addSiteUser } from "../agents/capabilities/analytics";
 
 describe("Analytics / Tableau capability slice", () => {
   it("keeps all 12 contracts unverified", () => {

@@ -18,7 +18,6 @@ import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import { ensureTestServer, testBaseUrl } from "./test-env";
 
 const BASE_URL = testBaseUrl();
-let serverHandle: any;
 
 // ── tiny helpers ─────────────────────────────────────────────────────────
 async function api(
@@ -67,7 +66,7 @@ function pdfBytes(): Uint8Array {
 
 describe("vault approval-gated write execution (native vault actions)", () => {
   beforeAll(async () => {
-    serverHandle = await ensureTestServer();
+    await ensureTestServer();
   });
   afterAll(async () => { /* self-hosted server lifecycle is managed by test-env */ });
 

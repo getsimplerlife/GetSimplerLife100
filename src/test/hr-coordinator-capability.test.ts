@@ -1,17 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  hrCoordinatorCapabilities,
-  readEmployees,
-  updateEmployee,
-  readOrgChart,
-  readTimeOff,
-  readPositions,
-  readJobRequisitions,
-  initiateOnboarding,
-  approveTimeOff,
-  createJobRequisition,
-  monitorEmployees,
-} from "../agents/capabilities/hr-coordinator";
+import { hrCoordinatorCapabilities, readEmployees, updateEmployee, readOrgChart, initiateOnboarding, monitorEmployees } from "../agents/capabilities/hr-coordinator";
 
 describe("HR Coordinator / Workday capability slice", () => {
   it("has 10 contracts (5 understand, 4 automate, 1 monitor)", () => {

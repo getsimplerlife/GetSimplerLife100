@@ -8,7 +8,6 @@ import {
   TEST_DATA_DIR_DEFAULT,
   setDefaultIsolatedDataDirForTest,
   setSpawnLockDirForTest,
-  spawnLockPath,
   acquireSpawnLock,
   releaseSpawnLock,
   wipeIsolatedDataDir,

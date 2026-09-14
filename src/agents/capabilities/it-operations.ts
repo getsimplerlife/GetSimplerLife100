@@ -210,7 +210,7 @@ export async function updateIncidentAssignment(adapter: ItOperationsAdapter, opt
 }
 
 
-export async function monitorIncidentCreated(adapter: ItOperationsAdapter, options: ItOperationsExecutionOptions, subscription: Record<string, unknown>): Promise<unknown> {
+export async function monitorIncidentCreated(adapter: ItOperationsAdapter, options: ItOperationsExecutionOptions, _subscription: Record<string, unknown>): Promise<unknown> {
   if (!adapter.monitorIncidentCreated) throw new Error("Capability adapter method is unavailable");
   requireTenant(options);
   const result = await adapter.monitorIncidentCreated(options.tenantId);

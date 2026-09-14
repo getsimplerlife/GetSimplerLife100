@@ -1,4 +1,4 @@
-import { createMondayClient } from "./client"; import { ConnectionConfig } from "../../framework/connection"; import type { ActionDefinition } from "../salesforce/actions";
+import { createMondayClient } from "./client"; ; import type { ActionDefinition } from "../salesforce/actions";
 
 export const mondayActions: ActionDefinition[] = [
   { name: "getMondayBoards", description: "Get Monday.com boards", inputSchema: { type: "object", properties: {} }, handler: async (config) => { const c = createMondayClient(config); return c.getBoards(); } },

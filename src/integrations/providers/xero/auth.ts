@@ -1,4 +1,4 @@
-import { OAuthConfig, buildAuthorizeUrl, exchangeCode, refreshToken, generateState, generateCodeVerifier, isTokenExpired } from "../../framework/oauth";
+import { type OAuthConfig, buildAuthorizeUrl, exchangeCode, refreshToken, generateState, generateCodeVerifier, isTokenExpired } from "../../framework/oauth";
 
 const DEFAULT_XERO_SCOPES = ["openid", "profile", "email"];
 // Full accounting scopes (enable in Xero Developer Portal first, then set OAUTH_XERO_SCOPES):
