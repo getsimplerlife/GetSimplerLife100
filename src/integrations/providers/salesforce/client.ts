@@ -139,7 +139,7 @@ export class SalesforceClient {
   async getUserInfo(): Promise<SalesforceUserInfo> {
     await this.ensureToken();
     const baseUrl = this.tokens.instanceUrl?.replace(/\/+$/, "") || "";
-    const res = await this.client.get<SalesforceUserInfo>("/", this.authHeaders);
+    await this.client.get<SalesforceUserInfo>("/", this.authHeaders);
     // Identity is at the base API endpoint
     const idRes = await fetch(`${baseUrl}/services/oauth2/userinfo`, {
       headers: { Authorization: `Bearer ${this.tokens.accessToken}` },

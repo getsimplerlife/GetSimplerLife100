@@ -39,7 +39,7 @@ export function RicherROICalculator({ embed = false }: RicherROICalculatorProps)
   const [tasksPerDay, setTasksPerDay] = useState(5);
   const [timePerTask, setTimePerTask] = useState(20);
   const [errorRate, setErrorRate] = useState(5);
-  const [annualSalary, setAnnualSalary] = useState(70000);
+  useState(70000);
 
   const [annualHoursSaved, setAnnualHoursSaved] = useState(0);
   const [totalAnnualSavings, setTotalAnnualSavings] = useState(0);

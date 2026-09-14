@@ -151,7 +151,7 @@ export const quickbooksAdapter: CapabilityAdapter = async (contract, ctx) => {
       try {
         const label = `${LABEL_PREFIX}${Date.now()}`;
         const customerId = await findOrCreateCustomer(client, true);
-        const accountId = await findAccountId(client);
+        await findAccountId(client);
         const created = await client.create("invoice", {
           DocNumber: label,
           CustomerRef: { value: customerId },
@@ -170,7 +170,7 @@ export const quickbooksAdapter: CapabilityAdapter = async (contract, ctx) => {
       try {
         const label = `${LABEL_PREFIX}${Date.now()}`;
         const customerId = await findOrCreateCustomer(client, true);
-        const accountId = await findAccountId(client);
+        await findAccountId(client);
         const created = await client.create("estimate", {
           DocNumber: label,
           CustomerRef: { value: customerId },

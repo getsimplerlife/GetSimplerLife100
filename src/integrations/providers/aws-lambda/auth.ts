@@ -47,10 +47,10 @@ export function getAwsAuthHeaders(_config: AwsLambdaAuthConfig): Record<string, 
  */
 export function buildAwsAuthorizationHeader(
   config: AwsLambdaAuthConfig,
-  method: string,
+  _method: string,
   service: string,
-  canonicalUri: string,
-  payloadHash: string,
+  _canonicalUri: string,
+  _payloadHash: string,
   headers: Record<string, string>,
 ): string {
   const algorithm = "AWS4-HMAC-SHA256";

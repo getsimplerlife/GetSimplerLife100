@@ -185,30 +185,8 @@ function extractXlsx(bytes: Uint8Array): { ok: true; text: string } | { ok: fals
 }
 
 // ── PDF ─────────────────────────────────────────────────────────────────
-/** Minimal WinAnsi → Unicode for the byte range that differs from latin-1
- *  (curly quotes, dashes, €, …, ™). Best-effort; everything else = latin-1. */
-const WINANSI_HIGH: Record<number, string> = {
-  0x80: "\u20AC", 0x82: "\u201A", 0x83: "\u0192", 0x84: "\u201E", 0x85: "\u2026",
-  0x86: "\u2020", 0x87: "\u2021", 0x88: "\u02C6", 0x89: "\u2030", 0x8A: "\u0160",
-  0x8B: "\u2039", 0x8C: "\u0152", 0x8E: "\u017D", 0x91: "\u2018", 0x92: "\u2019",
-  0x93: "\u201C", 0x94: "\u201D", 0x95: "\u2022", 0x96: "\u2013", 0x97: "\u2014",
-  0x98: "\u02DC", 0x99: "\u2122", 0x9A: "\u0161", 0x9B: "\u203A", 0x9C: "\u0153",
-  0x9E: "\u017E", 0x9F: "\u0178",
-};
-function decodePdfString(bytes: Uint8Array): string {
-  // UTF-16BE with BOM is the explicit PDF text-encoding marker.
-  if (bytes.length >= 2 && bytes[0] === 0xfe && bytes[1] === 0xff) {
-    let out = "";
-    for (let i = 2; i + 1 < bytes.length; i += 2) {
-      const cp = (bytes[i] << 8) | bytes[i + 1];
-      out += cp >= 0xd800 && cp <= 0xdbff && i + 3 < bytes.length ? "" : String.fromCharCode(cp);
-    }
-    return out;
-  }
-  let out = "";
-  for (const b of bytes) out += b < 0x80 ? String.fromCharCode(b) : WINANSI_HIGH[b] || String.fromCharCode(b);
-  return out;
-}
+/* WinAnsi decode helper removed in typecheck cleanup — latin-1 passthrough used. */
+
 
 /** Pull `(literal)` and `[array]` string tokens from a PDF content stream. */
 function pdfStreamToText(stream: string): string {

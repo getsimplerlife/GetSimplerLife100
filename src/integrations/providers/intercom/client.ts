@@ -6,7 +6,7 @@ export class IntercomClient {
     this.client = new HttpClient({ baseUrl: "https://api.intercom.io", rateLimit: { maxRequestsPerSecond: 10 }, retry: { maxRetries: 3, baseDelay: 1000, maxDelay: 10000 }, timeout: 30000 });
   }
   private get headers() { return { Authorization: `Bearer ${this.accessToken}`, "Content-Type": "application/json", Accept: "application/json" }; }
-  private accessToken = "";
+  public accessToken = "";
 
   async listContacts(): Promise<any[]> { const r = await this.client.get("/contacts", this.headers); return r.data?.data || []; }
   async getContact(id: string): Promise<any> { const r = await this.client.get(`/contacts/${id}`, this.headers); return r.data; }

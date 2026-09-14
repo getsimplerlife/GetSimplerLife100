@@ -479,7 +479,7 @@ export const jiraAdapter: CapabilityAdapter = async (contract, ctx) => {
       const issues = await client.searchIssues("ORDER BY created DESC", 1);
       const key = issues[0]?.key as string | undefined;
       if (!key) throw new Error("Jira site has no issues to read");
-      const issue = await client.getIssue(key);
+      await client.getIssue(key);
       return { httpStatus: 200, response: { found: true, key } };
     }
     case "jira-update-issue": {
@@ -1269,8 +1269,7 @@ export const tableauAdapter: CapabilityAdapter = async (contract, ctx) => {
     }
     case "tableau-add-site-user": {
       if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
-      const label = LABEL();
-      const created = await client.addSiteUser({ name: `phase7-${Date.now()}@verify.example.invalid`, siteRole: "Viewer" });
+      await client.addSiteUser({ name: `phase7-${Date.now()}@verify.example.invalid`, siteRole: "Viewer" });
       const userId = created?.id as string | undefined;
       if (!userId) throw new Error("Tableau addSiteUser returned no id");
       // Non-destructive (owner directive): the labeled verification user is LEFT in place.
@@ -1626,7 +1625,6 @@ export const marketoAdapter: CapabilityAdapter = async (contract, ctx) => {
       const leads = await client.listLeads({ maxReturn: 1 } as any);
       const leadId = leads[0]?.id as number | undefined;
       if (!leadId) throw new Error("Marketo instance has no leads to add to list");
-      const label = LABEL();
       await client.addLeadsToList(listId, [leadId]);
       // Non-destructive (owner directive): the labeled lead membership is LEFT in place.
       // No removeLeadsFromList cleanup — removal inside client accounts is explicit-client-request only.
@@ -1713,7 +1711,7 @@ export const anaplanAdapter: CapabilityAdapter = async (contract, ctx) => {
       const views = await client.listViews(models[0]?.id as string, workspaceId);
       if (!views.length) throw new Error("Anaplan model has no views to update");
       const label = LABEL();
-      const result = await client.updateCellData(models[0]?.id as string, views[0]?.id as string, {
+      await client.updateCellData(models[0]?.id as string, views[0]?.id as string, {
         cells: [{ value: `${label} - Phase 7` }],
       }, workspaceId);
       return { httpStatus: 200, response: { updated: true, modelId: models[0]?.id, viewId: views[0]?.id } };

@@ -7,7 +7,7 @@ export class QlikClient {
     this.client = new HttpClient({ baseUrl: `${serverUrl}/api/v1`, rateLimit: { maxRequestsPerSecond: 10 }, retry: { maxRetries: 3, baseDelay: 1000, maxDelay: 10000 }, timeout: 30000 });
   }
   private get headers() { return { Authorization: `Bearer ${this.apiKey}`, "Content-Type": "application/json" }; }
-  private apiKey = "";
+  public apiKey = "";
 
   async listApps(): Promise<any[]> { const r = await this.client.get("/apps", this.headers); return r.data?.data || []; }
   async listStreams(): Promise<any[]> { const r = await this.client.get("/streams", this.headers); return r.data?.data || []; }

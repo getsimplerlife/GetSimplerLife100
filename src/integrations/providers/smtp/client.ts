@@ -4,7 +4,7 @@ export class SMTPClient {
   private config: any;
   constructor(config: any) { this.config = config; }
 
-  async sendMail(options: { to: string | string[]; subject: string; text?: string; html?: string; cc?: string; bcc?: string; attachments?: any[] }): Promise<{ messageId: string; success: boolean }> {
+  async sendMail(_options: { to: string | string[]; subject: string; text?: string; html?: string; cc?: string; bcc?: string; attachments?: any[] }): Promise<{ messageId: string; success: boolean }> {
     // SMTP send via Node.js net/tls connection
     // Placeholder - real implementation uses SMTP protocol
     const messageId = `<${Date.now()}.${Math.random().toString(36).slice(2)}@${this.config.host || "smtp.local"}>`;

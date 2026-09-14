@@ -91,8 +91,7 @@ describe("Sales / Salesforce capability slice", () => {
   });
 
   it("adapter fails closed on unknown capabilityId", async () => {
-    const { default: verify } = await import("../verification/adapters/priority");
-    const { salesforceAdapter } = verify || (await import("../verification/adapters/priority"));
+    void (await import("../verification/adapters/priority"));
     const adapter = (await import("../verification/adapters/priority")).salesforceAdapter;
     if (!adapter) return; // skip if not exported
     await expect(

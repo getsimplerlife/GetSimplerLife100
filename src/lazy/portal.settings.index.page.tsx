@@ -94,7 +94,7 @@ function UnifiedSettingsHub() {
   const [notifySlack, setNotifySlack] = useState(false);
 
   // 2. Connected Accounts states
-  const [providers, setProviders] = useState<ProviderItem[]>([]);
+  const [, setProviders] = useState<ProviderItem[]>([]);
   const [connections, setConnections] = useState<ConnectionItem[]>([]);
   const [loadingConns, setLoadingConns] = useState(false);
 

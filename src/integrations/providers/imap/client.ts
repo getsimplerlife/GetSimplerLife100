@@ -3,8 +3,7 @@ import { type ConnectionConfig } from "../../framework/connection";
 export interface IMAPMessage { id: number; uid: number; subject: string; from: string; to: string; date: string; flags: string[]; body?: string; }
 
 export class IMAPClient {
-  private config: { host: string; port: number; tls: boolean; username: string; password: string };
-  constructor(config: any) { this.config = config; }
+  constructor(_config: any) {}
 
   async listMailboxes(): Promise<string[]> {
     // Returns configured mailboxes - actual IMAP connection uses Node.js net/tls
@@ -12,7 +11,6 @@ export class IMAPClient {
   }
 
   async searchMessages(criteria: { mailbox?: string; from?: string; subject?: string; since?: string; before?: string; unread?: boolean }): Promise<IMAPMessage[]> {
-    const { mailbox = "INBOX" } = criteria;
     // IMAP SEARCH via socket connection
     const searchTerms = [];
     if (criteria.from) searchTerms.push(`FROM "${criteria.from}"`);
@@ -40,7 +38,7 @@ export class IMAPClient {
 
   async healthCheck(): Promise<boolean> {
     try {
-      const { connect } = await import("node:net");
+      await import("node:net");
       return true; // Would test actual TCP connection
     } catch { return false; }
   }

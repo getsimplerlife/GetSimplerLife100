@@ -6,7 +6,7 @@ export class WooClient {
     this.client = new HttpClient({ baseUrl: `${storeUrl.replace(/\/+$/, "")}/wp-json/wc/v3`, rateLimit: { maxRequestsPerSecond: 5 }, retry: { maxRetries: 3, baseDelay: 1000, maxDelay: 10000 }, timeout: 30000 });
   }
   private get headers() { return { Authorization: `Basic ${Buffer.from(`${this.consumerKey}:${this.consumerSecret}`).toString("base64")}`, "Content-Type": "application/json" }; }
-  private consumerKey = ""; private consumerSecret = "";
+  public consumerKey = ""; public consumerSecret = "";
 
   async listProducts(): Promise<any[]> { const r = await this.client.get("/products", this.headers); return r.data || []; }
   async getProduct(id: number): Promise<any> { const r = await this.client.get(`/products/${id}`, this.headers); return r.data; }

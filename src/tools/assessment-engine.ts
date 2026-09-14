@@ -414,17 +414,7 @@ function determinePriority(_workflowId: string, implementationTime: string): "qu
 
 // ── Integration Matching ─────────────────────────────────────────────────
 
-function getSoftwareCategory(softwareValue: string): string {
-  const categories: Record<string, string> = {
-    "quickbooks": "Accounting", "xero": "Accounting", "netsuite": "ERP",
-    "sap": "ERP", "salesforce": "CRM", "hubspot": "CRM",
-    "dynamics": "CRM/ERP", "slack": "Communication", "teams": "Communication",
-    "gmail": "Email", "outlook": "Email", "shopify": "E-commerce",
-    "zendesk": "Support", "jira": "Project Management", "notion": "Project Management",
-    "asana": "Project Management",
-  };
-  return categories[softwareValue] || "Other";
-}
+
 
 function findMatchingIntegrations(softwareValues: string[]): IntegrationRecommendation[] {
   const result: IntegrationRecommendation[] = [];

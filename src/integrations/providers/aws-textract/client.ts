@@ -2,7 +2,7 @@ import { HttpClient } from "../../framework/client"; import { type ConnectionCon
 
 export class TextractClient {
   private client: HttpClient;   
-  constructor(accessKey: string, secretKey: string, region: string) {
+  constructor(_accessKey: string, _secretKey: string, region: string) {
     this.client = new HttpClient({ baseUrl: `https://textract.${region}.amazonaws.com`, rateLimit: { maxRequestsPerSecond: 5 }, retry: { maxRetries: 3, baseDelay: 1000, maxDelay: 30000 }, timeout: 120000 });
       
   }

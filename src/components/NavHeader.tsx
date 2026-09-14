@@ -21,9 +21,7 @@ export function NavHeader({ businessName = "Simpler Life 100" }: { businessName?
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
   const [mobileFaqOpen, setMobileFaqOpen] = useState(false);
-  const location = useLocation();
-
-  const isActive = (path: string) => location.pathname === path;
+  useLocation();
 
   return (
     <header className="px-6 py-4 bg-stone-950/80 backdrop-blur-md sticky top-0 z-50 border-b border-stone-900">

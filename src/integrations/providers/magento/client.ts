@@ -6,7 +6,7 @@ export class MagentoClient {
     this.client = new HttpClient({ baseUrl: `${baseUrl.replace(/\/+$/, "")}/rest/V1`, rateLimit: { maxRequestsPerSecond: 10 }, retry: { maxRetries: 3, baseDelay: 1000, maxDelay: 10000 }, timeout: 30000 });
   }
   private get headers() { return { Authorization: `Bearer ${this.accessToken}`, "Content-Type": "application/json" }; }
-  private accessToken = "";
+  public accessToken = "";
 
   async listProducts(): Promise<any[]> { const r = await this.client.get("/products?searchCriteria[pageSize]=100", this.headers); return r.data?.items || []; }
   async getProduct(sku: string): Promise<any> { const r = await this.client.get(`/products/${encodeURIComponent(sku)}`, this.headers); return r.data; }

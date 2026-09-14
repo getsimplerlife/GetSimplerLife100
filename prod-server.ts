@@ -362,7 +362,7 @@ function getProviderCategory(providerId: string): string {
 // ── Background init: monitoring gates + SSR preload (non-blocking) ──
 let ssrReady = false;
 let configureTenant: ((email: string, config: { purchased?: boolean; status?: string }) => void) | null = null;
-const _bgInit = (async () => {
+void (async () => {
   const gates = await import("./src/monitoring/gates");
   configureTenant = gates.configureTenant;
   const _initialPurchases = readJSON(TENANT_PURCHASES_FILE);
@@ -1753,9 +1753,6 @@ async function handleFetch(req: Request): Promise<Response> {
       if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
       // Purchase gating: non-owners need active purchases for CRM/ERP/Accounting.
       // Other integrations (Communication, Marketing, Data, etc.) are ungated.
-      const purchases = readJSON(join(DATA_DIR, "tenant_purchases.json"));
-      const userPurchases = (user.email !== "mathewortiz97@gmail.com") ? (purchases[user.email] || []) : [{ status: "active", type: "owner" }];
-      const hasActivePurchase = userPurchases.some((p: any) => p.status === "active");
 
       // #232 item 3 + data-truth (#236): the connected list comes from the REAL
       // OAuth credential store with the live health overlay — never the stale
@@ -1888,9 +1885,6 @@ async function handleFetch(req: Request): Promise<Response> {
       if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
       // Purchase gating: non-owners need active purchases for CRM/ERP/Accounting.
       // Other integrations (Communication, Marketing, Data, etc.) are ungated.
-      const purchases = readJSON(join(DATA_DIR, "tenant_purchases.json"));
-      const userPurchases = (user.email !== "mathewortiz97@gmail.com") ? (purchases[user.email] || []) : [{ status: "active", type: "owner" }];
-      const hasActivePurchase = userPurchases.some((p: any) => p.status === "active");
 
       try {
         const body = await req.json();
@@ -1999,9 +1993,6 @@ async function handleFetch(req: Request): Promise<Response> {
       if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
       // Purchase gating: non-owners need active purchases for CRM/ERP/Accounting.
       // Other integrations (Communication, Marketing, Data, etc.) are ungated.
-      const purchases = readJSON(join(DATA_DIR, "tenant_purchases.json"));
-      const userPurchases = (user.email !== "mathewortiz97@gmail.com") ? (purchases[user.email] || []) : [{ status: "active", type: "owner" }];
-      const hasActivePurchase = userPurchases.some((p: any) => p.status === "active");
 
       try {
         const body = await req.json();
@@ -2816,7 +2807,6 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
         // {}.length is undefined -> "undefined AI employees". Fall back to the
         // canonical AGENTS list so the count is always real.
         const employees = Array.isArray(employeesData) && employeesData.length > 0 ? employeesData : AGENTS;
-        const integrationMap = readJSON(join(DATA_DIR, "agent_integration_map.json"));
         const userIntegrations = readJSON(TENANT_INTEGRATIONS_FILE);
         const userConns = userIntegrations[user.email] || [];
         // ── File-creation intents (owner directive 2026-08-13) ──
@@ -3550,7 +3540,6 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
     if (pathname === "/api/oauth/callback" || pathname === "/api/xero-callback" || pathname.match(/^\/api\/oauth\/callback\/(.+)$/)) {
       console.log("[oauth-callback] HIT - pathname:", pathname, "params:", Object.fromEntries(url.searchParams));
       // Path-based providers (e.g. xero) embed the provider ID in the URL path
-      const pathProvider = pathname === "/api/xero-callback" ? "xero" : (pathname.match(/^\/api\/oauth\/callback\/(.+)$/) || [])[1] || null;
       const code = url.searchParams.get("code");
       const state = url.searchParams.get("state");
       const errorParam = url.searchParams.get("error");
@@ -3558,7 +3547,6 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
       
       // Provider denied authorization
       if (errorParam) {
-        const msg = encodeURIComponent(errorDesc || errorParam);
         return Response.redirect(`/portal/integrations?error=${encodeURIComponent("Authorization denied: " + (errorDesc || errorParam))}`, 302);
       }
       
@@ -3789,7 +3777,6 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
       
       // Try to use a real provider auth module
       let authUrl: string | null = null;
-      let verifier: string | undefined;
       
       try {
         const authModulePath = `./src/integrations/providers/${canonicalProvider}/auth.ts`;
@@ -3817,7 +3804,6 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
           // Store PKCE verifier if the module generated one
           if (result.verifier) {
             states[state].verifier = result.verifier;
-            verifier = result.verifier;
           }
           
           writeJSON(OAUTH_STATES_FILE, states);

@@ -172,7 +172,7 @@ function sleep(ms: number): Promise<void> {
 
 async function postChatCompletion(
   cfg: LlmConfig,
-  model: string,
+  _model: string,
   body: Record<string, unknown>,
 ): Promise<{ ok: true; data: any } | { ok: false; status: number; text: string }> {
   const url = `${cfg.baseUrl.replace(/\/$/, "")}/chat/completions`;

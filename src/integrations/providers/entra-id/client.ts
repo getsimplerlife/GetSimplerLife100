@@ -7,7 +7,7 @@ export class Entra_idClient {
     this.client = new HttpClient({ baseUrl: "https://api.entra-id.com/v1", rateLimit: { maxRequestsPerSecond: 5 }, retry: { maxRetries: 3, baseDelay: 1000, maxDelay: 10000 }, timeout: 30000 });
   }
   private get headers() { return { Authorization: "Bearer " + this.apiKey, "Content-Type": "application/json" }; }
-  private apiKey = "";
+  public apiKey = "";
   async listItems(): Promise<any[]> { const r = await this.client.get("/items", this.headers); return r.data?.data || []; }
   async healthCheck(): Promise<boolean> { try { const r = await this.client.get("/items?limit=1", this.headers); return r.ok; } catch { return false; } }
 }

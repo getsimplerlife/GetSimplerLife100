@@ -2,7 +2,7 @@ import { type ConnectionConfig } from "../../framework/connection";
 
 export class QBDClient {
   private webConnectorUrl: string; 
-  constructor(webConnectorUrl: string, ticket: string) {
+  constructor(webConnectorUrl: string, _ticket: string) {
     this.webConnectorUrl = webConnectorUrl; 
   }
 

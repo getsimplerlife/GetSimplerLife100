@@ -36,7 +36,7 @@ const CRM_CATEGORIES = ["CRM", "Sales"];
 function CRMPortal() {
   const [search, setSearch] = useState("");
   const [connecting, setConnecting] = useState<string | null>(null);
-  const [disconnecting, setDisconnecting] = useState<string | null>(null);
+  useState<string | null>(null);
   const [providers, setProviders] = useState<ProviderItem[]>([]);
   const [connections, setConnections] = useState<ConnectionItem[]>([]);
   const [slots, setSlots] = useState<SlotInfo>({ totalSlots: 0, usedSlots: 0, remainingSlots: 0, isOwner: false });
@@ -132,30 +132,7 @@ function CRMPortal() {
     window.location.href = `/api/oauth/authorize?provider=${encodeURIComponent(providerId)}`;
   };
 
-  const handleDisconnect = async (connectionId: string, providerName: string) => {
-    if (!confirm(`Disconnect ${providerName}? This will free up a CRM slot.`)) return;
-    setDisconnecting(connectionId);
-    try {
-      const res = await fetch("/api/integrations/disconnect", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ connectionId }),
-      });
-      if (res.ok) {
-        setConnections(prev => prev.filter(c => c.id !== connectionId));
-        const slotsRes = await fetch("/api/data/crm-slots");
-        setSlots(await slotsRes.json());
-      } else {
-        const data = await res.json();
-        alert(data.error || "Disconnect failed");
-      }
-    } catch (err) {
-      console.error("Disconnect error:", err);
-      alert("Disconnect failed.");
-    } finally {
-      setDisconnecting(null);
-    }
-  };
+
 
   const canConnect = slots.isOwner || slots.remainingSlots > 0;
 

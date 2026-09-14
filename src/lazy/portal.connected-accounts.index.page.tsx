@@ -36,15 +36,7 @@ interface ConnectedAccountsData {
   erpSlots: SlotInfo;
 }
 
-function getStatusEmoji(status: string): string {
-  switch (status) {
-    case "Connected": return "🟢";
-    case "error": return "🔴";
-    case "expired": return "🟠";
-    case "pending": return "🟡";
-    default: return "⚪";
-  }
-}
+
 
 function ConnectedAccountsPage() {
   const [data, setData] = useState<ConnectedAccountsData | null>(null);

@@ -11,7 +11,7 @@ export class AbbyyClient {
   async recognizeText(url: string, language = "English"): Promise<any> { const r = await this.client.post("/recognizeText", { sourceUrl: url, language }, this.headers); return r.data; }
   async getTaskStatus(taskId: string): Promise<any> { const r = await this.client.get(`/getTaskStatus?taskId=${taskId}`, this.headers); return r.data; }
   async recognizeBarcode(url: string): Promise<any> { const r = await this.client.post("/recognizeBarCodes", { sourceUrl: url }, this.headers); return r.data; }
-  async healthCheck(): Promise<boolean> { try { const r = await this.client.get("/getTaskStatus?taskId=test", this.headers); return true; } catch { return false; } }
+  async healthCheck(): Promise<boolean> { try { await this.client.get("/getTaskStatus?taskId=test", this.headers); return true; } catch { return false; } }
 }
 
 export function createAbbyyClient(config: ConnectionConfig): AbbyyClient {

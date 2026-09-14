@@ -214,7 +214,7 @@ export function setAutonomyWorkflow(
   if (!workflowId?.trim()) throw new Error("setAutonomyWorkflow requires a workflow id");
   const index = readIndex(dataDir);
   const current = index[tenantId] || { workflows: {} };
-  const wf = current.workflows?.[workflowId] || emptyWorkflow();
+  void (current.workflows?.[workflowId] || emptyWorkflow());
   const list = (input.allowList || []).map((e) => ({
     id: e.id || makeEntryId(),
     action: e.action,

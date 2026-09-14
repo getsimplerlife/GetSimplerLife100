@@ -25,7 +25,6 @@ const SCAN_DIRS = ["src/routes", "src/lazy", "src/components", "src/content"];
 const EXCLUDED_FILES = [/integrations\.ts$/, /industries\.ts$/, /integration-.*\.ts$/];
 const EXCLUDED_DIRS = ["src/lazy/portal"];
 
-const BRAND_NAMES_AS_INTEGRATIONS = ["Acme", "Stripe"]; // allowed anchors (test self-check)
 
 function listFilesRecursive(dir: string): string[] {
   const out: string[] = [];

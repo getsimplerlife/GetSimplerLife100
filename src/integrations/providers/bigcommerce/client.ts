@@ -6,7 +6,7 @@ export class BigCommerceClient {
     this.client = new HttpClient({ baseUrl: `https://api.bigcommerce.com/stores/${storeHash}/v3`, rateLimit: { maxRequestsPerSecond: 10 }, retry: { maxRetries: 3, baseDelay: 1000, maxDelay: 10000 }, timeout: 30000 });
   }
   private get headers() { return { "X-Auth-Token": this.accessToken, "Content-Type": "application/json", Accept: "application/json" }; }
-  private accessToken = "";
+  public accessToken = "";
 
   async listProducts(): Promise<any[]> { const r = await this.client.get("/catalog/products", this.headers); return r.data?.data || []; }
   async getProduct(id: number): Promise<any> { const r = await this.client.get(`/catalog/products/${id}`, this.headers); return r.data?.data; }

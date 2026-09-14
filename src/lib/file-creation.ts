@@ -106,7 +106,7 @@ interface RegistryInfo {
 /** Normalize a provider create response into registry info (fail closed). */
 export function normalizeCreatedFile(
   provider: string,
-  fileType: FileType,
+  _fileType: FileType,
   result: any,
   fallbackName: string,
 ): RegistryInfo {

@@ -629,7 +629,7 @@ function processOperations(
 }
 
 function processHR(
-  agent: AgentDefinition,
+  _agent: AgentDefinition,
   results: ProviderResult[],
   _connections: ProviderConnection[]
 ): ProcessorResult {
@@ -687,7 +687,7 @@ function processHR(
 }
 
 function processCompliance(
-  agent: AgentDefinition,
+  _agent: AgentDefinition,
   results: ProviderResult[],
   _connections: ProviderConnection[]
 ): ProcessorResult {
@@ -808,7 +808,7 @@ function processCommunications(
 }
 
 function processData(
-  agent: AgentDefinition,
+  _agent: AgentDefinition,
   results: ProviderResult[],
   _connections: ProviderConnection[]
 ): ProcessorResult {
@@ -867,7 +867,7 @@ function processData(
 }
 
 function processProcurement(
-  agent: AgentDefinition,
+  _agent: AgentDefinition,
   results: ProviderResult[],
   _connections: ProviderConnection[]
 ): ProcessorResult {
@@ -894,7 +894,7 @@ function processProcurement(
 }
 // Generic processing for uncategorized agents
 function processGeneric(
-  agent: AgentDefinition,
+  _agent: AgentDefinition,
   results: ProviderResult[],
   _connections: ProviderConnection[]
 ): ProcessorResult {

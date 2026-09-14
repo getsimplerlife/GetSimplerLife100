@@ -24,7 +24,7 @@ function DocumentManagement() {
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadStep, setUploadStep] = useState("");
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [, setSelectedFile] = useState<File | null>(null);
 
   // Modal State for Viewing Parsed Data
   const [selectedDoc, setSelectedDoc] = useState<DocumentItem | null>(null);
@@ -105,7 +105,7 @@ function DocumentManagement() {
       { t: 3800, text: "Cataloging in portal database ledger index..." },
     ];
 
-    const timers = steps.map((step) => {
+    steps.map((step) => {
       return setTimeout(() => {
         setUploadStep("Processing...");
       }, step.t);

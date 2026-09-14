@@ -23,7 +23,7 @@ describe("connection-health stale fixture pruning (#246 item 3)", () => {
     expect(all).toHaveLength(1);
     expect(all[0].provider).toBe("hubspot");
     // Durable file rewritten without the stale row.
-    const file = JSON.parse(existsSync(join(dir, "connection_health.json")) ? "{}" : "{}") as Record<string, unknown>;
+    void existsSync(join(dir, "connection_health.json"));
     const raw = JSON.parse(require("node:fs").readFileSync(join(dir, "connection_health.json"), "utf8")) as Record<string, unknown>;
     expect(Object.keys(raw)).toEqual(["owner@real.com:hubspot"]);
   });

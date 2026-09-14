@@ -75,10 +75,7 @@ export const DEFAULT_ALLOWED_WRITE_VERBS: string[] = [];
 /** Cap on the memory/context snippet in tokens (size-capped, cannot blow budget). */
 export const MAX_CONTEXT_SNIPPET_TOKENS = 4000;
 
-function snippetTokens(text: string): number {
-  // Rough heuristic: ~4 chars/token for structured English.
-  return Math.ceil(text.length / 4);
-}
+
 
 function truncateToTokens(text: string, maxTokens: number): string {
   const maxChars = maxTokens * 4;

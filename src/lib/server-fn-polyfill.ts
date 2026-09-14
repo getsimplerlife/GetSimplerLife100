@@ -10,20 +10,18 @@ interface ChainableServerFn {
   validator: (fn: (data: any) => any) => ChainableServerFn;
 }
 
-export function createServerFn(options?: ServerFnOptions): ChainableServerFn {
+export function createServerFn(_options?: ServerFnOptions): ChainableServerFn {
 
 
   // Data that flows through the chain: validator → handler
-  let validatorFn: ((data: any) => any) | null = null;
 
   const chainable: ChainableServerFn = {
-    validator(fn: (data: any) => any): ChainableServerFn {
-      validatorFn = fn;
+    validator(_fn: (data: any) => any): ChainableServerFn {
       return chainable;
     },
 
     handler<T>(_fn: (...args: any[]) => Promise<T>): (...args: any[]) => Promise<T> {
-      return async (...args: any[]): Promise<T> => {
+      return async (..._args: any[]): Promise<T> => {
         // In the browser (CSR), server functions cannot execute server-side logic.
         // Route loaders and components should handle the empty/default response gracefully.
         console.warn("[createServerFn CSR] Server function called client-side — returning empty data. API endpoint needed.");

@@ -320,7 +320,7 @@ export class AwsLambdaClient {
    */
   async getLambdaMetrics(functionName: string): Promise<{ invocations: number; errors: number; duration: number }> {
     // Simulated metrics - in production, query CloudWatch
-    const res = await this.lambdaClient.get<any>(
+    await this.lambdaClient.get<any>(
       `/2015-03-31/functions/${encodeURIComponent(functionName)}/configuration`,
       this.authHeaders,
     );

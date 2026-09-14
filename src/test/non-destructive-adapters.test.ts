@@ -242,7 +242,7 @@ describe("HubSpot verification adapter — non-destructive writes + read-only pr
   });
 
   it("fails closed when the read probe returns 403 (credential cannot read CRM objects)", async () => {
-    installFetch((method: string) => ({ ok: false, status: 403, headers: new Headers({ "content-type": "application/json" }), json: async () => ({}) } as unknown as Response));
+    installFetch((_method: string) => ({ ok: false, status: 403, headers: new Headers({ "content-type": "application/json" }), json: async () => ({}) } as unknown as Response));
     await expect(hubspotAdapter(contract("hubspot-create-deal"), ctx())).rejects.toThrow(/cannot read CRM objects/i);
   });
 });

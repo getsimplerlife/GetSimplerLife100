@@ -407,7 +407,7 @@ const INSIGHT_ICONS: Record<string, string> = {
   recommendation: "✅", summary: "📋",
 };
 
-function PipelineResultsCard({ result, agentName, onDismiss }: { result: any; agentName: string; onDismiss: () => void }) {
+function PipelineResultsCard({ result, agentName: _agentName, onDismiss }: { result: any; agentName: string; onDismiss: () => void }) {
   const insights = result.insights || [];
   const alerts = result.alerts || [];
   const actions = result.actionsTaken || [];

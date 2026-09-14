@@ -77,20 +77,6 @@ function parseHL7v2(raw: string): { success: boolean; data?: HL7Message; error?:
       }
     }
 
-    // Extract patient info from PID segment
-    let patientInfo: Record<string, string> = {};
-    for (const seg of segments) {
-      if (seg.name === "PID") {
-        patientInfo = {
-          patientId: seg.fields[2] || "",
-          patientName: seg.fields[4] || "",
-          dateOfBirth: seg.fields[6] || "",
-          sex: seg.fields[7] || "",
-          address: seg.fields[10] || "",
-          phone: seg.fields[12] || "",
-        };
-      }
-    }
 
     return {
       success: true,

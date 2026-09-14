@@ -6,7 +6,7 @@ export class LookerClient {
     this.client = new HttpClient({ baseUrl: `${baseUrl}/api/4.0`, rateLimit: { maxRequestsPerSecond: 10 }, retry: { maxRetries: 3, baseDelay: 1000, maxDelay: 10000 }, timeout: 30000 });
   }
   private get headers() { return { Authorization: `token ${this.clientId}:${this.clientSecret}`, "Content-Type": "application/json" }; }
-  private clientId = ""; private clientSecret = "";
+  public clientId = ""; public clientSecret = "";
 
   async login(): Promise<string> { const r = await this.client.post("/login", { client_id: this.clientId, client_secret: this.clientSecret }, { "Content-Type": "application/json" }); return r.data?.access_token; }
   async listLooks(): Promise<any[]> { const r = await this.client.get("/looks", this.headers); return r.data || []; }

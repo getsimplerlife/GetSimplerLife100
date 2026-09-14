@@ -370,7 +370,7 @@ describe("live-receipt log", () => {
 
 describe("end-to-end through the real dispatcher", () => {
   it("processes a signed event when the org gate is configured, then the receipt verifies the contract", async () => {
-    const { clearTenants, configureTenant, clearSeen } = await import("../monitoring/gates");
+    const { clearTenants, configureTenant } = await import("../monitoring/gates");
     const { clearSeen: clearSeenDedupe } = await import("../monitoring/dedupe");
     clearTenants();
     clearSeenDedupe();

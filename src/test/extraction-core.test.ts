@@ -30,7 +30,7 @@ import { applyExtractedMetadata, rejectExtraction } from "../lib/extraction/extr
 import { getExtraction, listExtractions } from "../lib/extraction/extraction-store";
 import { serializeMessagesForWire, type LlmMessage, type ModelClient, type LlmCompleteResult, type LlmCompleteRequest } from "../lib/llm/modelClient";
 import { setAutonomyWorkflow } from "../lib/autonomy";
-import { MockModelClient, type MockScript } from "../lib/llm/MockModelClient";
+import { MockModelClient } from "../lib/llm/MockModelClient";
 
 let dir: string;
 beforeEach(() => {
@@ -376,7 +376,7 @@ describe("applyExtractedMetadata (Approval-Queue gated)", () => {
     expect(getExtraction(dir, T1, resultId)!.status).toBe("pending_review");
   });
   it("fails closed: result from another tenant or mismatched doc", async () => {
-    const { docId, resultId } = await seededExtraction(T1);
+    const { resultId } = await seededExtraction(T1);
     const otherDoc = seedDoc(T2, "x.csv", CSV, "text/csv", "csv");
     expect(applyExtractedMetadata({ tenantEmail: T2, documentId: otherDoc, resultId, actor: "u", dataDir: dir }).ok).toBe(false);
     expect(applyExtractedMetadata({ tenantEmail: T1, documentId: otherDoc, resultId, actor: "u", dataDir: dir }).ok).toBe(false);
