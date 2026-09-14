@@ -1269,7 +1269,7 @@ export const tableauAdapter: CapabilityAdapter = async (contract, ctx) => {
     }
     case "tableau-add-site-user": {
       if (!ctx.allowWrites) throw new Error("write verification disabled (pass --writes)");
-      await client.addSiteUser({ name: `phase7-${Date.now()}@verify.example.invalid`, siteRole: "Viewer" });
+      const created = await client.addSiteUser({ name: `phase7-${Date.now()}@verify.example.invalid`, siteRole: "Viewer" });
       const userId = created?.id as string | undefined;
       if (!userId) throw new Error("Tableau addSiteUser returned no id");
       // Non-destructive (owner directive): the labeled verification user is LEFT in place.
