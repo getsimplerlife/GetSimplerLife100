@@ -290,7 +290,7 @@ async function testProviderConnection(providerId: string, providerName: string, 
               return { success: false, error: `Invalid credentials for ${providerName}: ${body.error}.` };
             }
           }
-        } catch (e: any) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
+        } catch (e: any) { console.log("[SSR] FAILED url=" + testConfig.url + " err=" + (e?.message || String(e)));
           // Non-JSON body on 200 — accept cautiously
         }
       }
@@ -361,13 +361,13 @@ function getProviderCategory(providerId: string): string {
 
 // ── Background init: monitoring gates + SSR preload (non-blocking) ──
 let ssrReady = false;
-let configureTenant: ((email: string, config: { purchased?: boolean; status?: string }) => void) | null = null;
+let configureTenant: ((tenantId: string, gate: { purchased: boolean; status: "Active" | "Paused" | "Inactive" }) => void) | null = null;
 void (async () => {
   const gates = await import("./src/monitoring/gates");
   configureTenant = gates.configureTenant;
   const _initialPurchases = readJSON(TENANT_PURCHASES_FILE);
   gates.hydrateTenants(_initialPurchases);
-  configureTenant("mathewortiz97@gmail.com", { purchased: true, status: "Active" });
+  configureTenant!("mathewortiz97@gmail.com", { purchased: true, status: "Active" });
   // Xero webhook org gates: map each entitled tenant's Xero org UUID -> monitoring
   // gate so real webhook events can dispatch. Best-effort, canonical host only,
   // fail-soft (expired tokens just skip). Receiving webhooks never mutates orgs.
@@ -375,7 +375,7 @@ void (async () => {
     .then((xw) => xw.registerXeroOrgGates({
       dataDir: DATA_DIR,
       canMonitor: (email) => gates.canMonitor(email, xw.XERO_MONITOR_EMPLOYEE_ID),
-      configureTenant: gates.configureTenant,
+      configureTenant: (orgId, gate) => gates.configureTenant(orgId, { purchased: gate.purchased, status: gate.status as "Active" | "Paused" | "Inactive" }),
     }))
     .catch((e) => console.log("[prod-server] Xero org-gate registration skipped:", e?.message));
   await import("./src/entry-server").catch(e => console.log("[prod-server] SSR preload failed:", e?.message));
@@ -2369,7 +2369,7 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ notificationId: notifId }),
           });
-        } catch (sendErr) {
+        } catch (sendErr: any) {
           console.log("[SSR] auto-send failed (non-fatal): " + (sendErr?.message || String(sendErr)));
         }
         return Response.json({ success: true });
@@ -3168,7 +3168,7 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
       if (subPath === "credentials") {
         const credsFile = join(DATA_DIR, "tenant_oauth_credentials.json");
         const creds = readJSON(credsFile);
-        const list = Object.entries(creds).map(([providerId, c]) => ({
+        const list = Object.entries(creds).map(([providerId, c]: [string, any]) => ({
           providerId,
           clientId: c.clientId || "",
           hasSecret: !!(c.clientSecret && c.clientSecret.length > 0),
@@ -3253,7 +3253,7 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
                 dataDir: DATA_DIR,
                 orgId,
                 canMonitor: (email) => gates.canMonitor(email, xeroWh.XERO_MONITOR_EMPLOYEE_ID),
-                configureTenant: (oid, gate) => gates.configureTenant(oid, gate),
+                configureTenant: (oid, gate) => gates.configureTenant(oid, { purchased: gate.purchased, status: gate.status as "Active" | "Paused" | "Inactive" }),
               });
             } catch {
               return false;
@@ -3299,7 +3299,7 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
                 dataDir: DATA_DIR,
                 teamId,
                 canMonitor: (email) => gates.canMonitor(email, slackWh.SLACK_MONITOR_EMPLOYEE_ID),
-                configureTenant: (tid, gate) => gates.configureTenant(tid, gate),
+                configureTenant: (tid, gate) => gates.configureTenant(tid, { purchased: gate.purchased, status: gate.status as "Active" | "Paused" | "Inactive" }),
               });
             } catch {
               return false;
@@ -3424,7 +3424,7 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
             userPurchases.push(buildPackPurchase(packSpec, amountTotal, session.id));
             purchases[customerEmail] = userPurchases;
             writeJSON(TENANT_PURCHASES_FILE, purchases);
-            configureTenant(customerEmail, { purchased: true, status: "Active" });
+            configureTenant!(customerEmail, { purchased: true, status: "Active" });
             console.log(`[webhook] Provisioned ${packSpec.productName} (${packSpec.slots} slots) for ${customerEmail}`);
             await handlePurchaseCompleted({
               customerEmail,
@@ -3449,7 +3449,7 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
             userPurchases.push(buildPlanPurchase(planSpec, amountTotal, session.id, agentIds));
             purchases[customerEmail] = userPurchases;
             writeJSON(TENANT_PURCHASES_FILE, purchases);
-            configureTenant(customerEmail, { purchased: true, status: "Active" });
+            configureTenant!(customerEmail, { purchased: true, status: "Active" });
             console.log(`[webhook] Provisioned ${planSpec.productName} (${agentIds.length} agents) for ${customerEmail}`);
             await handlePurchaseCompleted({
               customerEmail,
@@ -3485,7 +3485,7 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
             });
             purchases[customerEmail] = userPurchases;
             writeJSON(TENANT_PURCHASES_FILE, purchases);
-            configureTenant(customerEmail, { purchased: true, status: "Active" });
+            configureTenant!(customerEmail, { purchased: true, status: "Active" });
             console.log(`[webhook] Provisioned ${matchedAgent.name} for ${customerEmail}`);
           } else if (customerEmail) {
             // Generic purchase — record it
@@ -3500,7 +3500,7 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
             });
             purchases[customerEmail] = userPurchases;
             writeJSON(TENANT_PURCHASES_FILE, purchases);
-            configureTenant(customerEmail, { purchased: true, status: "Active" });
+            configureTenant!(customerEmail, { purchased: true, status: "Active" });
             console.log(`[webhook] Recorded purchase for ${customerEmail}`);
           }
 
@@ -3743,7 +3743,7 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
         const sfEmail = sfUser?.email || "unknown";
         // Generate PKCE code verifier and challenge (Salesforce requires PKCE)
         const sfCodeVerifier = randomBytes(32).toString("base64url");
-        const sfCodeChallenge = Buffer.from(new Bun.SHA256().update(sfCodeVerifier).digest()).toString("base64url").replace(/=+$/, "");
+        const sfCodeChallenge = Buffer.from(new Bun.SHA256().update(sfCodeVerifier).digest() as Uint8Array).toString("base64url").replace(/=+$/, "");
         const sfState = crypto.randomUUID();
         // Store state with email for callback validation
         const sfStates = await readJSONLive(OAUTH_STATES_FILE);
@@ -3974,4 +3974,4 @@ OAUTH_${provUpper}_CLIENT_SECRET=your_client_secret</pre><p style="font-size:0.8
 console.log(`[prod-server] Port ${serverPort} — SSR mode: server-side rendering + client hydration | API: /api/login, /api/register, /api/logout, /api/me`);
 // Signal readiness — write a file the publish tool can detect
 try { require("fs").writeFileSync("/tmp/slr100-ready", String(Date.now())); } catch (_) {}
-process.on("exit", () => { if (tokenSweepTimer) clearInterval(tokenSweepTimer); if (backupTimer) clearInterval(backupTimer); });
+process.on("exit", () => { if (backupTimer) clearInterval(backupTimer); });
