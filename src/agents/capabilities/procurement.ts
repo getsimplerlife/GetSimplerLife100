@@ -70,7 +70,7 @@ function requireTenant(options: ProcurementExecutionOptions): void {
 function boundedAttempts(value?: number): number {
   return Math.max(1, Math.min(value ?? 2, 3));
 }
-export async function readPurchaseOrders(adapter: ProcurementAdapter, options: ProcurementExecutionOptions): Promise<unknown> {
+export async function readPurchaseOrders(adapter: Pick<ProcurementAdapter, "listPurchaseOrders">, options: ProcurementExecutionOptions): Promise<unknown> {
   requireTenant(options);
   let lastError: unknown;
   for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) {
@@ -106,7 +106,7 @@ export async function createPurchaseOrder(
   await options.audit({ capabilityId: "coupa-create-purchase-order", tenantId: options.tenantId, outcome: "failed", idempotencyKey });
   throw lastError;
 }
-export async function monitorPurchaseOrders(adapter: ProcurementAdapter, options: ProcurementExecutionOptions): Promise<unknown> {
+export async function monitorPurchaseOrders(adapter: Pick<ProcurementAdapter, "monitorPurchaseOrders">, options: ProcurementExecutionOptions): Promise<unknown> {
   requireTenant(options);
   let lastError: unknown;
   for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) {

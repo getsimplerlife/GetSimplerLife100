@@ -185,7 +185,7 @@ function requireIdempotency(key?: string): void {
 }
 
 /* ── Read executors ── */
-export async function readEmployees(adapter: HrCoordinatorAdapter, options: HrCoordinatorExecutionOptions): Promise<unknown> {
+export async function readEmployees(adapter: Pick<HrCoordinatorAdapter, "listEmployees">, options: HrCoordinatorExecutionOptions): Promise<unknown> {
   requireTenant(options);
   let lastError: unknown;
   for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) {
@@ -199,7 +199,7 @@ export async function readEmployees(adapter: HrCoordinatorAdapter, options: HrCo
   throw lastError;
 }
 
-export async function readOrgChart(adapter: HrCoordinatorAdapter, options: HrCoordinatorExecutionOptions): Promise<unknown> {
+export async function readOrgChart(adapter: Pick<HrCoordinatorAdapter, "readOrgChart">, options: HrCoordinatorExecutionOptions): Promise<unknown> {
   requireTenant(options);
   let lastError: unknown;
   for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) {
@@ -213,7 +213,7 @@ export async function readOrgChart(adapter: HrCoordinatorAdapter, options: HrCoo
   throw lastError;
 }
 
-export async function readTimeOff(adapter: HrCoordinatorAdapter, options: HrCoordinatorExecutionOptions): Promise<unknown> {
+export async function readTimeOff(adapter: Pick<HrCoordinatorAdapter, "readTimeOff">, options: HrCoordinatorExecutionOptions): Promise<unknown> {
   requireTenant(options);
   let lastError: unknown;
   for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) {
@@ -227,7 +227,7 @@ export async function readTimeOff(adapter: HrCoordinatorAdapter, options: HrCoor
   throw lastError;
 }
 
-export async function readPositions(adapter: HrCoordinatorAdapter, options: HrCoordinatorExecutionOptions): Promise<unknown> {
+export async function readPositions(adapter: Pick<HrCoordinatorAdapter, "readPositions">, options: HrCoordinatorExecutionOptions): Promise<unknown> {
   requireTenant(options);
   let lastError: unknown;
   for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) {
@@ -241,7 +241,7 @@ export async function readPositions(adapter: HrCoordinatorAdapter, options: HrCo
   throw lastError;
 }
 
-export async function readJobRequisitions(adapter: HrCoordinatorAdapter, options: HrCoordinatorExecutionOptions): Promise<unknown> {
+export async function readJobRequisitions(adapter: Pick<HrCoordinatorAdapter, "readJobRequisitions">, options: HrCoordinatorExecutionOptions): Promise<unknown> {
   requireTenant(options);
   let lastError: unknown;
   for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) {
@@ -256,7 +256,7 @@ export async function readJobRequisitions(adapter: HrCoordinatorAdapter, options
 }
 
 /* ── Write executors ── */
-export async function updateEmployee(adapter: HrCoordinatorAdapter, input: Record<string, unknown>, options: HrCoordinatorExecutionOptions, idempotencyKey: string): Promise<unknown> {
+export async function updateEmployee(adapter: Pick<HrCoordinatorAdapter, "updateEmployee">, input: Record<string, unknown>, options: HrCoordinatorExecutionOptions, idempotencyKey: string): Promise<unknown> {
   requireTenant(options);
   requireIdempotency(idempotencyKey);
   let lastError: unknown;
@@ -317,7 +317,7 @@ export async function createJobRequisition(adapter: HrCoordinatorAdapter, option
 }
 
 /* ── Monitor executor ── */
-export async function monitorEmployees(adapter: HrCoordinatorAdapter, options: HrCoordinatorExecutionOptions): Promise<unknown> {
+export async function monitorEmployees(adapter: Pick<HrCoordinatorAdapter, "monitorEmployees">, options: HrCoordinatorExecutionOptions): Promise<unknown> {
   requireTenant(options);
   let lastError: unknown;
   for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) {

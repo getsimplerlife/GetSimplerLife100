@@ -248,10 +248,10 @@ async function writeCapability(
   throw lastError;
 }
 
-export async function readMessages(adapter: CommunicationsAdapter, options: CommunicationsExecutionOptions): Promise<unknown> {
+export async function readMessages(adapter: Pick<CommunicationsAdapter, "listMessages">, options: CommunicationsExecutionOptions): Promise<unknown> {
   return readCapability("slack-read-messages", () => adapter.listMessages(options.tenantId), options);
 }
-export async function sendMessage(adapter: CommunicationsAdapter, input: Record<string, unknown>, options: CommunicationsExecutionOptions, idempotencyKey: string): Promise<unknown> {
+export async function sendMessage(adapter: Pick<CommunicationsAdapter, "sendMessage">, input: Record<string, unknown>, options: CommunicationsExecutionOptions, idempotencyKey: string): Promise<unknown> {
   return writeCapability("slack-send-message", (key) => adapter.sendMessage(options.tenantId, input, key), idempotencyKey, options);
 }
 

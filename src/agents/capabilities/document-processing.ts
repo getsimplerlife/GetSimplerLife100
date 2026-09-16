@@ -130,11 +130,11 @@ export interface DocumentProcessingAdapter { listEnvelopes(tenantId: string): Pr
 export interface DocumentProcessingExecutionOptions { tenantId: string; authToken?: string; audit: (event: { capabilityId: string; tenantId: string; outcome: string; idempotencyKey?: string }) => Promise<void> | void; maxAttempts?: number; }
 function requireTenant(options: DocumentProcessingExecutionOptions): void { if (!options.tenantId.trim()) throw new Error("Tenant scope is required"); if (!options.authToken?.trim()) throw new Error("Provider authentication is required"); }
 function boundedAttempts(value?: number): number { return Math.max(1, Math.min(value ?? 2, 3)); }
-export async function readEnvelopes(adapter: DocumentProcessingAdapter, options: DocumentProcessingExecutionOptions): Promise<unknown> { requireTenant(options); let lastError: unknown; for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) { try { const result = await adapter.listEnvelopes(options.tenantId); await options.audit({ capabilityId: "docusign-read-envelopes", tenantId: options.tenantId, outcome: "succeeded" }); return result; } catch (error) { lastError = error; } } await options.audit({ capabilityId: "docusign-read-envelopes", tenantId: options.tenantId, outcome: "failed" }); throw lastError; }
-export async function sendDocument(adapter: DocumentProcessingAdapter, input: Record<string, unknown>, options: DocumentProcessingExecutionOptions, idempotencyKey: string): Promise<unknown> { requireTenant(options); if (!idempotencyKey.trim()) throw new Error("Idempotency key is required"); let lastError: unknown; for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) { try { const result = await adapter.sendDocument(options.tenantId, input, idempotencyKey); await options.audit({ capabilityId: "docusign-send-document", tenantId: options.tenantId, outcome: "succeeded", idempotencyKey }); return result; } catch (error) { lastError = error; } } await options.audit({ capabilityId: "docusign-send-document", tenantId: options.tenantId, outcome: "failed", idempotencyKey }); throw lastError; }
+export async function readEnvelopes(adapter: Pick<DocumentProcessingAdapter, "listEnvelopes">, options: DocumentProcessingExecutionOptions): Promise<unknown> { requireTenant(options); let lastError: unknown; for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) { try { const result = await adapter.listEnvelopes(options.tenantId); await options.audit({ capabilityId: "docusign-read-envelopes", tenantId: options.tenantId, outcome: "succeeded" }); return result; } catch (error) { lastError = error; } } await options.audit({ capabilityId: "docusign-read-envelopes", tenantId: options.tenantId, outcome: "failed" }); throw lastError; }
+export async function sendDocument(adapter: Pick<DocumentProcessingAdapter, "sendDocument">, input: Record<string, unknown>, options: DocumentProcessingExecutionOptions, idempotencyKey: string): Promise<unknown> { requireTenant(options); if (!idempotencyKey.trim()) throw new Error("Idempotency key is required"); let lastError: unknown; for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) { try { const result = await adapter.sendDocument(options.tenantId, input, idempotencyKey); await options.audit({ capabilityId: "docusign-send-document", tenantId: options.tenantId, outcome: "succeeded", idempotencyKey }); return result; } catch (error) { lastError = error; } } await options.audit({ capabilityId: "docusign-send-document", tenantId: options.tenantId, outcome: "failed", idempotencyKey }); throw lastError; }
 
 
-export async function readTemplates(adapter: DocumentProcessingAdapter, options: DocumentProcessingExecutionOptions): Promise<unknown> {
+export async function readTemplates(adapter: Pick<DocumentProcessingAdapter, "readTemplates">, options: DocumentProcessingExecutionOptions): Promise<unknown> {
   requireTenant(options);
   let lastError: unknown;
   for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) {
@@ -149,7 +149,7 @@ export async function readTemplates(adapter: DocumentProcessingAdapter, options:
 }
 
 
-export async function readBulkEnvelopes(adapter: DocumentProcessingAdapter, options: DocumentProcessingExecutionOptions): Promise<unknown> {
+export async function readBulkEnvelopes(adapter: Pick<DocumentProcessingAdapter, "readBulkEnvelopes">, options: DocumentProcessingExecutionOptions): Promise<unknown> {
   requireTenant(options);
   let lastError: unknown;
   for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) {
@@ -164,7 +164,7 @@ export async function readBulkEnvelopes(adapter: DocumentProcessingAdapter, opti
 }
 
 
-export async function checkSigningStatus(adapter: DocumentProcessingAdapter, options: DocumentProcessingExecutionOptions): Promise<unknown> {
+export async function checkSigningStatus(adapter: Pick<DocumentProcessingAdapter, "checkSigningStatus">, options: DocumentProcessingExecutionOptions): Promise<unknown> {
   requireTenant(options);
   let lastError: unknown;
   for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) {
@@ -179,7 +179,7 @@ export async function checkSigningStatus(adapter: DocumentProcessingAdapter, opt
 }
 
 
-export async function downloadSignedDoc(adapter: DocumentProcessingAdapter, options: DocumentProcessingExecutionOptions): Promise<unknown> {
+export async function downloadSignedDoc(adapter: Pick<DocumentProcessingAdapter, "downloadSignedDoc">, options: DocumentProcessingExecutionOptions): Promise<unknown> {
   requireTenant(options);
   let lastError: unknown;
   for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) {
@@ -194,7 +194,7 @@ export async function downloadSignedDoc(adapter: DocumentProcessingAdapter, opti
 }
 
 
-export async function readRecipients(adapter: DocumentProcessingAdapter, options: DocumentProcessingExecutionOptions): Promise<unknown> {
+export async function readRecipients(adapter: Pick<DocumentProcessingAdapter, "readRecipients">, options: DocumentProcessingExecutionOptions): Promise<unknown> {
   requireTenant(options);
   let lastError: unknown;
   for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) {
@@ -209,7 +209,7 @@ export async function readRecipients(adapter: DocumentProcessingAdapter, options
 }
 
 
-export async function readEnvelope(adapter: DocumentProcessingAdapter, options: DocumentProcessingExecutionOptions): Promise<unknown> {
+export async function readEnvelope(adapter: Pick<DocumentProcessingAdapter, "readEnvelope">, options: DocumentProcessingExecutionOptions): Promise<unknown> {
   requireTenant(options);
   let lastError: unknown;
   for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) {
@@ -224,7 +224,7 @@ export async function readEnvelope(adapter: DocumentProcessingAdapter, options: 
 }
 
 
-export async function voidEnvelope(adapter: DocumentProcessingAdapter, input: Record<string, unknown>, options: DocumentProcessingExecutionOptions, idempotencyKey: string): Promise<unknown> {
+export async function voidEnvelope(adapter: Pick<DocumentProcessingAdapter, "voidEnvelope">, input: Record<string, unknown>, options: DocumentProcessingExecutionOptions, idempotencyKey: string): Promise<unknown> {
   requireTenant(options);
   if (!idempotencyKey.trim()) throw new Error("Idempotency key is required");
   let lastError: unknown;
@@ -240,7 +240,7 @@ export async function voidEnvelope(adapter: DocumentProcessingAdapter, input: Re
 }
 
 
-export async function monitorEnvelopeStatus(adapter: DocumentProcessingAdapter, options: DocumentProcessingExecutionOptions): Promise<unknown> {
+export async function monitorEnvelopeStatus(adapter: Pick<DocumentProcessingAdapter, "monitorEnvelopeStatus">, options: DocumentProcessingExecutionOptions): Promise<unknown> {
   requireTenant(options);
   let lastError: unknown;
   for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) {
