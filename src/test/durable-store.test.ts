@@ -193,9 +193,9 @@ describe("durable store — fresh DB seeding", () => {
     // Admin user landed in the durable store (fresh DB gets admin).
     expect(durableHas("users.json")).toBe(true);
     const users = durableGet("users.json");
-    const admin = Object.values(users).find((u: any) => u && u.role === "admin");
+    const admin = Object.values(users).find((u: any) => u && u.role === "admin") as { email: string } | undefined;
     expect(admin).toBeDefined();
-    expect(admin.email).toBe("mathewortiz97@gmail.com");
+    expect(admin!.email).toBe("mathewortiz97@gmail.com");
     // And mirrored into the driver (the DB).
     const dbUsers = driver.dump()["users.json"];
     expect(Object.values(dbUsers).some((u: any) => u && u.role === "admin")).toBe(true);

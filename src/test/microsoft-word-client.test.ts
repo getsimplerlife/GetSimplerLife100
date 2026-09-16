@@ -39,7 +39,7 @@ describe("Microsoft Word client (Graph)", () => {
     const zip = buildMinimalDocx(["Round trip", "works"]);
     (globalThis as any).fetch = async (url: string, _opts: any) => {
       expect(url).toBe("https://graph.microsoft.com/v1.0/me/drive/items/doc-1/content");
-      return new Response(zip);
+      return new Response(zip as BodyInit);
     };
     const text = await c.readWordDocumentText("doc-1");
     expect(text).toContain("Round trip");

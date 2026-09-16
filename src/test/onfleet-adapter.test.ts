@@ -64,7 +64,7 @@ describe("Onfleet verification adapter (real client, mocked transport)", () => {
   });
 
   it("read-routes reads the first team container (route)", async () => {
-    const r = await onfleetAdapter(contract("onfleet-read-routes"), ctx());
+    const r = (await onfleetAdapter(contract("onfleet-read-routes"), ctx())) as { response?: any };
     expect(r.response).toEqual({ count: 2, teamId: "tm1" });
     expect(calls.map((c) => c.url)).toContain("https://onfleet.com/api/v2/containers/tm1");
   });
@@ -94,7 +94,7 @@ describe("Onfleet verification adapter (real client, mocked transport)", () => {
   });
 
   it("create-task creates a labeled task and leaves it in place (non-destructive)", async () => {
-    const r = await onfleetAdapter(contract("onfleet-create-task"), ctx());
+    const r = (await onfleetAdapter(contract("onfleet-create-task"), ctx())) as { response?: any };
     expect(r).toEqual({ httpStatus: 201, response: { created: true, kept: true, taskId: "t-new" } });
     const post = calls.find((c) => c.method === "POST" && c.url.endsWith("/tasks"))!;
     expect(post.body.notes).toMatch(/Phase7-VERIFY/);
@@ -102,7 +102,7 @@ describe("Onfleet verification adapter (real client, mocked transport)", () => {
     expect(calls.filter((c) => c.method === "DELETE")).toEqual([]);
   });
   it("update-task-status creates and updates (no delete)", async () => {
-    const r = await onfleetAdapter(contract("onfleet-update-task-status"), ctx());
+    const r = (await onfleetAdapter(contract("onfleet-update-task-status"), ctx())) as { response?: any };
     expect(r.response.updated).toBe(true);
     expect(r.response.kept).toBe(true);
     const order = calls.filter((c) => c.url.includes("/tasks")).map((c) => c.method);
@@ -111,7 +111,7 @@ describe("Onfleet verification adapter (real client, mocked transport)", () => {
     expect(put.body.notes).toMatch(/updated$/);
   });
   it("complete-task creates and completes (no delete)", async () => {
-    const r = await onfleetAdapter(contract("onfleet-complete-task"), ctx());
+    const r = (await onfleetAdapter(contract("onfleet-complete-task"), ctx())) as { response?: any };
     expect(r.response).toMatchObject({ completed: true, taskId: "t-new", kept: true });
     const order = calls.filter((c) => c.url.includes("/tasks")).map((c) => c.method + " " + c.url);
     expect(order[0]).toContain("POST");
@@ -120,7 +120,7 @@ describe("Onfleet verification adapter (real client, mocked transport)", () => {
     expect(calls.filter((c) => c.method === "DELETE")).toEqual([]);
   });
   it("create-worker creates a labeled worker and leaves it in place", async () => {
-    const r = await onfleetAdapter(contract("onfleet-create-worker"), ctx());
+    const r = (await onfleetAdapter(contract("onfleet-create-worker"), ctx())) as { response?: any };
     expect(r).toEqual({ httpStatus: 201, response: { created: true, kept: true, workerId: "w-new" } });
     const post = calls.find((c) => c.method === "POST" && c.url.endsWith("/workers"))!;
     expect(post.body.name).toMatch(/Phase7-VERIFY/);
@@ -128,7 +128,7 @@ describe("Onfleet verification adapter (real client, mocked transport)", () => {
   });
   it("leaves artifacts in place even when the client is fine (no rollback branch)", async () => {
     // No DELETE route is provided/needed — the adapter never issues one.
-    const r = await onfleetAdapter(contract("onfleet-create-task"), ctx());
+    const r = (await onfleetAdapter(contract("onfleet-create-task"), ctx())) as { response?: any };
     expect(r.response.kept).toBe(true);
     expect(calls.filter((c) => c.method === "DELETE")).toEqual([]);
   });

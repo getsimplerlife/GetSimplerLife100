@@ -264,7 +264,7 @@ export function setOwnerAutonomyKillSwitch(value: boolean, dataDir?: string): vo
 }
 
 // ── Audit log (immutable append) ───────────────────────────────────────
-export function appendAutonomyAudit(entry: Omit<AutonomyAuditEntry, "createdAt" | "actionId"> & { actionId?: string }, dataDir?: string): AutonomyAuditEntry {
+export function appendAutonomyAudit(entry: Omit<AutonomyAuditEntry, "createdAt" | "actionId" | "actor"> & { actionId?: string }, dataDir?: string): AutonomyAuditEntry {
   const index = readAuditIndex(dataDir);
   const tenantId = entry.tenantEmail;
   const rec: AutonomyAuditEntry = {

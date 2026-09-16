@@ -19,7 +19,7 @@ export interface GraphOAuthInput {
   clientSecret: string;
   redirectUri: string;
   tenantId?: string;
-  scopes: string[];
+  scopes?: string[];
 }
 
 export function graphOAuthConfig(config: GraphOAuthInput): OAuthConfig {
@@ -28,7 +28,7 @@ export function graphOAuthConfig(config: GraphOAuthInput): OAuthConfig {
     clientId: config.clientId,
     clientSecret: config.clientSecret,
     redirectUri: config.redirectUri,
-    scopes: config.scopes,
+    scopes: config.scopes ?? [],
     authorizeUrl: `${GRAPH_AUTHORITY_BASE}/${tenant}/oauth2/v2.0/authorize`,
     tokenUrl: `${GRAPH_AUTHORITY_BASE}/${tenant}/oauth2/v2.0/token`,
     flowType: "authorization_code",

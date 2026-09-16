@@ -628,7 +628,7 @@ async function doReconnectAttempt(): Promise<void> {
   if (opts.reconnectMaxAttempts > 0 && reconnectAttempts >= opts.reconnectMaxAttempts) return;
   reconnectAttempts++;
   if (!retryDir) return;
-  const result = await attemptInit(retryDir, retryDriver);
+  const result = await attemptInit(retryDir, retryDriver ?? undefined);
   if (result.enabled) {
     hydrationState = "ready";
     reconnectAttempts = 0;

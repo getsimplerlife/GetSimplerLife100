@@ -12,6 +12,7 @@ import {
   persistRefreshedCredential,
 } from "../verification/credential-source";
 import { EvidenceStore } from "../verification/evidence-store";
+import type { VerificationResult } from "../verification/types";
 import { collectContracts } from "../../scripts/verify-provider";
 
 const originalEnv: NodeJS.ProcessEnv = { ...process.env };
@@ -311,7 +312,7 @@ describe("phase 7 verification infra — evidence store", () => {
     const file = join(dir, "evidence.json");
     const store = new EvidenceStore(file);
     const now = Date.now();
-    const fresh: VerificationResultLike = {
+    const fresh: VerificationResult = {
       capabilityId: "xero-read-invoices",
       status: "verified",
       evidence: {
@@ -349,10 +350,3 @@ describe("phase 7 verification infra — adapter registry", () => {
   });
 });
 
-// Local shape mirror so the test does not depend on runner internals.
-interface VerificationResultLike {
-  capabilityId: string;
-  status: string;
-  evidence: { capabilityId: string; providerId: string; timestamp: string; httpStatus?: number; responseShape?: string; verifiedBy: string };
-  expiresAt: string;
-}
