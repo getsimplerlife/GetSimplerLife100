@@ -203,7 +203,7 @@ export async function updateLead(adapter: SalesAdapter, options: SalesExecutionO
   return result;
 }
 
-export async function monitorPipeline(adapter: SalesAdapter, options: SalesExecutionOptions): Promise<unknown> {
+export async function monitorPipeline(adapter: Pick<SalesAdapter, "monitorPipeline">, options: SalesExecutionOptions): Promise<unknown> {
   requireTenant(options);
   let lastError: unknown;
   for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) {

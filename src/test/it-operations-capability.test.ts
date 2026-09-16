@@ -39,7 +39,7 @@ describe("IT Operations / ServiceNow capability slice", () => {
           return ["incident"];
         },
       },
-      { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (event) => outcomes.push(event.outcome) },
+      { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (event) => { outcomes.push(event.outcome); } },
     );
     expect(result).toEqual(["incident"]);
     expect(calls).toBe(2);
@@ -51,10 +51,10 @@ describe("IT Operations / ServiceNow capability slice", () => {
     const outcomes: string[] = [];
     const adapter = { createIncident: async () => { throw Error("unavailable"); } };
     await expect(
-      createIncident(adapter, {}, { tenantId: "t", authToken: "token", audit: (event) => outcomes.push(event.outcome) }, ""),
+      createIncident(adapter, {}, { tenantId: "t", authToken: "token", audit: (event) => { outcomes.push(event.outcome); } }, ""),
     ).rejects.toThrow("Idempotency");
     await expect(
-      createIncident(adapter, {}, { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (event) => outcomes.push(event.outcome) }, "k"),
+      createIncident(adapter, {}, { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (event) => { outcomes.push(event.outcome); } }, "k"),
     ).rejects.toThrow("unavailable");
     expect(outcomes).toEqual(["failed"]);
   });

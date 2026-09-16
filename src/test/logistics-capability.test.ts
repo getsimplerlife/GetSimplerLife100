@@ -46,7 +46,7 @@ describe("Logistics / Onfleet capability slice", () => {
           return ["task"];
         },
       },
-      { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (e) => out.push(e.outcome) },
+      { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (e) => { out.push(e.outcome); } },
     );
     expect(r).toEqual(["task"]);
     expect(calls).toBe(2);
@@ -56,8 +56,8 @@ describe("Logistics / Onfleet capability slice", () => {
   it("requires idempotency and audits failed writes", async () => {
     const out: string[] = [];
     const a = { createTask: async () => { throw Error("unavailable"); } };
-    await expect(createTask(a, {}, { tenantId: "t", authToken: "token", audit: (e) => out.push(e.outcome) }, "")).rejects.toThrow("Idempotency");
-    await expect(createTask(a, {}, { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (e) => out.push(e.outcome) }, "k")).rejects.toThrow("unavailable");
+    await expect(createTask(a, {}, { tenantId: "t", authToken: "token", audit: (e) => { out.push(e.outcome); } }, "")).rejects.toThrow("Idempotency");
+    await expect(createTask(a, {}, { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (e) => { out.push(e.outcome); } }, "k")).rejects.toThrow("unavailable");
     expect(out).toEqual(["failed"]);
   });
 
@@ -98,7 +98,7 @@ describe("Logistics / Onfleet capability slice", () => {
       completeTask: async () => { throw Error("boom"); },
     } as any;
     await expect(
-      executeLogisticsCapability(adapter, "onfleet-complete-task", { tenantId: "t", authToken: "token", audit: (e) => out.push(e.outcome) }),
+      executeLogisticsCapability(adapter, "onfleet-complete-task", { tenantId: "t", authToken: "token", audit: (e) => { out.push(e.outcome); } }),
     ).rejects.toThrow("Idempotency");
     await expect(
       executeLogisticsCapability(adapter, "onfleet-complete-task", {

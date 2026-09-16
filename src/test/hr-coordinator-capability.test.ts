@@ -39,7 +39,7 @@ describe("HR Coordinator / Workday capability slice", () => {
           return ["employee"];
         },
       },
-      { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (event) => outcomes.push(event.outcome) },
+      { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (event) => { outcomes.push(event.outcome); } },
     );
     expect(result).toEqual(["employee"]);
     expect(calls).toBe(2);
@@ -51,10 +51,10 @@ describe("HR Coordinator / Workday capability slice", () => {
     const outcomes: string[] = [];
     const adapter = { updateEmployee: async () => { throw Error("unavailable"); } };
     await expect(
-      updateEmployee(adapter, {}, { tenantId: "t", authToken: "token", audit: (event) => outcomes.push(event.outcome) }, ""),
+      updateEmployee(adapter, {}, { tenantId: "t", authToken: "token", audit: (event) => { outcomes.push(event.outcome); } }, ""),
     ).rejects.toThrow("Idempotency");
     await expect(
-      updateEmployee(adapter, {}, { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (event) => outcomes.push(event.outcome) }, "k"),
+      updateEmployee(adapter, {}, { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (event) => { outcomes.push(event.outcome); } }, "k"),
     ).rejects.toThrow("unavailable");
     expect(outcomes).toEqual(["failed"]);
   });
@@ -79,7 +79,7 @@ describe("HR Coordinator / Workday capability slice", () => {
           return { monitored: 3 };
         },
       },
-      { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (event) => outcomes.push(event.outcome) },
+      { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (event) => { outcomes.push(event.outcome); } },
     );
     expect(result).toEqual({ monitored: 3 });
     expect(calls).toBe(2);
@@ -90,7 +90,7 @@ describe("HR Coordinator / Workday capability slice", () => {
     const outcomes: string[] = [];
     const adapter = { monitorEmployees: async () => { throw Error("down"); } };
     await expect(
-      monitorEmployees(adapter, { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (event) => outcomes.push(event.outcome) }),
+      monitorEmployees(adapter, { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (event) => { outcomes.push(event.outcome); } }),
     ).rejects.toThrow("down");
     expect(outcomes).toEqual(["failed"]);
   });

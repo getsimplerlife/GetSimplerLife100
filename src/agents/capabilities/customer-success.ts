@@ -185,7 +185,7 @@ export async function readConversation(adapter: Pick<CustomerSuccessAdapter, "re
 export async function readContact(adapter: Pick<CustomerSuccessAdapter, "readContact">, options: CustomerSuccessExecutionOptions, input?: Record<string, unknown>): Promise<unknown> {
   return executeRead("intercom-read-contact", () => adapter.readContact(options.tenantId, input), options);
 }
-export async function sendMessage(adapter: CustomerSuccessAdapter, input: Record<string, unknown>, options: CustomerSuccessExecutionOptions, idempotencyKey: string): Promise<unknown> {
+export async function sendMessage(adapter: Pick<CustomerSuccessAdapter, "sendMessage">, input: Record<string, unknown>, options: CustomerSuccessExecutionOptions, idempotencyKey: string): Promise<unknown> {
   return executeWrite("intercom-send-message", () => adapter.sendMessage(options.tenantId, input, idempotencyKey), options, idempotencyKey);
 }
 export async function assignConversation(adapter: Pick<CustomerSuccessAdapter, "assignConversation">, input: Record<string, unknown>, options: CustomerSuccessExecutionOptions, idempotencyKey: string): Promise<unknown> {
@@ -194,9 +194,9 @@ export async function assignConversation(adapter: Pick<CustomerSuccessAdapter, "
 export async function tagUser(adapter: Pick<CustomerSuccessAdapter, "tagUser">, input: Record<string, unknown>, options: CustomerSuccessExecutionOptions, idempotencyKey: string): Promise<unknown> {
   return executeWrite("intercom-tag-user", () => adapter.tagUser(options.tenantId, input, idempotencyKey), options, idempotencyKey);
 }
-export async function createContact(adapter: CustomerSuccessAdapter, input: Record<string, unknown>, options: CustomerSuccessExecutionOptions, idempotencyKey: string): Promise<unknown> {
+export async function createContact(adapter: Pick<CustomerSuccessAdapter, "createContact">, input: Record<string, unknown>, options: CustomerSuccessExecutionOptions, idempotencyKey: string): Promise<unknown> {
   return executeWrite("intercom-create-contact", () => adapter.createContact(options.tenantId, input, idempotencyKey), options, idempotencyKey);
 }
-export async function monitorConversations(adapter: CustomerSuccessAdapter, options: CustomerSuccessExecutionOptions, input?: Record<string, unknown>): Promise<unknown> {
+export async function monitorConversations(adapter: Pick<CustomerSuccessAdapter, "monitorConversations">, options: CustomerSuccessExecutionOptions, input?: Record<string, unknown>): Promise<unknown> {
   return executeRead("intercom-monitor-conversations", () => adapter.monitorConversations(options.tenantId, input), options);
 }

@@ -210,7 +210,7 @@ export async function updateIncidentAssignment(adapter: Pick<ItOperationsAdapter
 }
 
 
-export async function monitorIncidentCreated(adapter: ItOperationsAdapter, options: ItOperationsExecutionOptions, _subscription: Record<string, unknown>): Promise<unknown> {
+export async function monitorIncidentCreated(adapter: Pick<ItOperationsAdapter, "monitorIncidentCreated">, options: ItOperationsExecutionOptions, _subscription: Record<string, unknown>): Promise<unknown> {
   if (!adapter.monitorIncidentCreated) throw new Error("Capability adapter method is unavailable");
   requireTenant(options);
   const result = await adapter.monitorIncidentCreated(options.tenantId);
@@ -218,7 +218,7 @@ export async function monitorIncidentCreated(adapter: ItOperationsAdapter, optio
   return result;
 }
 
-export async function readKnowledgeBase(adapter: ItOperationsAdapter, options: ItOperationsExecutionOptions): Promise<unknown> {
+export async function readKnowledgeBase(adapter: Pick<ItOperationsAdapter, "readKnowledgeBase">, options: ItOperationsExecutionOptions): Promise<unknown> {
   if (!adapter.readKnowledgeBase) throw new Error("Capability adapter method is unavailable");
   requireTenant(options);
   let lastError: unknown;

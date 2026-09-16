@@ -288,7 +288,7 @@ export async function monitorWorkbooks(adapter: Pick<AnalyticsAdapter, "monitorW
   throw lastError;
 }
 
-export async function monitorDatasources(adapter: AnalyticsAdapter, options: AnalyticsExecutionOptions): Promise<unknown> {
+export async function monitorDatasources(adapter: Pick<AnalyticsAdapter, "monitorDatasources">, options: AnalyticsExecutionOptions): Promise<unknown> {
   requireTenant(options);
   let lastError: unknown;
   for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) {

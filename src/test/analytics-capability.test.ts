@@ -36,7 +36,7 @@ describe("Analytics / Tableau capability slice", () => {
           return ["report"];
         },
       },
-      { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (event) => outcomes.push(event.outcome) },
+      { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (event) => { outcomes.push(event.outcome); } },
     );
     expect(result).toEqual(["report"]);
     expect(calls).toBe(2);
@@ -67,7 +67,7 @@ describe("Analytics / Tableau capability slice", () => {
           return { monitored: 3 };
         },
       },
-      { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (event) => outcomes.push(event.outcome) },
+      { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (event) => { outcomes.push(event.outcome); } },
     );
     expect(result).toEqual({ monitored: 3 });
     expect(calls).toBe(2);
@@ -78,7 +78,7 @@ describe("Analytics / Tableau capability slice", () => {
     const outcomes: string[] = [];
     const adapter = { monitorDatasources: async () => { throw Error("down"); } };
     await expect(
-      monitorDatasources(adapter, { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (event) => outcomes.push(event.outcome) }),
+      monitorDatasources(adapter, { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (event) => { outcomes.push(event.outcome); } }),
     ).rejects.toThrow("down");
     expect(outcomes).toEqual(["failed"]);
   });
@@ -94,7 +94,7 @@ describe("Analytics / Tableau capability slice", () => {
     const adapter = { createProject: async () => ({ id: "p1" }) } as any;
     const result = await createProject(
       adapter,
-      { tenantId: "t", authToken: "token", audit: (e: any) => outcomes.push(`${e.outcome}:${e.idempotencyKey}`) },
+      { tenantId: "t", authToken: "token", audit: (e: any) => { outcomes.push(`${e.outcome}:${e.idempotencyKey}`); } },
       { name: "proj" },
       "key-123",
     );

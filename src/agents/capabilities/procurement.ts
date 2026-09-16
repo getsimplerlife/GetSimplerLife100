@@ -86,7 +86,7 @@ export async function readPurchaseOrders(adapter: Pick<ProcurementAdapter, "list
   throw lastError;
 }
 export async function createPurchaseOrder(
-  adapter: ProcurementAdapter,
+  adapter: Pick<ProcurementAdapter, "createPurchaseOrder">,
   input: Record<string, unknown>,
   options: ProcurementExecutionOptions,
   idempotencyKey: string,
