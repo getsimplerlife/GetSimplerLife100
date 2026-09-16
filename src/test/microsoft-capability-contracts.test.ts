@@ -53,7 +53,7 @@ describe("Microsoft Productivity capability contracts", () => {
     const options: MicrosoftProductivityExecutionOptions = {
       tenantId: "acme",
       authToken: "tok",
-      audit: async (e) => auditEvents.push(e),
+      audit: async (e) => { auditEvents.push(e); },
     };
     const r = await createMicrosoftWordDoc(adapter, { name: "Report", paragraphs: ["x"] }, options, "ik-1");
     expect(r).toEqual({ id: "doc-1" });

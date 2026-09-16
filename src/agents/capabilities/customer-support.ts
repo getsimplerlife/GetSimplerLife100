@@ -103,7 +103,12 @@ export async function executeExtendedCapability(
   let lastError: unknown;
   for (let attempt = 0; attempt < attempts; attempt++) {
     try {
-      const fn = write ? adapter.write : adapter.read;
+      const fn = (write ? adapter.write : adapter.read) as (
+        capabilityId: string,
+        tenantId: string,
+        input?: Record<string, unknown>,
+        idempotencyKey?: string,
+      ) => Promise<unknown>;
       if (!fn) throw new Error("Capability adapter method is unavailable");
       const result = write
         ? await fn(capabilityId, options.tenantId, input ?? {}, idempotencyKey!)
