@@ -12,7 +12,7 @@
  *     existing low-level src/orchestration::executeChain still works.
  * All tests run with zero real providers and LLM off (approval gate default ON).
  */
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { mkdtempSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";

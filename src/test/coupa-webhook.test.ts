@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach } from "vitest";
+import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import { coupaWebhookHandlers, coupaEventLog, clearCoupaEventLog } from "../integrations/providers/coupa/webhooks";
 
 describe("Coupa webhook handlers", () => {

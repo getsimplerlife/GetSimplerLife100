@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { tableauAdapter } from "../verification/adapters/priority";
 import type { AdapterContext } from "../verification/adapters";
 

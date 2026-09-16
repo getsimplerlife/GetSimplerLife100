@@ -3,7 +3,7 @@
  * Covers: default 'auto', set + read, validation (fail closed), tenant
  * scoping (one tenant's preference never leaks to another).
  */
-import { describe, expect, it, afterEach } from "vitest";
+import { describe, expect, it, afterEach, beforeEach } from "vitest";
 import { join } from "path";
 import { mkdtempSync, rmSync } from "fs";
 import { readJSON } from "../lib/data-store";

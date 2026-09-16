@@ -9,7 +9,7 @@
  * Network provider clients are injected via the createProviderFile seam —
  * the real dispatch is thin and already covered by provider client tests.
  */
-import { describe, expect, it, afterEach } from "vitest";
+import { describe, expect, it, afterEach, beforeEach } from "vitest";
 import { join } from "path";
 import { mkdtempSync, rmSync, writeFileSync, readFileSync as fsReadFileSync } from "fs";
 import { tmpdir } from "os";

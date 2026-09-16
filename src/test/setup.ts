@@ -1,6 +1,6 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
-import { afterEach } from "vitest";
+import { afterEach, beforeEach } from "vitest";
 // HARD TEST ISOLATION (#230): every test file starts with the durable store
 // DISABLED and aborts if a DATABASE_URL (real Neon) is present. Tests must
 // never write the real credential store — see src/test/test-isolation.ts.

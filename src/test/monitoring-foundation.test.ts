@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, afterEach } from "vitest";
 import { clearSeen, isDuplicate, markSeen } from "../monitoring/dedupe";
 import { acquireLease, clearLeases, isLeased, releaseLease } from "../monitoring/lease";
 import { clearTenants, configureTenant } from "../monitoring/gates";

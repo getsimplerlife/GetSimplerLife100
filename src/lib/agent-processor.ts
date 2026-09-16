@@ -962,7 +962,7 @@ const CATEGORY_PROCESSORS: Record<
  */
 export function processAgentResults(
   agent: AgentDefinition,
-  queryResult: AgentIntegrationResult,
+  queryResult: Pick<AgentIntegrationResult, "integrationsUsed" | "totalRecordsProcessed">,
   userConnections: ProviderConnection[],
   opts?: ProcessorOptions,
 ): ProcessorResult {

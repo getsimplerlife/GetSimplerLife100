@@ -11,7 +11,7 @@
  *
  * All tests: zero real providers, LLM off, fail-closed default ON.
  */
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { mkdtempSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
@@ -224,7 +224,7 @@ describe("safety + back-compat", () => {
       base([ok("shopify", "Shopify", [{ id: "w1", title: "Widget", inventory: 4 }])], 1),
       [],
     );
-    const reorder = inv.actionsTaken.find((a) => a.action === "create_reorder");
+    const reorder = inv.actionsTaken.find((a) => a.action === "create_reorder")!;
     expect(reorder).toBeTruthy();
     expect(reorder.providerId).toBe("shopify");
     expect(reorder.status).toBe("pending");
