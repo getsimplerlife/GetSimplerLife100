@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 import { microsoftAdapter } from "../verification/adapters/microsoft";
 import type { AdapterContext } from "../verification/adapters";
 import { buildMinimalDocx, buildMinimalPptx } from "../integrations/providers/microsoft-office/ooxml";

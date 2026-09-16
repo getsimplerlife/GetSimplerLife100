@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 import { quickbooksAdapter } from "../verification/adapters/quickbooks";
 import type { AdapterContext } from "../verification/adapters";
 

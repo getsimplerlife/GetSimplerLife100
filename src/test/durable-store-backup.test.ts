@@ -11,7 +11,7 @@
 //  3. Status fields (lastSnapshotAt, snapshotCount, lastSnapshotError) are
 //     surfaced via durableStoreStatus() for admin diagnostics.
 //  4. Snapshot with the store disabled fails soft (ok:false) — never crashes.
-import { describe, it, expect, beforeAll, afterAll, afterEach, beforeEach } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, afterEach } from "vitest";
 import { mkdtempSync, mkdirSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, afterEach } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { clearEvidence, getEvidence, isVerified, recordEvidence } from "../verification/registry";
 import { runVerification } from "../verification/runner";
 import type { CapabilityContract } from "../lib/capability-contract";

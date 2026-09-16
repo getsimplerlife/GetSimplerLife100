@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach, afterEach } from "vitest";
+import { describe, expect, it, beforeEach } from "vitest";
 import { tableauWebhookHandlers, tableauEventLog, clearTableauEventLog } from "../integrations/providers/tableau/webhooks";
 
 describe("Tableau webhook handlers", () => {

@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach, afterEach } from "vitest";
+import { describe, expect, it, beforeEach } from "vitest";
 import { onfleetWebhookHandlers, onfleetEventLog, clearOnfleetEventLog } from "../integrations/providers/onfleet/webhooks";
 
 describe("Onfleet webhook handlers", () => {

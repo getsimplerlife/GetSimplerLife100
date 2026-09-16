@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, afterEach } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { executeChain, resolveInput } from "../orchestration/executor";
 import { activateChain, clearActivations, evaluateTriggers } from "../orchestration/trigger";
 import type { OrchestrationChain } from "../orchestration/types";
