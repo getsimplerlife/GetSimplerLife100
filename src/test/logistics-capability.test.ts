@@ -75,7 +75,7 @@ describe("Logistics / Onfleet capability slice", () => {
       tenantId: "t",
       authToken: "token",
       maxAttempts: 2,
-      audit: (e) => out.push(e.outcome),
+      audit: (e) => { out.push(e.outcome); },
     });
     expect(r).toEqual(["worker"]);
     expect(calls).toBe(2);
@@ -106,7 +106,7 @@ describe("Logistics / Onfleet capability slice", () => {
         authToken: "token",
         idempotencyKey: "k",
         maxAttempts: 2,
-        audit: (e) => out.push(e.outcome),
+        audit: (e) => { out.push(e.outcome); },
       }),
     ).rejects.toThrow("boom");
     expect(out).toEqual(["failed"]);

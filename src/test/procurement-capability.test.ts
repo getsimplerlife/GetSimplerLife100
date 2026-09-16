@@ -130,7 +130,7 @@ describe("Procurement / Coupa capability slice", () => {
       tenantId: "t",
       authToken: "token",
       maxAttempts: 2,
-      audit: (e) => out.push(e.outcome),
+      audit: (e) => { out.push(e.outcome); },
     });
     expect(r).toEqual(["supplier"]);
     expect(calls).toBe(2);
@@ -164,7 +164,7 @@ describe("Procurement / Coupa capability slice", () => {
         tenantId: "t",
         authToken: "token",
         maxAttempts: 2,
-        audit: (e) => out.push(e.outcome),
+        audit: (e) => { out.push(e.outcome); },
       }),
     ).rejects.toThrow("unavailable");
     expect(out).toEqual(["failed"]);
