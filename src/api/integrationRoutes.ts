@@ -6,11 +6,12 @@
  */
 
 import { registry } from "../integrations/providers";
-import { createConnection, getConnection, deleteConnection, updateConnectionConfig, updateConnectionStatus, testConnection, type ConnectionConfig } from "../integrations/framework/connection";
+import { createConnection, getConnection, deleteConnection, updateConnectionConfig, updateConnectionStatus, testConnection, listConnections, type ConnectionConfig } from "../integrations/framework/connection";
 import { generateState, generateCodeVerifier, buildAuthorizeUrl, type OAuthConfig } from "../integrations/framework/oauth";
 import { getUserFromRequest } from "./auditLogs";
 import { readJSONLive, writeJSON, resolveDataDir } from "../lib/data-store";
 import { durableFlush } from "../lib/durable-store";
+import { probeProvider } from "../lib/connection-health";
 import { join } from "node:path";
 
 const SITE_ORIGIN = process.env.SITE_ORIGIN || "https://simplerlife100.ctonew.app";
@@ -220,7 +221,6 @@ export async function handleOAuthAuthorize(req: Request): Promise<Response> {
       clientId,
       clientSecret,
       redirectUri: `${SITE_ORIGIN}/api/oauth/callback/${providerId}`,
-      ...(providerMeta.defaultConfig || {}),
     });
     authorizeUrl = result.url;
     state = result.state;
@@ -236,9 +236,9 @@ export async function handleOAuthAuthorize(req: Request): Promise<Response> {
       clientId,
       clientSecret,
       redirectUri: `${SITE_ORIGIN}/api/oauth/callback/${providerId}`,
-      scopes: providerMeta.scopes || [],
-      authorizeUrl: providerMeta.authorizeUrl || "",
-      tokenUrl: providerMeta.tokenUrl || "",
+      scopes: [],
+      authorizeUrl: "",
+      tokenUrl: "",
       flowType: "authorization_code",
     };
     authorizeUrl = buildAuthorizeUrl(oauthConfig, state, verifier);
@@ -246,13 +246,12 @@ export async function handleOAuthAuthorize(req: Request): Promise<Response> {
 
   // Store OAuth state in DB for CSRF verification (using the integrations table or a separate store)
   // We'll store it in the DB as a special "pending" connection
-  await createConnection({
-    userId: user.userId,
-    provider: providerId,
-    displayName: `${providerMeta.name} (pending)`,
-    config: { oauthState: state, oauthVerifier: verifier || "", status: "pending" },
-    status: "pending",
-  });
+  await createConnection(
+    user.userId,
+    providerId,
+    `${providerMeta.name} (pending)`,
+    { oauthState: state, oauthVerifier: verifier || "", status: "pending" } as ConnectionConfig,
+  );
 
   return redirect(authorizeUrl);
 }
@@ -298,7 +297,6 @@ export async function handleOAuthCallback(req: Request): Promise<Response> {
         clientId,
         clientSecret,
         redirectUri: `${SITE_ORIGIN}/api/oauth/callback/${providerId}`,
-        ...(providerMeta.defaultConfig || {}),
       }, code, "");
     } else {
       // Generic exchange via oauth.ts framework
@@ -307,9 +305,9 @@ export async function handleOAuthCallback(req: Request): Promise<Response> {
         clientId,
         clientSecret,
         redirectUri: `${SITE_ORIGIN}/api/oauth/callback/${providerId}`,
-        scopes: providerMeta.scopes || [],
-        authorizeUrl: providerMeta.authorizeUrl || "",
-        tokenUrl: providerMeta.tokenUrl || "",
+        scopes: [],
+        authorizeUrl: "",
+        tokenUrl: "",
         flowType: "authorization_code",
       };
       tokens = await exchangeCodeForTokens(oauthConfig, code, "");
@@ -374,13 +372,12 @@ export async function handleOAuthCallback(req: Request): Promise<Response> {
     // still reads that table. The durable store above is the source of truth
     // for the three readers; a LibSQL failure must never mask a durable success.
     try {
-      await createConnection({
+      await createConnection(
         userId,
-        provider: providerId,
-        displayName: providerMeta.name,
+        providerId,
+        providerMeta.name,
         config,
-        status: "active",
-      });
+      );
     } catch (legacyErr: any) {
       console.warn(
         `[integrations] legacy createConnection skipped for ${providerId}:`,
@@ -464,13 +461,12 @@ export async function handleCreateConnection(req: Request): Promise<Response> {
     ...(body.config || {}),
   };
 
-  const conn = await createConnection({
-    userId: user.userId,
-    provider: body.provider,
-    displayName: body.displayName || providerMeta.name,
+  const conn = await createConnection(
+    user.userId,
+    body.provider,
+    body.displayName || providerMeta.name,
     config,
-    status: "active",
-  });
+  );
 
   return json(conn, 201);
 }
@@ -521,7 +517,11 @@ export async function handleConnectionStatus(req: Request): Promise<Response> {
   const conn = await getConnection(id, user.userId);
   if (!conn) return error("Connection not found", 404);
 
-  const healthResult = await testConnection(conn);
+  const healthResult = await testConnection(
+    conn.id,
+    conn.userId,
+    async (config) => (await probeProvider(conn.provider, config as unknown as Record<string, any>)).ok,
+  );
   return json({ id: conn.id, status: conn.status, health: healthResult, healthAt: conn.healthAt });
 }
 
@@ -536,7 +536,11 @@ export async function handleConnectionSync(req: Request): Promise<Response> {
   const conn = await getConnection(id, user.userId);
   if (!conn) return error("Connection not found", 404);
 
-  const healthResult = await testConnection(conn);
+  const healthResult = await testConnection(
+    conn.id,
+    conn.userId,
+    async (config) => (await probeProvider(conn.provider, config as unknown as Record<string, any>)).ok,
+  );
   return json({ id: conn.id, synced: true, health: healthResult });
 }
 
@@ -599,12 +603,12 @@ export async function handleHealthCheck(req: Request): Promise<Response> {
 
   const conns = await listConnections(user.userId);
   const total = conns.length;
-  const active = conns.filter(c => c.status === "active").length;
-  const error = conns.filter(c => c.status === "error").length;
-  const expired = conns.filter(c => c.status === "expired").length;
-  const pending = conns.filter(c => c.status === "pending").length;
+  const active = conns.filter((c) => c.status === "active").length;
+  const errorCount = conns.filter((c) => c.status === "error").length;
+  const expired = conns.filter((c) => c.status === "expired").length;
+  const pending = conns.filter((c) => c.status === "pending").length;
 
-  return json({ total, active, error, expired, pending });
+  return json({ total, active, error: errorCount, expired, pending });
 }
 
 export async function handleBackgroundHealthCheck(): Promise<void> {
@@ -617,7 +621,11 @@ export async function handleBackgroundHealthCheck(): Promise<void> {
 
     for (const conn of allConns) {
       try {
-        const result = await testConnection(conn as any);
+        const result = await testConnection(
+          conn.id,
+          conn.userId,
+          async (config) => (await probeProvider(conn.provider, config as unknown as Record<string, any>)).ok,
+        );
         if (result) {
           await updateConnectionStatus(conn.id, conn.userId, "active", undefined);
         }
