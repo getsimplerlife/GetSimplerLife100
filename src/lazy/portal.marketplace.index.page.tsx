@@ -97,7 +97,7 @@ function MarketplaceHub() {
   const [, setEmployees] = useState<any[]>(AGENTS); // preloaded for SSR
   const [invoices, setInvoices] = useState<any[]>([]);
   const [loading, setLoading] = useState(false); // items render immediately
-  const [feedback] = useState("");
+  const [feedback, setFeedback] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [activeCategory, setActiveCategory] = useState<string>("all");
 
@@ -393,7 +393,7 @@ function MarketplaceHub() {
                     {/* Badge Requirements */}
                     {itm.badges && itm.badges.length > 0 && (
                       <div className="flex flex-wrap gap-1.5">
-                        {itm.badges.map((badge, bi) => (
+                        {itm.badges.map((badge: string, bi: number) => (
                           <span
                             key={bi}
                             className={`px-2.5 py-0.5 rounded-md text-[9px] font-mono font-bold border ${getBadgeStyle(badge)}`}
@@ -409,7 +409,7 @@ function MarketplaceHub() {
                       <div className="space-y-1">
                         <span className="text-[8px] font-mono uppercase tracking-wider text-stone-600 block">Collaborative Chains:</span>
                         <div className="flex flex-wrap gap-1">
-                          {itm.chainsWith.slice(0, 3).map((partner, ci) => (
+                          {itm.chainsWith.slice(0, 3).map((partner: string, ci: number) => (
                             <span key={ci} className="text-[8px] font-bold bg-stone-900/80 text-stone-400 border border-stone-850 px-1.5 py-0.5 rounded-md">
                               🤝 {partner}
                             </span>
@@ -680,7 +680,7 @@ function MarketplaceHub() {
 
                   <div className="flex flex-col sm:flex-row gap-3 pt-4">
                     <Link
-                      to="/portal/employees/"
+                      to="/portal/employees"
                       onClick={() => setCheckoutItem(null)}
                       className="flex-1 bg-stone-900 hover:bg-stone-850 border border-stone-800 text-stone-200 font-black text-xs py-3.5 rounded-xl transition-all text-center block"
                     >

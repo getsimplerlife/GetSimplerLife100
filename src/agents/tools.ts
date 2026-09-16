@@ -7,7 +7,7 @@
 
 import { db } from "../db/index";
 import { sql } from "drizzle-orm";
-import type { ToolDefinition, ToolContext, ToolResult } from "./schema";
+import type { ToolContext, ToolResult } from "./schema";
 import { extractTextFromUpload, createNotification } from "./schema";
 
 import { registry } from "./registry";

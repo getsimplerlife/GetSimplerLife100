@@ -16,6 +16,7 @@ interface Workflow {
   dependencies: string;
   lastTriggered: string;
   steps?: any[];
+  assignedAgent?: string;
 }
 
 function WorkflowManager() {
