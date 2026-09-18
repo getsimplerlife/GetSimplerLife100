@@ -11,6 +11,7 @@ import {
   setSpawnLockDirForTest,
   acquireSpawnLock,
   releaseSpawnLock,
+  reclaimStaleSpawnLock,
   wipeIsolatedDataDir,
   writeBootMarker,
   isBootMarkerFresh,
@@ -162,6 +163,28 @@ describe("test-env flake hardening (fresh test state every run)", () => {
     expect(acquireSpawnLock()).toBe(true);
     const owner = require("fs").readFileSync(join(lockDir, "owner"), "utf-8");
     expect(owner.startsWith(`${process.pid} `)).toBe(true); // we reclaimed it
+    releaseSpawnLock();
+    rmSync(lockDir, { recursive: true, force: true });
+  });
+
+  it("force-reclaims a LIVE-owner lock after a stale-server pass (recycled-PID case)", () => {
+    // Regression (PR #252 gate): the loser loop spun until the fallback
+    // "test server spawn failed after retries" (lastErr null) because the lock
+    // was held by an owner PID that LOOKED alive — the original owner died and
+    // its PID was recycled, so acquireSpawnLock's owner-liveness check could
+    // never reclaim it, while a stale leftover server (no fresh marker) kept
+    // answering health. reclaimStaleSpawnLock MUST remove the lock regardless,
+    // letting the next attempt win and spawn fresh.
+    const lockDir = join(tmpdir(), `sl100-lock-${process.pid}-${Date.now()}-c`);
+    setSpawnLockDirForTest(lockDir);
+    mkdirSync(lockDir);
+    // "Live" owner: OUR pid, fresh mtime → acquireSpawnLock refuses to reclaim.
+    writeFileSync(join(lockDir, "owner"), `${process.pid} ${Date.now()}`);
+    expect(acquireSpawnLock()).toBe(false); // live owner → permanent loser
+    // The guarded loser path verified marker-not-fresh + health-up → reclaim.
+    reclaimStaleSpawnLock();
+    expect(existsSync(lockDir)).toBe(false); // forced removal despite live owner
+    expect(acquireSpawnLock()).toBe(true); // now winnable → fresh spawn proceeds
     releaseSpawnLock();
     rmSync(lockDir, { recursive: true, force: true });
   });

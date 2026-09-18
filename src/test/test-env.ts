@@ -355,6 +355,20 @@ export function releaseSpawnLock(): void {
 }
 
 /**
+ * Force-remove the spawn lock REGARDLESS of its recorded owner. Unlike
+ * acquireSpawnLock (which refuses to reclaim while the owner pid looks alive),
+ * this is called by the guarded loser path in ensureTestServer ONLY after
+ * verifying the serving server is a stale leftover (port healthy + boot marker
+ * not fresh), so the lock's live-owner check can NEVER reclaim it on its own
+ * (the owner pid was recycled or the worker died pre-marker). Removing the
+ * lock lets the next attempt win and spawn fresh instead of spinning in the
+ * loser loop until "test server spawn failed after retries".
+ */
+export function reclaimStaleSpawnLock(): void {
+  try { rmSync(spawnLockDir, { recursive: true, force: true }); } catch { /* lock already gone */ }
+}
+
+/**
  * Spawn the self-hosted server once. The caller must hold the spawn lock and
  * must have freed the port + prepared a fresh data dir. Throws if the server
  * does not become healthy. Writes the boot marker on success.
@@ -432,6 +446,24 @@ export async function ensureTestServer(): Promise<string> {
           await waitForHealth(attempt < MAX_SPAWN_ATTEMPTS ? 15_000 : 45_000);
         } catch (e) {
           lastErr = e;
+          continue;
+        }
+        // Health is UP but we don't hold the lock AND the boot marker is NOT
+        // fresh — the process serving :3999 has no LIVE spawner (its worker
+        // died by SIGKILL/SIGTERM and the server was left behind, OR the lock's
+        // recorded owner died and its PID was RECYCLED, which acquireSpawnLock's
+        // owner-liveness check can never detect — it sees the recycled PID as
+        // live forever). Without reclaim, every producer spins in this loser
+        // loop for MAX_SPAWN_ATTEMPTS and the whole file fails with the
+        // fallback "test server spawn failed after retries" (lastErr null) —
+        // the observed mid-run spawn-flake signature (PR #252).
+        // GUARDED: a current run's peer server ALWAYS has a fresh marker (its
+        // spawner worker is alive), so this never touches a live peer — it only
+        // reaps a provably stale leftover. The next attempt then wins the
+        // (now-removed) lock, freeTestPort clears any leftover listener, wipes
+        // the dir, and spawns fresh.
+        if (!isBootMarkerFresh(testDataDir())) {
+          reclaimStaleSpawnLock();
         }
         continue;
       }
