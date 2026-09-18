@@ -37,10 +37,20 @@
  *    (ppid=1, cwd=deleted worktree) — the proven spawn-lock flake source.
  *    stopTestServer, the runner's exit handler, AND signal handlers
  *    (SIGTERM/SIGINT/SIGHUP — vitest terminates workers by signal, so exit
- *    handlers alone never fire) all SIGKILL the spawned bun process, so a
- *    clean or interrupted run can never leave an orphan behind. (Leftovers
- *    from truly unrecoverable kills — e.g. SIGKILL to the worker — are
- *    reclaimed at spawn time by freeTestPort before every fresh boot.)
+ *    handlers alone never fire) all SIGKILL the spawned server's PROCESS
+ *    GROUP, so a clean or interrupted run can never leave an orphan behind.
+ *  - PARENT WATCHDOG (task 252 review): the spawned server runs as a grandchild
+ *    under a tiny detached watchdog wrapper (own session = own process group).
+ *    The watchdog SIGKILLs the server when its SUPERVISOR (the spawning
+ *    worker) dies by ANY means — including SIGKILL to the worker, which no
+ *    handler in the worker can ever catch (reproduced live: `bun test`, the
+ *    bun-native runner, SIGKILLs workers on teardown and left a ppid=1 orphan
+ *    holding :3999). Teardown and watchdog are belt AND braces: the worker's
+ *    exit/signal handlers SIGKILL the watchdog's process group, and the
+ *    detached watchdog additionally reaps the server within ~1s of worker
+ *    death. (Leftovers from truly unrecoverable kills — e.g. SIGKILL to both
+ *    the worker and its watchdog simultaneously — are reclaimed at spawn time
+ *    by freeTestPort before every fresh boot.)
  *
  * HOW TO RUN THE SUITE (canonical, no live contact, zero Neon pollution):
  *   SLACK_BOT_TOKEN= bun run test        # vitest (testTimeout 30s, hookTimeout 60s)
@@ -157,6 +167,100 @@ export function isBootMarkerFresh(dir: string, now = Date.now()): boolean {
 let child: ChildProcess | null = null;
 let starting: Promise<void> | null = null;
 let childLog: string[] = [];
+
+/**
+ * Parent-watchdog wrapper for the spawned test server.
+ *
+ * The server (bun run prod-server.ts) runs as a GRANDCHILD of the spawning
+ * worker, under this tiny detached watchdog. The watchdog is spawned with
+ * { detached: true } so it leads its OWN session (pgid === its pid), which
+ * (a) lets teardown SIGKILL the whole group in one shot AND (b) keeps the
+ * watchdog alive after its worker dies, so it can still reap the server.
+ *
+ * The watchdog SIGKILLs the server when EITHER:
+ *  - its supervisor (the spawning worker, passed via env) is dead — covers
+ *    SIGKILL to the worker, which no handler in the worker can catch; or
+ *  - it receives SIGTERM/SIGINT/SIGHUP or exits — duplexed with the worker's
+ *    own exit/signal handlers, which also group-SIGKILL the watchdog.
+ *
+ * The watchdog is unref'd so the worker's event loop is never held open by
+ * it; the worker keeps the process handle and group-kills it on teardown,
+ * and the watchdog self-exits ~1s after the worker dies (SIGKILL case) or
+ * immediately when its server exits for any reason.
+ */
+const WATCHDOG_SUPERVISOR_ENV = "SL100_WATCHDOG_SUPERVISOR_PID";
+const WATCHDOG_SERVER_ARGV_ENV = "SL100_WATCHDOG_SERVER_ARGV";
+
+// Bun is resolved by NAME, not process.execPath: vitest workers run under
+// /usr/bin/node even when vitest was launched via `bun run test`, so execPath
+// points at node and a `node -e` server would crash on the very first
+// `Bun.serve(...)`. Every pre-existing spawn in this module ("bun run
+// prod-server.ts", the hardening fixtures) uses the PATH-resolved `bun`
+// binary, and so does the watchdog.
+const BUN = "bun";
+
+const WATCHDOG_SCRIPT = /* js */ `
+import { spawn } from "node:child_process";
+const sup = Number(process.env.${WATCHDOG_SUPERVISOR_ENV});
+const args = JSON.parse(process.env.${WATCHDOG_SERVER_ARGV_ENV} || "[]");
+const child = spawn("${BUN}", args, { stdio: ["ignore", "pipe", "pipe"] });
+child.stdout.on("data", (d) => process.stdout.write(d));
+child.stderr.on("data", (d) => process.stderr.write(d));
+const killChild = () => { try { process.kill(child.pid, "SIGKILL"); } catch { /* already gone */ } };
+child.on("exit", () => process.exit(0));
+for (const sig of ["SIGTERM", "SIGINT", "SIGHUP"]) {
+  process.on(sig, () => { killChild(); process.exit(0); });
+}
+process.on("exit", killChild);
+const poll = () => {
+  let alive = true;
+  try { process.kill(sup, 0); } catch (e) { if (e && e.code === "ESRCH") alive = false; }
+  if (!alive) { killChild(); process.exit(0); }
+};
+setInterval(poll, 1000);
+`;
+
+/**
+ * Spawn the test server under its parent-watchdog wrapper (detached, own
+ * session). Returns the WATCHDOG process (also the session/pgid leader). The
+ * server command is passed as { file, args } so tests can point the watchdog
+ * at a scratch-port fixture instead of the real prod-server.
+ */
+export function spawnTestServerWithWatchdog(opts: {
+  supervisorPid: number;
+  env: Record<string, string>;
+  cwd: string;
+  serverFile?: string;
+  serverArgs?: string[];
+}): ChildProcess {
+  const args = [opts.serverFile ?? "run", ...(opts.serverArgs ?? ["prod-server.ts"])];
+  const w = spawn(BUN, ["-e", WATCHDOG_SCRIPT], {
+    cwd: opts.cwd,
+    env: {
+      ...opts.env,
+      [WATCHDOG_SUPERVISOR_ENV]: String(opts.supervisorPid),
+      [WATCHDOG_SERVER_ARGV_ENV]: JSON.stringify(args),
+    },
+    stdio: ["ignore", "pipe", "pipe"],
+    detached: true, // own session + process group (pgid === w.pid): group-kill safe
+  });
+  w.unref(); // never keep the worker's event loop alive waiting for the watchdog
+  w.stdout?.on("data", (d) => childLog.push(String(d)));
+  w.stderr?.on("data", (d) => childLog.push(String(d)));
+  return w;
+}
+
+/**
+ * SIGKILL the whole process group of a watched test server. `child` is the
+ * detached watchdog = session leader = pgid leader, and the server shares its
+ * group, so ONE group-SIGKILL reaps both (and any server grandchildren).
+ * Safe on null/already-exited watchdogs — when the watchdog already exited,
+ * its server is already dead, so there is no group left to signal.
+ */
+export function killTestServerGroup(childProcess: ChildProcess | null): void {
+  if (!childProcess || typeof childProcess.pid !== "number" || childProcess.exitCode !== null) return;
+  try { process.kill(-childProcess.pid, "SIGKILL"); } catch { /* group already gone */ }
+}
 
 async function waitForHealth(timeoutMs = 45_000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
@@ -278,13 +382,11 @@ async function spawnServerOnce(): Promise<void> {
     TOKEN_SWEEP_INTERVAL_MS: String(60 * 60 * 1000),
   };
   childLog = [];
-  child = spawn("bun", ["run", "prod-server.ts"], {
-    cwd: process.cwd(),
+  child = spawnTestServerWithWatchdog({
+    supervisorPid: process.pid,
     env,
-    stdio: ["ignore", "pipe", "pipe"],
+    cwd: process.cwd(),
   });
-  child.stdout?.on("data", (d) => { childLog.push(String(d)); });
-  child.stderr?.on("data", (d) => { childLog.push(String(d)); });
   child.on("exit", (code, sig) => { childLog.push(`[test-server] exited code=${code} sig=${sig}`); });
   try {
     await waitForHealth();
@@ -346,7 +448,7 @@ export async function ensureTestServer(): Promise<string> {
         return;
       } catch (e) {
         lastErr = e;
-        if (child) { try { child.kill("SIGKILL"); } catch { /* gone */ } child = null; }
+        if (child) { killTestServerGroup(child); child = null; }
       } finally {
         // The lock dir contains an owner file, so it must be removed
         // recursively — rmdirSync would throw ENOTEMPTY and LEAK the lock,
@@ -382,26 +484,30 @@ export function hardKillTestServer(childProcess: ChildProcess | null): void {
   try { childProcess.kill("SIGKILL"); } catch { /* already gone */ }
 }
 
-/** Stop the self-hosted test server. MUST SIGKILL: SIGTERM is handled (not
- *  fatal) by prod-server.ts, so a SIGTERM-only stop ORPHANS the server on
- *  :3999. See hardKillTestServer. */
+/** Stop the self-hosted test server. MUST SIGKILL the whole watchdog process
+ *  group: SIGTERM is handled (not fatal) by prod-server.ts, so a SIGTERM-only
+ *  stop ORPHANS the server on :3999. One group-SIGKILL reaps the watchdog AND
+ *  the server. See hardKillTestServer / killTestServerGroup. */
 export function stopTestServer(): void {
-  hardKillTestServer(child);
+  killTestServerGroup(child);
   child = null;
 }
-process.on("exit", () => hardKillTestServer(child));
+process.on("exit", () => killTestServerGroup(child));
 
 // Workers are often terminated by SIGNAL (vitest pool teardown sends SIGTERM
 // after the run; Ctrl+C sends SIGINT). Exit handlers never run on signal
 // death, so a spawned server would orphan on :3999 (ppid=1) — proven live
-// after a clean vitest run. On each termination signal: hard-kill the child,
-// restore the default action for that signal, then re-raise it so THIS process
-// still dies exactly as the signal dictates. Vitest's own listeners (if any)
-// are untouched — only our handler is removed before the re-raise.
+// after a clean vitest run. On each termination signal: hard-kill the spawned
+// server's whole process group (watchdog + server — one SIGKILL), restore the
+// default action for that signal, then re-raise it so THIS process still dies
+// exactly as the signal dictates. Vitest's own listeners (if any) are
+// untouched — only our handler is removed before the re-raise. A worker that
+// dies by SIGKILL needs no handler at all: the detached watchdog notices its
+// supervisor is dead and reaps the server itself within ~1s.
 const TERMINATION_SIGNALS = ["SIGTERM", "SIGINT", "SIGHUP"] as const;
 for (const sig of TERMINATION_SIGNALS) {
   const handler = () => {
-    hardKillTestServer(child);
+    killTestServerGroup(child);
     process.removeListener(sig, handler);
     process.kill(process.pid, sig);
   };
