@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { mkdtempSync, rmSync, writeFileSync, existsSync, readdirSync, mkdirSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
+import { spawn, execSync, type ChildProcess } from "child_process";
 import { migrateLegacyData } from "../lib/data-store";
 import {
   isDefaultIsolatedDataDir,
@@ -10,9 +11,13 @@ import {
   setSpawnLockDirForTest,
   acquireSpawnLock,
   releaseSpawnLock,
+  reclaimStaleSpawnLock,
   wipeIsolatedDataDir,
   writeBootMarker,
   isBootMarkerFresh,
+  hardKillTestServer,
+  spawnTestServerWithWatchdog,
+  killTestServerGroup,
 } from "./test-env";
 
 /**
@@ -160,5 +165,247 @@ describe("test-env flake hardening (fresh test state every run)", () => {
     expect(owner.startsWith(`${process.pid} `)).toBe(true); // we reclaimed it
     releaseSpawnLock();
     rmSync(lockDir, { recursive: true, force: true });
+  });
+
+  it("force-reclaims a LIVE-owner lock after a stale-server pass (recycled-PID case)", () => {
+    // Regression (PR #252 gate): the loser loop spun until the fallback
+    // "test server spawn failed after retries" (lastErr null) because the lock
+    // was held by an owner PID that LOOKED alive — the original owner died and
+    // its PID was recycled, so acquireSpawnLock's owner-liveness check could
+    // never reclaim it, while a stale leftover server (no fresh marker) kept
+    // answering health. reclaimStaleSpawnLock MUST remove the lock regardless,
+    // letting the next attempt win and spawn fresh.
+    const lockDir = join(tmpdir(), `sl100-lock-${process.pid}-${Date.now()}-c`);
+    setSpawnLockDirForTest(lockDir);
+    mkdirSync(lockDir);
+    // "Live" owner: OUR pid, fresh mtime → acquireSpawnLock refuses to reclaim.
+    writeFileSync(join(lockDir, "owner"), `${process.pid} ${Date.now()}`);
+    expect(acquireSpawnLock()).toBe(false); // live owner → permanent loser
+    // The guarded loser path verified marker-not-fresh + health-up → reclaim.
+    reclaimStaleSpawnLock();
+    expect(existsSync(lockDir)).toBe(false); // forced removal despite live owner
+    expect(acquireSpawnLock()).toBe(true); // now winnable → fresh spawn proceeds
+    releaseSpawnLock();
+    rmSync(lockDir, { recursive: true, force: true });
+  });
+});
+
+/**
+ * Teardown hardening (task 120b7f03) — the :3999 spawn-lock flake class.
+ * Root cause: prod-server.ts installs its own SIGTERM/SIGINT handlers
+ * (process.once("SIGTERM", () => release())), so SIGTERM is HANDLED, not
+ * fatal — the spawned test server survives it and, once its spawner exits,
+ * lingers as an orphan holding port 3999 (ppid=1, cwd=deleted worktree).
+ * A SIGTERM-only teardown therefore ORPHANS the server; teardown must SIGKILL.
+ */
+describe("test-env teardown: SIGKILL reaps the spawned test server (no :3999 orphans)", () => {
+  // Scratch fixture port — NEVER 3999, so the shared suite server is untouched.
+  const SCRATCH_PORT = 4597;
+
+  function pidAlive(pid: number | undefined): boolean {
+    if (!pid || !Number.isInteger(pid) || pid <= 0) return false;
+    try { process.kill(pid, 0); return true; } catch { return false; }
+  }
+
+  function onceExit(ch: ChildProcess): Promise<void> {
+    return new Promise((resolve) => ch.once("exit", () => resolve()));
+  }
+
+  async function withTimeout<T>(p: Promise<T>, ms: number, what: string): Promise<T> {
+    return Promise.race([
+      p,
+      new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`timeout: ${what}`)), ms)),
+    ]);
+  }
+
+  async function waitForServerUp(port: number, timeoutMs = 8000): Promise<void> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      try { const r = await fetch(`http://localhost:${port}/api/health`); if (r.ok) return; } catch { /* not up */ }
+      await new Promise((r) => setTimeout(r, 200));
+    }
+    throw new Error(`fixture server never came up on :${port}`);
+  }
+
+  it("hardKillTestServer reaps a SIGTERM-resistant bun server (the orphan class)", async () => {
+    // Pre-free the scratch port (self-healing across repeated runs), mirroring
+    // the suite's own freeTestPort before every fresh boot.
+    try { execSync(`lsof -ti tcp:${SCRATCH_PORT} | xargs -r kill -9 2>/dev/null || true`, { stdio: "ignore" }); } catch { /* no lsof */ }
+    // Fixture: bun server with a NO-OP SIGTERM handler — empirically proven to
+    // SURVIVE SIGTERM (the exact failure mode of prod-server.ts, which installs
+    // its own SIGTERM handler). Only SIGKILL reaps it.
+    const ch = spawn("bun", ["-e",
+      `process.on("SIGTERM", () => {}); Bun.serve({ port: ${SCRATCH_PORT}, fetch() { return new Response("ok"); } }); setInterval(() => {}, 999);`,
+    ], { stdio: "ignore" });
+    try {
+      await waitForServerUp(SCRATCH_PORT);
+      // Document the failure mode: SIGTERM does NOT reap this fixture.
+      ch.kill("SIGTERM");
+      await new Promise((r) => setTimeout(r, 600));
+      expect(pidAlive(ch.pid)).toBe(true); // would-be orphan: still serving
+      // The fix: SIGKILL teardown reaps it and frees the port.
+      const exited = onceExit(ch); // attach BEFORE the kill — after death the event is dropped
+      hardKillTestServer(ch);
+      await withTimeout(exited, 5000, "fixture did not exit after SIGKILL");
+      expect(pidAlive(ch.pid)).toBe(false);
+      await expect(fetch(`http://localhost:${SCRATCH_PORT}/api/health`)).rejects.toThrow();
+    } finally {
+      hardKillTestServer(ch); // belt-and-braces: never leave a stray behind
+    }
+  });
+
+  it("hardKillTestServer tolerates null and already-exited children (no throw)", async () => {
+    expect(() => hardKillTestServer(null)).not.toThrow();
+    const done = spawn("sh", ["-c", "exit 0"], { stdio: "ignore" });
+    const exited = onceExit(done); // attach immediately — the child exits on its own
+    await withTimeout(exited, 5000, "fixture did not exit on its own");
+    expect(() => hardKillTestServer(done)).not.toThrow();
+    expect(pidAlive(done.pid)).toBe(false);
+  });
+});
+
+/**
+ * Parent-watchdog teardown (PR #252 review) — the SIGKILL-of-the-worker case.
+ *
+ * The spawned test server runs under a DETACHED watchdog wrapper (own session
+ * = own process group). Belt AND braces:
+ *  - worker exit + signal handlers group-SIGKILL the watchdog (kills watchdog
+ *    AND server in one shot — a single-pid SIGKILL on the watchdog alone would
+ *    orphan its server);
+ *  - the watchdog itself SIGKILLs the server when its SUPERVISOR (the worker)
+ *    dies by ANY means — including SIGKILL to the worker, which no handler in
+ *    the worker can catch. Reproduced live: `bun test` (bun-native runner)
+ *    SIGKILLs workers on teardown and left a ppid=1 `bun run prod-server.ts`
+ *    orphan holding :3999 until manually reaped.
+ *
+ * These tests prove the watchdog does the reaping with SIGTERM-RESISTANT
+ * fixture servers (so the fixture would survive any non-SIGKILL teardown).
+ */
+describe("test-env parent watchdog reaps the spawned server (no orphan on worker death)", () => {
+  // Scratch fixture ports — NEVER 3999, so the shared suite server is untouched.
+  const WATCH_PORTS = [4598, 4599];
+
+  async function withTimeout<T>(p: Promise<T>, ms: number, what: string): Promise<T> {
+    return Promise.race([
+      p,
+      new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`timeout: ${what}`)), ms)),
+    ]);
+  }
+
+  async function waitForServerUp(port: number, timeoutMs = 8000): Promise<void> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      try { const r = await fetch(`http://localhost:${port}/api/health`); if (r.ok) return; } catch { /* not up */ }
+      await new Promise((r) => setTimeout(r, 200));
+    }
+    throw new Error(`fixture server never came up on :${port}`);
+  }
+
+  function fixtureServerScript(port: number): string {
+    return `process.on("SIGTERM", () => {}); process.on("SIGINT", () => {}); Bun.serve({ port: ${port}, fetch() { return new Response("ok"); } }); setInterval(() => {}, 999);`;
+  }
+
+  /** Spawn a long-lived fixture that acts as the SPOOFED watchdog supervisor
+   *  (a stand-in for a worker process we can hard-kill). */
+  function spawnFakeSupervisor(): ChildProcess {
+    return spawn("bun", ["-e", "setInterval(() => {}, 999);"], { stdio: "ignore" });
+  }
+
+  async function waitForServerDown(port: number, timeoutMs = 8000): Promise<void> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      try { await fetch(`http://localhost:${port}/api/health`); } catch { return; }
+      await new Promise((r) => setTimeout(r, 200));
+    }
+    throw new Error(`fixture server on :${port} never went down (orphan left behind)`);
+  }
+
+  /**
+   * Wait for the process HANDLE to report the child's death (exitCode or
+   * signalCode set). NOT pidAlive(): process.kill(pid, 0) treats a not-yet-
+   * reaped ZOMBIE as alive (the watchdog is unref'd, so its reaping can lag
+   * a few hundred ms), which made the SIGTERM-path assertion flaky.
+   */
+  async function waitForExit(ch: ChildProcess, timeoutMs = 5000): Promise<"exit" | "signal" | null> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (ch.exitCode !== null || ch.signalCode !== null) return ch.exitCode !== null ? "exit" : "signal";
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    return null;
+  }
+
+  it("watchdog SIGKILLs the server when its supervisor dies by SIGKILL (the worker-SIGKILL case)", async () => {
+    const port = WATCH_PORTS[0];
+    try { execSync(`lsof -ti tcp:${port} | xargs -r kill -9 2>/dev/null || true`, { stdio: "ignore" }); } catch { /* no lsof */ }
+    const sup = spawnFakeSupervisor();
+    const watchdog = spawnTestServerWithWatchdog({
+      supervisorPid: sup.pid as number,
+      env: { ...process.env as Record<string, string>, SLACK_BOT_TOKEN: "" },
+      cwd: process.cwd(),
+      serverFile: "-e",
+      serverArgs: [fixtureServerScript(port)],
+    });
+    try {
+      await waitForServerUp(port);
+      // The supervisor is SIGKILLed — exactly what a test runner does to a
+      // misbehaving worker. The spawner's own handlers CANNOT run; only the
+      // detached watchdog (still alive, watching the dead pid) can reap.
+      sup.kill("SIGKILL");
+      await withTimeout(waitForServerDown(port), 8000, "watchdog did not reap on supervisor death");
+      expect(await withTimeout(waitForExit(watchdog), 8000, "watchdog did not exit (supervisor-SIGKILL path)")).not.toBeNull();
+    } finally {
+      killTestServerGroup(watchdog); // belt and braces — group-kill is idempotent
+      sup.kill("SIGKILL");
+    }
+  });
+
+  it("watchdog SIGKILLs the server when the watchdog itself gets SIGTERM (teardown path)", async () => {
+    const port = WATCH_PORTS[1];
+    try { execSync(`lsof -ti tcp:${port} | xargs -r kill -9 2>/dev/null || true`, { stdio: "ignore" }); } catch { /* no lsof */ }
+    const sup = spawnFakeSupervisor();
+    const watchdog = spawnTestServerWithWatchdog({
+      supervisorPid: sup.pid as number,
+      env: { ...process.env as Record<string, string>, SLACK_BOT_TOKEN: "" },
+      cwd: process.cwd(),
+      serverFile: "-e",
+      serverArgs: [fixtureServerScript(port)],
+    });
+    try {
+      await waitForServerUp(port);
+      watchdog.kill("SIGTERM"); // worker teardown path — one pid, whole group dies
+      await withTimeout(waitForServerDown(port), 8000, "watchdog did not reap on its own SIGTERM");
+      expect(await withTimeout(waitForExit(watchdog), 8000, "watchdog did not exit (SIGTERM teardown path)")).not.toBeNull();
+    } finally {
+      killTestServerGroup(watchdog);
+      sup.kill("SIGKILL");
+    }
+  });
+
+  it("killTestServerGroup reaps watchdog AND server with one group-SIGKILL", async () => {
+    const port = 4600;
+    try { execSync(`lsof -ti tcp:${port} | xargs -r kill -9 2>/dev/null || true`, { stdio: "ignore" }); } catch { /* no lsof */ }
+    const sup = spawnFakeSupervisor();
+    const watchdog = spawnTestServerWithWatchdog({
+      supervisorPid: sup.pid as number,
+      env: { ...process.env as Record<string, string>, SLACK_BOT_TOKEN: "" },
+      cwd: process.cwd(),
+      serverFile: "-e",
+      serverArgs: [fixtureServerScript(port)],
+    });
+    try {
+      await waitForServerUp(port);
+      killTestServerGroup(watchdog);
+      await withTimeout(waitForServerDown(port), 8000, "group kill did not reap the server");
+      expect(await withTimeout(waitForExit(watchdog), 8000, "watchdog did not exit (group-SIGKILL path)")).not.toBeNull();
+    } finally {
+      killTestServerGroup(watchdog);
+      sup.kill("SIGKILL");
+    }
+  });
+
+  it("killTestServerGroup tolerates null and already-exited watchdogs (no throw)", () => {
+    expect(() => killTestServerGroup(null)).not.toThrow();
+    expect(() => killTestServerGroup({} as ChildProcess)).not.toThrow();
   });
 });
