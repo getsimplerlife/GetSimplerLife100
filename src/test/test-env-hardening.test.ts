@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { mkdtempSync, rmSync, writeFileSync, existsSync, readdirSync, mkdirSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
+import { spawn, execSync, type ChildProcess } from "child_process";
 import { migrateLegacyData } from "../lib/data-store";
 import {
   isDefaultIsolatedDataDir,
@@ -13,6 +14,7 @@ import {
   wipeIsolatedDataDir,
   writeBootMarker,
   isBootMarkerFresh,
+  hardKillTestServer,
 } from "./test-env";
 
 /**
@@ -160,5 +162,79 @@ describe("test-env flake hardening (fresh test state every run)", () => {
     expect(owner.startsWith(`${process.pid} `)).toBe(true); // we reclaimed it
     releaseSpawnLock();
     rmSync(lockDir, { recursive: true, force: true });
+  });
+});
+
+/**
+ * Teardown hardening (task 120b7f03) — the :3999 spawn-lock flake class.
+ * Root cause: prod-server.ts installs its own SIGTERM/SIGINT handlers
+ * (process.once("SIGTERM", () => release())), so SIGTERM is HANDLED, not
+ * fatal — the spawned test server survives it and, once its spawner exits,
+ * lingers as an orphan holding port 3999 (ppid=1, cwd=deleted worktree).
+ * A SIGTERM-only teardown therefore ORPHANS the server; teardown must SIGKILL.
+ */
+describe("test-env teardown: SIGKILL reaps the spawned test server (no :3999 orphans)", () => {
+  // Scratch fixture port — NEVER 3999, so the shared suite server is untouched.
+  const SCRATCH_PORT = 4597;
+
+  function pidAlive(pid: number | undefined): boolean {
+    if (!pid || !Number.isInteger(pid) || pid <= 0) return false;
+    try { process.kill(pid, 0); return true; } catch { return false; }
+  }
+
+  function onceExit(ch: ChildProcess): Promise<void> {
+    return new Promise((resolve) => ch.once("exit", () => resolve()));
+  }
+
+  async function withTimeout<T>(p: Promise<T>, ms: number, what: string): Promise<T> {
+    return Promise.race([
+      p,
+      new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`timeout: ${what}`)), ms)),
+    ]);
+  }
+
+  async function waitForServerUp(port: number, timeoutMs = 8000): Promise<void> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      try { const r = await fetch(`http://localhost:${port}/api/health`); if (r.ok) return; } catch { /* not up */ }
+      await new Promise((r) => setTimeout(r, 200));
+    }
+    throw new Error(`fixture server never came up on :${port}`);
+  }
+
+  it("hardKillTestServer reaps a SIGTERM-resistant bun server (the orphan class)", async () => {
+    // Pre-free the scratch port (self-healing across repeated runs), mirroring
+    // the suite's own freeTestPort before every fresh boot.
+    try { execSync(`lsof -ti tcp:${SCRATCH_PORT} | xargs -r kill -9 2>/dev/null || true`, { stdio: "ignore" }); } catch { /* no lsof */ }
+    // Fixture: bun server with a NO-OP SIGTERM handler — empirically proven to
+    // SURVIVE SIGTERM (the exact failure mode of prod-server.ts, which installs
+    // its own SIGTERM handler). Only SIGKILL reaps it.
+    const ch = spawn("bun", ["-e",
+      `process.on("SIGTERM", () => {}); Bun.serve({ port: ${SCRATCH_PORT}, fetch() { return new Response("ok"); } }); setInterval(() => {}, 999);`,
+    ], { stdio: "ignore" });
+    try {
+      await waitForServerUp(SCRATCH_PORT);
+      // Document the failure mode: SIGTERM does NOT reap this fixture.
+      ch.kill("SIGTERM");
+      await new Promise((r) => setTimeout(r, 600));
+      expect(pidAlive(ch.pid)).toBe(true); // would-be orphan: still serving
+      // The fix: SIGKILL teardown reaps it and frees the port.
+      const exited = onceExit(ch); // attach BEFORE the kill — after death the event is dropped
+      hardKillTestServer(ch);
+      await withTimeout(exited, 5000, "fixture did not exit after SIGKILL");
+      expect(pidAlive(ch.pid)).toBe(false);
+      await expect(fetch(`http://localhost:${SCRATCH_PORT}/api/health`)).rejects.toThrow();
+    } finally {
+      hardKillTestServer(ch); // belt-and-braces: never leave a stray behind
+    }
+  });
+
+  it("hardKillTestServer tolerates null and already-exited children (no throw)", async () => {
+    expect(() => hardKillTestServer(null)).not.toThrow();
+    const done = spawn("sh", ["-c", "exit 0"], { stdio: "ignore" });
+    const exited = onceExit(done); // attach immediately — the child exits on its own
+    await withTimeout(exited, 5000, "fixture did not exit on its own");
+    expect(() => hardKillTestServer(done)).not.toThrow();
+    expect(pidAlive(done.pid)).toBe(false);
   });
 });

@@ -30,6 +30,17 @@
  *  - Server spawn is retried (bounded loop) when a boot fails to become
  *    healthy or the lock-winner died mid-boot (port-3999 contention / slow
  *    cold start).
+ *  - TEARDOWN IS SIGKILL, NEVER SIGTERM (task 120b7f03): prod-server.ts
+ *    installs its own SIGTERM/SIGINT handlers (process.once("SIGTERM",
+ *    () => release())), so SIGTERM is HANDLED, not fatal — the process keeps
+ *    serving and, once its spawner exits, lingers as an orphan holding :3999
+ *    (ppid=1, cwd=deleted worktree) — the proven spawn-lock flake source.
+ *    stopTestServer, the runner's exit handler, AND signal handlers
+ *    (SIGTERM/SIGINT/SIGHUP — vitest terminates workers by signal, so exit
+ *    handlers alone never fire) all SIGKILL the spawned bun process, so a
+ *    clean or interrupted run can never leave an orphan behind. (Leftovers
+ *    from truly unrecoverable kills — e.g. SIGKILL to the worker — are
+ *    reclaimed at spawn time by freeTestPort before every fresh boot.)
  *
  * HOW TO RUN THE SUITE (canonical, no live contact, zero Neon pollution):
  *   SLACK_BOT_TOKEN= bun run test        # vitest (testTimeout 30s, hookTimeout 60s)
@@ -357,14 +368,42 @@ export async function ensureTestServer(): Promise<string> {
   }
   return SELF_HOSTED_BASE_URL;
 }
-export function stopTestServer(): void {
-  if (child) {
-    try { child.kill("SIGTERM"); } catch { /* already gone */ }
-    child = null;
-  }
+/**
+ * Reliable teardown of a spawned test server. Bun processes with their own
+ * SIGTERM handler (prod-server.ts installs one) IGNORE SIGTERM and linger as
+ * orphans holding :3999 (ppid=1, cwd=deleted worktree) — the proven spawn-lock
+ * flake source. SIGKILL is the only dependable signal for them, matching the
+ * deploy rule "Bun ignores SIGTERM — use SIGKILL". Safe on null/already-exited
+ * children (throws nothing). Exported so the regression suite can prove it
+ * reaps a SIGTERM-resistant bun fixture.
+ */
+export function hardKillTestServer(childProcess: ChildProcess | null): void {
+  if (!childProcess) return;
+  try { childProcess.kill("SIGKILL"); } catch { /* already gone */ }
 }
-process.on("exit", () => {
-  if (child) {
-    try { child.kill("SIGKILL"); } catch { /* already gone */ }
-  }
-});
+
+/** Stop the self-hosted test server. MUST SIGKILL: SIGTERM is handled (not
+ *  fatal) by prod-server.ts, so a SIGTERM-only stop ORPHANS the server on
+ *  :3999. See hardKillTestServer. */
+export function stopTestServer(): void {
+  hardKillTestServer(child);
+  child = null;
+}
+process.on("exit", () => hardKillTestServer(child));
+
+// Workers are often terminated by SIGNAL (vitest pool teardown sends SIGTERM
+// after the run; Ctrl+C sends SIGINT). Exit handlers never run on signal
+// death, so a spawned server would orphan on :3999 (ppid=1) — proven live
+// after a clean vitest run. On each termination signal: hard-kill the child,
+// restore the default action for that signal, then re-raise it so THIS process
+// still dies exactly as the signal dictates. Vitest's own listeners (if any)
+// are untouched — only our handler is removed before the re-raise.
+const TERMINATION_SIGNALS = ["SIGTERM", "SIGINT", "SIGHUP"] as const;
+for (const sig of TERMINATION_SIGNALS) {
+  const handler = () => {
+    hardKillTestServer(child);
+    process.removeListener(sig, handler);
+    process.kill(process.pid, sig);
+  };
+  process.on(sig, handler);
+}
