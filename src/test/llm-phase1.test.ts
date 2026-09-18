@@ -293,12 +293,12 @@ describe("LLM Phase 1 — reasoning stage with MockModelClient", () => {
       employee: { reasoningEnabled: true, allowedWriteVerbs: ["createXeroInvoice"] },
     });
     const msgs = buildReasoningPrompt(richer, {
-      rules: [],
-      insights: [],
-      audit: [],
-      recent: [],
-      metrics: [],
-      memorySnippet: "firm A rule: approve > $5k",
+      firmRules: { approvalRule: "firm A rule: approve > $5k" },
+      memory: {
+        recentInsights: [{ ts: 1, type: "insight", summary: "firm A rule: approve > $5k" }],
+        auditTail: [],
+        updatedAt: 1,
+      },
     } as any);
     const joined = msgs.map((m) => m.content).join("\n");
     expect(joined).toContain("firm A rule");
