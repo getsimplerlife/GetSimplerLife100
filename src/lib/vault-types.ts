@@ -116,6 +116,8 @@ export interface VaultFolder {
   path: string;
   name: string;
   parentPath: string; // "" for root-level folders
+  /** Taxonomy labels (5d): bounded, sanitized tags attached to a folder. */
+  labels?: string[];
   createdBy: string;
   createdAt: string;
 }
@@ -178,6 +180,11 @@ export interface VaultAuditEntry {
     | "vault.document.download"
     | "vault.document.create" // 5c: created doc written to the vault store
     | "vault.extraction" // 5b pipeline: run recorded / rejected by reviewer
+    // 5d filing layer: structured-location (folder + taxonomy label) mutations
+    | "vault.folder.create"
+    | "vault.folder.rename"
+    | "vault.folder.delete"
+    | "vault.folder.labels"
     | "vault.folder.rule.create"
     | "vault.folder.rule.update"
     | "vault.folder.rule.delete"
