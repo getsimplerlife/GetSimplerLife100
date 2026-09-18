@@ -282,7 +282,7 @@ export const integrations: Integration[] = [
     ],
     industries: ["manufacturing", "wholesale", "retail", "construction"],
     relatedWorkflows: ["invoice-automation", "purchase-order-management", "inventory-reconciliation", "ap-ar-automation", "report-generation"],
-  },,
+  },
 
   {
     id: "bamboohr",
@@ -298,7 +298,7 @@ export const integrations: Integration[] = [
       "HR report generation with headcount, turnover, and compensation analytics"],
     industries: ["financial-services", "technology", "manufacturing", "retail", "professional-services"],
     relatedWorkflows: ["onboarding", "payroll-processing", "benefits-administration", "time-tracking", "recruitment-screening"],
-  },,
+  },
 
   {
     id: "workday",
@@ -419,7 +419,7 @@ export const integrations: Integration[] = [
       "Hiring analytics with source attribution, conversion rates, and trend reporting"],
     industries: ["technology", "financial-services", "professional-services", "startups"],
     relatedWorkflows: ["recruitment-screening", "onboarding", "report-generation", "email-management", "compliance-reporting"],
-  },,
+  },
 
   // ======================================================================
   // Customer Support
@@ -637,7 +637,7 @@ export const integrations: Integration[] = [
       "Automation script execution for custom transformation and validation logic"],
     industries: ["technology", "creative", "financial-services", "real-estate", "marketing"],
     relatedWorkflows: ["data-entry-automation", "project-status-reporting", "report-generation", "document-processing", "client-intake"],
-  },,
+  },
 
   // ======================================================================
   // Business Intelligence
@@ -962,7 +962,7 @@ export const integrations: Integration[] = [
       "Load profitability analysis from revenue, cost, and accessorial charge data"],
     industries: ["logistics", "transportation", "freight-brokerage"],
     relatedWorkflows: ["dispatch-scheduling", "carrier-coordination", "freight-audit", "pod-collection", "invoice-automation"],
-  },,
+  },
   // ======================================================================
   // Manufacturing
   // ======================================================================
@@ -1338,7 +1338,7 @@ export const integrations: Integration[] = [
       "Dispute management with automated evidence collection and submission"],
     industries: ["ecommerce", "retail", "financial-services", "technology", "subscription-services"],
     relatedWorkflows: ["payment-reconciliation", "invoice-automation", "invoice-collections", "ap-ar-automation", "report-generation"],
-  },,
+  },
   // ======================================================================
   // AI Models
   // ======================================================================
@@ -2038,7 +2038,7 @@ export const integrations: Integration[] = [
       "Reporting dashboard updates from real-time pipeline and activity data"],
     industries: ["financial-services", "insurance", "technology", "professional-services"],
     relatedWorkflows: ["lead-response", "lead-scoring", "client-intake", "customer-support-triage", "report-generation"],
-  },,
+  },
 
   // ======================================================================
   // Accounting

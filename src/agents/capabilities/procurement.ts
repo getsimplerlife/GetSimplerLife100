@@ -209,14 +209,18 @@ export async function executeProcurementCapability(adapter: ProcurementExtendedA
   if (PROCUREMENT_WRITES.has(capabilityId) && !options.idempotencyKey?.trim()) throw new Error("Idempotency key is required");
   const method = capabilityId.replace(/^coupa-/, "").replace(/-([a-z])/g, (_, c) => c.toUpperCase()) as keyof ProcurementExtendedAdapter;
   const named = adapter[method];
+  // Dual-signature cast (wave-1 pattern): named methods take (tenantId, input?,
+  // idempotencyKey?), the fallback executeExtendedCapability takes
+  // (capabilityId, tenantId, input?, idempotencyKey?). Union members carry the
+  // adapter's `this`, so annotate it explicitly for both .call() sites.
   const fn = named ?? adapter.executeExtendedCapability;
   if (typeof fn !== "function") throw new Error("Unsupported capability");
   let lastError: unknown;
   for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) {
     try {
       const result = named
-        ? await fn.call(adapter, options.tenantId, options.input, options.idempotencyKey)
-        : await fn.call(adapter, capabilityId, options.tenantId, options.input, options.idempotencyKey);
+        ? await (fn as (this: ProcurementExtendedAdapter, tenantId: string, input?: Record<string, unknown>, idempotencyKey?: string) => Promise<unknown>).call(adapter, options.tenantId, options.input, options.idempotencyKey)
+        : await (fn as (this: ProcurementExtendedAdapter, capabilityId: string, tenantId: string, input?: Record<string, unknown>, idempotencyKey?: string) => Promise<unknown>).call(adapter, capabilityId, options.tenantId, options.input, options.idempotencyKey);
       await options.audit({
         capabilityId,
         tenantId: options.tenantId,

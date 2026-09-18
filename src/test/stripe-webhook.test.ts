@@ -17,6 +17,7 @@ import {
   detectPlanType,
   planAgentIds,
   buildPlanPurchase,
+  type PlanSpec,
 } from "../lib/stripe-webhook";
 
 function sign(rawBody: string, secret: string, timestampSec?: number): string {
@@ -327,7 +328,7 @@ describe("buildPlanPurchase — plan record shape (type + tier + agentIds)", () 
       { tier: "starter", productName: "Starter Plan", agentCount: 3 },
       { tier: "professional", productName: "Professional Plan", agentCount: 8 },
       { tier: "enterprise", productName: "Enterprise Plan", agentCount: 17 },
-    ]) {
+    ] as PlanSpec[]) {
       const rec = buildPlanPurchase(spec, 1, "cs_x", []) as any;
       expect(rec.packSlot).toEqual({ included: true, chosen: null });
     }

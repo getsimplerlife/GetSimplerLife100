@@ -156,16 +156,17 @@ describe("portal file download proxy", () => {
   it("download streams provider content with Content-Disposition and tenant-scoped lookup", async () => {
     registerClientFile("acme@test.com", { provider: "google-drive", providerFileId: "f1", name: "file.pdf", kind: "file" }, dir);
     seedToken("google-drive");
-    const fetchImpl = vi.fn(async () => ({
+    const fetchMock = vi.fn(async (_url: unknown) => ({
       ok: true, status: 200,
       headers: new Headers({ "content-type": "application/pdf" }),
       body: new Blob(["%PDF-1.4"]),
       text: async () => "",
-    })) as unknown as typeof fetch;
+    }));
+    const fetchImpl = fetchMock as unknown as typeof fetch;
     const out = await handlePortalFileDownload({ tenantId: "acme@test.com", fileId: "cf-google-drive-f1", dataDir: dir, fetchImpl });
     expect(out.status).toBe(200);
     expect(out.headers["Content-Disposition"]).toContain("attachment; filename=\"file.pdf\"");
-    expect(String(fetchImpl.mock.calls[0][0])).toContain("/drive/v3/files/f1?alt=media");
+    expect(String(fetchMock.mock.calls[0][0])).toContain("/drive/v3/files/f1?alt=media");
   });
 
   it("404s for foreign/unknown files (permission gating)", async () => {

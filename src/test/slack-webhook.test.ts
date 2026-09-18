@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach, afterEach } from "vitest";
+import { describe, expect, it, beforeEach, afterEach, beforeAll } from "vitest";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -383,7 +383,7 @@ describe("resolveSlackTeamId / selfHealSlackTeamGate", () => {
         JSON.stringify({ "owner@example.com:slack": { accessToken: "xoxb-1", teamId: "TREAL123" } }),
       );
       const originalFetch = globalThis.fetch;
-      globalThis.fetch = (async () => new Response(JSON.stringify({ ok: true, team_id: "TREAL123" }), { status: 200 })) as typeof fetch;
+      globalThis.fetch = (async () => new Response(JSON.stringify({ ok: true, team_id: "TREAL123" }), { status: 200 })) as unknown as typeof fetch;
       const configured: string[] = [];
       try {
         const ok = await selfHealSlackTeamGate({

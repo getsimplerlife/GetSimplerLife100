@@ -64,7 +64,7 @@ describe("DocuSign account id resolution", () => {
   });
   it("fails closed with a clear error when no account can be resolved", async () => {
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async () => ({ ok: false }) as Response) as typeof fetch;
+    globalThis.fetch = (async () => ({ ok: false }) as Response) as unknown as typeof fetch;
     try {
       await expect(resolveDocuSignDefaultAccount({ accessToken: "tok" })).rejects.toThrow("no usable account");
       await expect(resolveDocuSignDefaultAccount({})).rejects.toThrow("access token is required");

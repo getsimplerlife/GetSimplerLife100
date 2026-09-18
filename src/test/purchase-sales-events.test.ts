@@ -59,7 +59,7 @@ describe("purchase-sales-events — shared on-purchase-completed handler", () =>
 
   describe("account provisioning/upgrade (account-creation-on-purchase)", () => {
     it("creates a new account for the purchase email when none exists (no password, seeded source)", () => {
-      const users = {};
+      const users: Record<string, any> = {};
       const { users: next, outcome } = provisionAccountForPurchase(users, "newbuyer@example.com", {
         tier: "starter",
       });

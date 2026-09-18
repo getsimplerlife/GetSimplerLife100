@@ -10,6 +10,9 @@
 // .vercel/output/functions/render.func/index.mjs by build-vercel.sh.
 import type { IncomingMessage, ServerResponse } from "node:http";
 
+// @ts-ignore — dist/server/server.js is the SSR fetch handler emitted by
+// `bun run build` (TanStack Start); it does not exist during `tsc --noEmit`.
+// build-vercel.sh bundles it AFTER the SSR build resolves the real file.
 import handler from "./dist/server/server.js";
 
 const fetchHandler = handler as {
