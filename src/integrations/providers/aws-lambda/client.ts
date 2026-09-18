@@ -211,7 +211,7 @@ export class AwsLambdaClient {
   /**
    * Invoke a Lambda function asynchronously (fire-and-forget)
    */
-  async invokeAsync(functionName: string, payload: any): Promise<{ statusCode: number }> {
+  async invokeAsync(functionName: string, payload: any): Promise<LambdaInvocationResult> {
     return this.invokeFunction(functionName, payload, "Event");
   }
 

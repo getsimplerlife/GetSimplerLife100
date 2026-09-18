@@ -545,7 +545,7 @@ export const docusignAdapter: CapabilityAdapter = async (contract, ctx) => {
     appToken: (cred.appToken as string) || "",
     // Mid-run client refreshes (token expiring during a long run) must ALSO
     // land on `cred` so the runner persists the rotation.
-    onTokensRefreshed: (t) => applyDocuSignRefreshToCred(cred, t),
+    onTokensRefreshed: (t: { accessToken: string; refreshToken?: string; expiresAt?: number; scope?: string }) => applyDocuSignRefreshToCred(cred, t),
   });
 
   switch (contract.capabilityId) {

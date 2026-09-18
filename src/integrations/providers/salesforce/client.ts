@@ -130,7 +130,10 @@ export class SalesforceClient {
   private async ensureToken(): Promise<void> {
     if (isTokenExpired(this.tokens) && this.tokens.refreshToken) {
       const { refreshSalesforceToken } = await import("./auth");
-      this.tokens = await refreshSalesforceToken(this.authConfig, this.tokens.refreshToken);
+      // authConfig intentionally omits redirectUri (not needed for API calls);
+      // refreshSalesforceToken accepts SalesforceAuthConfig and only uses
+      // redirectUri when building the OAuth config for the token refresh.
+      this.tokens = await refreshSalesforceToken(this.authConfig as import("./auth").SalesforceAuthConfig, this.tokens.refreshToken);
     }
   }
 

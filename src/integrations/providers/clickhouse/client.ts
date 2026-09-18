@@ -104,7 +104,11 @@ export class ClickHouseClient {
     const result = await this.query(
       `SELECT name, engine, comment FROM system.tables WHERE database = '${this.authConfig.database}' ORDER BY name`,
     );
-    return result.data || [];
+    return (result.data || []).map((row) => ({
+      name: row.name as string,
+      engine: row.engine as string,
+      comment: row.comment as string,
+    }));
   }
 
   /**
@@ -120,7 +124,7 @@ export class ClickHouseClient {
     const tableData = tableInfo.data?.[0] || {};
     return {
       name: tableName,
-      database: this.authConfig.database,
+      database: this.authConfig.database || "default",
       engine: tableData.engine || "Unknown",
       columns: (columns.data || []).map((c: any) => ({
         name: c.name,

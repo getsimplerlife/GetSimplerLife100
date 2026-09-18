@@ -679,7 +679,7 @@ function processHR(
   });
 
   return {
-    processedData: { filtered, enriched, matched: [], metrics: { totalRecords, employees, missingDocs: missingDocs.length } },
+    processedData: { filtered, enriched, matched: [], metrics: { totalRecords, employees: employees.length, missingDocs: missingDocs.length } },
     actionsTaken: actions,
     insights,
     alerts,

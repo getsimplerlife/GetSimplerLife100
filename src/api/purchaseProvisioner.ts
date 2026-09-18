@@ -22,11 +22,11 @@ export const PRODUCT_TO_AGENT_MAP: Record<string, string> = {
   "Marketing Social AI": "marketing_social",
 };
 
-export async function provisionPurchase(opts: { email: string; productName: string; amount: number }): Promise<void> {
+export async function provisionPurchase(opts: { email: string; productName: string; amount: number }): Promise<{ success: boolean; error?: string }> {
   const agentType = PRODUCT_TO_AGENT_MAP[opts.productName];
   if (!agentType) {
     console.log(`[provisionPurchase] Unknown product: ${opts.productName}, skipping auto-provision`);
-    return;
+    return { success: false, error: `Unknown product: ${opts.productName}` };
   }
 
   console.log(`[provisionPurchase] Provisioning ${agentType} for ${opts.email} (${opts.amount})...`);
@@ -36,4 +36,5 @@ export async function provisionPurchase(opts: { email: string; productName: stri
   // 3. Send onboarding email via SendGrid SMTP
   // For now we log it — the Stripe webhook and SendGrid SMTP are configured.
   console.log(`[provisionPurchase] ✅ ${agentType} provisioned for ${opts.email}`);
+  return { success: true };
 }

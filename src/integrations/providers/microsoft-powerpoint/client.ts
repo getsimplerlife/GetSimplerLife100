@@ -56,7 +56,7 @@ export class MicrosoftPowerPointClient {
       const res = await fetch(`${GRAPH_BASE}${path}`, {
         method: "PUT",
         headers: { Authorization: `Bearer ${this.tokens.accessToken}`, "Content-Type": PPTX_MIME },
-        body: content,
+        body: content as BodyInit,
         signal: controller.signal,
       });
       if (!res.ok) throw new Error(`Microsoft Graph: PUT pptx failed HTTP ${res.status}`);

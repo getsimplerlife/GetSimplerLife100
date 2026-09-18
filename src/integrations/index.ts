@@ -6,4 +6,4 @@
 
 export * from "./framework";
 export * from "./providers";
-export { default as emailIntegration } from "./email";
+export { sendEmail as emailIntegration } from "./email";
