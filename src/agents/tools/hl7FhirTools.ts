@@ -58,26 +58,21 @@ function parseHL7v2(raw: string): { success: boolean; data?: HL7Message; error?:
     // Determine message type from MSH segment
     let messageType = "UNKNOWN";
     let eventType = "";
-
-    if (segments.length > 0 && segments[0].fields[0]?.startsWith("MSH")) {
-      const mshFields = segments[0].split("|");
+    // The previous code called `.split`/`.startsWith` on the segment OBJECT -
+    // a TypeError at runtime for every message with >=1 segment (the else-if
+    // branch ALWAYS ran because MSH field 1 is the encoding chars "^~\&",
+    // never "MSH", and then crashed on `.startsWith`). Check the segment NAME
+    // instead and rebuild the split array as name (index 0) + fields (1..n),
+    // which is byte-identical to the original string split.
+    if (segments.length > 0 && segments[0].name.startsWith("MSH")) {
+      const mshFields = [segments[0].name, ...segments[0].fields];
       if (mshFields.length >= 9) {
         const msgTypeField = mshFields[8]; // MSH-9
         const parts = msgTypeField.split("^");
         messageType = parts[0] || "UNKNOWN";
         eventType = parts[1] || "";
       }
-    } else if (segments[0].startsWith("MSH")) {
-      const mshFields = segments[0].split("|");
-      if (mshFields.length >= 9) {
-        const msgTypeField = mshFields[8];
-        const parts = msgTypeField.split("^");
-        messageType = parts[0] || "UNKNOWN";
-        eventType = parts[1] || "";
-      }
     }
-
-
     return {
       success: true,
       data: {

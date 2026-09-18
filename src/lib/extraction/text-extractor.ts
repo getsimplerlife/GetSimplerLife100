@@ -250,10 +250,10 @@ function pdfStreamToText(stream: string): string {
 function inflatePdfStream(raw: Uint8Array): Uint8Array | null {
   const out = new Uint8Array(PDF_MAX_STREAM_UNCOMPRESSED);
   try {
-    return unzlibSync(raw, out); // FlateDecode = zlib container
+    return unzlibSync(raw, { out }); // FlateDecode = zlib container
   } catch {
     try {
-      return inflateSync(raw, out); // raw deflate fallback
+      return inflateSync(raw, { out }); // raw deflate fallback
     } catch {
       return null;
     }

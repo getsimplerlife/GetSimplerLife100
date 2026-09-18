@@ -103,7 +103,7 @@ function UnifiedSettingsHub() {
   const [planDesc, setPlanDesc] = useState("");
   const [invoices, setInvoices] = useState<InvoiceItem[]>([]);
   const [loadingBilling, setLoadingBilling] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState(null);
+  const [paymentMethod, setPaymentMethod] = useState<{ brand: string; last4: string; expMonth: number; expYear: number } | null>(null);
 
   // 4. API Key states
   const [developerKeys, setDeveloperKeys] = useState<DeveloperKey[]>([]);
@@ -761,7 +761,7 @@ function UnifiedSettingsHub() {
                 <p className="text-xs text-stone-500">Manage connected SaaS systems used by active AI employee workloads.</p>
               </div>
               <Link
-                to="/portal/integrations/"
+                to="/portal/integrations"
                 className="bg-stone-900 hover:bg-stone-800 text-emerald-400 font-bold text-xs px-5 py-3 rounded-2xl border border-stone-800 flex items-center gap-2"
               >
                 🔌 Connect New Account
@@ -833,7 +833,7 @@ function UnifiedSettingsHub() {
                   <p className="text-xs text-stone-500 max-w-sm mx-auto">Connect your workspace databases, CRMs, email servers, or helpdesks to deploy autonomous digital employees.</p>
                 </div>
                 <Link
-                  to="/portal/integrations/"
+                  to="/portal/integrations"
                   className="inline-block bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-5 py-3 rounded-xl shadow-lg transition-all"
                 >
                   Configure Integrations Directory

@@ -37,13 +37,13 @@ describe("Customer Success / Intercom capability slice", () => {
   });
   it("retries bounded reads and audits for readConversations", async () => {
     let calls = 0; const out: string[] = [];
-    const r = await readConversations({ readConversations: async (t) => { calls++; expect(t).toBe("t"); if (calls < 2) throw Error("temporary"); return ["conversation"]; } }, { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (e) => out.push(e.outcome) });
+    const r = await readConversations({ readConversations: async (t) => { calls++; expect(t).toBe("t"); if (calls < 2) throw Error("temporary"); return ["conversation"]; } }, { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (e) => { out.push(e.outcome); } });
     expect(r).toEqual(["conversation"]); expect(calls).toBe(2); expect(out).toEqual(["succeeded"]);
   });
   it("requires idempotency and audits failed writes for sendMessage", async () => {
     const out: string[] = []; const a = { sendMessage: async () => { throw Error("unavailable"); } };
-    await expect(sendMessage(a, {}, { tenantId: "t", authToken: "token", audit: (e) => out.push(e.outcome) }, "")).rejects.toThrow("Idempotency");
-    await expect(sendMessage(a, {}, { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (e) => out.push(e.outcome) }, "k")).rejects.toThrow("unavailable");
+    await expect(sendMessage(a, {}, { tenantId: "t", authToken: "token", audit: (e) => { out.push(e.outcome); } }, "")).rejects.toThrow("Idempotency");
+    await expect(sendMessage(a, {}, { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (e) => { out.push(e.outcome); } }, "k")).rejects.toThrow("unavailable");
     expect(out).toEqual(["failed"]);
   });
   it("readContacts succeeds with valid adapter", async () => {

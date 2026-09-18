@@ -53,7 +53,7 @@ function requireTenant(options: OperationsExecutionOptions): void {
 
 function boundedAttempts(value?: number): number { return Math.max(1, Math.min(value ?? 2, 3)); }
 
-export async function readBoards(adapter: OperationsAdapter, options: OperationsExecutionOptions): Promise<unknown> {
+export async function readBoards(adapter: Pick<OperationsAdapter, "listBoards">, options: OperationsExecutionOptions): Promise<unknown> {
   requireTenant(options);
   let lastError: unknown;
   for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) {
@@ -67,7 +67,7 @@ export async function readBoards(adapter: OperationsAdapter, options: Operations
   throw lastError;
 }
 
-export async function createItem(adapter: OperationsAdapter, input: Record<string, unknown>, options: OperationsExecutionOptions, idempotencyKey: string): Promise<unknown> {
+export async function createItem(adapter: Pick<OperationsAdapter, "createItem">, input: Record<string, unknown>, options: OperationsExecutionOptions, idempotencyKey: string): Promise<unknown> {
   requireTenant(options);
   if (!idempotencyKey.trim()) throw new Error("Idempotency key is required");
   let lastError: unknown;

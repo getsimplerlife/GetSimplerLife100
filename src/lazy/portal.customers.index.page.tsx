@@ -5,6 +5,11 @@ import { getAuthMethod, AGENT_TYPES } from "../content/integration-auth-map";
 
 // Data loaded client-side via fetch() — server functions removed because
 // they crash SSR with "globalThis.app.config" (vinxi/http context unavailable).
+// Wired to the real portal API: GET /api/portal/connections (list),
+// POST /api/integrations/connect + /api/integrations/disconnect (actions).
+// Agent "Test" and "Route to AI Agent" controls were removed with their
+// server functions (commit b437a8b) — the backend for them was never
+// restored, and the API exposes no equivalent, so keeping them would throw.
 
 
 
@@ -35,8 +40,6 @@ function CRMERPConnectorPage() {
   const [subdomain, setSubdomain] = useState("");
   const [connecting, setConnecting] = useState(false);
   const [connectError, setConnectError] = useState("");
-  const [routingId, setRoutingId] = useState<string | null>(null);
-  const [testingId, setTestingId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
   const showToast = (msg: string, type: "success" | "error" = "success") => {
@@ -44,8 +47,27 @@ function CRMERPConnectorPage() {
   };
 
   const refresh = useCallback(async () => {
-    const { connections: c } = await getCRMERPData();
-    setConnections(c); setLoaded(true);
+    try {
+      const res = await fetch("/api/portal/connections", { credentials: "include" });
+      if (!res.ok) throw new Error(`Failed to load connections (${res.status})`);
+      const payload = await res.json();
+      const list: any[] = payload?.data?.connections ?? [];
+      // Map the real credential-store shape (provider-scoped rows from
+      // tenant_oauth_credentials.json) onto this page's ConnConnection.
+      const mapped: ConnConnection[] = list.map((c) => ({
+        id: c.provider,
+        provider: c.provider,
+        displayName: c.provider,
+        status: c.status === "ok" ? "active" : c.status === "error" ? "error" : c.connected ? "active" : "pending",
+        assignedAgent: null,
+        healthAt: c.lastProbeAt ?? null,
+        errorMsg: c.lastError ?? null,
+      }));
+      setConnections(mapped); setLoaded(true);
+    } catch (e: any) {
+      console.error("Failed to load CRM/ERP connections:", e);
+      setLoaded(true);
+    }
   }, []);
 
   useEffect(() => { refresh(); }, [refresh]);
@@ -73,7 +95,21 @@ function CRMERPConnectorPage() {
     setConnecting(true); setConnectError("");
     try {
       const provider = crmErpProviders.find((p) => p.id === connectTarget);
-      await connectCRMERP({ data: { provider: connectTarget, displayName: provider?.name ?? connectTarget, apiKey: apiKey.trim(), subdomain: subdomain.trim() || undefined } });
+      const res = await fetch("/api/integrations/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          provider: connectTarget,
+          displayName: provider?.name ?? connectTarget,
+          apiKey: apiKey.trim(),
+          subdomain: subdomain.trim() || undefined,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Connection failed");
+      }
       showToast(`Connected to ${provider?.name ?? connectTarget}`);
       setConnectTarget(null); setApiKey(""); setSubdomain("");
       await refresh();
@@ -83,22 +119,20 @@ function CRMERPConnectorPage() {
 
   const handleDisconnect = async (cid: string, name: string) => {
     if (!confirm(`Disconnect ${name}?`)) return;
-    await disconnectCRMERP({ data: cid });
+    const res = await fetch("/api/integrations/disconnect", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ providerId: cid }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || "Disconnect failed");
+    }
     showToast(`Disconnected ${name}`);
     await refresh();
   };
 
-  const handleRoute = async (cid: string, agent: string | null) => {
-    setRoutingId(cid);
-    await setAgentRouting({ data: { connectionId: cid, agentType: agent } });
-    await refresh(); setRoutingId(null);
-  };
-
-  const handleTest = async (cid: string) => {
-    setTestingId(cid);
-    await testConnection({ data: cid });
-    await refresh(); setTestingId(null);
-  };
 
   return (
     <div className="min-h-screen bg-stone-950 text-stone-100">
@@ -261,30 +295,12 @@ function CRMERPConnectorPage() {
                       <span className="text-[10px] font-mono font-bold text-stone-300 uppercase">{conn!.status}</span>
                       {conn!.healthAt && <span className="text-[9px] font-mono text-stone-500">Last: {new Date(conn!.healthAt).toLocaleString()}</span>}
                     </div>
-                    <button onClick={() => handleTest(conn!.id)} disabled={testingId === conn!.id}
-                      className="text-[9px] font-mono font-bold text-indigo-400 hover:text-indigo-300 border border-indigo-500/20 rounded px-2 py-1 disabled:opacity-50">
-                      {testingId === conn!.id ? "Testing…" : "Test"}
-                    </button>
                   </div>
                   {conn!.errorMsg && (
                     <div className="bg-rose-500/5 border border-rose-500/20 rounded-lg p-2.5">
                       <p className="text-[9px] font-mono text-rose-400">{conn!.errorMsg}</p>
                     </div>
                   )}
-                  {/* AI Routing */}
-                  <div>
-                    <p className="text-[10px] font-mono font-bold text-stone-400 uppercase mb-1.5">Route Data to AI Agent</p>
-                    <select value={conn!.assignedAgent || ""}
-                      onChange={(e) => handleRoute(conn!.id, e.target.value || null)}
-                      disabled={routingId === conn!.id}
-                      className="w-full bg-stone-950 border border-stone-800 focus:border-indigo-600 rounded-lg px-3 py-1.5 text-xs text-stone-200 outline-none disabled:opacity-50">
-                      <option value="">— Select AI Agent —</option>
-                      <option value="">(Unassigned)</option>
-                      {AGENT_TYPES.map((a) => (
-                        <option key={a.id} value={a.id}>{a.name}</option>
-                      ))}
-                    </select>
-                  </div>
                 </div>
               )}
             </div>

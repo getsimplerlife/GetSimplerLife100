@@ -4,7 +4,7 @@ export class SPApiClient {
   private client: HttpClient; private refreshToken: string; private clientId: string; private clientSecret: string;    private marketplaceId: string;
   constructor(conf: { refreshToken: string; clientId: string; clientSecret: string; awsAccessKey: string; awsSecretKey: string; roleArn: string; marketplaceId: string; region: string }) {
     this.client = new HttpClient({ baseUrl: `https://sellingpartnerapi-${conf.region || "na"}.amazon.com`, rateLimit: { maxRequestsPerSecond: 5 }, retry: { maxRetries: 3, baseDelay: 1000, maxDelay: 10000 }, timeout: 30000 });
-    this.refreshToken = conf.refreshToken; this.clientId = conf.clientId; this.clientSecret = conf.clientSecret; this.awsAccessKey = conf.awsAccessKey; this.awsSecretKey = conf.awsSecretKey; this.roleArn = conf.roleArn; this.marketplaceId = conf.marketplaceId;
+    this.refreshToken = conf.refreshToken; this.clientId = conf.clientId; this.clientSecret = conf.clientSecret; this.marketplaceId = conf.marketplaceId;
   }
 
   private async getAccessToken(): Promise<string> { const r = await fetch("https://api.amazon.com/auth/o2/token", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: this.refreshToken, client_id: this.clientId, client_secret: this.clientSecret }) }); const d = await r.json(); return d.access_token; }

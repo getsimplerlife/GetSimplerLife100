@@ -220,7 +220,7 @@ function requireIdempotency(key?: string): void {
 }
 
 /* ── Read executors ── */
-export async function readReports(adapter: AnalyticsAdapter, options: AnalyticsExecutionOptions): Promise<unknown> {
+export async function readReports(adapter: Pick<AnalyticsAdapter, "listReports">, options: AnalyticsExecutionOptions): Promise<unknown> {
   requireTenant(options);
   let lastError: unknown;
   for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) {
@@ -236,28 +236,28 @@ export async function readReports(adapter: AnalyticsAdapter, options: AnalyticsE
   throw lastError;
 }
 
-export async function readDashboards(adapter: AnalyticsAdapter, options: AnalyticsExecutionOptions): Promise<unknown> {
+export async function readDashboards(adapter: Pick<AnalyticsAdapter, "readDashboards">, options: AnalyticsExecutionOptions): Promise<unknown> {
   requireTenant(options);
   const result = await adapter.readDashboards(options.tenantId);
   await options.audit({ capabilityId: "tableau-read-dashboards", tenantId: options.tenantId, outcome: "succeeded" });
   return result;
 }
 
-export async function readWorkbooks(adapter: AnalyticsAdapter, options: AnalyticsExecutionOptions): Promise<unknown> {
+export async function readWorkbooks(adapter: Pick<AnalyticsAdapter, "readWorkbooks">, options: AnalyticsExecutionOptions): Promise<unknown> {
   requireTenant(options);
   const result = await adapter.readWorkbooks(options.tenantId);
   await options.audit({ capabilityId: "tableau-read-workbooks", tenantId: options.tenantId, outcome: "succeeded" });
   return result;
 }
 
-export async function readDataSources(adapter: AnalyticsAdapter, options: AnalyticsExecutionOptions): Promise<unknown> {
+export async function readDataSources(adapter: Pick<AnalyticsAdapter, "readDataSources">, options: AnalyticsExecutionOptions): Promise<unknown> {
   requireTenant(options);
   const result = await adapter.readDataSources(options.tenantId);
   await options.audit({ capabilityId: "tableau-read-data-sources", tenantId: options.tenantId, outcome: "succeeded" });
   return result;
 }
 
-export async function readProjects(adapter: AnalyticsAdapter, options: AnalyticsExecutionOptions): Promise<unknown> {
+export async function readProjects(adapter: Pick<AnalyticsAdapter, "readProjects">, options: AnalyticsExecutionOptions): Promise<unknown> {
   requireTenant(options);
   const result = await adapter.readProjects(options.tenantId);
   await options.audit({ capabilityId: "tableau-read-projects", tenantId: options.tenantId, outcome: "succeeded" });
@@ -272,7 +272,7 @@ export async function readUsers(adapter: AnalyticsAdapter, options: AnalyticsExe
 }
 
 /* ── Monitor executors ── */
-export async function monitorWorkbooks(adapter: AnalyticsAdapter, options: AnalyticsExecutionOptions): Promise<unknown> {
+export async function monitorWorkbooks(adapter: Pick<AnalyticsAdapter, "monitorWorkbooks">, options: AnalyticsExecutionOptions): Promise<unknown> {
   requireTenant(options);
   let lastError: unknown;
   for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) {
@@ -288,7 +288,7 @@ export async function monitorWorkbooks(adapter: AnalyticsAdapter, options: Analy
   throw lastError;
 }
 
-export async function monitorDatasources(adapter: AnalyticsAdapter, options: AnalyticsExecutionOptions): Promise<unknown> {
+export async function monitorDatasources(adapter: Pick<AnalyticsAdapter, "monitorDatasources">, options: AnalyticsExecutionOptions): Promise<unknown> {
   requireTenant(options);
   let lastError: unknown;
   for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) {

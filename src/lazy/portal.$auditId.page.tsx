@@ -2,8 +2,7 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { submitFeedback } from "~/db/queries";
 import { Route } from '~/routes/portal.$auditId';
-;
-import { getUser, getAudit } from "~/db/queries";
+
 
 function AuditDetail() {
   const { audit } = Route.useLoaderData();

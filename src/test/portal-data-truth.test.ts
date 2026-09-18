@@ -209,7 +209,7 @@ describe("PORTAL DATA-TRUTH (#236)", () => {
     const res = await authedGet("/api/data/employees", ownerCookie!);
     expect(res.status).toBe(200);
     const data = res.json?.data || [];
-    const byId = new Map(data.map((e: any) => [e.id, e]));
+    const byId = new Map<string, { needsAttention?: boolean }>(data.map((e: any) => [e.id, e]));
     expect(byId.get("emp-1")?.needsAttention).toBe(false); // available
     expect(byId.get("emp-2")?.needsAttention).toBe(false); // paused
     expect(byId.get("emp-4")?.needsAttention).toBe(false); // active

@@ -29,7 +29,7 @@ beforeEach(() => {
       status: 200,
       headers: { get: () => "application/json" },
       json: async () => ({ id: "rec-1", ok: true, key: "PROJ-1", ts: "1.2", channel: "C1" }),
-    } as Response;
+    } as unknown as Response;
   });
   globalThis.fetch = fetchMock as unknown as typeof globalThis.fetch;
 });
@@ -102,7 +102,7 @@ describe("write dispatch: explicitly allowlisted pairs still execute", () => {
     expect(getHubSpotTrustedTenantId("owner@example.com", "owner@example.com", [] as any)).toBeNull();
   });
   it("rejects missing or blank Bearer accessToken without a request", async () => {
-    for (const credentials of [{}, { accessToken: "" }, { accessToken: "   " }]) {
+    for (const credentials of [{}, { accessToken: "" }, { accessToken: "   " }] as Record<string, string>[]) {
       const result = await executeProviderAction("hubspot", "HubSpot", credentials, { action: "create_contact", __trustedTenantId: "tenant-test", email: "a@b.co" });
       expect(result.status).toBe("skipped");
       expect(fetchMock).not.toHaveBeenCalled();

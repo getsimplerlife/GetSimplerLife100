@@ -401,7 +401,7 @@ function requireTenant(options: InvoiceLedgerExecutionOptions): void {
   if (!options.authToken?.trim()) throw new Error("Provider authentication is required");
 }
 /** Execute the understand path with bounded retry and mandatory audit. */
-export async function readInvoices(adapter: InvoiceLedgerAdapter, options: InvoiceLedgerExecutionOptions): Promise<unknown> {
+export async function readInvoices(adapter: Pick<InvoiceLedgerAdapter, "listInvoices">, options: InvoiceLedgerExecutionOptions): Promise<unknown> {
   requireTenant(options);
   const attempts = Math.max(1, Math.min(options.maxAttempts ?? 2, 3));
   let lastError: unknown;
@@ -419,7 +419,7 @@ export async function readInvoices(adapter: InvoiceLedgerAdapter, options: Invoi
   throw lastError;
 }
 /** Create a draft only; duplicate keys are rejected and failed writes are rolled back. */
-export async function createDraftInvoice(adapter: InvoiceLedgerAdapter, input: Record<string, unknown>, options: InvoiceLedgerExecutionOptions, idempotencyKey: string): Promise<unknown> {
+export async function createDraftInvoice(adapter: Pick<InvoiceLedgerAdapter, "createDraftInvoice">, input: Record<string, unknown>, options: InvoiceLedgerExecutionOptions, idempotencyKey: string): Promise<unknown> {
   requireTenant(options);
   if (!idempotencyKey.trim()) throw new Error("Idempotency key is required");
   const attempts = Math.max(1, Math.min(options.maxAttempts ?? 2, 3));

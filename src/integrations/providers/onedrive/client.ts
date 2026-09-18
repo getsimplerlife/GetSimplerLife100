@@ -50,7 +50,7 @@ export class OneDriveClient {
       const res = await fetch(`${GRAPH_BASE}${path}`, {
         method: "PUT",
         headers: { Authorization: `Bearer ${this.tokens.accessToken}`, "Content-Type": mimeType },
-        body: content,
+        body: content as BodyInit,
         signal: controller.signal,
       });
       if (!res.ok) throw new Error(`Microsoft Graph: PUT content failed HTTP ${res.status}`);
@@ -132,7 +132,7 @@ export class OneDriveClient {
     if (parentId) body.parentReference = { id: parentId };
     const r = await this.client.post(`/me/drive/items/${encodeURIComponent(id)}/copy`, body, this.headers);
     // Graph returns 202 Accepted with a Location header for the async job.
-    return { accepted: true, statusLocation: r.headers?.location || null };
+    return { accepted: true, statusLocation: r.headers?.get("location") || null };
   }
 
   /** Move a file into a folder (optionally renaming). */

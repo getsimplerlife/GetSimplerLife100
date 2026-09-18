@@ -53,7 +53,7 @@ describe("Microsoft Productivity capability contracts", () => {
     const options: MicrosoftProductivityExecutionOptions = {
       tenantId: "acme",
       authToken: "tok",
-      audit: async (e) => auditEvents.push(e),
+      audit: async (e) => { auditEvents.push(e); },
     };
     const r = await createMicrosoftWordDoc(adapter, { name: "Report", paragraphs: ["x"] }, options, "ik-1");
     expect(r).toEqual({ id: "doc-1" });
@@ -88,7 +88,7 @@ describe("Microsoft Productivity capability contracts", () => {
       deleteOneDriveFile: async () => ({ deleted: true }),
     };
     await expect(
-      createMicrosoftWordDoc(adapter, { name: "R", paragraphs: [] }, { tenantId: "acme", authToken: "tok", audit: async (e) => auditEvents.push(e.outcome) } as never, "ik"),
+      createMicrosoftWordDoc(adapter, { name: "R", paragraphs: [] }, { tenantId: "acme", authToken: "tok", audit: async (e: { outcome: string }) => auditEvents.push(e.outcome) } as never, "ik"),
     ).rejects.toThrow("boom");
     expect(auditEvents).toEqual(["failed"]);
   });

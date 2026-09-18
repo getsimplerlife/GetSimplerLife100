@@ -130,11 +130,11 @@ export interface SalesAdapter { listOpportunities(tenantId: string): Promise<unk
 export interface SalesExecutionOptions { tenantId: string; authToken?: string; audit: (event: { capabilityId: string; tenantId: string; outcome: string; idempotencyKey?: string }) => Promise<void> | void; maxAttempts?: number; }
 function requireTenant(options: SalesExecutionOptions): void { if (!options.tenantId.trim()) throw new Error("Tenant scope is required"); if (!options.authToken?.trim()) throw new Error("Provider authentication is required"); }
 function boundedAttempts(value?: number): number { return Math.max(1, Math.min(value ?? 2, 3)); }
-export async function readOpportunities(adapter: SalesAdapter, options: SalesExecutionOptions): Promise<unknown> { requireTenant(options); let lastError: unknown; for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) { try { const result = await adapter.listOpportunities(options.tenantId); await options.audit({ capabilityId: "salesforce-read-opportunities", tenantId: options.tenantId, outcome: "succeeded" }); return result; } catch (error) { lastError = error; } } await options.audit({ capabilityId: "salesforce-read-opportunities", tenantId: options.tenantId, outcome: "failed" }); throw lastError; }
-export async function updateOpportunity(adapter: SalesAdapter, input: Record<string, unknown>, options: SalesExecutionOptions, idempotencyKey: string): Promise<unknown> { requireTenant(options); if (!idempotencyKey.trim()) throw new Error("Idempotency key is required"); let lastError: unknown; for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) { try { const result = await adapter.updateOpportunity(options.tenantId, input, idempotencyKey); await options.audit({ capabilityId: "salesforce-update-opportunity", tenantId: options.tenantId, outcome: "succeeded", idempotencyKey }); return result; } catch (error) { lastError = error; } } await options.audit({ capabilityId: "salesforce-update-opportunity", tenantId: options.tenantId, outcome: "failed", idempotencyKey }); throw lastError; }
+export async function readOpportunities(adapter: Pick<SalesAdapter, "listOpportunities">, options: SalesExecutionOptions): Promise<unknown> { requireTenant(options); let lastError: unknown; for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) { try { const result = await adapter.listOpportunities(options.tenantId); await options.audit({ capabilityId: "salesforce-read-opportunities", tenantId: options.tenantId, outcome: "succeeded" }); return result; } catch (error) { lastError = error; } } await options.audit({ capabilityId: "salesforce-read-opportunities", tenantId: options.tenantId, outcome: "failed" }); throw lastError; }
+export async function updateOpportunity(adapter: Pick<SalesAdapter, "updateOpportunity">, input: Record<string, unknown>, options: SalesExecutionOptions, idempotencyKey: string): Promise<unknown> { requireTenant(options); if (!idempotencyKey.trim()) throw new Error("Idempotency key is required"); let lastError: unknown; for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) { try { const result = await adapter.updateOpportunity(options.tenantId, input, idempotencyKey); await options.audit({ capabilityId: "salesforce-update-opportunity", tenantId: options.tenantId, outcome: "succeeded", idempotencyKey }); return result; } catch (error) { lastError = error; } } await options.audit({ capabilityId: "salesforce-update-opportunity", tenantId: options.tenantId, outcome: "failed", idempotencyKey }); throw lastError; }
 
 
-export async function readAccounts(adapter: SalesAdapter, options: SalesExecutionOptions): Promise<unknown> {
+export async function readAccounts(adapter: Pick<SalesAdapter, "readAccounts">, options: SalesExecutionOptions): Promise<unknown> {
   if (!options.tenantId.trim()) throw new Error("Tenant scope is required");
   if (!options.authToken?.trim()) throw new Error("Provider authentication is required");
   
@@ -144,7 +144,7 @@ export async function readAccounts(adapter: SalesAdapter, options: SalesExecutio
 }
 
 
-export async function readContacts(adapter: SalesAdapter, options: SalesExecutionOptions): Promise<unknown> {
+export async function readContacts(adapter: Pick<SalesAdapter, "readContacts">, options: SalesExecutionOptions): Promise<unknown> {
   if (!options.tenantId.trim()) throw new Error("Tenant scope is required");
   if (!options.authToken?.trim()) throw new Error("Provider authentication is required");
   
@@ -154,7 +154,7 @@ export async function readContacts(adapter: SalesAdapter, options: SalesExecutio
 }
 
 
-export async function readLeads(adapter: SalesAdapter, options: SalesExecutionOptions): Promise<unknown> {
+export async function readLeads(adapter: Pick<SalesAdapter, "readLeads">, options: SalesExecutionOptions): Promise<unknown> {
   if (!options.tenantId.trim()) throw new Error("Tenant scope is required");
   if (!options.authToken?.trim()) throw new Error("Provider authentication is required");
   
@@ -174,7 +174,7 @@ export async function readPipeline(adapter: SalesAdapter, options: SalesExecutio
 }
 
 
-export async function createTask(adapter: SalesAdapter, options: SalesExecutionOptions, input: Record<string, unknown>, idempotencyKey: string): Promise<unknown> {
+export async function createTask(adapter: Pick<SalesAdapter, "createTask">, options: SalesExecutionOptions, input: Record<string, unknown>, idempotencyKey: string): Promise<unknown> {
   if (!options.tenantId.trim()) throw new Error("Tenant scope is required");
   if (!options.authToken?.trim()) throw new Error("Provider authentication is required");
   if (!idempotencyKey.trim()) throw new Error("Idempotency key is required");
@@ -203,7 +203,7 @@ export async function updateLead(adapter: SalesAdapter, options: SalesExecutionO
   return result;
 }
 
-export async function monitorPipeline(adapter: SalesAdapter, options: SalesExecutionOptions): Promise<unknown> {
+export async function monitorPipeline(adapter: Pick<SalesAdapter, "monitorPipeline">, options: SalesExecutionOptions): Promise<unknown> {
   requireTenant(options);
   let lastError: unknown;
   for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) {

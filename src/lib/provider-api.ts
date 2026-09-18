@@ -210,7 +210,8 @@ async function queryPipedrive(creds: Record<string, string>): Promise<ProviderRe
   const apiKey = creds.apiKey || "";
   try {
     const res = await fetchWithTimeout(
-      `https://api.pipedrive.com/v1/persons?limit=10&api_token=${apiKey}`
+      `https://api.pipedrive.com/v1/persons?limit=10&api_token=${apiKey}`,
+      {}
     );
     if (res.status === 401) return { providerId: "pipedrive", provider: "Pipedrive", status: "auth_failed", recordsFound: 0, sampleData: [], error: "Invalid API token" };
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -531,7 +532,8 @@ async function queryGoogleMaps(creds: Record<string, string>): Promise<ProviderR
   const apiKey = creds.apiKey || "";
   try {
     const res = await fetchWithTimeout(
-      `https://maps.googleapis.com/maps/api/directions/json?origin=San+Francisco&destination=San+Jose&key=${apiKey}`
+      `https://maps.googleapis.com/maps/api/directions/json?origin=San+Francisco&destination=San+Jose&key=${apiKey}`,
+      {}
     );
     if (res.status === 403) return { providerId: "google-maps", provider: "Google Maps", status: "auth_failed", recordsFound: 0, sampleData: [], error: "Invalid API key" };
     if (!res.ok) throw new Error(`HTTP ${res.status}`);

@@ -24,7 +24,7 @@ function requireTenant(options: LogisticsExecutionOptions): void {
 function boundedAttempts(value?: number): number {
   return Math.max(1, Math.min(value ?? 2, 3));
 }
-export async function readTasks(adapter: LogisticsAdapter, options: LogisticsExecutionOptions): Promise<unknown> {
+export async function readTasks(adapter: Pick<LogisticsAdapter, "listTasks">, options: LogisticsExecutionOptions): Promise<unknown> {
   requireTenant(options);
   let lastError: unknown;
   for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) {
@@ -39,7 +39,7 @@ export async function readTasks(adapter: LogisticsAdapter, options: LogisticsExe
   await options.audit({ capabilityId: "onfleet-read-tasks", tenantId: options.tenantId, outcome: "failed" });
   throw lastError;
 }
-export async function createTask(adapter: LogisticsAdapter, input: Record<string, unknown>, options: LogisticsExecutionOptions, idempotencyKey: string): Promise<unknown> {
+export async function createTask(adapter: Pick<LogisticsAdapter, "createTask">, input: Record<string, unknown>, options: LogisticsExecutionOptions, idempotencyKey: string): Promise<unknown> {
   requireTenant(options);
   if (!idempotencyKey.trim()) throw new Error("Idempotency key is required");
   let lastError: unknown;

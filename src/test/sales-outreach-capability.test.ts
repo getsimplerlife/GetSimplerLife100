@@ -56,7 +56,7 @@ describe("Sales Outreach / HubSpot capability slice", () => {
           return ["c"];
         },
       },
-      { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (e) => out.push(e.outcome) },
+      { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (e) => { out.push(e.outcome); } },
     );
     expect(r).toEqual(["c"]);
     expect(calls).toBe(2);
@@ -66,15 +66,15 @@ describe("Sales Outreach / HubSpot capability slice", () => {
   it("audits a failed read and throws the last error", async () => {
     const out: string[] = [];
     const a = { listCompanies: async () => { throw Error("down"); } } as any;
-    await expect(readCompanies(a, { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (e) => out.push(e.outcome) })).rejects.toThrow("down");
+    await expect(readCompanies(a, { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (e) => { out.push(e.outcome); } })).rejects.toThrow("down");
     expect(out).toEqual(["failed"]);
   });
 
   it("requires idempotency and audits failed writes", async () => {
     const out: string[] = [];
     const a = { createDeal: async () => { throw Error("unavailable"); } } as any;
-    await expect(createDeal(a, {}, { tenantId: "t", authToken: "token", audit: (e) => out.push(e.outcome) }, "")).rejects.toThrow("Idempotency");
-    await expect(createDeal(a, {}, { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (e) => out.push(e.outcome) }, "k")).rejects.toThrow("unavailable");
+    await expect(createDeal(a, {}, { tenantId: "t", authToken: "token", audit: (e) => { out.push(e.outcome); } }, "")).rejects.toThrow("Idempotency");
+    await expect(createDeal(a, {}, { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (e) => { out.push(e.outcome); } }, "k")).rejects.toThrow("unavailable");
     expect(out).toEqual(["failed"]);
   });
 

@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { docusignAdapter } from "../verification/adapters/priority";
-import type { CapabilityContext } from "../verification/adapters/priority";
+import type { AdapterContext } from "../verification/adapters/index";
 import { createDocuSignClient } from "../integrations/providers/docusign/client";
 import { durableClose, durableFlush, durableGet, initDurableStore, MemoryKvDriver } from "../lib/durable-store";
 import { loadProviderCredentials, persistRefreshedCredential } from "../verification/credential-source";
@@ -14,12 +14,12 @@ function jsonResponse(data: unknown) {
 /** Recorded DocuSign API calls (method + url + parsed body). */
 const calls: Array<{ method: string; url: string; body?: any }> = [];
 
-function ctx(overrides: Partial<CapabilityContext> = {}): CapabilityContext {
+function ctx(overrides: Partial<AdapterContext> = {}): AdapterContext {
   return {
     credentials: { accessToken: "tok", accountId: "acct-1", email: "verify@example.invalid" },
     allowWrites: true,
     ...overrides,
-  } as CapabilityContext;
+  } as AdapterContext;
 }
 const sendContract = { capabilityId: "docusign-send-document" } as never;
 const voidContract = { capabilityId: "docusign-void-envelope" } as never;
@@ -146,7 +146,7 @@ describe("DocuSign refresh-token rotation persistence (#173)", () => {
       accountId: "acct-1",
       clientId: "cid",
       clientSecret: "csec",
-      onTokensRefreshed: (t) => { captured = t; },
+      onTokensRefreshed: (t: { accessToken: string; refreshToken?: string; expiresAt?: number }) => { captured = t; },
     } as never);
     await client.listEnvelopes();
     expect(captured).not.toBeNull();

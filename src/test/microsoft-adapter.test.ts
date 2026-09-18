@@ -68,8 +68,8 @@ function defaultRoutes(method: string, url: string, _body?: any, headers: Record
   }
   // Content download — serve the real binary for the created artifact kind.
   if (method === "GET" && url.includes("/content")) {
-    if (createdKind === "docx") return new Response(buildMinimalDocx(["Phase7", "verification", "write"])) as unknown as Response;
-    if (createdKind === "pptx") return new Response(buildMinimalPptx([{ title: "Phase7", body: "verification" }, { title: "Slide two", body: "payload" }])) as unknown as Response;
+    if (createdKind === "docx") return new Response(buildMinimalDocx(["Phase7", "verification", "write"]) as BodyInit) as unknown as Response;
+    if (createdKind === "pptx") return new Response(buildMinimalPptx([{ title: "Phase7", body: "verification" }, { title: "Slide two", body: "payload" }]) as BodyInit) as unknown as Response;
     return new Response(new TextEncoder().encode("Phase7 payload")) as unknown as Response;
   }
   if (method === "GET" && url.includes("/items/")) return jsonResponse({ id: "f1", name: "x.txt" });

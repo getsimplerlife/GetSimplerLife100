@@ -679,7 +679,7 @@ function processHR(
   });
 
   return {
-    processedData: { filtered, enriched, matched: [], metrics: { totalRecords, employees, missingDocs: missingDocs.length } },
+    processedData: { filtered, enriched, matched: [], metrics: { totalRecords, employees: employees.length, missingDocs: missingDocs.length } },
     actionsTaken: actions,
     insights,
     alerts,
@@ -962,7 +962,7 @@ const CATEGORY_PROCESSORS: Record<
  */
 export function processAgentResults(
   agent: AgentDefinition,
-  queryResult: AgentIntegrationResult,
+  queryResult: Pick<AgentIntegrationResult, "integrationsUsed" | "totalRecordsProcessed">,
   userConnections: ProviderConnection[],
   opts?: ProcessorOptions,
 ): ProcessorResult {

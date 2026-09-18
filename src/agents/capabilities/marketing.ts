@@ -99,11 +99,11 @@ export interface MarketingAdapter { listCampaigns(tenantId: string): Promise<unk
 export interface MarketingExecutionOptions { tenantId: string; authToken?: string; audit: (event: { capabilityId: string; tenantId: string; outcome: string; idempotencyKey?: string }) => Promise<void> | void; maxAttempts?: number; }
 function requireTenant(options: MarketingExecutionOptions): void { if (!options.tenantId.trim()) throw new Error("Tenant scope is required"); if (!options.authToken?.trim()) throw new Error("Provider authentication is required"); }
 function boundedAttempts(value?: number): number { return Math.max(1, Math.min(value ?? 2, 3)); }
-export async function readCampaigns(adapter: MarketingAdapter, options: MarketingExecutionOptions): Promise<unknown> { requireTenant(options); let lastError: unknown; for (let attempt=0; attempt<boundedAttempts(options.maxAttempts); attempt++) { try { const result=await adapter.listCampaigns(options.tenantId); await options.audit({capabilityId:"marketo-read-campaigns",tenantId:options.tenantId,outcome:"succeeded"}); return result; } catch(error) { lastError=error; } } await options.audit({capabilityId:"marketo-read-campaigns",tenantId:options.tenantId,outcome:"failed"}); throw lastError; }
-export async function sendEmail(adapter: MarketingAdapter, input: Record<string, unknown>, options: MarketingExecutionOptions, idempotencyKey: string): Promise<unknown> { requireTenant(options); if (!idempotencyKey.trim()) throw new Error("Idempotency key is required"); let lastError: unknown; for (let attempt=0; attempt<boundedAttempts(options.maxAttempts); attempt++) { try { const result=await adapter.sendEmail(options.tenantId,input,idempotencyKey); await options.audit({capabilityId:"marketo-send-email",tenantId:options.tenantId,outcome:"succeeded",idempotencyKey}); return result; } catch(error) { lastError=error; } } await options.audit({capabilityId:"marketo-send-email",tenantId:options.tenantId,outcome:"failed",idempotencyKey}); throw lastError; }
+export async function readCampaigns(adapter: Pick<MarketingAdapter, "listCampaigns">, options: MarketingExecutionOptions): Promise<unknown> { requireTenant(options); let lastError: unknown; for (let attempt=0; attempt<boundedAttempts(options.maxAttempts); attempt++) { try { const result=await adapter.listCampaigns(options.tenantId); await options.audit({capabilityId:"marketo-read-campaigns",tenantId:options.tenantId,outcome:"succeeded"}); return result; } catch(error) { lastError=error; } } await options.audit({capabilityId:"marketo-read-campaigns",tenantId:options.tenantId,outcome:"failed"}); throw lastError; }
+export async function sendEmail(adapter: Pick<MarketingAdapter, "sendEmail">, input: Record<string, unknown>, options: MarketingExecutionOptions, idempotencyKey: string): Promise<unknown> { requireTenant(options); if (!idempotencyKey.trim()) throw new Error("Idempotency key is required"); let lastError: unknown; for (let attempt=0; attempt<boundedAttempts(options.maxAttempts); attempt++) { try { const result=await adapter.sendEmail(options.tenantId,input,idempotencyKey); await options.audit({capabilityId:"marketo-send-email",tenantId:options.tenantId,outcome:"succeeded",idempotencyKey}); return result; } catch(error) { lastError=error; } } await options.audit({capabilityId:"marketo-send-email",tenantId:options.tenantId,outcome:"failed",idempotencyKey}); throw lastError; }
 
 
-export async function readPrograms(adapter: MarketingAdapter, options: MarketingExecutionOptions): Promise<unknown> {
+export async function readPrograms(adapter: Pick<MarketingAdapter, "readPrograms">, options: MarketingExecutionOptions): Promise<unknown> {
   if (!options.tenantId.trim()) throw new Error("Tenant scope is required");
   if (!options.authToken?.trim()) throw new Error("Provider authentication is required");
   
@@ -113,7 +113,7 @@ export async function readPrograms(adapter: MarketingAdapter, options: Marketing
 }
 
 
-export async function readAssets(adapter: MarketingAdapter, options: MarketingExecutionOptions): Promise<unknown> {
+export async function readAssets(adapter: Pick<MarketingAdapter, "readAssets">, options: MarketingExecutionOptions): Promise<unknown> {
   if (!options.tenantId.trim()) throw new Error("Tenant scope is required");
   if (!options.authToken?.trim()) throw new Error("Provider authentication is required");
   
@@ -123,7 +123,7 @@ export async function readAssets(adapter: MarketingAdapter, options: MarketingEx
 }
 
 
-export async function readLeadScores(adapter: MarketingAdapter, options: MarketingExecutionOptions): Promise<unknown> {
+export async function readLeadScores(adapter: Pick<MarketingAdapter, "readLeadScores">, options: MarketingExecutionOptions): Promise<unknown> {
   if (!options.tenantId.trim()) throw new Error("Tenant scope is required");
   if (!options.authToken?.trim()) throw new Error("Provider authentication is required");
   
@@ -133,7 +133,7 @@ export async function readLeadScores(adapter: MarketingAdapter, options: Marketi
 }
 
 
-export async function addToList(adapter: MarketingAdapter, options: MarketingExecutionOptions, input: Record<string, unknown>, idempotencyKey: string): Promise<unknown> {
+export async function addToList(adapter: Pick<MarketingAdapter, "addToList">, options: MarketingExecutionOptions, input: Record<string, unknown>, idempotencyKey: string): Promise<unknown> {
   if (!options.tenantId.trim()) throw new Error("Tenant scope is required");
   if (!options.authToken?.trim()) throw new Error("Provider authentication is required");
   if (!idempotencyKey.trim()) throw new Error("Idempotency key is required");
@@ -143,7 +143,7 @@ export async function addToList(adapter: MarketingAdapter, options: MarketingExe
 }
 
 
-export async function addToNurture(adapter: MarketingAdapter, options: MarketingExecutionOptions, input: Record<string, unknown>, idempotencyKey: string): Promise<unknown> {
+export async function addToNurture(adapter: Pick<MarketingAdapter, "addToNurture">, options: MarketingExecutionOptions, input: Record<string, unknown>, idempotencyKey: string): Promise<unknown> {
   if (!options.tenantId.trim()) throw new Error("Tenant scope is required");
   if (!options.authToken?.trim()) throw new Error("Provider authentication is required");
   if (!idempotencyKey.trim()) throw new Error("Idempotency key is required");

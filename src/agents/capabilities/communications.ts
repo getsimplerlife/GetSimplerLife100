@@ -248,10 +248,10 @@ async function writeCapability(
   throw lastError;
 }
 
-export async function readMessages(adapter: CommunicationsAdapter, options: CommunicationsExecutionOptions): Promise<unknown> {
+export async function readMessages(adapter: Pick<CommunicationsAdapter, "listMessages">, options: CommunicationsExecutionOptions): Promise<unknown> {
   return readCapability("slack-read-messages", () => adapter.listMessages(options.tenantId), options);
 }
-export async function sendMessage(adapter: CommunicationsAdapter, input: Record<string, unknown>, options: CommunicationsExecutionOptions, idempotencyKey: string): Promise<unknown> {
+export async function sendMessage(adapter: Pick<CommunicationsAdapter, "sendMessage">, input: Record<string, unknown>, options: CommunicationsExecutionOptions, idempotencyKey: string): Promise<unknown> {
   return writeCapability("slack-send-message", (key) => adapter.sendMessage(options.tenantId, input, key), idempotencyKey, options);
 }
 
@@ -296,7 +296,12 @@ export async function executeExtendedCapability(
   let lastError: unknown;
   for (let attempt = 0; attempt < attempts; attempt++) {
     try {
-      const fn = write ? adapter.write : adapter.read;
+      const fn = (write ? adapter.write : adapter.read) as (
+        capabilityId: string,
+        tenantId: string,
+        input?: Record<string, unknown>,
+        idempotencyKey?: string,
+      ) => Promise<unknown>;
       if (!fn) throw new Error("Capability adapter method is unavailable");
       const result = write
         ? await fn(capabilityId, options.tenantId, input ?? {}, idempotencyKey!)

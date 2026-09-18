@@ -55,7 +55,7 @@ export class MicrosoftExcelClient {
       const res = await fetch(`${GRAPH_BASE}${path}`, {
         method: "PUT",
         headers: { Authorization: `Bearer ${this.tokens.accessToken}`, "Content-Type": XLSX_MIME },
-        body: content,
+        body: content as BodyInit,
         signal: controller.signal,
       });
       if (!res.ok) throw new Error(`Microsoft Graph: PUT xlsx failed HTTP ${res.status}`);

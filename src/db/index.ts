@@ -13,7 +13,7 @@ function createLazyDb(): any {
         return _dbInstance[prop];
       }
       if (typeof window !== 'undefined') {
-        const chainable = new Proxy(() => chainable, {
+        const chainable: any = new Proxy(() => chainable, {
           get: () => chainable,
           apply: () => chainable,
         });

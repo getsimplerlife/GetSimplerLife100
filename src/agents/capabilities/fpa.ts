@@ -85,11 +85,11 @@ export interface FpaAdapter { listBudgets(tenantId: string): Promise<unknown>; c
 export interface FpaExecutionOptions { tenantId: string; authToken?: string; audit: (event: { capabilityId: string; tenantId: string; outcome: string; idempotencyKey?: string }) => Promise<void> | void; maxAttempts?: number; }
 function requireTenant(options: FpaExecutionOptions): void { if (!options.tenantId.trim()) throw new Error("Tenant scope is required"); if (!options.authToken?.trim()) throw new Error("Provider authentication is required"); }
 function boundedAttempts(value?: number): number { return Math.max(1, Math.min(value ?? 2, 3)); }
-export async function readBudgets(adapter: FpaAdapter, options: FpaExecutionOptions): Promise<unknown> { requireTenant(options); let lastError: unknown; for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) { try { const result = await adapter.listBudgets(options.tenantId); await options.audit({ capabilityId: "anaplan-read-budgets", tenantId: options.tenantId, outcome: "succeeded" }); return result; } catch (error) { lastError = error; } } await options.audit({ capabilityId: "anaplan-read-budgets", tenantId: options.tenantId, outcome: "failed" }); throw lastError; }
-export async function createForecast(adapter: FpaAdapter, input: Record<string, unknown>, options: FpaExecutionOptions, idempotencyKey: string): Promise<unknown> { requireTenant(options); if (!idempotencyKey.trim()) throw new Error("Idempotency key is required"); let lastError: unknown; for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) { try { const result = await adapter.createForecast(options.tenantId, input, idempotencyKey); await options.audit({ capabilityId: "anaplan-create-forecast", tenantId: options.tenantId, outcome: "succeeded", idempotencyKey }); return result; } catch (error) { lastError = error; } } await options.audit({ capabilityId: "anaplan-create-forecast", tenantId: options.tenantId, outcome: "failed", idempotencyKey }); throw lastError; }
+export async function readBudgets(adapter: Pick<FpaAdapter, "listBudgets">, options: FpaExecutionOptions): Promise<unknown> { requireTenant(options); let lastError: unknown; for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) { try { const result = await adapter.listBudgets(options.tenantId); await options.audit({ capabilityId: "anaplan-read-budgets", tenantId: options.tenantId, outcome: "succeeded" }); return result; } catch (error) { lastError = error; } } await options.audit({ capabilityId: "anaplan-read-budgets", tenantId: options.tenantId, outcome: "failed" }); throw lastError; }
+export async function createForecast(adapter: Pick<FpaAdapter, "createForecast">, input: Record<string, unknown>, options: FpaExecutionOptions, idempotencyKey: string): Promise<unknown> { requireTenant(options); if (!idempotencyKey.trim()) throw new Error("Idempotency key is required"); let lastError: unknown; for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) { try { const result = await adapter.createForecast(options.tenantId, input, idempotencyKey); await options.audit({ capabilityId: "anaplan-create-forecast", tenantId: options.tenantId, outcome: "succeeded", idempotencyKey }); return result; } catch (error) { lastError = error; } } await options.audit({ capabilityId: "anaplan-create-forecast", tenantId: options.tenantId, outcome: "failed", idempotencyKey }); throw lastError; }
 
 
-export async function readModels(adapter: FpaAdapter, options: FpaExecutionOptions): Promise<unknown> {
+export async function readModels(adapter: Pick<FpaAdapter, "readModels">, options: FpaExecutionOptions): Promise<unknown> {
   if (!options.tenantId.trim()) throw new Error("Tenant scope is required");
   if (!options.authToken?.trim()) throw new Error("Provider authentication is required");
   
@@ -99,7 +99,7 @@ export async function readModels(adapter: FpaAdapter, options: FpaExecutionOptio
 }
 
 
-export async function readModules(adapter: FpaAdapter, options: FpaExecutionOptions): Promise<unknown> {
+export async function readModules(adapter: Pick<FpaAdapter, "readModules">, options: FpaExecutionOptions): Promise<unknown> {
   if (!options.tenantId.trim()) throw new Error("Tenant scope is required");
   if (!options.authToken?.trim()) throw new Error("Provider authentication is required");
   
@@ -109,7 +109,7 @@ export async function readModules(adapter: FpaAdapter, options: FpaExecutionOpti
 }
 
 
-export async function readActualsVsBudget(adapter: FpaAdapter, options: FpaExecutionOptions): Promise<unknown> {
+export async function readActualsVsBudget(adapter: Pick<FpaAdapter, "readActualsVsBudget">, options: FpaExecutionOptions): Promise<unknown> {
   if (!options.tenantId.trim()) throw new Error("Tenant scope is required");
   if (!options.authToken?.trim()) throw new Error("Provider authentication is required");
   
@@ -119,7 +119,7 @@ export async function readActualsVsBudget(adapter: FpaAdapter, options: FpaExecu
 }
 
 
-export async function updateForecastAssumptions(adapter: FpaAdapter, options: FpaExecutionOptions, input: Record<string, unknown>, idempotencyKey: string): Promise<unknown> {
+export async function updateForecastAssumptions(adapter: Pick<FpaAdapter, "updateForecastAssumptions">, options: FpaExecutionOptions, input: Record<string, unknown>, idempotencyKey: string): Promise<unknown> {
   if (!options.tenantId.trim()) throw new Error("Tenant scope is required");
   if (!options.authToken?.trim()) throw new Error("Provider authentication is required");
   if (!idempotencyKey.trim()) throw new Error("Idempotency key is required");

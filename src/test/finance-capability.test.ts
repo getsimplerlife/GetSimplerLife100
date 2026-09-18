@@ -18,13 +18,13 @@ describe("Finance / QuickBooks capability slice", () => {
   });
   it("retries bounded reads and audits", async () => {
     let calls = 0; const outcomes: string[] = [];
-    const result = await readTransactions({ listTransactions: async (tenantId) => { calls++; expect(tenantId).toBe("t"); if (calls < 2) throw Error("temporary"); return ["transaction"]; } }, { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (event) => outcomes.push(event.outcome) });
+    const result = await readTransactions({ listTransactions: async (tenantId) => { calls++; expect(tenantId).toBe("t"); if (calls < 2) throw Error("temporary"); return ["transaction"]; } }, { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (event) => { outcomes.push(event.outcome); } });
     expect(result).toEqual(["transaction"]); expect(calls).toBe(2); expect(outcomes).toEqual(["succeeded"]);
   });
   it("requires idempotency and audits failed writes", async () => {
     const outcomes: string[] = []; const adapter = { createInvoice: async () => { throw Error("unavailable"); } };
-    await expect(createInvoice(adapter, {}, { tenantId: "t", authToken: "token", audit: (event) => outcomes.push(event.outcome) }, "")).rejects.toThrow("Idempotency");
-    await expect(createInvoice(adapter, {}, { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (event) => outcomes.push(event.outcome) }, "k")).rejects.toThrow("unavailable");
+    await expect(createInvoice(adapter, {}, { tenantId: "t", authToken: "token", audit: (event) => { outcomes.push(event.outcome); } }, "")).rejects.toThrow("Idempotency");
+    await expect(createInvoice(adapter, {}, { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (event) => { outcomes.push(event.outcome); } }, "k")).rejects.toThrow("unavailable");
     expect(outcomes).toEqual(["failed"]);
   });
 });

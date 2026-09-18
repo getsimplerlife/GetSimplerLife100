@@ -37,7 +37,7 @@ describe("Sales / Salesforce capability slice", () => {
           return ["opportunity"];
         },
       },
-      { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (event) => outcomes.push(event.outcome) },
+      { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (event) => { outcomes.push(event.outcome); } },
     );
     expect(result).toEqual(["opportunity"]);
     expect(calls).toBe(2);
@@ -48,10 +48,10 @@ describe("Sales / Salesforce capability slice", () => {
     const outcomes: string[] = [];
     const adapter = { updateOpportunity: async () => { throw Error("unavailable"); } };
     await expect(
-      updateOpportunity(adapter, {}, { tenantId: "t", authToken: "token", audit: (event) => outcomes.push(event.outcome) }, ""),
+      updateOpportunity(adapter, {}, { tenantId: "t", authToken: "token", audit: (event) => { outcomes.push(event.outcome); } }, ""),
     ).rejects.toThrow("Idempotency");
     await expect(
-      updateOpportunity(adapter, {}, { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (event) => outcomes.push(event.outcome) }, "k"),
+      updateOpportunity(adapter, {}, { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (event) => { outcomes.push(event.outcome); } }, "k"),
     ).rejects.toThrow("unavailable");
     expect(outcomes).toEqual(["failed"]);
   });
@@ -74,7 +74,7 @@ describe("Sales / Salesforce capability slice", () => {
           return { monitored: 3 };
         },
       },
-      { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (event) => outcomes.push(event.outcome) },
+      { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (event) => { outcomes.push(event.outcome); } },
     );
     expect(result).toEqual({ monitored: 3 });
     expect(calls).toBe(2);
@@ -85,7 +85,7 @@ describe("Sales / Salesforce capability slice", () => {
     const outcomes: string[] = [];
     const adapter = { monitorPipeline: async () => { throw Error("down"); } };
     await expect(
-      monitorPipeline(adapter, { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (event) => outcomes.push(event.outcome) }),
+      monitorPipeline(adapter, { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (event) => { outcomes.push(event.outcome); } }),
     ).rejects.toThrow("down");
     expect(outcomes).toEqual(["failed"]);
   });

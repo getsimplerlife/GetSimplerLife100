@@ -477,7 +477,8 @@ function AssessmentPage() {
                       </div>
                     </div>
                     <Link
-                      to={`/workflows/${w.workflow.id}`}
+                      to="/workflows/$workflowId"
+                      params={{ workflowId: w.workflow.id }}
                       className="shrink-0 text-xs font-mono font-bold text-indigo-400 hover:text-indigo-300 border border-stone-800 bg-stone-900/30 rounded-lg px-3.5 py-2 text-center transition-all hover:bg-stone-900"
                     >
                       SPECIFICATIONS →

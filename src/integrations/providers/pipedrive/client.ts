@@ -2,7 +2,6 @@ import { HttpClient } from "../../framework/client"; import { type OAuthTokens, 
 
 interface PdPerson { id?: number; name: string; email?: string; phone?: string; organization_id?: number; [key: string]: any; }
 interface PdDeal { id?: number; title: string; value?: number; currency?: string; status?: string; stage_id?: number; person_id?: number; org_id?: number; [key: string]: any; }
-interface PdOrg { id?: number; name: string; [key: string]: any; }
 
 export class PipedriveClient {
   private client: HttpClient; private tokens: OAuthTokens;

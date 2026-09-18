@@ -243,28 +243,28 @@ async function writeCapability(
   throw lastError;
 }
 
-export async function readContacts(adapter: SalesOutreachAdapter, options: SalesOutreachExecutionOptions): Promise<unknown> {
+export async function readContacts(adapter: Pick<SalesOutreachAdapter, "listContacts">, options: SalesOutreachExecutionOptions): Promise<unknown> {
   return readCapability("hubspot-read-contacts", () => adapter.listContacts(options.tenantId), options);
 }
-export async function readDeals(adapter: SalesOutreachAdapter, options: SalesOutreachExecutionOptions): Promise<unknown> {
+export async function readDeals(adapter: Pick<SalesOutreachAdapter, "listDeals">, options: SalesOutreachExecutionOptions): Promise<unknown> {
   return readCapability("hubspot-read-deals", () => adapter.listDeals(options.tenantId), options);
 }
-export async function readCompanies(adapter: SalesOutreachAdapter, options: SalesOutreachExecutionOptions): Promise<unknown> {
+export async function readCompanies(adapter: Pick<SalesOutreachAdapter, "listCompanies">, options: SalesOutreachExecutionOptions): Promise<unknown> {
   return readCapability("hubspot-read-companies", () => adapter.listCompanies(options.tenantId), options);
 }
-export async function readTickets(adapter: SalesOutreachAdapter, options: SalesOutreachExecutionOptions): Promise<unknown> {
+export async function readTickets(adapter: Pick<SalesOutreachAdapter, "listTickets">, options: SalesOutreachExecutionOptions): Promise<unknown> {
   return readCapability("hubspot-read-tickets", () => adapter.listTickets(options.tenantId), options);
 }
-export async function readPipelineStages(adapter: SalesOutreachAdapter, options: SalesOutreachExecutionOptions): Promise<unknown> {
+export async function readPipelineStages(adapter: Pick<SalesOutreachAdapter, "listPipelineStages">, options: SalesOutreachExecutionOptions): Promise<unknown> {
   return readCapability("hubspot-read-pipeline-stages", () => adapter.listPipelineStages(options.tenantId), options);
 }
-export async function readOwners(adapter: SalesOutreachAdapter, options: SalesOutreachExecutionOptions): Promise<unknown> {
+export async function readOwners(adapter: Pick<SalesOutreachAdapter, "listOwners">, options: SalesOutreachExecutionOptions): Promise<unknown> {
   return readCapability("hubspot-read-owners", () => adapter.listOwners(options.tenantId), options);
 }
 export async function createDeal(adapter: SalesOutreachAdapter, input: Record<string, unknown>, options: SalesOutreachExecutionOptions, idempotencyKey: string): Promise<unknown> {
   return writeCapability("hubspot-create-deal", (key) => adapter.createDeal(options.tenantId, input, key), idempotencyKey, options);
 }
-export async function createContact(adapter: SalesOutreachAdapter, input: Record<string, unknown>, options: SalesOutreachExecutionOptions, idempotencyKey: string): Promise<unknown> {
+export async function createContact(adapter: Pick<SalesOutreachAdapter, "createContact">, input: Record<string, unknown>, options: SalesOutreachExecutionOptions, idempotencyKey: string): Promise<unknown> {
   return writeCapability("hubspot-create-contact", (key) => adapter.createContact(options.tenantId, input, key), idempotencyKey, options);
 }
 export async function createCompany(adapter: SalesOutreachAdapter, input: Record<string, unknown>, options: SalesOutreachExecutionOptions, idempotencyKey: string): Promise<unknown> {

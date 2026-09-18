@@ -57,7 +57,7 @@ export class MicrosoftWordClient {
           Authorization: `Bearer ${this.tokens.accessToken}`,
           "Content-Type": mimeType,
         },
-        body: content,
+        body: content as BodyInit,
         signal: controller.signal,
       });
       if (!res.ok) throw new Error(`Microsoft Graph: PUT content failed HTTP ${res.status}`);

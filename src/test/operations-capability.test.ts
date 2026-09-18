@@ -11,7 +11,7 @@ describe("Operations / Monday.com capability slice", () => {
   it("retries bounded reads and audits", async () => {
     let calls = 0;
     const outcomes: string[] = [];
-    const result = await readBoards({ listBoards: async (tenantId) => { calls++; expect(tenantId).toBe("t"); if (calls < 2) throw Error("temporary"); return ["board"]; } }, { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (event) => outcomes.push(event.outcome) });
+    const result = await readBoards({ listBoards: async (tenantId) => { calls++; expect(tenantId).toBe("t"); if (calls < 2) throw Error("temporary"); return ["board"]; } }, { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (event) => { outcomes.push(event.outcome); } });
     expect(result).toEqual(["board"]);
     expect(calls).toBe(2);
     expect(outcomes).toEqual(["succeeded"]);
@@ -19,8 +19,8 @@ describe("Operations / Monday.com capability slice", () => {
   it("requires idempotency and audits failed writes", async () => {
     const outcomes: string[] = [];
     const adapter = { createItem: async () => { throw Error("unavailable"); } };
-    await expect(createItem(adapter, {}, { tenantId: "t", authToken: "token", audit: (event) => outcomes.push(event.outcome) }, "")).rejects.toThrow("Idempotency");
-    await expect(createItem(adapter, {}, { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (event) => outcomes.push(event.outcome) }, "k")).rejects.toThrow("unavailable");
+    await expect(createItem(adapter, {}, { tenantId: "t", authToken: "token", audit: (event) => { outcomes.push(event.outcome); } }, "")).rejects.toThrow("Idempotency");
+    await expect(createItem(adapter, {}, { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (event) => { outcomes.push(event.outcome); } }, "k")).rejects.toThrow("unavailable");
     expect(outcomes).toEqual(["failed"]);
   });
 });

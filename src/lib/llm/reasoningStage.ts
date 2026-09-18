@@ -22,6 +22,7 @@
 import { createModelClient, resolveLlmConfig, type ModelClient, type LlmCompleteResult, type LlmTier, type LlmToolDef } from "./modelClient";
 import { createCostTracker, type CostTracker } from "./modelClient";
 import { type AgentContext, buildAgentContext } from "../firm-memory";
+import { type LlmMessage } from "./modelClient";
 import type { ActionItem, Insight, Alert, ProcessedData } from "../agent-processor";
 ;
 ;
@@ -89,8 +90,8 @@ export function buildReasoningPrompt(input: ReasoningInput, ctx: AgentContext): 
   const metrics = truncateToTokens(JSON.stringify(input.processed.metrics || {}), 800);
   const insights = truncateToTokens(JSON.stringify(input.insights || []), 1200);
   const alerts = truncateToTokens(JSON.stringify(input.alerts || []), 800);
-  const memory = truncateToTokens(JSON.stringify(ctx?.memorySnippet || ctx?.recent?.slice(0, 5) || []), 1000);
-  const rules = truncateToTokens(JSON.stringify(ctx?.rules || []), 800);
+  const memory = truncateToTokens(JSON.stringify(ctx?.memory?.recentInsights?.slice(0, 5) || []), 1000);
+  const rules = truncateToTokens(JSON.stringify(ctx?.firmRules || {}), 800);
 
   const system = [
     "You are the reasoning stage of an AI Operations Employee.",

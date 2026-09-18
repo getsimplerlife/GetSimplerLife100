@@ -33,13 +33,13 @@ describe("Document Processing / DocuSign capability slice", () => {
   });
   it("retries bounded reads and audits for readEnvelopes", async () => {
     let calls = 0; const outcomes: string[] = [];
-    const result = await readEnvelopes({ listEnvelopes: async (tenantId) => { calls++; expect(tenantId).toBe("t"); if (calls < 2) throw Error("temporary"); return ["envelope"]; } }, { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (event) => outcomes.push(event.outcome) });
+    const result = await readEnvelopes({ listEnvelopes: async (tenantId) => { calls++; expect(tenantId).toBe("t"); if (calls < 2) throw Error("temporary"); return ["envelope"]; } }, { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (event) => { outcomes.push(event.outcome); } });
     expect(result).toEqual(["envelope"]); expect(calls).toBe(2); expect(outcomes).toEqual(["succeeded"]);
   });
   it("requires idempotency and audits failed writes for sendDocument", async () => {
     const outcomes: string[] = []; const adapter = { sendDocument: async () => { throw Error("unavailable"); } };
-    await expect(sendDocument(adapter, {}, { tenantId: "t", authToken: "token", audit: (event) => outcomes.push(event.outcome) }, "")).rejects.toThrow("Idempotency");
-    await expect(sendDocument(adapter, {}, { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (event) => outcomes.push(event.outcome) }, "k")).rejects.toThrow("unavailable");
+    await expect(sendDocument(adapter, {}, { tenantId: "t", authToken: "token", audit: (event) => { outcomes.push(event.outcome); } }, "")).rejects.toThrow("Idempotency");
+    await expect(sendDocument(adapter, {}, { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (event) => { outcomes.push(event.outcome); } }, "k")).rejects.toThrow("unavailable");
     expect(outcomes).toEqual(["failed"]);
   });
   it("readTemplates fails closed without tenant or auth", async () => {
@@ -70,8 +70,8 @@ describe("Document Processing / DocuSign capability slice", () => {
   });
   it("voidEnvelope requires idempotency and audits failed writes", async () => {
     const outcomes: string[] = []; const adapter = { voidEnvelope: async () => { throw Error("unavailable"); } };
-    await expect(voidEnvelope(adapter, {}, { tenantId: "t", authToken: "token", audit: (event) => outcomes.push(event.outcome) }, "")).rejects.toThrow("Idempotency");
-    await expect(voidEnvelope(adapter, {}, { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (event) => outcomes.push(event.outcome) }, "k")).rejects.toThrow("unavailable");
+    await expect(voidEnvelope(adapter, {}, { tenantId: "t", authToken: "token", audit: (event) => { outcomes.push(event.outcome); } }, "")).rejects.toThrow("Idempotency");
+    await expect(voidEnvelope(adapter, {}, { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (event) => { outcomes.push(event.outcome); } }, "k")).rejects.toThrow("unavailable");
     expect(outcomes).toEqual(["failed"]);
   });
   it("monitorEnvelopeStatus succeeds with valid adapter", async () => {

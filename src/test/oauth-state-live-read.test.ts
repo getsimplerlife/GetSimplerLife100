@@ -21,7 +21,7 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { initDurableStore, durableClose, durableFlush, durableGet, durableGetLive, MemoryKvDriver } from "../lib/durable-store";
 import { readJSON, readJSONLive, writeJSON } from "../lib/data-store";
-import { applyHealthToConnections } from "../lib/connection-health";
+import { applyHealthToConnections, type ConnectionHealthRecord } from "../lib/connection-health";
 
 let tmpDir: string;
 try { tmpDir = mkdtempSync(join(tmpdir(), "sl-oauth-live-")); } catch { tmpDir = "/tmp/sl-oauth-live"; }
@@ -103,7 +103,7 @@ describe("#232 authorize → callback visibility (same shared DB, live reads)", 
 describe("#232 applyHealthToConnections — stale \"Connected\" never shown", () => {
   it("overrides a stale Connected row with reconnect_required", () => {
     const conns = [{ id: "int-1", providerId: "xero", status: "Connected" }];
-    const health = [{ provider: "xero", email: "owner@x.com", status: "reconnect_required", lastError: "consumed grant", consecutiveFailures: 3 }];
+    const health: ConnectionHealthRecord[] = [{ provider: "xero", email: "owner@x.com", status: "reconnect_required", lastError: "consumed grant", consecutiveFailures: 3 }];
     const out = applyHealthToConnections(conns, health, "owner@x.com");
     expect(out[0].status).toBe("Reconnect Required");
     expect(out[0].healthStatus).toBe("reconnect_required");
@@ -111,14 +111,14 @@ describe("#232 applyHealthToConnections — stale \"Connected\" never shown", ()
 
   it("overrides a stale Connected row with degraded", () => {
     const conns = [{ id: "int-1", providerId: "hubspot", status: "Connected" }];
-    const health = [{ provider: "hubspot", email: "owner@x.com", status: "degraded", lastError: "401", consecutiveFailures: 1 }];
+    const health: ConnectionHealthRecord[] = [{ provider: "hubspot", email: "owner@x.com", status: "degraded", lastError: "401", consecutiveFailures: 1 }];
     const out = applyHealthToConnections(conns, health, "owner@x.com");
     expect(out[0].status).toBe("Degraded");
   });
 
   it("keeps Connected when health says ok", () => {
     const conns = [{ id: "int-1", providerId: "slack", status: "Connected" }];
-    const health = [{ provider: "slack", email: "owner@x.com", status: "ok", consecutiveFailures: 0 }];
+    const health: ConnectionHealthRecord[] = [{ provider: "slack", email: "owner@x.com", status: "ok", consecutiveFailures: 0 }];
     const out = applyHealthToConnections(conns, health, "owner@x.com");
     expect(out[0].status).toBe("Connected");
   });
@@ -131,7 +131,7 @@ describe("#232 applyHealthToConnections — stale \"Connected\" never shown", ()
 
   it("never mutates the stored rows", () => {
     const conns = [{ id: "int-1", providerId: "xero", status: "Connected" }];
-    const health = [{ provider: "xero", email: "owner@x.com", status: "reconnect_required", lastError: "x", consecutiveFailures: 2 }];
+    const health: ConnectionHealthRecord[] = [{ provider: "xero", email: "owner@x.com", status: "reconnect_required", lastError: "x", consecutiveFailures: 2 }];
     applyHealthToConnections(conns, health, "owner@x.com");
     expect(conns[0].status).toBe("Connected"); // original untouched
   });

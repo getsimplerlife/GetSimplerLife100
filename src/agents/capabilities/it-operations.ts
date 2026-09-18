@@ -129,11 +129,11 @@ export interface ItOperationsAdapter { listIncidents(tenantId: string): Promise<
 export interface ItOperationsExecutionOptions { tenantId: string; authToken?: string; audit: (event: { capabilityId: string; tenantId: string; outcome: string; idempotencyKey?: string }) => Promise<void> | void; maxAttempts?: number; }
 function requireTenant(options: ItOperationsExecutionOptions): void { if (!options.tenantId.trim()) throw new Error("Tenant scope is required"); if (!options.authToken?.trim()) throw new Error("Provider authentication is required"); }
 function boundedAttempts(value?: number): number { return Math.max(1, Math.min(value ?? 2, 3)); }
-export async function readIncidents(adapter: ItOperationsAdapter, options: ItOperationsExecutionOptions): Promise<unknown> { requireTenant(options); let lastError: unknown; for (let attempt=0; attempt<boundedAttempts(options.maxAttempts); attempt++) { try { const result=await adapter.listIncidents(options.tenantId); await options.audit({capabilityId:"servicenow-read-incidents",tenantId:options.tenantId,outcome:"succeeded"}); return result; } catch(error) { lastError=error; } } await options.audit({capabilityId:"servicenow-read-incidents",tenantId:options.tenantId,outcome:"failed"}); throw lastError; }
-export async function createIncident(adapter: ItOperationsAdapter, input: Record<string, unknown>, options: ItOperationsExecutionOptions, idempotencyKey: string): Promise<unknown> { requireTenant(options); if (!idempotencyKey.trim()) throw new Error("Idempotency key is required"); let lastError: unknown; for (let attempt=0; attempt<boundedAttempts(options.maxAttempts); attempt++) { try { const result=await adapter.createIncident(options.tenantId,input,idempotencyKey); await options.audit({capabilityId:"servicenow-create-incident",tenantId:options.tenantId,outcome:"succeeded",idempotencyKey}); return result; } catch(error) { lastError=error; } } await options.audit({capabilityId:"servicenow-create-incident",tenantId:options.tenantId,outcome:"failed",idempotencyKey}); throw lastError; }
+export async function readIncidents(adapter: Pick<ItOperationsAdapter, "listIncidents">, options: ItOperationsExecutionOptions): Promise<unknown> { requireTenant(options); let lastError: unknown; for (let attempt=0; attempt<boundedAttempts(options.maxAttempts); attempt++) { try { const result=await adapter.listIncidents(options.tenantId); await options.audit({capabilityId:"servicenow-read-incidents",tenantId:options.tenantId,outcome:"succeeded"}); return result; } catch(error) { lastError=error; } } await options.audit({capabilityId:"servicenow-read-incidents",tenantId:options.tenantId,outcome:"failed"}); throw lastError; }
+export async function createIncident(adapter: Pick<ItOperationsAdapter, "createIncident">, input: Record<string, unknown>, options: ItOperationsExecutionOptions, idempotencyKey: string): Promise<unknown> { requireTenant(options); if (!idempotencyKey.trim()) throw new Error("Idempotency key is required"); let lastError: unknown; for (let attempt=0; attempt<boundedAttempts(options.maxAttempts); attempt++) { try { const result=await adapter.createIncident(options.tenantId,input,idempotencyKey); await options.audit({capabilityId:"servicenow-create-incident",tenantId:options.tenantId,outcome:"succeeded",idempotencyKey}); return result; } catch(error) { lastError=error; } } await options.audit({capabilityId:"servicenow-create-incident",tenantId:options.tenantId,outcome:"failed",idempotencyKey}); throw lastError; }
 
 
-export async function readChangeRequests(adapter: ItOperationsAdapter, options: ItOperationsExecutionOptions): Promise<unknown> {
+export async function readChangeRequests(adapter: Pick<ItOperationsAdapter, "readChangeRequests">, options: ItOperationsExecutionOptions): Promise<unknown> {
   requireTenant(options);
   let lastError: unknown;
   for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) {
@@ -148,7 +148,7 @@ export async function readChangeRequests(adapter: ItOperationsAdapter, options: 
 }
 
 
-export async function readProblems(adapter: ItOperationsAdapter, options: ItOperationsExecutionOptions): Promise<unknown> {
+export async function readProblems(adapter: Pick<ItOperationsAdapter, "readProblems">, options: ItOperationsExecutionOptions): Promise<unknown> {
   requireTenant(options);
   let lastError: unknown;
   for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) {
@@ -163,7 +163,7 @@ export async function readProblems(adapter: ItOperationsAdapter, options: ItOper
 }
 
 
-export async function readCmdbAssets(adapter: ItOperationsAdapter, options: ItOperationsExecutionOptions): Promise<unknown> {
+export async function readCmdbAssets(adapter: Pick<ItOperationsAdapter, "readCmdbAssets">, options: ItOperationsExecutionOptions): Promise<unknown> {
   requireTenant(options);
   let lastError: unknown;
   for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) {
@@ -194,7 +194,7 @@ export async function updateIncidentSeverity(adapter: ItOperationsAdapter, optio
 }
 
 
-export async function updateIncidentAssignment(adapter: ItOperationsAdapter, options: ItOperationsExecutionOptions, input: Record<string, unknown>, idempotencyKey: string): Promise<unknown> {
+export async function updateIncidentAssignment(adapter: Pick<ItOperationsAdapter, "updateIncidentAssignment">, options: ItOperationsExecutionOptions, input: Record<string, unknown>, idempotencyKey: string): Promise<unknown> {
   requireTenant(options);
   if (!idempotencyKey.trim()) throw new Error("Idempotency key is required");
   let lastError: unknown;
@@ -210,7 +210,7 @@ export async function updateIncidentAssignment(adapter: ItOperationsAdapter, opt
 }
 
 
-export async function monitorIncidentCreated(adapter: ItOperationsAdapter, options: ItOperationsExecutionOptions, _subscription: Record<string, unknown>): Promise<unknown> {
+export async function monitorIncidentCreated(adapter: Pick<ItOperationsAdapter, "monitorIncidentCreated">, options: ItOperationsExecutionOptions, _subscription: Record<string, unknown>): Promise<unknown> {
   if (!adapter.monitorIncidentCreated) throw new Error("Capability adapter method is unavailable");
   requireTenant(options);
   const result = await adapter.monitorIncidentCreated(options.tenantId);
@@ -218,7 +218,7 @@ export async function monitorIncidentCreated(adapter: ItOperationsAdapter, optio
   return result;
 }
 
-export async function readKnowledgeBase(adapter: ItOperationsAdapter, options: ItOperationsExecutionOptions): Promise<unknown> {
+export async function readKnowledgeBase(adapter: Pick<ItOperationsAdapter, "readKnowledgeBase">, options: ItOperationsExecutionOptions): Promise<unknown> {
   if (!adapter.readKnowledgeBase) throw new Error("Capability adapter method is unavailable");
   requireTenant(options);
   let lastError: unknown;

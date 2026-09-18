@@ -315,7 +315,7 @@ describe("Slack verification adapter — non-destructive writes (owner mandate)"
   const writeCases = ["slack-send-message", "slack-add-reaction", "slack-upload-file"];
   for (const capabilityId of writeCases) {
     it(`${capabilityId} creates a labeled artifact and leaves it (kept:true, zero deletes)`, async () => {
-      const out = await slackAdapter(contract(capabilityId), ctx());
+      const out = (await slackAdapter(contract(capabilityId), ctx())) as { httpStatus: number; response?: any };
       expect(out.httpStatus).toBe(200);
       expect(out.response.kept).toBe(true);
       expect(calls.filter((c) => c.method === "DELETE")).toEqual([]);
@@ -379,7 +379,7 @@ describe("ServiceNow verification adapter — non-destructive writes (owner mand
   for (const capabilityId of writeCases) {
     it(`${capabilityId} creates a labeled record and leaves it (kept:true, no delete)`, async () => {
       const cred = { user: "u", password: "p", instance: "dev123456" } as ProviderCredential;
-      const out = await servicenowAdapter(contract(capabilityId), ctx({ credentials: cred }));
+      const out = (await servicenowAdapter(contract(capabilityId), ctx({ credentials: cred }))) as { httpStatus: number; response?: any };
       expect(out.httpStatus).toBe(201);
       expect(out.response.kept).toBe(true);
       expect(calls.filter((c) => c.method === "DELETE")).toEqual([]);
@@ -401,7 +401,7 @@ describe("Zendesk verification adapter — non-destructive writes (owner mandate
   for (const capabilityId of writeCases) {
     it(`${capabilityId} creates a labeled ticket and leaves it (kept:true, no delete)`, async () => {
       const cred = { email: "a@b.com", apiToken: "tok", subdomain: "sub" } as ProviderCredential;
-      const out = await zendeskAdapter(contract(capabilityId), ctx({ credentials: cred }));
+      const out = (await zendeskAdapter(contract(capabilityId), ctx({ credentials: cred }))) as { httpStatus: number; response?: any };
       expect(out.httpStatus).toBe(200);
       expect(out.response.kept).toBe(true);
       expect(calls.filter((c) => c.method === "DELETE")).toEqual([]);

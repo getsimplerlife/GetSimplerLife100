@@ -57,7 +57,7 @@ function parseTerraformPlan(planText: string): { success: boolean; data?: Terraf
     }
 
     // Parse human-readable terraform plan output
-    let currentResource: Partial<TerraformResourceChange> | null = null;
+    let currentResource: TerraformResourceChange | null = null;
 
     let inOutputs = false;
 
@@ -87,7 +87,6 @@ function parseTerraformPlan(planText: string): { success: boolean; data?: Terraf
           changes: [],
           hasSensitiveFields: false,
         };
-        inChanges = false;
       }
 
       // Detect outputs section
@@ -107,8 +106,7 @@ function parseTerraformPlan(planText: string): { success: boolean; data?: Terraf
       }
 
       // Parse changes within a resource
-      if (currentResource && line.includes("=>") || line.includes(" -> ")) {
-        inChanges = true;
+      if (currentResource && (line.includes("=>") || line.includes(" -> "))) {
         const changeDesc = line.trim();
         currentResource.changes.push(changeDesc);
         if (changeDesc.includes("(sensitive") || changeDesc.includes("sensitive")) {

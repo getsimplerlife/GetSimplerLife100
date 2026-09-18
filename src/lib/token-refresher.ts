@@ -562,7 +562,7 @@ export async function alertOwnerReconnectRequired(opts: {
     // Only counting `ok` meant noteAlertSent never ran for the default path, so
     // the 6h throttle never engaged and the mock alert fired every cycle
     // (32 simulated sends, zero real deliveries). Accept either shape.
-    const sent = Boolean(res?.ok ?? res?.success);
+    const sent = Boolean((res as any)?.ok ?? (res as any)?.success);
     if (sent) noteAlertSent(key, opts.reason, now);
     // Also notify the tenant directly when we have a valid opted-in relationship
     // (they authorized this connection) — service message about their own
@@ -695,6 +695,7 @@ export async function refreshOneCredential(
     }
     tokenData[key] = {
       ...(liveEntry as Record<string, any>),
+      provider,
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken || (liveEntry.refreshToken as string) || entry.refreshToken,
       expiresAt: tokens.expiresAt ?? (liveEntry.expiresAt ?? entry.expiresAt),

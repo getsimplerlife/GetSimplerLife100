@@ -76,7 +76,7 @@ export class MemoryKvDriver implements KvDriver {
     ["kv_store_backup", new Map()],
   ]);
   private rows: any[] = [];
-  constructor(private initial: Record<string, any> = {}) {
+  constructor(initial: Record<string, any> = {}) {
     const t = this.tables.get("kv_store")!;
     for (const [k, v] of Object.entries(initial)) t.set(k, v);
   }
@@ -545,7 +545,7 @@ export async function durableSnapshotBackup(): Promise<{ ok: boolean; count: num
   } catch (e: any) {
     lastSnapshotError = e?.message || String(e);
     console.log(`[durable-store] backup snapshot FAILED: ${lastSnapshotError}`);
-    return { ok: false, count: 0, error: lastSnapshotError };
+    return { ok: false, count: 0, error: lastSnapshotError || undefined };
   }
 }
 
@@ -628,7 +628,7 @@ async function doReconnectAttempt(): Promise<void> {
   if (opts.reconnectMaxAttempts > 0 && reconnectAttempts >= opts.reconnectMaxAttempts) return;
   reconnectAttempts++;
   if (!retryDir) return;
-  const result = await attemptInit(retryDir, retryDriver);
+  const result = await attemptInit(retryDir, retryDriver ?? undefined);
   if (result.enabled) {
     hydrationState = "ready";
     reconnectAttempts = 0;

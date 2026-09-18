@@ -143,49 +143,49 @@ export async function createProviderFile(
   switch (provider) {
     case "google-sheets": {
       const { createGSheetsClient } = await import("../integrations/providers/google-sheets/client");
-      const r = await createGSheetsClient(tokens as any, authConfig).createSpreadsheet(title);
+      const r = await createGSheetsClient({ ...tokens, ...authConfig }).createSpreadsheet(title);
       return normalizeCreatedFile(provider, fileType, r, title);
     }
     case "google-docs": {
       const { createGDocsClient } = await import("../integrations/providers/google-docs/client");
-      const r = await createGDocsClient(tokens as any, authConfig).createDocument(title);
+      const r = await createGDocsClient({ ...tokens, ...authConfig }).createDocument(title);
       return normalizeCreatedFile(provider, fileType, r, title);
     }
     case "google-slides": {
       const { createGSlidesClient } = await import("../integrations/providers/google-slides/client");
-      const r = await createGSlidesClient(tokens as any, authConfig).createPresentation(title);
+      const r = await createGSlidesClient({ ...tokens, ...authConfig }).createPresentation(title);
       return normalizeCreatedFile(provider, fileType, r, title);
     }
     case "google-drive": {
       const { createGDriveClient } = await import("../integrations/providers/google-drive/client");
       const bytes = typeof content === "string" ? content : content instanceof Uint8Array ? content : String(content ?? "");
-      const r = await createGDriveClient(tokens as any, authConfig).uploadFile(title, bytes);
+      const r = await createGDriveClient({ ...tokens, ...authConfig }).uploadFile(title, bytes);
       return normalizeCreatedFile(provider, fileType, r, title);
     }
     case "microsoft-word": {
       const { createWordClient } = await import("../integrations/providers/microsoft-word/client");
       const paragraphs = Array.isArray(content) ? (content as string[]) : [title];
-      const r = await createWordClient(tokens as any, authConfig).createWordDocument(title, paragraphs);
+      const r = await createWordClient({ ...tokens, ...authConfig }).createWordDocument(title, paragraphs);
       return normalizeCreatedFile(provider, fileType, r, title);
     }
     case "microsoft-excel": {
       const { createExcelClient } = await import("../integrations/providers/microsoft-excel/client");
       const rows = Array.isArray(content) ? (content as unknown[][]) : [[]];
-      const r = await createExcelClient(tokens as any, authConfig).createExcelWorkbook(title, rows);
+      const r = await createExcelClient({ ...tokens, ...authConfig }).createExcelWorkbook(title, rows);
       return normalizeCreatedFile(provider, fileType, r, title);
     }
     case "microsoft-powerpoint": {
       const { createPowerPointClient } = await import("../integrations/providers/microsoft-powerpoint/client");
       const slides = Array.isArray(content)
-        ? (content as Array<{ title: string; body?: string }>)
+        ? (content as unknown as Array<{ title: string; body?: string }>)
         : [{ title }];
-      const r = await createPowerPointClient(tokens as any, authConfig).createPresentation(title, slides);
+      const r = await createPowerPointClient({ ...tokens, ...authConfig }).createPresentation(title, slides);
       return normalizeCreatedFile(provider, fileType, r, title);
     }
     case "onedrive": {
       const { createODClient } = await import("../integrations/providers/onedrive/client");
       const bytes = typeof content === "string" ? content : content instanceof Uint8Array ? content : String(content ?? "");
-      const r = await createODClient(tokens as any, authConfig).uploadFile(`/${title}`, bytes);
+      const r = await createODClient({ ...tokens, ...authConfig }).uploadFile(`/${title}`, bytes);
       return normalizeCreatedFile(provider, fileType, r, title);
     }
     default:

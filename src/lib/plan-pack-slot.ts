@@ -43,7 +43,7 @@ export interface PlanPackSlot {
 }
 
 /** Find the tenant's active plan purchase that includes a pack slot. */
-export function findIncludedPlanPurchase(userPurchases: any[]): any | null {
+export function findIncludedPlanPurchase(userPurchases: any[] | null | undefined): any | null {
   if (!Array.isArray(userPurchases)) return null;
   return (
     userPurchases.find(

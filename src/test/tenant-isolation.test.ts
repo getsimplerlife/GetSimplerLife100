@@ -248,7 +248,7 @@ describe("4. capability executors: tenant required, registrations tenant-scoped"
   });
 
   it("registration writes under the executing tenant's key ONLY", async () => {
-    const adapter = { createDoc: async () => ({ id: "doc-1", name: "A Doc", webViewLink: "https://docs.google.com/d/doc-1" }) } as ProductivityAdapter;
+    const adapter = { createDoc: async () => ({ id: "doc-1", name: "A Doc", webViewLink: "https://docs.google.com/d/doc-1" }) } as unknown as ProductivityAdapter;
     await createGoogleDoc(adapter, { title: "A Doc" }, { tenantId: "a@test.com", authToken: "tok", audit: async () => {}, dataDir: dir }, "ik-1");
     expect(listClientFiles("a@test.com", dir)).toHaveLength(1);
     expect(listClientFiles("b@test.com", dir)).toHaveLength(0);
@@ -257,7 +257,7 @@ describe("4. capability executors: tenant required, registrations tenant-scoped"
   });
 
   it("Microsoft create registration lands under the executing tenant's key ONLY", async () => {
-    const adapter = { createWordDoc: async () => ({ id: "w1", name: "R.docx", webUrl: "https://1drv.ms/w1" }) } as MicrosoftProductivityAdapter;
+    const adapter = { createWordDoc: async () => ({ id: "w1", name: "R.docx", webUrl: "https://1drv.ms/w1" }) } as unknown as MicrosoftProductivityAdapter;
     await createMicrosoftWordDoc(adapter, { name: "R", paragraphs: ["x"] }, { tenantId: "a@test.com", authToken: "tok", audit: async () => {}, dataDir: dir }, "ik-1");
     expect(listClientFiles("a@test.com", dir)).toHaveLength(1);
     expect(listClientFiles("b@test.com", dir)).toHaveLength(0);

@@ -121,8 +121,8 @@ export interface ComplianceAdapter { listAuditItems(tenantId: string): Promise<u
 export interface ComplianceExecutionOptions { tenantId: string; authToken?: string; audit: (event: { capabilityId: string; tenantId: string; outcome: string; idempotencyKey?: string }) => Promise<void> | void; maxAttempts?: number; }
 function requireTenant(options: ComplianceExecutionOptions): void { if (!options.tenantId.trim()) throw new Error("Tenant scope is required"); if (!options.authToken?.trim()) throw new Error("Provider authentication is required"); }
 function boundedAttempts(value?: number): number { return Math.max(1, Math.min(value ?? 2, 3)); }
-export async function readAuditItems(adapter: ComplianceAdapter, options: ComplianceExecutionOptions): Promise<unknown> { requireTenant(options); let lastError: unknown; for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) { try { const result = await adapter.listAuditItems(options.tenantId); await options.audit({ capabilityId: "jira-read-audit-items", tenantId: options.tenantId, outcome: "succeeded" }); return result; } catch (error) { lastError = error; } } await options.audit({ capabilityId: "jira-read-audit-items", tenantId: options.tenantId, outcome: "failed" }); throw lastError; }
-export async function createAuditFinding(adapter: ComplianceAdapter, input: Record<string, unknown>, options: ComplianceExecutionOptions, idempotencyKey: string): Promise<unknown> { requireTenant(options); if (!idempotencyKey.trim()) throw new Error("Idempotency key is required"); let lastError: unknown; for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) { try { const result = await adapter.createAuditFinding(options.tenantId, input, idempotencyKey); await options.audit({ capabilityId: "jira-create-audit-finding", tenantId: options.tenantId, outcome: "succeeded", idempotencyKey }); return result; } catch (error) { lastError = error; } } await options.audit({ capabilityId: "jira-create-audit-finding", tenantId: options.tenantId, outcome: "failed", idempotencyKey }); throw lastError; }
+export async function readAuditItems(adapter: Pick<ComplianceAdapter, "listAuditItems">, options: ComplianceExecutionOptions): Promise<unknown> { requireTenant(options); let lastError: unknown; for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) { try { const result = await adapter.listAuditItems(options.tenantId); await options.audit({ capabilityId: "jira-read-audit-items", tenantId: options.tenantId, outcome: "succeeded" }); return result; } catch (error) { lastError = error; } } await options.audit({ capabilityId: "jira-read-audit-items", tenantId: options.tenantId, outcome: "failed" }); throw lastError; }
+export async function createAuditFinding(adapter: Pick<ComplianceAdapter, "createAuditFinding">, input: Record<string, unknown>, options: ComplianceExecutionOptions, idempotencyKey: string): Promise<unknown> { requireTenant(options); if (!idempotencyKey.trim()) throw new Error("Idempotency key is required"); let lastError: unknown; for (let attempt = 0; attempt < boundedAttempts(options.maxAttempts); attempt++) { try { const result = await adapter.createAuditFinding(options.tenantId, input, idempotencyKey); await options.audit({ capabilityId: "jira-create-audit-finding", tenantId: options.tenantId, outcome: "succeeded", idempotencyKey }); return result; } catch (error) { lastError = error; } } await options.audit({ capabilityId: "jira-create-audit-finding", tenantId: options.tenantId, outcome: "failed", idempotencyKey }); throw lastError; }
 
 
 export interface ExtendedCapabilityAdapter {
@@ -159,7 +159,12 @@ export async function executeExtendedCapability(
   let lastError: unknown;
   for (let attempt = 0; attempt < attempts; attempt++) {
     try {
-      const fn = write ? adapter.write : adapter.read;
+      const fn = (write ? adapter.write : adapter.read) as (
+        capabilityId: string,
+        tenantId: string,
+        input?: Record<string, unknown>,
+        idempotencyKey?: string,
+      ) => Promise<unknown>;
       if (!fn) throw new Error("Capability adapter method is unavailable");
       const result = write
         ? await fn(capabilityId, options.tenantId, input ?? {}, idempotencyKey!)

@@ -53,7 +53,7 @@ describe("Customer Support / Zendesk capability slice", () => {
           return ["ticket"];
         },
       },
-      { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (e) => out.push(e.outcome) },
+      { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (e) => { out.push(e.outcome); } },
     );
     expect(r).toEqual(["ticket"]);
     expect(calls).toBe(2);
@@ -63,8 +63,8 @@ describe("Customer Support / Zendesk capability slice", () => {
   it("requires idempotency and audits failed writes", async () => {
     const out: string[] = [];
     const a = { replyTicket: async () => { throw Error("unavailable"); } };
-    await expect(replyToTicket(a, {}, { tenantId: "t", authToken: "token", audit: (e) => out.push(e.outcome) }, "")).rejects.toThrow("Idempotency");
-    await expect(replyToTicket(a, {}, { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (e) => out.push(e.outcome) }, "k")).rejects.toThrow("unavailable");
+    await expect(replyToTicket(a, {}, { tenantId: "t", authToken: "token", audit: (e) => { out.push(e.outcome); } }, "")).rejects.toThrow("Idempotency");
+    await expect(replyToTicket(a, {}, { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (e) => { out.push(e.outcome); } }, "k")).rejects.toThrow("unavailable");
     expect(out).toEqual(["failed"]);
   });
 
@@ -74,7 +74,7 @@ describe("Customer Support / Zendesk capability slice", () => {
       readTicketFields: async (tenant: string) => ({ tenant, fields: ["subject", "status"] }),
       readKnowledgeBase: async (tenant: string) => ({ tenant, articles: 3 }),
     } as any;
-    const opts = { tenantId: "t", authToken: "token", audit: (e: any) => out.push(e.capabilityId + ":" + e.outcome) };
+    const opts = { tenantId: "t", authToken: "token", audit: (e: any) => { out.push(e.capabilityId + ":" + e.outcome); } };
     const fields = await readTicketFields(adapter, opts);
     const kb = await readKnowledgeBase(adapter, opts);
     expect(fields).toEqual({ tenant: "t", fields: ["subject", "status"] });
@@ -84,14 +84,14 @@ describe("Customer Support / Zendesk capability slice", () => {
 
   it("fails closed when the adapter lacks a monitor method", async () => {
     const out: string[] = [];
-    await expect(monitorTicketCreated({} as any, { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (e) => out.push(e.outcome) })).rejects.toThrow("Capability adapter method is unavailable");
+    await expect(monitorTicketCreated({} as any, { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (e) => { out.push(e.outcome); } })).rejects.toThrow("Capability adapter method is unavailable");
     expect(out).toEqual([]);
   });
 
   it("monitors newly created tickets and audits success", async () => {
     const out: string[] = [];
     const adapter = { monitorTicketCreated: async (tenant: string) => ({ tenant, recent: 2 }) } as any;
-    const result = await monitorTicketCreated(adapter, { tenantId: "t", authToken: "token", audit: (e) => out.push(e.outcome) });
+    const result = await monitorTicketCreated(adapter, { tenantId: "t", authToken: "token", audit: (e) => { out.push(e.outcome); } });
     expect(result).toEqual({ tenant: "t", recent: 2 });
     expect(out).toEqual(["succeeded"]);
   });
@@ -104,8 +104,8 @@ describe("Customer Support / Zendesk capability slice", () => {
   it("requires idempotency and audits failed status updates", async () => {
     const out: string[] = [];
     const adapter = { updateTicketStatus: async () => { throw Error("unavailable"); } } as any;
-    await expect(updateTicketStatus(adapter, { tenantId: "t", authToken: "token", audit: (e) => out.push(e.outcome) }, { status: "open" }, "")).rejects.toThrow("Idempotency");
-    await expect(updateTicketStatus(adapter, { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (e) => out.push(e.outcome) }, { status: "open" }, "k")).rejects.toThrow("unavailable");
+    await expect(updateTicketStatus(adapter, { tenantId: "t", authToken: "token", audit: (e) => { out.push(e.outcome); } }, { status: "open" }, "")).rejects.toThrow("Idempotency");
+    await expect(updateTicketStatus(adapter, { tenantId: "t", authToken: "token", maxAttempts: 2, audit: (e) => { out.push(e.outcome); } }, { status: "open" }, "k")).rejects.toThrow("unavailable");
     expect(out).toEqual(["failed"]);
   });
 });
