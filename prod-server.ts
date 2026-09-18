@@ -1170,7 +1170,7 @@ async function handleFetch(req: Request): Promise<Response> {
       if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
       const { fileDocument, moveDocument, archiveDocument, unarchiveDocument, destroyDocument, updateDocumentMeta, listVault, searchVault, readVaultBytes, vaultAudit } = await import("./src/lib/vault-filing");
       const { intakeDocument } = await import("./src/lib/vault-intake");
-      const { canonicalizeRoute, listTenantFolders, upsertFolderRule, deleteFolderRule, applyAutoRoute } = await import("./src/lib/vault-folder");
+      const { canonicalizeRoute, loadTenantFolders, upsertFolderRule, deleteFolderRule, applyAutoRoute, createFolder, renameFolder, deleteFolder, setFolderLabels } = await import("./src/lib/vault-folder");
       const P = (n: string) => url.searchParams.get(n);
       const auditPortal = (action: string, detail: string) => {
         try {
@@ -1296,10 +1296,11 @@ async function handleFetch(req: Request): Promise<Response> {
         auditPortal("vault.meta", `Metadata update ${documentId} ${out.pending ? "pending" : out.ok ? "done" : "failed"}`);
         return Response.json({ data: out }, { status: out.ok || out.pending ? 200 : 400 });
       }
-      // GET /api/vault/folders — folder tree + auto-folder rules
+      // GET /api/vault/folders — folder tree + auto-folder rules (5d: both
+      // halves of the structured taxonomy; the portal reads data.rules).
       if (pathname === "/api/vault/folders" && req.method === "GET") {
-        const folders = listTenantFolders(DATA_DIR, user.email);
-        return Response.json({ data: folders });
+        const state = loadTenantFolders(DATA_DIR, user.email);
+        return Response.json({ data: { folders: state.folders, rules: state.rules } });
       }
       // POST /api/vault/folders/rules — upsert auto-folder rule (metadata)
       if (pathname === "/api/vault/folders/rules" && req.method === "POST") {
@@ -1312,6 +1313,41 @@ async function handleFetch(req: Request): Promise<Response> {
           createdBy: user.email,
         });
         auditPortal("vault.rule", out.ok ? `Saved rule ${out.rule?.name}` : `Rule save failed: ${out.error}`);
+        return Response.json({ data: out }, { status: out.ok ? 200 : 400 });
+      }
+      // 5d — structured LOCATIONS: explicit folder CRUD + taxonomy labels
+      // (metadata — exact-id only, never a glob; every mutation is audited in
+      // the immutable vault audit; non-destructive: a folder with sub-folders
+      // or filed documents can never be renamed/deleted).
+      if (pathname === "/api/vault/folders" && req.method === "POST") {
+        const b = await req.json().catch(() => ({}));
+        const { path: folderPath, labels } = b as any;
+        if (!folderPath) return Response.json({ error: "path required" }, { status: 400 });
+        const out = createFolder(DATA_DIR, user.email, { path: String(folderPath), labels, actor: user.email });
+        auditPortal("vault.folder.create", out.ok ? `Created ${out.folder?.path}` : `Folder create failed: ${out.error}`);
+        return Response.json({ data: out }, { status: out.ok ? 200 : 400 });
+      }
+      if (pathname === "/api/vault/folders/rename" && req.method === "POST") {
+        const b = await req.json().catch(() => ({}));
+        const { id, name } = b as any;
+        if (!id || !name) return Response.json({ error: "id and name required" }, { status: 400 });
+        const out = renameFolder(DATA_DIR, user.email, String(id), String(name), user.email);
+        auditPortal("vault.folder.rename", out.ok ? `Renamed folder ${id}${out.folder ? ` → ${out.folder.path}` : ""}` : `Folder rename failed: ${out.error}`);
+        return Response.json({ data: out }, { status: out.ok ? 200 : 400 });
+      }
+      if (pathname === "/api/vault/folders/labels" && req.method === "POST") {
+        const b = await req.json().catch(() => ({}));
+        const { id, labels } = b as any;
+        if (!id) return Response.json({ error: "id required" }, { status: 400 });
+        const out = setFolderLabels(DATA_DIR, user.email, String(id), labels, user.email);
+        auditPortal("vault.folder.labels", out.ok ? `Labels on ${out.folder?.path}` : `Label update failed: ${out.error}`);
+        return Response.json({ data: out }, { status: out.ok ? 200 : 400 });
+      }
+      if (pathname === "/api/vault/folders" && req.method === "DELETE") {
+        const folderId = P("id");
+        if (!folderId) return Response.json({ error: "id required (exact single id)" }, { status: 400 });
+        const out = deleteFolder(DATA_DIR, user.email, folderId, user.email);
+        auditPortal("vault.folder.delete", out.ok ? `Deleted folder ${folderId}${out.unchanged ? " (idempotent replay)" : ""}` : `Folder delete failed: ${out.error}`);
         return Response.json({ data: out }, { status: out.ok ? 200 : 400 });
       }
       // DELETE /api/vault/folders/rules?id= — delete a rule (exact id)
