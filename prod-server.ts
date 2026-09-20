@@ -1186,6 +1186,11 @@ async function handleFetch(req: Request): Promise<Response> {
       }
       const user = await getUserFromSession(req);
       if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
+      // Phase 1.2 — native document store + PDF generation (/api/native/documents*).
+      if (pathname.startsWith("/api/native/documents")) {
+        const docs = await import("./src/native/documents");
+        return docs.handleNativeDocumentsAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
+      }
       return native.handleNativeAuthed(req, {
         userEmail: user.email,
         dataDir: DATA_DIR,
