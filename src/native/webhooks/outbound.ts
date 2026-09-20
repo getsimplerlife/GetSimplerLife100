@@ -34,6 +34,7 @@ import {
   saveSubscription,
   deleteSubscription,
   listDeliveries,
+  listTenantsWithDeliveries,
   saveDeliveries,
   appendNativeAudit as appendAuditEntry,
   encryptSecret,
@@ -42,6 +43,16 @@ import {
 
 export const NATIVE_DELIVERY_TIMEOUT_MS = 10_000;
 const MAX_BACKOFF_MS = 60_000;
+
+/** Clamp a retry policy to sane bounds; non-finite values fall back to defaults. */
+export function sanitizeRetry(retry?: { maxAttempts?: number; initialBackoffMs?: number }): { maxAttempts: number; initialBackoffMs: number } {
+  const max = Number.isFinite(retry?.maxAttempts) ? (retry!.maxAttempts as number) : 3;
+  const backoff = Number.isFinite(retry?.initialBackoffMs) ? (retry!.initialBackoffMs as number) : 500;
+  return {
+    maxAttempts: Math.min(Math.max(Math.floor(max), 1), 10),
+    initialBackoffMs: Math.min(Math.max(Math.floor(backoff), 100), 30_000),
+  };
+}
 
 /** DNS resolver used by url validation (injectable for hermetic tests). */
 export type HostResolver = (hostname: string) => Promise<string[]>;
@@ -121,6 +132,7 @@ export async function createOutboundSubscription(
     return { ok: false, reason: `Subscription limit reached (${MAX_SUBSCRIPTIONS_PER_TENANT})`, status: 400 };
   }
   const secret = generateWebhookSecret();
+  const retry = sanitizeRetry(input.retry);
   const sub: NativeWebhookSubscription = {
     id: generateEntityId("sub"),
     tenantId: input.tenantId,
@@ -128,10 +140,7 @@ export async function createOutboundSubscription(
     secretEncrypted: encryptSecret(secret),
     eventTypes: Array.isArray(input.eventTypes) ? input.eventTypes.filter((t): t is string => typeof t === "string" && t.length > 0) : [],
     enabled: input.enabled !== false,
-    retry: {
-      maxAttempts: Math.min(Math.max(input.retry?.maxAttempts ?? 3, 1), 10),
-      initialBackoffMs: Math.min(Math.max(input.retry?.initialBackoffMs ?? 500, 100), 30_000),
-    },
+    retry,
     createdBy: input.actor,
     createdAt: new Date().toISOString(),
   };
@@ -296,14 +305,14 @@ export async function flushTenantDeliveries(
         appendAuditEntry(dataDir, tenantId, "system", "native.webhook.delivery.rejected", `Delivery ${delivery.id} rejected (HTTP ${result.status})`);
       } else {
         delivery.attempts.push(attempt);
-        scheduleRetry(dataDir, tenantId, delivery, attemptNumber, attempt);
+        scheduleRetry(dataDir, tenantId, delivery, attemptNumber, attempt, nowMs);
       }
       attempted += 1;
     } catch (error) {
       attempt.error = error instanceof Error ? error.message : String(error);
       attempt.statusCode = 0;
       delivery.attempts.push(attempt);
-      scheduleRetry(dataDir, tenantId, delivery, attemptNumber, attempt);
+      scheduleRetry(dataDir, tenantId, delivery, attemptNumber, attempt, nowMs);
       attempted += 1;
     }
   }
@@ -322,6 +331,7 @@ function scheduleRetry(
   delivery: NativeWebhookDelivery,
   attemptNumber: number,
   attempt: NativeDeliveryAttempt,
+  nowMs: number = Date.now(),
 ): void {
   void attempt; // the attempt record is already stored on the delivery
   const sub = listSubscriptions(dataDir, tenantId).find((s) => s.id === delivery.subscriptionId);
@@ -339,6 +349,38 @@ function scheduleRetry(
     console.error(`[native] webhook delivery ${delivery.id} dead after ${attemptNumber} attempts (${delivery.subscriptionUrl})`);
   } else {
     const backoff = Math.min(initialBackoffMs * 2 ** (attemptNumber - 1), MAX_BACKOFF_MS);
-    delivery.nextRetryAt = new Date(Date.now() + backoff).toISOString();
+    delivery.nextRetryAt = new Date(nowMs + backoff).toISOString();
   }
+}
+
+/**
+ * Background sweeper: attempt every tenant's DUE deliveries now. This is what
+ * makes bounded backoff retries actually fire between publishes. Safe to run
+ * on an interval — skips tenants with nothing due and never runs two flushes
+ * for the same tenant concurrently (callers should serialise via a mutex).
+ */
+export async function sweepDueDeliveries(
+  dataDir: string,
+  deliver?: DeliverFn,
+  nowMs: number = Date.now(),
+): Promise<{ tenantsTouched: number; attempted: number; delivered: number; dead: number; pending: number }> {
+  const tenants = listTenantsWithDeliveries(dataDir);
+  let tenantsTouched = 0;
+  let attempted = 0;
+  let delivered = 0;
+  let dead = 0;
+  let pending = 0;
+  for (const tenantId of tenants) {
+    const due = listDeliveries(dataDir, tenantId).some(
+      (d) => d.status === "pending" && (!d.nextRetryAt || Date.parse(d.nextRetryAt) <= nowMs),
+    );
+    if (!due) continue;
+    tenantsTouched += 1;
+    const result = await flushTenantDeliveries(dataDir, tenantId, deliver, nowMs);
+    attempted += result.attempted;
+    delivered += result.delivered;
+    dead += result.dead;
+    pending += result.pending;
+  }
+  return { tenantsTouched, attempted, delivered, dead, pending };
 }

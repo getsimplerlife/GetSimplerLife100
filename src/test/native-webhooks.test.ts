@@ -44,6 +44,8 @@ import {
   flushTenantDeliveries,
   removeOutboundSubscription,
   validateWebhookUrl,
+  sweepDueDeliveries,
+  sanitizeRetry,
   type DeliverFn,
 } from "../native/webhooks/outbound";
 import type { NativeWebhookSink } from "../native/webhooks/types";
@@ -438,6 +440,49 @@ describe("native outbound webhooks — delivery engine", () => {
   it("flush is a no-op when nothing is due", async () => {
     const result = await flushTenantDeliveries(dataDir, "t@other", async () => ({ status: 200 }));
     expect(result).toEqual({ attempted: 0, delivered: 0, dead: 0, pending: 0 });
+  });
+
+  it("sanitizeRetry clamps out-of-range and non-finite policies to safe bounds", async () => {
+    expect(sanitizeRetry({ maxAttempts: 0, initialBackoffMs: 1 })).toEqual({ maxAttempts: 1, initialBackoffMs: 100 });
+    expect(sanitizeRetry({ maxAttempts: 999, initialBackoffMs: 999999 })).toEqual({ maxAttempts: 10, initialBackoffMs: 30_000 });
+    expect(sanitizeRetry({ maxAttempts: Number.NaN, initialBackoffMs: Number.POSITIVE_INFINITY })).toEqual({ maxAttempts: 3, initialBackoffMs: 500 });
+    expect(sanitizeRetry(undefined)).toEqual({ maxAttempts: 3, initialBackoffMs: 500 });
+    // Subscriptions created with garbage retry values still get a sane policy.
+    const created = await createOutboundSubscription(dataDir, {
+      tenantId: "t@a", url: "https://example.com/garbage", actor: "t@a",
+      retry: { maxAttempts: Number.NaN as unknown as number, initialBackoffMs: 0 },
+      resolver: async () => ["93.184.216.34"],
+    });
+    expect(created.ok).toBe(true);
+    if (created.ok) expect(created.result.subscription.retry).toEqual({ maxAttempts: 3, initialBackoffMs: 100 });
+  });
+
+  it("sweepDueDeliveries flushes only due deliveries across tenants", async () => {
+    const a = await createOutboundSubscription(dataDir, { tenantId: "a@x", url: "https://example.com/a", actor: "a@x", resolver: async () => ["93.184.216.34"] });
+    const b = await createOutboundSubscription(dataDir, { tenantId: "b@x", url: "https://example.com/b", actor: "b@x", retry: { maxAttempts: 1, initialBackoffMs: 100 }, resolver: async () => ["93.184.216.34"] });
+    expect(a.ok && b.ok).toBe(true);
+    publishWebhookEvent(dataDir, "a@x", "test.event", { n: 1 }, "a@x");
+    publishWebhookEvent(dataDir, "b@x", "test.event", { n: 2 }, "b@x");
+    // Tenant A: first attempt fails (500) → retry scheduled in the FUTURE (not due now).
+    // Tenant B: first attempt fails (500) → maxAttempts 1 → dead this pass.
+    let calls = 0;
+    const flaky: DeliverFn = async () => { calls += 1; return { status: 500 }; };
+    const r1 = await sweepDueDeliveries(dataDir, flaky, 1_000);
+    expect(r1.tenantsTouched).toBe(2);
+    expect(r1.dead).toBe(1); // tenant B dead on first flush (maxAttempts 1)
+    expect(calls).toBe(2);
+    const aDel = listDeliveries(dataDir, "a@x")[0];
+    expect(aDel.status).toBe("pending");
+    // Sweep again while A's retry is NOT due: touches nothing.
+    const r2 = await sweepDueDeliveries(dataDir, flaky, 1_001);
+    expect(r2.tenantsTouched).toBe(0);
+    expect(r2.attempted).toBe(0);
+    // Sweep when A's retry IS due (backoff elapsed): attempt 2 → network-free 500
+    // again → attempt 2 >= maxAttempts 3? No — default sub retry is 3 → still pending.
+    const r3 = await sweepDueDeliveries(dataDir, flaky, Date.parse(aDel.nextRetryAt!) + 1);
+    expect(r3.attempted).toBe(1);
+    const aDel2 = listDeliveries(dataDir, "a@x")[0];
+    expect(aDel2.attempts).toHaveLength(2);
   });
 });
 

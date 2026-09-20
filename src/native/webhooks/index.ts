@@ -18,9 +18,9 @@
 import { handleNativeWebhook, type NativeSinkDeps } from "./sink";
 import { handleNativeAuthed, type NativeAuthedCtx } from "./routes";
 import { registerNativeEventType } from "./registry";
-import { flushTenantDeliveries, publishWebhookEvent, validateWebhookUrl } from "./outbound";
+import { flushTenantDeliveries, publishWebhookEvent, validateWebhookUrl, sweepDueDeliveries, sanitizeRetry } from "./outbound";
 
-export { handleNativeWebhook, handleNativeAuthed, flushTenantDeliveries, publishWebhookEvent, validateWebhookUrl };
+export { handleNativeWebhook, handleNativeAuthed, flushTenantDeliveries, publishWebhookEvent, validateWebhookUrl, sweepDueDeliveries, sanitizeRetry };
 export { registerNativeEventType };
 export type { NativeSinkDeps, NativeAuthedCtx };
 

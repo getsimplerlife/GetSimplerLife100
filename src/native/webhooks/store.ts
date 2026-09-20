@@ -186,6 +186,10 @@ function tenantDeliveriesPath(dataDir: string): string {
 export function listDeliveries(dataDir: string, tenantId: string): NativeWebhookDelivery[] {
   return loadRecord<NativeWebhookDelivery[]>(tenantDeliveriesPath(dataDir))[tenantId] ?? [];
 }
+/** Tenants that currently hold at least one delivery record (sweeper scope). */
+export function listTenantsWithDeliveries(dataDir: string): string[] {
+  return Object.keys(loadRecord<NativeWebhookDelivery[]>(tenantDeliveriesPath(dataDir)));
+}
 export function saveDeliveries(dataDir: string, tenantId: string, deliveries: NativeWebhookDelivery[]): void {
   const path = tenantDeliveriesPath(dataDir);
   const all = loadRecord<NativeWebhookDelivery[]>(path);

@@ -56,6 +56,8 @@ async function getAgents() {
 const BUILD_ID = Date.now().toString(36);
 const DIST_CLIENT = join(typeof import.meta?.dir !== "undefined" ? import.meta.dir : __dirname, "dist");
 const DATA_DIR = resolveDataDir(process.env.DATA_DIR, typeof import.meta?.dir !== "undefined" ? import.meta.dir : __dirname);
+// NATIVE webhook sweeper serialisation (Phase 1.1): one in-flight sweep max.
+let nativeSweepRunning = false;
 const USERS_FILE = join(DATA_DIR, "users.json");
 const PASSWORD_RESETS_FILE = join(DATA_DIR, "password_resets.json");
 const SESSIONS_FILE = join(DATA_DIR, "sessions.json");
@@ -1194,6 +1196,20 @@ async function handleFetch(req: Request): Promise<Response> {
           return addresses.map((a) => a.address);
         },
       });
+    }
+// Background sweeper for NATIVE outbound webhooks (Phase 1.1): makes bounded
+    // backoff retries actually fire between publishes. Serialised via an
+    // in-process flag — never two sweeps in flight; loud on failure (caught).
+    if (pathname === "/api/_native-sweep") {
+      if (req.method !== "POST") return Response.json({ error: "Method not allowed" }, { status: 405 });
+      if (nativeSweepRunning) return Response.json({ ok: true, alreadyRunning: true }, { status: 202 });
+      nativeSweepRunning = true;
+      const { sweepDueDeliveries } = await import("./src/native/webhooks");
+      sweepDueDeliveries(DATA_DIR)
+        .then((r) => console.log(`[native] sweep: touched=${r.tenantsTouched} attempted=${r.attempted} delivered=${r.delivered} dead=${r.dead}`))
+        .catch((e) => console.error("[native] sweep failed:", e instanceof Error ? e.message : String(e)))
+        .finally(() => { nativeSweepRunning = false; });
+      return Response.json({ ok: true, queued: true });
     }
 // ── /api/vault/* — NATIVE Document & File Intelligence (Phase 1.5a) ──
     // Per-tenant document vault: intake (upload), folders/rules, gated filing

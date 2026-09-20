@@ -34,6 +34,7 @@ import {
   publishWebhookEvent,
   flushTenantDeliveries,
   publicSubscription,
+  sanitizeRetry,
 } from "./outbound";
 import type { HostResolver } from "./outbound";
 
@@ -127,7 +128,7 @@ export async function handleNativeAuthed(req: Request, ctx: NativeAuthedCtx): Pr
       url,
       eventTypes: Array.isArray(body.eventTypes) ? body.eventTypes.map(String) : undefined,
       enabled: typeof body.enabled === "boolean" ? body.enabled : undefined,
-      retry: body.retry && typeof body.retry === "object" ? { maxAttempts: (body.retry as any).maxAttempts, initialBackoffMs: (body.retry as any).initialBackoffMs } : undefined,
+      retry: body.retry && typeof body.retry === "object" ? sanitizeRetry({ maxAttempts: (body.retry as any).maxAttempts, initialBackoffMs: (body.retry as any).initialBackoffMs }) : undefined,
       actor: tenantId,
       resolver: ctx.resolver,
     });
