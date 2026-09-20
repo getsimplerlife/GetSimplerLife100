@@ -332,6 +332,32 @@ describe("router contract (HTTP)", () => {
     expect(expJson.data.rows.length).toBe(1);
   });
 
+  it("owner gated UPDATE + DELETE work over HTTP (202 pending -> apply -> 200)", async () => {
+    // Build the row through HTTP (insert -> apply), then update/delete via HTTP.
+    const created = await route("POST", "/api/native/tables", { name: "Pipes", description: "d", fields: [{ key: "name", label: "Name", type: "text", required: true }, { key: "size", label: "Size", type: "number" }] });
+    const id = (await created.json()).data.id;
+    const ins = await route("POST", `/api/native/tables/${id}/rows`, { data: { name: "Alpha", size: 100 } });
+    expect(ins.status).toBe(202);
+    const insApply = await route("POST", `/api/native/tables/writes/${pendingFirst(id, "insert")!.id}/apply`);
+    expect(insApply.status).toBe(200);
+    const rows = listRows(dir, T1, id);
+    expect(rows.length).toBe(1);
+    const rowId = rows[0].id; // row_<base36><hex> — the shape that used to 404
+    // GATED UPDATE over HTTP (owner) -> 202 pending, apply -> 200, row updated.
+    const upd = await route("POST", `/api/native/tables/${id}/rows/${rowId}`, { data: { size: 250 } });
+    expect(upd.status).toBe(202);
+    const updApply = await route("POST", `/api/native/tables/writes/${pendingFirst(id, "update")!.id}/apply`);
+    expect(updApply.status).toBe(200);
+    expect(getRow(dir, T1, rowId)?.data.size).toBe(250);
+    // GATED DELETE over HTTP (owner) -> 202 pending, apply -> 200, row gone.
+    const del = await route("DELETE", `/api/native/tables/${id}/rows/${rowId}`);
+    expect(del.status).toBe(202);
+    const delApply = await route("POST", `/api/native/tables/writes/${pendingFirst(id, "delete")!.id}/apply`);
+    expect(delApply.status).toBe(200);
+    expect(countRows(dir, T1, id)).toBe(0);
+    expect(getRow(dir, T1, rowId)).toBeNull();
+  });
+
   it("404 unknown table, 404 unknown endpoint, 405 wrong method", async () => {
     expect((await route("GET", "/api/native/tables/tbl_zzz")).status).toBe(404);
     expect((await route("GET", "/api/native/tables/whatever/unknown-path")).status).toBe(404);

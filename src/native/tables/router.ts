@@ -127,6 +127,40 @@ async function route(req: Request, ctx: NativeTablesCtx): Promise<Response> {
     createTable(ctx.dataDir, table);
     return Response.json({ data: { id: table.id, name: table.name } });
   }
+  // ── /api/native/tables/:id/rows/:rowId — GATED update/delete ──
+  // Evaluated BEFORE the idMatch guard: row ids are `row_<base36><hex>` (contains `_` + digits),
+  // which the idMatch rest-pattern `(?:\/[a-z-]+){0,2}` cannot consume — a late evaluation would
+  // 404 every HTTP row write before it ever reaches this branch (lead review, 09-20).
+  const rowMatch = pathname.match(/^\/api\/native\/tables\/([A-Za-z0-9_-]+)\/rows\/([A-Za-z0-9_-]+)$/);
+  if (rowMatch) {
+    const tableId = rowMatch[1];
+    const rowId = rowMatch[2];
+    const table = getTable(ctx.dataDir, tenantId, tableId);
+    if (!table) return Response.json({ error: "Table not found" }, { status: 404 });
+    const row = getRow(ctx.dataDir, tenantId, rowId);
+    if (!row || row.tableId !== tableId) return Response.json({ error: "Row not found" }, { status: 404 });
+    if (req.method === "POST") {
+      const b = parseJsonObject(await req.text());
+      if (!b.data || typeof b.data !== "object" || Array.isArray(b.data)) return json400("data object is required");
+      try {
+        const res = submitTableWrite(ctx.dataDir, tenantId, tableId, "update", { rowData: b.data as Record<string, unknown>, existingRowId: rowId }, actor);
+        if (!res.applied) return Response.json({ data: { status: "pending", approvalActionId: res.approvalActionId } }, { status: 202 });
+        return Response.json({ data: { status: "applied", rowId: res.rowId, autonomy: res.autonomy, op: res.op } });
+      } catch (e) {
+        return validationOr500(e);
+      }
+    }
+    if (req.method === "DELETE") {
+      try {
+        const res = submitTableWrite(ctx.dataDir, tenantId, tableId, "delete", { rowData: {}, existingRowId: rowId }, actor);
+        if (!res.applied) return Response.json({ data: { status: "pending", approvalActionId: res.approvalActionId } }, { status: 202 });
+        return Response.json({ data: { status: "applied", rowId: res.rowId, autonomy: res.autonomy, op: res.op } });
+      } catch (e) {
+        return validationOr500(e);
+      }
+    }
+    return Response.json({ error: "Method not allowed" }, { status: 405 });
+  }
   // ── /api/native/tables/:id ... ──
   const idMatch = pathname.match(/^\/api\/native\/tables\/([A-Za-z0-9_-]+)((?:\/[a-z-]+){0,2})$/);
   if (!idMatch) return Response.json({ error: "Unknown native tables endpoint" }, { status: 404 });
@@ -213,34 +247,6 @@ async function route(req: Request, ctx: NativeTablesCtx): Promise<Response> {
       return Response.json({ data: { table: { id: table.id, name: table.name }, rows } }, { status: 200 });
     }
     return json400("format must be csv or json");
-  }
-  // ── /api/native/tables/:id/rows/:rowId — GATED update/delete ──
-  const rowMatch = pathname.match(/^\/api\/native\/tables\/([A-Za-z0-9_-]+)\/rows\/([A-Za-z0-9_-]+)$/);
-  if (rowMatch && rowMatch[1] === tableId) {
-    const rowId = rowMatch[2];
-    const row = getRow(ctx.dataDir, tenantId, rowId);
-    if (!row || row.tableId !== tableId) return Response.json({ error: "Row not found" }, { status: 404 });
-    if (req.method === "POST") {
-      const b = parseJsonObject(await req.text());
-      if (!b.data || typeof b.data !== "object" || Array.isArray(b.data)) return json400("data object is required");
-      try {
-        const res = submitTableWrite(ctx.dataDir, tenantId, tableId, "update", { rowData: b.data as Record<string, unknown>, existingRowId: rowId }, actor);
-        if (!res.applied) return Response.json({ data: { status: "pending", approvalActionId: res.approvalActionId } }, { status: 202 });
-        return Response.json({ data: { status: "applied", rowId: res.rowId, autonomy: res.autonomy, op: res.op } });
-      } catch (e) {
-        return validationOr500(e);
-      }
-    }
-    if (req.method === "DELETE") {
-      try {
-        const res = submitTableWrite(ctx.dataDir, tenantId, tableId, "delete", { rowData: {}, existingRowId: rowId }, actor);
-        if (!res.applied) return Response.json({ data: { status: "pending", approvalActionId: res.approvalActionId } }, { status: 202 });
-        return Response.json({ data: { status: "applied", rowId: res.rowId, autonomy: res.autonomy, op: res.op } });
-      } catch (e) {
-        return validationOr500(e);
-      }
-    }
-    return Response.json({ error: "Method not allowed" }, { status: 405 });
   }
   return Response.json({ error: "Method not allowed" }, { status: 405 });
 }
