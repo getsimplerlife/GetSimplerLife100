@@ -255,7 +255,7 @@ const VALIDATION_ERROR_PREFIXES = [
 ];
 function validationOr500(e: unknown): Response {
   const msg = e instanceof Error ? e.message : String(e);
-  if (VALIDATION_ERROR_PREFIXES.some((p) => msg.startsWith(p))) {
+  if (VALIDATION_ERROR_PREFIXES.some((p) => msg.toLowerCase().startsWith(p.toLowerCase()))) {
     return Response.json({ error: msg }, { status: 400 });
   }
   console.error(`[native-tables] error: ${msg}`);

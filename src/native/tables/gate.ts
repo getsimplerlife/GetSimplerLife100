@@ -16,8 +16,8 @@
  *     3. gate/store error               -> write BLOCKED (fail-closed), never
  *                                          applied without authority.
  *
- * Autonomy safety note: action names are verb-prefixed (nativeTableInsert /
- * nativeTableUpdate / nativeTableDelete / nativeTableImport), so the shared
+ * Autonomy safety note: action names are verb-prefixed (createTableRow /
+ * updateTableRow / deleteTableRow / importTableRows), so the shared
  * rules apply automatically — deletes need an EXPLICIT (non-glob) allow-list
  * entry + a known-row id target; nothing auto-writes by default.
  */
@@ -43,7 +43,7 @@ import {
   savePendingWrite,
   updateRow,
 } from "./store";
-import { validateRowData } from "./validate";
+import { validateRowData, coerceCsvRow } from "./validate";
 
 export interface WriteRequest {
   rowData: Record<string, unknown>;
@@ -133,7 +133,8 @@ export function submitTableWrite(
     if (!req.importRows || req.importRows.length === 0) throw new Error("import requires rows");
     if (countRows(dataDir, tenantId, tableId) + req.importRows.length > MAX_ROWS_PER_TABLE) throw new Error(`Import would exceed table cap (${MAX_ROWS_PER_TABLE})`);
     const validated: Record<string, unknown>[] = [];
-    for (const data of req.importRows) {
+    for (const dataRaw of req.importRows) {
+      const data = coerceCsvRow(table, dataRaw);
       const check = validateRowData(table, data);
       if (!check.ok) throw new Error(`Import row invalid: ${check.errors.join("; ")}`);
       validated.push(check.data);

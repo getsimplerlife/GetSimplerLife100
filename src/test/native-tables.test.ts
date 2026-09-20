@@ -85,8 +85,8 @@ function authedReq(method: string, pathname: string, body?: unknown): Request {
 async function route(method: string, pathname: string, body?: unknown, tenantId = T1) {
   return handleNativeTablesAuthed(authedReq(method, pathname, body), { userEmail: tenantId, dataDir: dir });
 }
-function pendingFirst(tableId: string) {
-  return listPendingWrites(dir, T1, tableId).find((w) => w.status === "pending") ?? null;
+function pendingFirst(tableId: string, op?: string) {
+  return listPendingWrites(dir, T1, tableId).find((w) => w.status === "pending" && (op ? w.op === op : true)) ?? null;
 }
 
 beforeEach(() => {
@@ -227,7 +227,7 @@ describe("GATED WRITE PATH (approval on by default)", () => {
 describe("AUTONOMY allow-list (#236)", () => {
   it("allow-listed insert auto-applies and records the outcome", () => {
     const table = seedTable();
-    setAutonomyWorkflow(T1, AGENT, { enabled: true, allowList: [{ id: "al-ins-1", action: "nativeTableInsert" }] }, dir);
+    setAutonomyWorkflow(T1, AGENT, { enabled: true, allowList: [{ id: "al-ins-1", action: "createTableRow" }] }, dir);
     const res = submitTableWrite(dir, T1, table.id, "insert", { rowData: validRow() }, AGENT);
     expect(res.applied).toBe(true);
     expect(res.autonomy).toBe(true);
@@ -235,7 +235,7 @@ describe("AUTONOMY allow-list (#236)", () => {
     expect(listAudit(dir, T1).some((a) => a.action === "native.data.row.insert")).toBe(true);
     const autoAudit = readJSON(autonomyAuditPath(dir));
     const tenantEntries = autoAudit?.[T1] ?? [];
-    expect(tenantEntries.some((e: { action: string }) => e.action === "nativeTableInsert")).toBe(true);
+    expect(tenantEntries.some((e: { action: string }) => e.action === "createTableRow")).toBe(true);
   });
 
   it("delete needs an EXACT allow-list entry + known-row id (glob never auto-deletes)", () => {
@@ -243,11 +243,11 @@ describe("AUTONOMY allow-list (#236)", () => {
     const ins = submitTableWrite(dir, T1, table.id, "insert", { rowData: validRow() }, AGENT);
     executePendingTableWrite(dir, T1, ins.approvalActionId!, "owner@acme.test");
     const row = listRows(dir, T1, table.id)[0];
-    setAutonomyWorkflow(T1, AGENT, { enabled: true, allowList: [{ id: "al-glob", action: "nativeTableDelete*" }] }, dir);
+    setAutonomyWorkflow(T1, AGENT, { enabled: true, allowList: [{ id: "al-glob", action: "deleteTableRow*" }] }, dir);
     const globDel = submitTableWrite(dir, T1, table.id, "delete", { rowData: {}, existingRowId: row.id }, AGENT);
     expect(globDel.applied).toBe(false);
     expect(countRows(dir, T1, table.id)).toBe(1);
-    setAutonomyWorkflow(T1, AGENT, { enabled: true, allowList: [{ id: "al-del-1", action: "nativeTableDelete" }] }, dir);
+    setAutonomyWorkflow(T1, AGENT, { enabled: true, allowList: [{ id: "al-del-1", action: "deleteTableRow" }] }, dir);
     const exDel = submitTableWrite(dir, T1, table.id, "delete", { rowData: {}, existingRowId: row.id }, AGENT);
     expect(exDel.applied).toBe(true);
     expect(exDel.autonomy).toBe(true);
@@ -256,7 +256,7 @@ describe("AUTONOMY allow-list (#236)", () => {
 
   it("autonomy does NOT apply to other tenant ids even with an allow-list", () => {
     const table = seedTable(T1);
-    setAutonomyWorkflow(T2, AGENT, { enabled: true, allowList: [{ id: "al-2", action: "nativeTableInsert" }] }, dir);
+    setAutonomyWorkflow(T2, AGENT, { enabled: true, allowList: [{ id: "al-2", action: "createTableRow" }] }, dir);
     // Foreign table id fails closed — write is thrown (never queued/applied).
     expect(() => submitTableWrite(dir, T2, table.id, "insert", { rowData: validRow() }, AGENT)).toThrow();
     expect(getTable(dir, T2, table.id)).toBeNull();
@@ -289,7 +289,8 @@ describe("router contract (HTTP)", () => {
   it("creates + lists + gated row insert + import + apply + export", async () => {
     const created = await route("POST", "/api/native/tables", { name: "Projects", description: "d", fields: [{ key: "title", label: "Title", type: "text", required: true }, { key: "budget", label: "Budget", type: "number" }] });
     expect(created.status).toBe(200);
-    const { id } = await created.json();
+    const createdJson = await created.json();
+    const id = createdJson.data.id;
     const listJson = await (await route("GET", "/api/native/tables")).json();
     expect(listJson.data.tables.some((t: { id: string }) => t.id === id)).toBe(true);
     // gated insert → 202 pending (row not applied)
@@ -307,7 +308,7 @@ describe("router contract (HTTP)", () => {
     // audit trail visible
     expect((await (await route("GET", "/api/native/tables/audit")).json()).data.length).toBeGreaterThan(0);
     // approve-path apply
-    const writeRec = pendingFirst(id);
+    const writeRec = pendingFirst(id, "insert");
     expect(writeRec).not.toBeNull();
     const applyRes = await route("POST", `/api/native/tables/writes/${writeRec!.id}/apply`);
     expect(applyRes.status).toBe(200);
@@ -321,7 +322,11 @@ describe("router contract (HTTP)", () => {
   it("404 unknown table, 404 unknown endpoint, 405 wrong method", async () => {
     expect((await route("GET", "/api/native/tables/tbl_zzz")).status).toBe(404);
     expect((await route("GET", "/api/native/tables/whatever/unknown-path")).status).toBe(404);
-    expect((await route("PATCH", "/api/native/tables/whatever")).status).toBe(405);
+    // PATCH on an UNKNOWN table fails closed with 404 (table resolved first);
+    // wrong method on a REAL table → 405.
+    const t = seedTable();
+    expect((await route("PATCH", `/api/native/tables/${t.id}`)).status).toBe(405);
+    expect((await route("PATCH", "/api/native/tables/whatever")).status).toBe(404);
     expect((await route("GET", "/api/native/tables/writes/act-unknown/apply")).status).toBe(404);
   });
 });

@@ -207,6 +207,29 @@ export function parseCsv(content: string): Record<string, unknown>[] {
   return out;
 }
 
+/**
+ * Coerce CSV-derived string values to the table schema types BEFORE strict
+ * validation: numbers from /^-?\d+(\.\d+)?$/, booleans from true/false
+ * (case-insensitive). Anything else is left untouched and fails validation
+ * (fail-closed) — no silent lossy casts, no "200" re-trimming.
+ */
+export function coerceCsvRow(table: TableDef, row: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const field of table.fields) {
+    const v = row[field.key];
+    if (typeof v !== "string" || v === "") { out[field.key] = v; continue; }
+    const t = field.type;
+    if (t === "number" && /^-?\d+(\.\d+)?$/.test(v.trim())) {
+      out[field.key] = Number(v.trim());
+    } else if (t === "boolean" && /^(true|false)$/i.test(v.trim())) {
+      out[field.key] = v.trim().toLowerCase() === "true";
+    } else {
+      out[field.key] = v;
+    }
+  }
+  return out;
+}
+
 /** Serialize rows to CSV (header from the table schema). */
 export function toCsv(table: TableDef, rows: { data: Record<string, unknown> }[]): string {
   const headers = table.fields.map((f) => f.key);

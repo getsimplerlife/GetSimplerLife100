@@ -225,6 +225,14 @@ export function countAudit(dataDir: string, tenantId: string): number {
 export function totalRowBytes(dataDir: string, tenantId: string, tableId: string): number {
   return listRows(dataDir, tenantId, tableId).reduce((n, r) => n + JSON.stringify(r.data).length, 0);
 }
+// VERB-FIRST action names — the Approval Queue classifies writes by leading
+// verb prefix (isWriteAction), so verb-last names would silently BYPASS the
+// gate and auto-allow every write (fail-open). Never rename these.
 export function opVerb(op: TableOp): string {
-  return `nativeTable${op === "insert" ? "Insert" : op === "update" ? "Update" : op === "delete" ? "Delete" : "Import"}`;
+  switch (op) {
+    case "insert": return "createTableRow";
+    case "update": return "updateTableRow";
+    case "delete": return "deleteTableRow";
+    case "import": return "importTableRows";
+  }
 }
