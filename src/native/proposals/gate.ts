@@ -19,8 +19,8 @@ import { approvalGate, markApproved, markRejected } from "../../lib/approval-que
 import { recordAutonomyOutcome } from "../../lib/autonomy";
 import { publishWebhookEvent, flushTenantDeliveries } from "../webhooks/outbound";
 import { randomBytes } from "node:crypto";
-import { generateProposalEntityId, generateShareSlug, insertProposal, applyProposalMutation, listPendingWrites, savePendingWrite, appendAudit, getProposal, registerSlug, unregisterSlug, markPendingWrite, removeProposal } from "./store";
-import { validateProposalMutation, normalizeLineItems } from "./validate";
+import { generateProposalEntityId, generateShareSlug, insertProposal, applyProposalMutation, listPendingWrites, savePendingWrite, appendAudit, getProposal, registerSlug, unregisterSlug, markPendingWrite, removeProposal, appendProposalSignature } from "./store";
+import { validateProposalMutation, normalizeLineItems, validateSignatureInput } from "./validate";
 import { renderProposalPdf, storeProposalPdf } from "./generate";
 import {
   MAX_PENDING_PROPOSAL_WRITES,
@@ -30,6 +30,7 @@ import {
   type ProposalOp,
   type PendingProposalWrite,
   type ProposalStatus,
+  type ProposalSignatureInput,
 } from "./types";
 
 export type ProposalWriteRequest = {
@@ -37,6 +38,7 @@ export type ProposalWriteRequest = {
   data?: ProposalMutation;
   via?: string; // "portal" | "client-decision"
   signerName?: string;
+  signature?: ProposalSignatureInput; // Phase 2.2 e-sign — rides the approve card
 };
 
 export type ProposalWriteResult =
@@ -112,6 +114,9 @@ function validateWrite(dataDir: string, tenantId: string, op: ProposalOp, req: P
   if (nextStatus === null) {
     throw new Error(`cannot ${op} a proposal in status ${proposal.status}`);
   }
+  // Phase 2.2: a signature may accompany the client's approve decision. A
+  // signature on any other op is rejected (fail-closed).
+  if (op !== "approve" && req.signature) throw new Error("signature must only accompany an approve decision");
   let mutation: ProposalMutation = {};
   if (op === "update") {
     const data = req.data ?? {};
@@ -126,6 +131,12 @@ function validateWrite(dataDir: string, tenantId: string, op: ProposalOp, req: P
       if (items === null) throw new Error("lineItems must be an array of {description, qty, unitPrice}");
       mutation.lineItems = items as ProposalLineItem[];
     }
+  }
+  // Phase 2.2 e-sign: an approve write may carry a signature — validated HERE
+  // (before the gate) so a never-valid signature never queues (fail-closed).
+  if (op === "approve" && req.signature !== undefined) {
+    const v = validateSignatureInput(req.signature);
+    if (!v.ok) throw new Error(v.error);
   }
   return { proposal, mutation, nextStatus };
 }
@@ -159,6 +170,7 @@ function applyMutation(
       shareSlug: null,
       docId: null,
       status: "draft",
+      signatures: [],
       version: 1,
       createdAt: now,
       createdBy: actor,
@@ -183,20 +195,33 @@ function applyMutation(
     publishEvent(dataDir, tenantId, "native.proposal.updated", { proposalId: record.id, title: record.title, status: "pending", changed: ["status", "shareSlug", "docId"] });
     return record;
   }
-  record = applyProposalMutation(dataDir, tenantId, req.proposalId!, mutation, nextStatus, actor, {
-  })!;
-  if (!record) throw new Error("proposal not found");
   if (op === "send") {
-    const rendered = renderProposalPdf(record, { final: true, footerText: `Proposal ${record.id}` });
-    const sentDocId = storeProposalPdf(dataDir, tenantId, record, rendered, actor, record.docId);
-    const sent = applyProposalMutation(dataDir, tenantId, record.id, {}, "sent", actor, { docId: sentDocId })!;
+    // Render + store the final PDF BEFORE the status flip — a failed render must
+    // never leave a "sent" record pointing at the old unsigned document.
+    const latest = getProposal(dataDir, tenantId, req.proposalId!);
+    if (!latest) throw new Error("proposal not found");
+    const rendered = renderProposalPdf(latest, { final: true, footerText: `Proposal ${latest.id}` });
+    const sentDocId = storeProposalPdf(dataDir, tenantId, latest, rendered, actor, latest.docId);
+    const sent = applyProposalMutation(dataDir, tenantId, latest.id, {}, "sent", actor, { docId: sentDocId })!;
     appendAudit(dataDir, { tenantId, actor, action: "native.proposal.send", proposalId: sent.id, detail: `Sent final proposal "${sent.title}" (doc ${sentDocId})` });
     publishEvent(dataDir, tenantId, "native.proposal.updated", { proposalId: sent.id, title: sent.title, status: "sent", changed: ["status", "docId"] });
     return sent;
   }
+  record = applyProposalMutation(dataDir, tenantId, req.proposalId!, mutation, nextStatus, actor, {
+  })!;
+  if (!record) throw new Error("proposal not found");
   if (op === "approve") {
     appendAudit(dataDir, { tenantId, actor, action: "native.proposal.approve", proposalId: record.id, detail: `Approved via ${req.via ?? "portal"}${req.signerName ? ` — signed by ${req.signerName}` : ""}` });
-    publishEvent(dataDir, tenantId, "native.proposal.approved", { proposalId: record.id, title: record.title, status: "approved", decidedBy: actor, signerName: req.signerName ?? null });
+    if (req.signature) {
+      const sigCheck = validateSignatureInput(req.signature); // defense in depth (re-validate at apply)
+      if (!sigCheck.ok) throw new Error(sigCheck.error);
+      const signed = appendProposalSignature(dataDir, tenantId, record.id, req.signature, actor);
+      if (!signed) throw new Error("proposal not found");
+      record = signed;
+      appendAudit(dataDir, { tenantId, actor, action: "native.esign.signed", proposalId: record.id, detail: `Signed by ${req.signature.signerName} (${req.signature.signatureType}) — sha256 ${req.signature.payloadHash}` });
+      publishEvent(dataDir, tenantId, "native.esign.signed", { proposalId: record.id, title: record.title, signerName: req.signature.signerName, signatureType: req.signature.signatureType, payloadHash: req.signature.payloadHash });
+    }
+    publishEvent(dataDir, tenantId, "native.proposal.approved", { proposalId: record.id, title: record.title, status: "approved", decidedBy: actor, signerName: req.signerName ?? null, signatures: (record.signatures ?? []).map((sg) => ({ signerName: sg.signerName, type: sg.signatureType, payloadHash: sg.payloadHash })) });
   } else if (op === "reject") {
     appendAudit(dataDir, { tenantId, actor, action: "native.proposal.reject", proposalId: record.id, detail: `Rejected via ${req.via ?? "portal"}${req.signerName ? ` — by ${req.signerName}` : ""}` });
     publishEvent(dataDir, tenantId, "native.proposal.rejected", { proposalId: record.id, title: record.title, status: "rejected", decidedBy: actor, signerName: req.signerName ?? null });
@@ -273,7 +298,7 @@ export function submitProposalWrite(
     tenantId,
     proposalId: req.proposalId ?? null,
     op,
-    payload: { data: validated.mutation, via: req.via ?? "portal", signerName: req.signerName },
+    payload: { data: validated.mutation, via: req.via ?? "portal", signerName: req.signerName, signature: req.signature },
     status: "pending",
     approvalActionId: gate.actionId || "",
     requestedBy: actor,
@@ -307,14 +332,14 @@ export function executePendingProposalWrite(
   // Re-validate the snapshot (defense in depth — data may have changed).
   let validated: { proposal: ProposalRecord | null; mutation: ProposalMutation; nextStatus: ProposalStatus };
   try {
-    validated = validateWrite(dataDir, tenantId, ptw.op, { proposalId: ptw.proposalId ?? undefined, data: ptw.payload.data, via: ptw.payload.via, signerName: ptw.payload.signerName });
+    validated = validateWrite(dataDir, tenantId, ptw.op, { proposalId: ptw.proposalId ?? undefined, data: ptw.payload.data, via: ptw.payload.via, signerName: ptw.payload.signerName, signature: ptw.payload.signature });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     markPendingWrite(dataDir, tenantId, ptw.id, "rejected", actor, { error: msg });
     return { ok: false, reason: msg };
   }
   try {
-    const record = applyMutation(dataDir, tenantId, ptw.op, { proposalId: ptw.proposalId ?? undefined, data: ptw.payload.data, via: ptw.payload.via, signerName: ptw.payload.signerName }, validated.mutation, validated.nextStatus, actor);
+    const record = applyMutation(dataDir, tenantId, ptw.op, { proposalId: ptw.proposalId ?? undefined, data: ptw.payload.data, via: ptw.payload.via, signerName: ptw.payload.signerName, signature: ptw.payload.signature }, validated.mutation, validated.nextStatus, actor);
     markPendingWrite(dataDir, tenantId, ptw.id, "applied", actor, { status: record.status, proposalId: record.id, docId: record.docId });
     return { ok: true, record, ptwId: ptw.id, op: ptw.op };
   } catch (e) {
