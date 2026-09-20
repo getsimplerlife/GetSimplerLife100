@@ -200,7 +200,7 @@ export function executePendingTableWrite(
   tenantId: string,
   approvalActionId: string,
   actor: string,
-): { ok: true; report: ApplyReport; ptwId: string } | { ok: false; reason: string } {
+): { ok: true; report: ApplyReport; ptwId: string; alreadyApplied?: boolean } | { ok: false; reason: string } {
   if (!tenantId?.trim() || !approvalActionId?.trim()) return { ok: false, reason: "tenantId and approvalActionId are required" };
   const ptw = getPendingWriteByAction(dataDir, tenantId, approvalActionId);
   if (!ptw) return { ok: false, reason: "no pending write for this approval action" };
