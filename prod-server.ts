@@ -1192,6 +1192,12 @@ async function handleFetch(req: Request): Promise<Response> {
         const { handleNativeFormSubmit } = await import("./src/native/forms");
         return handleNativeFormSubmit(req, { dataDir: DATA_DIR });
       }
+      // Phase 2.1 — PUBLIC proposal share (client view + approve/reject). No session.
+      const proposalShareMatch = pathname.match(/^\/api\/native\/proposals\/share\/([a-zA-Z0-9_-]+)$/);
+      if (proposalShareMatch) {
+        const { handleNativeProposalShare } = await import("./src/native/proposals");
+        return handleNativeProposalShare(req, { dataDir: DATA_DIR });
+      }
       const user = await getUserFromSession(req);
       if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
       // Phase 1.3 — native forms builder (authed CRUD + submissions)
@@ -1208,6 +1214,11 @@ async function handleFetch(req: Request): Promise<Response> {
       if (pathname.startsWith("/api/native/tables")) {
         const tables = await import("./src/native/tables");
         return tables.handleNativeTablesAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
+      }
+      // Phase 2.1 — native proposals (quote-to-cash slice 1, /api/native/proposals*).
+      if (pathname.startsWith("/api/native/proposals")) {
+        const proposals = await import("./src/native/proposals");
+        return proposals.handleNativeProposalsAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
       }
       return native.handleNativeAuthed(req, {
         userEmail: user.email,
