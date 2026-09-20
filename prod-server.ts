@@ -1204,6 +1204,11 @@ async function handleFetch(req: Request): Promise<Response> {
         const docs = await import("./src/native/documents");
         return docs.handleNativeDocumentsAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
       }
+      // Phase 1.4 — native data tables (gated CRUD + records, /api/native/tables*).
+      if (pathname.startsWith("/api/native/tables")) {
+        const tables = await import("./src/native/tables");
+        return tables.handleNativeTablesAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
+      }
       return native.handleNativeAuthed(req, {
         userEmail: user.email,
         dataDir: DATA_DIR,
