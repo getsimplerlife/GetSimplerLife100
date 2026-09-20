@@ -1170,6 +1170,8 @@ async function handleFetch(req: Request): Promise<Response> {
     if (pathname.startsWith("/api/native/")) {
       const native = await import("./src/native/webhooks");
       native.registerBuiltinNativeEventTypes();
+      const formsNative = await import("./src/native/forms");
+      formsNative.registerBuiltinNativeFormEventTypes();
       const sinkMatch = pathname.match(/^\/api\/native\/webhooks\/([a-zA-Z0-9_-]+)$/);
       if (sinkMatch) {
         // Unauthenticated provider-style receiver — signature-gated (401/404
@@ -1184,8 +1186,19 @@ async function handleFetch(req: Request): Promise<Response> {
           },
         });
       }
+      // Phase 1.3 — PUBLIC form submission (slug-gated, idempotent). No session.
+      const formSubmitMatch = pathname.match(/^\/api\/native\/forms\/([a-zA-Z0-9_-]+)\/submit$/);
+      if (formSubmitMatch) {
+        const { handleNativeFormSubmit } = await import("./src/native/forms");
+        return handleNativeFormSubmit(req, { dataDir: DATA_DIR });
+      }
       const user = await getUserFromSession(req);
       if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
+      // Phase 1.3 — native forms builder (authed CRUD + submissions)
+      if (pathname.startsWith("/api/native/forms")) {
+        const { handleNativeFormsAuthed } = await import("./src/native/forms");
+        return handleNativeFormsAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
+      }
       // Phase 1.2 — native document store + PDF generation (/api/native/documents*).
       if (pathname.startsWith("/api/native/documents")) {
         const docs = await import("./src/native/documents");
