@@ -1158,6 +1158,43 @@ async function handleFetch(req: Request): Promise<Response> {
       } catch { /* audit is best-effort */ }
       return new Response(outcome.body, { status: outcome.status, headers: outcome.headers });
     }
+// ── /api/native/* — NATIVE webhook layer (Phase 1.1, owner 09-20) ──
+    // Generic webhook sink (POST /api/native/webhooks/:sinkId — HMAC-signed,
+    // idempotency-keyed, registry-validated, durable per-tenant receipt,
+    // optional relay to outbound subscriptions) + outbound webhooks (per-tenant
+    // https-only SSRF-guarded subscriptions, signed delivery with bounded
+    // backoff retry + dead-letter + audit). Fail-closed throughout; every
+    // mutation audited; tenant-scoped stores — see src/native/webhooks/.
+    if (pathname.startsWith("/api/native/")) {
+      const native = await import("./src/native/webhooks");
+      native.registerBuiltinNativeEventTypes();
+      const sinkMatch = pathname.match(/^\/api\/native\/webhooks\/([a-zA-Z0-9_-]+)$/);
+      if (sinkMatch) {
+        // Unauthenticated provider-style receiver — signature-gated (401/404
+        // on any mismatch). onEvent relays to the tenant's outbound
+        // subscriptions when the sink has outboundRelayEnabled.
+        return native.handleNativeWebhook(req, sinkMatch[1], {
+          dataDir: DATA_DIR,
+          async onEvent(event) {
+            const { publishWebhookEvent, flushTenantDeliveries } = await import("./src/native/webhooks");
+            publishWebhookEvent(DATA_DIR, event.tenantId, event.eventType, event.payload, "sink-relay");
+            await flushTenantDeliveries(DATA_DIR, event.tenantId).catch(() => undefined);
+          },
+        });
+      }
+      const user = await getUserFromSession(req);
+      if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
+      return native.handleNativeAuthed(req, {
+        userEmail: user.email,
+        dataDir: DATA_DIR,
+        autoFlush: true,
+        resolver: async (hostname) => {
+          const { lookup } = await import("node:dns/promises");
+          const addresses = await lookup(hostname, { all: true });
+          return addresses.map((a) => a.address);
+        },
+      });
+    }
 // ── /api/vault/* — NATIVE Document & File Intelligence (Phase 1.5a) ──
     // Per-tenant document vault: intake (upload), folders/rules, gated filing
     // contract (file/move/archive/destroy/update), search, download, audit.
