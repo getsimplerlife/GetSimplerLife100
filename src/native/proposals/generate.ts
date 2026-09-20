@@ -50,11 +50,19 @@ export function proposalHtml(p: ProposalRecord, opts?: { final?: boolean }): str
     })
     .join("");
   const issued = new Date(p.createdAt).toISOString().slice(0, 10);
-  const signatureBlock = opts?.final
-    ? `<div><h3>Accepted by</h3><p>${e(p.clientName)} — ${e(p.currency)} ${e(
-        formatCurrency(totalCents, p.currency),
-      )}</p><p><strong>${e(p.status.toUpperCase())}</strong> on ${e(p.approvedAt?.slice(0, 10) ?? "")}</p><p>Authorized signature capture arrives with Phase 2.2 e-sign.</p></div>`
-    : `<div><h3>Signature</h3><p>Authorized signature — to be completed after approval (Phase 2.2 e-sign).</p></div>`;
+  const signatures = p.signatures ?? [];
+  const signatureBlock = signatures.length
+    ? `<h2>Signatures</h2>` +
+      signatures
+        .map((sg) => {
+          const drawn = sg.drawnDataUrl ? `<p><img src="${sg.drawnDataUrl}" width="220" height="80" /></p>` : "";
+          const typed = sg.signatureType === "typed" ? `<p>Typed initials: <strong>${e(sg.initials ?? "")}</strong></p>` : `<p>Handwritten signature captured</p>`;
+          return `<div><h3>${e(sg.signerName)}</h3>${drawn}${typed}<p>Signed on ${e(sg.capturedAt.slice(0, 10))} · fingerprint ${e(sg.payloadHash.slice(0, 16))}…</p></div>`;
+        })
+        .join("")
+    : opts?.final
+      ? `<div><h3>Signature</h3><p>No signature captured for this proposal.</p></div>`
+      : `<div><h3>Signature</h3><p>To be completed by the client on acceptance (Phase 2.2 e-sign).</p></div>`;
   return `
 <h1>${e(p.title)}</h1>
 <p><strong>Prepared for:</strong> ${e(p.clientName)}${p.clientCompany ? ` — ${e(p.clientCompany)}` : ""}${p.clientEmail ? ` — ${e(p.clientEmail)}` : ""}</p>
@@ -123,7 +131,7 @@ export function storeProposalPdf(
   if (existingDocId) {
     const existing = getDoc(dataDir, tenantId, existingDocId);
     if (existing) {
-      updateDocument(
+      const updated = updateDocument(
         dataDir,
         tenantId,
         existingDocId,
@@ -137,6 +145,8 @@ export function storeProposalPdf(
         rendered.bytes,
         actor,
       );
+      // Fail-closed: never return a docId whose bytes were NOT replaced.
+      if (!updated) throw new Error("failed to update proposal PDF record (add-only version)");
       return existingDocId;
     }
   }

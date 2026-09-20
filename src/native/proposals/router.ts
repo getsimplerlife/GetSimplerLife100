@@ -29,8 +29,8 @@ import {
 } from "./store";
 import { submitProposalWrite, executePendingProposalWrite, noteOwnerDecision, formatCurrencyTotal } from "./gate";
 import { readDocumentBytes, getDoc } from "../documents/store";
-import { normalizeLineItems, validateProposalMutation, validateLineItem } from "./validate";
-import { MAX_SIGNER_NAME, type ProposalRecord, type ProposalMutation } from "./types";
+import { normalizeLineItems, validateProposalMutation, validateLineItem, validateSignatureInput } from "./validate";
+import { MAX_SIGNER_NAME, type ProposalRecord, type ProposalMutation, type ProposalSignatureInput } from "./types";
 
 export interface NativeProposalsCtx {
   dataDir: string;
@@ -102,6 +102,7 @@ export function publicShareView(p: ProposalRecord): Record<string, unknown> {
     clientName: p.clientName,
     clientCompany: p.clientCompany,
     status: p.status,
+    signable: p.status === "pending",
     currency: p.currency,
     lineItems: p.lineItems.map((li) => ({ description: li.description, qty: li.qty, unitPrice: li.unitPrice })),
     total: formatCurrencyTotal(p),
@@ -260,7 +261,15 @@ async function handleShareAsync(req: Request, ctx: NativeProposalsPublicCtx): Pr
       if (b.signerName.trim().length > MAX_SIGNER_NAME) return json400(`signerName must be ≤ ${MAX_SIGNER_NAME} chars`);
       signerName = b.signerName.trim();
     }
-    const res = submitProposalWrite(ctx.dataDir, tenantId, decision, { proposalId: proposal.id, via: "client-decision", signerName: signerName || undefined }, tenantId);
+    // Phase 2.2 e-sign: an approve decision may carry a captured signature
+    // (typed initials or drawn PNG data URL). Validated here → rides the card.
+    let signature: ProposalSignatureInput | undefined;
+    if (b.signature !== undefined) {
+      const v = validateSignatureInput(b.signature);
+      if (!v.ok) return json400(v.error);
+      signature = v.signature;
+    }
+    const res = submitProposalWrite(ctx.dataDir, tenantId, decision, { proposalId: proposal.id, via: "client-decision", signerName: signerName || undefined, signature }, tenantId);
     if (res.applied) return Response.json({ data: { status: "applied", decision, autonomy: res.autonomy } });
     if (res.pending) return Response.json({ data: { status: "pending", approvalActionId: res.approvalActionId } }, { status: 202 });
     return gateErrorStatus(res.error);
@@ -288,8 +297,18 @@ export function registerBuiltinNativeProposalEventTypes(): void {
       return { ok: true };
     },
   };
-  for (const t of ["native.proposal.created", "native.proposal.updated", "native.proposal.approved", "native.proposal.rejected"]) {
+  for (const t of ["native.proposal.created", "native.proposal.updated", "native.proposal.approved", "native.proposal.rejected", "native.esign.signed"]) {
     registerNativeEventType(t, base);
   }
+  registerNativeEventType("native.esign.signed", {
+    validate: (payload: unknown): { ok: true } | { ok: false; reason: string } => {
+      if (!payload || typeof payload !== "object") return { ok: false, reason: "payload must be an object" };
+      const p2 = payload as Record<string, unknown>;
+      if (typeof p2.proposalId !== "string" || typeof p2.signerName !== "string" || typeof p2.payloadHash !== "string") {
+        return { ok: false, reason: "payload needs proposalId, signerName and payloadHash" };
+      }
+      return { ok: true };
+    },
+  });
 }
 export { generateProposalEntityId, validateProposalMutation, validateLineItem };

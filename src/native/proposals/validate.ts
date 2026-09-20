@@ -7,8 +7,11 @@ import {
   MAX_CLIENT_COMPANY,
   MAX_CLIENT_EMAIL,
   MAX_CLIENT_NAME,
+  MAX_DRAWN_SIGNATURE_BYTES,
+  MAX_INITIALS_LENGTH,
   MAX_LINE_ITEMS,
   MAX_QTY,
+  MAX_SIGNER_NAME,
   MAX_TERMS_LENGTH,
   MAX_TITLE_LENGTH,
   MAX_UNIT_PRICE,
@@ -16,7 +19,9 @@ import {
   MIN_VALIDITY_DAYS,
   type ProposalLineItem,
   type ProposalMutation,
+  type ProposalSignatureInput,
 } from "./types";
+import { sha256Of } from "../documents/store";
 
 export type ValidateResult = { ok: true } | { ok: false; error: string };
 
@@ -107,4 +112,59 @@ export function normalizeLineItems(raw: unknown): ProposalLineItem[] | null {
     });
   }
   return out;
+}
+
+const PNG_MAGIC = [0x89, 0x50, 0x4e, 0x47];
+const DATA_URL_RE = /^data:image\/png;base64,[A-Za-z0-9+/=]+$/;
+const INITIALS_RE = /^[A-Za-z0-9 .'\-]+$/;
+
+/**
+ * Validate a signature captured on the share page (Phase 2.2 e-sign).
+ * Fail-closed: name/initials bounds, strict base64 PNG data-URL shape,
+ * decoded-size cap and PNG magic-byte sniffing. Returns the normalized input
+ * plus a durable sha256 payloadHash. Runs BEFORE the gate — a never-valid
+ * signature never queues (400).
+ */
+export function validateSignatureInput(value: unknown): { ok: true; signature: ProposalSignatureInput } | { ok: false; error: string } {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return { ok: false, error: "signature must be an object" };
+  const v = value as Record<string, unknown>;
+  const signerName = typeof v.signerName === "string" ? v.signerName.trim() : "";
+  if (signerName.length < 1 || signerName.length > MAX_SIGNER_NAME) {
+    return { ok: false, error: `signerName must be 1..${MAX_SIGNER_NAME} chars` };
+  }
+  const signatureType = v.signatureType;
+  if (signatureType !== "typed" && signatureType !== "drawn") {
+    return { ok: false, error: "signatureType must be \"typed\" or \"drawn\"" };
+  }
+  let initials: string | undefined;
+  let drawnDataUrl: string | undefined;
+  if (signatureType === "typed") {
+    const raw = typeof v.initials === "string" ? v.initials.trim() : "";
+    if (raw.length < 1 || raw.length > MAX_INITIALS_LENGTH) {
+      return { ok: false, error: `initials must be 1..${MAX_INITIALS_LENGTH} chars` };
+    }
+    if (!INITIALS_RE.test(raw)) return { ok: false, error: "initials may only contain letters, digits, spaces, dots, apostrophes and hyphens" };
+    initials = raw;
+  } else {
+    const url = typeof v.drawnDataUrl === "string" ? v.drawnDataUrl.trim() : "";
+    if (!DATA_URL_RE.test(url)) return { ok: false, error: "drawnDataUrl must be a base64 PNG data URL" };
+    let bytes: Uint8Array;
+    try {
+      const b64 = url.slice("data:image/png;base64,".length);
+      bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+    } catch {
+      return { ok: false, error: "drawnDataUrl is not valid base64" };
+    }
+    if (bytes.byteLength === 0) return { ok: false, error: "drawn signature is empty" };
+    if (bytes.byteLength > MAX_DRAWN_SIGNATURE_BYTES) {
+      return { ok: false, error: `drawn signature exceeds ${MAX_DRAWN_SIGNATURE_BYTES} bytes` };
+    }
+    for (let i = 0; i < 4; i++) {
+      if (bytes[i] !== PNG_MAGIC[i]) return { ok: false, error: "drawn signature must be a PNG image (magic bytes)" };
+    }
+    drawnDataUrl = url;
+  }
+  const canonical = JSON.stringify({ signerName, signatureType, initials: initials ?? null, drawnDataUrl: drawnDataUrl ?? null });
+  const payloadHash = sha256Of(new TextEncoder().encode(canonical));
+  return { ok: true, signature: { signerName, signatureType, initials, drawnDataUrl, payloadHash } };
 }

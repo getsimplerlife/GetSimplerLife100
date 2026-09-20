@@ -12,7 +12,7 @@ import {
 } from "../native/proposals/store";
 import { submitProposalWrite, executePendingProposalWrite, noteOwnerDecision, formatCurrencyTotal } from "../native/proposals/gate";
 import { handleNativeProposalsAuthed, handleNativeProposalShare, registerBuiltinNativeProposalEventTypes } from "../native/proposals/router";
-import { proposalTotalCents } from "../native/proposals/generate";
+import { proposalTotalCents, proposalHtml } from "../native/proposals/generate";
 import { setAutonomyWorkflow, autonomyAuditPath } from "../lib/autonomy";
 import { listTenantActions } from "../lib/approval-queue";
 import { listDeliveries, saveSubscription } from "../native/webhooks/store";
@@ -327,5 +327,79 @@ describe("cross-tenant isolation + autonomy + durability", () => {
     expect(countProposals(dir, T1)).toBe(1);
     expect(getProposal(dir, T1, id2)!.id).toBe(id2);
     expect(listAudit(dir, T1).some((a) => a.action === "native.proposal.delete")).toBe(true);
+  });
+});
+
+describe("e-sign (Phase 2.2)", () => {
+  const PNG_1PX = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+  async function openForSign() {
+    const id = await createAndApply();
+    await route("POST", `/api/native/proposals/${id}/open`);
+    await route("POST", `/api/native/proposals/writes/${pendingFirst("open")!.id}/apply`);
+    return { id, slug: getProposal(dir, T1, id)!.shareSlug! };
+  }
+  it("typed signature rides the client's approve card and lands on the record with audit + event", async () => {
+    seedSubscription();
+    const { id, slug } = await openForSign();
+    const res = await share("POST", slug, { decision: "approve", signerName: "Jamie Doe", signature: { signerName: "Jamie Doe", signatureType: "typed", initials: "JD" } });
+    expect(res.status).toBe(202);
+    const ptw = pendingFirst("approve")!;
+    expect(ptw.payload.signature).toBeTruthy();
+    expect(ptw.payload.signature!.signerName).toBe("Jamie Doe");
+    // Owner approves the card → signature recorded (proposal status untouched until apply).
+    expect(getProposal(dir, T1, id)!.signatures.length).toBe(0);
+    noteOwnerDecision(dir, T1, ptw.approvalActionId, "approved", T1);
+    await tick();
+    const p = getProposal(dir, T1, id)!;
+    expect(p.status).toBe("approved");
+    expect(p.signatures.length).toBe(1);
+    const sg = p.signatures[0];
+    expect(sg.signerName).toBe("Jamie Doe");
+    expect(sg.signatureType).toBe("typed");
+    expect(sg.initials).toBe("JD");
+    expect(sg.payloadHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(listAudit(dir, T1).some((a) => a.action === "native.esign.signed" && a.detail.includes(sg.payloadHash))).toBe(true);
+    const types = listDeliveries(dir, T1).map((d) => d.eventType);
+    expect(types).toContain("native.esign.signed");
+    expect(types).toContain("native.proposal.approved");
+  });
+  it("drawn signature (PNG) is stored + embedded in the regenerated final PDF", async () => {
+    seedSubscription();
+    const { id, slug } = await openForSign();
+    const res = await share("POST", slug, { decision: "approve", signerName: "Drew Artist", signature: { signerName: "Drew Artist", signatureType: "drawn", drawnDataUrl: `data:image/png;base64,${PNG_1PX}` } });
+    expect(res.status).toBe(202);
+    noteOwnerDecision(dir, T1, pendingFirst("approve")!.approvalActionId, "approved", T1);
+    const approved = getProposal(dir, T1, id)!;
+    expect(approved.status).toBe("approved");
+    expect(approved.signatures[0].drawnDataUrl).toBe(`data:image/png;base64,${PNG_1PX}`);
+    // send → final PDF regenerated with the signature block embedded (add-only v2).
+    await route("POST", `/api/native/proposals/${id}/send`);
+    await route("POST", `/api/native/proposals/writes/${pendingFirst("send")!.id}/apply`);
+    const sent = getProposal(dir, T1, id)!;
+    expect(sent.status).toBe("sent");
+    const doc = getDoc(dir, T1, sent.docId!)!;
+    expect(doc.version).toBe(2);
+    expect(doc.textProjection).toContain("Drew Artist");
+    expect(doc.textProjection).toContain("Handwritten signature captured");
+    const bytes = readDocumentBytes(dir, T1, sent.docId!);
+    expect(bytes!.byteLength).toBe(doc.sizeBytes);
+    expect(proposalHtml(sent, { final: true })).toContain(`data:image/png;base64,${PNG_1PX}`);
+  });
+  it("fails closed on invalid signatures (400, never queued)", async () => {
+    const { id, slug } = await openForSign();
+    const cases: Record<string, unknown>[] = [
+      { decision: "approve", signerName: "", signature: { signerName: "", signatureType: "typed", initials: "JD" } },
+      { decision: "approve", signerName: "Jamie", signature: { signerName: "Jamie", signatureType: "typed", initials: "ABCDEFGHIJKLMNOPQ" } },
+      { decision: "approve", signerName: "Jamie", signature: { signerName: "Jamie", signatureType: "typed", initials: "J<D" } },
+      { decision: "approve", signerName: "Jamie", signature: { signerName: "Jamie", signatureType: "drawn", drawnDataUrl: "data:image/png;base64,AAAA" } },
+      { decision: "approve", signerName: "Jamie", signature: { signerName: "Jamie", signatureType: "drawn", drawnDataUrl: "https://evil.test/sig.png" } },
+      { decision: "approve", signerName: "Jamie", signature: { signerName: "Jamie", signatureType: "drawn", drawnDataUrl: `data:image/png;base64,${"A".repeat(200000)}` } },
+      { decision: "reject", signerName: "Jamie", signature: { signerName: "Jamie", signatureType: "typed", initials: "JD" } },
+    ];
+    for (const body of cases) {
+      const r = await share("POST", slug, body);
+      expect(r.status).toBe(400);
+    }
+    expect(getProposal(dir, T1, id)!.status).toBe("pending");
   });
 });

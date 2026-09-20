@@ -22,11 +22,14 @@ import {
   NATIVE_PROPOSALS_AUDIT_KEY,
   NATIVE_PROPOSAL_SLUGS_KEY,
   MAX_PROPOSALS_PER_TENANT,
+  MAX_SIGNATURES_PER_PROPOSAL,
   type ProposalRecord,
   type PendingProposalWrite,
   type ProposalStatus,
   type ProposalMutation,
   type ProposalLineItem,
+  type ProposalSignature,
+  type ProposalSignatureInput,
 } from "./types";
 
 export interface NativeProposalAuditEntry {
@@ -54,7 +57,7 @@ function loadState(dataDir: string): Record<string, TenantProposalState> {
 function saveState(dataDir: string, state: Record<string, TenantProposalState>): void {
   writeJSON(dataPath(dataDir, NATIVE_PROPOSALS_KEY), state);
 }
-export function generateProposalEntityId(prefix: "prop" | "ppw"): string {
+export function generateProposalEntityId(prefix: "prop" | "ppw" | "sig"): string {
   return `${prefix}_${Date.now().toString(36)}${randomBytes(6).toString("hex")}`;
 }
 export function generateShareSlug(): string {
@@ -142,6 +145,7 @@ export function applyProposalMutation(
   const now = new Date().toISOString();
   const updated: ProposalRecord = {
     ...p,
+    signatures: p.signatures ?? [],
     ...(mutation.title !== undefined ? { title: mutation.title.trim().slice(0, 120) } : {}),
     ...(mutation.clientName !== undefined ? { clientName: mutation.clientName.trim().slice(0, 120) } : {}),
     ...(mutation.clientEmail !== undefined ? { clientEmail: mutation.clientEmail.trim().slice(0, 200) } : {}),
@@ -161,6 +165,44 @@ export function applyProposalMutation(
   saveState(dataDir, state);
   return updated;
 }
+/**
+ * Append a captured e-signature to a proposal record (gated executor only).
+ * Returns the updated record or null when the proposal id is unknown (404).
+ */
+export function appendProposalSignature(
+  dataDir: string,
+  tenantId: string,
+  proposalId: string,
+  input: ProposalSignatureInput,
+  actor: string,
+): ProposalRecord | null {
+  const state = loadState(dataDir);
+  const tenant = state[tenantId];
+  const idx = tenant?.proposals.findIndex((p) => p.id === proposalId) ?? -1;
+  if (!tenant || idx < 0) return null;
+  const p = tenant.proposals[idx];
+  const signatures = p.signatures ?? [];
+  if (signatures.length >= MAX_SIGNATURES_PER_PROPOSAL) {
+    throw new Error(`Signature cap reached (${MAX_SIGNATURES_PER_PROPOSAL})`);
+  }
+  const now = new Date().toISOString();
+  const sig: ProposalSignature = {
+    ...input,
+    id: generateProposalEntityId("sig"),
+    capturedAt: now,
+  };
+  const updated: ProposalRecord = {
+    ...p,
+    signatures: [...signatures, sig],
+    version: p.version + 1,
+    updatedAt: now,
+    updatedBy: actor,
+  };
+  tenant.proposals[idx] = updated;
+  saveState(dataDir, state);
+  return updated;
+}
+
 function applyStatusMeta(next: ProposalStatus, actor: string): Partial<ProposalRecord> {
   const now = new Date().toISOString();
   switch (next) {

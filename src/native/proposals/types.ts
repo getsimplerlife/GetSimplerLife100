@@ -56,6 +56,33 @@ export interface ProposalRecord {
   rejectedBy?: string;
   sentAt?: string;
   sentBy?: string;
+  /** E-signatures captured on acceptance (Phase 2.2) — appended by the gated apply executor only. */
+  signatures: ProposalSignature[];
+}
+
+/**
+ * A captured e-signature (Phase 2.2). At least one of initials/drawnDataUrl is
+ * set (signatureType decides which). payloadHash = sha256 over the canonical
+ * JSON of {signerName, signatureType, initials, drawnDataUrl} — a durable
+ * tamper-evident fingerprint recorded in audit + the final PDF.
+ */
+export interface ProposalSignature {
+  id: string; // sig_<random> — never user-supplied
+  signerName: string; // typed full name (1..MAX_SIGNER_NAME)
+  signatureType: "typed" | "drawn";
+  initials?: string; // typed initials (1..MAX_INITIALS_LENGTH) when typed
+  drawnDataUrl?: string; // data:image/png;base64,… when drawn (magic-byte checked)
+  payloadHash: string; // sha256 hex of the canonical payload
+  capturedAt: string;
+}
+
+/** Signature input from the share page — validated BEFORE the gate. */
+export interface ProposalSignatureInput {
+  signerName: string;
+  signatureType: "typed" | "drawn";
+  initials?: string;
+  drawnDataUrl?: string;
+  payloadHash: string;
 }
 
 /** Partial update payload — same shape as create minus status (status is op-driven). */
@@ -89,6 +116,7 @@ export interface PendingProposalWrite {
     data?: ProposalMutation;
     via?: string; // "portal" | "client-decision"
     signerName?: string;
+    signature?: ProposalSignatureInput;
   };
   status: "pending" | "applied" | "rejected";
   approvalActionId: string;
@@ -116,6 +144,9 @@ export const MAX_QTY = 1_000_000;
 export const MAX_PENDING_PROPOSAL_WRITES = 50;
 export const PROPOSAL_DOC_BUCKET = "proposals";
 export const MAX_SIGNER_NAME = 120;
+export const MAX_INITIALS_LENGTH = 16;
+export const MAX_DRAWN_SIGNATURE_BYTES = 131_072; // 128 KiB decoded PNG
+export const MAX_SIGNATURES_PER_PROPOSAL = 5;
 
 // ── Store keys ──────────────────────────────────────────────────────────────
 export const NATIVE_PROPOSALS_KEY = "native_proposals.json";
