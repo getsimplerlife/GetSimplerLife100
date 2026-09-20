@@ -21,7 +21,7 @@
  * rules apply automatically — deletes need an EXPLICIT (non-glob) allow-list
  * entry + a known-row id target; nothing auto-writes by default.
  */
-import { approvalGate, markApproved, type ApprovalGateOutcome } from "../../lib/approval-queue";
+import { approvalGate, markApproved, markRejected, type ApprovalGateOutcome } from "../../lib/approval-queue";
 import { recordAutonomyOutcome } from "../../lib/autonomy";
 import {
   MAX_PENDING_WRITES,
@@ -204,7 +204,14 @@ export function executePendingTableWrite(
   if (!tenantId?.trim() || !approvalActionId?.trim()) return { ok: false, reason: "tenantId and approvalActionId are required" };
   const ptw = getPendingWriteByAction(dataDir, tenantId, approvalActionId);
   if (!ptw) return { ok: false, reason: "no pending write for this approval action" };
-  if (ptw.status === "applied") return { ok: false, reason: "already applied (idempotent no-op)" };
+  if (ptw.status === "applied") {
+    // Idempotent replay: a second apply is NOT an error — return the stored
+    // result so the approver endpoint answers 200 (HTTP idempotency).
+    if (Array.isArray(ptw.appliedRowIds)) {
+      return { ok: true, alreadyApplied: true, report: { applied: true, op: ptw.op, rowIds: ptw.appliedRowIds }, ptwId: ptw.id };
+    }
+    return { ok: false, reason: "already applied (idempotent no-op)" };
+  }
   if (ptw.status === "rejected") return { ok: false, reason: "write was rejected" };
   const table = getTable(dataDir, tenantId, ptw.tableId);
   if (!table) {
@@ -236,8 +243,9 @@ export function noteOwnerDecision(
   if (!ptw || ptw.status !== "pending") return; // idempotent
   if (decision === "approved") {
     executePendingTableWrite(dataDir, tenantId, approvalActionId, owner);
+    markApproved(tenantId, approvalActionId, owner, { result: "applied" }, dataDir);
   } else {
     markPendingWrite(dataDir, tenantId, ptw.id, "rejected", owner);
+    markRejected(tenantId, approvalActionId, owner, dataDir);
   }
-  markApproved(tenantId, approvalActionId, owner, { result: decision === "approved" ? "applied" : undefined, error: decision === "rejected" ? "rejected by owner" : undefined }, dataDir);
 }

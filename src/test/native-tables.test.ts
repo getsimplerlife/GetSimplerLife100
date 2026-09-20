@@ -38,7 +38,7 @@ import {
   toCsv,
   parseCsv,
 } from "../native/tables/validate";
-import { submitTableWrite, executePendingTableWrite } from "../native/tables/gate";
+import { submitTableWrite, executePendingTableWrite, noteOwnerDecision } from "../native/tables/gate";
 import { handleNativeTablesAuthed } from "../native/tables/router";
 import { setAutonomyWorkflow, autonomyAuditPath } from "../lib/autonomy";
 import { listTenantActions } from "../lib/approval-queue";
@@ -123,6 +123,12 @@ describe("table CRUD + schema validation (fail-closed)", () => {
     expect(deleteTable(dir, T1, table.id, "owner")).toBe(false);
     // After removing the row (gated), empty-only delete succeeds.
     const row = listRows(dir, T1, table.id)[0];
+    // Reject decision leaves the row untouched AND rejects the queue card (not approve).
+    const up2 = submitTableWrite(dir, T1, table.id, "update", { rowData: { tier: "core" }, existingRowId: row.id }, AGENT);
+    noteOwnerDecision(dir, T1, up2.approvalActionId, "rejected", "owner@acme.test");
+    expect(listRows(dir, T1, table.id)[0].data.tier).toBe("core"); // unchanged (row is core here)
+    const card = listTenantActions(T1, dir).find((a) => a.actionId === up2.approvalActionId)!;
+    expect(card.status).toBe("rejected");
     const del = submitTableWrite(dir, T1, table.id, "delete", { rowData: {}, existingRowId: row.id }, AGENT);
     expect(executePendingTableWrite(dir, T1, del.approvalActionId!, "owner@acme.test").ok).toBe(true);
     expect(countRows(dir, T1, table.id)).toBe(0);
@@ -188,8 +194,9 @@ describe("GATED WRITE PATH (approval on by default)", () => {
     expect(rows.length).toBe(1);
     expect(rows[0].data.name).toBe("Acme Parts");
     expect(rows[0].tenantId).toBe(T1);
-    const again = executePendingTableWrite(dir, T1, res.approvalActionId!,  "owner@acme.test");
-    expect(again.ok).toBe(false); // idempotent no-op
+    const again = executePendingTableWrite(dir, T1, res.approvalActionId!, "owner@acme.test");
+    expect(again.ok).toBe(true); // idempotent replay: 200 with stored result
+    if (again.ok) expect(again.alreadyApplied).toBe(true);
     expect(listRows(dir, T1, table.id).length).toBe(1);
     const audit = listAudit(dir, T1).map((a) => a.action);
     expect(audit).toContain("native.data.write.pending");
@@ -216,6 +223,12 @@ describe("GATED WRITE PATH (approval on by default)", () => {
     expect(listRows(dir, T1, table.id)[0].data.tier).toBe("core");
     executePendingTableWrite(dir, T1, upd.approvalActionId!, "owner@acme.test");
     expect(listRows(dir, T1, table.id)[0].data.tier).toBe("strategic");
+    // Reject decision leaves the row untouched AND rejects the queue card (not approve).
+    const up2 = submitTableWrite(dir, T1, table.id, "update", { rowData: { tier: "core" }, existingRowId: row.id }, AGENT);
+    noteOwnerDecision(dir, T1, up2.approvalActionId, "rejected", "owner@acme.test");
+    expect(listRows(dir, T1, table.id)[0].data.tier).toBe("strategic"); // unchanged from the applied update
+    const card = listTenantActions(T1, dir).find((a) => a.actionId === up2.approvalActionId)!;
+    expect(card.status).toBe("rejected");
     const del = submitTableWrite(dir, T1, table.id, "delete", { rowData: {}, existingRowId: row.id }, AGENT);
     expect(del.applied).toBe(false);
     expect(countRows(dir, T1, table.id)).toBe(1);
