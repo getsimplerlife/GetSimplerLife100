@@ -40,7 +40,7 @@ const json400 = (error: string) => Response.json({ error }, { status: 400 });
 const json404 = (error: string) => Response.json({ error }, { status: 404 });
 function gateErrorStatus(error: string): Response {
   const nf = /not found|no pending write|already applied|already decided/.test(error);
-  const bad = /required|must|cap reached|cannot|invalid|at least|failed/.test(error);
+  const bad = /required|must|cap reached|cannot|invalid|at least|failed|unknown/.test(error);
   if (nf) return json404(error);
   if (bad) return json400(error);
   return Response.json({ error }, { status: 500 });

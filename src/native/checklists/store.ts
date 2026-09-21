@@ -18,9 +18,9 @@ import {
   MAX_CHECKLISTS_PER_TENANT,
   type ChecklistItem,
   type ChecklistItemInput,
-  type ChecklistItemStatus,
   type ChecklistMutation,
   type ChecklistRecord,
+  type ChecklistStatus,
   type PendingChecklistWrite,
 } from "./types";
 

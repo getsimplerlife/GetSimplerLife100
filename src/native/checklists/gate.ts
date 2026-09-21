@@ -75,17 +75,32 @@ function statusFor(op: ChecklistOp, current: ChecklistStatus): ChecklistStatus |
 }
 
 /** Validate the write intent BEFORE the gate — throws on invalid (→ 400). */
-function validateWrite(dataDir: string, tenantId: string, op: ChecklistOp, req: ChecklistWriteRequest): { mutation: ChecklistMutation; nextStatus: ChecklistStatus } {
+function validateWrite(dataDir: string, tenantId: string, op: ChecklistOp, req: ChecklistWriteRequest, opts: { rejectRawIds?: boolean } = {}): { mutation: ChecklistMutation; nextStatus: ChecklistStatus } {
   if (op === "create") {
     const data = req.data ?? {};
     const v = validateChecklistMutation(data, { requireItems: true });
     if (!v.ok) throw new Error(v.error);
+    if (!Array.isArray(data.items) || data.items.length < 1) throw new Error("items must be an array of 1..50 valid items");
+    // Fail-closed: a brand-new checklist has no item rows yet, so a client-supplied
+    // id on create is by definition forged — reject the RAW user input before any
+    // normalization assigns server ids (otherwise every item would look "forged").
+    // Only runs on the raw submission path; the pending-apply path re-validates the
+    // already-sanitized mutation (which legitimately carries server cli_ ids).
+    if (opts.rejectRawIds) {
+      for (const raw of data.items as unknown[]) {
+        if (raw && typeof raw === "object" && !Array.isArray(raw) && (raw as Record<string, unknown>).id !== undefined) {
+          throw new Error("invalid item id on create (ids are server-assigned)");
+        }
+      }
+    }
+    const items = normalizeItems(data.items);
+    if (items === null) throw new Error("items must be an array of 1..50 valid items");
     const mutation: ChecklistMutation = {
       name: (v.data?.name ?? data.name ?? "").slice(0, 200),
       description: data.description ?? "",
       kind: (data.kind ?? "delivery") as ChecklistRecord["kind"],
       linkedProposalId: data.linkedProposalId === undefined ? null : (data.linkedProposalId ?? null),
-      items: normalizeItems(data.items)!,
+      items,
     };
     if (!mutation.name?.trim()) throw new Error("name is required");
     const v2 = validateChecklistMutation(mutation, { requireItems: true });
@@ -108,7 +123,7 @@ function validateWrite(dataDir: string, tenantId: string, op: ChecklistOp, req: 
     if (mutation.items !== undefined) {
       const existing = new Set(checklist.items.map((i) => i.id));
       for (const it of mutation.items) {
-        if (it.id !== undefined && !existing.has(it.id)) throw new Error("unknown item id in update");
+        if (it.id !== undefined && !existing.has(it.id)) throw new Error("invalid item id in update (unknown id)");
       }
     }
   }
@@ -182,7 +197,7 @@ export function submitChecklistWrite(
   if (!tenantId?.trim() || !actor?.trim()) return { applied: false, pending: false, error: "tenantId and actor are required" };
   let validated: { mutation: ChecklistMutation; nextStatus: ChecklistStatus };
   try {
-    validated = validateWrite(dataDir, tenantId, op, req);
+    validated = validateWrite(dataDir, tenantId, op, req, op === "create" ? { rejectRawIds: true } : {});
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return { applied: false, pending: false, error: msg };
