@@ -1174,6 +1174,8 @@ async function handleFetch(req: Request): Promise<Response> {
       formsNative.registerBuiltinNativeFormEventTypes();
       const checklistsNative = await import("./src/native/checklists");
       checklistsNative.registerBuiltinNativeChecklistEventTypes();
+      const dealRoomNative = await import("./src/native/dealroom");
+      dealRoomNative.registerBuiltinNativeDealRoomEventTypes();
       const sinkMatch = pathname.match(/^\/api\/native\/webhooks\/([a-zA-Z0-9_-]+)$/);
       if (sinkMatch) {
         // Unauthenticated provider-style receiver — signature-gated (401/404
@@ -1193,6 +1195,12 @@ async function handleFetch(req: Request): Promise<Response> {
       if (formSubmitMatch) {
         const { handleNativeFormSubmit } = await import("./src/native/forms");
         return handleNativeFormSubmit(req, { dataDir: DATA_DIR });
+      }
+      // Phase 2.4 — PUBLIC deal room share (read-only client view). No session.
+      const dealRoomShareMatch = pathname.match(/^\/api\/native\/dealroom\/share\/([a-zA-Z0-9_-]+)$/);
+      if (dealRoomShareMatch) {
+        const { handleNativeDealRoomShare } = await import("./src/native/dealroom");
+        return handleNativeDealRoomShare(req, { dataDir: DATA_DIR });
       }
       // Phase 2.1 — PUBLIC proposal share (client view + approve/reject). No session.
       const proposalShareMatch = pathname.match(/^\/api\/native\/proposals\/share\/([a-zA-Z0-9_-]+)$/);
@@ -1226,6 +1234,11 @@ async function handleFetch(req: Request): Promise<Response> {
       if (pathname.startsWith("/api/native/checklists")) {
         const checklists = await import("./src/native/checklists");
         return checklists.handleNativeChecklistsAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
+      }
+      // Phase 2.4 — native deal rooms (quote-to-cash slice 4, /api/native/dealroom*).
+      if (pathname.startsWith("/api/native/dealroom")) {
+        const dealRooms = await import("./src/native/dealroom");
+        return dealRooms.handleNativeDealRoomsAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
       }
       return native.handleNativeAuthed(req, {
         userEmail: user.email,
