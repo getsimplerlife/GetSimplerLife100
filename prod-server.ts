@@ -1172,6 +1172,8 @@ async function handleFetch(req: Request): Promise<Response> {
       native.registerBuiltinNativeEventTypes();
       const formsNative = await import("./src/native/forms");
       formsNative.registerBuiltinNativeFormEventTypes();
+      const checklistsNative = await import("./src/native/checklists");
+      checklistsNative.registerBuiltinNativeChecklistEventTypes();
       const sinkMatch = pathname.match(/^\/api\/native\/webhooks\/([a-zA-Z0-9_-]+)$/);
       if (sinkMatch) {
         // Unauthenticated provider-style receiver — signature-gated (401/404
@@ -1219,6 +1221,11 @@ async function handleFetch(req: Request): Promise<Response> {
       if (pathname.startsWith("/api/native/proposals")) {
         const proposals = await import("./src/native/proposals");
         return proposals.handleNativeProposalsAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
+      }
+      // Phase 2.3 — native checklists (quote-to-cash slice 3, /api/native/checklists*).
+      if (pathname.startsWith("/api/native/checklists")) {
+        const checklists = await import("./src/native/checklists");
+        return checklists.handleNativeChecklistsAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
       }
       return native.handleNativeAuthed(req, {
         userEmail: user.email,
