@@ -286,6 +286,34 @@ describe("cross-tenant isolation + autonomy", () => {
     expect(getInvoice(dir, T1, rec.id)).not.toBeNull();
   });
 
+  it("public deal-room share view exposes a SAFE invoice summary (number/amount/status only — no internal ids)", async () => {
+    const dealRoomId = await createDealRoom();
+    await createAndApply(dealRoomId);
+    const { handleNativeDealRoomShare } = await import("../native/dealroom/router");
+    const { getDealRoom, listDealRooms } = await import("../native/dealroom/store");
+    const room = listDealRooms(dir, T1)[0];
+    // Invoice visible on the PUBLIC share (no auth) — safe summary only.
+    const res = await handleNativeDealRoomShare(new Request(`http://native.test/api/native/dealroom/share/${room.shareSlug}`, { method: "GET" }), { dataDir: dir });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { data: { invoices: unknown[]; dealRoomId: string } };
+    expect(body.data.invoices.length).toBe(1);
+    const inv = body.data.invoices[0] as Record<string, unknown>;
+    expect(inv.invoiceNumber).toBe("INV-0001");
+    expect(inv.currency).toBe("USD");
+    expect(inv.amountDueCents).toBe(500000 + 2 * 125050);
+    expect(inv.status).toBe("draft");
+    // NO internal ids / internals may leak through the public view.
+    const raw = JSON.stringify(body.data);
+    expect(raw).not.toMatch(/inv_[A-Za-z0-9_-]+/); // no inv_ record ids
+    expect(raw).not.toContain("docId");
+    expect(raw).not.toContain("audit");
+    expect(raw).not.toContain("pendingWrites");
+    expect(raw).not.toContain("approvalActionId");
+    // Marching: the room's own internal record still has its id (internal only).
+    const roomRec = getDealRoom(dir, T1, dealRoomId)!;
+    expect(roomRec.id.startsWith("dea_")).toBe(true);
+  });
+
   it("cannot invoice an archived deal room (fail-closed)", async () => {
     const dealRoomId = await createDealRoom();
     const { handleNativeDealRoomsAuthed } = await import("../native/dealroom/router");
