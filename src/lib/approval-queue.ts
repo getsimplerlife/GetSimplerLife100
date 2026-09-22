@@ -71,7 +71,7 @@ export interface ApprovalGateOutcome {
 // stop/pause/resume/open/close/accept/decline) is a WRITE and needs approval.
 // Everything else (get/list/search/query/read/fetch/check/probe/health/
 // analyze/test/describe/show/download/view/status...) is a READ and passes.
-const WRITE_VERB = /^(create|update|delete|remove|send|upload|copy|move|write|post|set|mark|complete|void|trash|ingest|trigger|submit|approve|reject|cancel|add|edit|archive|restore|rename|invite|assign|schedule|execute|generate|import|export|start|stop|pause|resume|open|close|accept|decline)/i;
+const WRITE_VERB = /^(create|update|delete|remove|send|upload|copy|move|write|post|set|mark|complete|void|trash|ingest|trigger|submit|approve|reject|cancel|add|edit|archive|restore|rename|invite|assign|schedule|execute|generate|import|export|start|stop|pause|resume|open|close|accept|decline|publish|confirm|request)/i;
 const READ_VERB = /^(get|list|search|query|read|fetch|check|probe|health|analyze|test|describe|show|download|view|status|find|count|exists|verify|validate|preview)/i;
 
 /** True when an action name mutates provider state and must be gated. */

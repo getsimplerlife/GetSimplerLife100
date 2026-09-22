@@ -60,6 +60,9 @@ describe("write-action classification", () => {
       "postSlackMessage", "completeOnfleetTask", "voidDocuSignEnvelope", "trashGDriveFile",
       "triggerMarketoCampaign", "executeInforTransaction", "sendDocuSignEnvelope",
       "generateInvoice", "generateDocuSignEnvelope",
+      // Phase 3.1 booking slice: publish/confirm/request are state mutations
+      // and MUST ride the Approval Queue (fail-open guard, P2.5 generate lesson).
+      "publishBookingPage", "confirmBooking", "requestBooking", "cancelBooking", "archiveBookingPage",
     ]) {
       expect(isWriteAction(name), name).toBe(true);
     }

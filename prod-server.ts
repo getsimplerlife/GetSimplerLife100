@@ -1178,6 +1178,8 @@ async function handleFetch(req: Request): Promise<Response> {
       dealRoomNative.registerBuiltinNativeDealRoomEventTypes();
       const invoiceNative = await import("./src/native/invoice");
       invoiceNative.registerBuiltinNativeInvoiceEventTypes();
+      const bookingNative = await import("./src/native/booking");
+      bookingNative.registerBuiltinNativeBookingEventTypes();
       const sinkMatch = pathname.match(/^\/api\/native\/webhooks\/([a-zA-Z0-9_-]+)$/);
       if (sinkMatch) {
         // Unauthenticated provider-style receiver — signature-gated (401/404
@@ -1209,6 +1211,14 @@ async function handleFetch(req: Request): Promise<Response> {
       if (proposalShareMatch) {
         const { handleNativeProposalShare } = await import("./src/native/proposals");
         return handleNativeProposalShare(req, { dataDir: DATA_DIR });
+      }
+      // Phase 3.1 — PUBLIC booking share (client booking page: summary, slots,
+      // and book-a-slot request). No session. Slug-gated; the request rides the
+      // tenant Approval Queue as a tenant-side pending card; never leaks tenant
+      // internals (reply carries ONLY the status).
+      if (pathname.startsWith("/api/native/booking/share/")) {
+        const { handleNativeBookingShare } = await import("./src/native/booking");
+        return handleNativeBookingShare(req, { dataDir: DATA_DIR });
       }
       const user = await getUserFromSession(req);
       if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
@@ -1246,6 +1256,11 @@ async function handleFetch(req: Request): Promise<Response> {
       if (pathname.startsWith("/api/native/invoice")) {
         const invoices = await import("./src/native/invoice");
         return invoices.handleNativeInvoicesAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
+      }
+      // Phase 3.1 — native booking pages (self-serve booking/scheduling, /api/native/booking*).
+      if (pathname.startsWith("/api/native/booking")) {
+        const bookings = await import("./src/native/booking");
+        return bookings.handleNativeBookingsAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
       }
       return native.handleNativeAuthed(req, {
         userEmail: user.email,
