@@ -11,6 +11,12 @@ interface ShareChecklist {
   progress: { done: number; total: number };
   percentDone: number;
 }
+interface ShareInvoice {
+  invoiceNumber: string;
+  currency: string;
+  amountDueCents: number;
+  status: string;
+}
 interface ShareView {
   dealRoomId: string;
   name: string;
@@ -19,6 +25,7 @@ interface ShareView {
   description: string;
   proposal: ShareProposal | null;
   checklist: ShareChecklist | null;
+  invoices: ShareInvoice[];
   updatedAt: string;
 }
 const STATUS_LABEL: Record<string, string> = {
@@ -73,6 +80,24 @@ export default function DealRoomSharePage() {
           </div>
         ) : (
           <p className="text-sm text-gray-500">No proposal is linked to this deal room yet.</p>
+        )}
+      </Card>
+      <Card className="mb-4">
+        <h3 className="mb-2 text-sm font-semibold text-gray-600">Invoices</h3>
+        {view.invoices && view.invoices.length > 0 ? (
+          <div className="space-y-2">
+            {view.invoices.map((inv) => (
+              <div key={inv.invoiceNumber} className="flex items-center justify-between rounded border p-2 text-sm">
+                <span className="font-medium">{inv.invoiceNumber}</span>
+                <span className="text-gray-600">
+                  {inv.currency} {(inv.amountDueCents / 100).toFixed(2)} · <Badge>{inv.status === "sent" ? "Sent" : "Draft"}</Badge>
+                </span>
+              </div>
+            ))}
+            <p className="text-xs text-gray-400">Posting to your accounting books is handled by the connected accounting adapter (Xero/QuickBooks).</p>
+          </div>
+        ) : (
+          <p className="text-sm text-gray-500">No invoice has been issued for this deal room yet.</p>
         )}
       </Card>
       <Card>

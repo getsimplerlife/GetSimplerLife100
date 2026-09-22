@@ -34,6 +34,15 @@ interface ChecklistChoice {
   name: string;
   status: string;
 }
+interface InvoicePanelItem {
+  id: string;
+  linkedDealRoomId: string;
+  invoiceNumber: string;
+  amountDueCents: number;
+  currency: string;
+  status: string;
+  docId: string | null;
+}
 
 const STATUS_LABEL: Record<string, string> = {
   draft: "Draft",
@@ -46,6 +55,7 @@ export default function DealRoomsPage() {
   const [writes, setWrites] = useState<PendingWrite[]>([]);
   const [proposals, setProposals] = useState<ProposalChoice[]>([]);
   const [checklists, setChecklists] = useState<ChecklistChoice[]>([]);
+  const [invoices, setInvoices] = useState<InvoicePanelItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState("");
@@ -74,6 +84,21 @@ export default function DealRoomsPage() {
     if (ch.ok) {
       const cj = await ch.json();
       setChecklists((cj.data || []).map((c: { id: string; name: string; status: string }) => ({ id: c.id, name: c.name, status: c.status })));
+    }
+    const inv = await fetch("/api/native/invoice", { credentials: "include" });
+    if (inv.ok) {
+      const ij = await inv.json();
+      setInvoices(
+        (ij.data || []).map((i: { id: string; linkedDealRoomId: string; invoiceNumber: string; amountDueCents: number; currency: string; status: string; docId: string | null }) => ({
+          id: i.id,
+          linkedDealRoomId: i.linkedDealRoomId,
+          invoiceNumber: i.invoiceNumber,
+          amountDueCents: i.amountDueCents,
+          currency: i.currency,
+          status: i.status,
+          docId: i.docId,
+        })),
+      );
     }
   }, []);
 
@@ -229,6 +254,29 @@ export default function DealRoomsPage() {
                     <Button onClick={() => deleteDealRoom(d.id)}>Delete</Button>
                   </div>
                 </div>
+                {(() => {
+                  const roomInvoices = invoices.filter((i) => i.linkedDealRoomId === d.id);
+                  if (roomInvoices.length === 0) return null;
+                  return (
+                    <div className="mt-3 rounded border-t pt-3">
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Invoices</p>
+                      <div className="space-y-2">
+                        {roomInvoices.map((i) => (
+                          <div key={i.id} className="flex items-center justify-between rounded bg-gray-50 px-3 py-2 text-sm">
+                            <span className="text-gray-700">
+                              {i.invoiceNumber} · {i.currency} {(i.amountDueCents / 100).toFixed(2)} ·{" "}
+                              <Badge>{i.status === "sent" ? "Sent" : "Draft"}</Badge>
+                            </span>
+                            <span className="text-xs text-gray-400">{i.docId ? "PDF on file" : "No PDF yet"}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="mt-2 text-xs text-sky-600">
+                        <a href="/portal/invoices">Create / manage invoices →</a>
+                      </p>
+                    </div>
+                  );
+                })()}
               </div>
             ))}
           </div>

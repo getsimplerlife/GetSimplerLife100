@@ -1176,6 +1176,8 @@ async function handleFetch(req: Request): Promise<Response> {
       checklistsNative.registerBuiltinNativeChecklistEventTypes();
       const dealRoomNative = await import("./src/native/dealroom");
       dealRoomNative.registerBuiltinNativeDealRoomEventTypes();
+      const invoiceNative = await import("./src/native/invoice");
+      invoiceNative.registerBuiltinNativeInvoiceEventTypes();
       const sinkMatch = pathname.match(/^\/api\/native\/webhooks\/([a-zA-Z0-9_-]+)$/);
       if (sinkMatch) {
         // Unauthenticated provider-style receiver — signature-gated (401/404
@@ -1239,6 +1241,11 @@ async function handleFetch(req: Request): Promise<Response> {
       if (pathname.startsWith("/api/native/dealroom")) {
         const dealRooms = await import("./src/native/dealroom");
         return dealRooms.handleNativeDealRoomsAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
+      }
+      // Phase 2.5 — native invoices (quote-to-cash slice 5, /api/native/invoice*).
+      if (pathname.startsWith("/api/native/invoice")) {
+        const invoices = await import("./src/native/invoice");
+        return invoices.handleNativeInvoicesAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
       }
       return native.handleNativeAuthed(req, {
         userEmail: user.email,

@@ -59,6 +59,7 @@ describe("write-action classification", () => {
       "uploadGDriveFile", "copyGDriveFile", "moveODFile", "writeExcelRange", "writeGoogleSheetRange",
       "postSlackMessage", "completeOnfleetTask", "voidDocuSignEnvelope", "trashGDriveFile",
       "triggerMarketoCampaign", "executeInforTransaction", "sendDocuSignEnvelope",
+      "generateInvoice", "generateDocuSignEnvelope",
     ]) {
       expect(isWriteAction(name), name).toBe(true);
     }

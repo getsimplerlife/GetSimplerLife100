@@ -31,6 +31,7 @@ import { isDealRoomId } from "./validate";
 import { getProposal } from "../proposals/store";
 import { formatCurrencyTotal } from "../proposals/gate";
 import { getChecklist } from "../checklists/store";
+import { listInvoices } from "../invoice/store";
 
 export interface NativeDealRoomsCtx {
   dataDir: string;
@@ -120,6 +121,17 @@ function publicShareView(dataDir: string, tenantId: string, d: {
             : null;
         })()
       : null,
+    // Invoices for this deal room — SAFE SUMMARY ONLY (invoice number, currency,
+    // amount in cents, status). No internal inv_ record ids, no docId, no audit —
+    // resolved strictly inside the slug→tenant context (no cross-tenant leak).
+    invoices: listInvoices(dataDir, tenantId)
+      .filter((i) => i.linkedDealRoomId === d.id)
+      .map((i) => ({
+        invoiceNumber: i.invoiceNumber,
+        currency: i.currency,
+        amountDueCents: i.amountDueCents,
+        status: i.status,
+      })),
     updatedAt: d.updatedAt,
   };
 }
