@@ -121,7 +121,6 @@ export default function BookingsPage() {
     }
   }
 
-  const dayWindow = `${DAYS[availDay]} ${String(Math.floor(availStart / 60)).padStart(2, "0")}:${String(availStart % 60).padStart(2, "0")}–${String(Math.floor(availEnd / 60)).padStart(2, "0")}:${String(availEnd % 60).padStart(2, "0")}`;
   const pageName = (id: string) => pages.find((p) => p.id === id)?.name ?? id;
   if (loading) return <div className="p-10 text-center text-slate-500">Loading booking pages…</div>;
 

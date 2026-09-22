@@ -11,12 +11,10 @@ import {
   lookupBookingShareTenant,
   advanceBookingPageRoundRobin,
 } from "../native/booking/store";
-import { noteOwnerDecision } from "../native/booking/gate";
 import { handleNativeBookingsAuthed, handleNativeBookingShare, registerBuiltinNativeBookingEventTypes } from "../native/booking/router";
 import { availableSlotsForDate, isSlotAvailable } from "../native/booking/availability";
-import { setAutonomyWorkflow, autonomyAuditPath } from "../lib/autonomy";
+import { setAutonomyWorkflow } from "../lib/autonomy";
 import { listTenantActions } from "../lib/approval-queue";
-import { readJSON } from "../lib/data-store";
 const T1 = "tenant-a@acme.test";
 const T2 = "tenant-b@acme.test";
 let dir: string;
@@ -124,12 +122,23 @@ describe("native booking — gated lifecycle + availability + round-robin + no-l
       availableSlotsForDate(booked, [], MON).filter((s) => s !== S10 && s !== S11),
     ).toEqual([S09, S12]);
   });
-  it("isSlotAvailable rejects a taken slot; page must be published", async () => {
+  it("isSlotAvailable is pure; the ROUTER fail-closes draft pages (404 on public lane)", async () => {
     const id = await createAndApplyPage();
     const page = getBookingPage(dir, T1, id)!;
-    // draft → not available
-    expect(isSlotAvailable(page, [], S09)).toBe(false);
+    // Pure math is status-agnostic — the gate/router enforce "published only".
+    expect(isSlotAvailable(page, [], S09)).toBe(true);
+    // The public lane 404s a DRAFT page (never exposes availability pre-publish).
+    const draft = await handleNativeBookingShare(
+      new Request(`http://native.test/api/native/booking/share/${page.slug!}`, {
+        method: "POST",
+        body: JSON.stringify({ clientName: "Client One", clientEmail: "client@one.test", startAt: S09 }),
+        headers: { "content-type": "application/json" },
+      }),
+      { dataDir: dir },
+    );
+    expect(draft.status).toBe(404);
     const pub = await route("POST", `/api/native/booking/${id}/publish`);
+    void pub;
     expect(pub.status).toBe(202); // gated
     const ptw = pendingFirst("publish");
     await route("POST", `/api/native/booking/writes/${ptw!.id}/apply`);
@@ -141,6 +150,7 @@ describe("native booking — gated lifecycle + availability + round-robin + no-l
     const id = await createAndApplyPage();
     const slug = pageSlug(id);
     const pub = await route("POST", `/api/native/booking/${id}/publish`);
+    void pub;
     await route("POST", `/api/native/booking/writes/${pendingFirst("publish")!.id}/apply`);
     const view = await handleNativeBookingShare(new Request(`http://native.test/api/native/booking/share/${slug}`), { dataDir: dir });
     expect(view.status).toBe(200);
@@ -177,17 +187,12 @@ describe("native booking — gated lifecycle + availability + round-robin + no-l
       }),
       { dataDir: dir },
     );
-    expect([200, 202]).toContain(res2.status);
-    const ptw2 = pendingFirst("request");
-    expect(ptw2).not.toBeNull();
-    const apply2 = await route("POST", `/api/native/booking/writes/${ptw2!.id}/apply`);
-    expect(apply2.status).toBe(400);
-    expect((await apply2.json()).error).toMatch(/no longer available/);
+    expect(res2.status).toBe(400); // slot taken → validates BEFORE the queue
+    expect((await res2.json()).error).toMatch(/no longer available/);
     expect(listBookings(dir, T1)).toHaveLength(1); // never double-booked
   });
   it("confirm is approval-gated; apply assigns round-robin host + calendarSync intent; events carry the payload", async () => {
     const id = await createAndApplyPage();
-    const page = getBookingPage(dir, T1, id);
     // round-robin cycles a, b, c
     expect(advanceBookingPageRoundRobin(dir, T1, id)).toBe("a@acme.test");
     expect(advanceBookingPageRoundRobin(dir, T1, id)).toBe("b@acme.test");
@@ -204,9 +209,9 @@ describe("native booking — gated lifecycle + availability + round-robin + no-l
     await route("POST", `/api/native/booking/writes/${pendingFirst("confirm")!.id}/apply`);
     const updated = listBookings(dir, T1)[0];
     expect(updated.status).toBe("confirmed");
-    // Round-robin: the page counter was at 1 from the direct advance tests above —
-    // re-fetch: confirm uses the page's CURRENT counter, which we advanced 4× → next is a@acme.test.
-    expect(updated.roundRobinAssignee).toBe("a@acme.test");
+    // Round-robin: the direct advances above moved rrIndex to 4 — the confirm
+    // uses the CURRENT counter: team[4 % 3] = team[1] = b@acme.test.
+    expect(updated.roundRobinAssignee).toBe("b@acme.test");
     expect(updated.calendarSync.status).toBe("pending");
     expect(updated.calendarSync.provider).toBe("google-calendar");
     const audit = listAudit(dir, T1);
@@ -217,6 +222,7 @@ describe("native booking — gated lifecycle + availability + round-robin + no-l
   it("confirm on non-requested booking → 400 (fail-closed lifecycle)", async () => {
     const id = await createAndApplyPage();
     const slug = pageSlug(id);
+    void slug;
     await route("POST", `/api/native/booking/${id}/publish`);
     await route("POST", `/api/native/booking/writes/${pendingFirst("publish")!.id}/apply`);
     await requestAndApply(id, S09);
@@ -239,6 +245,7 @@ describe("native booking — gated lifecycle + availability + round-robin + no-l
     expect(listBookingPages(dir, T1)).toHaveLength(0);
     // recreate + cancel flow
     const id2 = await createAndApplyPage();
+    void id2;
     const can = await route("POST", `/api/native/booking/bookings/nonexistent/cancel`);
     expect(can.status).toBe(404);
   });
@@ -263,16 +270,17 @@ describe("native booking — gated lifecycle + availability + round-robin + no-l
   it("autonomy allow-list auto-applies confirmBooking; idempotent apply replay → alreadyApplied, no duplicate", async () => {
     const id = await createAndApplyPage();
     const slug = pageSlug(id);
+    void slug;
     await route("POST", `/api/native/booking/${id}/publish`);
     await route("POST", `/api/native/booking/writes/${pendingFirst("publish")!.id}/apply`);
     // allow-list confirm for this workflow (never destructive ops)
-    setAutonomyWorkflow({ name: "native-bookings", allowList: [{ action: "confirmBooking", actor: T1 }] });
+    setAutonomyWorkflow(T1, "native-bookings", { enabled: true, allowList: [{ action: "confirmBooking" }] }, dir);
     const r = await requestAndApply(id, S09);
     void r;
     const b = listBookings(dir, T1)[0];
     const conf = await route("POST", `/api/native/booking/bookings/${b.id}/confirm`);
     expect(conf.status).toBe(200); // autonomy auto-applied
-    expect(`${JSON.stringify(conf)}`).toContain("applied");
+    expect((await conf.json())).toMatchObject({ data: { status: "applied" } });
     const audit = listAudit(dir, T1);
     expect(audit.filter((e) => e.action === "native.booking.confirmed")).toHaveLength(1);
     // idempotent replay of the apply executor returns alreadyApplied

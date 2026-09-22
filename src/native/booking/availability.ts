@@ -87,7 +87,10 @@ function overlaps(candidateStart: number, candidateEnd: number, busy: Array<{ st
  * page's timeZone. Deterministic and pure.
  */
 export function availableSlotsForDate(page: BookingPageRecord, bookings: BookingRecord[], dateStr: string): string[] {
-  if (page.status !== "published") return [];
+  // Note: NO status check here — this is PURE math. The gate/router enforce
+  // "published only" (validateWrite rejects requests on non-published pages;
+  // the public share router 404s draft/archived pages). Keeping status out of
+  // the pure functions makes them deterministic and directly testable.
   const dow = weekdayOf(page.timeZone, dateStr);
   const windows = page.availability.filter((w) => w.dayOfWeek === dow);
   if (windows.length === 0) return [];
@@ -108,9 +111,8 @@ export function availableSlotsForDate(page: BookingPageRecord, bookings: Booking
   return [...new Set(out)].sort();
 }
 
-/** True iff a given ISO start is a free slot on the page right now. */
+/** True iff a given ISO start is a free slot on the page right now (pure). */
 export function isSlotAvailable(page: BookingPageRecord, bookings: BookingRecord[], startAtIso: string): boolean {
-  if (page.status !== "published") return false;
   const dt = new Date(startAtIso);
   if (Number.isNaN(dt.getTime())) return false;
   // The calendar date is the PAGE wall-clock date of the instant (not UTC date).

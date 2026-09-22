@@ -147,7 +147,7 @@ async function handleAuthedAsync(req: Request, ctx: NativeBookingsCtx): Promise<
       const res = submitBookingWrite(ctx.dataDir, tenantId, "create", { data: mutation, via: "portal" }, tenantId);
       if (res.applied && res.page) return Response.json({ data: { status: "applied", page: tenantPageSummary(res.page, url.origin) } });
       if (res.pending) return Response.json({ data: { status: "pending", approvalActionId: res.approvalActionId } }, { status: 202 });
-      return gateErrorStatus(res.error);
+      return gateErrorStatus((res as { error?: string }).error ?? "booking write failed");
     }
     return json405();
   }
@@ -197,13 +197,13 @@ async function handleAuthedAsync(req: Request, ctx: NativeBookingsCtx): Promise<
         const res = submitBookingWrite(ctx.dataDir, tenantId, "confirm", { bookingId: booking.id, via: "portal" }, tenantId);
         if (res.applied) return Response.json({ data: { status: "applied", booking: bookingSummary(res.booking) } });
         if (res.pending) return Response.json({ data: { status: "pending", approvalActionId: res.approvalActionId } }, { status: 202 });
-        return gateErrorStatus(res.error);
+        return gateErrorStatus((res as { error?: string }).error ?? "booking write failed");
       }
       if (seg[2] === "cancel") {
         const res = submitBookingWrite(ctx.dataDir, tenantId, "cancel", { bookingId: booking.id, via: "portal" }, tenantId);
         if (res.applied) return Response.json({ data: { status: "applied", booking: bookingSummary(res.booking) } });
         if (res.pending) return Response.json({ data: { status: "pending", approvalActionId: res.approvalActionId } }, { status: 202 });
-        return gateErrorStatus(res.error);
+        return gateErrorStatus((res as { error?: string }).error ?? "booking write failed");
       }
     }
     return json404("Unknown native booking endpoint");
@@ -217,7 +217,7 @@ async function handleAuthedAsync(req: Request, ctx: NativeBookingsCtx): Promise<
       const res = submitBookingWrite(ctx.dataDir, tenantId, "delete", { bookingPageId: page.id, via: "portal" }, tenantId);
       if (res.applied) return Response.json({ data: { status: "deleted" } });
       if (res.pending) return Response.json({ data: { status: "pending", approvalActionId: res.approvalActionId } }, { status: 202 });
-      return gateErrorStatus(res.error);
+      return gateErrorStatus((res as { error?: string }).error ?? "booking write failed");
     }
     if (req.method === "POST") {
       const b = parseJsonObject(await req.text());
@@ -226,7 +226,7 @@ async function handleAuthedAsync(req: Request, ctx: NativeBookingsCtx): Promise<
       const res = submitBookingWrite(ctx.dataDir, tenantId, "update", { bookingPageId: page.id, data: mutation, via: "portal" }, tenantId);
       if (res.applied && res.page) return Response.json({ data: { status: "applied", page: tenantPageSummary(res.page, url.origin) } });
       if (res.pending) return Response.json({ data: { status: "pending", approvalActionId: res.approvalActionId } }, { status: 202 });
-      return gateErrorStatus(res.error);
+      return gateErrorStatus((res as { error?: string }).error ?? "booking write failed");
     }
     return json405();
   }
@@ -235,13 +235,13 @@ async function handleAuthedAsync(req: Request, ctx: NativeBookingsCtx): Promise<
       const res = submitBookingWrite(ctx.dataDir, tenantId, "publish", { bookingPageId: page.id, via: "portal" }, tenantId);
       if (res.applied && res.page) return Response.json({ data: { status: "applied", page: tenantPageSummary(res.page, url.origin) } });
       if (res.pending) return Response.json({ data: { status: "pending", approvalActionId: res.approvalActionId } }, { status: 202 });
-      return gateErrorStatus(res.error);
+      return gateErrorStatus((res as { error?: string }).error ?? "booking write failed");
     }
     if (seg[1] === "archive") {
       const res = submitBookingWrite(ctx.dataDir, tenantId, "archive", { bookingPageId: page.id, via: "portal" }, tenantId);
       if (res.applied && res.page) return Response.json({ data: { status: "applied", page: tenantPageSummary(res.page, url.origin) } });
       if (res.pending) return Response.json({ data: { status: "pending", approvalActionId: res.approvalActionId } }, { status: 202 });
-      return gateErrorStatus(res.error);
+      return gateErrorStatus((res as { error?: string }).error ?? "booking write failed");
     }
   }
   return json404("Unknown native booking endpoint");
@@ -279,11 +279,12 @@ async function handleShareAsync(req: Request, ctx: NativeBookingsPublicCtx): Pro
   if (seg.length === 1 && req.method === "POST") {
     const b = parseJsonObject(await req.text());
     const v = validateBookingRequestInput(b);
-    if (!v.ok || !v.data) return json400(v.error);
+    if (!v.ok) return json400(v.error);
+      if (!v.data) return json400("invalid booking request");
     const res = submitBookingWrite(ctx.dataDir, tenantId, "request", { bookingPageId: page.id, request: v.data, via: "public" }, "client");
     if (res.applied) return Response.json({ data: { status: "applied" } }); // autonomy approved instantly
     if (res.pending) return Response.json({ data: { status: "pending" } }); // tenant-side approval card queued
-    return gateErrorStatus(res.error);
+    return gateErrorStatus((res as { error?: string }).error ?? "booking write failed");
   }
   if (seg.length === 1 && req.method !== "GET" && req.method !== "POST") return json405();
   if (seg.length === 2 && seg[1] === "slots" && req.method !== "GET") return json405();

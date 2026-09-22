@@ -381,7 +381,6 @@ export function executePendingBookingWrite(
   }
   try {
     const applied = applyMutation(dataDir, tenantId, ptw.op, { bookingPageId: ptw.bookingPageId ?? undefined, bookingId: ptw.bookingId ?? undefined, data: ptw.payload.data, request: ptw.payload.request, via: ptw.payload.via }, ptw.payload.data ?? {}, actor);
-    const id = applied.kind === "page" ? applied.page.id : applied.booking.id;
     markPendingWrite(dataDir, tenantId, ptw.id, "applied", actor, { status: applied.kind === "page" ? applied.page.status : applied.booking.status, bookingPageId: applied.kind === "page" ? applied.page.id : applied.booking.bookingPageId, bookingId: applied.kind === "booking" ? applied.booking.id : undefined });
     return { ok: true, ...(applied.kind === "page" ? { page: applied.page } : { booking: applied.booking }), ptwId: ptw.id, op: ptw.op };
   } catch (e) {
