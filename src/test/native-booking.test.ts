@@ -146,6 +146,38 @@ describe("native booking — gated lifecycle + availability + round-robin + no-l
     expect(published.status).toBe("published");
     expect(isSlotAvailable(published, [], S09)).toBe(true);
   });
+  it("public POST is rate-limited (10/min per slug+client → 429 generic; GETs unaffected; separate IP has own budget)", async () => {
+    const id = await createAndApplyPage();
+    await route("POST", `/api/native/booking/${id}/publish`);
+    await route("POST", `/api/native/booking/writes/${pendingFirst("publish")!.id}/apply`);
+    const slug = pageSlug(id);
+    const post = (name: string, email: string, startAt: string, ip = "203.0.113.7") =>
+      handleNativeBookingShare(
+        new Request(`http://native.test/api/native/booking/share/${slug}`, {
+          method: "POST",
+          body: JSON.stringify({ clientName: name, clientEmail: email, startAt }),
+          headers: { "content-type": "application/json", "x-forwarded-for": ip },
+        }),
+        { dataDir: dir },
+      );
+    const statuses: number[] = [];
+    for (let i = 0; i < 12; i++) statuses.push((await post(`Client ${i}`, `c${i}@test.test`, S09)).status);
+    const passed = statuses.filter((st) => st !== 429).length;
+    expect(passed).toBeLessThanOrEqual(10); // fixed window budget
+    expect(statuses.filter((st) => st === 429).length).toBeGreaterThanOrEqual(1);
+    // blocked body is generic (no internals)
+    const blocked = await post("Blocked", "blocked@test.test", S09);
+    expect(blocked.status).toBe(429);
+    expect((await blocked.json()).error).toContain("Too many booking requests");
+    // GET summary + slots are NOT rate-limited
+    const get = await handleNativeBookingShare(new Request(`http://native.test/api/native/booking/share/${slug}`), { dataDir: dir });
+    expect(get.status).toBe(200);
+    const slots = await handleNativeBookingShare(new Request(`http://native.test/api/native/booking/share/${slug}/slots?date=${MON}`), { dataDir: dir });
+    expect(slots.status).toBe(200);
+    // a different client IP has its own budget (still gated → 202 pending)
+    const other = await post("Other IP", "other@test.test", S12, "198.51.100.9");
+    expect([200, 202]).toContain(other.status); // own budget: gated (202) or auto-applied (200)
+  });
   it("public share: safe summary (no team emails / internal ids), slots endpoint, unknown slug 404", async () => {
     const id = await createAndApplyPage();
     const slug = pageSlug(id);

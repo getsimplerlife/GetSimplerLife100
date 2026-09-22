@@ -15,6 +15,8 @@
  *   - POST → book a slot (requestBooking) — rides the tenant Approval Queue
  *            as a tenant-side pending card; reply is ONLY {status}
  *            ("pending" | "applied") — no tenant internals, no approval ids.
+ *   The public POST lane is RATE-LIMITED per slug+client (10/min fixed
+ *   window → 429, generic body) — security bar for unauthenticated writes.
  *   The public lane NEVER exposes tenant data: no audit, no pending writes,
  *   no client list, no internal ids.
  *
@@ -42,6 +44,7 @@ import {
 import { isBookingPageId, isBookingId, validateBookingRequestInput } from "./validate";
 import { availableSlotsForDate, describeWindow } from "./availability";
 import { CALENDAR_SYNC_LABEL } from "./sync";
+import { BookingPostLimiter, createBookingPostLimiter } from "./ratelimit";
 
 export interface NativeBookingsCtx {
   dataDir: string;
@@ -49,6 +52,8 @@ export interface NativeBookingsCtx {
 }
 export interface NativeBookingsPublicCtx {
   dataDir: string;
+  /** Rate limiter for the public booking POST lane (shared process-wide unless injected for tests). */
+  limiter?: BookingPostLimiter;
 }
 // ── helpers ─────────────────────────────────────────────────────────────────
 function parseJsonObject(raw: string): Record<string, unknown> {
@@ -258,6 +263,18 @@ export function handleNativeBookingsAuthed(req: Request, ctx: NativeBookingsCtx)
 }
 
 // ── PUBLIC share (client booking page) ──────────────────────────────────────
+const sharedBookingPostLimiter = createBookingPostLimiter();
+
+/** Best-effort client identity for rate limiting (slug is the primary key). */
+function clientIpOf(req: Request): string {
+  const fwd = req.headers.get("x-forwarded-for");
+  if (fwd) {
+    const first = fwd.split(",")[0]?.trim();
+    if (first) return first;
+  }
+  return req.headers.get("x-real-ip")?.trim() || "anon";
+}
+
 async function handleShareAsync(req: Request, ctx: NativeBookingsPublicCtx): Promise<Response> {
   const url = new URL(req.url);
   const seg = url.pathname.replace(/^\/api\/native\/booking\/share\/?/, "").split("/").filter(Boolean);
@@ -277,6 +294,14 @@ async function handleShareAsync(req: Request, ctx: NativeBookingsPublicCtx): Pro
     return Response.json({ data: { date: rawDate, slots: availableSlotsForDate(page, bookings, rawDate) } });
   }
   if (seg.length === 1 && req.method === "POST") {
+    // Public write lane is rate-limited per slug+client (fixed window).
+    const limiter = ctx.limiter ?? sharedBookingPostLimiter;
+    if (!limiter.allow(`${slug}|${clientIpOf(req)}`)) {
+      return Response.json(
+        { error: "Too many booking requests — please try again shortly." },
+        { status: 429 },
+      );
+    }
     const b = parseJsonObject(await req.text());
     const v = validateBookingRequestInput(b);
     if (!v.ok) return json400(v.error);
