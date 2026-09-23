@@ -44,7 +44,7 @@ import {
 import { isBookingPageId, isBookingId, validateBookingRequestInput } from "./validate";
 import { availableSlotsForDate, describeWindow } from "./availability";
 import { CALENDAR_SYNC_LABEL } from "./sync";
-import { BookingPostLimiter, createBookingPostLimiter } from "./ratelimit";
+import { createBookingPostLimiter, type BookingPostLimiter } from "./ratelimit";
 
 export interface NativeBookingsCtx {
   dataDir: string;

@@ -231,7 +231,6 @@ describe("native booking — gated lifecycle + availability + round-robin + no-l
     expect(advanceBookingPageRoundRobin(dir, T1, id)).toBe("c@acme.test");
     expect(advanceBookingPageRoundRobin(dir, T1, id)).toBe("a@acme.test");
     // now the real flow: request → confirm
-    const slug = pageSlug(id);
     await route("POST", `/api/native/booking/${id}/publish`);
     await route("POST", `/api/native/booking/writes/${pendingFirst("publish")!.id}/apply`);
     await requestAndApply(id, S09);
@@ -306,7 +305,7 @@ describe("native booking — gated lifecycle + availability + round-robin + no-l
     await route("POST", `/api/native/booking/${id}/publish`);
     await route("POST", `/api/native/booking/writes/${pendingFirst("publish")!.id}/apply`);
     // allow-list confirm for this workflow (never destructive ops)
-    setAutonomyWorkflow(T1, "native-bookings", { enabled: true, allowList: [{ action: "confirmBooking" }] }, dir);
+    setAutonomyWorkflow(T1, "native-bookings", { enabled: true, allowList: [{ id: "al-booking-confirm", action: "confirmBooking" }] }, dir);
     const r = await requestAndApply(id, S09);
     void r;
     const b = listBookings(dir, T1)[0];
