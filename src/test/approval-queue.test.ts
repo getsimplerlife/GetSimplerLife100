@@ -63,6 +63,12 @@ describe("write-action classification", () => {
       // Phase 3.1 booking slice: publish/confirm/request are state mutations
       // and MUST ride the Approval Queue (fail-open guard, P2.5 generate lesson).
       "publishBookingPage", "confirmBooking", "requestBooking", "cancelBooking", "archiveBookingPage",
+      // Phase 3.2 board slice: every board verb rides the Approval Queue —
+      // reopenBoardCard guards the P3.2 reopen verb that was ADDED to WRITE_VERB.
+      "createBoard", "updateBoard", "archiveBoard", "deleteBoard",
+      "createBoardColumn", "updateBoardColumn", "deleteBoardColumn",
+      "createBoardCard", "updateBoardCard", "moveBoardCard", "assignBoardCard",
+      "closeBoardCard", "reopenBoardCard", "deleteBoardCard",
     ]) {
       expect(isWriteAction(name), name).toBe(true);
     }
