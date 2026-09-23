@@ -1180,6 +1180,8 @@ async function handleFetch(req: Request): Promise<Response> {
       invoiceNative.registerBuiltinNativeInvoiceEventTypes();
       const bookingNative = await import("./src/native/booking");
       bookingNative.registerBuiltinNativeBookingEventTypes();
+      const boardNative = await import("./src/native/board");
+      boardNative.registerBuiltinNativeBoardEventTypes();
       const sinkMatch = pathname.match(/^\/api\/native\/webhooks\/([a-zA-Z0-9_-]+)$/);
       if (sinkMatch) {
         // Unauthenticated provider-style receiver — signature-gated (401/404
@@ -1261,6 +1263,12 @@ async function handleFetch(req: Request): Promise<Response> {
       if (pathname.startsWith("/api/native/booking")) {
         const bookings = await import("./src/native/booking");
         return bookings.handleNativeBookingsAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
+      }
+      // Phase 3.2 — native task/project boards (kanban, /api/native/board*).
+      // AUTHED-ONLY: no public share surface; wired AFTER the session check.
+      if (pathname.startsWith("/api/native/board")) {
+        const boards = await import("./src/native/board");
+        return boards.handleNativeBoardsAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
       }
       return native.handleNativeAuthed(req, {
         userEmail: user.email,
