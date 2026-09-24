@@ -1226,6 +1226,15 @@ async function handleFetch(req: Request): Promise<Response> {
         const { handleNativeBookingShare } = await import("./src/native/booking");
         return handleNativeBookingShare(req, { dataDir: DATA_DIR });
       }
+      // Phase 3.4 — PUBLIC survey share: published survey view + response submit
+      // (slug-gated, rate-limited, reply carries ONLY {status}). No session —
+      // MUST stay BEFORE the session check below (the share lane is
+      // respondent-facing; bogus slugs → 404 inside the handler).
+      if (pathname.startsWith("/api/native/survey/share/")) {
+        const { handleNativeSurveyShare } = await import("./src/native/survey");
+        const slug = pathname.split("/").pop() || "";
+        return handleNativeSurveyShare(req, { dataDir: DATA_DIR }, slug);
+      }
       const user = await getUserFromSession(req);
       if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
       // Phase 1.3 — native forms builder (authed CRUD + submissions)
@@ -1273,13 +1282,6 @@ async function handleFetch(req: Request): Promise<Response> {
       if (pathname.startsWith("/api/native/board")) {
         const boards = await import("./src/native/board");
         return boards.handleNativeBoardsAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
-      }
-      // Phase 3.4 — PUBLIC survey share: published survey + response submit
-      // (slug-gated, rate-limited, reply carries ONLY {status}). No session.
-      if (pathname.startsWith("/api/native/survey/share/")) {
-        const { handleNativeSurveyShare } = await import("./src/native/survey");
-        const slug = pathname.split("/").pop() || "";
-        return handleNativeSurveyShare(req, { dataDir: DATA_DIR }, slug);
       }
       // Phase 3.3 — native AI document understanding (drafts, gated runs,
       // human-review reject lane, row-data pre-fill, /api/native/extract*).
