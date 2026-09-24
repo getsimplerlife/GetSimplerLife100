@@ -69,6 +69,9 @@ describe("write-action classification", () => {
       "createBoardColumn", "updateBoardColumn", "deleteBoardColumn",
       "createBoardCard", "updateBoardCard", "moveBoardCard", "assignBoardCard",
       "closeBoardCard", "reopenBoardCard",
+      // Phase 3.4 - native surveys: every survey op is verb-first + WRITE
+      "createSurvey", "updateSurvey", "publishSurvey", "archiveSurvey",
+      "deleteSurvey", "submitSurveyResponse",
       // Phase 3.3 - native AI document understanding: extractDocument is a WRITE
       // (`extract` ADDED to WRITE_VERB; without it the gated run would have
       // BYPASSED the Approval Queue as a READ - fail-open class, 2.5/3.1/3.2).
