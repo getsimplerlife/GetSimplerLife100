@@ -1182,6 +1182,8 @@ async function handleFetch(req: Request): Promise<Response> {
       bookingNative.registerBuiltinNativeBookingEventTypes();
       const boardNative = await import("./src/native/board");
       boardNative.registerBuiltinNativeBoardEventTypes();
+      const extractNative = await import("./src/native/extract");
+      extractNative.registerBuiltinNativeExtractEventTypes();
       const sinkMatch = pathname.match(/^\/api\/native\/webhooks\/([a-zA-Z0-9_-]+)$/);
       if (sinkMatch) {
         // Unauthenticated provider-style receiver — signature-gated (401/404
@@ -1269,6 +1271,13 @@ async function handleFetch(req: Request): Promise<Response> {
       if (pathname.startsWith("/api/native/board")) {
         const boards = await import("./src/native/board");
         return boards.handleNativeBoardsAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
+      }
+      // Phase 3.3 — native AI document understanding (drafts, gated runs,
+      // human-review reject lane, row-data pre-fill, /api/native/extract*).
+      // AUTHED-ONLY: no public share surface; wired AFTER the session check.
+      if (pathname.startsWith("/api/native/extract")) {
+        const extractNative = await import("./src/native/extract");
+        return extractNative.handleNativeExtractAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
       }
       return native.handleNativeAuthed(req, {
         userEmail: user.email,
