@@ -1184,6 +1184,8 @@ async function handleFetch(req: Request): Promise<Response> {
       boardNative.registerBuiltinNativeBoardEventTypes();
       const extractNative = await import("./src/native/extract");
       extractNative.registerBuiltinNativeExtractEventTypes();
+      const surveyNative = await import("./src/native/survey");
+      surveyNative.registerBuiltinNativeSurveyEventTypes();
       const sinkMatch = pathname.match(/^\/api\/native\/webhooks\/([a-zA-Z0-9_-]+)$/);
       if (sinkMatch) {
         // Unauthenticated provider-style receiver — signature-gated (401/404
@@ -1272,12 +1274,25 @@ async function handleFetch(req: Request): Promise<Response> {
         const boards = await import("./src/native/board");
         return boards.handleNativeBoardsAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
       }
+      // Phase 3.4 — PUBLIC survey share: published survey + response submit
+      // (slug-gated, rate-limited, reply carries ONLY {status}). No session.
+      if (pathname.startsWith("/api/native/survey/share/")) {
+        const { handleNativeSurveyShare } = await import("./src/native/survey");
+        const slug = pathname.split("/").pop() || "";
+        return handleNativeSurveyShare(req, { dataDir: DATA_DIR }, slug);
+      }
       // Phase 3.3 — native AI document understanding (drafts, gated runs,
       // human-review reject lane, row-data pre-fill, /api/native/extract*).
       // AUTHED-ONLY: no public share surface; wired AFTER the session check.
       if (pathname.startsWith("/api/native/extract")) {
         const extractNative = await import("./src/native/extract");
         return extractNative.handleNativeExtractAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
+      }
+      // Phase 3.4 — native surveys (builder, responses, stats, /api/native/survey*).
+      // AUTHED-ONLY management surface (the share lane is handled pre-session).
+      if (pathname.startsWith("/api/native/survey")) {
+        const surveys = await import("./src/native/survey");
+        return surveys.handleNativeSurveysAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
       }
       return native.handleNativeAuthed(req, {
         userEmail: user.email,
