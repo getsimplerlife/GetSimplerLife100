@@ -208,7 +208,7 @@ export function submitSurveyWrite(
   if (gate.error) return { applied: false, pending: false, error: gate.error };
 
   if (op === "submit") {
-    // Dedupe: one pending response submission per survey+payload hash window.
+    // Cap queued submissions: bound the pending mirror; approve/reject before more.
     const pending = listPendingWrites(dataDir, tenantId).filter((w) => w.status === "pending");
     if (pending.length >= MAX_PENDING_SURVEY_WRITES) {
       return { applied: false, pending: false, error: `Pending-write cap reached (${MAX_PENDING_SURVEY_WRITES}) — approve or reject before more` };

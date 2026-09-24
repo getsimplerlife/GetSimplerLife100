@@ -61,9 +61,10 @@ async function publish(surveyId: string) {
   const a = await route("POST", `/api/native/survey/writes/${ptw.id}/apply`);
   expect(a.status).toBe(200);
 }
-async function submitResponse(surveyId: string, answers: Record<string, unknown>): Promise<Response> {
+async function submitResponse(surveyId: string, answers: Record<string, unknown>, comment?: string): Promise<Response> {
   const hit = listSurveys(dir, T1).find((s) => s.id === surveyId)!;
-  return publicRoute("POST", `/api/native/survey/share/${hit.slug}/submit`, answers);
+  // The share-lane contract is { answers, comment } (see handleNativeSurveyShare).
+  return publicRoute("POST", `/api/native/survey/share/${hit.slug}/submit`, { answers, comment });
 }
 
 beforeEach(() => {
@@ -157,7 +158,7 @@ describe("native survey slice", () => {
     expect((await submitResponse(surveyId, { [q]: 99 })).status).toBe(400); // out of 1-5
     expect((await submitResponse(surveyId, { q_unknown_000: 3 })).status).toBe(400);
     expect((await submitResponse(surveyId, {})).status).toBe(400); // required missing
-    expect(listPendingWrites(dir, T1).length).toBe(0);
+    expect(listPendingWrites(dir, T1).filter((w) => w.status === "pending").length).toBe(0);
   });
 
   it("rate limit: >10 submissions per slug+client in a minute → 429", async () => {
@@ -188,9 +189,9 @@ describe("native survey slice", () => {
     const s = listSurveys(dir, T1).find((x) => x.id === surveyId)!;
     const q = s.questions.find((qq) => qq.kind === "rating")!.id;
     expect(q).toBeTruthy();
-    // CSAT responses: 3 + 5 = avg 4; comments captured.
+    // CSAT responses: 3 + 5 = avg 4; comments captured via the comment field.
     for (const score of [3, 5]) {
-      const r = await submitResponse(surveyId, { [q]: score, [s.questions[1]!.id]: "nice" });
+      const r = await submitResponse(surveyId, { [q]: score }, "nice");
       expect(r.status).toBe(202);
       const ptw = await pendingWrite();
       const a = await route("POST", `/api/native/survey/writes/${ptw.id}/apply`);
