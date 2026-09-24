@@ -1186,6 +1186,8 @@ async function handleFetch(req: Request): Promise<Response> {
       extractNative.registerBuiltinNativeExtractEventTypes();
       const surveyNative = await import("./src/native/survey");
       surveyNative.registerBuiltinNativeSurveyEventTypes();
+      const transformNative = await import("./src/native/transform");
+      transformNative.registerBuiltinNativeTransformEventTypes();
       const sinkMatch = pathname.match(/^\/api\/native\/webhooks\/([a-zA-Z0-9_-]+)$/);
       if (sinkMatch) {
         // Unauthenticated provider-style receiver — signature-gated (401/404
@@ -1295,6 +1297,13 @@ async function handleFetch(req: Request): Promise<Response> {
       if (pathname.startsWith("/api/native/survey")) {
         const surveys = await import("./src/native/survey");
         return surveys.handleNativeSurveysAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
+      }
+      // Phase 3.5 — native data transforms & EDI tooling (JSON/XML/CSV mapping,
+      // XPath-subset + EDI X12/EDIFACT parse+generate, /api/native/transform*).
+      // AUTHED-ONLY: no public share surface; wired AFTER the session check.
+      if (pathname.startsWith("/api/native/transform")) {
+        const transforms = await import("./src/native/transform");
+        return transforms.handleNativeTransformsAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
       }
       return native.handleNativeAuthed(req, {
         userEmail: user.email,
