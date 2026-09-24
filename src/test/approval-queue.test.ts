@@ -68,7 +68,11 @@ describe("write-action classification", () => {
       "createBoard", "updateBoard", "archiveBoard", "deleteBoard",
       "createBoardColumn", "updateBoardColumn", "deleteBoardColumn",
       "createBoardCard", "updateBoardCard", "moveBoardCard", "assignBoardCard",
-      "closeBoardCard", "reopenBoardCard", "deleteBoardCard",
+      "closeBoardCard", "reopenBoardCard",
+      // Phase 3.3 - native AI document understanding: extractDocument is a WRITE
+      // (`extract` ADDED to WRITE_VERB; without it the gated run would have
+      // BYPASSED the Approval Queue as a READ - fail-open class, 2.5/3.1/3.2).
+      "extractDocument", "deleteBoardCard",
     ]) {
       expect(isWriteAction(name), name).toBe(true);
     }
