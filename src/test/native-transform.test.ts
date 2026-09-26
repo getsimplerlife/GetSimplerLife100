@@ -279,7 +279,7 @@ describe("native transform slice", () => {
     if (parsed.kind !== "edifact") return;
     expect(parsed.transactions).toHaveLength(1);
     const ediFields: FieldMapping[] = [
-      { source: "LIN.1", target: "sku", required: true },
+      { source: "LIN.2", target: "sku", required: true },
       { source: "QTY.1", target: "qty", required: true },
       { source: "UNH.1", target: "ref", required: true },
     ];

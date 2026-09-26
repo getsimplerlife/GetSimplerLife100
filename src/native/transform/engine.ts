@@ -83,7 +83,9 @@ function parseXml(text: string): XmlNode {
   };
   const pushText = (t: string) => {
     if (t.length === 0) return;
-    if (stack.length > 0) stack[stack.length - 1].text += t;
+    // element text is entity-decoded (&amp; -> &); CDATA sections push raw text
+    // through their own branch, exactly as XML semantics require
+    if (stack.length > 0) stack[stack.length - 1].text += decodeEntities(t);
     else if (t.trim().length > 0) throw new Error("text outside the root element");
   };
   let i = 0;
@@ -108,6 +110,13 @@ function parseXml(text: string): XmlNode {
       i = end + 3;
       continue;
     }
+    if (text.startsWith("<?", lt)) {
+      // processing instruction (e.g. <?xml version="1.0"?>) — skip, never a node
+      const end = text.indexOf("?>", lt + 2);
+      if (end < 0) throw new Error("unterminated processing instruction");
+      i = end + 2;
+      continue;
+    }
     if (text.startsWith("</", lt)) {
       const gt = text.indexOf(">", lt + 2);
       if (gt < 0) throw new Error("unterminated closing tag");
@@ -125,15 +134,16 @@ function parseXml(text: string): XmlNode {
     if (!m) throw new Error(`malformed tag near offset ${lt}`);
     const node: XmlNode = { tag: m[1], attrs: {}, text: "", children: [] };
     const attrSrc = m[2] ?? "";
-    const re = /([A-Za-z_][A-Za-z0-9_.-]*)\s*=\s*("([^"]*)"|'([^']*)')/g;
-    let am: RegExpExecArray | null;
+    const amRe = /^([A-Za-z_][A-Za-z0-9_.-]*)\s*=\s*("([^"]*)"|'([^']*)')/;
     let consumed = 0;
-    while ((am = re.exec(attrSrc)) !== null) {
-      if (am.index !== consumed) throw new Error(`malformed attributes near offset ${lt}`);
+    while (consumed < attrSrc.length) {
+      while (consumed < attrSrc.length && /\s/.test(attrSrc[consumed])) consumed += 1;
+      if (consumed >= attrSrc.length) break;
+      const am = amRe.exec(attrSrc.slice(consumed));
+      if (!am || am.index !== 0) throw new Error(`malformed attributes near offset ${lt}`);
       node.attrs[am[1]] = decodeEntities(am[3] ?? am[4] ?? "");
-      consumed = am.index + am[0].length;
+      consumed += am[0].length;
     }
-    if (attrSrc.trim().length > 0 && consumed < attrSrc.length) throw new Error(`malformed attributes near offset ${lt}`);
     attach(node);
     if (selfClose) {
       // self-closing node already attached
@@ -430,7 +440,9 @@ export function selectRecords(doc: ParsedDoc, kind: TransformRecord["sourceKind"
   if (kind === "xml" && doc.kind === "xml") {
     const steps = recordPath.split("/").filter(Boolean);
     let nodes: XmlNode[] = [doc.root];
-    for (const st of steps) {
+    for (let si = 0; si < steps.length; si += 1) {
+      const st = steps[si];
+      if (si === 0 && doc.root.tag === st) continue; // document element itself satisfies the first step
       const next: XmlNode[] = [];
       for (const nd of nodes) next.push(...xmlChildren(nd, st));
       if (next.length === 0 && !recordPath.endsWith("*")) throw new Error("recordPath matched no records");
