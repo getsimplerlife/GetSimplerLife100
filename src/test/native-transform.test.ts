@@ -17,6 +17,7 @@ import { join } from "node:path";
 import { handleNativeTransformsAuthed, registerBuiltinNativeTransformEventTypes } from "../native/transform/router";
 import { listTransforms, listAudit, listRuns, listPendingWrites } from "../native/transform/store";
 import { parseSource, executeTransform } from "../native/transform/engine";
+import { ensureTestServer, testBaseUrl } from "./test-env";
 import type { FieldMapping, GenerationConfig } from "../native/transform/types";
 import { setAutonomyWorkflow } from "../lib/autonomy";
 import { isRegisteredEventType } from "../native/webhooks/registry";
@@ -348,5 +349,28 @@ describe("native transform slice", () => {
     const blocked = await route("POST", `/api/native/transform/${transformId}/run`, { source: "name,amount\nA,99\n" });
     expect(blocked.status).toBe(400);
     expect(listPendingWrites(dir, T1).filter((w) => w.status === "pending")).toHaveLength(20);
+  });
+  // STANDING CONTROLS (lead, 3.4 lesson): HTTP-level wiring — the transform
+  // surface is AUTHED-ONLY (no public share lane), so the regression is the
+  // route-ordering class: anonymous requests must hit the session check first
+  // (401) and public pre-session lanes must remain pre-session (404, not 401).
+  it("HTTP wiring: transform lanes sit AFTER the session check — anonymous → 401", async () => {
+    await ensureTestServer();
+    const base = testBaseUrl();
+    for (const p of ["/api/native/transform", "/api/native/transform/trf_x", "/api/native/transform/writes/trw_x"]) {
+      const r = await fetch(`${base}${p}`, { signal: AbortSignal.timeout(8000) });
+      expect(r.status).toBe(401);
+    }
+  });
+  it("HTTP wiring-regression (route-ordering class): pre-session public lanes untouched", async () => {
+    await ensureTestServer();
+    const base = testBaseUrl();
+    // bogus survey share slug resolves pre-session → 404 (the 401 signature
+    // would mean the block silently moved behind the session check)
+    const share = await fetch(`${base}/api/native/survey/share/doesnotexist000`, { signal: AbortSignal.timeout(8000) });
+    expect(share.status).toBe(404);
+    // while the authed-only transform lane still 401s for anonymous
+    const t = await fetch(`${base}/api/native/transform`, { signal: AbortSignal.timeout(8000) });
+    expect(t.status).toBe(401);
   });
 });

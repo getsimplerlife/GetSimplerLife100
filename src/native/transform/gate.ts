@@ -81,7 +81,7 @@ export type TransformWriteRequest = {
   via?: string;
 };
 export type TransformWriteResult =
-  | { applied: true; pending: false; transformId?: string; runId?: string; op: TransformOp; autonomy: boolean; actionId?: string }
+  | { applied: true; pending: false; transformId?: string | undefined; runId?: string | undefined; op: TransformOp; autonomy: boolean; actionId?: string | undefined }
   | { applied: false; pending: true; approvalActionId: string; op: TransformOp }
   | { applied: false; pending: false; error: string };
 /** Verb-first action names — every verb is in WRITE_VERB (standing fail-open
@@ -385,7 +385,7 @@ export function submitTransformWrite(
   const gate = approvalGate(tenantId, action, "native-transform", { transformId: req.transformId, op, via: req.via ?? "portal" }, { dataDir, workflowId: "native-transform" });
   if (gate.allowed) {
     const out = applyNow(dataDir, tenantId, op, req, actor, !!gate.autonomy);
-    if (!out.ok) return { applied: false, pending: false, error: out.error };
+    if (!out.ok) return { applied: false, pending: false, error: out.error ?? "apply failed" };
     if (gate.autonomy) recordAutonomyOutcome(tenantId, gate.workflowId || "native-transform", action, "native-transform", true, { dataDir, allowListId: gate.allowListId, target: req.transformId || "" });
     return { applied: true, pending: false, ...(out.transformId ? { transformId: out.transformId } : {}), ...(out.runId ? { runId: out.runId } : {}), op, autonomy: !!gate.autonomy, ...(gate.actionId ? { actionId: gate.actionId } : {}) };
   }
@@ -439,7 +439,7 @@ export function executePendingTransformWrite(
   if (!out.ok) {
     markPendingWrite(dataDir, tenantId, ptw.id, "rejected", { error: out.error });
     appendAudit(dataDir, { tenantId, actor: "system", action: ptw.op === "run" ? "native.transform.run.rejected" : "native.transform.rejected", transformId: ptw.transformId ?? "", detail: `Apply failed: ${out.error}` });
-    return { ok: false, reason: out.error, ptwId: ptw.id };
+    return { ok: false, reason: out.error ?? "apply failed", ptwId: ptw.id };
   }
   markPendingWrite(dataDir, tenantId, ptw.id, "applied", { ...(out.transformId ? { transformId: out.transformId } : {}), ...(out.runId ? { runId: out.runId } : {}) });
   return { ok: true, ...(out.transformId ? { transformId: out.transformId } : {}), ...(out.runId ? { runId: out.runId } : {}), ptwId: ptw.id };

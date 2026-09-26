@@ -120,7 +120,7 @@ export function markPendingWrite(
   tenantId: string,
   id: string,
   status: "applied" | "rejected",
-  result?: { transformId?: string; runId?: string; error?: string },
+  result?: { transformId?: string | undefined; runId?: string | undefined; error?: string | undefined },
 ): void {
   const all = load<Record<string, PendingIndex>>(dataDir, NATIVE_TRANSFORM_PENDING_KEY, {});
   const idx = all[tenantId];
