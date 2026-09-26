@@ -82,6 +82,17 @@ describe("write-action classification", () => {
       // READ - the 6th standing fail-open guard).
       "createTransform", "updateTransform", "activateTransform",
       "archiveTransform", "deleteTransform", "runTransform",
+      // Phase 3.6 - native embedded dashboards/BI: every dashboard/report/
+      // schedule/alert-rule op is verb-first + WRITE. runReport + activate/
+      // archive reuse verbs ALREADY in WRITE_VERB (run/activate/archive) —
+      // this standing assertion locks the whole surface so a future verb
+      // addition can't silently bypass the Queue (the 2.5/3.1/3.2/3.3/3.4/3.5
+      // fail-open class guard).
+      "createDashboard", "updateDashboard", "deleteDashboard",
+      "createReport", "updateReport", "deleteReport", "runReport",
+      "createSchedule", "updateSchedule", "activateSchedule",
+      "archiveSchedule", "deleteSchedule",
+      "createAlertRule", "updateAlertRule", "deleteAlertRule",
     ]) {
       expect(isWriteAction(name), name).toBe(true);
     }
