@@ -76,6 +76,12 @@ describe("write-action classification", () => {
       // (`extract` ADDED to WRITE_VERB; without it the gated run would have
       // BYPASSED the Approval Queue as a READ - fail-open class, 2.5/3.1/3.2).
       "extractDocument", "deleteBoardCard",
+      // Phase 3.5 - native data transforms/EDI: every transform op is
+      // verb-first + WRITE; `run` + `activate` were ADDED to WRITE_VERB
+      // (without `run`, runTransform would BYPASS the Approval Queue as a
+      // READ - the 6th standing fail-open guard).
+      "createTransform", "updateTransform", "activateTransform",
+      "archiveTransform", "deleteTransform", "runTransform",
     ]) {
       expect(isWriteAction(name), name).toBe(true);
     }
