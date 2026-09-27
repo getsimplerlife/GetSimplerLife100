@@ -92,6 +92,26 @@ describe("stripe catalog guardrail (customer-facing checkout links)", () => {
     expect(w).toContain(CANONICAL.growth);
     expect(w).toContain(CANONICAL.scale);
   });
+  it("pricing.tsx tier cards link to the three live locked-tier Stripe payment links and open checkout in a new tab (owner 09-27 platform pricing)", () => {
+    const p = readFileSync("src/routes/pricing.tsx", "utf8");
+    // The three locked platform tiers each carry a buy button bound to its
+    // matching live Stripe Payment Link (the ONLY products/prices/links on the
+    // standard account after the 09-27 full-standard switch).
+    const platform = {
+      starter: "https://buy.stripe.com/eVq5kC7qQ0909zV0sJ5os00",
+      growth: "https://buy.stripe.com/fZubJ0h1qbRI5jFcbr5os01",
+      enterprise: "https://buy.stripe.com/fZu28qfXmaNEdQb2AR5os02",
+    };
+    expect(p).toContain('cta: "Choose Starter"');
+    expect(p).toContain('cta: "Choose Growth"');
+    expect(p).toContain('cta: "Choose Enterprise"');
+    expect(p).toContain(`ctaHref: "${platform.starter}"`);
+    expect(p).toContain(`ctaHref: "${platform.growth}"`);
+    expect(p).toContain(`ctaHref: "${platform.enterprise}"`);
+    // Checkout is Stripe-hosted, so the tier CTA must open it in a new tab.
+    expect(p).toContain('target="_blank"');
+    expect(p).toContain('rel="noopener noreferrer"');
+  });
 
   it("the canonical Connection-Pack links survive in stripe-webhook.ts", () => {
     const w = readFileSync("src/lib/stripe-webhook.ts", "utf8");
