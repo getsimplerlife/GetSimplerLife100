@@ -84,7 +84,7 @@ function seedTransform(tenantId: string): string {
     targetTableId: null,
     generation: null,
     status: "active",
-    fields: [{ key: "name", label: "Name", type: "text" }],
+    fields: [{ source: "name", target: "name" }],
     version: 1,
     createdAt: new Date().toISOString(),
     createdBy: "seed",
