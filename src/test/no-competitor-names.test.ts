@@ -63,6 +63,6 @@ describe("P4.4 — no competitor brand names in sales/marketing copy", () => {
     const src = readFileSync(join(process.cwd(), "src", "routes", "how-it-works.tsx"), "utf8");
     expect(src).toMatch(/Traditional Automation Tools/);
     expect(src).toMatch(/You don't need to learn automation/);
-    expect(src).toMatch(/build, integrate, deploy, monitor, and support/);
+    expect(src).toMatch(/build, integrate, run, monitor, and support/);
   });
 });
