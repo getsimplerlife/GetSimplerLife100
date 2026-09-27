@@ -77,12 +77,20 @@ describe("stripe catalog guardrail (customer-facing checkout links)", () => {
     }
   });
 
-  it("the canonical Build Package + Blueprint links are present in pricing.tsx", () => {
+  it("the canonical Sprint (Blueprint) link is present in pricing.tsx; discontinued per-employee build-package links are NOT sold there (owner 09-27 locked platform tiers)", () => {
     const p = readFileSync("src/routes/pricing.tsx", "utf8");
-    expect(p).toContain(CANONICAL.starter);
-    expect(p).toContain(CANONICAL.growth);
-    expect(p).toContain(CANONICAL.scale);
+    // The $2,500 Automation Sprint (Blueprint) is the live one-time SKU.
     expect(p).toContain(CANONICAL.blueprint);
+    // The old per-employee build packages were DISCONTINUED (owner 09-27) — their
+    // Stripe links must not be bound to any CTA on the pricing page anymore.
+    expect(p).not.toContain(CANONICAL.starter);
+    expect(p).not.toContain(CANONICAL.growth);
+    expect(p).not.toContain(CANONICAL.scale);
+    // But the runtime (stripe-webhook) still maps legacy purchases via those links.
+    const w = readFileSync("src/lib/stripe-webhook.ts", "utf8");
+    expect(w).toContain(CANONICAL.starter);
+    expect(w).toContain(CANONICAL.growth);
+    expect(w).toContain(CANONICAL.scale);
   });
 
   it("the canonical Connection-Pack links survive in stripe-webhook.ts", () => {

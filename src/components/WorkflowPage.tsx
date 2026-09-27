@@ -4,10 +4,12 @@ import type { Workflow as WorkflowType } from "~/content/workflows";
 export default function WorkflowPage({ data }: { data: WorkflowType }) {
   const w = data;
 
+  // LOCKED PLATFORM TIERS (owner 09-27): monthly platform pricing, all
+  // capabilities in every tier — no per-employee fees.
   const priceMap = {
-    starter: { name: "Starter", price: "$7,500" },
-    growth: { name: "Growth", price: "$15,000" },
-    scale: { name: "Scale", price: "$30,000" },
+    starter: { name: "Starter", price: "$199/mo" },
+    growth: { name: "Growth", price: "$599/mo" },
+    scale: { name: "Enterprise", price: "$1,499/mo" },
   };
 
   const currentPrice = priceMap[w.priceTier] || priceMap.starter;

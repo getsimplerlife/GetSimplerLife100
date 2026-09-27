@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from "react";
 import { Header } from "~/components/Header";
 import { Footer } from "~/components/Footer";
 import { pageHead } from "~/lib/site-meta";
-import { AGENTS } from "~/data/agents";
 
 export const Route = createFileRoute("/")({
   head: () => pageHead("/"),
@@ -47,7 +46,7 @@ function Reveal({
 
 /* ── Animated quote-to-cash flow — the hero workflow ── */
 const QUOTE_FLOW = [
-  { icon: "📝", t: "Deal gets signed", d: "The proposal is signed — the AI employee is notified the moment it lands." },
+  { icon: "📝", t: "Deal gets signed", d: "The proposal is signed — the workflow picks it up the moment it lands." },
   { icon: "🤝", t: "Updates the CRM", d: "Deal + contact are created in HubSpot automatically." },
   { icon: "🧾", t: "Drafts the invoice", d: "An invoice is drafted in Xero from the signed deal." },
   { icon: "💬", t: "Notifies your team", d: "The revenue team is pinged in Slack — nothing siloed." },
@@ -138,7 +137,7 @@ const OUTCOMES = [
 /* ── How it works — 5 steps (done-for-you) ── */
 const STEPS = [
   { n: "01", t: "Discovery", d: "We map the process your team does by hand and the systems it touches." },
-  { n: "02", t: "Design", d: "We design the workflow and show you exactly what the AI employee will do — and where your team still approves." },
+  { n: "02", t: "Design", d: "We design the workflow and show you exactly what the automation will do — and where your team still approves." },
   { n: "03", t: "Build", d: "We build and integrate the workflow across your stack. You don't touch a builder." },
   { n: "04", t: "Test", d: "Every connection is live-verified and every write is tested against your real systems." },
   { n: "05", t: "Deploy + monitor", d: "We deploy it, watch the connections 24/7, and escalate loudly if anything needs you." },
@@ -187,7 +186,7 @@ function Home() {
               <div className="space-y-8">
                 <Reveal>
                   <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-1.5 text-xs font-bold text-emerald-300">
-                    We eliminate repetitive operational work — with AI coworkers we build, integrate, and monitor for you
+                    We eliminate repetitive operational work — with one platform we build, integrate, and monitor for you
                   </div>
                 </Reveal>
                 <Reveal delay={80}>
@@ -198,7 +197,7 @@ function Home() {
                 </Reveal>
                 <Reveal delay={140}>
                   <p className="max-w-xl text-lg leading-relaxed text-stone-400">
-                    We eliminate that repetitive operational work — with AI coworkers we build, integrate, and monitor
+                    We eliminate that repetitive operational work — with one platform we build, integrate, and monitor
                     for you. No workflows to learn. No tools to manage.
                   </p>
                 </Reveal>
@@ -314,7 +313,7 @@ function Home() {
                   <div className="premium-card premium-card-accent rounded-3xl p-6">
                     <div className="text-xs font-black uppercase tracking-widest text-emerald-400">After</div>
                     <ul className="mt-4 space-y-2 text-sm text-stone-300">
-                      <li>📝 Proposal signed — AI employee notified</li>
+                      <li>📝 Proposal signed — workflow notified</li>
                       <li>🤝 Deal + contact created in HubSpot</li>
                       <li>🧾 Invoice drafted in Xero</li>
                       <li>💬 Team notified in Slack</li>
@@ -384,8 +383,8 @@ function Home() {
             <div className="grid items-stretch gap-4 md:grid-cols-2 lg:grid-cols-4">
               {[
                 ["CURRENT ANNUAL LABOR COST", "The hours your team spends re-keying, × their loaded cost."],
-                ["POTENTIAL ANNUAL SAVINGS", "The labor (and error) hours an AI employee can eliminate."],
-                ["ESTIMATED IMPLEMENTATION", "One-time build package — you pay for working, deployed workflows."],
+                ["POTENTIAL ANNUAL SAVINGS", "The labor (and error) hours automation can eliminate."],
+                ["ESTIMATED IMPLEMENTATION", "One-time onboarding — you pay for working, deployed workflows."],
                 ["ESTIMATED PAYBACK", "Implementation ÷ annual savings, in months — typically inside year one."],
               ].map(([t, d], i) => (
                 <Reveal key={t} delay={i * 60}>
@@ -409,7 +408,7 @@ function Home() {
                 <div className="space-y-5">
                   {[
                     { label: "Manual today", pct: 84, value: "~21 hrs/wk", note: "re-keying, chasing, filing" },
-                    { label: "With an AI employee", pct: 26, value: "~6.5 hrs/wk", note: "review + approvals only" },
+                    { label: "With automation", pct: 26, value: "~6.5 hrs/wk", note: "review + approvals only" },
                   ].map((row) => (
                     <div key={row.label}>
                       <div className="mb-1.5 flex items-baseline justify-between gap-3">
@@ -476,7 +475,7 @@ function Home() {
             </div>
             <Reveal delay={120}>
               <p className="mt-8 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 px-5 py-4 text-sm text-stone-300">
-                <span className="font-bold text-emerald-300">"✓ Human approves" is built in:</span> an AI employee
+                <span className="font-bold text-emerald-300">"✓ Human approves" is built in:</span> the platform
                 never sends an invoice, moves a dollar, or posts to your channel on its own. Every write waits in a
                 queue your team approves — fail-closed by default.
               </p>
@@ -493,7 +492,7 @@ function Home() {
                   Real integrations. Verified, not promised.
                 </h2>
                 <p className="mt-3 text-base leading-relaxed text-stone-400">
-                  Nothing on this page is claimed working until it's live-tested. Every action an AI employee takes
+                  Nothing on this page is claimed working until it's live-tested. Every action an automation takes
                   passes a human approval queue before it runs (or your own allow-list, audited). No silent failures — if something disconnects, you're
                   told immediately and reconnected in one click.
                 </p>
@@ -517,7 +516,7 @@ function Home() {
                 <div className="premium-card flex h-full flex-col rounded-[2rem] p-8">
                   <div className="mb-4 text-xs font-black uppercase tracking-widest text-emerald-400">Human approval queue</div>
                   <p className="text-base leading-relaxed text-stone-400">
-                    An AI employee won't send an invoice, move a dollar, or post to your channel on its own. Every
+                    An automation won't send an invoice, move a dollar, or post to your channel on its own. Every
                     write waits in a queue your team approves — fail-closed by default.
                   </p>
                   <Link to="/you-stay-in-control" className="mt-3 inline-block text-sm font-bold text-emerald-400 hover:text-emerald-300">
@@ -540,7 +539,7 @@ function Home() {
                 <div className="premium-card flex h-full flex-col rounded-[2rem] p-8">
                   <div className="mb-4 text-xs font-black uppercase tracking-widest text-emerald-400">Your portal</div>
                   <p className="text-base leading-relaxed text-stone-400">
-                    One place to see every AI employee, every workflow, and every integration's live health — plus the
+                    One place to see every workflow, every integration's live health — plus the
                     approval queue and an audit trail of every action taken.
                   </p>
                   <Link to="/security" className="mt-3 inline-block text-sm font-bold text-emerald-400 hover:text-emerald-300">
@@ -548,8 +547,8 @@ function Home() {
                   </Link>
                   <div className="mt-6 grid grid-cols-2 gap-2 text-center">
                     {[
-                      ["🧑‍💼", "AI employees"],
-                      ["⚙️", "Workflows"],
+                      ["🧑‍💼", "Workflows"],
+                      ["⚙️", "Automations"],
                       ["🔌", "Connections"],
                       ["📜", "Audit log"],
                     ].map(([i, l]) => (
@@ -565,7 +564,7 @@ function Home() {
           </div>
         </section>
 
-        {/* ── 8 · PRICING (preserved exactly) ── */}
+        {/* ── 8 · PRICING (LOCKED PLATFORM TIERS — owner 09-27) ── */}
         <section id="pricing" className="border-t border-stone-900 bg-stone-950 px-6 py-16 sm:py-32">
           <div className="mx-auto max-w-7xl">
             <div className="mb-20 space-y-6 text-center">
@@ -574,84 +573,89 @@ function Home() {
               </Reveal>
               <Reveal delay={60}>
                 <p className="mx-auto max-w-2xl text-xl leading-relaxed text-stone-400">
-                  No hidden fees or open-ended hourly billing. You pay for working, deployed agents that handle specific business results.
+                  One platform, three tiers, and 100% of the native capability layer in every tier — no
+                  per-employee fees, no per-feature upsells. Tiers differ by scale limits, governance, and support.
                 </p>
               </Reveal>
             </div>
 
-            <div className="grid gap-12 lg:grid-cols-2">
-              {/* Implementation Packages */}
-              <div className="premium-card rounded-[3rem] p-12">
-                <div className="mb-8 flex items-center justify-between gap-4">
-                  <h3 className="text-xl font-bold uppercase tracking-widest text-emerald-400">Implementation Packages</h3>
-                  <Link
-                    to="/pricing"
-                    className="shrink-0 text-xs font-bold text-emerald-400 hover:text-emerald-300"
-                  >
-                    ⚡ Start with the $2,500 Automation Sprint →
-                  </Link>
+            <div className="grid gap-12 lg:grid-cols-3">
+              {[
+                {
+                  name: "Starter",
+                  price: "$199/mo",
+                  setup: "+ $500 one-time onboarding",
+                  forLabel: "Firms ~10\u201330 people",
+                  desc: "The full platform for your first automated workflows.",
+                  features: [
+                    "100% of native capabilities — records, forms, docs/e-sign, webhooks, booking, boards, AI extraction, surveys/NPS, transforms/EDI, dashboards/BI, automations",
+                    "Approval-queue control with per-workflow autonomy allow-lists",
+                    "1 connection pack (CRM or ERP — your choice)",
+                    "Standard support",
+                  ],
+                  highlight: false,
+                },
+                {
+                  name: "Growth",
+                  price: "$599/mo",
+                  setup: "+ $1,500 one-time onboarding",
+                  forLabel: "Firms ~30\u2013100 people",
+                  desc: "Higher scale limits and governance for a growing ops team.",
+                  features: [
+                    "100% of native capabilities (as Starter)",
+                    "Higher scale limits (records, documents, run volume)",
+                    "Multi-step approvals + autonomy allow-lists",
+                    "Priority support",
+                  ],
+                  highlight: true,
+                },
+                {
+                  name: "Enterprise",
+                  price: "$1,499/mo",
+                  setup: "setup included",
+                  forLabel: "Larger or regulated ops",
+                  desc: "Largest scale, advanced governance, custom builds on demand.",
+                  features: [
+                    "100% of native capabilities (as Growth)",
+                    "Highest scale limits",
+                    "Advanced governance: multi-step approvals + allow-lists",
+                    "Dedicated support",
+                    "Custom on-demand vendor-API builds (SAP BAPI, SuiteScript)",
+                  ],
+                  highlight: false,
+                },
+              ].map((t) => (
+                <div
+                  key={t.name}
+                  className={`rounded-[3rem] p-8 ${
+                    t.highlight
+                      ? "bg-emerald-600 text-white shadow-xl shadow-emerald-900/30"
+                      : "premium-card"
+                  }`}
+                >
+                  <div className="text-xl font-black">{t.name}</div>
+                  <div className="text-[11px] mt-0.5 opacity-70">{t.forLabel}</div>
+                  <div className="mt-4 text-3xl font-black">{t.price}</div>
+                  <div className="text-xs mt-1 opacity-80">{t.setup}</div>
+                  <p className="text-sm mt-4 opacity-90">{t.desc}</p>
+                  <ul className="mt-5 space-y-2 text-sm">
+                    {t.features.map((f) => (
+                      <li key={f} className="flex items-start gap-2">
+                        <span className="mt-0.5 shrink-0">✓</span> {f}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-                <div className="space-y-4">
-                  <div className="premium-card flex items-center justify-between rounded-2xl p-6">
-                    <div>
-                      <div className="text-xl font-black text-white">Starter</div>
-                      <div className="text-sm font-bold text-stone-400">Automate your first 3 high-value workflows</div>
-                      <div className="mt-2 text-[11px] text-stone-500">Typical opportunity (illustrative): ~$2,000–$4,000/mo of manual labor · potential payback ~2–4 months</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="key-number text-2xl font-black">$7,500</div>
-                      <div className="text-[10px] font-bold uppercase tracking-tighter text-stone-400">One-Time</div>
-                    </div>
-                  </div>
-                  <div className="premium-card flex items-center justify-between rounded-2xl p-6">
-                    <div>
-                      <div className="text-xl font-black text-white">Growth</div>
-                      <div className="text-sm font-bold text-stone-400">5 AI Agents • Cross-Department • 1 CRM Connection</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="key-number text-2xl font-black">$15,000</div>
-                      <div className="text-[10px] font-bold uppercase tracking-tighter text-stone-400">One-Time</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between rounded-2xl bg-emerald-600 p-6 text-white shadow-xl shadow-emerald-900/30">
-                    <div>
-                      <div className="text-xl font-black">Scale</div>
-                      <div className="text-sm font-bold text-emerald-100">Unlimited Agents • Custom Modeling • 1 CRM Connection</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-black [text-shadow:0_0_24px_rgba(255,255,255,0.35)]">$30,000</div>
-                      <div className="text-[10px] font-bold uppercase tracking-tighter text-emerald-200">One-Time</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              ))}
+            </div>
 
-              {/* Monthly per AI Employee */}
-              <div className="rounded-[3rem] border border-stone-900 bg-stone-900 p-12">
-                <h3 className="mb-8 text-xl font-bold uppercase tracking-widest text-emerald-400">Monthly per AI Employee</h3>
-                <p className="mb-6 text-sm text-stone-400">
-                  In addition to the one-time build package, you pay a monthly fee for each AI employee you deploy at that employee's listed price — billed monthly, no long-term contracts, adjust or cancel anytime. Live integrations today: Xero, Slack, Google, Microsoft 365, HubSpot, and DocuSign (QuickBooks in development), with more added on request.
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {AGENTS.map((agent) => (
-                    <div
-                      key={agent.id}
-                      className="premium-card flex items-center justify-between gap-3 rounded-xl px-4 py-3"
-                    >
-                      <span className="text-sm font-bold text-stone-200">{agent.name}</span>
-                      <span className="text-sm font-black text-emerald-400">${agent.price.toLocaleString("en-US")}/mo</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-6 text-center">
-                  <Link
-                    to="/pricing"
-                    className="inline-flex items-center gap-2 rounded-xl border border-stone-700 px-5 py-2.5 text-sm font-bold text-stone-300 transition-colors hover:border-emerald-500/50 hover:text-emerald-300"
-                  >
-                    View all AI employees & build your team →
-                  </Link>
-                </div>
-              </div>
+            <div className="mt-12 text-center">
+              <Link
+                to="/pricing"
+                className="inline-flex items-center gap-2 rounded-xl border border-stone-700 px-5 py-2.5 text-sm font-bold text-stone-300 transition-colors hover:border-emerald-500/50 hover:text-emerald-300"
+              >
+                Full pricing & the $2,500 Automation Sprint →
+              </Link>
             </div>
 
             <div className="mt-20 space-y-4 text-center">
@@ -665,7 +669,6 @@ function Home() {
             </div>
           </div>
         </section>
-
         {/* ── 9 · CLOSING CTA (outcome-oriented) ── */}
         <section className="relative overflow-hidden bg-stone-900 px-4 py-16 lg:py-28">
           <div className="hero-glow absolute inset-0" aria-hidden="true" />

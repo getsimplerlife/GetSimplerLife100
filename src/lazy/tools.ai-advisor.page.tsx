@@ -301,14 +301,12 @@ function AIAdvisor() {
                 </div>
               </div>
               <div className="flex gap-3">
-                <a
-                  href="https://buy.stripe.com/4gMfZj88TfMz6Hh8TS2Fa1K"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <Link
+                  to="/pricing"
                   className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-sm py-3 rounded-xl text-center transition-all"
                 >
-                  🛒 Deploy Now — $750/mo
-                </a>
+                  🛒 See platform pricing →
+                </Link>
                 <a
                   href="/contact"
                   className="px-6 bg-stone-800 hover:bg-stone-700 text-stone-200 text-sm font-bold py-3 rounded-xl transition-all whitespace-nowrap"

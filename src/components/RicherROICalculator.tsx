@@ -16,16 +16,21 @@ const INDUSTRY_PRESETS: Record<string, { employees: number; hourlyCost: number; 
   Hospitality: { employees: 50, hourlyCost: 20, tasksPerDay: 15, timePerTask: 8, errorRate: 10 },
 };
 
-const BUILD_PACKAGES = [
-  { name: "Small Team", price: 7500, employees: "5-50", features: "2 AI agents • 3 workflows • 1 CRM", paymentLink: "https://buy.stripe.com/3cI8wR88Tasfc1B9XW2Fa2K" },
-  { name: "Growth", price: 15000, employees: "50-150", features: "5 AI agents • Cross-department • 1 CRM", paymentLink: "https://buy.stripe.com/5kQ6oJbl5dErc1B1rq2Fa2L" },
-  { name: "Scale", price: 30000, employees: "150+", features: "Unlimited agents • Custom modeling • 1 CRM", paymentLink: "https://buy.stripe.com/aFa7sN60LdErc1B5HG2Fa2M" },
+/**
+ * LOCKED PLATFORM TIERS (owner 09-27): one platform, every capability in every
+ * tier. Tiers differ by scale limits, governance and support; Enterprise adds
+ * custom on-demand vendor-API builds. Setup is a one-time onboarding fee.
+ */
+const PLATFORM_TIERS = [
+  { name: "Starter", monthly: 199, setup: 500, employees: "10-30", paymentLink: "/pricing" },
+  { name: "Growth", monthly: 599, setup: 1500, employees: "30-100", paymentLink: "/pricing" },
+  { name: "Enterprise", monthly: 1499, setup: 0, employees: "100+", paymentLink: "/pricing" },
 ];
 
-function getRecommendedPackage(emps: number) {
-  if (emps <= 50) return BUILD_PACKAGES[0];
-  if (emps <= 150) return BUILD_PACKAGES[1];
-  return BUILD_PACKAGES[2];
+function getRecommendedTier(emps: number) {
+  if (emps <= 30) return PLATFORM_TIERS[0];
+  if (emps <= 100) return PLATFORM_TIERS[1];
+  return PLATFORM_TIERS[2];
 }
 
 export function RicherROICalculator({ embed = false }: RicherROICalculatorProps) {
@@ -39,15 +44,14 @@ export function RicherROICalculator({ embed = false }: RicherROICalculatorProps)
   const [tasksPerDay, setTasksPerDay] = useState(5);
   const [timePerTask, setTimePerTask] = useState(20);
   const [errorRate, setErrorRate] = useState(5);
-  useState(70000);
 
   const [annualHoursSaved, setAnnualHoursSaved] = useState(0);
   const [totalAnnualSavings, setTotalAnnualSavings] = useState(0);
   const [paybackMonths, setPaybackMonths] = useState(0);
   const [threeYearNetImpact, setThreeYearNetImpact] = useState(0);
 
-  const recommendedPackage = getRecommendedPackage(employees);
-  const implementationCost = recommendedPackage.price;
+  const recommendedTier = getRecommendedTier(employees);
+  const implementationCost = recommendedTier.setup;
 
   useEffect(() => {
     const workingDays = 250;
@@ -60,6 +64,7 @@ export function RicherROICalculator({ embed = false }: RicherROICalculatorProps)
     const hoursSpentOnErrors = errorsPerYear * (timePerTask / 60) * 3;
     const errorSavings = hoursSpentOnErrors * hourlyCost;
     const annualSavings = laborSavings + errorSavings;
+    // Payback vs the one-time onboarding fee (subscription billed monthly after).
     const payback = annualSavings > 0 ? (implementationCost / annualSavings) * 12 : 0;
     const netImpact = (annualSavings * 3) - implementationCost;
     setAnnualHoursSaved(hoursSaved);
@@ -90,7 +95,7 @@ export function RicherROICalculator({ embed = false }: RicherROICalculatorProps)
         body: JSON.stringify({
           email,
           toolName: "roi-calculator",
-          result: { employees, hourlyCost, tasksPerDay, timePerTask, errorRate, annualHoursSaved, totalAnnualSavings, paybackMonths, threeYearNetImpact, recommendedPackage: recommendedPackage.name },
+          result: { employees, hourlyCost, tasksPerDay, timePerTask, errorRate, annualHoursSaved, totalAnnualSavings, paybackMonths, threeYearNetImpact, recommendedTier: recommendedTier.name },
         }),
       });
     } catch {}
@@ -143,7 +148,7 @@ export function RicherROICalculator({ embed = false }: RicherROICalculatorProps)
     y += 7;
     pdf.text(`3-Year Net Impact: $${Math.round(threeYearNetImpact).toLocaleString()}`, 20, y);
     y += 7;
-    pdf.text(`Recommended Package: ${recommendedPackage.name} ($${recommendedPackage.price.toLocaleString()})`, 20, y);
+    pdf.text(`Recommended Tier: ${recommendedTier.name} ($${recommendedTier.monthly}/mo + $${recommendedTier.setup} setup)`, 20, y);
     pdf.save("simpler-life-100-roi-report.pdf");
   };
 
@@ -221,11 +226,11 @@ export function RicherROICalculator({ embed = false }: RicherROICalculatorProps)
                 className="w-full h-2 bg-stone-800 rounded-full appearance-none cursor-pointer accent-emerald-500" />
             </div>
 
-            {/* Recommended Package Display */}
+            {/* Recommended Tier Display */}
             <div className="bg-stone-950/60 border border-stone-800 rounded-xl p-4 text-center">
-              <div className="text-xs font-mono text-stone-400 mb-1">RECOMMENDED PACKAGE</div>
-              <div className="text-lg font-black text-emerald-400">{recommendedPackage.name}</div>
-              <div className="text-sm text-stone-400">${recommendedPackage.price.toLocaleString()} — {recommendedPackage.employees} employees</div>
+              <div className="text-xs font-mono text-stone-400 mb-1">RECOMMENDED TIER</div>
+              <div className="text-lg font-black text-emerald-400">{recommendedTier.name}</div>
+              <div className="text-sm text-stone-400">${recommendedTier.monthly}/mo + ${recommendedTier.setup} setup — {recommendedTier.employees} employees</div>
             </div>
 
             {/* See My ROI Button */}
@@ -241,7 +246,7 @@ export function RicherROICalculator({ embed = false }: RicherROICalculatorProps)
           {/* Key Stats */}
           <div className="bg-stone-900/60 rounded-3xl p-6 lg:p-8 border border-stone-800/80 space-y-5">
             <h3 className="text-lg font-black text-white">What this problem costs you</h3>
-            {/* Flow: Current annual labor cost → Potential annual savings → Implementation → Payback → 3-year opportunity */}
+            {/* Flow: Current annual labor cost → Potential annual savings → Onboarding → Payback → 3-year opportunity */}
             <div className="space-y-2.5">
               <div className="flex items-center justify-between rounded-xl bg-stone-950/60 border border-stone-800/50 px-4 py-3">
                 <span className="text-xs font-mono text-stone-400">CURRENT ANNUAL LABOR COST</span>
@@ -252,7 +257,7 @@ export function RicherROICalculator({ embed = false }: RicherROICalculatorProps)
                 <span className="text-sm font-black text-emerald-400">${Math.round(totalAnnualSavings).toLocaleString()}</span>
               </div>
               <div className="flex items-center justify-between rounded-xl bg-stone-950/60 border border-stone-800/50 px-4 py-3">
-                <span className="text-xs font-mono text-stone-400">ESTIMATED IMPLEMENTATION</span>
+                <span className="text-xs font-mono text-stone-400">ONE-TIME ONBOARDING</span>
                 <span className="text-sm font-black text-white">${implementationCost.toLocaleString()}</span>
               </div>
               <div className="flex items-center justify-between rounded-xl bg-stone-950/60 border border-stone-800/50 px-4 py-3">
@@ -292,7 +297,7 @@ export function RicherROICalculator({ embed = false }: RicherROICalculatorProps)
             {/* Email Gate */}
             {!showResults ? (
               <div className="p-4 bg-stone-950/60 border border-stone-800 rounded-xl space-y-3 text-center">
-                <p className="text-xs text-stone-400">Enter your email to unlock full results and build packages:</p>
+                <p className="text-xs text-stone-400">Enter your email to unlock full results and platform tiers:</p>
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@company.com"
                   className="w-full bg-stone-900 border border-stone-800 rounded-xl p-2.5 text-sm text-stone-200 placeholder-stone-600 outline-none focus:border-emerald-700 text-center" />
@@ -314,30 +319,32 @@ export function RicherROICalculator({ embed = false }: RicherROICalculatorProps)
                   </span>
                 </div>
 
-                {/* Build Packages CTA */}
+                {/* Platform Tiers CTA */}
                 <div className="p-5 bg-gradient-to-br from-emerald-900/40 to-stone-900 rounded-3xl border border-emerald-500/10 space-y-4">
-                  <h4 className="text-base font-black text-white text-center">Deploy Your AI Team</h4>
+                  <h4 className="text-base font-black text-white text-center">One platform, every capability</h4>
                   <div className="space-y-2">
-                    {BUILD_PACKAGES.map((pkg) => {
-                      const isRecommended = pkg.name === recommendedPackage.name;
+                    {PLATFORM_TIERS.map((tier) => {
+                      const isRecommended = tier.name === recommendedTier.name;
                       return (
-                        <a key={pkg.name} href={pkg.paymentLink} target="_blank" rel="noopener"
+                        <Link key={tier.name} to="/pricing"
                           className={`block p-3 rounded-xl text-center transition-all ${
                             isRecommended ? "bg-emerald-600/20 border-2 border-emerald-500" : "bg-stone-950/60 border border-stone-800 hover:border-stone-700"
                           }`}>
                           <div className="flex justify-between items-center">
                             <span className={`text-sm font-bold ${isRecommended ? "text-emerald-400" : "text-stone-300"}`}>
-                              {pkg.name} {isRecommended && "★"}
+                              {tier.name} {isRecommended && "★"}
                             </span>
-                            <span className="text-sm font-black text-white">${pkg.price.toLocaleString()}</span>
+                            <span className="text-sm font-black text-white">${tier.monthly}/mo</span>
                           </div>
-                          <div className="text-[10px] text-stone-500 mt-0.5">{pkg.features}</div>
-                        </a>
+                          <div className="text-[10px] text-stone-500 mt-0.5">
+                            {tier.employees} employees · {tier.setup === 0 ? "setup included" : `$${tier.setup} onboarding`}
+                          </div>
+                        </Link>
                       );
                     })}
                   </div>
-                  <Link to="/build" className="block w-full text-center bg-emerald-500 hover:bg-emerald-400 text-black font-black py-3 rounded-2xl text-sm transition-all">
-                    🛠️ Build Custom Team →
+                  <Link to="/pricing" className="block w-full text-center bg-emerald-500 hover:bg-emerald-400 text-black font-black py-3 rounded-2xl text-sm transition-all">
+                    See the full pricing →
                   </Link>
                   <button onClick={downloadPDF}
                     className="block w-full text-center bg-stone-800 hover:bg-stone-700 text-stone-300 font-bold py-2.5 rounded-xl text-xs transition-all">

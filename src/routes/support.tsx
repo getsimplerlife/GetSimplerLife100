@@ -13,7 +13,7 @@ const supportTiers = [
     name: 'Essential Ops',
     price: '$750',
     period: '/mo',
-    description: 'Perfect for small teams with 1-2 key AI agents that need to stay reliable.',
+    description: 'Perfect for small teams with 1-2 key automations that need to stay reliable.',
     features: [
       'Monitoring & bug fixes',
       'Prompt updates',
@@ -29,7 +29,7 @@ const supportTiers = [
     name: 'Professional Ops',
     price: '$2,000',
     period: '/mo',
-    description: 'Our most popular choice for growing businesses scaling their AI automation.',
+    description: 'Our most popular choice for growing businesses scaling their automation.',
     features: [
       'Everything in Essential',
       'New automations each month',
@@ -84,7 +84,7 @@ function SupportPage() {
           <div className="text-center mb-20">
             <h1 className="text-5xl lg:text-7xl font-black text-white mb-6 tracking-tight">Managed AI Operations</h1>
             <p className="text-xl text-stone-400 max-w-3xl mx-auto leading-relaxed">
-              Model rot and prompt drift are real. We keep your AI employees running at peak performance while continuously building new automations for your team.
+              Model rot and prompt drift are real. We keep your automations running at peak performance while continuously building new workflows for your team.
             </p>
           </div>
 

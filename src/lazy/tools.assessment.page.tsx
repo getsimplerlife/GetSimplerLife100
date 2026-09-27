@@ -506,17 +506,15 @@ function AutomationAssessment() {
             <div className="bg-gradient-to-br from-emerald-950/30 to-stone-900/60 border border-emerald-900/40 rounded-2xl p-6 text-center">
               <h3 className="text-lg font-bold text-emerald-400 mb-2">Ready to Get Started?</h3>
               <p className="text-sm text-stone-400 mb-6 max-w-md mx-auto">
-                Deploy your first AI agent and start saving hours within weeks.
+                Start with the $2,500 Automation Sprint or a platform subscription — one platform, every capability.
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <a
-                  href="https://buy.stripe.com/4gMfZj88TfMz6Hh8TS2Fa1K"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <Link
+                  to="/pricing"
                   className="bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-sm px-6 py-3 rounded-xl transition-all"
                 >
-                  🚀 Deploy Now — $750/mo
-                </a>
+                  🚀 See platform pricing →
+                </Link>
                 <Link
                   to="/build"
                   className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm px-6 py-3 rounded-xl transition-all"

@@ -12,7 +12,9 @@
  * Payment Link (https://buy.stripe.com/14AbJ3cp91VJc1Bfig2Fa2N, generated
  * from price_1Tv7GiRcz95wEmJa2nEHrpaZ / prod_UuxBKQU2FvfQsB).
  *
- * SITE P3 rework: the section is now the low-risk "Automation Sprint" entry.
+ * SITE rework (owner 09-27): /pricing is the LOCKED platform-tiers page; the
+ * $2,500 Automation Sprint remains the lone live one-time SKU until the owner's
+ * Stripe switch lands subscription products.
  * Truthfulness: the site calls it "Automation Sprint" but the Stripe
  * catalog/checkout still shows "Industry Blueprint Assessment" (the owner's
  * rename step) — so the CTA must link to the canonical $2,500 link AND the
@@ -59,16 +61,16 @@ describe("pricing $2,500 Automation Sprint checkout button", () => {
     expect(PRICING).toContain("the same $2,500 one-time engagement");
   });
 
-  it("Scale button still points at the $30,000 Scale link", () => {
-    // Scale's link lives in the builderTiers array as link: "...", price 30000.
-    const scaleIdx = PRICING.indexOf('{ name: "Scale"');
-    expect(scaleIdx).toBeGreaterThan(0);
-    const scaleObj = PRICING.slice(
-      scaleIdx,
-      PRICING.indexOf("};", scaleIdx),
-    );
-    expect(scaleObj).toContain("price: 30000");
-    expect(scaleObj).toContain('link: "' + SCALE_LINK + '"');
+  it("no per-employee/old build-package SKUs remain on the pricing page (LOCKED platform tiers, owner 09-27)", () => {
+    // The old $30k Scale build package is DISCONTINUED (owner 09-27: one platform,
+    // all capabilities in every tier). Guard: the old price literals and the old
+    // $30k link must not be bound to any CTA on /pricing.
+    expect(PRICING).not.toContain("price: 30000");
+    expect(PRICING).not.toContain("price: 7500");
+    expect(PRICING).not.toContain("price: 15000");
+    expect(PRICING).not.toContain(SCALE_LINK);
+    // The Sprint CTA must still be the canonical $2,500 Blueprint link (live SKU).
+    expect(PRICING).toContain(BLUEPRINT_LINK);
   });
 
   it("Blueprint is a distinct buy.stripe.com URL from Scale", () => {

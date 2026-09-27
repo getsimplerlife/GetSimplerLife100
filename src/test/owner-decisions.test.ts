@@ -43,19 +43,22 @@ describe("F5 — dead serve.ts removed entirely (owner-approved I5)", () => {
   });
 });
 
-describe("Pricing copy — plan tiers state the included Connection Pack", () => {
+describe("Pricing copy — LOCKED platform tiers (owner 09-27)", () => {
   const pricingSrc = readRepoFile("src/routes/pricing.tsx");
-  const PACK_LINE = "1 Connection Pack (CRM or ERP — your choice)";
-  it("all three plan tiers advertise the included Connection Pack slot", () => {
-    // Each tier is a one-line object literal; count occurrences per tier name.
+  const PACK_LINE = "1 connection pack (CRM or ERP — your choice)";
+  it("lists the three locked platform tiers (Starter/Growth/Enterprise) — no per-employee model", () => {
     const starter = pricingSrc.slice(pricingSrc.indexOf('name: "Starter"'), pricingSrc.indexOf('name: "Growth"'));
-    const growth = pricingSrc.slice(pricingSrc.indexOf('name: "Growth"'), pricingSrc.indexOf('name: "Scale"'));
-    const scale = pricingSrc.slice(pricingSrc.indexOf('name: "Scale"'));
-    expect(starter).toContain(PACK_LINE);
-    expect(growth).toContain(PACK_LINE);
-    expect(scale).toContain(PACK_LINE);
+    const growth = pricingSrc.slice(pricingSrc.indexOf('name: "Growth"'), pricingSrc.indexOf('name: "Enterprise"'));
+    const enterprise = pricingSrc.slice(pricingSrc.indexOf('name: "Enterprise"'));
+    expect(starter).toContain("monthly: 199");
+    expect(growth).toContain("monthly: 599");
+    expect(enterprise).toContain("monthly: 1499");
+    // Every tier is 100% of the native capability layer — no per-employee fees.
+    expect(pricingSrc).toContain("100% of native capabilities");
+    expect(pricingSrc).not.toMatch(/per AI employee|AI employees? included/);
   });
-  it("no longer advertises packs as 'enabled' on plans without stating the slot", () => {
+  it("connection-pack slot language survives where stated (no 'enabled' overclaim)", () => {
+    expect(pricingSrc).toContain(PACK_LINE);
     expect(pricingSrc).not.toContain("CRM / ERP enabled");
   });
 });
