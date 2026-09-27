@@ -85,45 +85,39 @@ describe("Marketplace Connection Packs — only real providers connectable now",
   });
 });
 
-describe("Pricing AI-employee agent cards — non-live providers only with an in-development marker", () => {
+describe("Pricing page (LOCKED platform tiers, owner 09-27) — no per-employee SKUs", () => {
   const src = readRepoFile("src/routes/pricing.tsx");
-  const agentsSection = src.slice(src.indexOf("const agents ="), src.indexOf("const builderTiers ="));
-  const lines = agentsSection.split("\n");
-
-  it("every line naming a non-live provider also carries an in-development marker", () => {
+  it("lists only the locked monthly tiers, not per-employee agent cards", () => {
+    // Old per-employee selling is gone: no "const agents =" catalog with prices.
+    expect(src).not.toContain("const agents =");
+    expect(src).toContain("PLATFORM_TIERS");
+    expect(src).toContain("monthly: 199");
+    expect(src).toContain("monthly: 599");
+    expect(src).toContain("monthly: 1499");
+  });
+  it("never states old build-package prices or per-employee pricing", () => {
+    expect(src).not.toContain("$7,500");
+    expect(src).not.toContain("$15,000");
+    expect(src).not.toContain("$30,000");
+    expect(src).not.toMatch(/per AI employee|AI employees? included/);
+  });
+  it("non-live provider names only appear with an in-development marker (capability list is native)", () => {
+    // The capability list references deep vendor APIs (SAP BAPI, SuiteScript) only
+    // as Enterprise custom on-demand builds — never as connectable-now claims.
+    const lines = src.split("\n");
     const offending: string[] = [];
     for (const line of lines) {
       const lower = line.toLowerCase();
       for (const p of NON_LIVE_PROVIDERS) {
-        // "sap" as a bare word (avoid matching inside unrelated words).
         const re = new RegExp(`(^|[^a-z])${p}([^a-z]|$)`, "i");
-        if (re.test(lower) && !lower.includes("in development")) {
+        if (re.test(lower) && !lower.includes("in development") && !lower.includes("on-demand")) {
           offending.push(`${p} on line: ${line.trim()}`);
         }
       }
     }
     expect(offending).toEqual([]);
   });
-
-  it("agent descriptions name only real providers as working (Xero, Slack, Google, Microsoft, HubSpot, DocuSign)", () => {
-    // HubSpot and Xero are the CRM/ERP anchors claimed as live; others appear only
-    // as in-development. Spot-check the headline claims are truthful.
-    expect(src).toContain("syncs to Xero accounting");
-    expect(src).toContain("Keeps HubSpot contacts, deals, and pipelines in sync");
-    expect(src).toContain("Gmail, Microsoft Outlook, and Slack");
-    expect(src).toContain("Google Sheets, Microsoft Excel, and HubSpot");
-  });
-
-  it("does not change price/Stripe links (no $ values invented or removed)", () => {
-    // Assert the 17 agent prices are still present.
-    for (const price of [950, 2000, 1800, 499, 750, 1200, 850, 1500]) {
-      expect(src).toContain(`price: ${price}`);
-    }
-    // Stripe checkout links preserved.
-    expect((src.match(/https:\/\/buy\.stripe\.com/g) || []).length).toBeGreaterThanOrEqual(17);
-  });
 });
-
 describe("Portal integrations page — honest provider counts", () => {
   const src = readRepoFile("src/lazy/portal.integrations.index.page.tsx");
 
@@ -182,17 +176,24 @@ describe("Privacy & Terms pages — truthful, real content, no dead links", () =
   });
 });
 
-describe("site-meta — public SEO copy is truthful about integrations", () => {
+describe("site-meta — public SEO copy is truthful about the platform (owner 09-27)", () => {
   const src = readRepoFile("src/lib/site-meta.ts");
-
-  it("pricing and integrations meta no longer claim 180+ integrations", () => {
+  it("pricing and integrations meta no longer claim 180+ integrations or live third-party connects", () => {
+    // Locked platform model (owner 09-27): pricing sells ONE platform with all native
+    // capabilities in every tier — not per-employee SKUs, not third-party connect
+    // claims for paused provider adapters.
     expect(src).not.toContain("180+ integrations");
     const pricingMeta = src.slice(src.indexOf('"/pricing"'), src.indexOf('"/register"'));
-    expect(pricingMeta).toContain("Live integrations: Xero, Slack, Google, Microsoft, HubSpot, DocuSign");
+    expect(pricingMeta).toContain("One platform");
+    expect(pricingMeta).toContain("199");
+    expect(pricingMeta).toContain("599");
+    expect(pricingMeta).toContain("1,499");
+    expect(pricingMeta).not.toContain("$7,500");
+    expect(pricingMeta).not.toContain("$499");
+    expect(pricingMeta).not.toMatch(/Live integrations: Xero/);
   });
-
   it("has SEO entries for /privacy and /terms", () => {
-    expect(src).toContain('"/privacy"');
-    expect(src).toContain('"/terms"');
+    expect(src).toContain('"/privacy"' );
+    expect(src).toContain('"/terms"' );
   });
 });

@@ -11,13 +11,13 @@ const CAPABILITIES = [
     icon: '👁️',
     title: 'Understand & Read',
     description:
-      'AI employees connect to your authorized systems and read operational context — invoices, bills, contacts, documents, calendars, and more — through verified, read-only contracts.',
+      'AI automations connect to your authorized systems and read operational context — invoices, bills, contacts, documents, calendars, and more — through verified, read-only contracts.',
   },
   {
     icon: '📡',
     title: 'Monitor',
     description:
-      'Webhook-based monitoring watches for the events that matter (invoice created, bill created, and more) and dispatches to the right AI employee — gated per organization, fail-closed on unknown tenants.',
+      'Webhook-based monitoring watches for the events that matter (invoice created, bill created, and more) and dispatches to the right AI automation — gated per organization, fail-closed on unknown tenants.',
   },
   {
     icon: '⚙️',
@@ -78,10 +78,10 @@ function FeaturesPage() {
         <section className="text-center max-w-3xl mx-auto">
           <span className="text-[10px] font-mono font-bold tracking-[0.25em] text-emerald-500 uppercase">Capabilities</span>
           <h1 className="mt-4 text-4xl sm:text-5xl font-black text-white tracking-tight">
-            AI employees that understand, monitor, and automate.
+            AI automations that understand, monitor, and automate.
           </h1>
           <p className="mt-5 text-stone-400 text-lg leading-relaxed">
-            Simpler Life 100 builds AI Operations Teams: AI employees that understand your operational context,
+            Simpler Life 100 builds AI Operations Teams: AI automations that understand your operational context,
             monitor your authorized systems, and safely automate client-requested tasks — across industries.
           </p>
         </section>

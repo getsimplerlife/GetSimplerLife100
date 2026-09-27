@@ -58,24 +58,21 @@ interface QueryContext {
 
 // ── System Prompts ──────────────────────────────────────────────────────
 
-const GUEST_SYSTEM_PROMPT = `You are the Simpler Life 100 AI Operations Assistant. You help visitors understand the platform and answer questions about how our AI workforce can automate their operations.
-
+const GUEST_SYSTEM_PROMPT = `You are the Simpler Life 100 AI Operations Assistant. You help visitors understand the platform and answer questions about how the Simpler Life 100 platform can automate their operations.
 About Simpler Life 100:
-- We sell industry-specific AI Operations Teams — not generic AI agents.
+- We sell ONE platform: every capability is included in every tier (records, forms, docs and e-sign, webhooks, booking, boards, AI extraction, surveys/NPS, data transforms/EDI, dashboards/BI, and automations/workflows). There are no individual AI-employee or per-agent SKUs.
 - We serve 23 industry verticals: healthcare, manufacturing, logistics, retail, finance, construction, energy, automotive, aerospace, agriculture, e-commerce, hospitality, insurance, pharma, tech, telecom, media, professional services, real estate, education, legal, government, nonprofit.
-- We have 18 AI agent types: document_intake, healthcare_intake, invoice_ledger, sales_outreach, hr_compliance, dispatch_logistics, audit_logger, voice_receptionist, support_agent, knowledge_assistant, inventory_management, contract_management, customer_success, project_management, procurement_vendor, it_operations, fp_and_a, marketing_social.
-- Pricing starts at $750/mo for individual agent deployment, with implementation packages available.
-- Our tools include: "Can We Automate This?" analyzer, AI Operations Advisor, AI Automation Assessment (11-question), and ROI Calculator — all free to use.
-- The portal (requires signup) includes: Dashboard, Workflow Builder, AI Employees Marketplace, Document Upload/OCR, Integrations (180+ providers), Billing, Approvals, and more.
-
+- Locked platform pricing: Starter $199/mo (+ $500 onboarding), Growth $599/mo (+ $1,500), Enterprise $1,499/mo (onboarding included). Every tier includes 100% of native capabilities; tiers differ by scale limits, governance (multi-step approvals + autonomy allow-lists), and support.
+- The $2,500 Automation Sprint is a separate one-time service (also listed as Industry Blueprint Assessment).
+- Our free tools include: "Can We Automate This?" analyzer, AI Operations Advisor, AI Automation Assessment (11-question), and ROI Calculator — all free to use.
+- The portal (requires signup) includes: Dashboard, Workflow Builder, Document Upload/OCR, native capabilities, Billing, Approvals, and more.
 When answering:
 - Be helpful, concise, and specific. Use markdown formatting.
-- If a visitor asks about automating a specific process, describe which agent types would help.
-- If they ask about pricing, be transparent.
+- If a visitor asks about automating a specific process, describe which platform capabilities would help.
+- If they ask about pricing, be transparent and cite the locked tiers above.
 - Suggest relevant free tools on the site when appropriate.
 - If they ask about their own data/workflows, politely explain they need to sign up/login first.
 - Keep responses friendly but professional.`;
-
 function getAuthenticatedSystemPrompt(ctx: QueryContext): string {
   const activeEmployees = ctx.employees.filter((e: any) => e.status?.toLowerCase() === "active").length;
   const failedWorkflows = ctx.workflows.filter((w: any) => w.status?.toLowerCase() === "failed").length;
@@ -462,33 +459,33 @@ function generateFallbackReply(message: string, isGuest: boolean): string {
 
   if (lower.includes("hello") || lower.includes("hi ") || lower.includes("hey")) {
     return isGuest
-      ? "Hello! I'm the Simpler Life 100 AI Assistant. I can help you understand our platform, AI agent types, pricing, and how we can automate your operations. What would you like to know?"
+      ? "Hello! I'm the Simpler Life 100 AI Assistant. I can help you understand our platform, pricing, and how we can automate your operations. What would you like to know?"
       : "Hello! I'm your AI Operations Assistant. I can help you manage your AI workforce, monitor workflows, and answer questions about your operations. How can I help?";
   }
 
   if (lower.includes("workflow") || lower.includes("automation")) {
     return isGuest
-      ? "Our platform offers 18 specialized AI agent types for automating different business processes. We have document processing, invoice management, sales outreach, HR compliance, dispatch logistics, and many more. Would you like to know about a specific type of automation?"
+      ? "Our platform includes native capabilities for document processing, invoice management, sales follow-up, HR compliance, dispatch logistics, and many more — all included in every plan. Would you like to know about a specific process?"
       : "You can manage your workflows from the Workflow Manager in the portal. To create a new workflow, use the Workflow Builder where you can describe your process in natural language and our AI will generate the automation for you.";
   }
 
   if (lower.includes("price") || lower.includes("cost") || lower.includes("how much")) {
-    return "Our AI agents start at $750/month per agent. We also offer implementation packages that deploy a team of agents for specific business functions. Visit the AI Employees Marketplace to see all available plans.";
+    return "Simpler Life 100 is one platform with every capability included in every tier. Locked pricing: Starter $199/mo (+ $500 onboarding), Growth $599/mo (+ $1,500), and Enterprise $1,499/mo (onboarding included). See the Pricing page for details.";
   }
 
   if (lower.includes("employee") || lower.includes("agent") || lower.includes("ai team")) {
     return isGuest
-      ? "We offer 18 types of AI employees spanning document processing, healthcare intake, invoice management, sales outreach, HR compliance, dispatch logistics, customer support, IT operations, financial planning, and more. Which area interests you?"
+      ? "Our platform automates document processing, healthcare intake, invoice management, sales follow-up, HR compliance, dispatch logistics, customer support, IT operations, financial planning, and more — every capability is included in every plan. Which area interests you?"
       : "You can view all your AI employees in the Employee Directory. Deploy new agents from the AI Employees Marketplace.";
   }
 
   if (lower.includes("integration") || lower.includes("connect")) {
     return isGuest
-      ? "Simpler Life 100 integrates with over 180 business platforms including Salesforce, HubSpot, QuickBooks, Slack, Gmail, Shopify, Jira, and many more."
+      ? "Simpler Life 100 has native capabilities across records, documents, forms, e-sign, booking, boards, surveys, transforms/EDI, dashboards, and automations, with the 180+ integration catalog mapped natively."
       : "Manage your integrations from the Integrations page. We support 180+ providers with OAuth connections.";
   }
 
   return isGuest
-    ? "I'm here to help you learn about Simpler Life 100! Ask me about our AI agents, pricing, integrations, or how we can automate your specific business processes."
+    ? "I'm here to help you learn about Simpler Life 100! Ask me about our platform capabilities, pricing, or how we can automate your specific business processes."
     : "I'm your AI Operations Assistant. I can help with workflows, employee status, activity monitoring, approvals, analytics, integrations, and more. What would you like help with?";
 }

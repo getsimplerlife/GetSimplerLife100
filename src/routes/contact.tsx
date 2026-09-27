@@ -57,28 +57,28 @@ function Contact() {
       if (problem.includes('existing') || problem.includes('already') || problem.includes('maintain') || problem.includes('current')) {
         recommendation = {
           tier: 'Support',
-          title: 'Growth Package',
-          price: 'From $15,000',
-          explanation: `You already have systems in motion. Rather than rebuilding, we can deploy AI operations that monitor and maintain your ${industry} workflows, handling volume spikes and freeing your team to focus on exceptions.`,
-          cta: 'View Builder Packages',
+          title: 'Growth Platform Tier',
+          price: 'From $599/mo',
+          explanation: `You already have systems in motion. Rather than rebuilding, we can deploy automations that monitor and maintain your ${industry} workflows, handling volume spikes and freeing your team to focus on exceptions. One platform, every capability — no per-employee fees.`,
+          cta: 'View Platform Pricing',
           link: '/pricing'
         };
       } else if (problem.length > 60 && (problem.includes('every') || problem.includes('daily') || problem.includes('each') || problem.includes('repeat') || problem.includes('process') || problem.includes('approve') || problem.includes('review') || problem.includes('enter') || problem.includes('copy'))) {
         recommendation = {
           tier: 'Build',
-          title: 'Starter Package',
-          price: 'From $7,500',
-          explanation: `This is exactly the kind of repeatable workflow AI handles best. For a ${industry} company, we'd build an AI employee to automate this process end-to-end — a one-time build package plus a monthly fee per AI employee — integrating with your existing tools.`,
-          cta: 'View Builder Packages',
+          title: 'Starter Platform Tier',
+          price: 'From $199/mo',
+          explanation: `This is exactly the kind of repeatable workflow automation handles best. For a ${industry} company, we'd run this end-to-end on the platform — onboarding plus a monthly platform subscription — integrating with your existing tools.`,
+          cta: 'View Platform Pricing',
           link: '/pricing'
         };
       } else if (problem.length > 30) {
         recommendation = {
           tier: 'Design',
-          title: 'Growth Package',
-          price: 'From $15,000',
-          explanation: `You've identified a real opportunity in ${industry}. Let's map how an AI employee fits your workflow — a one-time build package plus a monthly fee per AI employee, with live integrations for Xero, Slack, Google, Microsoft, HubSpot, and DocuSign today.`,
-          cta: 'View Builder Packages',
+          title: 'Growth Platform Tier',
+          price: 'From $599/mo',
+          explanation: `You've identified a real opportunity in ${industry}. Let's map how the platform fits your workflow — one subscription, every capability, with live integrations for Xero, Slack, Google, Microsoft, HubSpot, and DocuSign today.`,
+          cta: 'View Platform Pricing',
           link: '/pricing'
         };
       } else {

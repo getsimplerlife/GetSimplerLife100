@@ -29,17 +29,17 @@ function PrivacyPage() {
         <p className="text-stone-500 text-sm mb-8">Last updated: present day. Questions: <a className="text-emerald-400 underline" href="mailto:electric.vortexz@gmail.com">electric.vortexz@gmail.com</a>.</p>
 
         <Section title="What this product is">
-          <p>Simpler Life 100 builds and manages AI Operations Teams: AI employees that help businesses automate tasks such as quote-to-cash workflows, document processing, notifications, and data entry across the apps you authorize us to connect.</p>
+          <p>Simpler Life 100 builds and manages AI Operations Teams: AI automations that help businesses automate tasks such as quote-to-cash workflows, document processing, notifications, and data entry across the apps you authorize us to connect.</p>
         </Section>
 
         <Section title="Information we collect">
           <p>We collect information you provide directly: your account email and a password (stored securely as a hashed credential) when you register for or access the portal, and contact or business details you submit through forms or during onboarding.</p>
           <p>When you connect a third-party service (such as Xero, HubSpot, Slack, Google, Microsoft, or DocuSign), we store the connection credentials and tokens needed to operate that integration, and we may process data in those systems (such as invoices, deals, contacts, documents, or messages) to perform the tasks you ask us to automate.</p>
-          <p>When you upload documents for processing, we store them so the AI employee can work on them and so you can review the results.</p>
+          <p>When you upload documents for processing, we store them so the AI automation can work on them and so you can review the results.</p>
         </Section>
 
         <Section title="How we use information">
-          <p>We use the information we collect to provide, operate, secure, and improve the service: to run your AI employees, to connect to and synchronize your authorized services, to process purchases and billing through our payment provider, to send you operational notifications you requested, and to respond to support requests.</p>
+          <p>We use the information we collect to provide, operate, secure, and improve the service: to run your AI automations, to connect to and synchronize your authorized services, to process purchases and billing through our payment provider, to send you operational notifications you requested, and to respond to support requests.</p>
           <p>We do not sell your personal information.</p>
         </Section>
 

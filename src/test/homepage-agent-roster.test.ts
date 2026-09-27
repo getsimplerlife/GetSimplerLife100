@@ -1,93 +1,40 @@
 /**
- * homepage-agent-roster.test.ts — guard: the public homepage pricing section
- * must surface the FULL AI-employee roster (all 17 agents from the canonical
- * data source) so buyers see every employee name + monthly price before
- * purchase.
+ * homepage pricing-band test (reworked for LOCKED platform tiers, owner 09-27).
+ * The old "Monthly per AI Employee" roster is GONE from the homepage — the
+ * homepage now shows the three locked platform tiers (Starter/Growth/Enterprise,
+ * monthly + onboarding), with no per-employee selling.
  *
- * The homepage renders the roster by mapping over `AGENTS` (src/data/agents.ts)
- * inside the "Monthly per AI Employee" card. Names/prices are injected at
- * runtime from that single source. This test asserts:
- *  1) the homepage source imports + maps over the canonical AGENTS module
- *     (no forked copy, no hardcoded names),
- *  2) the price markup renders from `agent.price}"/mo"` (catalog price, not a
- *     stale literal),
- *  3) every one of the 17 agent NAMES appears in the built browser bundle —
- *     i.e. the rendered output the buyer actually sees on the homepage.
- *
- * The bundle is checked for names only (minifiers split numeric price strings
- * into fragments, so exact "$950/mo" literals do not survive minification;
- * names are string literals and do).
- *
- * NOTE: the bundle check requires a prior `bun run build` — the canonical
- * repo flow always builds before testing, and dist/ is gitignored + rebuilt
- * per release.
+ * src/data/agents.ts remains the canonical RUNTIME data module (purchase
+ * provisioning still materializes agents per Stripe product metadata), so we
+ * keep guarding it for its own integrity — but the public homepage must NOT
+ * sell per-employee anymore.
  */
 import { describe, expect, it } from "vitest";
-import { readFileSync, readdirSync } from "fs";
-import { join } from "path";
+import { readFileSync } from "fs";
 import { AGENTS } from "../data/agents";
 
 const homeSource = readFileSync("src/routes/index.tsx", "utf8");
 const agentsSource = readFileSync("src/data/agents.ts", "utf8");
 
-// Pick the newest built entry bundle (contains the hydrated homepage HTML).
-function builtEntryBundle(): string | null {
-  const dir = "dist/assets";
-  try {
-    const files = readdirSync(dir).filter((f) => f.startsWith("index-") && f.endsWith(".js"));
-    if (files.length === 0) return null;
-    return join(dir, files[files.length - 1]);
-  } catch {
-    return null;
-  }
-}
-
-describe("homepage AI-employee roster", () => {
-  it("canonical data source exposes all 17 agents with catalog prices", () => {
+describe("homepage platform-tier pricing band", () => {
+  it("canonical runtime data source still exposes the catalog agents (runtime module, not sold per-employee)", () => {
     expect(AGENTS.length).toBe(17);
-    // Spot-check the verified Stripe catalog prices are the data source.
     expect(agentsSource).toContain('price: 950');
     expect(agentsSource).toContain('price: 2000');
-    expect(agentsSource).toContain('price: 499');
-    expect(agentsSource).toContain('price: 1500');
   });
 
-  it("homepage maps over the canonical AGENTS source (not a fork)", () => {
-    expect(homeSource).toMatch(/import\s*\{\s*AGENTS\s*\}\s*from\s*["']~\/data\/agents["']/);
-    expect(homeSource).toMatch(/AGENTS\.map\(/);
+  it("homepage shows the LOCKED platform tiers (monthly + onboarding), not per-employee cards", () => {
+    expect(homeSource).toContain("$199/mo");
+    expect(homeSource).toContain("$599/mo");
+    expect(homeSource).toContain("$1,499/mo");
+    expect(homeSource).toContain("setup included");
   });
 
-  it("all 17 AI employee names appear in the built homepage bundle (rendered output)", () => {
-    const bundle = builtEntryBundle();
-    expect(bundle, "dist/assets entry bundle missing — run `bun run build` first").toBeTruthy();
-    const out = readFileSync(bundle!, "utf8");
-    const missing = AGENTS.filter((a) => !out.includes(a.name)).map((a) => a.name);
-    expect(missing).toEqual([]);
-  });
-
-  it("homepage renders each price from the agent's catalog price (/mo)", () => {
-    // Renders "$" + agent.price + "/mo" — the minified bundle splits these
-    // fragments, so assert the source expression (proves catalog wiring).
-    expect(homeSource).toMatch(/agent\.price\.toLocaleString\("en-US"\)\}\/mo/);
-  });
-
-  it("all 17 names AND prices are wired into the homepage roster", () => {
-    // Names and prices live in the canonical data module (the single source of
-    // truth /pricing also uses); the homepage renders them via {agent.name} +
-    // ${agent.price.toLocaleString("en-US")}/mo (map over AGENTS). So the truthful invariants are:
-    //  1) every full name exists in the data module,
-    //  2) every catalog price exists in the data module,
-    //  3) the homepage maps over that module and renders name + price from it
-    //     (not a forked/hardcoded list),
-    //  4) the built bundle (actual rendered homepage output) contains every name.
-    for (const a of AGENTS) {
-      expect(agentsSource).toContain(`name: "${a.name}"`);
-    }
-    for (const a of AGENTS) {
-      expect(agentsSource).toContain(`price: ${a.price}`);
-    }
-    expect(homeSource).toMatch(/AGENTS\.map\(/);
-    expect(homeSource).toMatch(/agent\.name/);
-    expect(homeSource).toMatch(/agent\.price\.toLocaleString\("en-US"\)\}\/mo/);
+  it("homepage no longer sells per-employee (no roster, no AGENTS.map, no old package prices)", () => {
+    expect(homeSource).not.toMatch(/AGENTS\.map\(/);
+    expect(homeSource).not.toContain("$7,500");
+    expect(homeSource).not.toContain("$15,000");
+    expect(homeSource).not.toContain("$30,000");
+    expect(homeSource).not.toMatch(/Monthly per AI Employee|per AI employee/);
   });
 });

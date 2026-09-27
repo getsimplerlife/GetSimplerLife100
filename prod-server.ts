@@ -2567,18 +2567,19 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
     for (const a of top) addAgent(a);
   }
 
-  // Plan selection: 1-3 → Starter, 4-7 → Growth, 8+ → Scale
+  // Plan recommendation: locked platform tiers (owner 09-27) — one platform,
+  // every capability in every tier. Tiers differ by scale, governance, support.
   const count = matched.length;
   let bestPlan: string, planLink: string, planPrice: string, planIncludes: string;
   if (count <= 3) {
-    bestPlan = "Starter"; planLink = "https://buy.stripe.com/3cI8wR88Tasfc1B9XW2Fa2K"; planPrice = "$7,500";
-    planIncludes = "3 AI employees • 5 workflow templates • Standard integrations • Email support";
+    bestPlan = "Starter"; planLink = "/pricing"; planPrice = "$199/mo + $500 onboarding";
+    planIncludes = "100% of native capabilities (records, forms, docs/e-sign, webhooks, booking, boards, AI extraction, surveys/NPS, transforms/EDI, dashboards/BI, automations) • Standard support";
   } else if (count <= 7) {
-    bestPlan = "Growth"; planLink = "https://buy.stripe.com/5kQ6oJbl5dErc1B1rq2Fa2L"; planPrice = "$15,000";
-    planIncludes = "8 AI employees • All workflow templates • 180+ integrations • Priority support • CRM/ERP enabled";
+    bestPlan = "Growth"; planLink = "/pricing"; planPrice = "$599/mo + $1,500 onboarding";
+    planIncludes = "100% of native capabilities • Higher scale limits • Multi-step approvals + autonomy allow-lists • Priority support";
   } else {
-    bestPlan = "Scale"; planLink = "https://buy.stripe.com/aFa7sN60LdErc1B5HG2Fa2M"; planPrice = "$30,000";
-    planIncludes = "All 17 AI employees • Custom workflows • Dedicated account manager • 24/7 support • CRM/ERP/API access • SLA guarantee";
+    bestPlan = "Enterprise"; planLink = "/pricing"; planPrice = "$1,499/mo (onboarding included)";
+    planIncludes = "100% of native capabilities • Highest scale limits • Advanced governance + allow-lists • Dedicated support • Custom on-demand vendor-API builds (SAP/SuiteScript)";
   }
 
   // Build email body
@@ -2589,29 +2590,18 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
   if (processInfo) body += L + processInfo + L;
   body += L;
 
-  // Option 1: A La Carte
-  body += "═══════════════════════════════════" + L;
-  body += "OPTION 1: \u00C0 LA CARTE" + L;
-  body += "═══════════════════════════════════" + L + L;
-  let totalPrice = 0;
-  for (const a of matched) {
-    body += "  \u2022 " + a.name + " — $" + a.price.toLocaleString() + "/mo" + L;
-    body += "    Purchase: " + a.paymentLink + L;
-    totalPrice += a.price;
+  // Suggested automations (capability names only — no per-agent pricing, no SKU links)
+  if (matched.length) {
+    body += "SUGGESTED AUTOMATIONS:" + L;
+    for (const a of matched) body += "  \u2022 " + a.name + L;
+    body += L;
   }
-  body += L + "TOTAL \u00C0 LA CARTE: $" + totalPrice.toLocaleString() + "/mo" + L;
-  body += L + "PURCHASE INDIVIDUAL AGENTS:" + L;
-  for (const a of matched) {
-    body += "  " + a.name + ": " + a.paymentLink + L;
-  }
-  body += L;
-
-  // Option 2: Best-Fit Plan
+  // Recommended platform tier
   body += "═══════════════════════════════════" + L;
-  body += "OPTION 2: " + bestPlan.toUpperCase() + " PLAN — " + planPrice + L;
+  body += "RECOMMENDED PLAN: " + bestPlan.toUpperCase() + " — " + planPrice + L;
   body += "═══════════════════════════════════" + L + L;
   body += planIncludes + L;
-  body += L + "PURCHASE " + bestPlan.toUpperCase() + " PLAN: " + planLink + L;
+  body += L + "VIEW PRICING: https://simplerlife100.ctonew.app" + planLink + L;
 
   const subject = "New Lead: " + email + " - " + toolName;
   return { subject, body, matchedAgents: matched, bestPlan, planLink };

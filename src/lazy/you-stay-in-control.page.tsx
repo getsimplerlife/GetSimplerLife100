@@ -22,7 +22,7 @@ export default function YouStayInControlPage() {
               <span className="text-emerald-500">Your team does.</span>
             </h1>
             <p className="text-lg text-stone-400 max-w-2xl mx-auto leading-relaxed">
-              Every AI employee we deploy is built around one hard rule: nothing writes to your systems without a
+              Every AI automation we deploy is built around one hard rule: nothing writes to your systems without a
               human approving it. Everything else — the draft, the connection, the monitoring — is our job.
             </p>
           </div>
@@ -31,7 +31,7 @@ export default function YouStayInControlPage() {
           <section className="p-8 bg-stone-900/40 border border-emerald-500/30 rounded-3xl space-y-4">
             <h2 className="text-2xl font-black text-white">The human approval queue</h2>
             <p className="text-stone-400 leading-relaxed">
-              When an AI employee wants to take a write action — draft an invoice, update a deal, send a message,
+              When an AI automation wants to take a write action — draft an invoice, update a deal, send a message,
               file a document — it doesn't do it. It creates a pending action in a queue your team sees in the portal.
               A human reviews it and approves or rejects it. Only then does the action run.
             </p>
@@ -87,7 +87,7 @@ export default function YouStayInControlPage() {
                 {
                   icon: "🚧",
                   title: "Permission controls",
-                  d: "You decide what each AI employee can and cannot touch — which systems, which scopes, which actions.",
+                  d: "You decide what each AI automation can and cannot touch — which systems, which scopes, which actions.",
                 },
               ].map((c) => (
                 <div key={c.title} className="premium-card-soft p-6 rounded-2xl space-y-2">

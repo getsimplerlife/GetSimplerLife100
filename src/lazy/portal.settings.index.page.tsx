@@ -936,37 +936,33 @@ function UnifiedSettingsHub() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs font-semibold">
                 <div className="p-4 bg-stone-900/30 rounded-2xl border border-stone-900 flex justify-between items-center gap-4">
                   <div>
-                    <div className="font-bold text-white text-sm">Growth Build Package</div>
-                    <p className="text-[11px] text-stone-500 mt-0.5">5 active AI employees, full API systems integration, 60-day tech support. 1 CRM connection included.</p>
+                    <div className="font-bold text-white text-sm">Growth Platform Tier</div>
+                    <p className="text-[11px] text-stone-500 mt-0.5">100% of native capabilities, higher scale limits, multi-step approvals + autonomy allow-lists, priority support.</p>
                   </div>
                   <div className="shrink-0 text-right space-y-1.5">
-                    <span className="font-black text-emerald-400 text-sm block">$15,000</span>
-                    <a
-                      href="https://buy.stripe.com/5kQ6oJbl5dErc1B1rq2Fa2L"
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <span className="font-black text-emerald-400 text-sm block">$599/mo</span>
+                    <Link
+                      to="/pricing"
                       className="inline-block bg-stone-900 hover:bg-stone-800 text-white font-bold px-3 py-1.5 rounded-lg text-[10px] border border-stone-800"
                     >
-                      Buy Upgrade
-                    </a>
+                      View pricing
+                    </Link>
                   </div>
                 </div>
 
                 <div className="p-4 bg-stone-900/30 rounded-2xl border border-stone-900 flex justify-between items-center gap-4">
                   <div>
-                    <div className="font-bold text-white text-sm">Scale Build Package</div>
-                    <p className="text-[11px] text-stone-500 mt-0.5">Unlimited AI employees, customizable modeling, priority SLA support. 1 CRM connection included.</p>
+                    <div className="font-bold text-white text-sm">Enterprise Platform Tier</div>
+                    <p className="text-[11px] text-stone-500 mt-0.5">100% of native capabilities, highest scale limits, advanced governance, dedicated support, custom vendor-API builds.</p>
                   </div>
                   <div className="shrink-0 text-right space-y-1.5">
-                    <span className="font-black text-emerald-400 text-sm block">$30,000</span>
-                    <a
-                      href="https://buy.stripe.com/aFa7sN60LdErc1B5HG2Fa2M"
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <span className="font-black text-emerald-400 text-sm block">$1,499/mo</span>
+                    <Link
+                      to="/pricing"
                       className="inline-block bg-stone-900 hover:bg-stone-800 text-white font-bold px-3 py-1.5 rounded-lg text-[10px] border border-stone-800"
                     >
-                      Buy Upgrade
-                    </a>
+                      View pricing
+                    </Link>
                   </div>
                 </div>
               </div>

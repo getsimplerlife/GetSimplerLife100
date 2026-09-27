@@ -54,17 +54,16 @@ function AutomationLibraryPage() {
     });
   }, [selectedIndustry, selectedDifficulty, searchTerm]);
 
-  // Pricing mapped to standard checkout links
-  const getStripeLink = (difficulty: string) => {
-    if (difficulty === "easy") return "https://buy.stripe.com/3cI8wR88Tasfc1B9XW2Fa2K"; // Starter
-    if (difficulty === "medium") return "https://buy.stripe.com/5kQ6oJbl5dErc1B1rq2Fa2L"; // Growth
-    return "https://buy.stripe.com/aFa7sN60LdErc1B5HG2Fa2M"; // Scale
+  // LOCKED PLATFORM TIERS (owner 09-27) — monthly platform pricing; every
+  // tier includes 100% of native capabilities. CTA points at the pricing page.
+  const getStripeLink = (_difficulty: string): string => {
+    return "/pricing";
   };
 
-  const getTierPrice = (difficulty: string) => {
-    if (difficulty === "easy") return "$7,500";
-    if (difficulty === "medium") return "$15,000";
-    return "$30,000";
+  const getTierPrice = (difficulty: string): string => {
+    if (difficulty === "easy") return "$199/mo";
+    if (difficulty === "medium") return "$599/mo";
+    return "$1,499/mo";
   };
 
   return (

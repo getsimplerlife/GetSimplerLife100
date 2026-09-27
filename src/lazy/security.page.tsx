@@ -22,7 +22,7 @@ export default function SecurityPage() {
             </h1>
             <p className="text-lg text-stone-400 max-w-2xl mx-auto leading-relaxed">
               Simpler Life 100 connects to the systems you already use — with your permissions, your approval, and an
-              audit trail of everything an AI employee does. This page states plainly what the product does and does
+              audit trail of everything an AI automation does. This page states plainly what the product does and does
               not do.
             </p>
           </div>
@@ -35,12 +35,12 @@ export default function SecurityPage() {
                 {
                   icon: "🔑",
                   title: "Scoped permissions",
-                  d: "AI employees operate only in the systems and scopes you authorize during connection. They do not get blanket access to everything in your stack.",
+                  d: "AI automations operate only in the systems and scopes you authorize during connection. They do not get blanket access to everything in your stack.",
                 },
                 {
                   icon: "🧠",
                   title: "What AI can and cannot do",
-                  d: "An AI employee can read what you authorize, draft what the workflow requires, and propose actions. Writes wait in the human approval queue by default — and if you enable full-auto per workflow, only explicitly allow-listed actions run, every one is audit-logged, and you can kill the automation instantly.",
+                  d: "An AI automation can read what you authorize, draft what the workflow requires, and propose actions. Writes wait in the human approval queue by default — and if you enable full-auto per workflow, only explicitly allow-listed actions run, every one is audit-logged, and you can kill the automation instantly.",
                 },
                 {
                   icon: "🛡️",
@@ -87,7 +87,7 @@ export default function SecurityPage() {
           <section className="space-y-6">
             <h2 className="text-2xl lg:text-3xl font-black text-white">Audit trail</h2>
             <p className="text-stone-400 max-w-3xl leading-relaxed">
-              Every action an AI employee takes is logged: what it did, which system it touched, when it happened, and
+              Every action an AI automation takes is logged: what it did, which system it touched, when it happened, and
               whether a human approved it. Your portal shows this audit trail for every employee and workflow.
             </p>
           </section>

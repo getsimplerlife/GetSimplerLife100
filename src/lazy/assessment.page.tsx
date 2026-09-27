@@ -593,14 +593,12 @@ function AssessmentPage() {
                 Connect your business endpoints to an autonomous team and reclaim hours. All blueprints include dedicated implementation audits.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                <a
-                  href="https://buy.stripe.com/4gMfZj88TfMz6Hh8TS2Fa1K"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full sm:w-auto px-7 py-3.5 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-bold text-sm rounded-xl transition-all shadow-lg hover:shadow-[0_0_25px_rgba(99,102,241,0.4)]"
+                <Link
+                  to="/pricing"
+                  className="w-full sm:w-auto px-7 py-3.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold text-sm rounded-xl transition-all shadow-lg hover:shadow-[0_0_25px_rgba(16,185,129,0.4)]"
                 >
-                  🚀 DEPLOY AI TEAM — $750/MO
-                </a>
+                  🚀 SEE PLATFORM PRICING →
+                </Link>
                 <Link
                   to="/contact"
                   className="w-full sm:w-auto px-7 py-3.5 bg-stone-900 border border-stone-800 hover:bg-stone-800 text-stone-200 text-sm font-bold rounded-xl transition-all"
