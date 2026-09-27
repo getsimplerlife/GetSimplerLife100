@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, afterEach } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -19,8 +19,10 @@ import {
   listAlertRecords,
   listPendingWrites,
   listAudit,
+  getReport,
 } from "../native/dashboard/store";
 import { scheduleAnchor } from "../native/dashboard/engine";
+import { handleNativeDashboardsAuthed, registerBuiltinNativeDashboardEventTypes } from "../native/dashboard/router";
 import { ensureTestServer, testBaseUrl } from "./test-env";
 import { createTable, insertRow } from "../native/tables/store";
 import type { TableDef } from "../native/tables/types";
@@ -298,6 +300,14 @@ describe("Phase 3.6 alert rules — edge-triggered thresholds", () => {
 });
 
 describe("Phase 3.6 HTTP wiring (standing controls)", () => {
+  beforeAll(() => { registerBuiltinNativeDashboardEventTypes(); });
+  function authedReq(method: string, pathname: string, body?: unknown): Request {
+    const headers: Record<string, string> = { "content-type": "application/json" };
+    return new Request(`http://localhost${pathname}`, { method, headers, body: body !== undefined ? JSON.stringify(body) : undefined });
+  }
+  function route(method: string, pathname: string, body?: unknown, tenant: string = T1): Promise<Response> {
+    return handleNativeDashboardsAuthed(authedReq(method, pathname, body), { userEmail: tenant, dataDir: dir });
+  }
   it("anonymous → 401 on every dashboard lane", async () => {
     await ensureTestServer();
     const base = testBaseUrl();
@@ -313,5 +323,50 @@ describe("Phase 3.6 HTTP wiring (standing controls)", () => {
     expect(share.status).toBe(404);
     const d = await fetch(`${base}/api/native/dashboard`, { signal: AbortSignal.timeout(8000) });
     expect(d.status).toBe(401);
+  });
+  it("router raw-body forged create-ids → 400 BEFORE normalization; never queued", async () => {
+    // create dashboard
+    const r1 = await route("POST", "/api/native/dashboard", { id: "dsh_hacked", name: "x" });
+    expect(r1.status).toBe(400);
+    expect(await r1.text()).toMatch(/server-assigned/i);
+    // create report
+    const r2 = await route("POST", "/api/native/dashboard/reports", { id: "rpt_hacked", name: "x", sourceTableId: tableId, viz: "bar", agg: "count" });
+    expect(r2.status).toBe(400);
+    // create schedule
+    const r3 = await route("POST", "/api/native/dashboard/schedules", { id: "sch_hacked", reportId: "rpt_1", cron: "daily@09:00", recipients: ["a@b.c"] });
+    expect(r3.status).toBe(400);
+    // create alert rule
+    const r4 = await route("POST", "/api/native/dashboard/alerts", { id: "alr_hacked", reportId: "rpt_1", op: "gt", threshold: 5 });
+    expect(r4.status).toBe(400);
+    expect(listPendingWrites(dir, T1).filter((w) => w.status === "pending").length).toBe(0); // never queued
+  });
+  it("router update lanes ignore body ids — path id is authoritative", async () => {
+    const reportId = makeReportId();
+    // Send a FULL valid update body but with a forged id — the path id wins.
+    const r = await route("POST", `/api/native/dashboard/reports/${reportId}/update`, {
+      id: "rpt_other",
+      name: "Renamed by region",
+      description: "sum amount group by region",
+      sourceTableId: tableId,
+      viz: "bar",
+      groupBy: "region",
+      valueField: "amount",
+      agg: "sum",
+      sortDir: "desc",
+      limit: 100,
+    });
+    expect(r.status).toBe(202); // queued under the PATH id, not the body id
+    const ptw = listPendingWrites(dir, T1).find((w) => w.status === "pending");
+    expect(ptw).toBeTruthy();
+    expect(JSON.stringify(ptw?.payload ?? ptw)).not.toContain("rpt_other");
+    const applied = applyPending(ptw!.approvalActionId);
+    expect(applied.reportId).toBe(reportId);
+    const renamed = getReport(dir, T1, reportId);
+    expect(renamed?.name).toBe("Renamed by region");
+  });
+  it("cross-tenant report access via router → 404 no-IDOR", async () => {
+    const reportId = makeReportId();
+    const g = await route("GET", `/api/native/dashboard/reports/${reportId}`, undefined, T2);
+    expect(g.status).toBe(404);
   });
 });

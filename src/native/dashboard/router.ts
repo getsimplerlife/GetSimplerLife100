@@ -6,7 +6,8 @@
  * AUTHED ONLY (/api/native/dashboard*): dashboard/report/schedule/alert-rule
  * CRUD + run lanes + artifact download + pending-write decision lanes.
  * 404 on any foreign/unknown id (fail-closed — cross-tenant → null → 404,
- * no IDOR); forged create-ids → 400 via the gate's validation-BEFORE-gate;
+ * no IDOR); forged create-ids → 400 via the router raw-body check BEFORE
+ * normalization (ids are server-assigned; board 3.2 / booking 3.1 discipline);
  * prod-server wires this AFTER the session check so anonymous → 401.
  * NO public share surface (3.2/3.3 precedent).
  *
@@ -44,6 +45,14 @@ export interface NativeDashboardCtx {
 const json400 = (error: string) => Response.json({ error }, { status: 400 });
 const json404 = (error: string) => Response.json({ error }, { status: 404 });
 const json405 = () => Response.json({ error: "Method not allowed" }, { status: 405 });
+/** Raw-body forged-id rejection BEFORE any normalization — server-assigned
+ *  ids only (board 3.2 / booking 3.1 / dealroom 2.4 discipline). */
+function rejectClientId(body: Record<string, unknown>): string | null {
+  const id = body["id"];
+  if (typeof id === "string") return "invalid id on create (ids are server-assigned)";
+  if (id !== undefined && id !== null) return "invalid id on create (ids are server-assigned)";
+  return null;
+}
 function gateErrorStatus(error: string): Response {
   const nf = /not found|no pending write|already applied|already decided/.test(error);
   const bad = /required|must|cap reached|cannot|invalid|at least|failed|unknown|not active|accepted/.test(error);
@@ -252,6 +261,8 @@ function handleAuthedAsync(req: Request, ctx: NativeDashboardCtx): Promise<Respo
     if (seg.length === 0) {
       const body = await req.json().catch(() => null);
       if (!body || typeof body !== "object") return json400("body must be a JSON object");
+      const forged = rejectClientId(body as Record<string, unknown>);
+      if (forged) return json400(forged);
       const res = submitDashboardWrite(ctx.dataDir, tenantId, "createDashboard", { dashboard: body as Record<string, unknown>, via: "portal" }, tenantId);
       return res.applied ? Response.json({ data: { status: "applied", dashboardId: res.reportId } }) : res.pending ? Response.json({ data: { status: "pending", approvalActionId: res.approvalActionId } }, { status: 202 }) : gateErrorStatus(res.error ?? "create failed");
     }
@@ -271,6 +282,8 @@ function handleAuthedAsync(req: Request, ctx: NativeDashboardCtx): Promise<Respo
     if (seg[0] === "reports" && seg.length === 1) {
       const body = await req.json().catch(() => null);
       if (!body || typeof body !== "object") return json400("body must be a JSON object");
+      const forged = rejectClientId(body as Record<string, unknown>);
+      if (forged) return json400(forged);
       const res = submitDashboardWrite(ctx.dataDir, tenantId, "createReport", { report: body as Record<string, unknown>, via: "portal" }, tenantId);
       return res.applied ? Response.json({ data: { status: "applied", reportId: res.reportId } }) : res.pending ? Response.json({ data: { status: "pending", approvalActionId: res.approvalActionId } }, { status: 202 }) : gateErrorStatus(res.error ?? "create failed");
     }
@@ -289,7 +302,8 @@ function handleAuthedAsync(req: Request, ctx: NativeDashboardCtx): Promise<Respo
           if (sub === "run") {
             reqBody = { report: { id: reportId }, format: b.format === "csv" || b.format === "pdf" ? b.format : null, via: "portal" };
           } else {
-            reqBody = { report: { id: reportId, ...b }, via: "portal" };
+            const { id: _forged, ...rest } = b; // path id is authoritative — never accept a body id
+            reqBody = { report: { id: reportId, ...rest }, via: "portal" };
           }
         }
         const op = sub === "update" ? "updateReport" : sub === "delete" ? "deleteReport" : "runReport";
@@ -302,6 +316,8 @@ function handleAuthedAsync(req: Request, ctx: NativeDashboardCtx): Promise<Respo
     if (seg[0] === "schedules" && seg.length === 1) {
       const body = await req.json().catch(() => null);
       if (!body || typeof body !== "object") return json400("body must be a JSON object");
+      const forged = rejectClientId(body as Record<string, unknown>);
+      if (forged) return json400(forged);
       const res = submitDashboardWrite(ctx.dataDir, tenantId, "createSchedule", { schedule: body as Record<string, unknown>, via: "portal" }, tenantId);
       return res.applied ? Response.json({ data: { status: "applied", scheduleId: res.reportId } }) : res.pending ? Response.json({ data: { status: "pending", approvalActionId: res.approvalActionId } }, { status: 202 }) : gateErrorStatus(res.error ?? "create failed");
     }
@@ -314,7 +330,8 @@ function handleAuthedAsync(req: Request, ctx: NativeDashboardCtx): Promise<Respo
         if (sub === "update") {
           const body = await req.json().catch(() => null);
           if (!body || typeof body !== "object") return json400("body must be a JSON object");
-          reqBody = { schedule: { id: scheduleId, ...(body as Record<string, unknown>) }, via: "portal" };
+          const { id: _forged, ...rest } = body as Record<string, unknown>; // path id is authoritative
+          reqBody = { schedule: { id: scheduleId, ...rest }, via: "portal" };
         } else {
           reqBody = { schedule: { id: scheduleId }, via: "portal" };
         }
@@ -328,6 +345,8 @@ function handleAuthedAsync(req: Request, ctx: NativeDashboardCtx): Promise<Respo
     if (seg[0] === "alerts" && seg.length === 1) {
       const body = await req.json().catch(() => null);
       if (!body || typeof body !== "object") return json400("body must be a JSON object");
+      const forged = rejectClientId(body as Record<string, unknown>);
+      if (forged) return json400(forged);
       const res = submitDashboardWrite(ctx.dataDir, tenantId, "createAlertRule", { alertRule: body as Record<string, unknown>, via: "portal" }, tenantId);
       return res.applied ? Response.json({ data: { status: "applied", alertRuleId: res.reportId } }) : res.pending ? Response.json({ data: { status: "pending", approvalActionId: res.approvalActionId } }, { status: 202 }) : gateErrorStatus(res.error ?? "create failed");
     }
@@ -340,7 +359,8 @@ function handleAuthedAsync(req: Request, ctx: NativeDashboardCtx): Promise<Respo
         if (sub === "update") {
           const body = await req.json().catch(() => null);
           if (!body || typeof body !== "object") return json400("body must be a JSON object");
-          reqBody = { alertRule: { id: alertRuleId, ...(body as Record<string, unknown>) }, via: "portal" };
+          const { id: _forged, ...rest } = body as Record<string, unknown>; // path id is authoritative
+          reqBody = { alertRule: { id: alertRuleId, ...rest }, via: "portal" };
         } else {
           reqBody = { alertRule: { id: alertRuleId }, via: "portal" };
         }
@@ -359,7 +379,8 @@ function handleAuthedAsync(req: Request, ctx: NativeDashboardCtx): Promise<Respo
         if (sub === "update") {
           const body = await req.json().catch(() => null);
           if (!body || typeof body !== "object") return json400("body must be a JSON object");
-          reqBody = { dashboard: { id: dashboardId, ...(body as Record<string, unknown>) }, via: "portal" };
+          const { id: _forged, ...rest } = body as Record<string, unknown>; // path id is authoritative
+          reqBody = { dashboard: { id: dashboardId, ...rest }, via: "portal" };
         } else {
           reqBody = { dashboard: { id: dashboardId }, via: "portal" };
         }
