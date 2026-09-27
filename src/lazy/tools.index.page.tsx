@@ -43,7 +43,7 @@ function ToolsHub() {
               <h2 className="text-2xl font-black">Can We Automate This?</h2>
               <p className="text-stone-400 text-sm leading-relaxed">
                 Describe any repetitive workflow your team does. We'll match it to our automation library,
-                estimate hours saved, and suggest the right automation — all in seconds.
+                and suggest the right automation — all in seconds.
               </p>
               <div className="grid grid-cols-3 gap-3 text-center text-xs">
                 <div className="bg-stone-900/50 rounded-lg p-3">
@@ -69,7 +69,7 @@ function ToolsHub() {
           </div>
         </div>
 
-        {/* Tool 2: AI Automation Assessment */}
+        {/* Tool 2: Automation Assessment */}
         <div className="bg-gradient-to-br from-indigo-950/20 to-stone-950 border border-stone-800 rounded-2xl p-6 md:p-8 hover:border-indigo-500/30 transition-all">
           <div className="flex items-start gap-6 flex-col md:flex-row">
             <div className="text-5xl shrink-0">📊</div>
@@ -78,7 +78,7 @@ function ToolsHub() {
                 <span className="px-2 py-0.5 bg-indigo-900/30 border border-indigo-800/50 text-indigo-400 text-[10px] font-mono font-bold rounded">EXPERT DIAGNOSTIC</span>
                 <span className="px-2 py-0.5 bg-stone-800 text-stone-400 text-[10px] font-mono rounded">FREE</span>
               </div>
-              <h2 className="text-2xl font-black">AI Automation Assessment</h2>
+              <h2 className="text-2xl font-black">Automation Assessment</h2>
               <p className="text-stone-400 text-sm leading-relaxed">
                 Take our 10-question expert operational assessment. Receive a dynamic annual savings audit, 
                 a customized list of high-priority workflows, and download your printable PDF report blueprint.

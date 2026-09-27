@@ -83,7 +83,7 @@ export default function WorkflowPage({ data }: { data: WorkflowType }) {
             </div>
             <div className="p-6 bg-stone-950/40 border border-stone-900 rounded-2xl">
               <div className="text-stone-500 font-mono text-[10px] tracking-widest uppercase mb-1">📈 Payback Period</div>
-              <div className="text-xl font-bold text-emerald-400">{w.roiTimeline} average</div>
+              <div className="text-xl font-bold text-emerald-400">{w.roiTimeline}</div>
             </div>
           </div>
         </section>

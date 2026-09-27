@@ -19,10 +19,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Invoice Processing Automation",
     industry: ["manufacturing"],
     description: "Automatically extract, validate, and post supplier invoices from PDF, email, and EDI sources into your ERP with full three-way matching against POs and receiving documents.",
-    timeSaved: "18 hrs/week per AP clerk",
+    timeSaved: "Frees AP clerk time spent on repetitive manual work",
     difficulty: "medium",
     integrations: ["sap", "oracle-netsuite", "quickbooks", "bill-com"],
-    roi: "85% reduction in invoice processing cost, 90% straight-through processing",
+    roi: "Invoice processing automated end to end with exceptions flagged for human review",
     demoDescription: "Watch the platform open a supplier invoice email, extract line items, match each to an open PO and receiving document, flag a price variance for human review, and post the clean lines."
   },
   {
@@ -30,10 +30,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Purchase Order Management",
     industry: ["manufacturing"],
     description: "Automate PO creation, approval routing, vendor acknowledgment, and change order processing across multiple facilities and ERP systems.",
-    timeSaved: "12 hrs/week per purchasing agent",
+    timeSaved: "Frees purchasing agent time spent on repetitive manual work",
     difficulty: "medium",
     integrations: ["sap", "oracle-netsuite", "dynamics-365", "coupa"],
-    roi: "3-day PO cycle reduced to 4 hours; 92% of POs touch no human hands",
+    roi: "PO cycle automated end to end, from requisition to issued order",
     demoDescription: "See the platform take a material requisition from the production floor, check inventory levels against 3 warehouses, generate a PO, route it through a 4-approver workflow, and transmit it to the supplier via EDI — completed in 6 minutes."
   },
   {
@@ -41,10 +41,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Inventory Reconciliation",
     industry: ["manufacturing"],
     description: "Cross-reference physical inventory counts, cycle counts, and ERP records to identify discrepancies, investigate root causes, and generate adjustment recommendations.",
-    timeSaved: "15 hrs/week per inventory analyst",
+    timeSaved: "Frees inventory analyst time spent on repetitive manual work",
     difficulty: "hard",
     integrations: ["sap", "oracle-netsuite", "dynamics-365", "plex"],
-    roi: "99.7% inventory accuracy; 80% fewer stockouts and overstock events",
+    roi: "Inventory records kept accurate automatically, with stockout and overstock signals surfaced",
     demoDescription: "The platform reconciles 12,000 SKUs across 4 facilities against cycle count data, flags 47 discrepancies, traces 32 to receiving errors, 12 to mis-picks, and 3 to vendor credits — all before the morning inventory meeting."
   },
   {
@@ -52,10 +52,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Supplier Communication Automation",
     industry: ["manufacturing"],
     description: "Automate RFQ distribution, quote comparison, PO acknowledgments, ASN processing, and supplier scorecard generation across your entire vendor base.",
-    timeSaved: "10 hrs/week per supply chain coordinator",
+    timeSaved: "Frees supply chain coordinator time spent on repetitive manual work",
     difficulty: "medium",
     integrations: ["sap", "outlook", "slack", "teams"],
-    roi: "Supplier response time reduced from 3.2 days to 4.1 hours; 94% on-time delivery",
+    roi: "Supplier communications automated so responses arrive faster",
     demoDescription: "The platform simultaneously sends RFQs to 12 qualified suppliers, parses 8 responses within 2 hours, compares unit pricing and lead times, and generates a recommendation matrix — the buyer approves one click."
   },
   {
@@ -63,10 +63,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Production Reporting Automation",
     industry: ["manufacturing"],
     description: "Aggregate real-time production data from shop floor systems, generate OEE dashboards, yield reports, and daily production summaries for management review.",
-    timeSaved: "8 hrs/week per production supervisor",
+    timeSaved: "Frees production supervisor time spent on repetitive manual work",
     difficulty: "medium",
     integrations: ["sap", "plex", "dynamics-365", "tableau", "powerbi"],
-    roi: "Production OEE improved 12% through real-time visibility and faster corrective action",
+    roi: "Production data captured in real time so issues get attention faster",
     demoDescription: "The platform pulls shift production data from 3 plants, calculates OEE by line and product family, identifies the top-3 downtime causes, and publishes a dashboard before the plant manager's 7:30 AM standup."
   },
   {
@@ -74,10 +74,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Quality Assurance Document Processing",
     industry: ["manufacturing"],
     description: "Automate collection and analysis of inspection reports, non-conformance records, CAPA forms, and supplier quality documents with trend detection and alerting.",
-    timeSaved: "14 hrs/week per QA engineer",
+    timeSaved: "Frees QA engineer time spent on repetitive manual work",
     difficulty: "hard",
     integrations: ["sap", "abbeyy", "servicenow", "sharepoint"],
-    roi: "Non-conformance detection time reduced from 3 days to 20 minutes; 50% fewer escapes",
+    roi: "Non-conformance detected and flagged automatically from inspection data",
     demoDescription: "The platform reads 86 inspection reports from the night shift, identifies 4 recurring non-conformances on Line 3, cross-references with the last 30 days of CAPA records, and alerts the QA manager to a potential systemic issue."
   },
   {
@@ -85,10 +85,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "ERP Data Entry Automation",
     industry: ["manufacturing"],
     description: "Automate mass updates to item masters, BOMs, routings, cost rolls, and engineering change notices across your manufacturing ERP system.",
-    timeSaved: "20 hrs/week per data entry specialist",
+    timeSaved: "Frees data entry specialist time spent on repetitive manual work",
     difficulty: "hard",
     integrations: ["sap", "oracle-netsuite", "dynamics-365", "excel"],
-    roi: "ERP data accuracy improved from 82% to 99.6%; month-end close accelerated by 3 days",
+    roi: "ERP records synced from source systems to keep the ledger accurate",
     demoDescription: "The platform processes 214 engineering change notices, updates BOMs for 1,800 affected SKUs, recalculates standard costs, and posts the cost roll — a process that previously took two data entry specialists four full days."
   },
   // ======================================================================
@@ -99,10 +99,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Dispatch Scheduling Optimization",
     industry: ["logistics", "transportation"],
     description: "Intelligently assign loads to drivers based on location, hours of service, equipment type, customer preferences, and delivery windows.",
-    timeSaved: "25 hrs/week per dispatcher",
+    timeSaved: "Frees dispatcher time spent on repetitive manual work",
     difficulty: "hard",
     integrations: ["mcleod", "mercergate", "samsara", "motiv"],
-    roi: "Dispatchers handle 2.3x volume; on-time delivery improves from 84% to 97%",
+    roi: "Dispatch automated so the same team handles more volume with on-time delivery",
     demoDescription: "The platform evaluates 87 available loads against 34 drivers' current locations, remaining HOS, equipment qualifications, and customer appointment windows — generating an optimized dispatch plan in 90 seconds that would take a human dispatcher 4 hours."
   },
   {
@@ -110,10 +110,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Route Optimization",
     industry: ["logistics", "transportation"],
     description: "Continuously optimize delivery routes factoring in traffic, weather, driver hours, fuel costs, tolls, and customer time windows across your fleet.",
-    timeSaved: "18 hrs/week per route planner",
+    timeSaved: "Frees route planner time spent on repetitive manual work",
     difficulty: "hard",
     integrations: ["samsara", "motiv", "project44", "google-maps"],
-    roi: "12% reduction in fuel costs; 15% fewer miles driven; 98% on-time delivery",
+    roi: "Routes planned automatically to reduce fuel use and improve on-time delivery",
     demoDescription: "The platform reassigns the afternoon dispatch after a highway closure is detected, recalculating 22 routes to avoid the delay — 3 drivers rerouted, 0 missed appointments, 8 gallons of fuel saved in that single optimization."
   },
   {
@@ -121,10 +121,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Carrier Coordination & Rate Negotiation",
     industry: ["logistics"],
     description: "Automate spot market rate comparisons, tender acceptance, carrier performance tracking, and contract rate compliance monitoring across all carrier relationships.",
-    timeSaved: "16 hrs/week per logistics coordinator",
+    timeSaved: "Frees logistics coordinator time spent on repetitive manual work",
     difficulty: "medium",
     integrations: ["dat", "truckstop", "project44", "fourkites"],
-    roi: "Spot rate savings of 8-12%; carrier compliance improved from 72% to 95%",
+    roi: "Carrier rates compared automatically so the best spot rate is applied",
     demoDescription: "The platform posts 14 loads to the spot market, evaluates 43 carrier bids across rate, transit time, and safety score, awards 12 loads, and automatically tenders them via API — the human reviews only the one exception."
   },
   {
@@ -132,10 +132,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Proof of Delivery Collection & Processing",
     industry: ["logistics"],
     description: "Automatically collect, validate, and archive POD documents from drivers, compare against delivery expectations, and flag exceptions for billing adjustments.",
-    timeSaved: "12 hrs/week per billing clerk",
+    timeSaved: "Frees billing clerk time spent on repetitive manual work",
     difficulty: "easy",
     integrations: ["samsara", "motiv", "dropbox", "docussign"],
-    roi: "POD collection in under 30 minutes (down from 2.4 days); billing disputes reduced 70%",
+    roi: "Proof-of-delivery collected automatically so bills settle faster",
     demoDescription: "The platform detects a POD image uploaded by a driver at delivery, extracts the signature and delivery timestamp, compares against the BOL, archives to the carrier folder, and triggers invoicing — all within 3 minutes of delivery."
   },
   {
@@ -143,10 +143,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Freight Invoice Audit & Payment",
     industry: ["logistics", "transportation"],
     description: "Automate freight bill auditing against contracted rates, detect duplicate billing, validate accessorial charges, and process accurate payments.",
-    timeSaved: "20 hrs/week per freight auditor",
+    timeSaved: "Frees freight auditor time spent on repetitive manual work",
     difficulty: "hard",
     integrations: ["mcleod", "mercergate", "quickbooks", "bill-com"],
-    roi: "3-5% recovery on duplicate/overcharged freight bills; audit cost reduced 90%",
+    roi: "Freight bills audited automatically to surface duplicate and overcharged charges",
     demoDescription: "The platform processes 340 freight invoices, cross-references each line against the carrier's contracted rate table, flags 17 overcharges ($4,280 total), identifies 2 duplicate billings ($1,840), and approves the remaining for payment — all before lunch."
   },
   {
@@ -154,10 +154,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "LTL Manifesting & Rate Calculation",
     industry: ["logistics"],
     description: "Automate class calculation, NMFC verification, dimensional weight audit, and manifest generation for less-than-truckload shipments.",
-    timeSaved: "10 hrs/week per shipping clerk",
+    timeSaved: "Frees shipping clerk time spent on repetitive manual work",
     difficulty: "medium",
     integrations: ["mcleod", "mercergate", "samsara"],
-    roi: "Reclassification claims reduced 45%; billing accuracy improved to 99.3%",
+    roi: "Billing reviewed automatically before it reaches the client",
     demoDescription: "The platform audits 62 LTL shipments for correct NMFC classification, catches 8 mis-classed items that would have cost $1,200 in reclassification fees, corrects dimensional weight on 4 others, and generates clean manifests."
   },
   {
@@ -165,10 +165,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Warehouse Inventory Synchronization",
     industry: ["logistics", "manufacturing"],
     description: "Synchronize inventory levels across WMS, ERP, and e-commerce platforms with automated cycle counting triggers and reorder point calculations.",
-    timeSaved: "14 hrs/week per warehouse manager",
+    timeSaved: "Frees warehouse manager time spent on repetitive manual work",
     difficulty: "medium",
     integrations: ["sap", "oracle-netsuite", "shopify", "fishbowl"],
-    roi: "Inventory accuracy maintained at 99.8%; stockout incidents reduced 80%",
+    roi: "Inventory counts reconciled automatically against movements",
     demoDescription: "The platform reconciles inventory counts from 3 WMS zones against ERP and Shopify, identifies 12 discrepancies, dispatches a cycle count request to the warehouse floor for only those 12 locations, and updates all systems within an hour."
   },
   // ======================================================================
@@ -179,10 +179,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Patient Intake & Registration",
     industry: ["healthcare"],
     description: "Automate patient registration, insurance verification, consent form collection, and medical history import from referring providers.",
-    timeSaved: "22 hrs/week per registration clerk",
+    timeSaved: "Frees registration clerk time spent on repetitive manual work",
     difficulty: "medium",
     integrations: ["epic", "cerner", "athenahealth", "adobe-sign"],
-    roi: "Check-in time reduced from 12 minutes to 90 seconds; 60% reduction in registration errors",
+    roi: "Check-in automated so registration data is captured once, accurately",
     demoDescription: "The platform receives a new patient referral, pre-populates demographics from the referring provider's records, verifies insurance eligibility in real-time, sends digital consent forms, and schedules the first appointment — all before the patient hangs up the phone."
   },
   {
@@ -190,10 +190,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Intelligent Appointment Scheduling",
     industry: ["healthcare"],
     description: "Optimize appointment scheduling based on provider availability, patient preferences, procedure duration, room availability, and urgent slot management.",
-    timeSaved: "15 hrs/week per scheduler",
+    timeSaved: "Frees scheduler time spent on repetitive manual work",
     difficulty: "medium",
     integrations: ["epic", "cerner", "calendly", "outlook"],
-    roi: "No-show rate reduced from 18% to 7%; scheduling throughput increased 3x",
+    roi: "Scheduling automated with reminders that cut no-shows",
     demoDescription: "The platform evaluates an appointment request against 12 providers' schedules, considers the procedure's typical duration and required room setup, identifies the optimal slot that also accommodates the patient's preferred day, and sends the confirmation."
   },
   {
@@ -201,10 +201,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Insurance Eligibility & Benefits Verification",
     industry: ["healthcare"],
     description: "Batch verify insurance eligibility, deductibles, co-pays, and pre-authorization requirements for scheduled patients days before appointments.",
-    timeSaved: "18 hrs/week per insurance verifier",
+    timeSaved: "Frees insurance verifier time spent on repetitive manual work",
     difficulty: "medium",
     integrations: ["epic", "cerner", "athenahealth", "nextgen"],
-    roi: "Claim denial rate reduced from 12% to 3%; revenue cycle accelerated by 5 days",
+    roi: "Claims prepared completely the first time to reduce denials",
     demoDescription: "The platform verifies insurance for 87 scheduled patients in 4 minutes, identifies 12 with eligibility changes, 5 requiring pre-authorization, and flags 3 with deductibles not yet met — each with detailed benefit summaries sent to the front desk."
   },
   {
@@ -212,10 +212,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Medical Coding Automation",
     industry: ["healthcare"],
     description: "Analyze clinical documentation and suggest appropriate ICD-10, CPT, and HCPCS codes based on provider notes, lab results, and imaging reports.",
-    timeSaved: "16 hrs/week per medical coder",
+    timeSaved: "Frees medical coder time spent on repetitive manual work",
     difficulty: "hard",
     integrations: ["epic", "cerner", "athenahealth"],
-    roi: "Coding accuracy improved from 88% to 97%; coding backlog reduced 85%",
+    roi: "Coding assisted by automated extraction so backlogs do not form",
     demoDescription: "The platform reads a surgeon's operative note, identifies 4 procedures performed, cross-references with the pathology report to confirm diagnosis codes, suggests 7 ICD-10 and 4 CPT codes with supporting documentation highlighted for the coder's review."
   },
   {
@@ -223,10 +223,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Claims Submission & Denial Management",
     industry: ["healthcare"],
     description: "Automate claim scrubbing, electronic submission, payment posting, denial analysis, and appeal generation to maximize clean claim rates.",
-    timeSaved: "25 hrs/week per claims specialist",
+    timeSaved: "Frees claims specialist time spent on repetitive manual work",
     difficulty: "hard",
     integrations: ["epic", "cerner", "athenahealth", "workday"],
-    roi: "Clean claim rate improved from 72% to 95%; days in AR reduced from 45 to 18",
+    roi: "Claims assembled with complete documentation to prevent rework",
     demoDescription: "The platform pre-scrubs 142 claims before submission, catches 11 errors (incorrect modifiers, missing referral numbers), submits 131 clean claims electronically, posts 89 payments from 3 different payers, and generates 5 appeal letters for denials."
   },
   {
@@ -234,10 +234,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Healthcare Compliance Reporting",
     industry: ["healthcare"],
     description: "Automate HIPAA compliance monitoring, audit log analysis, breach detection, and regulatory report generation for federal and state requirements.",
-    timeSaved: "12 hrs/week per compliance officer",
+    timeSaved: "Frees compliance officer time spent on repetitive manual work",
     difficulty: "hard",
     integrations: ["epic", "sharepoint", "servicenow"],
-    roi: "Audit preparation time reduced 80%; compliance findings reduced 60%",
+    roi: "Audit preparation automated so issues are surfaced before they become findings",
     demoDescription: "The platform reviews 14,000 access log entries, identifies 3 anomalous access patterns (after-hours access to patient records by non-clinical staff), correlates with badge-swipe data, and generates a compliance incident report ready for review."
   },
   // ======================================================================
@@ -248,10 +248,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Accounts Payable Full Cycle Automation",
     industry: ["financial-services", "professional-services"],
     description: "End-to-end AP automation from invoice receipt through approval, payment scheduling, and GL coding with full audit trail and exception handling.",
-    timeSaved: "30 hrs/week per AP team",
+    timeSaved: "Frees AP team time spent on repetitive manual work",
     difficulty: "medium",
     integrations: ["quickbooks", "xero", "bill-com", "expensify"],
-    roi: "Invoice processing cost reduced from $12 to $0.80 per invoice; payment cycles shortened 65%",
+    roi: "Invoice processing automated end to end by the platform",
     demoDescription: "The platform processes 300 invoices daily: extracting line items, applying GL codes based on department budgets, routing 42 invoices for department-head approval, scheduling 258 for payment per terms, and reconciling all payments against bank statements."
   },
   {
@@ -259,10 +259,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Accounts Receivable & Collections",
     industry: ["financial-services", "professional-services"],
     description: "Automate invoice generation, delivery, payment tracking, dunning, and collections prioritization with personalized customer communication.",
-    timeSaved: "20 hrs/week per AR specialist",
+    timeSaved: "Frees AR specialist time spent on repetitive manual work",
     difficulty: "medium",
     integrations: ["quickbooks", "xero", "salesforce", "hubspot"],
-    roi: "DSO reduced from 47 to 28 days; collections efficiency improved 3x",
+    roi: "Collections automated with scheduled follow-up on every aging balance",
     demoDescription: "The platform generates 87 invoices from time entries, emails each with customer-specific portal links, monitors payment status, sends 34 automated reminders (escalating tone based on aging), and prioritizes 15 accounts for human collector outreach."
   },
   {
@@ -270,10 +270,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Employee Expense Report Automation",
     industry: ["financial-services", "professional-services"],
     description: "Automate expense report submission, receipt matching, policy compliance checking, approval routing, and reimbursement processing.",
-    timeSaved: "12 hrs/week per finance associate",
+    timeSaved: "Frees finance associate time spent on repetitive manual work",
     difficulty: "easy",
     integrations: ["expensify", "quickbooks", "xero", "brex", "ramp"],
-    roi: "Expense report processing time reduced from 11 minutes to 45 seconds; policy compliance improved to 98%",
+    roi: "Expense reports processed automatically with policy checks built in",
     demoDescription: "The platform reads a submitted expense report with 12 receipts, matches each to the credit card transaction, checks all against 23 corporate policy rules, flags one out-of-policy meal, routes to the manager for exception approval, and posts to the GL."
   },
   {
@@ -281,10 +281,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Automated Bank Reconciliation",
     industry: ["financial-services"],
     description: "Match bank statement transactions against ERP entries across multiple accounts and currencies, investigate discrepancies, and generate reconciliation reports.",
-    timeSaved: "16 hrs/week per accountant",
+    timeSaved: "Frees accountant time spent on repetitive manual work",
     difficulty: "medium",
     integrations: ["quickbooks", "xero", "sap", "oracle-netsuite"],
-    roi: "Month-end close reduced from 8 days to 2 days; reconciliation accuracy at 99.9%",
+    roi: "Month-end close automated with reconciliations assembled from live data",
     demoDescription: "The platform reconciles 14 bank accounts (3 currencies, 3,400+ transactions), auto-matches 3,281, identifies 119 unmatched items, investigates 84 by cross-referencing open invoices and checks in-flight, and flags 35 for manual research."
   },
   {
@@ -292,10 +292,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Budget vs Actual Tracking & Alerts",
     industry: ["financial-services", "professional-services"],
     description: "Monitor departmental spending against budgets, generate variance reports, send proactive alerts when thresholds are exceeded, and forecast end-of-period outcomes.",
-    timeSaved: "8 hrs/week per FP&A analyst",
+    timeSaved: "Frees FP&A analyst time spent on repetitive manual work",
     difficulty: "medium",
     integrations: ["sap", "oracle-netsuite", "dynamics-365", "powerbi"],
-    roi: "Budget variance reduction from 12% to 4%; forecasting accuracy improved to 95%",
+    roi: "Budget tracking automated with real-time variance signals",
     demoDescription: "The platform reviews today's expenditures across 23 departments, identifies 8 cost centers exceeding 85% of monthly budget (with 12 days remaining), sends personalized alerts to department heads with top-3 spend categories driving the variance."
   },
   // ======================================================================
@@ -306,10 +306,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Submittal & Shop Drawing Review",
     industry: ["construction"],
     description: "Track, organize, and route submittals and shop drawings through the review-and-approval process across general contractor, architect, and engineer stakeholders.",
-    timeSaved: "14 hrs/week per project engineer",
+    timeSaved: "Frees project engineer time spent on repetitive manual work",
     difficulty: "medium",
     integrations: ["procore", "autocad", "sharepoint"],
-    roi: "Submittal review cycle shortened from 21 days to 8 days; RFIs reduced 35%",
+    roi: "Submittals routed and reviewed faster with automated tracking",
     demoDescription: "The platform logs 28 submittals received, cross-references each against the spec section and drawing number, routes 22 that are complete to the review queue, flags 6 for missing information, and sends automated status updates to the subcontractor."
   },
   {
@@ -317,10 +317,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "RFI Processing & Response Tracking",
     industry: ["construction"],
     description: "Automate RFI logging, assignment, response time tracking, and closure documentation with complete audit trail across the project team.",
-    timeSaved: "8 hrs/week per project engineer",
+    timeSaved: "Frees project engineer time spent on repetitive manual work",
     difficulty: "easy",
     integrations: ["procore", "autocad", "outlook"],
-    roi: "RFI response time reduced from 12 days to 3.5 days; project delays attributed to RFIs reduced 60%",
+    roi: "RFIs routed and answered faster with automated follow-up",
     demoDescription: "The platform receives an RFI from the field superintendent, automatically identifies the affected drawing and spec section, assigns it to the design discipline lead, sets a 5-day response deadline, and sends reminders at day 3 and 4."
   },
   {
@@ -328,10 +328,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Construction Timecard & Payroll",
     industry: ["construction"],
     description: "Collect, validate, and process timecards from multiple job sites with certified payroll reporting, prevailing wage compliance, and union dues tracking.",
-    timeSaved: "18 hrs/week per payroll administrator",
+    timeSaved: "Frees payroll administrator time spent on repetitive manual work",
     difficulty: "medium",
     integrations: ["procore", "adp", "quickbooks"],
-    roi: "Payroll processing time cut 75%; certified payroll compliance errors eliminated",
+    roi: "Payroll processed automatically with compliance checks built in",
     demoDescription: "The platform collects 87 timecards from 4 job sites, validates each against the employee's assigned work classification, flags 5 with overtime exceeding project thresholds, calculates certified payroll for 3 prevailing-wage projects, and generates payroll reports."
   },
   {
@@ -339,10 +339,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Change Order Management",
     industry: ["construction"],
     description: "Track change order requests through approval workflows, automatically update project budgets, notify stakeholders, and maintain complete documentation lineage.",
-    timeSaved: "10 hrs/week per project manager",
+    timeSaved: "Frees project manager time spent on repetitive manual work",
     difficulty: "medium",
     integrations: ["procore", "quickbooks", "sage-50"],
-    roi: "Change order approval cycle reduced from 18 days to 5 days; revenue leakage reduced 40%",
+    roi: "Change orders routed and approved without manual chasing",
     demoDescription: "The platform processes a change order request from the field, calculates the budget impact against contingency, routes it through the required approval chain (PM → GC → Owner), updates the project forecast, and notifies all 14 stakeholders."
   },
   {
@@ -350,10 +350,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Daily Field Report Automation",
     industry: ["construction"],
     description: "Generate comprehensive daily field reports from foreman inputs, weather data, equipment logs, materials received, and work completed percentages.",
-    timeSaved: "6 hrs/week per superintendent",
+    timeSaved: "Frees superintendent time spent on repetitive manual work",
     difficulty: "easy",
     integrations: ["procore", "sharepoint", "outlook"],
-    roi: "Report generation time reduced 85%; report accuracy improved from 72% to 96%",
+    roi: "Reports built automatically from live data instead of manual assembly",
     demoDescription: "The platform aggregates foreman reports from 6 work zones, pulls weather data, cross-references equipment hours, calculates day-by-day progress against schedule, and generates a formatted daily report — the superintendent reviews and approves in 3 minutes."
   },
   // ======================================================================
@@ -364,10 +364,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Well Production Reporting",
     industry: ["energy", "oil-gas"],
     description: "Automate collection and analysis of well production data, generate regulatory reports, and identify underperforming assets with actionable recommendations.",
-    timeSaved: "20 hrs/week per production engineer",
+    timeSaved: "Frees production engineer time spent on repetitive manual work",
     difficulty: "hard",
     integrations: ["sap", "powerbi", "excel"],
-    roi: "Reporting time reduced 85%; well intervention identification accelerated from 2 weeks to 2 days",
+    roi: "Well data monitored automatically so intervention needs surface quickly",
     demoDescription: "The platform aggregates production data from 47 wells, calculates daily rates and decline curves against type curves, flags 3 wells with anomalous decline, cross-references with last intervention date, and recommends candidate wells for workover review."
   },
   {
@@ -375,10 +375,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Environmental Compliance Monitoring",
     industry: ["energy", "oil-gas"],
     description: "Monitor emissions data, spill reports, permit conditions, and regulatory deadlines across operating assets with automated alerting and report generation.",
-    timeSaved: "16 hrs/week per compliance specialist",
+    timeSaved: "Frees compliance specialist time spent on repetitive manual work",
     difficulty: "hard",
     integrations: ["sap", "servicenow", "sharepoint"],
-    roi: "Regulatory filing accuracy improved to 100%; compliance event response time reduced 75%",
+    roi: "Regulatory filings assembled and validated automatically",
     demoDescription: "The platform monitors 23 permitted emission points, detects a sulfur dioxide reading approaching the permitted limit, cross-references with current production rates, alerts the environmental manager, and pre-populates the deviation report for submission."
   },
   {
@@ -386,10 +386,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Energy Invoice & Royalty Processing",
     industry: ["energy", "oil-gas"],
     description: "Automate processing of vendor invoices, royalty payments, joint interest billings, and revenue distribution with complex division order calculations.",
-    timeSaved: "24 hrs/week per revenue accountant",
+    timeSaved: "Frees revenue accountant time spent on repetitive manual work",
     difficulty: "hard",
     integrations: ["sap", "oracle-netsuite", "quickbooks"],
-    roi: "Royalty payment accuracy improved from 93% to 99.8%; processing time reduced 80%",
+    roi: "Royalty payments calculated and processed automatically",
     demoDescription: "The platform processes 1,200+ royalty interests from 47 wells, calculates each owner's share based on division of interest, applies tax withholding and burden deductions, generates stubs for each payee, and posts to the general ledger."
   },
   {
@@ -397,10 +397,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Oilfield Supply Chain Automation",
     industry: ["energy", "oil-gas"],
     description: "Automate material requisition, inventory tracking across field locations, vendor PO management, and equipment rental return tracking.",
-    timeSaved: "14 hrs/week per supply chain coordinator",
+    timeSaved: "Frees supply chain coordinator time spent on repetitive manual work",
     difficulty: "medium",
     integrations: ["sap", "oracle-netsuite", "outlook"],
-    roi: "Material delivery time reduced 40%; inventory carrying cost reduced 18%",
+    roi: "Material delivery coordinated automatically to keep inventory lean",
     demoDescription: "The platform identifies that 3 well sites are running low on critical consumables, checks current stock at 4 field warehouses, generates transfer orders for 2 sites and a PO for the third, and schedules delivery — all triggered by inventory thresholds."
   },
   // ======================================================================
@@ -411,10 +411,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Order Entry & Processing Automation",
     industry: ["retail", "ecommerce"],
     description: "Capture orders from multiple channels (web, phone, EDI, marketplace), validate inventory availability, process payments, and route to fulfillment.",
-    timeSaved: "20 hrs/week per order entry clerk",
+    timeSaved: "Frees order entry clerk time spent on repetitive manual work",
     difficulty: "medium",
     integrations: ["shopify", "salesforce", "netsuite", "stripe"],
-    roi: "Order processing time reduced from 8 minutes to 30 seconds; error rate reduced to 0.2%",
+    roi: "Orders processed automatically from receipt to fulfillment",
     demoDescription: "The platform captures orders from 4 channels, validates inventory across 3 warehouses, checks payment authorization, applies discounts and promotions, assigns to the optimal fulfillment location, and sends order confirmation — completed in under a minute."
   },
   {
@@ -422,10 +422,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Multi-Channel Inventory Synchronization",
     industry: ["retail", "ecommerce"],
     description: "Synchronize inventory levels across physical stores, warehouses, and all online sales channels in real-time with automated reorder triggers.",
-    timeSaved: "15 hrs/week per inventory planner",
+    timeSaved: "Frees inventory planner time spent on repetitive manual work",
     difficulty: "hard",
     integrations: ["shopify", "netsuite", "fishbowl", "amazon"],
-    roi: "Stockout incidents reduced 65%; overstock write-downs reduced 40%",
+    roi: "Inventory replenished automatically to prevent stockouts and overstock",
     demoDescription: "The platform monitors 12,000 SKUs across 8 stores, 3 warehouses, and 4 online channels, detects a hot-selling item at 2 units remaining, triggers a transfer from the warehouse, and adjusts the reorder point based on the accelerated sell-through rate."
   },
   {
@@ -433,10 +433,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Customer Email Automation",
     industry: ["retail", "ecommerce"],
     description: "Automate order confirmation, shipping updates, delivery notifications, review requests, abandoned cart recovery, and personalized promotional emails.",
-    timeSaved: "12 hrs/week per marketing coordinator",
+    timeSaved: "Frees marketing coordinator time spent on repetitive manual work",
     difficulty: "easy",
     integrations: ["shopify", "hubspot", "gmail", "salesforce"],
-    roi: "Abandoned cart recovery rate improved from 8% to 32%; email marketing ROI increased 4x",
+    roi: "Abandoned carts recovered automatically with timely email follow-up",
     demoDescription: "The platform detects 23 abandoned carts, sends personalized recovery emails with product images and a time-limited discount code, monitors click-through, and triggers a follow-up SMS if no engagement within 4 hours."
   },
   {
@@ -444,7 +444,7 @@ export const automationLibrary: AutomationCard[] = [
     name: "Returns & Refund Processing",
     industry: ["retail", "ecommerce"],
     description: "Process return requests, generate RMA labels, inspect returned items, determine disposition, and issue refunds or exchanges automatically.",
-    timeSaved: "14 hrs/week per returns associate",
+    timeSaved: "Frees returns associate time spent on repetitive manual work",
     difficulty: "medium",
     integrations: ["shopify", "netsuite", "stripe"],
     roi: "Returns processing handled end to end, with refund accuracy maintained through automated verification",
@@ -455,10 +455,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Vendor Onboarding & Compliance",
     industry: ["retail"],
     description: "Automate vendor application processing, document collection, compliance verification, contract generation, and portal access setup.",
-    timeSaved: "10 hrs/week per vendor manager",
+    timeSaved: "Frees vendor manager time spent on repetitive manual work",
     difficulty: "medium",
     integrations: ["salesforce", "hubspot", "adobe-sign", "sharepoint"],
-    roi: "Vendor onboarding time reduced from 30 days to 5 days; compliance documentation completeness at 100%",
+    roi: "Vendor onboarding automated with compliance documents requested and tracked",
     demoDescription: "The platform processes a new vendor application, checks the applicant against watchlists, collects W-9 and insurance certificates, generates the vendor agreement, routes for digital signature, and provisions portal access — completed in under 48 hours."
   },
   // ======================================================================
@@ -469,10 +469,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Contract Review & Analysis",
     industry: ["legal", "professional-services"],
     description: "Review incoming contracts against standard terms, flag deviations, identify risks, and extract key dates and obligations for calendar management.",
-    timeSaved: "20 hrs/week per contract attorney",
+    timeSaved: "Frees contract attorney time spent on repetitive manual work",
     difficulty: "hard",
     integrations: ["salesforce", "hubspot", "adobe-sign", "sharepoint"],
-    roi: "Contract review time reduced 70%; risk identification improved 3x vs manual review",
+    roi: "Contract review automated to surface key terms and risks quickly",
     demoDescription: "The platform reviews a 34-page vendor agreement, compares 128 clauses against 56 standard terms, flags 7 deviations (including auto-renewal and uncapped indemnification), extracts key dates into the obligation calendar, and prepares a redlined version."
   },
   {
@@ -480,10 +480,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Client Intake & Conflict Checking",
     industry: ["legal"],
     description: "Automate new client intake, conflict of interest screening against firm-wide matters and parties, engagement letter generation, and matter opening.",
-    timeSaved: "12 hrs/week per intake specialist",
+    timeSaved: "Frees intake specialist time spent on repetitive manual work",
     difficulty: "medium",
     integrations: ["salesforce", "hubspot", "adobe-sign", "sharepoint"],
-    roi: "Intake process reduced from 2 days to 3 hours; conflict detection accuracy improved to 99.9%",
+    roi: "Intake automated with conflicts detected during data capture",
     demoDescription: "The platform enters a new prospective client and matter, checks against 40,000+ past matters and 200,000+ parties, identifies 2 potential conflicts with affiliated entities, routes to the ethics partner for waiver review, and prepares the engagement letter."
   },
   {
@@ -491,10 +491,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Docketing & Calendar Management",
     industry: ["legal"],
     description: "Automate deadline calculation, court rule compliance, docket entry, and calendar management across all active matters with proactive reminders.",
-    timeSaved: "8 hrs/week per docketing clerk",
+    timeSaved: "Frees docketing clerk time spent on repetitive manual work",
     difficulty: "hard",
     integrations: ["outlook", "sharepoint", "servicenow"],
-    roi: "Docketing errors reduced 95%; missed deadline risk eliminated",
+    roi: "Deadlines docketed automatically so nothing slips",
     demoDescription: "The platform receives a notice of hearing, calculates all responsive deadlines per court rules (response due 21 days, expert disclosure 45 days before trial), enters each into the firm calendar, links to the matter, and sends confirmation to the assigned attorneys."
   },
   {
@@ -502,10 +502,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Billable Time Entry Automation",
     industry: ["legal", "professional-services"],
     description: "Capture billable time from calendar events, emails, and documents, draft time entries in proper narrative format, and submit for attorney review.",
-    timeSaved: "10 hrs/week per attorney",
+    timeSaved: "Frees attorney time spent on repetitive manual work",
     difficulty: "medium",
     integrations: ["outlook", "salesforce", "quickbooks"],
-    roi: "Billable time capture improved from 74% to 94%; annual revenue increase of $40K per attorney",
+    roi: "Billable time captured automatically so no worked hours are lost",
     demoDescription: "The platform reviews an attorney's calendar, 87 emails, and 12 edited documents, identifies 6.3 hours of billable activity not yet recorded, drafts narrative time entries in proper format, applies the correct client/matter codes, and presents for approval."
   },
   {
@@ -513,10 +513,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Document Discovery & Review",
     industry: ["legal"],
     description: "Process document productions, apply privilege filters, perform keyword and concept searches, and organize responsive documents for review by issue and custodian.",
-    timeSaved: "40 hrs/week per discovery associate",
+    timeSaved: "Frees discovery associate time spent on repetitive manual work",
     difficulty: "hard",
     integrations: ["sharepoint", "dropbox", "azure-sql"],
-    roi: "Document review throughput increased 5x; discovery cost reduced 60%",
+    roi: "Document review automated to find relevant items faster",
     demoDescription: "The platform processes 50,000 documents from 12 custodians, removes duplicates and near-duplicates (reducing to 18,000 unique), applies privilege filters (removing 2,000), organizes by issue and custodian, and flags the 300 most relevant documents for priority review."
   },
   // ======================================================================
@@ -527,10 +527,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Claims Intake & Triage",
     industry: ["insurance"],
     description: "Automate first notice of loss capture, claim triage based on severity and policy coverage, assignment to appropriate adjuster, and initial reserve setting.",
-    timeSaved: "18 hrs/week per claims intake specialist",
+    timeSaved: "Frees claims intake specialist time spent on repetitive manual work",
     difficulty: "medium",
     integrations: ["servicenow", "salesforce", "outlook"],
-    roi: "FNOW processing time reduced from 4 hours to 15 minutes; accurate triage at 94%",
+    roi: "First notice of loss processed and triaged automatically",
     demoDescription: "The platform receives a claim notification, verifies policy is active, determines coverage type based on the loss description, assigns a severity score, sets an initial reserve based on historical similar claims, and routes to the appropriate adjuster."
   },
   {
@@ -538,10 +538,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Subrogation Recovery Automation",
     industry: ["insurance"],
     description: "Identify subrogation opportunities, generate demand letters, track recovery timelines, and manage outside counsel assignments for recovery cases.",
-    timeSaved: "14 hrs/week per subrogation specialist",
+    timeSaved: "Frees subrogation specialist time spent on repetitive manual work",
     difficulty: "hard",
     integrations: ["servicenow", "salesforce", "outlook"],
-    roi: "Subrogation recovery rate improved from 34% to 52%; recovery cycle reduced by 40%",
+    roi: "Subrogation cases tracked automatically with scheduled follow-up",
     demoDescription: "The platform reviews 85 closed claims, identifies 23 with subrogation potential based on liability determination and applicable laws, generates demand letters for 18 with clear liability, and refers 5 complex cases to outside recovery counsel."
   },
   {
@@ -549,10 +549,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Policy Administration & Renewal",
     industry: ["insurance"],
     description: "Automate policy issuance, mid-term changes, renewal processing, premium calculations, and non-renewal notifications with full audit trail.",
-    timeSaved: "16 hrs/week per policy services associate",
+    timeSaved: "Frees policy services associate time spent on repetitive manual work",
     difficulty: "medium",
     integrations: ["servicenow", "salesforce", "hubspot"],
-    roi: "Policy processing time reduced 75%; renewal retention increased 12% through proactive engagement",
+    roi: "Policy renewals processed automatically with proactive follow-up",
     demoDescription: "The platform processes 45 renewal policies, calculates updated premiums based on loss experience and exposure changes, generates renewal documents, and sends personalized renewal offers — 32 accepted automatically, 13 routed to an agent for discussion."
   },
   {
@@ -560,10 +560,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Underwriting Data Gathering",
     industry: ["insurance"],
     description: "Collect and analyze risk data from applications, loss runs, financial statements, and third-party databases to support underwriting decisions with recommendations.",
-    timeSaved: "12 hrs/week per underwriter",
+    timeSaved: "Frees underwriter time spent on repetitive manual work",
     difficulty: "hard",
     integrations: ["salesforce", "servicenow", "hubspot"],
-    roi: "Underwriting productivity improved 40%; submission-to-quote time reduced from 7 days to 2 days",
+    roi: "Underwriting data assembled automatically to speed quotes",
     demoDescription: "The platform reviews a new business submission, pulls loss runs from the claims system, extracts financial ratios from submitted statements, runs MVR and credit checks, and generates a risk assessment report with coverage recommendations."
   },
   // ======================================================================
@@ -574,10 +574,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Lease Document Processing",
     industry: ["real-estate"],
     description: "Extract key terms from lease agreements, calculate rent schedules, track critical dates (renewal, rent escalation, termination), and maintain compliance with ASC 842 reporting.",
-    timeSaved: "16 hrs/week per lease administrator",
+    timeSaved: "Frees lease administrator time spent on repetitive manual work",
     difficulty: "hard",
     integrations: ["sap", "oracle-netsuite", "adobe-sign"],
-    roi: "Lease abstraction time reduced 80%; ASC 842 compliance achieved with zero audit findings",
+    roi: "Lease data abstracted automatically with compliance terms captured",
     demoDescription: "The platform processes 12 new lease agreements, extracts 240 data points per lease including rent escalations, CAM charges, renewal options, and termination rights — generating complete lease abstracts, payment schedules, and compliance reports."
   },
   {
@@ -585,10 +585,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Property Management Work Orders",
     industry: ["real-estate"],
     description: "Automate work order creation, vendor assignment, approval routing, and status tracking for maintenance requests across commercial and residential portfolios.",
-    timeSaved: "10 hrs/week per property manager",
+    timeSaved: "Frees property manager time spent on repetitive manual work",
     difficulty: "easy",
     integrations: ["outlook", "quickbooks", "servicenow"],
-    roi: "Work order response time reduced 60%; maintenance costs reduced 15% through competitive vendor assignment",
+    roi: "Work orders dispatched automatically to the right vendor faster",
     demoDescription: "The platform receives a tenant maintenance request, categorizes it as HVAC emergency, assigns priority level 1, identifies the nearest qualified vendor from the approved list, dispatches the work order, and sends the tenant an estimated arrival time."
   },
   {
@@ -596,10 +596,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Rent Collection & Reconciliation",
     industry: ["real-estate"],
     description: "Automate rent invoicing, payment processing, delinquency tracking, late-fee assessment, and monthly reconciliation across diverse property portfolios.",
-    timeSaved: "14 hrs/week per property accountant",
+    timeSaved: "Frees property accountant time spent on repetitive manual work",
     difficulty: "medium",
     integrations: ["quickbooks", "xero", "stripe"],
-    roi: "Rent collections accelerated by 5 days; delinquency rate reduced from 9% to 4%",
+    roi: "Rent collections automated with scheduled follow-up on every balance",
     demoDescription: "The platform generates 340 rent invoices across 4 properties, applies concessions and late fees as applicable, processes electronic payments from 312 tenants, sends reminders to 28 delinquent tenants, and reconciles all payments against expected amounts."
   },
   // ======================================================================
@@ -610,10 +610,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Automated Time & Expense Entry",
     industry: ["professional-services"],
     description: "Capture billable and non-billable time from calendar, email, and activity data, submit for approval, and sync to project accounting systems.",
-    timeSaved: "8 hrs/week per consultant",
+    timeSaved: "Frees consultant time spent on repetitive manual work",
     difficulty: "easy",
     integrations: ["outlook", "salesforce", "quickbooks"],
-    roi: "Billable utilization increased from 62% to 78%; time entry compliance improved to 97%",
+    roi: "Time entry automated so utilization reports reflect all worked hours",
     demoDescription: "The platform reviews a consultant's week: 14 client meetings, 23 emails with project-related content, 8 edited documents — identifies 32.5 hours of billable time, categorizes by project and phase, and submits for approval with detailed descriptions."
   },
   {
@@ -621,10 +621,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Proposal & SOW Generation",
     industry: ["professional-services"],
     description: "Generate personalized proposals and statements of work from templates, populate with project-specific data, and route for approval and e-signature.",
-    timeSaved: "6 hrs/week per business development manager",
+    timeSaved: "Frees business development manager time spent on repetitive manual work",
     difficulty: "medium",
     integrations: ["salesforce", "hubspot", "adobe-sign"],
-    roi: "Proposal generation time reduced 65%; win rate improved 18% through faster response",
+    roi: "Proposals generated automatically from templates and approved content",
     demoDescription: "The platform generates a proposal based on the opportunity record: populates the scope section from the discovery notes, calculates pricing from the rate card and effort estimate, generates the SOW with deliverables and milestones, and sends for e-signature."
   },
   {
@@ -632,10 +632,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Resource Scheduling & Optimization",
     industry: ["professional-services"],
     description: "Optimize consultant staffing against project demands, skill requirements, availability, and utilization targets across the entire professional services organization.",
-    timeSaved: "10 hrs/week per resource manager",
+    timeSaved: "Frees resource manager time spent on repetitive manual work",
     difficulty: "hard",
     integrations: ["salesforce", "outlook", "servicenow"],
-    roi: "Consultant utilization improved from 65% to 82%; staffing requests filled in 4 hours (down from 3 days)",
+    roi: "Staffing requests matched automatically instead of waiting on manual search",
     demoDescription: "The platform evaluates a new staffing request for a senior consultant with specific industry expertise and availability next week, searches the resource pool of 85 consultants, identifies 3 ideal candidates ranked by skillset match and utilization, and sends invitations."
   },
   {
@@ -643,10 +643,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Expense Policy Compliance Audit",
     industry: ["professional-services", "financial-services"],
     description: "Audit submitted expense reports against corporate policy, identify policy violations, flag suspicious patterns, and generate compliance reports.",
-    timeSaved: "8 hrs/week per finance auditor",
+    timeSaved: "Frees finance auditor time spent on repetitive manual work",
     difficulty: "medium",
     integrations: ["expensify", "quickbooks", "xero"],
-    roi: "Policy compliance improved from 78% to 96%; expense leakage reduced 45%",
+    roi: "Expense policies enforced automatically at submission",
     demoDescription: "The platform audits 67 expense reports, identifies 12 policy violations (5 exceeded per-diem limits, 4 missing receipts, 3 non-compliant categories), flags 2 with suspicious patterns for investigation, and sends auto-notifications to the employees."
   },
   // ======================================================================
@@ -657,10 +657,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Reservation Management & Optimization",
     industry: ["hospitality"],
     description: "Automate reservation processing, room assignment optimization, overbooking management, cancellation tracking, and guest preference logging.",
-    timeSaved: "20 hrs/week per reservationist",
+    timeSaved: "Frees reservationist time spent on repetitive manual work",
     difficulty: "medium",
     integrations: ["salesforce", "outlook", "hubspot"],
-    roi: "Occupancy rate improved 8%; overbooking incidents reduced 90%; guest satisfaction scores up 12%",
+    roi: "Bookings managed automatically to prevent overbooking",
     demoDescription: "The platform processes 45 incoming reservation requests, checks availability across 3 rate categories, assigns rooms based on 87 tracked guest preferences, manages 4 overbooked dates by identifying upgrade opportunities, and updates guest profiles."
   },
   {
@@ -668,10 +668,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Hospitality Procurement Automation",
     industry: ["hospitality"],
     description: "Automate food & beverage procurement, vendor order management, inventory tracking across outlets, and cost per cover analysis.",
-    timeSaved: "14 hrs/week per purchasing manager",
+    timeSaved: "Frees purchasing manager time spent on repetitive manual work",
     difficulty: "medium",
     integrations: ["quickbooks", "netsuite", "outlook"],
-    roi: "Food cost reduced 8%; inventory waste reduced 30%; procurement efficiency improved 60%",
+    roi: "Procurement automated to keep inventory lean and waste down",
     demoDescription: "The platform analyzes banquet event orders for the week, calculates required ingredients across all outlets, checks current inventory, generates consolidated purchase orders for 12 vendors, and schedules deliveries to arrive before each event."
   },
   {
@@ -679,10 +679,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Guest Communication Automation",
     industry: ["hospitality"],
     description: "Automate pre-arrival communications, in-stay messaging, post-stay follow-up, and personalized offer delivery based on guest preferences and history.",
-    timeSaved: "10 hrs/week per front office manager",
+    timeSaved: "Frees front office manager time spent on repetitive manual work",
     difficulty: "easy",
     integrations: ["outlook", "hubspot", "gmail"],
-    roi: "Guest engagement rate improved 35%; direct booking volume increased 22%",
+    roi: "Guest follow-up automated so every inquiry gets a timely response",
     demoDescription: "The platform sends personalized pre-arrival emails to 67 arriving guests with room upgrade offers and local event recommendations, checks in with 12 guests during their stay, and sends post-stay thank-you messages with a return booking incentive."
   },
   // ======================================================================
@@ -693,10 +693,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Crop Production Reporting",
     industry: ["agriculture"],
     description: "Aggregate field-level production data, generate yield reports, track input usage, and provide compliance documentation for crop insurance and subsidies.",
-    timeSaved: "12 hrs/week per farm manager",
+    timeSaved: "Frees farm manager time spent on repetitive manual work",
     difficulty: "medium",
     integrations: ["excel", "powerbi", "sharepoint"],
-    roi: "Reporting time reduced 80%; insurance claim processing accelerated 45% through better documentation",
+    roi: "Reporting automated with claims documentation captured at intake",
     demoDescription: "The platform collects harvest data from 14 fields, calculates yield per acre and total production, cross-references with input applications (seed, fertilizer, chemical), generates USDA-compliant production reports, and identifies top-3 underperforming fields."
   },
   {
@@ -704,10 +704,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Livestock Inventory & Health Tracking",
     industry: ["agriculture"],
     description: "Track livestock movements, health records, breeding cycles, feed consumption, and generate reports for herd management and regulatory compliance.",
-    timeSaved: "15 hrs/week per herd manager",
+    timeSaved: "Frees herd manager time spent on repetitive manual work",
     difficulty: "hard",
     integrations: ["excel", "sharepoint"],
-    roi: "Herd health incidents reduced 25%; breeding success rate improved 18%",
+    roi: "Herd health records automated so issues surface early",
     demoDescription: "The platform processes daily health check data for 1,200 head, flags 8 animals with abnormal temperature or weight metrics, cross-references with vaccination records, identifies a potential respiratory issue in pen 14, and alerts the veterinarian."
   },
   {
@@ -715,10 +715,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Equipment Maintenance Scheduling",
     industry: ["agriculture"],
     description: "Automate preventive maintenance scheduling based on equipment hours, season usage patterns, and historical failure data across the farm equipment fleet.",
-    timeSaved: "8 hrs/week per maintenance supervisor",
+    timeSaved: "Frees maintenance supervisor time spent on repetitive manual work",
     difficulty: "medium",
     integrations: ["excel", "outlook"],
-    roi: "Unplanned downtime reduced 55%; equipment life extended 30%; maintenance cost reduced 22%",
+    roi: "Maintenance scheduled from live equipment data to prevent downtime",
     demoDescription: "The platform reviews equipment hour meters across 34 tractors and harvesters, identifies 7 pieces due for service within the next 2 weeks, schedules maintenance around forecasted weather windows, orders parts, and coordinates with the service team."
   },
   // ======================================================================
@@ -729,10 +729,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Grant Application & Reporting",
     industry: ["government", "education"],
     description: "Automate grant application processing, eligibility verification, award notification, compliance tracking, and reporting across federal and state funding programs.",
-    timeSaved: "18 hrs/week per grants administrator",
+    timeSaved: "Frees grants administrator time spent on repetitive manual work",
     difficulty: "hard",
     integrations: ["servicenow", "sharepoint", "outlook"],
-    roi: "Grant processing cycle reduced 60%; compliance reporting accuracy improved to 99%",
+    roi: "Grants processed and compliance reports assembled automatically",
     demoDescription: "The platform processes 34 grant applications, validates eligibility against program criteria for each, checks for completeness, identifies 5 with missing documentation, notifies applicants, and routes complete applications to the review panel."
   },
   {
@@ -740,10 +740,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Government Procurement Automation",
     industry: ["government"],
     description: "Automate RFP distribution, bid evaluation, vendor qualification, contract award, and purchase order generation in compliance with procurement regulations.",
-    timeSaved: "22 hrs/week per procurement officer",
+    timeSaved: "Frees procurement officer time spent on repetitive manual work",
     difficulty: "hard",
     integrations: ["servicenow", "sap", "adobe-sign"],
-    roi: "Procurement cycle reduced from 90 to 35 days; vendor compliance improved to 98%",
+    roi: "Procurement automated from requisition to issued order",
     demoDescription: "The platform distributes an RFP to 22 qualified vendors, receives 14 responses, evaluates each against 37 criteria, verifies all compliance documents, generates a comparison matrix ranked by score, and prepares the award recommendation."
   },
   {
@@ -751,10 +751,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Student Enrollment & Registration",
     industry: ["education"],
     description: "Automate application processing, document verification, prerequisite checking, course registration, and fee collection across multiple programs and terms.",
-    timeSaved: "16 hrs/week per registrar",
+    timeSaved: "Frees registrar time spent on repetitive manual work",
     difficulty: "medium",
     integrations: ["servicenow", "salesforce", "outlook"],
-    roi: "Application processing time reduced 70%; registration accuracy improved to 99.5%",
+    roi: "Applications processed and registered automatically without manual re-entry",
     demoDescription: "The platform processes 125 applications for the upcoming term, verifies transcripts and prerequisites for each, checks program capacity, generates acceptance letters for 98 qualified applicants, places 12 on waitlist, and notifies 15 of missing documents."
   },
   // ======================================================================
@@ -765,10 +765,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Customer Service Provisioning",
     industry: ["telecommunications"],
     description: "Automate service order entry, circuit provisioning, equipment activation, and customer database updates across multiple network and billing systems.",
-    timeSaved: "18 hrs/week per provisioning specialist",
+    timeSaved: "Frees provisioning specialist time spent on repetitive manual work",
     difficulty: "hard",
     integrations: ["salesforce", "servicenow", "outlook"],
-    roi: "Provisioning time reduced from 5 days to 8 hours; order accuracy improved to 99.8%",
+    roi: "Provisioning automated from order to activation without manual steps",
     demoDescription: "The platform processes a new customer service order, validates address for serviceability, checks port availability, configures the circuit in the network management system, activates the CPE remotely, and updates the billing system — all in under 2 hours."
   },
   {
@@ -776,10 +776,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Network Fault Detection & Ticketing",
     industry: ["telecommunications"],
     description: "Monitor network alerts, correlate events, identify root cause, create trouble tickets, dispatch field technicians, and track repair progress.",
-    timeSaved: "24 hrs/week per NOC engineer",
+    timeSaved: "Frees NOC engineer time spent on repetitive manual work",
     difficulty: "hard",
     integrations: ["servicenow", "outlook", "slack"],
-    roi: "Mean time to repair reduced 45%; network availability improved to 99.97%",
+    roi: "Network incidents triaged automatically to speed repair",
     demoDescription: "The platform correlates 340 network alerts from 12 sources into 8 distinct incidents, identifies the most likely root cause for each, assigns priority levels, creates detailed trouble tickets, and dispatches the nearest available field technician."
   },
   {
@@ -787,10 +787,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Telecom Billing Mediation",
     industry: ["telecommunications"],
     description: "Collect usage records from network elements, rate calls and data sessions, apply discounts and promotions, and generate customer invoices with full audit trail.",
-    timeSaved: "20 hrs/week per billing analyst",
+    timeSaved: "Frees billing analyst time spent on repetitive manual work",
     difficulty: "hard",
     integrations: ["sap", "quickbooks", "excel"],
-    roi: "Billing accuracy improved to 99.95%; billing dispute rate reduced 60%",
+    roi: "Billing automated to reduce errors and the disputes they cause",
     demoDescription: "The platform processes 2.4 million usage records from network elements, rates each against customer-specific contracts, applies 1,200 promotion codes, verifies against minimum commitments, and generates 8,500 customer invoices — completed before the billing cycle cutoff."
   },
   // ======================================================================
@@ -801,10 +801,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Regulatory Submission Tracking",
     industry: ["pharmaceuticals", "life-sciences"],
     description: "Track regulatory submission deadlines, compile submission packages, monitor agency review progress, and manage correspondence across global health authorities.",
-    timeSaved: "20 hrs/week per regulatory affairs specialist",
+    timeSaved: "Frees regulatory affairs specialist time spent on repetitive manual work",
     difficulty: "hard",
     integrations: ["sharepoint", "servicenow", "outlook"],
-    roi: "Submission accuracy improved to 99.5%; submission-to-approval cycle reduced 20%",
+    roi: "Submissions assembled and validated automatically before they go out",
     demoDescription: "The platform monitors 14 active submissions across FDA, EMA, and PMDA, tracks 84 milestones against internal deadlines, identifies 3 submissions at risk of delay, compiles status reports for each, and generates the monthly regulatory dashboard."
   },
   {
@@ -812,10 +812,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Clinical Trial Data Management",
     industry: ["pharmaceuticals", "life-sciences"],
     description: "Collect, validate, and process clinical trial data from investigator sites, generate safety reports, track enrollment, and manage trial master files.",
-    timeSaved: "25 hrs/week per clinical data manager",
+    timeSaved: "Frees clinical data manager time spent on repetitive manual work",
     difficulty: "hard",
     integrations: ["sharepoint", "servicenow", "excel"],
-    roi: "Data cleaning cycle reduced 60%; database lock accelerated by 30%; query resolution time reduced 50%",
+    roi: "Data cleaned and synced automatically before every reporting cycle",
     demoDescription: "The platform collects case report forms from 24 investigator sites, validates against 1,200 edit checks, generates 87 queries for missing or inconsistent data, tracks query resolution, and updates the trial master file with new documentation."
   },
   // ======================================================================
@@ -826,10 +826,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Donor Management & Stewardship",
     industry: ["nonprofit"],
     description: "Automate donor acknowledgment, receipt generation, pledge tracking, recurring gift processing, and personalized stewardship communications.",
-    timeSaved: "12 hrs/week per development associate",
+    timeSaved: "Frees development associate time spent on repetitive manual work",
     difficulty: "medium",
     integrations: ["salesforce", "hubspot", "quickbooks"],
-    roi: "Donor retention improved 20%; acknowledgment time reduced from 2 weeks to 24 hours; recurring gift revenue up 30%",
+    roi: "Donor acknowledgments sent automatically on every gift",
     demoDescription: "The platform processes 145 donations received today, generates IRS-compliant acknowledgment letters for each, updates donor records, identifies 34 recurring gifts for processing, and sends personalized impact reports to 3 major donors."
   },
   {
@@ -837,10 +837,10 @@ export const automationLibrary: AutomationCard[] = [
     name: "Grant Reporting & Compliance",
     industry: ["nonprofit"],
     description: "Track grant deliverables, compile progress reports, monitor budget utilization against award terms, and generate compliance documentation for funders.",
-    timeSaved: "14 hrs/week per grants manager",
+    timeSaved: "Frees grants manager time spent on repetitive manual work",
     difficulty: "hard",
     integrations: ["quickbooks", "sharepoint", "outlook"],
-    roi: "Report generation time reduced 70%; grant compliance rate improved to 99%",
+    roi: "Reports generated automatically from live program data",
     demoDescription: "The platform reviews 12 active grants, tracks progress against 47 deliverables, calculates budget utilization for each grant, identifies 3 at risk of underspend, compiles quarterly narrative and financial reports, and submits to funders."
   },
 ];

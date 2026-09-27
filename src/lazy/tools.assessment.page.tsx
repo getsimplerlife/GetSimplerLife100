@@ -101,7 +101,7 @@ function AutomationAssessment() {
     // Title
     pdf.setFontSize(22);
     pdf.setTextColor(0, 200, 150);
-    pdf.text("AI Automation Assessment", pageWidth / 2, y, { align: "center" });
+    pdf.text("Automation Assessment", pageWidth / 2, y, { align: "center" });
     y += 10;
     pdf.setFontSize(10);
     pdf.setTextColor(100);
@@ -153,7 +153,7 @@ function AutomationAssessment() {
 
     pdf.setFontSize(13);
     pdf.setTextColor(0, 180, 50);
-    pdf.text("Quick Wins (2-4 weeks)", 20, y);
+    pdf.text("Quick Wins", 20, y);
     y += 7;
     pdf.setFontSize(10);
     pdf.setTextColor(80);
@@ -167,7 +167,7 @@ function AutomationAssessment() {
     if (y > 270) { pdf.addPage(); y = 20; }
     pdf.setFontSize(13);
     pdf.setTextColor(200, 150, 0);
-    pdf.text("Medium-Term (4-8 weeks)", 20, y);
+    pdf.text("Medium-Term", 20, y);
     y += 7;
     pdf.setFontSize(10);
     pdf.setTextColor(80);
@@ -181,7 +181,7 @@ function AutomationAssessment() {
     if (y > 270) { pdf.addPage(); y = 20; }
     pdf.setFontSize(13);
     pdf.setTextColor(200, 50, 50);
-    pdf.text("Long-Term (8-16 weeks)", 20, y);
+    pdf.text("Long-Term", 20, y);
     y += 7;
     pdf.setFontSize(10);
     pdf.setTextColor(80);
@@ -425,7 +425,7 @@ function AutomationAssessment() {
               <div className="grid md:grid-cols-3 gap-4">
                 {/* Quick Wins */}
                 <div className="bg-emerald-950/20 border border-emerald-900/30 rounded-xl p-4">
-                  <h4 className="text-sm font-bold text-emerald-400 mb-3">⚡ Quick Wins (2-4 weeks)</h4>
+                  <h4 className="text-sm font-bold text-emerald-400 mb-3">⚡ Quick Wins</h4>
                   {report.roadmap.quickWins.length > 0 ? (
                     <ul className="space-y-2">
                       {report.roadmap.quickWins.slice(0, 5).map((w) => (
@@ -445,7 +445,7 @@ function AutomationAssessment() {
 
                 {/* Medium Term */}
                 <div className="bg-amber-950/20 border border-amber-900/30 rounded-xl p-4">
-                  <h4 className="text-sm font-bold text-amber-400 mb-3">📅 Medium-Term (4-8 weeks)</h4>
+                  <h4 className="text-sm font-bold text-amber-400 mb-3">📅 Medium-Term</h4>
                   {report.roadmap.mediumTerm.length > 0 ? (
                     <ul className="space-y-2">
                       {report.roadmap.mediumTerm.slice(0, 5).map((w) => (
@@ -465,7 +465,7 @@ function AutomationAssessment() {
 
                 {/* Long Term */}
                 <div className="bg-red-950/20 border border-red-900/30 rounded-xl p-4">
-                  <h4 className="text-sm font-bold text-red-400 mb-3">🏗️ Long-Term (8-16 weeks)</h4>
+                  <h4 className="text-sm font-bold text-red-400 mb-3">🏗️ Long-Term</h4>
                   {report.roadmap.longTerm.length > 0 ? (
                     <ul className="space-y-2">
                       {report.roadmap.longTerm.slice(0, 5).map((w) => (

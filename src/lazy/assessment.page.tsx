@@ -89,7 +89,7 @@ function AssessmentPage() {
     // Header / Title
     pdf.setFontSize(22);
     pdf.setTextColor(99, 102, 241); // Indigo
-    pdf.text("AI Automation Assessment Report", pageWidth / 2, y, { align: "center" });
+    pdf.text("Automation Assessment Report", pageWidth / 2, y, { align: "center" });
     y += 10;
 
     pdf.setFontSize(10);
@@ -153,7 +153,7 @@ function AssessmentPage() {
 
     pdf.setFontSize(11);
     pdf.setTextColor(16, 185, 129); // Emerald
-    pdf.text("⚡ Phase 1: Quick Wins (2-4 weeks)", 20, y);
+    pdf.text("⚡ Phase 1: Quick Wins", 20, y);
     y += 6;
     pdf.setFontSize(10);
     pdf.setTextColor(75, 85, 99);
@@ -165,7 +165,7 @@ function AssessmentPage() {
     y += 5;
     pdf.setFontSize(11);
     pdf.setTextColor(245, 158, 11); // Amber
-    pdf.text("📅 Phase 2: Medium-Term (4-8 weeks)", 20, y);
+    pdf.text("📅 Phase 2: Medium-Term", 20, y);
     y += 6;
     pdf.setFontSize(10);
     pdf.setTextColor(75, 85, 99);
@@ -498,7 +498,7 @@ function AssessmentPage() {
                 <div className="bg-emerald-950/10 border border-emerald-900/30 rounded-2xl p-5 flex flex-col justify-between">
                   <div>
                     <h4 className="text-sm font-black text-emerald-400 mb-4 flex items-center gap-2">
-                      <span>⚡</span> Phase 1: Quick Wins (2-4 wks)
+                      <span>⚡</span> Phase 1: Quick Wins
                     </h4>
                     {report.roadmap.quickWins.length > 0 ? (
                       <ul className="space-y-3">
@@ -522,7 +522,7 @@ function AssessmentPage() {
                 <div className="bg-amber-950/10 border border-amber-900/30 rounded-2xl p-5 flex flex-col justify-between">
                   <div>
                     <h4 className="text-sm font-black text-amber-400 mb-4 flex items-center gap-2">
-                      <span>📅</span> Phase 2: Medium-Term (4-8 wks)
+                      <span>📅</span> Phase 2: Medium-Term
                     </h4>
                     {report.roadmap.mediumTerm.length > 0 ? (
                       <ul className="space-y-3">
@@ -546,7 +546,7 @@ function AssessmentPage() {
                 <div className="bg-rose-950/10 border border-rose-900/30 rounded-2xl p-5 flex flex-col justify-between">
                   <div>
                     <h4 className="text-sm font-black text-rose-400 mb-4 flex items-center gap-2">
-                      <span>🏗️</span> Phase 3: Long-Term (8-16 wks)
+                      <span>🏗️</span> Phase 3: Long-Term
                     </h4>
                     {report.roadmap.longTerm.length > 0 ? (
                       <ul className="space-y-3">
