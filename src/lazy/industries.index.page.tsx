@@ -43,7 +43,7 @@ function IndustriesIndexPage() {
             <p className="text-xl text-stone-400 max-w-2xl mx-auto">
               We start with the seven verticals where the operational pain is sharpest — claims, billing,
               intake, margins, compliance. Choose yours to see the specific problem, the workflows we
-              automate, the AI coworkers we deploy, and how they fit your existing stack.
+              automate, and how they fit your existing stack.
             </p>
           </div>
 
@@ -138,7 +138,7 @@ function IndustriesIndexPage() {
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
           <div>
             <div className="text-2xl font-black text-emerald-400 mb-2">{businessName}</div>
-            <p className="text-sm text-stone-400">AI coworkers for operations teams. Work less, live more.</p>
+            <p className="text-sm text-stone-400">One platform for AI-automated client operations. Work less, live more.</p>
           </div>
           <div className="text-sm font-bold flex gap-6">
             <Link to="/" className="text-stone-400 hover:text-emerald-400">Home</Link>
