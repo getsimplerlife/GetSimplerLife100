@@ -48,7 +48,7 @@ export const industryContent: Record<string, IndustryPageData> = {
   aerospace: {
     hero: {
       headline: "Mission-Critical Precision, Automated",
-      subHeadline: "AI Operations Teams that meet AS9100 standards \u2014 so your engineers focus on flight, not paperwork.",
+      subHeadline: "One platform that meets AS9100 standards \u2014 so your engineers focus on flight, not paperwork.",
       emoji: "\u2708\ufe0f",
     },
     timeSavings: {
@@ -806,7 +806,7 @@ export const industryContent: Record<string, IndustryPageData> = {
   // 15. MANUFACTURING
   // =============================================================================
   manufacturing: {
-    hero: { headline: "Precision Automation for Lean Operations", subHeadline: "From invoice matching to production reporting, AI Operations Teams that eliminate the manual work holding your shop floor back.", emoji: "🏭" },
+    hero: { headline: "Precision Automation for Lean Operations", subHeadline: "From invoice matching to production reporting, one platform that eliminates the manual work holding your shop floor back.", emoji: "🏭" },
     timeSavings: { monthlyHours: "140–220 hours/month for a mid-sized manufacturer with 100–500 employees", context: "Based on automating QA documentation, inventory reconciliation, purchase order management, supplier communication, production reporting, and compliance documentation across discrete, process, and batch manufacturing." },
     dollarSavings: { annual: "$420,000–$780,000", context: "Annualized savings from faster order-to-cash, reduced inventory carrying cost, automated compliance, and eliminated data entry. Calculated at $38/hr for quality engineers, buyers, production planners, and AP staff." },
     painPoints: [

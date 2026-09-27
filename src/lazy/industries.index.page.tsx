@@ -121,7 +121,7 @@ function IndustriesIndexPage() {
               Don't see your industry?
             </h3>
             <p className="text-stone-400 max-w-xl mx-auto text-sm leading-relaxed">
-              We build custom AI operations teams for any vertical. Contact us to discuss your
+              We build custom AI automation for any vertical. Contact us to discuss your
               specific operational challenges.
             </p>
             <Link

@@ -1055,7 +1055,7 @@ export const industries: IndustryHub[] = [
     tagline: "Mission-critical precision — automated",
     hook: "Every design change in aerospace triggers a paper trail across engineering, quality, supply chain, and regulators.",
     description:
-      "Aerospace manufacturers operate under AS9100 standards where a single missing signature can ground a production line. Simpler Life 100 deploys AI operations teams that automate engineering change notice routing, supplier quality documentation, FAA and ITAR compliance reporting, and government contract billing. Your engineers focus on flight-critical work while our AI agents handle the documentation chain with 100% traceability — audit-ready at every step.",
+      "Aerospace manufacturers operate under AS9100 standards where a single missing signature can ground a production line. Simpler Life 100 deploys one platform that automates engineering change notice routing, supplier quality documentation, FAA and ITAR compliance reporting, and government contract billing. Your engineers focus on flight-critical work while the platform handles the documentation chain with 100% traceability — audit-ready at every step.",
     painPoints: [
       {
         title: "Engineering Change Notice Backlogs",
@@ -1227,7 +1227,7 @@ export const industries: IndustryHub[] = [
     tagline: "Keep the line moving — automate everything else",
     hook: "JIT manufacturing leaves zero margin for paperwork delays.",
     description:
-      "Automotive suppliers operate on razor-thin margins where a single EDI error or missed material release can stop an OEM production line. Simpler Life 100 deploys AI operations teams that automate PPAP documentation, EDI order processing, supplier quality scorecards, and JIT material release management. Our agents keep your supply chain synchronized at production speed — preventing line-down situations that cost $50K+ per hour.",
+      "Automotive suppliers operate on razor-thin margins where a single EDI error or missed material release can stop an OEM production line. Simpler Life 100 deploys one platform that automates PPAP documentation, EDI order processing, supplier quality scorecards, and JIT material release management. The platform keeps your supply chain synchronized at production speed — preventing line-down situations that cost $50K+ per hour.",
     painPoints: [
       {
         title: "PPAP Documentation Bottlenecks",
@@ -1314,7 +1314,7 @@ export const industries: IndustryHub[] = [
     tagline: "Sell everywhere — automate operations everywhere",
     hook: "Multi-channel commerce creates multi-channel operational chaos.",
     description:
-      "E-commerce brands selling across Shopify, Amazon, Walmart, and wholesale channels drown in order reconciliation, inventory sync, returns processing, and customer support tickets. Simpler Life 100 deploys AI operations teams that reconcile orders across every channel in real time, sync inventory to prevent oversells, automate returns and RMA processing, and triage customer support to auto-resolve 80%+ of tickets. Your team focuses on growth — our AI handles the operations.",
+      "E-commerce brands selling across Shopify, Amazon, Walmart, and wholesale channels drown in order reconciliation, inventory sync, returns processing, and customer support tickets. Simpler Life 100 deploys one platform that reconciles orders across every channel in real time, syncs inventory to prevent oversells, automates returns and RMA processing, and triages customer support to auto-resolve 80%+ of tickets. Your team focuses on growth — the platform handles the operations.",
     painPoints: [
       {
         title: "Multi-Channel Order Reconciliation",
@@ -1403,7 +1403,7 @@ export const industries: IndustryHub[] = [
     tagline: "Streamline administration so educators can educate",
     hook: "School administrators spend more time on paperwork than supporting students.",
     description:
-      "K-12 districts, community colleges, and universities are buried in enrollment documents, grant compliance reports, procurement requisitions, and faculty onboarding paperwork. Simpler Life 100 deploys AI operations teams that automate new student enrollment processing, federal and state grant compliance tracking, purchase order workflows with multi-level approvals, and faculty onboarding coordination. Your staff reclaims hundreds of hours each semester to focus on educational outcomes.",
+      "K-12 districts, community colleges, and universities are buried in enrollment documents, grant compliance reports, procurement requisitions, and faculty onboarding paperwork. Simpler Life 100 deploys one platform that automates new student enrollment processing, federal and state grant compliance tracking, purchase order workflows with multi-level approvals, and faculty onboarding coordination. Your staff reclaims hundreds of hours each semester to focus on educational outcomes.",
     painPoints: [
       {
         title: "Enrollment Document Processing",
@@ -1490,7 +1490,7 @@ export const industries: IndustryHub[] = [
     tagline: "Serve citizens faster — automate the paperwork",
     hook: "Public records requests and permit backlogs don't just frustrate citizens — they create legal liability.",
     description:
-      "Municipal, county, and state agencies face growing citizen expectations with shrinking administrative bandwidth. Simpler Life 100 deploys AI operations teams that automate FOIA and public records request processing, permit application routing across multiple departments, federal grant performance reporting, and constituent correspondence triage. Your agency meets statutory deadlines, reduces processing backlogs by 75%, and gives staff time back for the work that requires human judgment.",
+      "Municipal, county, and state agencies face growing citizen expectations with shrinking administrative bandwidth. Simpler Life 100 deploys one platform that automates FOIA and public records request processing, permit application routing across multiple departments, federal grant performance reporting, and constituent correspondence triage. Your agency meets statutory deadlines, reduces processing backlogs by 75%, and gives staff time back for the work that requires human judgment.",
     painPoints: [
       {
         title: "Public Records Request Processing",
@@ -1576,7 +1576,7 @@ export const industries: IndustryHub[] = [
     tagline: "Five-star operations — automated behind every stay",
     hook: "The difference between a good guest experience and a great one is what happens behind the scenes.",
     description:
-      "Hotels, resorts, and multi-property management groups lose revenue to missed room-block cut-off dates, manual BEO processing, AP invoice backlogs, and fragmented guest service requests. Simpler Life 100 deploys AI operations teams that automate group booking management, banquet event order generation, vendor invoice coding, and guest request triage. Your team focuses on guest experience while our AI handles the operational engine that powers every stay.",
+      "Hotels, resorts, and multi-property management groups lose revenue to missed room-block cut-off dates, manual BEO processing, AP invoice backlogs, and fragmented guest service requests. Simpler Life 100 deploys one platform that automates group booking management, banquet event order generation, vendor invoice coding, and guest request triage. Your team focuses on guest experience while the platform handles the operational engine that powers every stay.",
     painPoints: [
       {
         title: "Group Booking & Room Block Management",
@@ -1663,7 +1663,7 @@ export const industries: IndustryHub[] = [
     tagline: "Create content — automate everything behind it",
     hook: "Every piece of content carries a web of rights, payments, and metadata that can pull it off platforms if mismanaged.",
     description:
-      "Media production companies, agencies, and publishers create great content but drown in the operational complexity behind it — rights and clearances tracking, talent payment processing with guild rules, content metadata management across platforms, and vendor invoice reconciliation across dozens of productions. Simpler Life 100 deploys AI operations teams that keep your production pipeline flowing and your creatives creating, with zero rights violations and audit-ready financials.",
+      "Media production companies, agencies, and publishers create great content but drown in the operational complexity behind it — rights and clearances tracking, talent payment processing with guild rules, content metadata management across platforms, and vendor invoice reconciliation across dozens of productions. Simpler Life 100 deploys one platform that keeps your production pipeline flowing and your creatives creating, with zero rights violations and audit-ready financials.",
     painPoints: [
       {
         title: "Rights & Clearances Management",
@@ -1750,7 +1750,7 @@ export const industries: IndustryHub[] = [
     tagline: "Regulatory-ready, always audit-ready",
     hook: "A single missed discrepancy in a batch record can result in a 483 observation or FDA warning letter.",
     description:
-      "Pharmaceutical manufacturers and CROs operate under GxP regulations where documentation precision is non-negotiable. Simpler Life 100 deploys AI operations teams that automate batch record review against SOPs, deviation and CAPA lifecycle management, regulatory submission assembly in eCTD format, and supplier qualification documentation tracking. Our AI maintains continuous audit readiness — so when the FDA arrives, you're already prepared, with every document traced and every CAPA closed.",
+      "Pharmaceutical manufacturers and CROs operate under GxP regulations where documentation precision is non-negotiable. Simpler Life 100 deploys one platform that automates batch record review against SOPs, deviation and CAPA lifecycle management, regulatory submission assembly in eCTD format, and supplier qualification documentation tracking. The platform maintains continuous audit readiness — so when the FDA arrives, you're already prepared, with every document traced and every CAPA closed.",
     painPoints: [
       {
         title: "Batch Record Review",
@@ -1836,7 +1836,7 @@ export const industries: IndustryHub[] = [
     tagline: "Bill more. Admin less.",
     hook: "The most profitable hour in professional services is the one that gets billed — and 10–15% never do.",
     description:
-      "Consulting, accounting, engineering, and advisory firms lose millions to billing leakage, slow engagement setup, manual expense processing, and invoice assembly. Simpler Life 100 deploys AI operations teams that accelerate engagement setup from 7 days to 24 hours, recover 5–8% of lost billable time through intelligent time entry review, automate expense report processing, and assemble client-ready invoices in minutes. Your professionals bill more hours while your back office runs on autopilot.",
+      "Consulting, accounting, engineering, and advisory firms lose millions to billing leakage, slow engagement setup, manual expense processing, and invoice assembly. Simpler Life 100 deploys one platform that accelerates engagement setup from 7 days to 24 hours, recovers 5–8% of lost billable time through intelligent time entry review, automates expense report processing, and assembles client-ready invoices in minutes. Your professionals bill more hours while your back office runs on autopilot.",
     painPoints: [
       {
         title: "Engagement Setup Delays",
@@ -1924,7 +1924,7 @@ export const industries: IndustryHub[] = [
     tagline: "Scale operations without scaling headcount",
     hook: "SaaS companies waste 15–25% of software spend on unused licenses and auto-renewals nobody reviewed.",
     description:
-      "B2B SaaS and tech companies scaling from $10M to $100M hit an operational wall — IT tickets pile up, SaaS vendor sprawl drains budgets, deal desk bottlenecks slow revenue recognition, and customer onboarding documentation takes days per account. Simpler Life 100 deploys AI operations teams that auto-resolve 40% of IT tickets, discover and manage every SaaS subscription, validate sales orders against pricing policies in minutes, and generate customized onboarding plans from deal data. Scale revenue without scaling ops headcount.",
+      "B2B SaaS and tech companies scaling from $10M to $100M hit an operational wall — IT tickets pile up, SaaS vendor sprawl drains budgets, deal desk bottlenecks slow revenue recognition, and customer onboarding documentation takes days per account. Simpler Life 100 deploys one platform that auto-resolves 40% of IT tickets, discovers and manages every SaaS subscription, validates sales orders against pricing policies in minutes, and generates customized onboarding plans from deal data. Scale revenue without scaling ops headcount.",
     painPoints: [
       {
         title: "IT Operations Ticket Overload",
@@ -2014,7 +2014,7 @@ export const industries: IndustryHub[] = [
     tagline: "Connect faster. Operate smarter.",
     hook: "A single billing error on a wholesale circuit can cost $2K–$10K per month — and most providers audit less than 60% of carrier invoices.",
     description:
-      "Telecom service providers, ISPs, and MSPs manage extraordinary operational complexity — service order orchestration across 5+ teams, carrier invoice auditing across dozens of underlying providers, network inventory reconciliation, and customer MACD processing. Simpler Life 100 deploys AI operations teams that automate end-to-end service delivery, audit every carrier invoice to recover 3–7% of costs, continuously reconcile network inventory, and process MACDs same-day. Your NOC focuses on network health, not spreadsheet reconciliation.",
+      "Telecom service providers, ISPs, and MSPs manage extraordinary operational complexity — service order orchestration across 5+ teams, carrier invoice auditing across dozens of underlying providers, network inventory reconciliation, and customer MACD processing. Simpler Life 100 deploys one platform that automates end-to-end service delivery, audits every carrier invoice to recover 3–7% of costs, continuously reconciles network inventory, and processes MACDs same-day. Your NOC focuses on network health, not spreadsheet reconciliation.",
     painPoints: [
       {
         title: "Service Order Processing",
@@ -2101,7 +2101,7 @@ export const industries: IndustryHub[] = [
     tagline: "Keep moving. Automate the rest.",
     hook: "A single missed PM interval can strand passengers, trigger expensive road calls, and reduce vehicle lifespan by 15–20%.",
     description:
-      "Transit agencies, charter services, and paratransit operators manage complex fleet operations where safety, compliance, and on-time performance are non-negotiable. Simpler Life 100 deploys AI operations teams that automate preventive maintenance scheduling across every vehicle, track driver CDL and medical certifications with proactive alerts, communicate real-time service alerts to passengers, and optimize paratransit trip scheduling automatically. Your fleet runs safer, your drivers stay compliant, and your riders stay informed.",
+      "Transit agencies, charter services, and paratransit operators manage complex fleet operations where safety, compliance, and on-time performance are non-negotiable. Simpler Life 100 deploys one platform that automates preventive maintenance scheduling across every vehicle, tracks driver CDL and medical certifications with proactive alerts, communicates real-time service alerts to passengers, and optimizes paratransit trip scheduling automatically. Your fleet runs safer, your drivers stay compliant, and your riders stay informed.",
     painPoints: [
       {
         title: "Fleet Maintenance Management",

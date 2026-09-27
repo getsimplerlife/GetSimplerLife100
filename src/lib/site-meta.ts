@@ -18,9 +18,9 @@ export interface PageMeta {
 export const SITE_URL = "https://simplerlife100.ctonew.app";
 
 export const DEFAULT_PAGE_META: PageMeta = {
-  title: "Simpler Life 100 | AI Operations Teams",
+  title: "Simpler Life 100 | One Platform for AI-Automated Client Ops",
   description:
-    "Replace hours of manual work with AI coworkers that integrate into your existing tools. Real results, no complexity.",
+    "One platform for AI-automated client operations. Real, working automation with human approval by default — no complexity.",
 };
 
 /**
@@ -36,7 +36,7 @@ export const PAGE_TITLES: Record<string, PageMeta> = {
   "/about": {
     title: "About Simpler Life 100 | Our Mission",
     description:
-      "We build AI operations teams to liberate people from repetitive manual work. Learn about our mission, principles, and approach to AI automation.",
+      "We build one platform that automates client operations end to end, freeing people from repetitive manual work. Learn about our mission, principles, and approach to AI automation.",
   },
   "/assessment": {
     title: "AI Operations Assessment | Simpler Life 100",
@@ -56,17 +56,17 @@ export const PAGE_TITLES: Record<string, PageMeta> = {
   "/case-studies": {
     title: "Case Studies | Simpler Life 100",
     description:
-      "Explore case studies of AI operations teams — the workflows they run and the systems they integrate with, across industries.",
+      "Explore case studies of AI-automated client operations — the workflows they run and the systems they integrate with, across industries.",
   },
   "/contact": {
     title: "Contact Simpler Life 100 | Get in Touch",
     description:
-      "Get in touch with the Simpler Life 100 team. Schedule a demo, ask about AI employees, or discuss custom automation for your industry.",
+      "Get in touch with the Simpler Life 100 team. Schedule a demo, ask about the platform, or discuss custom automation for your industry.",
   },
   "/demo": {
     title: "Request a Demo | Simpler Life 100",
     description:
-      "See Simpler Life 100 in action. Request a personalized demo of AI Operations Teams for your industry.",
+      "See Simpler Life 100 in action. Request a personalized demo of the platform for your industry.",
   },
   "/demos": {
     title: "Interactive Demos | Simpler Life 100",
@@ -74,34 +74,34 @@ export const PAGE_TITLES: Record<string, PageMeta> = {
       "See Simpler Life 100 in action with interactive demos of the client portal, workflows, and audit experience.",
   },
   "/faq": {
-    title: "FAQ | Simpler Life 100 AI Employees",
+    title: "FAQ | Simpler Life 100",
     description:
-      "Frequently asked questions about AI employees, pricing, integrations, deployment, and how Simpler Life 100 automates your operations.",
+      "Frequently asked questions about the platform, pricing, integrations, deployment, and how Simpler Life 100 automates your operations.",
   },
   "/features": {
-    title: "Features | Simpler Life 100 AI Operations Teams",
+    title: "Features | Simpler Life 100",
     description:
-      "AI employees that understand your systems, monitor them, and automate client-requested tasks — with cross-workspace files, a client portal, and fail-closed security.",
+      "Native records, forms, docs & e-sign, webhooks, booking, boards, AI extraction, surveys, transforms/EDI, dashboards, and automations — one platform, every capability in every tier, with fail-closed security.",
   },
   "/how-it-works": {
     title: "How It Works | Simpler Life 100",
     description:
-      "Purchase AI employees, deploy instantly, and connect to Xero, Slack, Google, Microsoft 365, HubSpot, and DocuSign — with more integrations in development. See how Simpler Life 100 works.",
+      "One platform for AI-automated client operations. Connect to Xero, Slack, Google, Microsoft 365, HubSpot, and DocuSign — with more integrations in development. See how Simpler Life 100 works.",
   },
   "/industries": {
     title: "Industries | Simpler Life 100",
     description:
-      "AI Operations Teams for 7 focus verticals — insurance, legal, real estate, healthcare, construction, professional services, and financial services. See the specific operational problem, the workflows we automate, and how AI coworkers fit your stack.",
+      "One platform for AI-automated client operations across 7 focus verticals — insurance, legal, real estate, healthcare, construction, professional services, and financial services. See the specific operational problem, the workflows we automate, and how the platform fits your stack.",
   },
   "/integrations": {
     title: "Integrations | Simpler Life 100",
     description:
-      "Explore the apps AI employees connect to. Live today: Xero, Slack, Google, Microsoft 365, HubSpot, and DocuSign — with more in development.",
+      "Explore the apps the Simpler Life 100 platform works with. Live today: Xero, Slack, Google, Microsoft 365, HubSpot, and DocuSign — with more in development.",
   },
   "/login": {
     title: "Login | Simpler Life 100",
     description:
-      "Sign in to your Simpler Life 100 portal to manage your AI employees, workflows, and integrations.",
+      "Sign in to your Simpler Life 100 portal to manage your workflows, automations, and integrations.",
   },
   "/pricing": {
     title: "Pricing | Simpler Life 100",
@@ -121,7 +121,7 @@ export const PAGE_TITLES: Record<string, PageMeta> = {
   "/register": {
     title: "Register | Simpler Life 100",
     description:
-      "Create your Simpler Life 100 account. Deploy AI employees and start automating your operations today.",
+      "Create your Simpler Life 100 account. Deploy the platform and start automating your operations today.",
   },
   "/resources": {
     title: "Resources | Simpler Life 100",
@@ -151,7 +151,7 @@ export const PAGE_TITLES: Record<string, PageMeta> = {
   "/roi-calculator": {
     title: "ROI Calculator | Simpler Life 100",
     description:
-      "Calculate your automation ROI. Estimate how much time and money AI employees can save your operations team.",
+      "Calculate your automation ROI. Estimate how much time and money AI automation can save your operations team.",
   },
   "/set-password": {
     title: "Set Password | Simpler Life 100",

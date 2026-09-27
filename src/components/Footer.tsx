@@ -10,7 +10,7 @@ export function Footer() {
               Simpler Life 100
             </Link>
             <p className="text-stone-500 text-sm mt-2 max-w-xs">
-              AI Operations Teams that integrate into your existing tools. Real results, no complexity.
+              One platform for AI-automated client operations. Every capability, in every tier.
             </p>
           </div>
           <div>

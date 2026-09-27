@@ -112,7 +112,7 @@ function PortalDemoPage() {
 
             {/* Agent Cards */}
             <div className="space-y-4">
-              <h2 className="text-sm font-black text-white">🤖 Deployed AI Employees</h2>
+              <h2 className="text-sm font-black text-white">🤖 Deployed AI Automations</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {MOCK_AGENTS.map((agent) => (
                   <div key={agent.name} className="bg-stone-900/30 border border-stone-800 rounded-xl p-5 hover:border-stone-700 transition-all">

@@ -29,7 +29,7 @@ function PrivacyPage() {
         <p className="text-stone-500 text-sm mb-8">Last updated: present day. Questions: <a className="text-emerald-400 underline" href="mailto:electric.vortexz@gmail.com">electric.vortexz@gmail.com</a>.</p>
 
         <Section title="What this product is">
-          <p>Simpler Life 100 builds and manages AI Operations Teams: AI automations that help businesses automate tasks such as quote-to-cash workflows, document processing, notifications, and data entry across the apps you authorize us to connect.</p>
+          <p>Simpler Life 100 builds and manages one platform for AI-automated client operations: AI automations that help businesses automate tasks such as quote-to-cash workflows, document processing, notifications, and data entry across the apps you authorize us to connect.</p>
         </Section>
 
         <Section title="Information we collect">

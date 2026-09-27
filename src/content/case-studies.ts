@@ -55,7 +55,7 @@ export const caseStudies: CaseStudy[] = [
     id: "slack-orchestration",
     title: "AI employee orchestration from Slack",
     blueprint:
-      "Operational AI employees that a team can task and monitor from Slack, with human-in-the-loop approval gates before any write.",
+      "Operational AI automations that a team can task and monitor from Slack, with human-in-the-loop approval gates before any write.",
     integrations: ["slack", "xero", "hubspot"],
     walkthrough: [
       "A human posts a task request in Slack (e.g. \"create an invoice for the Acme deal\").",

@@ -82,8 +82,8 @@ function RootComponent() {
 
   // Set document title client-side (CSR mode — no SSR head export)
   useEffect(() => {
-    const title = pageMeta?.title || "Simpler Life 100 | AI Operations Teams";
-    const description = pageMeta?.description || "Replace hours of manual work with AI coworkers that integrate into your existing tools. Real results, no complexity.";
+    const title = pageMeta?.title || "Simpler Life 100 | One Platform for AI-Automated Client Ops";
+    const description = pageMeta?.description || "One platform for AI-automated client operations. Real, working automation with human approval by default — no complexity.";
     document.title = title;
     // Update meta description
     upsertMeta("name", "description", description);
