@@ -322,7 +322,7 @@ describe("Phase 3.7 — REUSED lanes: tableWrite + runTransform", () => {
 
 describe("Phase 3.7 — autonomy allow-list (explicit kinds only)", () => {
   it("allow-listed notify auto-executes with honest delivery outcome", async () => {
-    setAutomationEmailSenderForTest(async ({ to }) => ({ success: true }));
+    setAutomationEmailSenderForTest(async () => ({ success: true }));
     const created = createVia({ actions: [{ kind: "notify", recipients: ["ops@co.test"], subject: "S", body: "B" }], autonomyAllowList: ["notify"] });
     approveVia(created.approvalActionId);
     const ruleId = listRules(dir, T1)[0]!.id;

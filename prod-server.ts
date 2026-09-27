@@ -556,8 +556,9 @@ async function runAutomationScheduleSweep(): Promise<void> {
     wireAutomationEventObserver();
     const r = await sweepDueAutomationSchedules(DATA_DIR, dispatchAutomationActions, new Date());
     if (r.fired.length || r.skipped.length) console.log(`[automation-sweeper] fired=${r.fired.length} skipped=${r.skipped.length}`);
-  } catch (e) {
-    console.error("[automation-sweeper] sweep error: " + (e?.message || String(e)));
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[automation-sweeper] sweep error: " + msg);
   } finally {
     automationSweepRunning = false;
   }
