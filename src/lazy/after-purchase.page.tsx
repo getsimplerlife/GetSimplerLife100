@@ -21,7 +21,7 @@ export default function AfterPurchasePage() {
               Day 1 to deployed — here's the journey.
             </h1>
             <p className="text-lg text-stone-400 max-w-2xl mx-auto leading-relaxed">
-              No mystery, no open-ended timeline. Here's the concrete sequence from purchase to your first AI employee
+              No mystery, no open-ended timeline. Here's the concrete sequence from purchase to your first AI automation
               working — with a human approving.
             </p>
           </div>

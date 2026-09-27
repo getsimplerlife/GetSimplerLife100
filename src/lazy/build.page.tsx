@@ -3,59 +3,51 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 ;
 import { Footer } from "~/components/Footer";
-// Package tiers with agent limits
+// LOCKED PLATFORM TIERS (owner 09-27) — one platform, every capability in
+// every tier; no per-employee selling. The wizard collects the workflows you
+// want first; the CTA goes to /pricing (subscription checkout follows the
+// owner's Stripe switch).
 const packages = [
   {
     id: 'starter',
     name: 'Starter',
-    price: 7500,
-    agentLimit: 2,
-    features: ['2 AI employees', '3 automated workflows', 'CRM integration', '30 days support'],
-    paymentLink: 'https://buy.stripe.com/3cI8wR88Tasfc1B9XW2Fa2K',
-    description: 'Perfect for small teams ready to automate their highest-friction process.',
+    monthly: 199,
+    setup: 500,
+    features: ['100% of native capabilities', 'Records, forms, docs/e-sign, webhooks', 'Booking, boards, AI extraction', 'Surveys/NPS, transforms/EDI', 'Dashboards/BI, automations', 'Email support'],
+    description: 'Firms ~10\u201330 people. The full platform for first automated workflows.',
   },
   {
     id: 'growth',
     name: 'Growth',
-    price: 15000,
-    agentLimit: 5,
-    features: ['5 AI employees', 'Cross-dept workflows', 'CRM + ERP integrations', 'Custom dashboards', '60 days support'],
-    paymentLink: 'https://buy.stripe.com/5kQ6oJbl5dErc1B1rq2Fa2L',
-    description: 'For growing teams that need automation across multiple departments.',
+    monthly: 599,
+    setup: 1500,
+    features: ['100% of native capabilities (as Starter)', 'Higher scale limits', 'Multi-step approvals + autonomy allow-lists', 'Priority support'],
+    description: 'Firms ~30\u2013100 people. Scale limits and governance for a growing ops team.',
   },
   {
     id: 'scale',
-    name: 'Scale',
-    price: 30000,
-    agentLimit: 18,
-    features: ['Up to 18 AI employees', 'Unlimited workflows', 'Custom agent training', 'Advanced integrations', '90 days support'],
-    paymentLink: 'https://buy.stripe.com/aFa7sN60LdErc1B5HG2Fa2M',
-    description: 'Enterprise-grade AI workforce for organizations ready to transform operations.',
+    name: 'Enterprise',
+    monthly: 1499,
+    setup: 0,
+    features: ['100% of native capabilities (as Growth)', 'Highest scale limits', 'Advanced governance + allow-lists', 'Dedicated support', 'Custom on-demand vendor-API builds'],
+    description: 'Larger or regulated operations. Custom builds on demand.',
   },
 ];
-
 // All 18 agent types
 const allAgents = [
-  { id: 'document_intake', name: 'Document AI System', icon: '📄', desc: 'Universal document processing & OCR' },
-  { id: 'healthcare_intake', name: 'Healthcare Intake AI', icon: '🏥', desc: 'Patient registrations & insurance verification' },
-  { id: 'invoice_ledger', name: 'Invoice & Ledger AI', icon: '💸', desc: 'AP/AR automation & reconciliation' },
-  { id: 'sales_outreach', name: 'Sales Outreach AI', icon: '🚀', desc: 'Lead gen & CRM pipeline management' },
-  { id: 'hr_compliance', name: 'HR Intake & Compliance AI', icon: '👥', desc: 'Onboarding, offboarding & compliance' },
-  { id: 'dispatch_logistics', name: 'Dispatch Logistics AI', icon: '🚚', desc: 'Carrier dispatching & route optimization' },
-  { id: 'audit_logger', name: 'Operations Audit AI', icon: '📋', desc: 'Automated audit trail logging' },
-  { id: 'voice_receptionist', name: 'Voice AI Receptionist', icon: '📞', desc: 'AI-powered call handling (Twilio)' },
-  { id: 'support_agent', name: 'Customer Support AI', icon: '🎧', desc: 'Ticket handling & customer support' },
-  { id: 'knowledge_assistant', name: 'Knowledge Assistant', icon: '🧠', desc: 'RAG-powered internal knowledge base' },
-  { id: 'inventory_management', name: 'Inventory Management AI', icon: '📦', desc: 'Stock tracking & reorder automation' },
-  { id: 'contract_management', name: 'Contract Management AI', icon: '📝', desc: 'Contract review & lifecycle management' },
-  { id: 'customer_success', name: 'Customer Success AI', icon: '🌟', desc: 'Retention monitoring & engagement' },
-  { id: 'project_management', name: 'Project Management AI', icon: '📊', desc: 'Task tracking & milestone automation' },
-  { id: 'procurement_vendor', name: 'Procurement & Vendor AI', icon: '🤝', desc: 'Vendor management & purchase orders' },
-  { id: 'it_operations', name: 'IT Operations AI', icon: '🖥️', desc: 'DevOps monitoring & infra automation' },
-  { id: 'fp_and_a', name: 'FP&A AI', icon: '💰', desc: 'Financial planning & forecasting' },
-  { id: 'marketing_social', name: 'Marketing & Social AI', icon: '📱', desc: 'Social media & campaign automation' },
+  { id: 'records', name: 'Records & tables', icon: '🗂️', desc: 'Structured data store with per-tenant isolation and audit' },
+  { id: 'forms', name: 'Forms', icon: '📝', desc: 'Build forms that write into records through the approval queue' },
+  { id: 'docs', name: 'Docs, PDF & e-sign', icon: '📄', desc: 'Create, fill, sign and file documents natively' },
+  { id: 'webhooks', name: 'Webhooks', icon: '🔌', desc: 'Typed events out and in — the backbone of every workflow' },
+  { id: 'booking', name: 'Booking', icon: '🗓️', desc: 'Publish availability, take requests, confirm — timezone-exact' },
+  { id: 'boards', name: 'Boards', icon: '📋', desc: 'Kanban-style work tracking with typed events' },
+  { id: 'ai-extraction', name: 'AI extraction', icon: '🤖', desc: 'Pull structured fields from documents — output is always a draft' },
+  { id: 'surveys', name: 'Surveys & NPS', icon: '📊', desc: 'Publish surveys, collect responses, aggregate feedback' },
+  { id: 'transforms', name: 'Transforms & EDI', icon: '🔄', desc: 'JSON/CSV/XML/EDIFACT/X12 in-app with XXE-safe parsers' },
+  { id: 'dashboards', name: 'Dashboards & BI', icon: '📈', desc: 'Reports, charts, scheduled delivery, threshold alerts' },
+  { id: 'automations', name: 'Automations', icon: '⚙️', desc: 'Trigger → conditions → actions. Fail-closed, ledger-audited' },
+  { id: 'approvals', name: 'Approval queue', icon: '🛡️', desc: 'Human approval by default; autonomy only via allow-lists' },
 ];
-
 type Step = 'package' | 'agents' | 'info' | 'review' | 'success';
 
 function BuildBuilder() {
@@ -71,18 +63,15 @@ function BuildBuilder() {
   });
   const [submitting, setSubmitting] = useState(false);
 
-  const toggleAgent = (id: string) => {
+  const toggleCapability = (id: string) => {
     setSelectedAgents((prev) => {
       if (prev.includes(id)) return prev.filter((a) => a !== id);
-      if (prev.length >= selectedPackage.agentLimit) return prev;
       return [...prev, id];
     });
   };
-
   const handlePackageSelect = (pkg: typeof packages[0]) => {
     setSelectedPackage(pkg);
-    // Reset agents if they exceed new limit
-    setSelectedAgents((prev) => prev.slice(0, pkg.agentLimit));
+  };
   };
 
   const validateAndNext = () => {
@@ -90,7 +79,7 @@ function BuildBuilder() {
       setStep('agents');
     } else if (step === 'agents') {
       if (selectedAgents.length === 0) {
-        alert('Please select at least one AI employee.');
+        alert('Please choose at least one capability.'); // single platform — still good to confirm focus
         return;
       }
       setStep('info');
@@ -124,7 +113,7 @@ function BuildBuilder() {
     } catch {}
 
     // Redirect to Stripe checkout
-    window.location.href = selectedPackage.paymentLink;
+    window.location.href = '/pricing';
   };
 
   if (step === 'success') {
@@ -176,11 +165,11 @@ function BuildBuilder() {
           {/* Header */}
           <div className="mb-12 text-center">
             <span className="inline-block px-3 py-1 text-xs font-mono font-bold tracking-wider rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase mb-4">
-              Build Your AI Team
+              Build Your Platform
             </span>
             <h1 className="text-4xl lg:text-5xl font-black text-white mb-4 tracking-tight">Deploy Your AI Operations Team</h1>
             <p className="text-lg text-stone-400 max-w-2xl mx-auto">
-              Select your package, choose your AI employees, and get deployed in days — not months.
+              Select your package, pick the capabilities that matter first, and get deployed in days — not months. One platform, every capability in every tier.
             </p>
           </div>
 
@@ -188,7 +177,7 @@ function BuildBuilder() {
           <div className="mb-12">
             <div className="flex items-center justify-center gap-2 max-w-md mx-auto">
               {(['package', 'agents', 'info', 'review'] as Step[]).map((s, i) => {
-                const stepLabels = ['Package', 'AI Team', 'Your Info', 'Review'];
+                const stepLabels = ['Package', 'Capabilities', 'Your Info', 'Review'];
                 const isActive = step === s;
                 const isDone = (['package', 'agents', 'info', 'review'].indexOf(step) > i);
                 return (
@@ -237,7 +226,7 @@ function BuildBuilder() {
                         </div>
                       </div>
                       <div className="text-3xl font-black text-emerald-400 mb-2">
-                        ${pkg.price.toLocaleString()}
+                        {`$${pkg.monthly}/mo${pkg.setup > 0 ? ` · $${pkg.setup.toLocaleString()} setup` : ' · setup incl.'}`}
                       </div>
                       <p className="text-stone-500 text-sm mb-4">{pkg.description}</p>
                       <ul className="space-y-2">
@@ -259,30 +248,30 @@ function BuildBuilder() {
             {/* STEP 2: Agent Selection */}
             {step === 'agents' && (
               <div>
-                <h2 className="text-2xl font-black text-white mb-2">Select Your AI Employees</h2>
+                <h2 className="text-2xl font-black text-white mb-2">Choose Your Priority Capabilities</h2>
                 <p className="text-stone-400 mb-2">
-                  Choose up to <span className="text-emerald-400 font-bold">{selectedPackage.agentLimit}</span> AI employees 
+                  Every tier includes 100% of native capabilities. Pick which ones matter first for your <span className="text-emerald-400 font-bold">{selectedPackage.name}</span> plan.
                   for your <span className="text-emerald-400 font-bold">{selectedPackage.name}</span> package.
                 </p>
                 <div className="flex items-center gap-3 mb-8">
                   <div className="flex-1 h-2 bg-stone-800 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-emerald-500 rounded-full transition-all duration-300"
-                      style={{ width: `${(selectedAgents.length / selectedPackage.agentLimit) * 100}%` }}
+                      style={{ width: `${(selectedAgents.length / allAgents.length) * 100}%` }}
                     />
                   </div>
                   <span className="text-sm font-mono font-bold text-stone-400">
-                    {selectedAgents.length}/{selectedPackage.agentLimit}
+                    {selectedAgents.length}/{allAgents.length}
                   </span>
                 </div>
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {allAgents.map((agent) => {
                     const isSelected = selectedAgents.includes(agent.id);
-                    const isDisabled = !isSelected && selectedAgents.length >= selectedPackage.agentLimit;
+                    const isDisabled = !isSelected && false;
                     return (
                       <div
                         key={agent.id}
-                        onClick={() => !isDisabled && toggleAgent(agent.id)}
+                        onClick={() => !isDisabled && toggleCapability(agent.id)}
                         className={`cursor-pointer p-4 rounded-xl border-2 transition-all ${
                           isSelected
                             ? 'border-emerald-500 bg-emerald-500/10'
@@ -314,7 +303,7 @@ function BuildBuilder() {
             {step === 'info' && (
               <div>
                 <h2 className="text-2xl font-black text-white mb-2">Your Information</h2>
-                <p className="text-stone-400 mb-8">Tell us where to deploy your AI team.</p>
+                <p className="text-stone-400 mb-8">Tell us where to deploy your automations.</p>
                 <div className="grid md:grid-cols-2 gap-6 max-w-2xl">
                   <div>
                     <label className="block text-sm font-bold text-stone-300 mb-2">Company Name *</label>
@@ -379,14 +368,14 @@ function BuildBuilder() {
                         <div className="text-xl font-black text-white">{selectedPackage.name}</div>
                         <div className="text-stone-400 text-sm">{selectedPackage.features[0]} · {selectedPackage.features[1]}</div>
                       </div>
-                      <div className="text-2xl font-black text-emerald-400">${selectedPackage.price.toLocaleString()}</div>
+                      <div className="text-2xl font-black text-emerald-400">{`$${selectedPackage.monthly}/mo`}</div>
                     </div>
                   </div>
 
                   {/* Agents Summary */}
                   <div className="bg-stone-950 rounded-2xl p-6 border border-stone-800">
                     <div className="text-xs font-mono font-bold text-stone-500 uppercase mb-3">
-                      AI Employees ({selectedAgents.length})
+                      Capabilities ({selectedAgents.length})
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {selectedAgents.map((id) => {
@@ -418,7 +407,7 @@ function BuildBuilder() {
                         <div className="text-emerald-400 font-black text-lg">Total Investment</div>
                         <div className="text-stone-400 text-sm">One-time payment · 30-day money-back guarantee</div>
                       </div>
-                      <div className="text-3xl font-black text-white">${selectedPackage.price.toLocaleString()}</div>
+                      <div className="text-3xl font-black text-white">{`$${selectedPackage.monthly}/mo`}</div>
                     </div>
                   </div>
                 </div>

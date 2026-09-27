@@ -45,7 +45,7 @@ describe("F5 — dead serve.ts removed entirely (owner-approved I5)", () => {
 
 describe("Pricing copy — LOCKED platform tiers (owner 09-27)", () => {
   const pricingSrc = readRepoFile("src/routes/pricing.tsx");
-  const PACK_LINE = "1 connection pack (CRM or ERP — your choice)";
+  const PACK_LINE = "1 Connection Pack (CRM or ERP — your choice)";
   it("lists the three locked platform tiers (Starter/Growth/Enterprise) — no per-employee model", () => {
     const starter = pricingSrc.slice(pricingSrc.indexOf('name: "Starter"'), pricingSrc.indexOf('name: "Growth"'));
     const growth = pricingSrc.slice(pricingSrc.indexOf('name: "Growth"'), pricingSrc.indexOf('name: "Enterprise"'));

@@ -70,7 +70,7 @@ function PortalDemoPage() {
         <div className="flex gap-1 bg-stone-900/50 border border-stone-800 rounded-xl p-1 mb-8">
           {[
             { key: "dashboard" as const, label: "📊 Dashboard", desc: "Live metrics & activity" },
-            { key: "marketplace" as const, label: "🛍️ Marketplace", desc: "Browse AI employees" },
+            { key: "marketplace" as const, label: "🛍️ Marketplace", desc: "Browse AI automations" },
             { key: "workflows" as const, label: "⚡ Workflows", desc: "Automation pipelines" },
           ].map((tab) => (
             <button

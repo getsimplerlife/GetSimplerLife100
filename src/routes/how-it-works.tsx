@@ -122,7 +122,7 @@ function HowItWorksPage() {
                 You don't need to learn automation. <span className="text-emerald-500">We run it for you.</span>
               </h2>
               <p className="text-lg text-stone-400 max-w-3xl mx-auto leading-relaxed">
-                We don't hand you a new tool to figure out. We <strong className="text-stone-200">build, integrate, deploy, monitor, and support</strong> your AI employees for you — so your team keeps working in the systems they already use, while the repetitive work stops being theirs.
+                We don't hand you a new tool to figure out. We <strong className="text-stone-200">build, integrate, deploy, monitor, and support</strong> your AI automations for you — so your team keeps working in the systems they already use, while the repetitive work stops being theirs.
               </p>
             </div>
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 text-center">
@@ -234,7 +234,7 @@ function HowItWorksPage() {
           <div className="max-w-4xl mx-auto space-y-8">
             <h2 className="text-3xl lg:text-5xl font-black leading-tight">Stop Copy-Pasting. Get a Free Automation Plan.</h2>
             <p className="text-lg text-emerald-100 max-w-2xl mx-auto">
-              Our 30-minute operational assessment will outline the exact workflows, cost savings, and timelines for your custom AI employee.
+              Our 30-minute operational assessment will outline the exact workflows, cost savings, and timelines for your custom AI automation.
             </p>
             <div className="flex justify-center">
               <Link to="/contact" className="bg-stone-950 text-emerald-400 px-10 py-4 rounded-xl font-black text-lg hover:bg-emerald-500/10 transition-all shadow-xl">

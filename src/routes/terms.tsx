@@ -29,15 +29,15 @@ function TermsPage() {
         <p className="text-stone-500 text-sm mb-8">Last updated: present day. Questions: <a className="text-emerald-400 underline" href="mailto:electric.vortexz@gmail.com">electric.vortexz@gmail.com</a>.</p>
 
         <Section title="The service">
-          <p>Simpler Life 100 provides AI Operations Teams: AI employees configured to automate tasks within your business, deployed as part of a setup/build package and ongoing monthly service. Use of the service is subject to these terms.</p>
+          <p>Simpler Life 100 provides AI Operations Teams: AI automations configured to automate tasks within your business, deployed as part of a setup/build package and ongoing monthly service. Use of the service is subject to these terms.</p>
         </Section>
 
         <Section title="Your account and responsibilities">
-          <p>You are responsible for maintaining the confidentiality of your account credentials and for activities that occur under your account. You agree to provide accurate information and to authorize the integrations your AI employees use.</p>
+          <p>You are responsible for maintaining the confidentiality of your account credentials and for activities that occur under your account. You agree to provide accurate information and to authorize the integrations your AI automations use.</p>
         </Section>
 
         <Section title="Fees and payment">
-          <p>Purchases are one-time setup or build fees and recurring monthly fees per AI employee, as described at the time of purchase and processed through our payment provider. By purchasing, you agree to pay the amounts shown for the services you select. Recurring fees continue until cancelled in accordance with the applicable plan.</p>
+          <p>Purchases are one-time onboarding fees and recurring monthly platform subscription fees, as described at the time of purchase and processed through our payment provider. By purchasing, you agree to pay the amounts shown for the services you select. Recurring fees continue until cancelled in accordance with the applicable plan.</p>
         </Section>
 
         <Section title="Integrations and connection health">

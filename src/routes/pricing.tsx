@@ -30,7 +30,7 @@ const PLATFORM_TIERS = [
     features: [
       "100% of native capabilities \u2014 records, forms, docs/e-sign, webhooks, booking, boards, AI extraction, surveys/NPS, transforms/EDI, dashboards/BI, automations",
       "Approval-queue control with per-workflow autonomy allow-lists",
-      "1 connection pack (CRM or ERP \u2014 your choice)",
+      "1 Connection Pack (CRM or ERP — your choice)",
       "Standard support (email)",
     ],
     cta: "Start with the Sprint",
@@ -73,9 +73,6 @@ const PLATFORM_TIERS = [
     ctaHref: "/pricing#sprint",
   },
 ];
-
-// The one-time Automation Sprint ($2,500) stays the live low-risk entry.
-const SPRINT_LINK = "https://buy.stripe.com/14AbJ3cp91VJc1Bfig2Fa2N";
 
 function PricingPage() {
   return (
@@ -172,7 +169,7 @@ function PricingPage() {
           </p>
           <div className="flex flex-wrap justify-center gap-4">
             <a
-              href={SPRINT_LINK}
+              href="https://buy.stripe.com/14AbJ3cp91VJc1Bfig2Fa2N"
               target="_blank"
               rel="noopener noreferrer"
               className="premium-btn inline-flex items-center justify-center text-white px-8 py-3.5 rounded-xl font-bold text-sm"
@@ -187,8 +184,7 @@ function PricingPage() {
             </Link>
           </div>
           <p className="text-xs text-stone-500 mt-5 max-w-xl mx-auto">
-            At checkout you'll see the item as "Industry Blueprint Assessment" — the same $2,500
-            one-time engagement. The site calls it Automation Sprint; the catalog name is the
+            At checkout you'll see the item as "Industry Blueprint Assessment" — the same $2,500 one-time engagement. The site calls it Automation Sprint; the catalog name is the
             owner's to update.
           </p>
         </div>

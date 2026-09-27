@@ -56,7 +56,7 @@ function AutomationLibraryPage() {
 
   // LOCKED PLATFORM TIERS (owner 09-27) — monthly platform pricing; every
   // tier includes 100% of native capabilities. CTA points at the pricing page.
-  const getStripeLink = (difficulty: string): string => {
+  const getStripeLink = (_difficulty: string): string => {
     return "/pricing";
   };
 
@@ -64,7 +64,6 @@ function AutomationLibraryPage() {
     if (difficulty === "easy") return "$199/mo";
     if (difficulty === "medium") return "$599/mo";
     return "$1,499/mo";
-  };
   };
 
   return (

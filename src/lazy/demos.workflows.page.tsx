@@ -57,7 +57,7 @@ Items:
 1. Operational Architecture Assessment - 40 hours @ $250/hr = $10,000.00
 2. Automation Feasibility Blueprint - 20 hours @ $250/hr = $5,000.00
 
-TOTAL DUE: $15,000.00
+TOTAL DUE: $4,800.00
 PO Reference: PO-McKinsey-77A`
   }
 ];
@@ -233,7 +233,7 @@ Simpler Life 100`);
           vendor: "McKinsey Operations Advisors",
           invoiceDate: "July 08, 2026",
           poRef: "PO-McKinsey-77A",
-          total: "$15,000.00",
+          total: "$4,800.00",
           items: [
             "Operational Assessment (40 hrs) - $10,000.00",
             "Automation Blueprint (20 hrs) - $5,000.00"

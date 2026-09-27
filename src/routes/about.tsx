@@ -73,7 +73,7 @@ function AboutPage() {
                   We started Simpler Life 100 because we saw operations teams buried in manual work that software should have solved a decade ago. Copying data between tabs, manually reviewing documents, and chasing status updates isn't "work"—it's waste.
                 </p>
                 <p className="font-bold text-stone-900">
-                  We don't sell generic software. We build AI employees that work inside the systems you already own.
+                  We don't sell generic software. We build AI automations that work inside the systems you already own.
                 </p>
                 <p>
                   Our goal is to give your team their time back, so they can focus on growth, strategy, and the human parts of your business that no computer could ever replicate.
@@ -101,7 +101,7 @@ function AboutPage() {
               {[
                 {
                   title: "Outcome Over Output",
-                  desc: "We don't bill by open-ended hours or report on meaningless progress. We build, integrate, and deploy fully functional AI employees that deliver real, measurable business results."
+                  desc: "We don't bill by open-ended hours or report on meaningless progress. We build, integrate, and deploy fully functional AI automations that deliver real, measurable business results."
                 },
                 {
                   title: "Respect for Human Labor",
