@@ -8,6 +8,7 @@ import {
   executePendingDashboardWrite,
   fireScheduleNow,
   setDashboardEmailSenderForTest,
+  type DashboardWriteResult,
 } from "../native/dashboard/gate";
 import {
   listDashboards,
@@ -21,7 +22,8 @@ import {
 } from "../native/dashboard/store";
 import { scheduleAnchor } from "../native/dashboard/engine";
 import { ensureTestServer, testBaseUrl } from "./test-env";
-import { createTable, insertRow, type TableDef } from "../native/tables/store";
+import { createTable, insertRow } from "../native/tables/store";
+import type { TableDef } from "../native/tables/types";
 
 const T1 = "dash-t1@test.local";
 const T2 = "dash-t2@test.local";
@@ -67,7 +69,7 @@ beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), "dash-"));
   tableId = `tbl_${Math.random().toString(36).slice(2, 10)}`;
   seedTable();
-  setApprovalMode("manual");
+  setApprovalMode(T1, "on", dir);
   setDashboardEmailSenderForTest(async () => ({ success: true }));
 });
 afterEach(() => {
@@ -76,19 +78,22 @@ afterEach(() => {
 });
 // convenience: a gated create that we approve+apply through the same path a
 // portal admin would (executePendingDashboardWrite with the approvalActionId).
-function createVia(name: string, op: Parameters<typeof submitDashboardWrite>[2], req: Parameters<typeof submitDashboardWrite>[3]) {
+function createVia(op: Parameters<typeof submitDashboardWrite>[2], req: Parameters<typeof submitDashboardWrite>[3]) {
   const res = submitDashboardWrite(dir, T1, op, req, T1);
   expect(res.applied, JSON.stringify(res)).toBe(false);
   if (res.applied || !("approvalActionId" in res)) throw new Error("expected pending");
   return res as Extract<typeof res, { pending: true }>;
 }
+function errOf(res: DashboardWriteResult): string {
+  return "error" in res ? res.error : "";
+}
 function applyPending(actionId: string) {
   const out = executePendingDashboardWrite(dir, T1, actionId, T1);
   expect(out.ok, JSON.stringify(out)).toBe(true);
-  return out;
+  return out as Extract<typeof out, { ok: true }>;
 }
 function makeReportId() {
-  const p = createVia("make-report", "createReport", {
+  const p = createVia("createReport", {
     report: {
       name: "Rev by region",
       description: "sum amount group by region",
@@ -113,7 +118,7 @@ describe("Phase 3.6 native dashboards/BI — gate semantics", () => {
     expect(reports).toHaveLength(1);
     expect(reports[0]!.sourceTableId).toBe(tableId);
     // runReport rides the queue → apply → durable run with grouped rows
-    const runP = createVia("run", "runReport", { report: { id: reportId }, format: "csv", via: "test" });
+    const runP = createVia("runReport", { report: { id: reportId }, format: "csv", via: "test" });
     const runRes = applyPending(runP.approvalActionId);
     const runs = listRuns(dir, T1, reportId);
     expect(runs).toHaveLength(1);
@@ -130,66 +135,67 @@ describe("Phase 3.6 native dashboards/BI — gate semantics", () => {
   });
   it("runReport replay → alreadyApplied (idempotent), same run", () => {
     const reportId = makeReportId();
-    const p = createVia("run", "runReport", { report: { id: reportId }, format: null, via: "test" });
+    const p = createVia("runReport", { report: { id: reportId }, format: null, via: "test" });
     applyPending(p.approvalActionId);
     const again = executePendingDashboardWrite(dir, T1, p.approvalActionId, T1);
     expect(again.ok).toBe(true);
-    expect(again.alreadyApplied).toBe(true);
+    expect((again as { alreadyApplied?: boolean }).alreadyApplied).toBe(true);
     expect(listRuns(dir, T1, reportId)).toHaveLength(1);
   });
   it("validation BEFORE gate: forged create-id / unknown table / missing field NEVER queue", () => {
     const forged = submitDashboardWrite(dir, T1, "createReport", { report: { id: "rpt_forged123", name: "x", sourceTableId: tableId, viz: "bar", agg: "count" } }, T1);
     expect(forged.applied || forged.pending).toBe(false);
-    expect(forged.error).toMatch(/client-supplied report ids/i);
+    expect(errOf(forged)).toMatch(/client-supplied report ids/i);
     expect(listPendingWrites(dir, T1).filter((w) => w.status === "pending")).toHaveLength(0);
 
     const noTable = submitDashboardWrite(dir, T1, "createReport", { report: { name: "x", sourceTableId: "tbl_nope", viz: "bar", agg: "count" } }, T1);
     expect(noTable.applied || noTable.pending).toBe(false);
-    expect(noTable.error).toMatch(/not found/i);
+    expect(errOf(noTable)).toMatch(/not found/i);
 
     const noField = submitDashboardWrite(dir, T1, "createReport", { report: { name: "x", sourceTableId: tableId, viz: "bar", groupBy: "bogus_field", agg: "count" } }, T1);
     expect(noField.applied || noField.pending).toBe(false);
-    expect(noField.error).toMatch(/does not exist/i);
+    expect(errOf(noField)).toMatch(/does not exist/i);
   });
   it("sum/avg/min/max aggregation requires a valueField (fail-closed)", () => {
     const res = submitDashboardWrite(dir, T1, "createReport", { report: { name: "x", sourceTableId: tableId, viz: "bar", agg: "sum" } }, T1);
     expect(res.applied || res.pending).toBe(false);
-    expect(res.error).toMatch(/needs a valueField/i);
+    expect(errOf(res)).toMatch(/needs a valueField/i);
   });
   it("cross-tenant access → report not found (404-no-IDOR)", () => {
     const reportId = makeReportId();
     const res = submitDashboardWrite(dir, T2, "runReport", { report: { id: reportId }, format: null, via: "test" }, T2);
     expect(res.applied || res.pending).toBe(false);
-    expect(res.error).toMatch(/not found/i);
+    expect(errOf(res)).toMatch(/not found/i);
   });
 });
 
 describe("Phase 3.6 dashboards — CRUD + widget refs", () => {
   it("dashboard create → update → delete ride the queue; widget refs validated in-tenant", () => {
     const reportId = makeReportId();
-    const p = createVia("dash", "createDashboard", { dashboard: { name: "Ops", description: "", reportIds: [reportId] }, via: "test" });
+    const p = createVia("createDashboard", { dashboard: { name: "Ops", description: "", reportIds: [reportId] }, via: "test" });
     const applied = applyPending(p.approvalActionId);
     expect(listDashboards(dir, T1)).toHaveLength(1);
     expect(listDashboards(dir, T1)[0]!.reportIds).toEqual([reportId]);
     // cross-tenant widget ref → validation fails pre-queue
     const bad = submitDashboardWrite(dir, T1, "createDashboard", { dashboard: { name: "Bad", reportIds: ["rpt_foreign"] } }, T1);
     expect(bad.applied || bad.pending).toBe(false);
-    expect(bad.error).toMatch(/not found/i);
+    expect(errOf(bad)).toMatch(/not found/i);
     void applied;
   });
   it("deleteReport is blocked while referenced (fail-closed referential integrity)", () => {
     const reportId = makeReportId();
-    createVia("dash", "createDashboard", { dashboard: { name: "Ops", reportIds: [reportId] }, via: "test" });
+    const dashP = createVia("createDashboard", { dashboard: { name: "Ops", reportIds: [reportId] }, via: "test" });
+    applyPending(dashP.approvalActionId);
     const del = submitDashboardWrite(dir, T1, "deleteReport", { report: { id: reportId }, via: "test" }, T1);
     expect(del.applied || del.pending).toBe(false);
-    expect(del.error).toMatch(/used by a dashboard/i);
+    expect(errOf(del)).toMatch(/used by a dashboard/i);
   });
 });
 
 describe("Phase 3.6 schedules — activation + sweeper", () => {
   it("schedule activate (gated) anchors nextRunAt to the FUTURE; fireScheduleNow runs it", () => {
     const reportId = makeReportId();
-    const p = createVia("sch", "createSchedule", {
+    const p = createVia("createSchedule", {
       schedule: { name: "Daily CSV", reportId, cadence: "daily", timeUtc: "09:00", format: "csv", recipients: ["ops@acme.test"] },
       via: "test",
     });
@@ -198,7 +204,7 @@ describe("Phase 3.6 schedules — activation + sweeper", () => {
     expect(schedules).toHaveLength(1);
     expect(schedules[0]!.status).toBe("draft");
     // activate
-    const ap = createVia("act", "activateSchedule", { schedule: { id: schedules[0]!.id }, via: "test" });
+    const ap = createVia("activateSchedule", { schedule: { id: schedules[0]!.id }, via: "test" });
     applyPending(ap.approvalActionId);
     const active = listSchedules(dir, T1)[0]!;
     expect(active.status).toBe("active");
@@ -216,13 +222,14 @@ describe("Phase 3.6 schedules — activation + sweeper", () => {
   });
   it("non-active schedules never fire (fail-closed)", () => {
     const reportId = makeReportId();
-    const p = createVia("sch", "createSchedule", { schedule: { name: "Draft", reportId, cadence: "daily", timeUtc: "09:00", format: "pdf", recipients: ["x@y.test"] }, via: "test" });
+    const p = createVia("createSchedule", { schedule: { name: "Draft", reportId, cadence: "daily", timeUtc: "09:00", format: "pdf", recipients: ["x@y.test"] }, via: "test" });
+    applyPending(p.approvalActionId);
     const id = (() => {
       const all = listSchedules(dir, T1);
       expect(all).toHaveLength(1);
+      expect(all[0]!.status).toBe("draft");
       return all[0]!.id;
     })();
-    void p;
     const fired = fireScheduleNow(dir, T1, id);
     expect(fired.ok).toBe(false);
     expect(fired.error).toMatch(/not active/i);
@@ -244,7 +251,7 @@ describe("Phase 3.6 alert rules — edge-triggered thresholds", () => {
   it("alert fires on breach (durable record + event) and clears on recovery", () => {
     const reportId = makeReportId();
     // avg amount < 100 → fires (avg = (100+50+300+200)/4 = 162.5, so use > with threshold 100)
-    const ap = createVia("alr", "createAlertRule", {
+    const ap = createVia("createAlertRule", {
       alertRule: { name: "Big avg", reportId, metric: "agg", op: "gt", threshold: 10, recipients: ["ops@acme.test"] },
       via: "test",
     });
@@ -252,7 +259,7 @@ describe("Phase 3.6 alert rules — edge-triggered thresholds", () => {
     const rules = listAlertRules(dir, T1);
     expect(rules).toHaveLength(1);
     // run the report → rule evaluates headline 650 > 10 → fire
-    const rp = createVia("run", "runReport", { report: { id: reportId }, format: null, via: "test" });
+    const rp = createVia("runReport", { report: { id: reportId }, format: null, via: "test" });
     applyPending(rp.approvalActionId);
     const records = listAlertRecords(dir, T1);
     expect(records).toHaveLength(1);
@@ -262,7 +269,7 @@ describe("Phase 3.6 alert rules — edge-triggered thresholds", () => {
     expect(listAlertRules(dir, T1)[0]!.active).toBe(true);
     expect(listAudit(dir, T1).some((e) => e.action === "native.dashboard.alert.fired")).toBe(true);
     // second run while still breached → NO duplicate record (edge-triggered)
-    const rp2 = createVia("run2", "runReport", { report: { id: reportId }, format: null, via: "test" });
+    const rp2 = createVia("runReport", { report: { id: reportId }, format: null, via: "test" });
     applyPending(rp2.approvalActionId);
     expect(listAlertRecords(dir, T1)).toHaveLength(1);
   });
@@ -270,23 +277,23 @@ describe("Phase 3.6 alert rules — edge-triggered thresholds", () => {
     const reportId = makeReportId();
     const badOp = submitDashboardWrite(dir, T1, "createAlertRule", { alertRule: { name: "x", reportId, op: "wat", threshold: 5, recipients: ["a@b.test"] } }, T1);
     expect(badOp.applied || badOp.pending).toBe(false);
-    expect(badOp.error).toMatch(/op must be/i);
-    const badThreshold = submitDashboardWrite(dir, T1, "createAlertRule", { alertRule: { name: "x", reportId, op: "gt", threshold: "high", recipients: ["a@b.test"] } }, T1);
+    expect(errOf(badOp)).toMatch(/op must be/i);
+    const badThreshold = submitDashboardWrite(dir, T1, "createAlertRule", { alertRule: { name: "x", reportId, op: "gt", threshold: "high" as unknown as number, recipients: ["a@b.test"] } }, T1);
     expect(badThreshold.applied || badThreshold.pending).toBe(false);
-    expect(badThreshold.error).toMatch(/finite number/i);
+    expect(errOf(badThreshold)).toMatch(/finite number/i);
     const badReport = submitDashboardWrite(dir, T1, "createAlertRule", { alertRule: { name: "x", reportId: "rpt_unknown", op: "gt", threshold: 5, recipients: ["a@b.test"] } }, T1);
     expect(badReport.applied || badReport.pending).toBe(false);
-    expect(badReport.error).toMatch(/not found/i);
+    expect(errOf(badReport)).toMatch(/not found/i);
     expect(listPendingWrites(dir, T1).filter((w) => w.status === "pending")).toHaveLength(0);
   });
   it("recipient emails validated + deduped (fail-closed)", () => {
     const reportId = makeReportId();
     const bad = submitDashboardWrite(dir, T1, "createAlertRule", { alertRule: { name: "x", reportId, op: "gt", threshold: 5, recipients: ["not-an-email"] } }, T1);
     expect(bad.applied || bad.pending).toBe(false);
-    expect(bad.error).toMatch(/valid email/i);
+    expect(errOf(bad)).toMatch(/valid email/i);
     const dup = submitDashboardWrite(dir, T1, "createAlertRule", { alertRule: { name: "x", reportId, op: "gt", threshold: 5, recipients: ["a@b.test", "a@b.test"] } }, T1);
     expect(dup.applied || dup.pending).toBe(false);
-    expect(dup.error).toMatch(/duplicate/i);
+    expect(errOf(dup)).toMatch(/duplicate/i);
   });
 });
 

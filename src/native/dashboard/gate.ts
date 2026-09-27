@@ -793,10 +793,15 @@ export function fireScheduleNow(dataDir: string, tenantId: string, scheduleId: s
     appendAudit(dataDir, { tenantId, actor: `system/schedule:${s.id}`, action: "native.dashboard.schedule.ran", scheduleId: s.id, reportId: def.id, runId, detail: `Schedule "${s.name}" produced snapshot (${c.rowCount} rows, ${s.format}) for ${s.recipients.length} recipient(s)` });
     publishEvent(dataDir, tenantId, "native.dashboard.schedule.ran", { scheduleId: s.id, reportId: def.id, runId, rowCount: c.rowCount, format: s.format });
     evaluateAlertsSync(dataDir, tenantId, def, run, `system/schedule:${s.id}`);
-    // Advance the anchor NOW (deterministic; a crash before this line leaves
-    // nextRunAt in the past → the sweeper re-runs once, which is idempotent by
-    // the same run id being re-generated — acceptable at-least-once semantics).
-    s.nextRunAt = scheduleAnchor(s.cadence, s.timeUtc, new Date()).toISOString();
+    // Advance the anchor NOW, strictly monotonically: base on the later of
+    // "now" and the previous nextRunAt so a manual/early fire can never
+    // produce a nextRunAt equal to or earlier than the one just served
+    // (a crash before this line leaves nextRunAt in the past → the sweeper
+    // re-runs once, which is idempotent by the same run id being
+    // re-generated — acceptable at-least-once semantics).
+    const prevNext = new Date(s.nextRunAt).getTime();
+    const baseForNext = new Date(Math.max(Date.now(), prevNext + 1));
+    s.nextRunAt = scheduleAnchor(s.cadence, s.timeUtc, baseForNext).toISOString();
     s.version += 1;
     s.updatedAt = new Date().toISOString();
     s.updatedBy = "system/scheduler";

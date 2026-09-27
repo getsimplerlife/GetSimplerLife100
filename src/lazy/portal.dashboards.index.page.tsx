@@ -343,7 +343,7 @@ export default function NativeDashboardsPage() {
               {schedules.map((s) => (
                 <div key={s.id} className="border border-stone-800 rounded-xl p-4 mb-2 flex items-center justify-between gap-2">
                   <div>
-                    <p className="font-bold text-sm">{s.name} <Badge variant={s.status === "active" ? "emerald" : s.status === "archived" ? "stone" : "slate"}>{s.status}</Badge></p>
+                    <p className="font-bold text-sm">{s.name} <Badge variant={s.status === "active" ? "emerald" : s.status === "archived" ? "stone" : "stone"}>{s.status}</Badge></p>
                     <p className="text-[11px] text-slate-500 mt-0.5">
                       {CADENCE_LABEL[s.cadence]} {s.timeUtc} UTC · {s.format.toUpperCase()} · {s.recipients.length} recipient(s) · next {new Date(s.nextRunAt).toISOString().slice(0, 16).replace("T", " ")}
                     </p>
@@ -390,7 +390,7 @@ export default function NativeDashboardsPage() {
               {rules.map((a) => (
                 <div key={a.id} className="border border-stone-800 rounded-xl p-4 mb-2 flex items-center justify-between gap-2">
                   <div>
-                    <p className="font-bold text-sm">{a.name} <Badge variant={a.active ? "amber" : "slate"}>{a.active ? "FIRING" : "armed"}</Badge></p>
+                    <p className="font-bold text-sm">{a.name} <Badge variant={a.active ? "warning" : "stone"}>{a.active ? "FIRING" : "armed"}</Badge></p>
                     <p className="text-[11px] text-slate-500 mt-0.5">metric {a.metric} {OP_LABEL[a.op]} {a.threshold} · {a.recipients.length} recipient(s)</p>
                   </div>
                   <Button size="sm" variant="danger" onClick={() => alertAction(a.id, "delete")} disabled={busy}>✕</Button>
@@ -420,7 +420,7 @@ export default function NativeDashboardsPage() {
               <span className="flex items-center gap-2">
                 {r.artifactKind && r.artifactKind.startsWith("application/pdf") && <a className="text-blue-400 hover:text-blue-300 font-bold" href={`/api/native/dashboard/runs/${r.id}/artifact`}>PDF</a>}
                 {r.artifactKind && r.artifactKind.startsWith("text/csv") && <a className="text-blue-400 hover:text-blue-300 font-bold" href={`/api/native/dashboard/runs/${r.id}/artifact`}>CSV</a>}
-                <Badge variant={r.error ? "rose" : "emerald"}>{r.error ? "error" : "ok"}</Badge>
+                <Badge variant={r.error ? "danger" : "emerald"}>{r.error ? "error" : "ok"}</Badge>
               </span>
             </div>
           ))}
