@@ -546,6 +546,25 @@ async function runDashboardScheduleSweep(): Promise<void> {
   }
 }
 const dashboardSweepTimer = setInterval(() => { void runDashboardScheduleSweep(); }, DASHBOARD_SWEEP_INTERVAL_MS);
+// Phase 3.7 — native automation event observer + schedule sweeper
+let automationSweepRunning = false;
+async function runAutomationScheduleSweep(): Promise<void> {
+  if (automationSweepRunning) return;
+  automationSweepRunning = true;
+  try {
+    const { sweepDueAutomationSchedules, dispatchAutomationActions, wireAutomationEventObserver } = await import("./src/native/automation");
+    wireAutomationEventObserver();
+    const r = await sweepDueAutomationSchedules(DATA_DIR, dispatchAutomationActions, new Date());
+    if (r.fired.length || r.skipped.length) console.log(`[automation-sweeper] fired=${r.fired.length} skipped=${r.skipped.length}`);
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[automation-sweeper] sweep error: " + msg);
+  } finally {
+    automationSweepRunning = false;
+  }
+}
+const automationSweepTimer = setInterval(() => { void runAutomationScheduleSweep(); }, DASHBOARD_SWEEP_INTERVAL_MS);
+if (automationSweepTimer?.unref) automationSweepTimer.unref();
 if (dashboardSweepTimer?.unref) dashboardSweepTimer.unref();
 
 if (!process.env.STRIPE_WEBHOOK_SECRET) {
@@ -1218,6 +1237,8 @@ async function handleFetch(req: Request): Promise<Response> {
       transformNative.registerBuiltinNativeTransformEventTypes();
       const dashboardNative = await import("./src/native/dashboard");
       dashboardNative.registerBuiltinNativeDashboardEventTypes();
+      const automationNative = await import("./src/native/automation");
+      automationNative.registerBuiltinNativeAutomationEventTypes();
       const sinkMatch = pathname.match(/^\/api\/native\/webhooks\/([a-zA-Z0-9_-]+)$/);
       if (sinkMatch) {
         // Unauthenticated provider-style receiver — signature-gated (401/404
@@ -1342,6 +1363,13 @@ async function handleFetch(req: Request): Promise<Response> {
       if (pathname.startsWith("/api/native/dashboard")) {
         const dashboards = await import("./src/native/dashboard");
         return dashboards.handleNativeDashboardsAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
+      }
+      // Phase 3.7 - native automations/workflow builder (rules -> conditions ->
+      // actions, /api/native/automation*). AUTHED-ONLY: no public share
+      // surface; wired AFTER the session check (anonymous -> 401).
+      if (pathname.startsWith("/api/native/automation")) {
+        const automations = await import("./src/native/automation");
+        return automations.handleNativeAutomationsAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
       }
       return native.handleNativeAuthed(req, {
         userEmail: user.email,
