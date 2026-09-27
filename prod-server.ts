@@ -519,6 +519,34 @@ function startOAuthStateSweeper(): void {
   console.log(`[oauth-state-sweeper] sweeper started: every ${OAUTH_STATE_SWEEP_INTERVAL_MS}ms (first sweep in 60s)`);
 }
 startOAuthStateSweeper();
+// ── Native dashboard schedule sweeper (Phase 3.6): fires due ACTIVE report
+// ── schedules (the distribution primitive). Activation approval is the human
+// ── gate; runs + alert records + audit are durable writes made under that
+// ── explicit allow-list (3.1 calendar-sync precedent). Serialised — never
+// ── two sweeps; loud on failure; interval env-overridable, 60s default.
+const DASHBOARD_SWEEP_INTERVAL_MS = (() => {
+  const n = Number(process.env.DASHBOARD_SWEEP_INTERVAL_MS);
+  return Number.isFinite(n) && n > 0 ? n : 60 * 1000;
+})();
+let dashboardSweepRunning = false;
+async function runDashboardScheduleSweep(): Promise<void> {
+  if (dashboardSweepRunning) return;
+  dashboardSweepRunning = true;
+  try {
+    const { sweepDueDashboardSchedules } = await import("./src/native/dashboard");
+    const r = sweepDueDashboardSchedules(DATA_DIR, new Date());
+    if (r.schedulesFired > 0 || r.errors.length > 0) {
+      console.log(`[dashboard-sweeper] fired=${r.schedulesFired} tenants=${r.tenantsTouched} runs=${r.runs.length}` + (r.errors.length ? ` errors=${r.errors.length}` : ""));
+    }
+    for (const e of r.errors) console.error("[dashboard-sweeper] error: " + e);
+  } catch (e: any) {
+    console.error("[dashboard-sweeper] sweep error: " + (e?.message || String(e)));
+  } finally {
+    dashboardSweepRunning = false;
+  }
+}
+const dashboardSweepTimer = setInterval(() => { void runDashboardScheduleSweep(); }, DASHBOARD_SWEEP_INTERVAL_MS);
+if (dashboardSweepTimer?.unref) dashboardSweepTimer.unref();
 
 if (!process.env.STRIPE_WEBHOOK_SECRET) {
   console.log("[prod-server] WARNING: STRIPE_WEBHOOK_SECRET is not set — /api/stripe/webhook and /api/stripe-webhook accept unsigned payloads (a forged checkout.session.completed could mark any email as purchased). Set STRIPE_WEBHOOK_SECRET before launch; the handler is signature-verification-ready.");
@@ -1188,6 +1216,8 @@ async function handleFetch(req: Request): Promise<Response> {
       surveyNative.registerBuiltinNativeSurveyEventTypes();
       const transformNative = await import("./src/native/transform");
       transformNative.registerBuiltinNativeTransformEventTypes();
+      const dashboardNative = await import("./src/native/dashboard");
+      dashboardNative.registerBuiltinNativeDashboardEventTypes();
       const sinkMatch = pathname.match(/^\/api\/native\/webhooks\/([a-zA-Z0-9_-]+)$/);
       if (sinkMatch) {
         // Unauthenticated provider-style receiver — signature-gated (401/404
@@ -1304,6 +1334,14 @@ async function handleFetch(req: Request): Promise<Response> {
       if (pathname.startsWith("/api/native/transform")) {
         const transforms = await import("./src/native/transform");
         return transforms.handleNativeTransformsAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
+      }
+      // Phase 3.6 — native embedded dashboards/BI (report builder over 1.4
+      // tables + scheduled PDF/CSV/email distribution + thresholds/alerts,
+      // /api/native/dashboard*). AUTHED-ONLY: no public share surface;
+      // wired AFTER the session check (anonymous → 401).
+      if (pathname.startsWith("/api/native/dashboard")) {
+        const dashboards = await import("./src/native/dashboard");
+        return dashboards.handleNativeDashboardsAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
       }
       return native.handleNativeAuthed(req, {
         userEmail: user.email,
