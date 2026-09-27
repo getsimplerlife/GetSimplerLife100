@@ -72,7 +72,6 @@ function BuildBuilder() {
   const handlePackageSelect = (pkg: typeof packages[0]) => {
     setSelectedPackage(pkg);
   };
-  };
 
   const validateAndNext = () => {
     if (step === 'package') {
