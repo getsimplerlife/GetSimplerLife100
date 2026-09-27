@@ -33,8 +33,8 @@ const PLATFORM_TIERS = [
       "1 Connection Pack (CRM or ERP — your choice)",
       "Standard support (email)",
     ],
-    cta: "Start with the Sprint",
-    ctaHref: "/pricing#sprint",
+    cta: "Choose Starter",
+    ctaHref: "https://buy.stripe.com/eVq5kC7qQ0909zV0sJ5os00",
   },
   {
     name: "Growth",
@@ -51,8 +51,8 @@ const PLATFORM_TIERS = [
       "Priority support",
     ],
     highlight: true,
-    cta: "Start with the Sprint",
-    ctaHref: "/pricing#sprint",
+    cta: "Choose Growth",
+    ctaHref: "https://buy.stripe.com/fZubJ0h1qbRI5jFcbr5os01",
   },
   {
     name: "Enterprise",
@@ -69,8 +69,8 @@ const PLATFORM_TIERS = [
       "Dedicated support",
       "Custom on-demand vendor-API builds (e.g. SAP BAPI, SuiteScript)",
     ],
-    cta: "Start with the Sprint",
-    ctaHref: "/pricing#sprint",
+    cta: "Choose Enterprise",
+    ctaHref: "https://buy.stripe.com/fZu28qfXmaNEdQb2AR5os02",
   },
 ];
 
@@ -129,6 +129,8 @@ function PricingPage() {
               </ul>
               <a
                 href={tier.ctaHref}
+                target="_blank"
+                rel="noopener noreferrer"
                 className={`block text-center py-3 rounded-xl font-bold text-sm transition-all ${
                   tier.highlight
                     ? "bg-emerald-500 hover:bg-emerald-400 text-black"
@@ -141,9 +143,10 @@ function PricingPage() {
           ))}
         </div>
         <p className="text-xs text-stone-500 mt-6 text-center max-w-2xl mx-auto">
-          Subscription products are being set up at checkout after the payment-account switch.
-          In the meantime the one-time Automation Sprint below is the live, low-risk entry — and the
-          free assessment costs nothing.
+          Checkout is handled securely by Stripe — subscriptions bill monthly, with
+          one-time onboarding on your first invoice. Prefer a low-risk start? The
+          one-time Automation Sprint below is a live entry point — and the free
+          assessment costs nothing.
         </p>
       </section>
 
