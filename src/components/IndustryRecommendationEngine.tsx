@@ -99,7 +99,7 @@ export function IndustryRecommendationEngine({ industry }: IndustryRecommendatio
           AI Recommendation Engine
         </h2>
         <p className="text-stone-400 text-sm lg:text-base leading-relaxed">
-          Select your business profile, paint points, and software integrations. Our recommendation model will calculate your real-time hours saved and configure the perfect AI Operations Team for your stack.
+          Select your business profile, pain points, and software integrations. Our recommendation model will calculate your real-time hours saved and configure the right automations for your stack.
         </p>
       </div>
 

@@ -12,7 +12,7 @@ function DemosHub() {
         <div className="grid gap-6 max-w-2xl mx-auto">
           <Link to="/demos/audit-portal" className="block bg-stone-900 hover:bg-stone-800 border border-stone-800 rounded-2xl p-8 text-left transition-all">
             <h2 className="text-xl font-black text-white mb-2">🔍 Audit Workflow Demo</h2>
-            <p className="text-stone-400 text-sm">Watch AI agents automatically audit compliance, flag issues, and generate reports in real time.</p>
+            <p className="text-stone-400 text-sm">Watch automated workflows audit compliance, flag issues, and generate reports in real time.</p>
           </Link>
           <Link to="/demos/workflows" className="block bg-stone-900 hover:bg-stone-800 border border-stone-800 rounded-2xl p-8 text-left transition-all">
             <h2 className="text-xl font-black text-white mb-2">⚡ Workflow Automation Demo</h2>

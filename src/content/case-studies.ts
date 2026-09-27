@@ -53,13 +53,13 @@ export const caseStudies: CaseStudy[] = [
   },
   {
     id: "slack-orchestration",
-    title: "AI employee orchestration from Slack",
+    title: "Automation orchestration from Slack",
     blueprint:
       "Operational AI automations that a team can task and monitor from Slack, with human-in-the-loop approval gates before any write.",
     integrations: ["slack", "xero", "hubspot"],
     walkthrough: [
       "A human posts a task request in Slack (e.g. \"create an invoice for the Acme deal\").",
-      "The AI employee resolves the related records and stages the action.",
+      "The automation resolves the related records and stages the action.",
       "A fail-closed approval queue requires a human sign-off before any write executes.",
       "The approved write runs against the authorized accounting/CRM system and confirms back in Slack.",
     ],

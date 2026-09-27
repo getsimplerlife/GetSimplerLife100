@@ -61,9 +61,9 @@ export const industryResources: IndustryResource[] = [
     ],
     commonIntegrations: ["SAP S/4HANA", "Oracle NetSuite", "Microsoft Dynamics 365", "Plex Systems", "QuickBooks Enterprise", "Epicor"],
     faqs: [
-      { question: "How long does it take to deploy an AI Operations Team for manufacturing?", answer: "Deployment timelines are scoped to each client's systems and processes rather than a fixed schedule. We outline expected timing and an illustrative ROI projection during your audit — actual results always depend on your specific operations." },
-      { question: "Can the AI team work with our existing ERP system?", answer: "Yes. We connect directly to SAP, Oracle NetSuite, Dynamics 365, Epicor, Plex, and 25+ other manufacturing ERP systems through official APIs. No rip-and-replace required." },
-      { question: "How does the system handle proprietary part numbers and BOM structures?", answer: "The AI Operations Team learns your specific data schemas during deployment. It maps your part numbering conventions, BOM hierarchies, and routing structures so every update is accurate and contextual." },
+      { question: "How long does it take to get a manufacturing platform running?", answer: "Deployment timelines are scoped to each client's systems and processes rather than a fixed schedule. We outline expected timing and an illustrative ROI projection during your audit — actual results always depend on your specific operations." },
+      { question: "Can the platform work with our existing ERP system?", answer: "Yes. We connect directly to SAP, Oracle NetSuite, Dynamics 365, Epicor, Plex, and 25+ other manufacturing ERP systems through official APIs. No rip-and-replace required." },
+      { question: "How does the system handle proprietary part numbers and BOM structures?", answer: "The platform learns your specific data schemas during deployment. It maps your part numbering conventions, BOM hierarchies, and routing structures so every update is accurate and contextual." },
     ],
   },
   {
@@ -107,9 +107,9 @@ export const industryResources: IndustryResource[] = [
     ],
     commonIntegrations: ["McLeod Software", "MercuryGate TMS", "Trimble TMS", "Samsara", "Motive", "Project44", "DAT", "Truckstop"],
     faqs: [
-      { question: "Can the AI team work with our existing TMS?", answer: "Yes. We integrate with McLeod, MercuryGate, Trimble, and 15+ other transportation management systems. The AI team reads dispatch boards, tracks loads, and updates your TMS automatically." },
-      { question: "How does dispatch optimization actually work?", answer: "The AI team evaluates every available load against driver locations, HOS remaining, equipment compatibility, and customer appointment windows — generating an optimized plan in under 2 minutes that takes a human dispatcher 4+ hours." },
-      { question: "What about broker-carrier communication?", answer: "The AI team handles load tendering, rate confirmation, status updates, and document exchange across email, EDI, and API — all without manual intervention." },
+      { question: "Can the platform work with our existing TMS?", answer: "Yes. We integrate with McLeod, MercuryGate, Trimble, and 15+ other transportation management systems. The platform reads dispatch boards, tracks loads, and updates your TMS automatically." },
+      { question: "How does dispatch optimization actually work?", answer: "The platform evaluates every available load against driver locations, HOS remaining, equipment compatibility, and customer appointment windows — generating an optimized plan in under 2 minutes that takes a human dispatcher 4+ hours." },
+      { question: "What about broker-carrier communication?", answer: "The platform handles load tendering, rate confirmation, status updates, and document exchange across email, EDI, and API — all without manual intervention." },
     ],
   },
   {
@@ -143,7 +143,7 @@ export const industryResources: IndustryResource[] = [
     ],
     commonIntegrations: ["Epic", "Cerner", "athenahealth", "NextGen", "Salesforce Health Cloud"],
     faqs: [
-      { question: "Is the AI team HIPAA compliant?", answer: "Yes. All patient data is encrypted at rest and in transit. We follow healthcare data-handling best practices, execute BAA coverage where applicable, and do not store PHI outside your secure environment." },
+      { question: "Is the platform HIPAA compliant?", answer: "Yes. All patient data is encrypted at rest and in transit. We follow healthcare data-handling best practices, execute BAA coverage where applicable, and do not store PHI outside your secure environment." },
       { question: "Will this integrate with our EHR system?", answer: "We connect directly to Epic, Cerner, athenahealth, and NextGen through their official API and FHIR interfaces. No screen scraping or fragile integrations." },
     ],
   },
@@ -177,7 +177,7 @@ export const industryResources: IndustryResource[] = [
     commonIntegrations: ["Procore", "Autodesk", "QuickBooks Enterprise", "Sage 50", "ADP"],
     faqs: [
       { question: "Does this work with Procore?", answer: "Yes. We integrate directly with Procore's API for submittals, RFIs, change orders, daily logs, and project financials." },
-      { question: "Can it handle certified payroll requirements?", answer: "Yes. The AI team automatically calculates certified payroll for prevailing wage projects, generates Form WH-347 compliant reports, and tracks fringe benefit contributions." },
+      { question: "Can it handle certified payroll requirements?", answer: "Yes. The platform automatically calculates certified payroll for prevailing wage projects, generates Form WH-347 compliant reports, and tracks fringe benefit contributions." },
     ],
   },
   {
@@ -210,7 +210,7 @@ export const industryResources: IndustryResource[] = [
     commonIntegrations: ["QuickBooks", "Xero", "SAP", "Oracle NetSuite", "Bill.com", "Expensify", "Ramp", "Brex"],
     faqs: [
       { question: "Is this secure enough for financial services?", answer: "Yes. We follow information-security best practices, encrypt data in transit and at rest, and support role-based access controls required for financial audits." },
-      { question: "Can it handle multi-entity and multi-currency?", answer: "Yes. The AI team manages intercompany transactions, currency conversions, and consolidated reporting across entities and currencies automatically." },
+      { question: "Can it handle multi-entity and multi-currency?", answer: "Yes. The platform manages intercompany transactions, currency conversions, and consolidated reporting across entities and currencies automatically." },
     ],
   },
   {
@@ -239,7 +239,7 @@ export const industryResources: IndustryResource[] = [
     ],
     commonIntegrations: ["SAP", "Oracle NetSuite", "Power BI", "Tableau", "ServiceNow"],
     faqs: [
-      { question: "Can the AI team handle division order calculations for royalty processing?", answer: "Yes. The system manages complex division of interest calculations, title chain updates, and burden deductions for any number of royalty owners." },
+      { question: "Can the platform handle division order calculations for royalty processing?", answer: "Yes. The system manages complex division of interest calculations, title chain updates, and burden deductions for any number of royalty owners." },
     ],
   },
   {
@@ -268,7 +268,7 @@ export const industryResources: IndustryResource[] = [
     ],
     commonIntegrations: ["Shopify", "WooCommerce", "BigCommerce", "Amazon Seller Central", "NetSuite", "Fishbowl"],
     faqs: [
-      { question: "Can this handle flash sales and high-volume periods?", answer: "Yes. The AI team scales automatically during peak periods. Black Friday volumes that would require 5 temporary staff are handled at normal capacity." },
+      { question: "Can this handle flash sales and high-volume periods?", answer: "Yes. The platform scales automatically during peak periods. Black Friday volumes that would require 5 temporary staff are handled at normal capacity." },
     ],
   },
   {
@@ -297,7 +297,7 @@ export const industryResources: IndustryResource[] = [
     ],
     commonIntegrations: ["Salesforce", "HubSpot", "SharePoint", "Adobe Sign", "Outlook"],
     faqs: [
-      { question: "Does this comply with attorney-client privilege requirements?", answer: "Yes. The AI team is designed with privilege filter workflows, ethical wall controls, and complete audit trails for every document interaction." },
+      { question: "Does this comply with attorney-client privilege requirements?", answer: "Yes. The platform is designed with privilege filter workflows, ethical wall controls, and complete audit trails for every document interaction." },
     ],
   },
   {
@@ -326,7 +326,7 @@ export const industryResources: IndustryResource[] = [
     ],
     commonIntegrations: ["ServiceNow", "Salesforce", "HubSpot", "Outlook"],
     faqs: [
-      { question: "How does the AI team handle complex claims with multiple policies?", answer: "The AI team evaluates all applicable policies, determines primary and excess coverage, calculates proportional liability, and generates comprehensive claim summaries for the adjuster." },
+      { question: "How does the platform handle complex claims with multiple policies?", answer: "The platform evaluates all applicable policies, determines primary and excess coverage, calculates proportional liability, and generates comprehensive claim summaries for the adjuster." },
     ],
   },
   {
@@ -355,7 +355,7 @@ export const industryResources: IndustryResource[] = [
     ],
     commonIntegrations: ["QuickBooks", "Xero", "SAP", "NetSuite", "Adobe Sign", "Outlook"],
     faqs: [
-      { question: "Can this handle ASC 842 lease accounting?", answer: "Yes. The AI team extracts all lease data needed for ASC 842 compliance, calculates right-of-use assets and lease liabilities, and generates journal entries for your ERP." },
+      { question: "Can this handle ASC 842 lease accounting?", answer: "Yes. The platform extracts all lease data needed for ASC 842 compliance, calculates right-of-use assets and lease liabilities, and generates journal entries for your ERP." },
     ],
   },
 ];

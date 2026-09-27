@@ -296,7 +296,7 @@ function AIAdvisor() {
                 <div>
                   <h3 className="font-bold text-emerald-400">Ready to automate?</h3>
                   <p className="text-xs text-stone-400">
-                    Deploy your AI Operations Team and start saving hours today
+                    Get your platform running and start saving hours today
                   </p>
                 </div>
               </div>

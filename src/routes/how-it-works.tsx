@@ -50,13 +50,13 @@ function HowItWorksPage() {
         <section className="px-6 py-20 lg:py-28 bg-stone-950 border-b border-stone-800 text-center">
           <div className="max-w-4xl mx-auto">
             <span className="inline-block px-3 py-1 mb-4 text-xs font-mono font-bold tracking-wider rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase">
-              AGENT ARCHITECTURE
+              ONE PLATFORM
             </span>
             <h1 className="text-5xl lg:text-7xl font-black text-white tracking-tight mb-6 leading-tight">
-              What is an AI Agent?
+              One platform for AI-automated client operations
             </h1>
             <p className="text-xl lg:text-2xl text-stone-400 max-w-2xl mx-auto leading-relaxed">
-              Think of an AI agent as a digital employee that lives inside your existing tools. Unlike traditional automation, agents can read, reason, decide, and act autonomously.
+              The platform works inside the tools you already use. Unlike template software, it reads, reasons, decides, and acts across your systems — always under human control by default.
             </p>
           </div>
         </section>
@@ -66,10 +66,10 @@ function HowItWorksPage() {
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div className="space-y-8">
               <h2 className="text-3xl lg:text-4xl font-black text-white tracking-tight">
-                An AI Employee in your existing tool stack.
+                One platform in your existing tool stack.
               </h2>
               <p className="text-lg text-stone-400 leading-relaxed">
-                Traditional software requires perfect, structured data (like a database entry) to work. AI agents can reason through messy, unstructured real-world tasks. They understand normal human language, extract data from scanned PDFs, make logical conditional decisions, and handle exceptions.
+                Traditional software requires perfect, structured data (like a database entry) to work. The platform can reason through messy, unstructured real-world tasks. It understands normal human language, extracts data from scanned PDFs, makes logical conditional decisions, and handles exceptions.
               </p>
               <div className="grid grid-cols-2 gap-4">
                 {[
@@ -92,18 +92,18 @@ function HowItWorksPage() {
               </div>
             </div>
             <div className="bg-stone-900 rounded-[2.5rem] p-10 lg:p-14 text-white shadow-2xl space-y-8">
-              <h3 className="text-xl font-black text-emerald-400">Illustrative Deployment Blueprints</h3>
+              <h3 className="text-xl font-black text-emerald-400">Illustrative Automation Examples</h3>
               <div className="space-y-6">
                 <div className="pb-6 border-b border-white/10">
                   <div className="text-white font-bold mb-2 text-lg">Example: Logistics Dispatch</div>
                   <p className="text-stone-400 text-sm leading-relaxed">
-                    Agent monitors incoming carrier email dispatch updates, extracts rates and vehicle capabilities, crosses them with your primary TMS records, and automatically executes either an automated route assignment or sends a priority human review alert.
+                    The platform monitors incoming carrier email dispatch updates, extracts rates and vehicle capabilities, crosses them with your primary TMS records, and automatically executes either an automated route assignment or sends a priority human review alert.
                   </p>
                 </div>
                 <div>
                   <div className="text-white font-bold mb-2 text-lg">Example: Patient Intake</div>
                   <p className="text-stone-400 text-sm leading-relaxed">
-                    Agent scans the incoming fax directory, uses deep OCR parsing to extract handwritten patient medical records, triggers automatic online eligibility checks, and formats the output cleanly directly into your proprietary EMR system.
+                    The platform scans the incoming fax directory, uses deep OCR parsing to extract handwritten patient medical records, triggers automatic online eligibility checks, and formats the output cleanly directly into your proprietary EMR system.
                   </p>
                 </div>
               </div>
@@ -122,14 +122,14 @@ function HowItWorksPage() {
                 You don't need to learn automation. <span className="text-emerald-500">We run it for you.</span>
               </h2>
               <p className="text-lg text-stone-400 max-w-3xl mx-auto leading-relaxed">
-                We don't hand you a new tool to figure out. We <strong className="text-stone-200">build, integrate, deploy, monitor, and support</strong> your AI automations for you — so your team keeps working in the systems they already use, while the repetitive work stops being theirs.
+                We don't hand you a new tool to figure out. We <strong className="text-stone-200">build, integrate, run, monitor, and support</strong> your automations for you — so your team keeps working in the systems they already use, while the repetitive work stops being theirs.
               </p>
             </div>
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 text-center">
               <div className="premium-card-soft p-6 rounded-2xl">
                 <div className="text-2xl mb-2">🏗️</div>
                 <div className="text-white font-black">We build</div>
-                <p className="text-xs text-stone-400 mt-1">the workflows and agent logic end-to-end.</p>
+                <p className="text-xs text-stone-400 mt-1">the workflows and automation logic end-to-end.</p>
               </div>
               <div className="premium-card-soft p-6 rounded-2xl">
                 <div className="text-2xl mb-2">🔌</div>
@@ -138,7 +138,7 @@ function HowItWorksPage() {
               </div>
               <div className="premium-card-soft p-6 rounded-2xl">
                 <div className="text-2xl mb-2">🚀</div>
-                <div className="text-white font-black">We deploy</div>
+                <div className="text-white font-black">We go live</div>
                 <p className="text-xs text-stone-400 mt-1">with a human approval gate on every write by default — full-auto opt-in per workflow.</p>
               </div>
               <div className="premium-card-soft p-6 rounded-2xl">
@@ -155,12 +155,12 @@ function HowItWorksPage() {
             </div>
           </div>
         </section>
-        {/* Traditional Automation vs AI Agent */}
+        {/* Traditional Automation vs the Platform */}
         <section className="px-6 py-20 bg-stone-950 text-white">
           <div className="max-w-5xl mx-auto">
             <div className="text-center mb-16">
-              <h2 className="text-3xl lg:text-4xl font-black tracking-tight mb-4">Traditional Software vs. AI Agents</h2>
-              <p className="text-stone-400">Why scripting and connector tools fall short of a cognitive coworker — and what changes when you have one.</p>
+              <h2 className="text-3xl lg:text-4xl font-black tracking-tight mb-4">Traditional Software vs. the Platform</h2>
+              <p className="text-stone-400">Why scripting and connector tools fall short of a platform that reasons across your systems — and what changes when you have one.</p>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
@@ -168,7 +168,7 @@ function HowItWorksPage() {
                   <tr className="border-b border-white/10 text-stone-400 font-mono text-xs uppercase tracking-wider">
                     <th className="py-4 pr-6">Feature</th>
                     <th className="py-4 px-6">Traditional Automation Tools</th>
-                    <th className="py-4 pl-6 text-emerald-400">AI Operations Coworker</th>
+                    <th className="py-4 pl-6 text-emerald-400">Simpler Life 100 Platform</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5 text-sm">
@@ -209,7 +209,7 @@ function HowItWorksPage() {
               <div className="text-3xl">🛡️</div>
               <h4 className="text-lg font-black text-stone-900">Data Stays Local</h4>
               <p className="text-sm text-stone-400 leading-relaxed">
-                Our agents connect directly within your existing systems (Xero, Slack, Google, Microsoft 365, HubSpot, DocuSign, and more). We never store or resell your operational credentials.
+                The platform connects directly within your existing systems (Xero, Slack, Google, Microsoft 365, HubSpot, DocuSign, and more). We never store or resell your operational credentials.
               </p>
             </div>
             <div className="premium-card p-8 rounded-3xl space-y-4">

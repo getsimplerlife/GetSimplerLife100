@@ -43,7 +43,7 @@ function ToolsHub() {
               <h2 className="text-2xl font-black">Can We Automate This?</h2>
               <p className="text-stone-400 text-sm leading-relaxed">
                 Describe any repetitive workflow your team does. We'll match it to our automation library,
-                estimate hours saved, and suggest the right AI agent — all in seconds.
+                estimate hours saved, and suggest the right automation — all in seconds.
               </p>
               <div className="grid grid-cols-3 gap-3 text-center text-xs">
                 <div className="bg-stone-900/50 rounded-lg p-3">
@@ -115,7 +115,7 @@ function ToolsHub() {
               <div className="flex items-center gap-2">
                 <span className="px-2 py-0.5 bg-stone-800 text-stone-400 text-[10px] font-mono rounded">FREE</span>
               </div>
-              <h2 className="text-2xl font-black">AI Operations Advisor</h2>
+              <h2 className="text-2xl font-black">Automation Advisor</h2>
               <p className="text-stone-400 text-sm leading-relaxed">
                 An interactive chat that asks about your team's pain points, follows up with smart
                 questions, and generates a personalized automation recommendation with savings estimates.

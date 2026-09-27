@@ -39,9 +39,9 @@ export const PAGE_TITLES: Record<string, PageMeta> = {
       "We build one platform that automates client operations end to end, freeing people from repetitive manual work. Learn about our mission, principles, and approach to AI automation.",
   },
   "/assessment": {
-    title: "AI Operations Assessment | Simpler Life 100",
+    title: "Automation Assessment | Simpler Life 100",
     description:
-      "Answer a few questions about your operations and get a free AI automation assessment with recommended agents and estimated savings.",
+      "Answer a few questions about your operations and get a free automation assessment with recommended workflows and estimated savings.",
   },
   "/audit": {
     title: "AI Opportunity Audit | Simpler Life 100",
@@ -116,7 +116,7 @@ export const PAGE_TITLES: Record<string, PageMeta> = {
   "/terms": {
     title: "Terms of Service | Simpler Life 100",
     description:
-      "The terms that govern use of Simpler Life 100's AI Operations Team platform and services. Contact: electric.vortexz@gmail.com.",
+      "The terms that govern use of the Simpler Life 100 platform and services. Contact: electric.vortexz@gmail.com.",
   },
   "/register": {
     title: "Register | Simpler Life 100",
@@ -160,12 +160,12 @@ export const PAGE_TITLES: Record<string, PageMeta> = {
   "/support": {
     title: "Support | Simpler Life 100",
     description:
-      "Get help with your AI Operations Team. Contact support, browse documentation, or schedule a consultation with our team.",
+      "Get help with your platform. Contact support, browse documentation, or schedule a consultation with our team.",
   },
   "/tools-hub": {
     title: "Tools Hub | Simpler Life 100",
     description:
-      "Free tools to assess your automation potential, estimate ROI, and plan your AI Operations Team.",
+      "Free tools to assess your automation potential, estimate ROI, and plan your platform build.",
   },
   "/tools": {
     title: "Free AI Productivity Tools | Simpler Life 100",

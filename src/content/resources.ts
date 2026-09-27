@@ -11,7 +11,7 @@ export interface Resource {
 export const resources: Resource[] = [
   {
     id: "roi-calculator",
-    title: "AI Operations ROI Calculator",
+    title: "ROI Calculator",
     type: "calculator",
     description:
       "Estimate how many hours and dollars your team could save by automating repetitive operations workflows. Enter your current process volumes, headcount, and average handling times to get a personalized ROI projection.",
@@ -104,7 +104,7 @@ export const resources: Resource[] = [
   },
   {
     id: "erp-integration-blueprint",
-    title: "ERP Integration Blueprint for AI Agents",
+    title: "ERP Integration Blueprint",
     type: "guide",
     description:
       "Technical guide for integrating AI agents with SAP, Oracle NetSuite, Microsoft Dynamics 365, and other major ERP systems. Covers API patterns, data mapping strategies, error handling, and security considerations.",
@@ -125,7 +125,7 @@ export const resources: Resource[] = [
     title: "The Case for AI in Healthcare Administration",
     type: "whitepaper",
     description:
-      "An in-depth analysis of administrative waste in US healthcare — estimated at $265B annually. Explores how AI agents can automate patient intake, scheduling, medical coding, claims processing, and compliance documentation while maintaining HIPAA compliance.",
+      "A practical analysis of administrative waste in US healthcare. Explores how automated workflows can tackle patient intake, scheduling, medical coding, claims processing, and compliance documentation while maintaining HIPAA compliance.",
     industry: ["healthcare"],
     format: "PDF",
   },
@@ -134,7 +134,7 @@ export const resources: Resource[] = [
     title: "Digital Lean: AI-Driven Operations in Manufacturing",
     type: "whitepaper",
     description:
-      "Examines how manufacturers are using AI agents to extend lean manufacturing principles into administrative operations. Covers real-world case studies, implementation frameworks, and ROI data from 50+ manufacturing deployments.",
+      "Examines how manufacturers are using automated workflows to extend lean manufacturing principles into administrative operations. Covers implementation frameworks and the kinds of processes that qualify for automation.",
     industry: ["manufacturing", "energy"],
     format: "PDF",
   },
@@ -143,7 +143,7 @@ export const resources: Resource[] = [
     title: "The Autonomous Supply Chain: AI in Logistics and Distribution",
     type: "whitepaper",
     description:
-      "How AI agents are transforming logistics operations — from autonomous dispatch and route optimization to self-reconciling freight audit and carrier management. Includes industry benchmarks and implementation roadmap.",
+      "How automated workflows are transforming logistics operations — from autonomous dispatch and route optimization to self-reconciling freight audit and carrier management. Includes industry benchmarks and implementation roadmap.",
     industry: ["logistics", "manufacturing", "retail"],
     format: "PDF",
   },
@@ -152,7 +152,7 @@ export const resources: Resource[] = [
     title: "AI Adoption Guide for Law Firms",
     type: "guide",
     description:
-      "Practical guidance for law firms adopting AI agents — covering ethical considerations, client confidentiality, billing model implications, and change management. Includes model AI use policies for firm adoption.",
+      "Practical guidance for law firms adopting automated workflows — covering ethical considerations, client confidentiality, billing model implications, and change management. Includes model AI use policies for firm adoption.",
     industry: ["legal"],
     format: "PDF",
   },
@@ -188,7 +188,7 @@ export const resources: Resource[] = [
     title: "Automating Financial Reporting and Close Processes",
     type: "whitepaper",
     description:
-      "Explores how AI agents can accelerate the financial close, automate regulatory reporting, and eliminate manual reconciliation. Includes benchmarks from firms that reduced close time from 15 days to 3 days.",
+      "Explores how automated workflows can accelerate the financial close, automate regulatory reporting, and eliminate manual reconciliation.",
     industry: ["financial-services", "insurance", "manufacturing", "retail"],
     format: "PDF",
   },

@@ -41,7 +41,7 @@ const steps: TimelineStep[] = [
   },
   {
     week: "Week 3",
-    title: "AI Agent Engineering & Sandbox Build",
+    title: "Platform Engineering & Sandbox Build",
     benefit: "Core Development",
     description: "Our engineers configure the agent loops, integrate with your sandbox APIs (CRM/ERP), and draft system prompts.",
     details: [
@@ -110,7 +110,7 @@ export function HowItWorksTimeline() {
           How We Get You Live in <span className="text-emerald-400">5 Weeks</span>
         </h2>
         <p className="text-stone-400 text-sm lg:text-base max-w-2xl mx-auto leading-relaxed">
-          Going live with an AI Operations Team shouldn't take months. Our battle-tested process is designed for zero business disruption and maximum security.
+          Going live shouldn't take months, and it shouldn't require you to build anything. Our battle-tested process is designed for zero business disruption and maximum security.
         </p>
       </div>
 

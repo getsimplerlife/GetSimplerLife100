@@ -61,7 +61,7 @@ export default function IntegrationPage({ data }: { data: IntegrationType }) {
               <span className="text-xs font-mono font-bold text-emerald-400 uppercase tracking-widest">[ Core Competencies ]</span>
               <h2 className="text-3xl font-black text-white">Out-of-the-Box Capabilities</h2>
               <p className="text-sm text-stone-400 leading-relaxed">
-                Our AI operational coworkers communicate bi-directionally with {i.name} via official APIs, files, or custom databases to fetch context and update system records.
+                The platform communicates bi-directionally with {i.name} via official APIs, files, or custom databases to fetch context and update system records.
               </p>
             </div>
             <ul className="space-y-4">
@@ -117,7 +117,7 @@ export default function IntegrationPage({ data }: { data: IntegrationType }) {
                     <span className="text-[10px] font-mono font-bold text-stone-500 uppercase tracking-wider">[ Deployable Workflow ]</span>
                     <h3 className="text-base font-bold text-white mt-2 mb-2 uppercase tracking-wide">{wf.replace(/-/g, " ")}</h3>
                     <p className="text-xs text-stone-400 leading-relaxed">
-                      Click to configure and assign an AI operations team coworker for {wf.replace(/-/g, " ")}.
+                      Click to configure an integration for {wf.replace(/-/g, " ")}.
                     </p>
                   </div>
                   <div className="mt-4 pt-4 border-t border-stone-900 text-xs font-mono text-emerald-400">
@@ -133,7 +133,7 @@ export default function IntegrationPage({ data }: { data: IntegrationType }) {
         <section className="px-6 py-24 text-center relative overflow-hidden border-t border-stone-900">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-emerald-950/20 via-transparent to-transparent opacity-50" />
           <div className="max-w-2xl mx-auto relative z-10 space-y-6">
-            <h2 className="text-3xl lg:text-5xl font-black text-white">Integrate {i.name} With Your AI Team</h2>
+            <h2 className="text-3xl lg:text-5xl font-black text-white">Integrate {i.name} With One Platform</h2>
             <p className="text-sm text-stone-400 max-w-lg mx-auto">
               Our integration engineers handle everything securely. Your credentials remain safe and encrypted in our localized vault.
             </p>

@@ -105,7 +105,7 @@ export default function WorkflowPage({ data }: { data: WorkflowType }) {
         <section className="px-6 py-16 max-w-4xl mx-auto space-y-12">
           <div className="space-y-2">
             <span className="text-xs font-mono font-bold text-emerald-400 uppercase tracking-widest">[ Step-By-Step Mechanics ]</span>
-            <h2 className="text-3xl font-black text-white">How the Autonomous Coworker Operates</h2>
+            <h2 className="text-3xl font-black text-white">How the Automation Operates</h2>
           </div>
 
           <div className="relative border-l border-stone-850 pl-6 ml-4 space-y-10">

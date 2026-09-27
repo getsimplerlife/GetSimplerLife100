@@ -33,7 +33,7 @@ export default function IndustryHub({ data }: { data: IndustryHubType }) {
           <div className="max-w-5xl mx-auto text-center relative z-10 space-y-6">
             <span className="inline-block text-6xl mb-2 filter drop-shadow-lg animate-pulse">{c.icon}</span>
             <div className="inline-block px-3 py-1 text-xs font-mono font-bold tracking-widest rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase">
-              {c.name} AI Operations Team
+              {c.name} Platform
             </div>
             <h1 className="text-4xl lg:text-7xl font-black tracking-tight text-white leading-tight">
               AI-Powered Operations for <span style={{ color: c.accent }}>{c.name}</span>

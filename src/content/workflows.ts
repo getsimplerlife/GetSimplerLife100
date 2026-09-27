@@ -262,7 +262,7 @@ export const workflows: Workflow[] = [
     description:
       "Automatically audit freight invoices against contracted rates, accessorial charges, and delivery receipts — flagging overcharges for recovery.",
     painPoint:
-      "Carriers send thousands of freight invoices monthly in different formats. AP teams manually check rates against contracts, verify accessorial charges, and confirm delivery. Studies show 3-7% of freight charges contain errors, but most go uncaught because manual audit is too slow.",
+      "Carriers send thousands of freight invoices monthly in different formats. AP teams manually check rates against contracts, verify accessorial charges, and confirm delivery. Carriers send invoices in many formats, and manual audit is too slow to catch the errors that standard checks miss.",
     howItWorks: [
       "Agent ingests freight invoices from email, EDI, or carrier portals",
       "Extracts charges, line items, accessorials, and reference numbers from each invoice",
@@ -272,7 +272,7 @@ export const workflows: Workflow[] = [
       "Generates dispute letters and credit request forms for flagged items",
     ],
     timeSaved: "85% faster freight audit cycle — from 45 minutes per invoice to under 5 minutes",
-    accuracyGain: "3-7% freight cost recovery that would otherwise be missed — pure bottom-line savings",
+    accuracyGain: "Freight cost recovery on errors that manual audit misses — pure bottom-line savings",
     systemsRequired: ["ERP or accounting system", "Carrier rate database or contract repository", "Email"],
     priceTier: "growth",
     roiTimeline: "6-12 weeks",
@@ -965,7 +965,7 @@ export const workflows: Workflow[] = [
       "Exports approved time entries to billing, payroll, and project management systems",
     ],
     timeSaved: "60% less time spent on time entry — from 30+ minutes weekly to under 10 minutes",
-    accuracyGain: "Captures 98% of billable time vs 90% industry average — recovers 5-8% of revenue",
+    accuracyGain: "Captures billable time that manual entry misses — recovering revenue that would otherwise be written off",
     systemsRequired: ["Calendar system", "Practice management or billing system", "Email and document activity"],
     priceTier: "starter",
     roiTimeline: "2-4 weeks",

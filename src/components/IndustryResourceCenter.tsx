@@ -245,7 +245,7 @@ export function IndustryResourceCenter({ industryId }: IndustryResourceCenterPro
               <span>📋</span> S1 Implementation Checklist
             </h3>
             <p className="text-xs text-stone-500 leading-normal">
-              Track setup criteria required before dispatching autonomous coworkers.
+              Track the setup criteria required before automation goes live.
             </p>
 
             <ul className="space-y-2.5 pt-2">

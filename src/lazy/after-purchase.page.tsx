@@ -78,7 +78,7 @@ export default function AfterPurchasePage() {
             <h2 className="text-2xl font-black text-white">What you don't have to worry about</h2>
             <ul className="space-y-3 text-stone-400 leading-relaxed">
               <li className="flex gap-3"><span className="text-emerald-400">✓</span> You don't learn automation or configure workflows — we build them.</li>
-              <li className="flex gap-3"><span className="text-emerald-400">✓</span> You don't manage AI agents or monitor connections — we do.</li>
+              <li className="flex gap-3"><span className="text-emerald-400">✓</span> You don't manage automations or monitor connections — we do.</li>
               <li className="flex gap-3"><span className="text-emerald-400">✓</span> You stay in control — approval by default; full auto only for what you explicitly allow, audit-logged, with a kill switch.</li>
               <li className="flex gap-3"><span className="text-emerald-400">✓</span> You see everything — approval queue, audit log, and live connection health in one portal.</li>
             </ul>

@@ -519,7 +519,7 @@ function AutomationAssessment() {
                   to="/build"
                   className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm px-6 py-3 rounded-xl transition-all"
                 >
-                  🛠️ Build My AI Team →
+                  🛠️ Build My Platform →
                 </Link>
                 <a
                   href="/contact"
