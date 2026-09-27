@@ -27,7 +27,7 @@ export const industries: IndustryHub[] = [
     tagline: "Precision automation. Lean operations.",
     hook: "Manual document review and inventory reconciliation are massive overhead costs for modern manufacturers.",
     description:
-      "Manufacturers lose millions to operational friction — manual QA documentation, fragmented inventory tracking, and paper-based shop floor reporting. Simpler Life 100 deploys AI coworkers that digitize every step: from incoming material inspection to finished goods release. Our agents integrate directly with your ERP, MES, and quality systems, eliminating data entry and giving you real-time visibility into production health.",
+      "Manufacturers lose millions to operational friction — manual QA documentation, fragmented inventory tracking, and paper-based shop floor reporting. Simpler Life 100's platform digitizes every step: from incoming material inspection to finished goods release. It integrates directly with your ERP, MES, and quality systems, eliminating data entry and giving you real-time visibility into production health.",
     painPoints: [
       {
         title: "Manual QA Documentation",
@@ -105,7 +105,7 @@ export const industries: IndustryHub[] = [
           "Supply chain automation analysis",
           "Production scheduling optimization plan",
           "Lean AI deployment roadmap",
-          "Custom ROI projections for AI coworkers",
+          "Custom ROI projections for AI automation",
         ],
       },
     },
@@ -211,7 +211,7 @@ export const industries: IndustryHub[] = [
     tagline: "HIPAA-compliant automation for providers",
     hook: "Automate patient intake, scheduling, and compliance documentation.",
     description:
-      "Healthcare providers are drowning in administrative overhead. Clinical staff spend 40%+ of their day on data entry, phone calls, and paper forms instead of patient care. Simpler Life 100's AI coworkers handle patient intake, insurance verification, appointment scheduling, medical coding prep, and compliance documentation — all within your existing EHR and practice management systems. HIPAA-compliant by design.",
+      "Healthcare providers are drowning in administrative overhead. Clinical staff spend 40%+ of their day on data entry, phone calls, and paper forms instead of patient care. Simpler Life 100's platform handles patient intake, insurance verification, appointment scheduling, medical coding prep, and compliance documentation — all within your existing EHR and practice management systems. HIPAA-compliant by design.",
     painPoints: [
       {
         title: "Manual Patient Intake",
@@ -1141,7 +1141,7 @@ export const industries: IndustryHub[] = [
     tagline: "Farm smarter — automate the back office",
     hook: "Agribusiness margins are made or lost in the paperwork between field and market.",
     description:
-      "From commodity hedging paperwork to FSMA compliance, agricultural operations run on documentation that's still mostly paper-based. Simpler Life 100 deploys AI coworkers that automate grain settlement reconciliation, FSMA traceability documentation, equipment maintenance scheduling, and supplier invoice processing. Your operation runs smoothly whether you're in the office or in the field — with complete traceability from seed to settlement.",
+      "From commodity hedging paperwork to FSMA compliance, agricultural operations run on documentation that's still mostly paper-based. Simpler Life 100's platform automates grain settlement reconciliation, FSMA traceability documentation, equipment maintenance scheduling, and supplier invoice processing. Your operation runs smoothly whether you're in the office or in the field — with complete traceability from seed to settlement.",
     painPoints: [
       {
         title: "Commodity Contract Reconciliation",

@@ -137,7 +137,7 @@ export default function IndustryLanding({ config }: { config: IndustryConfig }) 
               <h3 className="text-xl font-bold mb-2">Deep-Dive AI Audit</h3>
               <div className="text-3xl font-extrabold mb-4" style={{ color: c.accent }}>$2,500</div>
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-                A technical roadmap for your business. We map your workflows and show exactly how AI coworkers will save you time.
+                A technical roadmap for your business. We map your workflows and show exactly how AI automation will save you time.
               </p>
               <ul className="space-y-2 mb-8 flex-1">
                 {c.deepAuditFeatures.map((f, i) => (

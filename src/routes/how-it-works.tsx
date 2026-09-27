@@ -249,7 +249,7 @@ function HowItWorksPage() {
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
           <div>
             <div className="text-2xl font-black text-emerald-400 mb-2">{businessName}</div>
-            <p className="text-sm text-stone-400">AI coworkers for operations teams. Work less, live more.</p>
+            <p className="text-sm text-stone-400">One platform for AI-automated client operations. Work less, live more.</p>
           </div>
           <div className="text-sm font-bold flex gap-6">
             <Link to="/" className="hover:text-emerald-600">Home</Link>
