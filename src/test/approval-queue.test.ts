@@ -93,6 +93,13 @@ describe("write-action classification", () => {
       "createSchedule", "updateSchedule", "activateSchedule",
       "archiveSchedule", "deleteSchedule",
       "createAlertRule", "updateAlertRule", "deleteAlertRule",
+      // Phase 3.7 - native automations/workflow builder: every rule op is
+      // verb-first + WRITE; notify/webhook action executions queue verb-first
+      // too (send/publish already in WRITE_VERB). This assertion locks the
+      // whole surface so a future verb addition can't silently bypass the
+      // queue (the standing 2.5/3.1/3.2/3.3/3.4/3.5/3.6 fail-open guard).
+      "createRule", "updateRule", "activateRule", "pauseRule",
+      "archiveRule", "deleteRule", "sendAutomationNotification", "publishAutomationWebhook",
     ]) {
       expect(isWriteAction(name), name).toBe(true);
     }

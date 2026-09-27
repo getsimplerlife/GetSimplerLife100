@@ -172,7 +172,25 @@ export function removeOutboundSubscription(
  * Publish an event to a tenant's matching outbound subscriptions (enqueue
  * durable deliveries — the flush engine performs the actual HTTP sends).
  * Event types are matched against each subscription's allow-list ([] = all).
+ *
+ * OBSERVER (Phase 3.7): an optional injected listener sees EVERY publish
+ * (including when no subscription matches). It is how the native automation
+ * slice observes typed events at the single emission choke point. Failures
+ * are isolated — the observer must never break the 1.1 webhook lane.
  */
+export type NativeEventObserver = (o: {
+  dataDir: string;
+  tenantId: string;
+  eventType: string;
+  payload: Record<string, unknown>;
+  actor: string;
+}) => void;
+let nativeEventObserver: NativeEventObserver | null = null;
+/** Inject (or clear) the global event observer — wired once at boot by
+ *  prod-server; NEVER called over HTTP. Phase 3.7 automation uses this. */
+export function setNativeEventObserver(fn: NativeEventObserver | null): void {
+  nativeEventObserver = fn;
+}
 export function publishWebhookEvent(
   dataDir: string,
   tenantId: string,
@@ -180,6 +198,13 @@ export function publishWebhookEvent(
   payload: Record<string, unknown>,
   actor: string,
 ): number {
+  // Observer fires BEFORE the subscription check — a typed event with zero
+  // outbound subscriptions must still reach automation rules.
+  try {
+    nativeEventObserver?.({ dataDir, tenantId, eventType, payload, actor });
+  } catch (error) {
+    console.error("[native] event observer failed: " + (error instanceof Error ? error.message : String(error)));
+  }
   const subs = listSubscriptions(dataDir, tenantId).filter(
     (s) => s.enabled && (s.eventTypes.length === 0 || s.eventTypes.includes(eventType)),
   );
