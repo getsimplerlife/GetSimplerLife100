@@ -811,7 +811,7 @@ export function fireScheduleNow(dataDir: string, tenantId: string, scheduleId: s
       void (async () => {
         const deliveries: ReportRun["deliveries"] = [];
         for (const to of recipients) {
-          const r = await mail(to, `Scheduled report: ${def.name}`, `Your scheduled snapshot "${def.name}" (${s.format}) is attached.`);
+          const r = await mail(to, `Scheduled report: ${def.name}`, `Your scheduled report "${def.name}" was generated (${s.format}).`);
           deliveries.push({ to, sent: r.sent, ...(r.error ? { error: r.error } : {}) });
         }
         const saved = getRun(dataDir, tenantId, runId);
