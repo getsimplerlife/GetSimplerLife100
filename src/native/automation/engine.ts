@@ -133,7 +133,7 @@ function hashOf(s: string): string {
 /** Dispatch ONE rule for a fired trigger. Returns the run (the EXISTING one
  *  on a duplicate triggerRef — idempotent). Kill switch honored: non-active
  *  rules never fire. Daily per-rule cap fail-closes with a durable skip run. */
-export function fireRule(
+export async function fireRule(
   dataDir: string,
   tenantId: string,
   rule: AutomationRule,
@@ -142,8 +142,8 @@ export function fireRule(
   payload: Record<string, unknown>,
   triggeredBy: string,
   now: Date = new Date(),
-  dispatchActions: (dataDir: string, tenantId: string, rule: AutomationRule, payload: Record<string, unknown>, triggeredBy: string) => RunActionOutcome[],
-): AutomationRun | null {
+  dispatchActions: (dataDir: string, tenantId: string, rule: AutomationRule, payload: Record<string, unknown>, triggeredBy: string) => Promise<RunActionOutcome[]> | RunActionOutcome[],
+): Promise<AutomationRun | null> {
   if (rule.status !== "active") return null; // kill switch honored
   const existing = findRunByRef(dataDir, tenantId, rule.id, triggerRef);
   if (existing) return existing; // double-trigger → no-op
@@ -169,7 +169,7 @@ export function fireRule(
   }
   const conditions = evaluateConditions(rule, payload);
   const matched = allMatch(conditions);
-  const actions: RunActionOutcome[] = matched ? dispatchActions(dataDir, tenantId, rule, payload, triggeredBy) : [];
+  const actions: RunActionOutcome[] = matched ? await dispatchActions(dataDir, tenantId, rule, payload, triggeredBy) : [];
   const run: AutomationRun = {
     id: generateAutomationEntityId("arn"),
     tenantId,
@@ -190,22 +190,22 @@ export function fireRule(
 
 /** EVENT trigger entry — scan the tenant's ACTIVE event rules and fire those
  *  whose eventType matches. Returns created run ids. */
-export function fireRuleForEvent(
+export async function fireRuleForEvent(
   dataDir: string,
   tenantId: string,
   eventType: string,
   payload: Record<string, unknown>,
   actor: string,
-  dispatchActions: (dataDir: string, tenantId: string, rule: AutomationRule, payload: Record<string, unknown>, triggeredBy: string) => RunActionOutcome[],
+  dispatchActions: (dataDir: string, tenantId: string, rule: AutomationRule, payload: Record<string, unknown>, triggeredBy: string) => Promise<RunActionOutcome[]> | RunActionOutcome[],
   now: Date = new Date(),
-): string[] {
+): Promise<string[]> {
   const rules = listRules(dataDir, tenantId).filter(
     (r) => r.status === "active" && r.trigger.kind === "event" && r.trigger.eventType === eventType,
   );
   const out: string[] = [];
   for (const rule of rules) {
     const eventId = typeof payload.eventId === "string" && payload.eventId ? payload.eventId : `evt:${eventType}:${JSON.stringify(payload ?? {})}`;
-    const run = fireRule(dataDir, tenantId, rule, "event", filterRef(eventId), payload ?? {}, actor, now, dispatchActions);
+    const run = await fireRule(dataDir, tenantId, rule, "event", filterRef(eventId), payload ?? {}, actor, now, dispatchActions);
     if (run) out.push(run.id);
   }
   return out;
@@ -215,11 +215,11 @@ export function fireRuleForEvent(
  *  nextRunAt monotonically (3.6 scheduleAnchor math). The anchor IS the
  *  triggerRef, so a crash-replay can never double-fire the same occurrence.
  *  Serialised by the caller (prod-server interval). */
-export function sweepDueAutomationSchedules(
+export async function sweepDueAutomationSchedules(
   dataDir: string,
-  dispatchActions: (dataDir: string, tenantId: string, rule: AutomationRule, payload: Record<string, unknown>, triggeredBy: string) => RunActionOutcome[],
+  dispatchActions: (dataDir: string, tenantId: string, rule: AutomationRule, payload: Record<string, unknown>, triggeredBy: string) => Promise<RunActionOutcome[]> | RunActionOutcome[],
   now: Date = new Date(),
-): { fired: string[]; skipped: string[] } {
+): Promise<{ fired: string[]; skipped: string[] }> {
   const fired: string[] = [];
   const skipped: string[] = [];
   for (const { tenantId, rule } of listAllActiveRules(dataDir)) {
@@ -231,7 +231,7 @@ export function sweepDueAutomationSchedules(
       const nextTrigger: AutomationRule["trigger"] = { ...t, nextRunAt: next };
       saveRule(dataDir, { ...rule, trigger: nextTrigger, version: rule.version + 1, updatedAt: now.toISOString(), updatedBy: "system/schedule" });
       const payload = { ruleId: rule.id, scheduleAnchor: anchor, firedAt: now.toISOString() };
-      const run = fireRule(dataDir, tenantId, { ...rule, trigger: nextTrigger }, "schedule", `sched:${anchor}`, payload, `system/schedule:${rule.id}`, now, dispatchActions);
+      const run = await fireRule(dataDir, tenantId, { ...rule, trigger: nextTrigger }, "schedule", `sched:${anchor}`, payload, `system/schedule:${rule.id}`, now, dispatchActions);
       if (run) fired.push(run.id);
       else skipped.push(rule.id);
     }

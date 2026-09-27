@@ -151,7 +151,7 @@ function validateEmails(recipients: unknown, label: string): string[] {
   }
   return out;
 }
-function validateTrigger(dataDir: string, tenantId: string, t: unknown): AutomationRule["trigger"] {
+function validateTrigger(_dataDir: string, _tenantId: string, t: unknown): AutomationRule["trigger"] {
   if (!t || typeof t !== "object" || Array.isArray(t)) throw new Error("trigger is required");
   const kind = (t as Record<string, unknown>).kind;
   if (kind === "event") {
@@ -259,7 +259,7 @@ function validateActions(
 }
 function validateAutonomyAllowList(raw: unknown): ActionKind[] {
   if (raw === undefined || raw === null) return [];
-  if (!Array.isArray(raw) || raw.length === 0 || raw.length > ACTION_KINDS.length) throw new Error("autonomyAllowList must be an array of action kinds");
+  if (!Array.isArray(raw) || raw.length > ACTION_KINDS.length) throw new Error("autonomyAllowList must be an array of action kinds");
   const seen = new Set<ActionKind>();
   for (const k of raw) {
     if (typeof k !== "string" || !ACTION_KINDS.includes(k as ActionKind)) throw new Error(`autonomyAllowList kind must be one of ${ACTION_KINDS.join("|")}`);
@@ -286,7 +286,7 @@ function validateWrite(dataDir: string, tenantId: string, op: AutomationOp, req:
       const r = getRule(dataDir, tenantId, id);
       if (!r) throw new Error("rule not found");
       if (r.status !== "draft") throw new Error("rules can only be edited in draft");
-      validateRuleBody(dataDir, tenantId, (req.rule ?? {}) as Record<string, unknown>, true);
+      validateRuleBody(dataDir, tenantId, (req.rule ?? {}) as Record<string, unknown>);
       return;
     }
     case "deleteRule": {
@@ -379,25 +379,29 @@ async function executeNotify(recipients: string[], subject: string, body: string
  *  the rule that FIRED. Allow-listed kinds execute now (system actor,
  *  audited); everything else queues on our mirror for approval. REUSED lanes
  *  (tables / transform) keep their own gates — we never open a new write lane. */
-export function dispatchAutomationActions(
+export async function dispatchAutomationActions(
   dataDir: string,
   tenantId: string,
   rule: AutomationRule,
   payload: Record<string, unknown>,
   triggeredBy: string,
-): RunActionOutcome[] {
+): Promise<RunActionOutcome[]> {
   const outcomes: RunActionOutcome[] = [];
+  void payload; // trigger payload is available for future conditions/templates; outcomes are lane-driven
   for (const action of rule.actions) {
     if (action.kind === "notify" && rule.autonomyAllowList.includes("notify")) {
-      // auto-execute: durable intent + honest outcome, audited
-      void (async () => {
+      // auto-execute: AWAIT the lane, then record the honest outcome on the run ledger
+      // (never fabricated "sent" — the run is saved after this dispatch resolves).
+      try {
         const deliveries = await executeNotify(action.recipients, action.subject, action.body);
-        const outcome: RunActionOutcome = { kind: "notify", state: deliveries.some((d) => d.sent) ? "auto-applied" : "failed", deliveries, error: deliveries.every((d) => !d.sent) ? "email delivery failed" : undefined };
-        outcomes.push({ ...outcome });
+        const anySent = deliveries.some((d) => d.sent);
+        outcomes.push({ kind: "notify", state: anySent ? "auto-applied" : "failed", deliveries, error: deliveries.every((d) => !d.sent) ? "email delivery failed" : undefined });
         appendAudit(dataDir, { tenantId, actor: triggeredBy, action: "native.automation.action.auto-applied", ruleId: rule.id, detail: `notify to ${action.recipients.join(",")} (${deliveries.filter((d) => d.sent).length}/${deliveries.length} delivered)` });
-        // tie the outcome back onto the run ledger
         publishEvent(dataDir, tenantId, "native.automation.action.auto-applied", { ruleId: rule.id, kind: "notify" });
-      })().catch(() => undefined);
+      } catch (err) {
+        outcomes.push({ kind: "notify", state: "failed", error: err instanceof Error ? err.message : String(err) });
+        appendAudit(dataDir, { tenantId, actor: triggeredBy, action: "native.automation.action.failed", ruleId: rule.id, detail: "notify auto-execution failed" });
+      }
       continue;
     }
     if (action.kind === "webhook" && rule.autonomyAllowList.includes("webhook")) {
@@ -417,7 +421,7 @@ export function dispatchAutomationActions(
         const res = submitTableWrite(dataDir, tenantId, action.tableId, "insert", { rowData: { ...action.row } }, triggeredBy);
         if (res.applied) outcomes.push({ kind: "tableWrite", state: "applied", detail: `row ${res.rowId ?? ""}` });
         else if ("pending" in res && res.pending) outcomes.push({ kind: "tableWrite", state: "queued", approvalActionId: res.approvalActionId, detail: "queued on tables approval lane" });
-        else outcomes.push({ kind: "tableWrite", state: "failed", error: "error" in res ? res.error : "table write failed" });
+        else outcomes.push({ kind: "tableWrite", state: "failed", error: "error" in res ? String(res.error) : "table write failed" });
       } catch (e) {
         outcomes.push({ kind: "tableWrite", state: "failed", error: e instanceof Error ? e.message : String(e) });
       }
@@ -429,7 +433,7 @@ export function dispatchAutomationActions(
         const res = submitTransformWrite(dataDir, tenantId, "run", { transformId: action.transformId, source: action.source ?? "", via: `automation:${rule.id}` }, triggeredBy);
         if (res.applied) outcomes.push({ kind: "runTransform", state: "applied", detail: `run ${res.runId ?? ""}` });
         else if ("pending" in res && res.pending) outcomes.push({ kind: "runTransform", state: "queued", approvalActionId: res.approvalActionId, detail: "queued on transform approval lane" });
-        else outcomes.push({ kind: "runTransform", state: "failed", error: "error" in res ? res.error : "transform run failed" });
+        else outcomes.push({ kind: "runTransform", state: "failed", error: "error" in res ? String(res.error) : "transform run failed" });
       } catch (e) {
         outcomes.push({ kind: "runTransform", state: "failed", error: e instanceof Error ? e.message : String(e) });
       }

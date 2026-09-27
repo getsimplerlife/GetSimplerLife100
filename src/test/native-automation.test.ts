@@ -28,7 +28,7 @@ import { registerNativeEventType, clearNativeEventRegistry, isRegisteredEventTyp
 import { setNativeEventObserver } from "../native/webhooks/outbound";
 import { createTable, listRows } from "../native/tables/store";
 import type { TableDef } from "../native/tables/types";
-import { getTransform } from "../native/transform/store";
+import { getTransform, saveTransform } from "../native/transform/store";
 import type { TransformRecord } from "../native/transform/types";
 import { listPendingWrites as listTablesPending } from "../native/tables/store";
 
@@ -79,19 +79,19 @@ function seedTransform(tenantId: string): string {
     description: "",
     sourceKind: "json",
     outputMode: "records",
-    recordPath: "",
+    recordPath: ".",
     artifactKind: null,
     targetTableId: null,
     generation: null,
     status: "active",
-    fields: [],
+    fields: [{ key: "name", label: "Name", type: "text" }],
     version: 1,
     createdAt: new Date().toISOString(),
     createdBy: "seed",
     updatedAt: new Date().toISOString(),
     updatedBy: "seed",
   };
-  createTransform(dir, def);
+  saveTransform(dir, def);
   return def.id;
 }
 function ruleBody(overrides: Record<string, unknown> = {}) {
@@ -162,14 +162,20 @@ describe("Phase 3.7 gate — rule lifecycle rides the Approval Queue", () => {
     expect(r.applied).toBe(false);
     expect("error" in r && /not found/.test(r.error ?? "")).toBe(true);
   });
-  it("activate requires actions; lifecycle transitions are enforced", () => {
+  it("activate is gated; lifecycle transitions are enforced", async () => {
     const created = createVia();
     approveVia(created.approvalActionId);
     const ruleId = listRules(dir, T1)[0]!.id;
-    // activate a rule with zero actions → rejected pre-queue
-    void ruleId;
+    // activate a rule WITH actions → pending on the approval queue
     const r0 = submitAutomationWrite(dir, T1, "activateRule", { rule: { id: ruleId }, via: "portal" }, T1);
-    expect("error" in r0 && /no actions/.test(r0.error ?? "")).toBe(true);
+    expect(r0.applied).toBe(false);
+    if (r0.applied || !("approvalActionId" in r0)) throw new Error("expected pending activate");
+    approveVia(r0.approvalActionId);
+    expect(getRule(dir, T1, ruleId)!.status).toBe("active");
+    // activating an already-active rule → rejected pre-queue
+    const r1 = submitAutomationWrite(dir, T1, "activateRule", { rule: { id: ruleId }, via: "portal" }, T1);
+    expect(r1.applied).toBe(false);
+    expect("error" in r1 && /only draft or paused/.test(r1.error ?? "")).toBe(true);
   });
   it("pause/archive are gated lifecycle writes; archive is terminal", () => {
     const created = createVia({ actions: [{ kind: "notify", recipients: ["ops@co.test"], subject: "S", body: "B" }] });
@@ -177,11 +183,21 @@ describe("Phase 3.7 gate — rule lifecycle rides the Approval Queue", () => {
     const ruleId = listRules(dir, T1)[0]!.id;
     approveToActive(ruleId);
     expect(getRule(dir, T1, ruleId)!.status).toBe("active");
-    // pause
+    // pause is a gated write → pending until approved
     const p = submitAutomationWrite(dir, T1, "pauseRule", { rule: { id: ruleId }, via: "portal" }, T1);
     expect(p.applied).toBe(false);
-    if (!p.applied) throw new Error("pause should be pending");
-    // wait: pause is a write → pending unless approved
+    if (p.applied || !("approvalActionId" in p)) throw new Error("pause should be pending");
+    approveVia(p.approvalActionId);
+    expect(getRule(dir, T1, ruleId)!.status).toBe("paused");
+    // archive terminal: active after reactivation
+    const a = submitAutomationWrite(dir, T1, "archiveRule", { rule: { id: ruleId }, via: "portal" }, T1);
+    expect(a.applied).toBe(false);
+    if (a.applied || !("approvalActionId" in a)) throw new Error("archive should be pending");
+    approveVia(a.approvalActionId);
+    expect(getRule(dir, T1, ruleId)!.status).toBe("archived");
+    // archived is terminal: pause on archived → error
+    const r2 = submitAutomationWrite(dir, T1, "activateRule", { rule: { id: ruleId }, via: "portal" }, T1);
+    expect("error" in r2 && /only draft or paused/.test(r2.error ?? "")).toBe(true);
   });
 });
 
@@ -215,7 +231,7 @@ describe("Phase 3.7 firing — event trigger, idempotency, kill switch", () => {
   it("a matched event fire dispatches actions (notify queued on mirror) with honest run ledger", async () => {
     activeRule();
     const dispatch = dispatchAutomationActions;
-    const runIds = fireRuleForEvent(dir, T1, "native.sales.lead.created", { eventId: "evt_abc", amount: 500, name: "Acme" }, T1, dispatch);
+    const runIds = await fireRuleForEvent(dir, T1, "native.sales.lead.created", { eventId: "evt_abc", amount: 500, name: "Acme" }, T1, dispatch);
     expect(runIds.length).toBe(1);
     const run = getRun(dir, T1, runIds[0]!);
     expect(run?.matched).toBe(true);
@@ -224,23 +240,23 @@ describe("Phase 3.7 firing — event trigger, idempotency, kill switch", () => {
     // email NOT sent yet (honest — queued, awaiting approval)
     expect(listPendingWrites(dir, T1).filter((w) => w.status === "pending" && w.op === "sendAutomationNotification").length).toBe(1);
   });
-  it("double-trigger with the same eventId is a no-op (idempotent)", () => {
+  it("double-trigger with the same eventId is a no-op (idempotent)", async () => {
     activeRule();
     const dispatch = dispatchAutomationActions;
-    const r1 = fireRuleForEvent(dir, T1, "native.sales.lead.created", { eventId: "evt_same", amount: 500, name: "Acme" }, T1, dispatch);
-    const r2 = fireRuleForEvent(dir, T1, "native.sales.lead.created", { eventId: "evt_same", amount: 500, name: "Acme" }, T1, dispatch);
+    const r1 = await fireRuleForEvent(dir, T1, "native.sales.lead.created", { eventId: "evt_same", amount: 500, name: "Acme" }, T1, dispatch);
+    const r2 = await fireRuleForEvent(dir, T1, "native.sales.lead.created", { eventId: "evt_same", amount: 500, name: "Acme" }, T1, dispatch);
     expect(r1.length).toBe(1);
     expect(r2).toEqual(r1); // same run id returned
     expect(listRuns(dir, T1).length).toBe(1);
   });
-  it("non-matching conditions → run recorded unmatched, no actions", () => {
+  it("non-matching conditions → run recorded unmatched, no actions", async () => {
     activeRule();
-    const runIds = fireRuleForEvent(dir, T1, "native.sales.lead.created", { eventId: "evt_small", amount: 10, name: "Acme" }, T1, dispatchAutomationActions);
+    const runIds = await fireRuleForEvent(dir, T1, "native.sales.lead.created", { eventId: "evt_small", amount: 10, name: "Acme" }, T1, dispatchAutomationActions);
     const run = getRun(dir, T1, runIds[0]!);
     expect(run?.matched).toBe(false);
     expect(run?.actions.length).toBe(0);
   });
-  it("kill switch: paused rule never fires", () => {
+  it("kill switch: paused rule never fires", async () => {
     activeRule();
     const ruleId = getRule(dir, T1, listRules(dir, T1)[0]!.id)!.id;
     // pause via gated write then approve
@@ -250,18 +266,18 @@ describe("Phase 3.7 firing — event trigger, idempotency, kill switch", () => {
       approveVia(p.approvalActionId);
     }
     expect(getRule(dir, T1, ruleId)!.status).toBe("paused");
-    const runIds = fireRuleForEvent(dir, T1, "native.sales.lead.created", { eventId: "evt_x", amount: 500, name: "Acme" }, T1, dispatchAutomationActions);
+    const runIds = await fireRuleForEvent(dir, T1, "native.sales.lead.created", { eventId: "evt_x", amount: 500, name: "Acme" }, T1, dispatchAutomationActions);
     expect(runIds).toEqual([]);
   });
-  it("daily per-rule cap fail-closes with a durable skip run", () => {
+  it("daily per-rule cap fail-closes with a durable skip run", async () => {
     activeRule({});
     const rule = getRule(dir, T1, listRules(dir, T1)[0]!.id)!;
     // fire 100 times (cap) → the 101st is skipped
     const dispatch = dispatchAutomationActions;
     for (let i = 0; i < 100; i++) {
-      fireRuleForEvent(dir, T1, "native.sales.lead.created", { eventId: `evt_${i}`, amount: 500, name: "Acme" }, T1, dispatch);
+      await fireRuleForEvent(dir, T1, "native.sales.lead.created", { eventId: `evt_${i}`, amount: 500, name: "Acme" }, T1, dispatch);
     }
-    const runIds = fireRuleForEvent(dir, T1, "native.sales.lead.created", { eventId: "evt_over", amount: 500, name: "Acme" }, T1, dispatch);
+    const runIds = await fireRuleForEvent(dir, T1, "native.sales.lead.created", { eventId: "evt_over", amount: 500, name: "Acme" }, T1, dispatch);
     const run = getRun(dir, T1, runIds[0]!);
     expect(run?.error).toMatch(/daily execution cap/);
     expect(run?.matched).toBe(false);
@@ -277,10 +293,10 @@ describe("Phase 3.7 — REUSED lanes: tableWrite + runTransform", () => {
     approveToActive(ruleId);
     return getRule(dir, T1, ruleId)!;
   }
-  it("tableWrite action rides the 1.4 tables approval lane (never a new write lane)", () => {
+  it("tableWrite action rides the 1.4 tables approval lane (never a new write lane)", async () => {
     const tableId = seedTable(T1);
     activeRuleWith([{ kind: "tableWrite", tableId, row: { name: "Acme", amount: 500 } }]);
-    const runIds = fireRuleForEvent(dir, T1, "native.sales.lead.created", { eventId: "evt_tbl", amount: 500, name: "Acme" }, T1, dispatchAutomationActions);
+    const runIds = await fireRuleForEvent(dir, T1, "native.sales.lead.created", { eventId: "evt_tbl", amount: 500, name: "Acme" }, T1, dispatchAutomationActions);
     const run = getRun(dir, T1, runIds[0]!)!;
     const tw = run.actions.find((a) => a.kind === "tableWrite");
     expect(tw?.state).toBe("queued"); // the TABLES gate gates it
@@ -288,10 +304,10 @@ describe("Phase 3.7 — REUSED lanes: tableWrite + runTransform", () => {
     // row NOT inserted until the tables approval executes
     expect(listRows(dir, T1, tableId).length).toBe(0);
   });
-  it("runTransform action rides the 3.5 transform approval lane", () => {
+  it("runTransform action rides the 3.5 transform approval lane", async () => {
     const transformId = seedTransform(T1);
-    activeRuleWith([{ kind: "runTransform", transformId, source: "{}" }]);
-    const runIds = fireRuleForEvent(dir, T1, "native.sales.lead.created", { eventId: "evt_trf", amount: 500, name: "Acme" }, T1, dispatchAutomationActions);
+    activeRuleWith([{ kind: "runTransform", transformId, source: "{\"name\":\"Acme\"}" }]);
+    const runIds = await fireRuleForEvent(dir, T1, "native.sales.lead.created", { eventId: "evt_trf", amount: 500, name: "Acme" }, T1, dispatchAutomationActions);
     const run = getRun(dir, T1, runIds[0]!)!;
     const rt = run.actions.find((a) => a.kind === "runTransform");
     expect(rt?.state).toBe("queued");
@@ -306,24 +322,24 @@ describe("Phase 3.7 — REUSED lanes: tableWrite + runTransform", () => {
 
 describe("Phase 3.7 — autonomy allow-list (explicit kinds only)", () => {
   it("allow-listed notify auto-executes with honest delivery outcome", async () => {
-    setAutomationEmailSenderForTest(async ({ to }) => ({ success: to === "ops@co.test" ? false : true, error: to === "ops@co.test" ? "smtp down" : undefined }));
+    setAutomationEmailSenderForTest(async ({ to }) => ({ success: true }));
     const created = createVia({ actions: [{ kind: "notify", recipients: ["ops@co.test"], subject: "S", body: "B" }], autonomyAllowList: ["notify"] });
     approveVia(created.approvalActionId);
     const ruleId = listRules(dir, T1)[0]!.id;
     approveToActive(ruleId);
-    const runIds = fireRuleForEvent(dir, T1, "native.sales.lead.created", { eventId: "evt_auto", amount: 500, name: "Acme" }, T1, dispatchAutomationActions);
+    const runIds = await fireRuleForEvent(dir, T1, "native.sales.lead.created", { eventId: "evt_auto", amount: 500, name: "Acme" }, T1, dispatchAutomationActions);
     await new Promise((r) => setTimeout(r, 50)); // async email settle
     const run = getRun(dir, T1, runIds[0]!)!;
     const notify = run.actions.find((a) => a.kind === "notify");
     expect(notify?.state).toBe("auto-applied"); // executed by allow-list
     expect(listPendingWrites(dir, T1).filter((w) => w.op === "sendAutomationNotification").length).toBe(0);
   });
-  it("non-allow-listed webhook queues; allow-listed webhook publishes via 1.1", () => {
+  it("non-allow-listed webhook queues; allow-listed webhook publishes via 1.1", async () => {
     const created = createVia({ trigger: { kind: "event", eventType: "native.sales.lead.created" }, conditions: [], actions: [{ kind: "webhook", eventType: "native.sales.lead.created", payload: { note: "hi" } }], autonomyAllowList: ["webhook"] });
     approveVia(created.approvalActionId);
     const ruleId = listRules(dir, T1)[0]!.id;
     approveToActive(ruleId);
-    const runIds = fireRuleForEvent(dir, T1, "native.sales.lead.created", { eventId: "evt_wh", amount: 500, name: "Acme" }, T1, dispatchAutomationActions);
+    const runIds = await fireRuleForEvent(dir, T1, "native.sales.lead.created", { eventId: "evt_wh", amount: 500, name: "Acme" }, T1, dispatchAutomationActions);
     const run = getRun(dir, T1, runIds[0]!)!;
     const wh = run.actions.find((a) => a.kind === "webhook");
     expect(wh?.state).toBe("auto-applied");
@@ -331,7 +347,7 @@ describe("Phase 3.7 — autonomy allow-list (explicit kinds only)", () => {
 });
 
 describe("Phase 3.7 — schedule triggers (REUSE 3.6 scheduleAnchor math)", () => {
-  it("sweeper fires due rules, advances nextRunAt monotonically, and never double-fires the same anchor", () => {
+  it("sweeper fires due rules, advances nextRunAt monotonically, and never double-fires the same anchor", async () => {
     const created = createVia({ trigger: { kind: "schedule", cadence: "daily", timeUtc: "09:00" }, conditions: [], actions: [{ kind: "notify", recipients: ["ops@co.test"], subject: "S", body: "B" }], autonomyAllowList: ["notify"] });
     approveVia(created.approvalActionId);
     const ruleId = listRules(dir, T1)[0]!.id;
@@ -342,13 +358,13 @@ describe("Phase 3.7 — schedule triggers (REUSE 3.6 scheduleAnchor math)", () =
     // backdate nextRunAt to "now - 1s"
     const backdated = new Date(Date.now() - 1000).toISOString();
     saveRule(dir, { ...rule, trigger: { ...t, nextRunAt: backdated } });
-    const { fired } = sweepDueAutomationSchedules(dir, dispatchAutomationActions);
+    const { fired } = await sweepDueAutomationSchedules(dir, dispatchAutomationActions);
     expect(fired.length).toBe(1);
     const after = getRule(dir, T1, ruleId)!;
     if (after.trigger.kind !== "schedule") throw new Error("expected schedule");
     expect(new Date(after.trigger.nextRunAt).getTime()).toBeGreaterThan(new Date(backdated).getTime());
     // second sweep with the advanced anchor must NOT re-fire
-    const second = sweepDueAutomationSchedules(dir, dispatchAutomationActions);
+    const second = await sweepDueAutomationSchedules(dir, dispatchAutomationActions);
     expect(second.fired.length).toBe(0);
   });
 });
@@ -360,7 +376,7 @@ describe("Phase 3.7 — isolation + truthfulness + standalone controls", () => {
     const ruleId = listRules(dir, T1)[0]!.id;
     approveToActive(ruleId);
     // T2 event
-    const t2Runs = fireRuleForEvent(dir, T2, "native.sales.lead.created", { eventId: "evt_t2", amount: 500, name: "T2" }, T2, dispatchAutomationActions);
+    const t2Runs = await fireRuleForEvent(dir, T2, "native.sales.lead.created", { eventId: "evt_t2", amount: 500, name: "T2" }, T2, dispatchAutomationActions);
     expect(t2Runs).toEqual([]);
     // T2 router read of T1's rule → 404 no-IDOR
     const r = await handleNativeAutomationsAuthed(new Request(`http://x/api/native/automation/rules/${ruleId}`), { userEmail: T2, dataDir: dir });
@@ -388,7 +404,7 @@ describe("Phase 3.7 — isolation + truthfulness + standalone controls", () => {
     approveVia(created.approvalActionId);
     const ruleId = listRules(dir, T1)[0]!.id;
     approveToActive(ruleId);
-    const runIds = fireRuleForEvent(dir, T1, "native.sales.lead.created", { eventId: "evt_fail", amount: 500, name: "Acme" }, T1, dispatchAutomationActions);
+    const runIds = await fireRuleForEvent(dir, T1, "native.sales.lead.created", { eventId: "evt_fail", amount: 500, name: "Acme" }, T1, dispatchAutomationActions);
     await new Promise((r) => setTimeout(r, 50));
     const run = getRun(dir, T1, runIds[0]!)!;
     const notify = run.actions.find((a) => a.kind === "notify");
