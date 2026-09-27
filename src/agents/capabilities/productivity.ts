@@ -3,7 +3,7 @@ import { registerClientFile } from "../../lib/client-files";
 
 /**
  * Productivity employee — Google Workspace file capabilities (owner directive
- * 2026-08-12): AI employees create Google Docs/Sheets/Slides/Drive files and
+ * 2026-08-12): AI automations create Google Docs/Sheets/Slides/Drive files and
  * keep them ready in client portals for view/edit/print/download.
  *
  * All contracts are declared unverified until live evidence exists. Writes are

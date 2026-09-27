@@ -93,7 +93,7 @@ function CaseStudiesIndexPage() {
                 to="/build"
                 className="premium-btn inline-flex items-center justify-center text-white font-black text-sm px-8 py-3.5 rounded-xl"
               >
-                Build Your AI Team
+                Build Your Platform
               </Link>
               <Link
                 to="/contact"

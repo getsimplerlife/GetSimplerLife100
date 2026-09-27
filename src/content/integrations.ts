@@ -1862,7 +1862,7 @@ export const integrations: Integration[] = [
     icon: "google-slides",
     category: "Google Ecosystem",
     description: "Automated presentation creation and editing in Google Slides -- build decks from outlines, add slides, and read back slide content for QA via the Google Slides API.",
-    capabilities: ["Create presentation decks from outlines with AI employees",
+    capabilities: ["Create presentation decks from outlines with the platform's AI",
       "Add slides to existing decks",
       "Read back slide content for QA",
       "Keep client decks in the portal File Library for view/edit/print/download"],

@@ -1,7 +1,7 @@
 /**
  * AI Agent Execution Runtime — Core Engine
  *
- * The main entry point for executing AI employees. Accepts a task/prompt,
+ * The main entry point for executing AI automations. Accepts a task/prompt,
  * executes multi-step reasoning with tool-calling, maintains memory/state
  * across steps, and reports results.
  */

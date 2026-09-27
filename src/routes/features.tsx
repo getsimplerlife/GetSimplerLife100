@@ -81,7 +81,7 @@ function FeaturesPage() {
             AI automations that understand, monitor, and automate.
           </h1>
           <p className="mt-5 text-stone-400 text-lg leading-relaxed">
-            Simpler Life 100 builds AI Operations Teams: AI automations that understand your operational context,
+            Simpler Life 100's platform runs AI automations that understand your operational context,
             monitor your authorized systems, and safely automate client-requested tasks — across industries.
           </p>
         </section>

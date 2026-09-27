@@ -29,7 +29,7 @@ function TermsPage() {
         <p className="text-stone-500 text-sm mb-8">Last updated: present day. Questions: <a className="text-emerald-400 underline" href="mailto:electric.vortexz@gmail.com">electric.vortexz@gmail.com</a>.</p>
 
         <Section title="The service">
-          <p>Simpler Life 100 provides AI Operations Teams: AI automations configured to automate tasks within your business, deployed as part of a setup/build package and ongoing monthly service. Use of the service is subject to these terms.</p>
+          <p>Simpler Life 100 provides one platform for AI-automated client operations. The platform's AI automations are configured to automate tasks within your business and are provided as part of a setup/build package and ongoing monthly service. Use of the service is subject to these terms.</p>
         </Section>
 
         <Section title="Your account and responsibilities">

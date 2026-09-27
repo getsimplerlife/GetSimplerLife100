@@ -57,7 +57,7 @@ function AboutPage() {
               Our Mission
             </h1>
             <p className="text-xl text-stone-400 max-w-2xl mx-auto leading-relaxed">
-              We build AI operations teams to liberate people from the soul-crushing burden of repetitive, manual data entry.
+              We build one platform that automates client operations to liberate people from the soul-crushing burden of repetitive, manual data entry.
             </p>
           </div>
 

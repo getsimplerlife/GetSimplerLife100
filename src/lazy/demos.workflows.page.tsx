@@ -374,7 +374,7 @@ Simpler Life 100`);
             See AI Operations in Action
           </h1>
           <p className="text-stone-400 text-sm md:text-base leading-relaxed">
-            Run real-time animated simulations showing exactly how our industry-specific AI Operations Teams ingest data, classify intent, extract parameters, and execute downstream operations automatically.
+            Run real-time animated simulations showing exactly how industry-specific automations ingest data, classify intent, extract parameters, and execute downstream operations automatically.
           </p>
         </div>
 

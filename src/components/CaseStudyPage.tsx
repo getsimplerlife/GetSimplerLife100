@@ -119,7 +119,7 @@ export default function CaseStudyPage({ data }: { data: CaseStudyType }) {
             <h2 className="text-3xl lg:text-5xl font-black text-white">Run this in your stack.</h2>
             <p className="text-sm text-stone-400">
               We map your operational bottlenecks to verified automation patterns and build the
-              AI employees that run them safely against your own systems.
+              automations that run them safely against your own systems.
             </p>
             <div className="pt-4">
               <Link to="/build" className="premium-btn text-white px-8 py-3.5 rounded-xl text-sm font-black inline-block">

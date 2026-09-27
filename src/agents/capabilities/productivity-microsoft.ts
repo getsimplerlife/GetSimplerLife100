@@ -3,7 +3,7 @@ import { PRODUCTIVITY_EMPLOYEE_ID, registerCreatedFile } from "./productivity";
 
 /**
  * Productivity employee — Microsoft Office capabilities (owner directive
- * 2026-08-12): AI employees create Word/Excel/PowerPoint files on OneDrive and
+ * 2026-08-12): AI automations create Word/Excel/PowerPoint files on OneDrive and
  * keep them ready in client portals for view/edit/print/download.
  *
  * All contracts are declared unverified until live evidence exists (blocked on
