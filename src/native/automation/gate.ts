@@ -594,23 +594,33 @@ function applyNow(
       const body = (req.action ?? {}) as Record<string, unknown>;
       const ruleId = typeof body.ruleId === "string" ? body.ruleId : "";
       void ruleId;
-      // async email — durable intent recorded in audit; outcome tied to run
+      // async email — durable intent recorded in audit; outcome tied to run.
+      // NEVER swallow failures: on error the run action flips to "failed" with
+      // the lane error and a failure audit is recorded (honest ledger — the
+      // queued state must not persist forever after a failed delivery).
       void (async () => {
-        const deliveries = await executeNotify(
-          validateEmails(body.recipients, "notify"),
-          typeof body.subject === "string" ? body.subject : "",
-          typeof body.body === "string" ? body.body : "",
-        );
-        appendAudit(dataDir, { tenantId, actor, action: "native.automation.notify.sent", ruleId, detail: `notify ${deliveries.filter((d) => d.sent).length}/${deliveries.length} delivered` });
-        // tie back to the most recent queued run action for this rule
-        const runs = listRunsForRule(dataDir, tenantId, ruleId);
-        const target = [...runs].reverse().find((r) => r.actions.some((a) => a.kind === "notify" && a.state === "queued"));
-        if (target) updateRun(dataDir, tenantId, target.id, (run) => ({
-          ...run,
-          actions: run.actions.map((a) => a.kind === "notify" && a.state === "queued"
-            ? { ...a, state: deliveries.some((d) => d.sent) ? "applied" : "failed", deliveries, error: deliveries.every((d) => !d.sent) ? "email delivery failed" : undefined }
-            : a),
-        }));
+        try {
+          const deliveries = await executeNotify(
+            validateEmails(body.recipients, "notify"),
+            typeof body.subject === "string" ? body.subject : "",
+            typeof body.body === "string" ? body.body : "",
+          );
+          appendAudit(dataDir, { tenantId, actor, action: "native.automation.notify.sent", ruleId, detail: `notify ${deliveries.filter((d) => d.sent).length}/${deliveries.length} delivered` });
+          updateRunForNotify(
+            dataDir,
+            tenantId,
+            ruleId,
+            deliveries.some((d) => d.sent) ? "applied" : "failed",
+            deliveries,
+            deliveries.every((d) => !d.sent)
+              ? deliveries.find((d) => d.error)?.error ?? "email delivery failed"
+              : undefined,
+          );
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          appendAudit(dataDir, { tenantId, actor, action: "native.automation.action.failed", ruleId, detail: `notify apply failed: ${msg}` });
+          updateRunForNotify(dataDir, tenantId, ruleId, "failed", [], msg);
+        }
       })().catch(() => undefined);
       return { ok: true };
     }
@@ -637,6 +647,26 @@ function applyNow(
 }
 function listRunsForRule(dataDir: string, tenantId: string, ruleId: string) {
   return listRunsStore(dataDir, tenantId, ruleId);
+}
+/** Flip the most recent queued notify action on this rule's runs to an honest
+ *  delivered/failed state (used by the apply-side email executor). */
+function updateRunForNotify(
+  dataDir: string,
+  tenantId: string,
+  ruleId: string,
+  state: "applied" | "failed",
+  deliveries: Array<{ to: string; sent: boolean; error?: string }>,
+  error: string | undefined,
+): void {
+  const runs = listRunsForRule(dataDir, tenantId, ruleId);
+  const target = [...runs].reverse().find((r) => r.actions.some((a) => a.kind === "notify" && a.state === "queued"));
+  if (!target) return; // ledger already updated — nothing to flip
+  updateRun(dataDir, tenantId, target.id, (run) => ({
+    ...run,
+    actions: run.actions.map((a) => (a.kind === "notify" && a.state === "queued"
+      ? { ...a, state, ...(deliveries.length ? { deliveries } : {}), ...(error ? { error } : {}) }
+      : a)),
+  }));
 }
 import { listRuns as listRunsStore } from "./store";
 
@@ -744,7 +774,13 @@ export function wireAutomationEventObserver(): void {
 function dispatchFromObserver(dataDir: string, tenantId: string, eventType: string, payload: Record<string, unknown>, actor: string): void {
   // guard against self-trigger loops: automation's own events never re-fire rules
   if (eventType.startsWith("native.automation.")) return;
-  fireRuleForEvent(dataDir, tenantId, eventType, payload ?? {}, actor, dispatchAutomationActions);
+  // fire-and-forget with an explicit rejection handler — the sync try/catch in
+  // outbound.ts cannot see async rejections, and an unhandled rejection would
+  // take down the 1.1 choke point (Bun exits on unhandled rejections). The run
+  // ledger + audit capture any dispatch failure durably.
+  void fireRuleForEvent(dataDir, tenantId, eventType, payload ?? {}, actor, dispatchAutomationActions).catch((err) => {
+    console.error("[automation] event dispatch failed: " + (err instanceof Error ? err.message : String(err)));
+  });
 }
 import { fireRuleForEvent } from "./engine";
 import type { ScheduleCadence } from "./types";

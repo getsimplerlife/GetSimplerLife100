@@ -25,7 +25,7 @@ import {
 } from "../native/automation/store";
 import { handleNativeAutomationsAuthed, registerBuiltinNativeAutomationEventTypes } from "../native/automation/router";
 import { registerNativeEventType, clearNativeEventRegistry, isRegisteredEventType } from "../native/webhooks/registry";
-import { setNativeEventObserver } from "../native/webhooks/outbound";
+import { setNativeEventObserver, publishWebhookEvent } from "../native/webhooks/outbound";
 import { createTable, listRows } from "../native/tables/store";
 import type { TableDef } from "../native/tables/types";
 import { getTransform, saveTransform } from "../native/transform/store";
@@ -417,8 +417,45 @@ describe("Phase 3.7 — isolation + truthfulness + standalone controls", () => {
     expect(audits.length).toBeGreaterThan(0);
     expect(audits.every((a) => a.tenantId === T1)).toBe(true);
   });
+  it("queued notify: approving the lane runs the email; a FIXED failure flips the ledger to failed (never stuck queued)", async () => {
+    setAutomationEmailSenderForTest(async () => ({ success: false, error: "smtp down" }));
+    // notify NOT on the allow-list → queued through the approval lane
+    const created = createVia({ autonomyAllowList: [] });
+    approveVia(created.approvalActionId);
+    const ruleId = listRules(dir, T1)[0]!.id;
+    approveToActive(ruleId);
+    const runIds = await fireRuleForEvent(dir, T1, "native.sales.lead.created", { eventId: "evt_queued_fail", amount: 500, name: "Acme" }, T1, dispatchAutomationActions);
+    let run = getRun(dir, T1, runIds[0]!)!;
+    expect(run.actions.find((a) => a.kind === "notify")?.state).toBe("queued");
+    // approve the queued notification → apply executes the (failing) email lane
+    const pend = listPendingWrites(dir, T1).filter((w) => w.status === "pending" && w.op === "sendAutomationNotification");
+    expect(pend.length).toBe(1);
+    const res = executePendingAutomationWrite(dir, T1, pend[0]!.approvalActionId, T1);
+    expect(res.ok, JSON.stringify(res)).toBe(true);
+    await new Promise((r) => setTimeout(r, 60));
+    run = getRun(dir, T1, runIds[0]!)!;
+    const notify = run.actions.find((a) => a.kind === "notify");
+    expect(notify?.state).toBe("failed"); // honest — applies the lane error, not stuck queued
+    expect(notify?.error).toContain("smtp");
+  });
+  it("1.1 → automation observer: a published event fires matching active rules (production wiring)", async () => {
+    const created = createVia({ autonomyAllowList: ["notify"] });
+    approveVia(created.approvalActionId);
+    const ruleId = listRules(dir, T1)[0]!.id;
+    approveToActive(ruleId);
+    wireAutomationEventObserver();
+    // throw a REAL event through the 1.1 publishWebhookEvent choke point (where
+    // prod-server wires the observer) — the rule must fire and record a run
+    const before = listRuns(dir, T1).length;
+    publishWebhookEvent(dir, T1, "native.sales.lead.created", { eventId: "evt_observer", amount: 900, name: "Acme" }, T1);
+    await new Promise((r) => setTimeout(r, 80)); // async dispatch settles
+    const after = listRuns(dir, T1);
+    expect(after.length).toBe(before + 1);
+    const run = after.find((r) => r.triggerRef === "evt_observer");
+    expect(run).toBeTruthy();
+    expect(run!.matched).toBe(true);
+    // clean up the global observer so other tests are unaffected
+    setNativeEventObserver(null);
+  });
 });
 
-function requireStore() {
-  return { saveRule };
-}
