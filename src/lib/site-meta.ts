@@ -29,7 +29,7 @@ export const DEFAULT_PAGE_META: PageMeta = {
  */
 export const PAGE_TITLES: Record<string, PageMeta> = {
   "/": {
-    title: "Simpler Life 100 | AI Operations Teams",
+    title: "Simpler Life 100 | One Platform for AI-Automated Client Ops",
     description:
       "One platform that automates your operations end to end — records, forms, documents & e-sign, booking, boards, AI extraction, surveys, transforms/EDI, dashboards, and automations. Every capability in every tier.",
   },
@@ -49,7 +49,7 @@ export const PAGE_TITLES: Record<string, PageMeta> = {
       "Work through a structured AI opportunity audit to find which workflows you can automate and estimate your savings.",
   },
   "/build": {
-    title: "Build Your AI Team | Simpler Life 100",
+    title: "Build Your Platform | Simpler Life 100",
     description:
       "Configure the Simpler Life 100 platform for your operations. One platform with native records, forms, docs, booking, boards, AI extraction, surveys, transforms/EDI, dashboards, and automations — every capability in every tier.",
   },
