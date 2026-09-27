@@ -10,50 +10,51 @@ export const Route = createFileRoute('/support')({
 
 const supportTiers = [
   {
-    name: 'Essential Ops',
-    price: '$750',
+    name: 'Starter',
+    monthly: '$199',
     period: '/mo',
-    description: 'Perfect for small teams with 1-2 key automations that need to stay reliable.',
+    setup: '+ $500 onboarding',
+    description: 'Built-in support for firms up to ~30 people getting started on the platform.',
     features: [
-      'Monitoring & bug fixes',
-      'Prompt updates',
-      'Monthly optimization',
-      'Email support',
-      '12-hour response time',
+      'All native capabilities included',
+      'Standard support (email)',
+      'Onboarding to your first workflows',
+      'Self-serve help + documentation',
+      'Automation Sprint available when you need it',
     ],
-    cta: 'Buy Essential Ops',
-    link: 'https://buy.stripe.com/8x24gB3SD2ZNd5Fc642Fa1I',
+    cta: 'See Pricing',
+    link: '/pricing',
     popular: false,
   },
   {
-    name: 'Professional Ops',
-    price: '$2,000',
+    name: 'Growth',
+    monthly: '$599',
     period: '/mo',
-    description: 'Our most popular choice for growing businesses scaling their automation.',
+    setup: '+ $1,500 onboarding',
+    description: 'For firms scaling from ~30 to 100 people with more automations in flight.',
     features: [
-      'Everything in Essential',
-      'New automations each month',
-      'AI model improvements',
-      'Monthly strategy call',
-      'Priority email & Slack support',
-      '4-hour response time',
+      'All native capabilities included',
+      'Priority support',
+      'Governance: multi-step approvals + autonomy allow-lists',
+      'Higher scale limits',
+      'Onboarding to your first workflows',
     ],
-    cta: 'Buy Professional Ops',
-    link: 'https://buy.stripe.com/aFaaEZexhasf3v50nm2Fa1J',
+    cta: 'See Pricing',
+    link: '/pricing',
     popular: true,
   },
   {
-    name: 'Enterprise Ops',
-    price: '$5,000',
-    period: '/mo+',
-    description: 'Custom-built managed operations for large scale multi-department AI systems.',
+    name: 'Enterprise',
+    monthly: '$1,499',
+    period: '/mo',
+    setup: 'onboarding included',
+    description: 'For larger or regulated operations that need dedicated support and custom builds.',
     features: [
-      'Everything in Professional',
-      'Unlimited optimization',
-      'Dedicated AI engineer',
-      'Priority support',
-      'Quarterly roadmap review',
-      'Custom SLA',
+      'All native capabilities included',
+      'Dedicated support',
+      'Custom on-demand vendor-API builds (SAP, SuiteScript)',
+      'Highest scale limits',
+      'Advanced governance + autonomy allow-lists',
     ],
     cta: 'Contact for Quote',
     link: '/contact',
@@ -105,9 +106,12 @@ function SupportPage() {
                   <h3 className="text-2xl font-black text-white mb-2">{tier.name}</h3>
                   <p className="text-stone-400 font-medium leading-relaxed">{tier.description}</p>
                 </div>
-                <div className="flex items-baseline gap-1 mb-8">
-                  <span className="text-5xl font-black text-stone-900">{tier.price}</span>
-                  <span className="text-xl text-stone-400 font-bold">{tier.period}</span>
+                <div className="mb-8">
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-5xl font-black text-stone-900">{tier.monthly}</span>
+                    <span className="text-xl text-stone-400 font-bold">{tier.period}</span>
+                  </div>
+                  <p className="text-emerald-600 font-black mt-1">{tier.setup}</p>
                 </div>
                 <ul className="space-y-4 mb-10">
                   {tier.features.map((feature) => (

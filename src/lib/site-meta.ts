@@ -31,7 +31,7 @@ export const PAGE_TITLES: Record<string, PageMeta> = {
   "/": {
     title: "Simpler Life 100 | AI Operations Teams",
     description:
-      "Replace hours of manual work with AI coworkers that integrate into your existing tools. Industry-specific AI employees — deploy in minutes.",
+      "One platform that automates your operations end to end — records, forms, documents & e-sign, booking, boards, AI extraction, surveys, transforms/EDI, dashboards, and automations. Every capability in every tier.",
   },
   "/about": {
     title: "About Simpler Life 100 | Our Mission",
@@ -51,7 +51,7 @@ export const PAGE_TITLES: Record<string, PageMeta> = {
   "/build": {
     title: "Build Your AI Team | Simpler Life 100",
     description:
-      "Build your custom AI Operations Team. Choose from 17 AI agents across 3 builder packages with instant deployment and live integrations including Xero, Slack, Google, Microsoft, HubSpot, and DocuSign.",
+      "Configure the Simpler Life 100 platform for your operations. One platform with native records, forms, docs, booking, boards, AI extraction, surveys, transforms/EDI, dashboards, and automations — every capability in every tier.",
   },
   "/case-studies": {
     title: "Case Studies | Simpler Life 100",
@@ -104,9 +104,9 @@ export const PAGE_TITLES: Record<string, PageMeta> = {
       "Sign in to your Simpler Life 100 portal to manage your AI employees, workflows, and integrations.",
   },
   "/pricing": {
-    title: "Pricing | Simpler Life 100 AI Employees",
+    title: "Pricing | Simpler Life 100",
     description:
-      "AI Operations Teams from $7,500 one-time. Individual agents from $499/mo, or builder packages with live deployment. Live integrations: Xero, Slack, Google, Microsoft, HubSpot, DocuSign.",
+      "One platform, every capability in every tier. Starter $199/mo (+ $500 onboarding), Growth $599/mo (+ $1,500), Enterprise $1,499/mo (onboarding included). Native records, forms, docs & e-sign, booking, boards, AI extraction, surveys, transforms/EDI, dashboards, and automations.",
   },
   "/privacy": {
     title: "Privacy Policy | Simpler Life 100",

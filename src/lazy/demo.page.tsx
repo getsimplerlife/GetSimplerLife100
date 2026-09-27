@@ -35,12 +35,12 @@ const MOCK_ACTIVITIES: DemoActivity[] = [
 ];
 
 const MOCK_MARKETPLACE = [
-  { name: "Invoice Processor", price: "$950/mo", rating: 4.8, tasks: "42.8k/mo", icon: "💸", category: "Finance" },
-  { name: "Sales Follow-Up Agent", price: "$1,200/mo", rating: 4.7, tasks: "8.9k/mo", icon: "🚀", category: "Sales" },
-  { name: "Route Optimizer", price: "$1,800/mo", rating: 4.9, tasks: "25.4k/mo", icon: "📦", category: "Logistics" },
-  { name: "Data Entry Bot", price: "$499/mo", rating: 4.9, tasks: "35.7k/mo", icon: "📄", category: "Operations" },
-  { name: "Support Triage Agent", price: "$1,800/mo", rating: 4.7, tasks: "12.1k/mo", icon: "🎧", category: "Operations" },
-  { name: "HR Onboarding Agent", price: "$850/mo", rating: 4.6, tasks: "5.1k/mo", icon: "👤", category: "HR" },
+  { name: "Invoice Processor", price: "Included", rating: 4.8, tasks: "42.8k/mo", icon: "💸", category: "Finance" },
+  { name: "Sales Follow-Up Agent", price: "Included", rating: 4.7, tasks: "8.9k/mo", icon: "🚀", category: "Sales" },
+  { name: "Route Optimizer", price: "Included", rating: 4.9, tasks: "25.4k/mo", icon: "📦", category: "Logistics" },
+  { name: "Data Entry Bot", price: "Included", rating: 4.9, tasks: "35.7k/mo", icon: "📄", category: "Operations" },
+  { name: "Support Triage Agent", price: "Included", rating: 4.7, tasks: "12.1k/mo", icon: "🎧", category: "Operations" },
+  { name: "HR Onboarding Agent", price: "Included", rating: 4.6, tasks: "5.1k/mo", icon: "👤", category: "HR" },
 ];
 
 function PortalDemoPage() {
@@ -168,7 +168,7 @@ function PortalDemoPage() {
           <div className="space-y-6 animate-fadeIn">
             <div className="flex items-center gap-3">
               <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-[10px] font-mono tracking-widest text-stone-500 uppercase">AI EMPLOYEES MARKETPLACE</span>
+              <span className="text-[10px] font-mono tracking-widest text-stone-500 uppercase">AUTOMATION CATALOG — INCLUDED IN EVERY PLAN</span>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {MOCK_MARKETPLACE.map((item) => (

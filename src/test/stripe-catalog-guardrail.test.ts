@@ -99,10 +99,21 @@ describe("stripe catalog guardrail (customer-facing checkout links)", () => {
     expect(w).toContain(CANONICAL.erpPack);
   });
 
-  it("the canonical support links survive in support.tsx", () => {
+  it("support.tsx no longer sells the discontinued per-employee support SKUs (owner 09-27 locked platform tiers)", () => {
+    // Support is now included in the platform tiers (Starter/Growth/Enterprise).
+    // The old standalone support plans (Essential $750 / Professional $2,000 / Enterprise
+    // $5,000 per month) were discontinued with the per-employee model, so their Stripe
+    // Payment Links must no longer appear on the customer-facing support page.
     const s = readFileSync("src/routes/support.tsx", "utf8");
-    expect(s).toContain(CANONICAL.supportEssential);
-    expect(s).toContain(CANONICAL.supportProfessional);
+    expect(s).not.toContain(CANONICAL.supportEssential);
+    expect(s).not.toContain(CANONICAL.supportProfessional);
+    expect(s).not.toContain("$750");
+    expect(s).not.toContain("$2,000");
+    expect(s).not.toContain("$5,000");
+    // Support tiers now mirror the locked platform structure.
+    expect(s).toContain("monthly: '$199'");
+    expect(s).toContain("monthly: '$599'");
+    expect(s).toContain("monthly: '$1,499'");
   });
 
   it("the assessment 'Purchase Audit' button uses the canonical $2,500 link, not the $25 one", () => {

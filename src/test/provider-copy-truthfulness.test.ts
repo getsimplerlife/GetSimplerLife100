@@ -176,17 +176,24 @@ describe("Privacy & Terms pages — truthful, real content, no dead links", () =
   });
 });
 
-describe("site-meta — public SEO copy is truthful about integrations", () => {
+describe("site-meta — public SEO copy is truthful about the platform (owner 09-27)", () => {
   const src = readRepoFile("src/lib/site-meta.ts");
-
-  it("pricing and integrations meta no longer claim 180+ integrations", () => {
+  it("pricing and integrations meta no longer claim 180+ integrations or live third-party connects", () => {
+    // Locked platform model (owner 09-27): pricing sells ONE platform with all native
+    // capabilities in every tier — not per-employee SKUs, not third-party connect
+    // claims for paused provider adapters.
     expect(src).not.toContain("180+ integrations");
     const pricingMeta = src.slice(src.indexOf('"/pricing"'), src.indexOf('"/register"'));
-    expect(pricingMeta).toContain("Live integrations: Xero, Slack, Google, Microsoft, HubSpot, DocuSign");
+    expect(pricingMeta).toContain("One platform");
+    expect(pricingMeta).toContain("199");
+    expect(pricingMeta).toContain("599");
+    expect(pricingMeta).toContain("1,499");
+    expect(pricingMeta).not.toContain("$7,500");
+    expect(pricingMeta).not.toContain("$499");
+    expect(pricingMeta).not.toMatch(/Live integrations: Xero/);
   });
-
   it("has SEO entries for /privacy and /terms", () => {
-    expect(src).toContain('"/privacy"');
-    expect(src).toContain('"/terms"');
+    expect(src).toContain('"/privacy"' );
+    expect(src).toContain('"/terms"' );
   });
 });
