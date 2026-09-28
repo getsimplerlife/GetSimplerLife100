@@ -47,7 +47,7 @@ function FileLibrary() {
   const [searchTerm, setSearchTerm] = useState("");
   const [previewFile, setPreviewFile] = useState<PortalFile | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
-  // Workspace preference (owner directive 2026-08-13): where AI employees
+  // Workspace preference (owner directive 2026-08-13): where automations
   // create data files — Google, Microsoft, or auto (route to what's connected).
   const [workspacePref, setWorkspacePref] = useState<"google" | "microsoft" | "auto">("auto");
   const [prefSaving, setPrefSaving] = useState(false);
@@ -178,7 +178,7 @@ function FileLibrary() {
             📚 File Library
           </h1>
           <p className="text-stone-400 font-medium text-sm mt-1">
-            Files your AI employees created for you — view, edit, print, or download them.
+            Files your automations created for you — view, edit, print, or download them.
           </p>
         </div>
         {files.length > 0 && (
@@ -193,7 +193,7 @@ function FileLibrary() {
           <div>
             <h3 className="text-sm font-black flex items-center gap-1.5">🧭 Where should AI-created files go?</h3>
             <p className="text-stone-400 text-xs mt-1">
-              Choose the workspace AI employees use when they create files for you. <span className="text-stone-300 font-semibold">Auto</span> uses the workspace you have connected — and when both Google and Microsoft are connected, it picks the least-loaded one.
+              Choose the workspace your automations use when they create files for you. <span className="text-stone-300 font-semibold">Auto</span> uses the workspace you have connected — and when both Google and Microsoft are connected, it picks the least-loaded one.
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -224,7 +224,7 @@ function FileLibrary() {
           <div>
             <h3 className="text-sm font-black flex items-center gap-1.5">🗂️ Your Files</h3>
             <p className="text-stone-400 text-xs mt-1">
-              Created by AI employees in your connected Google / Microsoft accounts
+              Created by your automations in your connected Google / Microsoft accounts
             </p>
           </div>
           <div className="w-full sm:w-64">
@@ -266,7 +266,7 @@ function FileLibrary() {
             </h4>
             <p className="text-[10px] text-stone-400 max-w-sm mx-auto leading-relaxed font-semibold">
               {files.length === 0
-                ? "When your AI employees create documents, spreadsheets, or presentations, they'll appear here ready to view, edit, print, or download."
+                ? "When your automations create documents, spreadsheets, or presentations, they'll appear here ready to view, edit, print, or download."
                 : "Try a different search term."}
             </p>
           </div>

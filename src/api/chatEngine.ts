@@ -362,50 +362,18 @@ function formatWorkflowResponse(workflows: any[], filters?: Record<string, strin
   return { reply, actions };
 }
 
-function formatEmployeeResponse(employees: any[], message: string): ChatResponse {
-  if (employees.length === 0) {
-    return {
-      reply: "🤖 **AI Employees**\n\nNo AI employees deployed yet. Your workforce is ready to grow — deploy your first AI employee from the Employees page!",
-      actions: [{ type: "navigate", label: "Deploy AI Employee", payload: { path: "/portal/employees" } }],
-    };
-  }
-
-  // Check if asking about a specific employee
-  const lower = message.toLowerCase();
-  const specific = employees.find((e: any) =>
-    e.name?.toLowerCase().includes(lower) ||
-    e.role?.toLowerCase().includes(lower) ||
-    (e.name + " " + (e.role || "")).toLowerCase().includes(lower.replace("what is", "").replace("working on", "").trim())
-  );
-
-  if (specific) {
-    const statusEmoji = specific.status?.toLowerCase() === "active" ? "🟢" : specific.status?.toLowerCase() === "idle" ? "💤" : "⚪";
-    return {
-      reply: `🤖 **${specific.name}**\n\n${statusEmoji} **Status:** ${specific.status || "Unknown"}\n🎯 **Role:** ${specific.role || "Generalist"}\n📋 **Current Task:** ${specific.currentTask || "Idle"}\n✅ **Tasks Completed:** ${specific.tasksCompleted || 0}\n⏱️ **Uptime:** ${specific.uptime || "N/A"}\n📊 **Performance:** ${specific.performance || "N/A"}`,
-      actions: [
-        { type: "navigate", label: "View Employee Profile", payload: { path: `/portal/employees/${specific.id || specific._id}` } },
-      ],
-    };
-  }
-
-  // General overview
-  const active = employees.filter((e: any) => e.status?.toLowerCase() === "active").length;
-  const idle = employees.filter((e: any) => e.status?.toLowerCase() === "idle" || !e.status).length;
-
-  const lines = employees.slice(0, 6).map((e: any) => {
-    const s = e.status?.toLowerCase() || "idle";
-    const emoji = s === "active" ? "🟢" : s === "idle" ? "💤" : "⚪";
-    return `${emoji} **${e.name}** — ${e.role || "Generalist"} (${e.status || "Idle"})`;
-  });
-
+function formatEmployeeResponse(_employees: any[], _message: string): ChatResponse {
+  // AI-employee-era surface pruned (phase b): automations now live in
+  // Workflows and run through the approval queue. Answer truthfully with
+  // the platform surfaces instead of the removed Employees pages.
   return {
-    reply: `🤖 **AI Workforce Summary**\n\n👥 **Total Employees:** ${employees.length}\n🟢 **Active:** ${active}\n💤 **Idle:** ${idle}\n\n${lines.join("\n")}`,
+    reply: "🤖 **Automations**\n\nAutomations are built and monitored in Workflows, and gated by your approval queue. Open Workflows to configure them, or review pending approvals.",
     actions: [
-      { type: "navigate", label: "View All Employees", payload: { path: "/portal/employees" } },
+      { type: "navigate", label: "Open Workflows", payload: { path: "/portal/workflows" } },
+      { type: "navigate", label: "Review Approvals", payload: { path: "/portal/approvals" } },
     ],
   };
 }
-
 function formatActivityResponse(activity: any[]): ChatResponse {
   if (activity.length === 0) {
     return {

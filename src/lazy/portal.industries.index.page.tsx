@@ -59,7 +59,7 @@ function IndustriesHub() {
     <div className="space-y-8 font-sans">
       <div className="border-b border-stone-200 pb-6">
         <h1 className="text-3xl font-black text-stone-900 tracking-tight">🏢 Vertical Blueprints</h1>
-        <p className="text-stone-500 mt-1">Configure and manage industry-specific AI employee blueprints built for your business sector.</p>
+        <p className="text-stone-500 mt-1">Configure and manage industry-specific automation blueprints built for your business sector.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

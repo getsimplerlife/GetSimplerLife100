@@ -133,7 +133,7 @@ function TasksQueue() {
               <tr className="bg-stone-50 text-stone-500 font-bold border-b border-stone-150 uppercase tracking-wider">
                 <th className="p-4">Task ID</th>
                 <th className="p-4">Timestamp</th>
-                <th className="p-4">AI Employee / Customer</th>
+                <th className="p-4">Automation / Customer</th>
                 <th className="p-4">Workflow Process</th>
                 <th className="p-4">Status & Duration</th>
                 <th className="p-4">Output Result</th>

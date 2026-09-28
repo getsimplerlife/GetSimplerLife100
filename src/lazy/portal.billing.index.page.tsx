@@ -58,9 +58,9 @@ function BillingPage() {
         <div className="flex items-center justify-between">
           <div>
             <span className="text-emerald-400 font-bold text-sm">AI Operations Platform</span>
-            <p className="text-stone-500 text-xs mt-1">Pay-as-you-go · Active AI employees billed monthly</p>
+            <p className="text-stone-500 text-xs mt-1">Platform subscription · Billed monthly</p>
           </div>
-          <Link to="/portal/marketplace" className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 py-2 rounded-xl transition-colors">
+          <Link to="/pricing" className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 py-2 rounded-xl transition-colors">
             Manage Plan
           </Link>
         </div>
@@ -126,9 +126,9 @@ function BillingPage() {
         {invoices.length === 0 ? (
           <div className="text-center py-12 border border-dashed border-stone-800 rounded-xl">
             <p className="text-stone-400 font-bold text-sm">No invoices yet</p>
-            <p className="text-stone-500 text-xs mt-1">Invoices appear here after your first AI employee is deployed.</p>
-            <Link to="/portal/marketplace" className="inline-block mt-3 text-emerald-400 font-bold text-sm hover:text-emerald-300">
-              Browse AI Employees →
+            <p className="text-stone-500 text-xs mt-1">Invoices appear here after your first invoice is issued.</p>
+            <Link to="/pricing" className="inline-block mt-3 text-emerald-400 font-bold text-sm hover:text-emerald-300">
+              View Pricing →
             </Link>
           </div>
         ) : (

@@ -45,46 +45,9 @@ const NON_LIVE_PROVIDERS = [
   "monday",
 ];
 
-describe("Marketplace Connection Packs — only real providers connectable now", () => {
-  const src = readRepoFile("src/lazy/portal.marketplace.index.page.tsx");
-  const crmDesc = src.slice(
-    src.indexOf("name: \"CRM Connection Pack\""),
-    src.indexOf("category: \"Operations\" as const,", src.indexOf("CRM Connection Pack"))
-  );
-  // Search for the ERP name only from the name literal to avoid matching the
-  // "ERP Connection Packs" mention in the file's module comment above it.
-  const erpStart = src.indexOf("name: \"ERP Connection Pack\"");
-  const erpDesc = src.slice(
-    erpStart,
-    src.indexOf("category: \"Operations\" as const,", src.indexOf("ERP Connection Pack", erpStart))
-  );
-
-  it("CRM pack lists only HubSpot as connectable now (no Salesforce/Zoho/Pipedrive as available)", () => {
-    expect(crmDesc.toLowerCase()).toContain("connect hubspot today");
-    // Non-live providers are only allowed with an in-development marker.
-    for (const p of NON_LIVE_PROVIDERS) {
-      if (crmDesc.toLowerCase().includes(p)) {
-        expect(crmDesc.toLowerCase(), `"${p}" must be marked in development in CRM pack`).toContain("in development");
-      }
-    }
-  });
-
-  it("ERP pack lists only Xero as connectable now and QuickBooks as in development", () => {
-    expect(erpDesc.toLowerCase()).toContain("connect xero today");
-    expect(erpDesc.toLowerCase()).toContain("quickbooks");
-    expect(erpDesc.toLowerCase()).toContain("in development");
-    for (const p of NON_LIVE_PROVIDERS) {
-      if (erpDesc.toLowerCase().includes(p)) {
-        expect(erpDesc.toLowerCase(), `"${p}" must be marked in development in ERP pack`).toContain("in development");
-      }
-    }
-  });
-
-  it("does not claim any non-live provider as connectable-now", () => {
-    expect(/Connect (Salesforce|Zoho|Pipedrive|NetSuite|SAP|Sage)/i.test(src)).toBe(false);
-  });
-});
-
+// Marketplace Connection Packs surface removed with the employee-era marketplace
+// Marketplace (phase b portal prune); provider truthfulness is now
+// audited on the Portal Integrations + Public Integrations pages below.
 describe("Pricing page (LOCKED platform tiers, owner 09-27) — no per-employee SKUs", () => {
   const src = readRepoFile("src/routes/pricing.tsx");
   it("lists only the locked monthly tiers, not per-employee agent cards", () => {

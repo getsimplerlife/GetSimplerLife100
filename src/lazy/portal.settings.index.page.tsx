@@ -189,15 +189,15 @@ function UnifiedSettingsHub() {
         const latest = audits[audits.length - 1];
         setActivePlan(latest.type || "Starter Implementation");
         if (latest.type.includes("Starter")) {
-          setPlanDesc("Includes 2 active AI employees, 3 operational workflows, and 30 days of standard tech support.");
+          setPlanDesc("Includes running automations, native capabilities, and 30 days of standard tech support.");
         } else if (latest.type.includes("Growth")) {
-          setPlanDesc("Includes 5 active AI employees, cross-department automations, and 60 days of standard tech support.");
+          setPlanDesc("Includes cross-department automations and 60 days of standard tech support.");
         } else if (latest.type.includes("Scale")) {
-          setPlanDesc("Includes unlimited AI employees, custom integrations, and 90 days of standard tech support.");
+          setPlanDesc("Includes custom integrations and 90 days of standard tech support.");
         } else if (latest.type.includes("Audit")) {
           setPlanDesc("Your Deep-Dive AI Opportunity Audit blueprint package is active.");
         } else {
-          setPlanDesc("Your custom AI workforce package is active and deployed.");
+          setPlanDesc("Your custom platform package is active and deployed.");
         }
       }
     } catch (err) {
@@ -320,7 +320,7 @@ function UnifiedSettingsHub() {
 
   // Disconnect Handler
   const handleDisconnect = async (connectionId: string, displayName: string) => {
-    if (!confirm(`Are you sure you want to disconnect ${displayName}? This will erase active OAuth tokens and disconnect associated AI employees.`)) {
+    if (!confirm(`Are you sure you want to disconnect ${displayName}? This will erase active OAuth tokens and disconnect associated automations.`)) {
       return;
     }
 
@@ -369,9 +369,9 @@ function UnifiedSettingsHub() {
     setTimeout(() => setFeedback(""), 4000);
   };
 
-  // Navigate to marketplace for plan upgrades
+  // Navigate to /pricing for plan upgrades
   const handleUpgradePlan = () => {
-    window.location.href = "/portal/marketplace";
+    window.location.href = "/pricing";
   };
 
   if (loadingSettings) {
@@ -683,7 +683,7 @@ function UnifiedSettingsHub() {
                   <h3 className="text-base font-black text-white flex items-center gap-2">
                     <span>🔔</span> Notification Routing
                   </h3>
-                  <p className="text-xs text-stone-500">Configure alert channels when AI employees require manual approval interventions.</p>
+                  <p className="text-xs text-stone-500">Configure alert channels when automations require manual approval.</p>
                 </div>
 
                 <div className="space-y-4 text-xs font-semibold text-stone-400">
@@ -758,7 +758,7 @@ function UnifiedSettingsHub() {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-stone-900 pb-4 gap-4">
               <div>
                 <h3 className="text-xl font-black text-white">Active Integrations & Connected Accounts</h3>
-                <p className="text-xs text-stone-500">Manage connected SaaS systems used by active AI employee workloads.</p>
+                <p className="text-xs text-stone-500">Manage connected SaaS systems used by your automations.</p>
               </div>
               <Link
                 to="/portal/integrations"
@@ -855,7 +855,7 @@ function UnifiedSettingsHub() {
                 <div className="space-y-4">
                   <span className="text-[9px] font-black uppercase text-emerald-400 bg-emerald-950/40 border border-emerald-800/40 px-3 py-1 rounded-full tracking-wider">Current Plan</span>
                   <h3 className="text-2xl font-black text-white">{activePlan || "Free"}</h3>
-                  <p className="text-stone-400 text-xs leading-relaxed font-semibold">{planDesc || "Basic access with limited AI employee runs and integrations."}</p>
+                  <p className="text-stone-400 text-xs leading-relaxed font-semibold">{planDesc || "Core access with running automations and integrated systems."}</p>
                 </div>
 
                 <button
@@ -928,7 +928,7 @@ function UnifiedSettingsHub() {
             <div className="bg-stone-950 border border-stone-900 rounded-3xl p-6 md:p-8 space-y-6 shadow-xl">
               <div className="border-b border-stone-900 pb-4">
                 <h3 className="text-lg font-black text-white flex items-center gap-2">
-                  <span>🚀</span> Scale Your AI Operations Scopes
+                  <span>🚀</span> Scale Your Automations
                 </h3>
                 <p className="text-xs text-stone-500">Upgrade core builds, extend SLA support memberships, or purchase auxiliary functional employee add-ons.</p>
               </div>

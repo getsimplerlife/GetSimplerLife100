@@ -28,7 +28,7 @@ const TRIGGER_TEMPLATES: IntegrationCategory[] = [
 ];
 
 const ACTION_TEMPLATES: IntegrationCategory[] = [
-  { id: "a_ai", name: "Run AI Employee", icon: "🤖", description: "Executes autonomous LLM reasoning engine with a selected prompt blueprint.", defaultConfig: { model: "gemini-3.5-flash", temperature: "0.2", prompt: "Energy carrier dispatch comparison" } },
+  { id: "a_ai", name: "Run Automation", icon: "🤖", description: "Executes autonomous LLM reasoning engine with a selected prompt blueprint.", defaultConfig: { model: "gemini-3.5-flash", temperature: "0.2", prompt: "Energy carrier dispatch comparison" } },
   { id: "a_ocr", name: "OCR Parser Fallback", icon: "📂", description: "Processes PDFs and images to extract digital table grids and metadata.", defaultConfig: { extractHandwriting: "true", layoutDetection: "true" } },
   { id: "a_email", name: "Compose & Send Email", icon: "📧", description: "Dynamically writes and delivers transactional email responses.", defaultConfig: { recipient: "{{customer.email}}", subject: "Reconciliation Complete" } },
   { id: "a_transform", name: "Transform Data Schema", icon: "🔄", description: "Formats extracted values into validated JSON or FHIR structures.", defaultConfig: { format: "JSON", enforceTypes: "true" } },
@@ -426,7 +426,7 @@ if __name__ == "__main__":
       <Modal isOpen={isSaveModalOpen} onClose={() => setIsSaveModalOpen(false)} title="Save Workflow Blueprint">
         <div className="space-y-5">
           <p className="text-sm text-stone-300 font-semibold leading-relaxed">
-            Are you sure you want to serialize and export this configured AI agent pipeline to the system registry?
+            Are you sure you want to serialize and export this configured automation pipeline to the system registry?
           </p>
           <div className="bg-stone-950 p-4 border border-stone-800 rounded-2xl">
             <p className="text-xs font-bold text-stone-500 uppercase tracking-wider">Workflow Configuration</p>

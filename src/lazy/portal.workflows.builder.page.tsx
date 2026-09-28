@@ -28,7 +28,7 @@ function WorkflowBuilderPage() {
 
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
 
-  // Fetch real AI employees for the operator dropdown
+  // Fetch workflow operators for the operator dropdown
   useEffect(() => {
     (async () => {
       try {
@@ -146,7 +146,7 @@ function WorkflowBuilderPage() {
           <div className="space-y-4">
             <div>
               <label className="block text-[10px] font-mono tracking-wider uppercase text-stone-400 mb-2">
-                1. Select Workflow Operator (AI Employee)
+                1. Select Workflow Operator (Automation)
               </label>
               <select
                 value={operatorId}
@@ -157,7 +157,7 @@ function WorkflowBuilderPage() {
                   <option value="">Loading employees...</option>
                 ) : (
                   operators.map((emp: any) => (
-                    <option key={emp.id} value={emp.id}>{emp.name} — {emp.purpose || emp.agentType || "AI Agent"}</option>
+                    <option key={emp.id} value={emp.id}>{emp.name} — {emp.purpose || emp.agentType || "Automation"}</option>
                   ))
                 )}
               </select>

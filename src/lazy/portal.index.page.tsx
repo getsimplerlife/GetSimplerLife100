@@ -15,7 +15,6 @@ type TimeFilter = "24h" | "7d" | "30d";
 function ActivityHubDashboard() {
   const { userEmail } = usePortalContext();
 
-  const [employees, setEmployees] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
   const [approvals, setApprovals] = useState<any[]>([]);
   const [connectedCount, setConnectedCount] = useState(0);
@@ -29,14 +28,12 @@ function ActivityHubDashboard() {
   // Client-side refresh for subsequent navigations (SSR covers initial load)
   const fetchDashboardData = async () => {
     try {
-      const [rEmp, rTasks, rApp, rBil, rCon] = await Promise.allSettled([
-        fetch("/api/data/employees", { credentials: "include" }).then(r => r.ok ? r.json() : null),
+      const [rTasks, rApp, rBil, rCon] = await Promise.allSettled([
         fetch("/api/data/tasks", { credentials: "include" }).then(r => r.ok ? r.json() : null),
         fetch("/api/portal/approvals", { credentials: "include" }).then(r => r.ok ? r.json() : null),
         fetch("/api/data/billing", { credentials: "include" }).then(r => r.ok ? r.json() : null),
         fetch("/api/integrations", { credentials: "include" }).then(r => r.ok ? r.json() : null),
       ]);
-      if (rEmp.status === "fulfilled" && rEmp.value) setEmployees(rEmp.value.data || []);
       if (rTasks.status === "fulfilled" && rTasks.value) setTasks(rTasks.value.data || []);
       if (rApp.status === "fulfilled" && rApp.value) setApprovals(rApp.value.data?.pending || []);
       if (rBil.status === "fulfilled" && rBil.value) setBilling(rBil.value.data || []);
@@ -66,27 +63,14 @@ function ActivityHubDashboard() {
 
   // Real metrics only — no fabricated multipliers.
   const tasksCompleted = filteredTasks.filter((t: any) => t.status === 'Completed').length;
-
-  const activeEmployees = employees.filter((e: any) => e.status === "Active");
-  const idleEmployees = employees.filter((e: any) => e.status === "Idle");
-  // Portal data-truth (#236): only REAL failure signals raise the "needs
-  // attention" banner. An unconfigured/purchasable catalog agent (status
-  // "available"/"paused", no recent activity) is NOT a failure — the server
-  // computes needsAttention from the employee's own error record and the live
-  // #230 connection-health snapshot.
-  const errorEmployees = employees.filter((e: any) => e.needsAttention === true);
-
   const pendingApprovals = approvals.length;
-  const hasActionItems = pendingApprovals > 0 || errorEmployees.length > 0;
-
+  const hasActionItems = pendingApprovals > 0;
   // ── Onboarding ────────────────────────────────────────────────────
-
-  const isNewUser = employees.length === 0;
+  const isNewUser = connectedCount === 0 && tasks.length === 0;
   const onboardingSteps = [
-    { label: "Deploy your first AI Employee", done: employees.length > 0, link: "/portal/marketplace" },
     { label: "Connect at least one integration", done: connectedCount > 0, link: "/portal/integrations" },
     { label: "Run your first workflow", done: tasks.length > 0, link: "/portal/workflows" },
-    { label: "Review AI activity feed", done: tasks.length >= 3, link: "/portal" },
+    { label: "Review the approval queue", done: approvals.length > 0, link: "/portal/approvals" },
   ];
   const onboardingProgress = onboardingSteps.filter(s => s.done).length;
 
@@ -105,13 +89,6 @@ function ActivityHubDashboard() {
     } catch { setFeedback("Failed"); setTimeout(() => setFeedback(""), 3000); }
   };
 
-  // ── Health status ─────────────────────────────────────────────────
-
-  const healthDot = (status: string) => {
-    if (status === "Active") return "🟢";
-    if (status === "Idle") return "🟡";
-    return "🔴";
-  };
 
   // ── Loading (skeleton) ─────────────────────────────────────────────
 
@@ -180,8 +157,8 @@ function ActivityHubDashboard() {
             </h1>
             <p className="text-stone-400 text-sm mt-1 max-w-xl leading-relaxed">
               {totalFilteredTasks > 0
-                ? `Your AI workforce completed ${totalFilteredTasks} tasks ${timeLabel}.`
-                : `Your Activity Hub — monitor your AI workforce and take action ${timeLabel}.`}
+                ? `Your automations completed ${totalFilteredTasks} tasks ${timeLabel}.`
+                : `Your Activity Hub — monitor your automations and take action ${timeLabel}.`}
             </p>
           </div>
           {/* Time filter toggles */}
@@ -212,8 +189,6 @@ function ActivityHubDashboard() {
               <span className="font-bold text-amber-400 text-sm">Action Needed</span>
               <span className="text-stone-400 text-xs ml-3">
                 {pendingApprovals > 0 && `${pendingApprovals} approval${pendingApprovals > 1 ? "s" : ""} pending`}
-                {pendingApprovals > 0 && errorEmployees.length > 0 && " · "}
-                {errorEmployees.length > 0 && `${errorEmployees.length} AI${errorEmployees.length > 1 ? "s" : ""} need${errorEmployees.length === 1 ? "s" : ""} attention`}
               </span>
             </div>
           </div>
@@ -223,33 +198,6 @@ function ActivityHubDashboard() {
                 className="bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs px-4 py-2 rounded-lg transition-all">
                 Review Approvals
               </button>
-            )}
-            {errorEmployees.length > 0 && (
-              <Link to="/portal/employees" className="bg-stone-800 hover:bg-stone-700 text-stone-200 font-bold text-xs px-4 py-2 rounded-lg transition-all">
-                Check Health →
-              </Link>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ── AI Health Summary Row ───────────────────────────────── */}
-      {employees.length > 0 && (
-        <div className="bg-stone-950 border border-stone-900 rounded-xl px-5 py-3">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-stone-500 font-bold">AI Health</span>
-            <Link to="/portal/employees" className="text-[10px] font-mono text-blue-400 hover:text-blue-300 font-bold">All Employees →</Link>
-          </div>
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-            {employees.slice(0, 8).map((emp: any) => (
-              <Link key={emp.id || emp._id} to="/portal/employees/$id" params={{ id: emp.id || emp._id }}
-                className="flex items-center gap-2 text-xs group">
-                <span>{healthDot(emp.status)}</span>
-                <span className="text-stone-300 group-hover:text-white transition-colors font-medium truncate max-w-[120px]">{emp.name}</span>
-              </Link>
-            ))}
-            {employees.length > 8 && (
-              <span className="text-[10px] text-stone-600 font-mono">+{employees.length - 8} more</span>
             )}
           </div>
         </div>
@@ -261,7 +209,7 @@ function ActivityHubDashboard() {
           <div className="text-4xl mb-4">🚀</div>
           <h3 className="text-lg font-bold text-white mb-2">Welcome to Simpler Life 100</h3>
           <p className="text-sm text-stone-400 mb-6 max-w-sm mx-auto leading-relaxed">
-            Your AI workforce dashboard populates once you deploy your first AI Employee. Here's how to get started:
+            Your workspace populates as you connect tools and run automations. Here's how to get started:
           </p>
           <div className="space-y-3 text-left max-w-xs mx-auto mb-6">
             {onboardingSteps.map((step, i) => (
@@ -278,9 +226,9 @@ function ActivityHubDashboard() {
               </Link>
             ))}
           </div>
-          <Link to="/portal/marketplace"
+          <Link to="/portal/integrations"
             className="inline-flex items-center justify-center bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold px-6 py-3 rounded-xl transition-all font-mono text-xs shadow-lg active:scale-95">
-            🛒 Browse AI Employees
+            🔌 Connect your first integration
           </Link>
         </div>
       )}
@@ -291,7 +239,7 @@ function ActivityHubDashboard() {
           {[
             { label: "Tasks", value: `${totalFilteredTasks}`, subtitle: `${timeLabel}`, color: "text-emerald-400", bg: "bg-emerald-500/5 border-emerald-500/20" },
             { label: "Completed", value: `${tasksCompleted}`, subtitle: `${timeLabel}`, color: "text-blue-400", bg: "bg-blue-500/5 border-blue-500/20" },
-            { label: "Active AIs", value: `${activeEmployees.length}`, subtitle: `${employees.length} total`, color: "text-purple-400", bg: "bg-purple-500/5 border-purple-500/20" },
+            { label: "Approvals", value: `${pendingApprovals}`, subtitle: "pending", color: "text-purple-400", bg: "bg-purple-500/5 border-purple-500/20" },
             { label: "Integrations", value: `${integrationCount}`, subtitle: `${connectedCount} connected`, color: "text-amber-400", bg: "bg-amber-500/5 border-amber-500/20" },
           ].map((m, i) => (
             <div key={i} className={`rounded-xl border p-5 ${m.bg} flex flex-col justify-between gap-3`}>
@@ -305,88 +253,12 @@ function ActivityHubDashboard() {
         </div>
       )}
 
-      {/* ── Weekly Agent Performance Reports ─────────────────── */}
-      {!isNewUser && activeEmployees.length > 0 && (
-        <div className="bg-stone-950 border border-stone-900 rounded-2xl p-6 space-y-4">
-          <div className="flex justify-between items-center">
-            <h2 className="text-sm font-black text-white">📊 Weekly Agent Performance</h2>
-            <span className="text-[10px] font-mono text-stone-500">Last 7 days</span>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <div className="bg-stone-900/60 border border-stone-800 rounded-xl p-4 text-center">
-              <div className="text-2xl font-black text-emerald-400">{activeEmployees.length}</div>
-              <div className="text-[10px] font-mono text-stone-500 mt-1">Active Agents</div>
-            </div>
-            <div className="bg-stone-900/60 border border-stone-800 rounded-xl p-4 text-center">
-              <div className="text-2xl font-black text-blue-400">{filteredTasks.filter((t: any) => t.status === 'Completed').length}</div>
-              <div className="text-[10px] font-mono text-stone-500 mt-1">Tasks Completed</div>
-            </div>
-            <div className="bg-stone-900/60 border border-stone-800 rounded-xl p-4 text-center">
-              <div className="text-2xl font-black text-rose-400">{errorEmployees.length}</div>
-              <div className="text-[10px] font-mono text-stone-500 mt-1">Alerts</div>
-            </div>
-            <div className="bg-stone-900/60 border border-stone-800 rounded-xl p-4 text-center">
-              <div className="text-2xl font-black text-purple-400">{idleEmployees.length}</div>
-              <div className="text-[10px] font-mono text-stone-500 mt-1">Idle Agents</div>
-            </div>
-            <div className="bg-stone-900/60 border border-stone-800 rounded-xl p-4 text-center">
-              <div className="text-2xl font-black text-amber-400">{integrationCount}</div>
-              <div className="text-[10px] font-mono text-stone-500 mt-1">Integrations</div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* ── Main Grid ───────────────────────────────────────────── */}
       {!isNewUser && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
-          {/* Left: AI Employees + Activity Feed */}
+            {/* Left: Activity Feed */}
           <div className="lg:col-span-2 space-y-8">
-
-            {/* AI Employee Cards */}
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h2 className="text-sm font-black tracking-tight text-white">🤖 AI Workforce</h2>
-                <Link to="/portal/employees" className="text-[10px] font-mono font-bold text-blue-400 hover:text-blue-300">Manage →</Link>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {employees.slice(0, 4).map((emp: any) => {
-                  const empTasks = tasks.filter((t: any) => t.aiEmployee === emp.name).slice(0, 2);
-                  return (
-                    <Link key={emp.id || emp._id} to="/portal/employees/$id" params={{ id: emp.id || emp._id }}
-                      className="bg-stone-950 border border-stone-900 rounded-xl p-5 hover:border-stone-800 transition-all block group">
-                      <div className="flex justify-between items-start mb-3">
-                        <div>
-                          <h3 className="text-xs font-bold text-white group-hover:text-blue-400 transition-colors">{emp.name}</h3>
-                          <p className="text-[10px] text-stone-500 mt-0.5">{emp.agentType?.replace(/_/g, " ") || "AI Agent"}</p>
-                        </div>
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-mono uppercase font-bold ${
-                          emp.status === "Active" ? "bg-emerald-950/40 text-emerald-400 border border-emerald-900" :
-                          emp.status === "Idle" ? "bg-stone-900 text-stone-400 border border-stone-800" :
-                          "bg-red-950/40 text-red-400 border border-red-900"
-                        }`}>
-                          {healthDot(emp.status)} {emp.status}
-                        </span>
-                      </div>
-                      {/* Recent Activity */}
-                      {empTasks.length > 0 ? (
-                        <div className="space-y-1.5 pt-3 border-t border-stone-900">
-                          {empTasks.map((t: any, i: number) => (
-                            <div key={i} className="flex items-center gap-2 text-[10px]">
-                              <span className="text-stone-600 shrink-0">{t.status === "Completed" ? "✓" : "⚡"}</span>
-                              <span className="text-stone-400 truncate">{t.result}</span>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="pt-3 border-t border-stone-900 text-[10px] text-stone-600">No recent activity</div>
-                      )}
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
 
             {/* Activity Feed */}
             <div className="space-y-4">
@@ -478,11 +350,11 @@ function ActivityHubDashboard() {
             </div>
 
             {/* Billing / Usage Alert */}
-            {billing.length === 0 && employees.length > 0 && (
+            {billing.length === 0 && !isNewUser && (
               <div className="bg-blue-950/20 border border-blue-900/30 rounded-xl p-4 space-y-2">
                 <span className="text-[10px] font-mono uppercase tracking-wider text-blue-400 font-bold">💳 Billing</span>
                 <p className="text-[10px] text-stone-400 leading-relaxed">
-                  No active billing plan detected. Your AI workforce is running on trial mode.
+                  No active billing plan detected. Your platform is running on trial mode.
                 </p>
                 <Link to="/portal/billing"
                   className="block text-center text-[10px] font-bold bg-blue-600 hover:bg-blue-500 text-white py-2 rounded-lg transition-all">
@@ -527,15 +399,15 @@ function ActivityHubDashboard() {
             </div>
 
             {/* Onboarding progress (returning users with incomplete setup) */}
-            {!isNewUser && onboardingProgress < 4 && (
+            {!isNewUser && onboardingProgress < 3 && (
               <div className="bg-stone-950 border border-stone-900 rounded-xl p-5 space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-black text-white">🚀 Setup Progress</h3>
-                  <span className="text-[9px] font-mono text-stone-500">{onboardingProgress}/4</span>
+                  <span className="text-[9px] font-mono text-stone-500">{onboardingProgress}/3</span>
                 </div>
                 <div className="w-full bg-stone-900 rounded-full h-1.5 overflow-hidden">
                   <div className="bg-blue-500 h-full rounded-full transition-all"
-                    style={{ width: `${(onboardingProgress / 4) * 100}%` }} />
+                    style={{ width: `${(onboardingProgress / 3) * 100}%` }} />
                 </div>
                 <div className="space-y-1">
                   {onboardingSteps.filter(s => !s.done).slice(0, 2).map((step, i) => (
