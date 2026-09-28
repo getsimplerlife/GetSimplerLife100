@@ -45,7 +45,7 @@ const NON_LIVE_PROVIDERS = [
   "monday",
 ];
 
-// Marketplace Connection Packs surface removed with the AI Employees
+// Marketplace Connection Packs surface removed with the employee-era marketplace
 // Marketplace (phase b portal prune); provider truthfulness is now
 // audited on the Portal Integrations + Public Integrations pages below.
 describe("Pricing page (LOCKED platform tiers, owner 09-27) — no per-employee SKUs", () => {
