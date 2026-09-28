@@ -56,8 +56,10 @@ function AutomationLibraryPage() {
 
   // LOCKED PLATFORM TIERS (owner 09-27) — monthly platform pricing; every
   // tier includes 100% of native capabilities. CTA points at the pricing page.
-  const getStripeLink = (_difficulty: string): string => {
-    return "/pricing";
+  const getStripeLink = (difficulty: string): string => {
+    if (difficulty === "easy") return "https://buy.stripe.com/eVq5kC7qQ0909zV0sJ5os00";
+    if (difficulty === "medium") return "https://buy.stripe.com/fZubJ0h1qbRI5jFcbr5os01";
+    return "https://buy.stripe.com/fZu28qfXmaNEdQb2AR5os02";
   };
 
   const getTierPrice = (difficulty: string): string => {
