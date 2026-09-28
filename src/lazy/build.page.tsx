@@ -133,7 +133,7 @@ function BuildBuilder() {
               Thanks {formData.name}! You're being redirected to Stripe to complete your payment.
             </p>
             <p className="text-stone-500 mb-10">
-              Once payment is confirmed, your AI operations team will be automatically provisioned and you'll receive an onboarding email.
+              Once payment is confirmed, your platform will be provisioned and you'll receive an onboarding email.
             </p>
             <Link to="/" className="inline-block bg-emerald-600 text-white px-10 py-4 rounded-2xl font-bold text-lg hover:bg-emerald-700 transition-all shadow-lg">
               Back to Homepage
@@ -166,9 +166,9 @@ function BuildBuilder() {
             <span className="inline-block px-3 py-1 text-xs font-mono font-bold tracking-wider rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase mb-4">
               Build Your Platform
             </span>
-            <h1 className="text-4xl lg:text-5xl font-black text-white mb-4 tracking-tight">Deploy Your AI Operations Team</h1>
+            <h1 className="text-4xl lg:text-5xl font-black text-white mb-4 tracking-tight">Start Your Platform Build</h1>
             <p className="text-lg text-stone-400 max-w-2xl mx-auto">
-              Select your package, pick the capabilities that matter first, and get deployed in days — not months. One platform, every capability in every tier.
+              Select your package, pick the capabilities that matter first, and get up and running with one platform — every capability in every tier.
             </p>
           </div>
 
@@ -356,7 +356,7 @@ function BuildBuilder() {
             {step === 'review' && (
               <div>
                 <h2 className="text-2xl font-black text-white mb-2">Review Your Build</h2>
-                <p className="text-stone-400 mb-8">Confirm your AI operations team configuration.</p>
+                <p className="text-stone-400 mb-8">Confirm your platform configuration.</p>
 
                 <div className="space-y-6 max-w-2xl">
                   {/* Package Summary */}
@@ -451,7 +451,7 @@ function BuildBuilder() {
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-12">
           <div>
             <div className="text-2xl font-black text-emerald-400 mb-2">{businessName}</div>
-            <p className="text-stone-500 text-sm">Deploy AI. Reclaim your time.</p>
+            <p className="text-stone-500 text-sm">One platform. Reclaim your time.</p>
           </div>
           <div className="flex gap-6 text-sm font-bold text-stone-600">
             <Link to="/" className="hover:text-emerald-400">Home</Link>

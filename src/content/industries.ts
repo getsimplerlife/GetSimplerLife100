@@ -661,7 +661,7 @@ export const industries: IndustryHub[] = [
           "Predictive maintenance opportunity analysis",
           "Grid-scale automation roadmap",
           "Real-time data integration assessment",
-          "Custom ROI model for AI agent deployment",
+          "Custom ROI model for platform automation",
         ],
       },
     },
@@ -1227,7 +1227,7 @@ export const industries: IndustryHub[] = [
     tagline: "Keep the line moving — automate everything else",
     hook: "JIT manufacturing leaves zero margin for paperwork delays.",
     description:
-      "Automotive suppliers operate on razor-thin margins where a single EDI error or missed material release can stop an OEM production line. Simpler Life 100 deploys one platform that automates PPAP documentation, EDI order processing, supplier quality scorecards, and JIT material release management. The platform keeps your supply chain synchronized at production speed — preventing line-down situations that cost $50K+ per hour.",
+      "Automotive suppliers operate on razor-thin margins where a single EDI error or missed material release can stop an OEM production line. Simpler Life 100 deploys one platform that automates PPAP documentation, EDI order processing, supplier quality scorecards, and JIT material release management. The platform keeps your supply chain synchronized at production speed — preventing line-down situations before they happen.",
     painPoints: [
       {
         title: "PPAP Documentation Bottlenecks",
@@ -1314,7 +1314,7 @@ export const industries: IndustryHub[] = [
     tagline: "Sell everywhere — automate operations everywhere",
     hook: "Multi-channel commerce creates multi-channel operational chaos.",
     description:
-      "E-commerce brands selling across Shopify, Amazon, Walmart, and wholesale channels drown in order reconciliation, inventory sync, returns processing, and customer support tickets. Simpler Life 100 deploys one platform that reconciles orders across every channel in real time, syncs inventory to prevent oversells, automates returns and RMA processing, and triages customer support to auto-resolve 80%+ of tickets. Your team focuses on growth — the platform handles the operations.",
+      "E-commerce brands selling across Shopify, Amazon, Walmart, and wholesale channels drown in order reconciliation, inventory sync, returns processing, and customer support tickets. Simpler Life 100 deploys one platform that reconciles orders across every channel in real time, syncs inventory to prevent oversells, automates returns and RMA processing, and triages customer support so common requests are handled automatically. Your team focuses on growth — the platform handles the operations.",
     painPoints: [
       {
         title: "Multi-Channel Order Reconciliation",
@@ -1490,7 +1490,7 @@ export const industries: IndustryHub[] = [
     tagline: "Serve citizens faster — automate the paperwork",
     hook: "Public records requests and permit backlogs don't just frustrate citizens — they create legal liability.",
     description:
-      "Municipal, county, and state agencies face growing citizen expectations with shrinking administrative bandwidth. Simpler Life 100 deploys one platform that automates FOIA and public records request processing, permit application routing across multiple departments, federal grant performance reporting, and constituent correspondence triage. Your agency meets statutory deadlines, reduces processing backlogs by 75%, and gives staff time back for the work that requires human judgment.",
+      "Municipal, county, and state agencies face growing citizen expectations with shrinking administrative bandwidth. Simpler Life 100 deploys one platform that automates FOIA and public records request processing, permit application routing across multiple departments, federal grant performance reporting, and constituent correspondence triage. Your agency meets statutory deadlines, works through backlogs faster, and gives staff time back for the work that requires human judgment.",
     painPoints: [
       {
         title: "Public Records Request Processing",
@@ -1836,7 +1836,7 @@ export const industries: IndustryHub[] = [
     tagline: "Bill more. Admin less.",
     hook: "The most profitable hour in professional services is the one that gets billed — and 10–15% never do.",
     description:
-      "Consulting, accounting, engineering, and advisory firms lose millions to billing leakage, slow engagement setup, manual expense processing, and invoice assembly. Simpler Life 100 deploys one platform that accelerates engagement setup from 7 days to 24 hours, recovers 5–8% of lost billable time through intelligent time entry review, automates expense report processing, and assembles client-ready invoices in minutes. Your professionals bill more hours while your back office runs on autopilot.",
+      "Consulting, accounting, engineering, and advisory firms lose millions to billing leakage, slow engagement setup, manual expense processing, and invoice assembly. Simpler Life 100 deploys one platform that accelerates engagement setup, recovers lost billable time through intelligent time entry review, automates expense report processing, and assembles client-ready invoices in minutes. Your professionals bill more hours while your back office runs on autopilot.",
     painPoints: [
       {
         title: "Engagement Setup Delays",

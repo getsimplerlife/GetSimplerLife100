@@ -21,7 +21,7 @@ function AIAdvisor() {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: "advisor",
-      text: "Hi! I'm your AI Operations Advisor. 🎯\n\nTell me — **what repetitive process frustrates your team the most?**",
+      text: "Hi! I'm your Operations Advisor. 🎯\n\nTell me — **what repetitive process frustrates your team the most?**",
       timestamp: Date.now(),
     },
   ]);
@@ -163,7 +163,7 @@ function AIAdvisor() {
     setMessages([
       {
         role: "advisor",
-        text: "Hi! I'm your AI Operations Advisor. 🎯\n\nTell me — **what repetitive process frustrates your team the most?**",
+        text: "Hi! I'm your Operations Advisor. 🎯\n\nTell me — **what repetitive process frustrates your team the most?**",
         timestamp: Date.now(),
       },
     ]);
@@ -296,7 +296,7 @@ function AIAdvisor() {
                 <div>
                   <h3 className="font-bold text-emerald-400">Ready to automate?</h3>
                   <p className="text-xs text-stone-400">
-                    Deploy your AI Operations Team and start saving hours today
+                    Get your platform running and start saving hours today
                   </p>
                 </div>
               </div>

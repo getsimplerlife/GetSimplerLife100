@@ -36,10 +36,9 @@ export function IndustryResourceCenter({ industryId }: IndustryResourceCenterPro
       if (sortField === "name") {
         return sortOrder === "asc" ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name);
       } else {
-        // Parse "18 hrs/week" into numbers
-        const numA = parseInt(a.timeSaved) || 0;
-        const numB = parseInt(b.timeSaved) || 0;
-        return sortOrder === "asc" ? numA - numB : numB - numA;
+        return sortOrder === "asc"
+          ? a.timeSaved.localeCompare(b.timeSaved)
+          : b.timeSaved.localeCompare(a.timeSaved);
       }
     });
 
@@ -245,7 +244,7 @@ export function IndustryResourceCenter({ industryId }: IndustryResourceCenterPro
               <span>📋</span> S1 Implementation Checklist
             </h3>
             <p className="text-xs text-stone-500 leading-normal">
-              Track setup criteria required before dispatching autonomous coworkers.
+              Track the setup criteria required before automation goes live.
             </p>
 
             <ul className="space-y-2.5 pt-2">

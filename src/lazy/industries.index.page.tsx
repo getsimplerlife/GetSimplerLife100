@@ -38,7 +38,7 @@ function IndustriesIndexPage() {
               INDUSTRY SOLUTIONS
             </span>
             <h1 className="text-5xl lg:text-7xl font-black text-white tracking-tight">
-              7 Industries. <span className="text-emerald-500">One AI Operations Platform.</span>
+              7 Industries. <span className="text-emerald-500">One Platform.</span>
             </h1>
             <p className="text-xl text-stone-400 max-w-2xl mx-auto">
               We start with the seven verticals where the operational pain is sharpest — claims, billing,

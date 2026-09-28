@@ -33,15 +33,15 @@ const faqCategories = [
     items: [
       {
         q: "Will this replace our employees?",
-        a: "No. Our agents are designed to take over the repetitive, high-volume tasks that burn people out (such as manual ledger copying or invoice checking). This frees your human team to focus on higher-value growth work that requires actual judgment, creativity, and real relationship management."
+        a: "No. Our automations are designed to take over the repetitive, high-volume tasks that burn people out (such as manual ledger copying or invoice checking). This frees your human team to focus on higher-value growth work that requires actual judgment, creativity, and real relationship management."
       },
       {
-        q: "What happens if the AI makes a mistake?",
-        a: "Reliability is our absolute priority. Every agent blueprint includes strict 'Human-in-the-Loop' review dashboards for high-stakes decisions (like final payment approvals or carrier selection over budget thresholds), ensuring your team retains ultimate oversight."
+        q: "What happens if the automation makes a mistake?",
+        a: "Reliability is our absolute priority. Every automation includes strict 'Human-in-the-Loop' review dashboards for high-stakes decisions (like final payment approvals or carrier selection over budget thresholds), ensuring your team retains ultimate oversight."
       },
       {
-        q: "How many agents can we deploy?",
-        a: "There are no architectural limits. We have clients running a single billing agent, while others run entire cross-department operations teams consisting of 10+ interconnected agents sharing real-time message streams."
+        q: "Are there limits on how much we can automate?",
+        a: "No. One platform gives you every capability — records, forms, documents and e-sign, webhooks, booking, boards, AI extraction, surveys, transforms, dashboards, and automations. You choose the workflows to run first, and everything is included in every tier."
       }
     ]
   },
@@ -50,15 +50,15 @@ const faqCategories = [
     items: [
       {
         q: "Will it work with our existing software?",
-        a: "Yes. Today our agents are live with Xero, Slack, Google Workspace, Microsoft 365, HubSpot, and DocuSign, and QuickBooks integration is in development. We build secure API connectors during development for the specific systems your firm uses."
+        a: "Yes. Today the platform is live with Xero, Slack, Google Workspace, Microsoft 365, HubSpot, and DocuSign, and QuickBooks integration is in development. We build secure API connectors during development for the specific systems your firm uses."
       },
       {
-        q: "How long does it take to deploy?",
-        a: "Most standard AI agents are fully operational within 2 to 4 weeks. Custom enterprise implementations with complex legacy database mappings typically take 6 to 8 weeks."
+        q: "How long does it take to get up and running?",
+        a: "Timelines are scoped to the workflows you choose and the systems they touch. We map the process first, build against your real stack, and go live only after every connection is verified and every write is tested."
       },
       {
         q: "Do we need an internal IT team to maintain this?",
-        a: "Not at all. As part of your build package, our team handles all model updates, prompt tweaking, system monitoring, API patches, and security auditing for you."
+        a: "Not at all. As part of your subscription, our team handles all model updates, prompt tweaking, system monitoring, API patches, and security auditing for you."
       }
     ]
   },
@@ -71,7 +71,7 @@ const faqCategories = [
       },
       {
         q: "Do you train models on our company data?",
-        a: "Never. All AI agents utilize closed, private API endpoints. Your corporate data, logs, and interaction histories are never used to train public LLMs."
+        a: "Never. All automations run through closed, private API endpoints. Your corporate data, logs, and interaction histories are never used to train public LLMs."
       }
     ]
   }
@@ -103,7 +103,7 @@ function FaqPage() {
       to: "/support",
       icon: "🛟",
       title: "Support",
-      description: "Get help with your AI operations team, troubleshooting, and resources."
+      description: "Get help with your platform, troubleshooting, and resources."
     },
   ];
 
@@ -123,7 +123,7 @@ function FaqPage() {
               Common Questions
             </h1>
             <p className="text-xl text-stone-400 max-w-2xl mx-auto">
-              Everything you need to know before we build, deploy, and scale your AI operations team.
+              Everything you need to know before we build and run your automations.
             </p>
           </div>
 

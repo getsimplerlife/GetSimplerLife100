@@ -124,7 +124,7 @@ function QuoteToCashFlow() {
   );
 }
 
-/* ── Outcomes grid ("What your AI team does" — sell outcomes, not agent counts) ── */
+/* ── Outcomes grid ("What the platform does" — sell outcomes, not agent counts) ── */
 const OUTCOMES = [
   { icon: "🧾", t: "Invoice processing", d: "Drafts invoices from signed deals and PO-matched intake.", systems: "Xero · HubSpot" },
   { icon: "🤝", t: "CRM updates", d: "Creates deals + contacts the moment a proposal is signed.", systems: "HubSpot" },
@@ -140,7 +140,7 @@ const STEPS = [
   { n: "02", t: "Design", d: "We design the workflow and show you exactly what the automation will do — and where your team still approves." },
   { n: "03", t: "Build", d: "We build and integrate the workflow across your stack. You don't touch a builder." },
   { n: "04", t: "Test", d: "Every connection is live-verified and every write is tested against your real systems." },
-  { n: "05", t: "Deploy + monitor", d: "We deploy it, watch the connections 24/7, and escalate loudly if anything needs you." },
+  { n: "05", t: "Run + monitor", d: "We run it, watch the connections 24/7, and escalate loudly if anything needs you." },
 ];
 
 function Home() {
@@ -218,7 +218,7 @@ function Home() {
                 <Reveal delay={240}>
                   <p className="max-w-xl text-sm leading-relaxed text-stone-500">
                     Tell us what your team does manually. We'll show you the workflow worth automating first and how
-                    we'd build it. You don't need to learn automation — we build, integrate, deploy, monitor, and
+                    we'd build it. You don't need to learn automation — we build, integrate, run, monitor, and
                     support it for you.
                   </p>
                 </Reveal>
@@ -327,7 +327,7 @@ function Home() {
           </div>
         </section>
 
-        {/* ── 4 · WHAT YOUR AI TEAM DOES (outcomes, not agent counts) ── */}
+        {/* ── 4 · WHAT THE PLATFORM DOES (outcomes, not agent counts) ── */}
         <section className="border-b border-stone-800 bg-stone-900 px-4 py-16 lg:py-24">
           <div className="mx-auto max-w-7xl">
             <div className="mb-12 max-w-2xl space-y-4">
@@ -336,12 +336,12 @@ function Home() {
               </Reveal>
               <Reveal delay={60}>
                 <h2 className="text-3xl font-black leading-tight text-white sm:text-4xl lg:text-5xl">
-                  What your AI team does
+                  What the platform does for your business
                 </h2>
               </Reveal>
               <Reveal delay={120}>
                 <p className="text-lg leading-relaxed text-stone-400">
-                  Not "agents" to manage — work that stops needing your people. Each outcome touches the systems you
+                  Not tools to manage — work that stops needing your people. Each outcome touches the systems you
                   already use.
                 </p>
               </Reveal>
@@ -457,8 +457,8 @@ function Home() {
               </Reveal>
               <Reveal delay={120}>
                 <p className="text-lg leading-relaxed text-stone-400">
-                  You don't need to learn automation. You don't need to build workflows. You don't need to manage AI
-                  agents. We build, integrate, deploy, monitor, and support them for you.
+                  You don't need to learn automation. You don't need to build workflows. You don't need to manage
+                  automations. We build, integrate, run, monitor, and support them for you.
                 </p>
               </Reveal>
             </div>

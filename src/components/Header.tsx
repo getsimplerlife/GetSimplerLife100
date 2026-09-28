@@ -26,8 +26,8 @@ export function Header({ businessName, user }: HeaderProps) {
   const toolLinks = [
     { to: "/tools", label: "🛠️ Tools Hub" },
     { to: "/tools/can-we-automate-this", label: "🔍 Can We Automate This?" },
-    { to: "/tools/ai-advisor", label: "🤖 AI Operations Advisor" },
-    { to: "/tools/assessment", label: "📋 AI Automation Assessment" },
+    { to: "/tools/ai-advisor", label: "🤖 Operations Advisor" },
+    { to: "/tools/assessment", label: "📋 Automation Assessment" },
     { to: "/roi-calculator", label: "📊 ROI Calculator" },
   ];
 

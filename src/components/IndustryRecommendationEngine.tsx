@@ -99,7 +99,7 @@ export function IndustryRecommendationEngine({ industry }: IndustryRecommendatio
           AI Recommendation Engine
         </h2>
         <p className="text-stone-400 text-sm lg:text-base leading-relaxed">
-          Select your business profile, paint points, and software integrations. Our recommendation model will calculate your real-time hours saved and configure the perfect AI Operations Team for your stack.
+          Select your business profile, pain points, and software integrations. Our recommendation model will match your profile, pain points, and software to the right automations for your stack.
         </p>
       </div>
 
@@ -294,8 +294,8 @@ export function IndustryRecommendationEngine({ industry }: IndustryRecommendatio
 
                   <div className="mt-4 pt-4 border-t border-stone-850/60 space-y-3">
                     <div className="flex justify-between text-[10px] font-mono text-stone-500">
-                      <span>Est. ROI Impact:</span>
-                      <span className="text-white font-bold">{card.timeSaved.split(" ")[0]} hrs saved</span>
+                      <span>Automation impact:</span>
+                      <span className="text-white font-bold">{card.timeSaved}</span>
                     </div>
 
                     <a

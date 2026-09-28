@@ -27,10 +27,10 @@ function ROICalculatorPage() {
               Interactive ROI Projections
             </span>
             <h1 className="text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
-              AI Operations ROI Calculator
+              ROI Calculator
             </h1>
             <p className="text-stone-400 text-sm md:text-base leading-relaxed">
-              Quantify your labor waste and calculate the precise break-even and compounding net returns of deploying a dedicated AI Operations Team in your workflows.
+              Quantify your labor waste and calculate the precise break-even and compounding net returns of running automation across your workflows.
             </p>
           </div>
 
@@ -72,7 +72,7 @@ function ROICalculatorPage() {
 
       {/* Footer */}
       <footer className="border-t border-stone-900 bg-stone-950/40 py-8 text-center text-stone-400 text-[10px] tracking-widest uppercase font-mono">
-        &copy; {new Date().getFullYear()} Simpler Life 100 &bull; Strategic AI Operations
+        &copy; {new Date().getFullYear()} Simpler Life 100 &bull; One Platform, Every Capability
       </footer>
 
     </div>

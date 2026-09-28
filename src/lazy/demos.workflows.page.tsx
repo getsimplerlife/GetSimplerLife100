@@ -371,7 +371,7 @@ Simpler Life 100`);
             Interactive AI Playgrounds
           </span>
           <h1 className="text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
-            See AI Operations in Action
+            See Automated Workflows in Action
           </h1>
           <p className="text-stone-400 text-sm md:text-base leading-relaxed">
             Run real-time animated simulations showing exactly how industry-specific automations ingest data, classify intent, extract parameters, and execute downstream operations automatically.
@@ -553,7 +553,7 @@ Simpler Life 100`);
                 <span className="text-4xl">🚀</span>
                 <h4 className="text-sm font-bold text-white mt-4">Waiting to start simulation</h4>
                 <p className="text-xs text-stone-400 mt-1 max-w-xs mx-auto">
-                  Click the "Execute Live Simulation" button on the left to see the step-by-step AI operations workflow.
+                  Click the "Execute Live Simulation" button on the left to see the step-by-step automation workflow.
                 </p>
               </div>
             )}
@@ -778,7 +778,7 @@ Simpler Life 100`);
                             <span className="font-bold text-emerald-400">{crmExtracted.actionTrigger}</span>
                           </div>
                           <div>
-                            <span className="text-stone-400 block">AUTOPILOT DOWNSTREAM TASK</span>
+                            <span className="text-stone-400 block">AUTOMATED DOWNSTREAM TASK</span>
                             <span className="font-bold text-stone-300">{crmExtracted.downstreamTask}</span>
                           </div>
                         </div>
@@ -814,9 +814,9 @@ Simpler Life 100`);
         {/* CTA Footer */}
         <div className="p-8 lg:p-12 bg-gradient-to-r from-emerald-950 via-stone-900 to-stone-950 rounded-3xl border border-stone-900 text-center max-w-4xl mx-auto space-y-6">
           <div className="max-w-xl mx-auto space-y-2">
-            <h3 className="text-2xl font-black text-white">Unlock True Autonomous Operations</h3>
+            <h3 className="text-2xl font-black text-white">Unlock True Automation</h3>
             <p className="text-xs text-stone-400 leading-relaxed font-medium">
-              Simpler Life 100 deploys industry-tailored ops assistants equipped with exact models like these. Zero manual keying, zero scheduling delays, and zero missing receipts.
+              Simpler Life 100 builds industry-tailored automated workflows from verified platform capabilities. Zero manual keying, zero scheduling delays, and zero missing receipts.
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
@@ -839,7 +839,7 @@ Simpler Life 100`);
 
       {/* Footer */}
       <footer className="border-t border-stone-900 bg-stone-950/40 py-8 text-center text-stone-400 text-[10px] tracking-widest uppercase font-mono mt-12">
-        &copy; {new Date().getFullYear()} Simpler Life 100 &bull; Strategic AI Operations
+        &copy; {new Date().getFullYear()} Simpler Life 100 &bull; One Platform, Every Capability
       </footer>
 
     </div>

@@ -104,7 +104,7 @@ function CanWeAutomateThis() {
           Can We <span className="text-emerald-400">Automate</span> This?
         </h1>
         <p className="text-stone-400 text-lg max-w-2xl mx-auto leading-relaxed">
-          Describe any repetitive workflow. We'll match it to the right AI agent.
+          Describe any repetitive workflow. We'll match it to the right automation.
         </p>
       </section>
 
@@ -158,7 +158,7 @@ function CanWeAutomateThis() {
           <div className="bg-gradient-to-br from-emerald-950/40 to-stone-900/80 border border-emerald-900/50 rounded-2xl p-8">
             <div className="text-xs font-mono text-emerald-400 font-bold tracking-wider mb-1">✅ AUTOMATION OPPORTUNITY DETECTED</div>
             <h2 className="text-2xl font-black">{result.topMatch || result.suggestedAgentName}</h2>
-            <p className="text-stone-400 text-sm mt-1">AI agent matched to your workflow</p>
+            <p className="text-stone-400 text-sm mt-1">Automation matched to your workflow</p>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
               <div className="bg-stone-900/80 border border-stone-800 rounded-xl p-4 text-center">
                 <div className="text-2xl font-black text-emerald-400">{result.savingsSummary.split(" ")[0]}</div>
@@ -174,16 +174,16 @@ function CanWeAutomateThis() {
               </div>
               <div className="bg-stone-900/80 border border-stone-800 rounded-xl p-4 text-center">
                 <div className="text-lg font-black text-emerald-400">$99+/mo</div>
-                <div className="text-[10px] font-mono text-stone-400 mt-1">AI AGENT</div>
+                <div className="text-[10px] font-mono text-stone-400 mt-1">AUTOMATION</div>
               </div>
             </div>
             <div className="mt-6 flex gap-3 flex-wrap">
               <a href={result.paymentLink || "https://buy.stripe.com/4gMfZj88TfMz6Hh8TS2Fa1K"} target="_blank" rel="noopener"
                 className="bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-sm px-6 py-3 rounded-xl transition-all">
-                🚀 Deploy This Agent →
+                🚀 Deploy This Automation →
               </a>
               <Link to="/build" className="bg-stone-800 hover:bg-stone-700 text-white font-bold text-sm px-6 py-3 rounded-xl transition-all">
-                🛠️ Build Custom Team
+                🛠️ Build Your Platform
               </Link>
             </div>
           </div>

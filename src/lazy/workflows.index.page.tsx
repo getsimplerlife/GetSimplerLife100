@@ -97,10 +97,10 @@ function AutomationLibraryPage() {
               📦 DEPLOYABLE PLAYGROUND BLUEPRINTS
             </span>
             <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-white leading-tight">
-              AI Operations <span className="text-indigo-400">Library</span>
+              Workflow <span className="text-indigo-400">Library</span>
             </h1>
             <p className="text-stone-400 text-sm md:text-base max-w-2xl mx-auto leading-relaxed">
-              Explore 70+ industry-specific autonomous workflows ready to deploy. Connect directly to your existing software stack and start automating manual workloads.
+              Explore 70+ industry-specific workflows ready to run. Connect directly to your existing software stack and start automating manual workloads.
             </p>
             <p className="text-[11px] font-mono text-stone-500 max-w-xl mx-auto leading-relaxed">
               Time-saved and ROI figures on this page are illustrative capacity estimates, not measured client results.
@@ -382,7 +382,7 @@ function AutomationLibraryPage() {
 
       {/* Footer bar */}
       <footer className="border-t border-stone-900 bg-stone-950/60 py-6 text-center text-xs font-mono text-stone-600">
-        © 2026 Simpler Life 100 — Autonomous Operations Engineering.
+        © 2026 Simpler Life 100 — One Platform, Every Capability.
       </footer>
     </div>
   );

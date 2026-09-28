@@ -83,7 +83,7 @@ export default function WorkflowPage({ data }: { data: WorkflowType }) {
             </div>
             <div className="p-6 bg-stone-950/40 border border-stone-900 rounded-2xl">
               <div className="text-stone-500 font-mono text-[10px] tracking-widest uppercase mb-1">📈 Payback Period</div>
-              <div className="text-xl font-bold text-emerald-400">{w.roiTimeline} average</div>
+              <div className="text-xl font-bold text-emerald-400">{w.roiTimeline}</div>
             </div>
           </div>
         </section>
@@ -105,7 +105,7 @@ export default function WorkflowPage({ data }: { data: WorkflowType }) {
         <section className="px-6 py-16 max-w-4xl mx-auto space-y-12">
           <div className="space-y-2">
             <span className="text-xs font-mono font-bold text-emerald-400 uppercase tracking-widest">[ Step-By-Step Mechanics ]</span>
-            <h2 className="text-3xl font-black text-white">How the Autonomous Coworker Operates</h2>
+            <h2 className="text-3xl font-black text-white">How the Automation Operates</h2>
           </div>
 
           <div className="relative border-l border-stone-850 pl-6 ml-4 space-y-10">

@@ -86,7 +86,7 @@ function AboutPage() {
                 </div>
                 <div>
                   <div className="font-black text-white text-lg">Simpler Life 100</div>
-                  <div className="text-stone-400 font-bold text-sm">The Operations AI Team</div>
+                  <div className="text-stone-400 font-bold text-sm">The Platform Team</div>
                 </div>
               </div>
             </div>
@@ -101,7 +101,7 @@ function AboutPage() {
               {[
                 {
                   title: "Outcome Over Output",
-                  desc: "We don't bill by open-ended hours or report on meaningless progress. We build, integrate, and deploy fully functional AI automations that deliver real, measurable business results."
+                  desc: "We don't bill by open-ended hours or report on meaningless progress. We build, integrate, and run fully functional AI automations that deliver real, measurable business results."
                 },
                 {
                   title: "Respect for Human Labor",
@@ -109,7 +109,7 @@ function AboutPage() {
                 },
                 {
                   title: "Radical Simplicity",
-                  desc: "We don't add more complex portals for your team to learn. Our agents live and work inside the communication tools and platforms your team is already using every single day."
+                  desc: "We don't add more complex portals for your team to learn. Our automations live and work inside the communication tools and platforms your team is already using every single day."
                 },
                 {
                   title: "Continuous Adaptation",

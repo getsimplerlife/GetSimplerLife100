@@ -89,7 +89,7 @@ function AssessmentPage() {
     // Header / Title
     pdf.setFontSize(22);
     pdf.setTextColor(99, 102, 241); // Indigo
-    pdf.text("AI Automation Assessment Report", pageWidth / 2, y, { align: "center" });
+    pdf.text("Automation Assessment Report", pageWidth / 2, y, { align: "center" });
     y += 10;
 
     pdf.setFontSize(10);
@@ -153,7 +153,7 @@ function AssessmentPage() {
 
     pdf.setFontSize(11);
     pdf.setTextColor(16, 185, 129); // Emerald
-    pdf.text("⚡ Phase 1: Quick Wins (2-4 weeks)", 20, y);
+    pdf.text("⚡ Phase 1: Quick Wins", 20, y);
     y += 6;
     pdf.setFontSize(10);
     pdf.setTextColor(75, 85, 99);
@@ -165,7 +165,7 @@ function AssessmentPage() {
     y += 5;
     pdf.setFontSize(11);
     pdf.setTextColor(245, 158, 11); // Amber
-    pdf.text("📅 Phase 2: Medium-Term (4-8 weeks)", 20, y);
+    pdf.text("📅 Phase 2: Medium-Term", 20, y);
     y += 6;
     pdf.setFontSize(10);
     pdf.setTextColor(75, 85, 99);
@@ -182,7 +182,7 @@ function AssessmentPage() {
     y += 15;
     pdf.setFontSize(14);
     pdf.setTextColor(79, 70, 229);
-    pdf.text("Ready to transition to an autonomous operational flow?", pageWidth / 2, y, { align: "center" });
+    pdf.text("Ready to transition to automated operations?", pageWidth / 2, y, { align: "center" });
     y += 8;
     pdf.setFontSize(11);
     pdf.setTextColor(107, 114, 128);
@@ -223,10 +223,10 @@ function AssessmentPage() {
                 ✨ EXPERT SYSTEM DIAGNOSTIC
               </span>
               <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight mb-3 bg-gradient-to-r from-white via-stone-100 to-stone-400 bg-clip-text text-transparent">
-                AI Operations <span className="text-indigo-400">Assessment</span>
+                Automation <span className="text-indigo-400">Assessment</span>
               </h1>
               <p className="text-stone-400 text-sm max-w-lg mx-auto">
-                Evaluate your workflow compatibility for automated AI agents and calculate custom efficiency dividends in minutes.
+                Evaluate your workflow compatibility for automated workflows and calculate custom efficiency dividends in minutes.
               </p>
             </div>
 
@@ -498,7 +498,7 @@ function AssessmentPage() {
                 <div className="bg-emerald-950/10 border border-emerald-900/30 rounded-2xl p-5 flex flex-col justify-between">
                   <div>
                     <h4 className="text-sm font-black text-emerald-400 mb-4 flex items-center gap-2">
-                      <span>⚡</span> Phase 1: Quick Wins (2-4 wks)
+                      <span>⚡</span> Phase 1: Quick Wins
                     </h4>
                     {report.roadmap.quickWins.length > 0 ? (
                       <ul className="space-y-3">
@@ -522,7 +522,7 @@ function AssessmentPage() {
                 <div className="bg-amber-950/10 border border-amber-900/30 rounded-2xl p-5 flex flex-col justify-between">
                   <div>
                     <h4 className="text-sm font-black text-amber-400 mb-4 flex items-center gap-2">
-                      <span>📅</span> Phase 2: Medium-Term (4-8 wks)
+                      <span>📅</span> Phase 2: Medium-Term
                     </h4>
                     {report.roadmap.mediumTerm.length > 0 ? (
                       <ul className="space-y-3">
@@ -546,7 +546,7 @@ function AssessmentPage() {
                 <div className="bg-rose-950/10 border border-rose-900/30 rounded-2xl p-5 flex flex-col justify-between">
                   <div>
                     <h4 className="text-sm font-black text-rose-400 mb-4 flex items-center gap-2">
-                      <span>🏗️</span> Phase 3: Long-Term (8-16 wks)
+                      <span>🏗️</span> Phase 3: Long-Term
                     </h4>
                     {report.roadmap.longTerm.length > 0 ? (
                       <ul className="space-y-3">
@@ -590,7 +590,7 @@ function AssessmentPage() {
               <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_var(--tw-gradient-stops))] from-indigo-500/5 to-transparent pointer-events-none" />
               <h3 className="text-2xl font-black text-white mb-3">Begin Operations Transition</h3>
               <p className="text-sm text-stone-400 mb-8 max-w-md mx-auto leading-relaxed">
-                Connect your business endpoints to an autonomous team and reclaim hours. All blueprints include dedicated implementation audits.
+                Connect your business endpoints to automated workflows and reclaim hours. All blueprints include dedicated implementation audits.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
                 <Link
@@ -618,7 +618,7 @@ function AssessmentPage() {
             <div className="bg-gradient-to-br from-emerald-950/40 to-stone-900/80 border border-emerald-900/50 rounded-3xl p-8 text-center mt-6">
               <h3 className="text-xl font-black text-emerald-400 mb-2">Upgrade to Deep-Dive Audit</h3>
               <p className="text-sm text-stone-400 mb-6 max-w-md mx-auto">
-                Get a comprehensive audit with industry-specific checklists, AI agent recommendations, and a personalized implementation roadmap.
+                Get a comprehensive audit with industry-specific checklists, automation recommendations, and a personalized implementation roadmap.
               </p>
               <div className="grid grid-cols-2 gap-4 mb-6 text-left max-w-md mx-auto">
                 <div className="space-y-1">
@@ -627,7 +627,7 @@ function AssessmentPage() {
                 </div>
                 <div className="space-y-1">
                   <div className="text-xs font-bold text-emerald-400">Paid Audit ($2,500)</div>
-                  <div className="text-[10px] text-stone-500">• 26-industry checklist<br/>• AI agent matching<br/>• Integration roadmap<br/>• PDF blueprint<br/>• 100% credited to build</div>
+                  <div className="text-[10px] text-stone-500">• 26-industry checklist<br/>• Automation matching<br/>• Integration roadmap<br/>• PDF blueprint<br/>• 100% credited to build</div>
                 </div>
               </div>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -659,7 +659,7 @@ function AssessmentPage() {
 
       {/* Footer bar */}
       <footer className="border-t border-stone-900 bg-stone-950/60 py-6 text-center text-xs font-mono text-stone-600">
-        © 2026 Simpler Life 100 — Autonomous Operations Engineering.
+        © 2026 Simpler Life 100 — One Platform, Every Capability.
       </footer>
     </div>
   );
