@@ -3068,7 +3068,7 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
         // Generate contextual response
         const employeesData = readJSON(AI_EMPLOYEES_FILE);
         // ai_employees.json can be {} if seeded before this fix (or missing);
-        // {}.length is undefined -> "undefined AI employees". Fall back to the
+        // {}.length is undefined -> "undefined count". Fall back to the
         // canonical AGENTS list so the count is always real.
         const employees = Array.isArray(employeesData) && employeesData.length > 0 ? employeesData : AGENTS;
         const userIntegrations = readJSON(TENANT_INTEGRATIONS_FILE);
@@ -3126,7 +3126,7 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
         const responseText = createReply !== null ? createReply : `I'm your AI assistant at Simpler Life 100. ${userConns.length > 0 ?
           `I can see you have ${userConns.length} integration(s) connected (${userConns.map((c: any) => c.provider).join(", ")}). ` :
           "You don't have any integrations connected yet — I can help you set those up. "
-        }Our platform has ${employees.length} AI employees available for deployment across 23 industries. How can I help you optimize your operations today?`;
+        }Our platform has ${employees.length} automation blueprints ready to deploy across the industries we serve. How can I help you optimize your operations today?`;
         const msg = { role: "user", content: message, timestamp: new Date().toISOString() };
         const reply = { role: "assistant", content: responseText, timestamp: new Date().toISOString() };
         session.messages.push(msg, reply);

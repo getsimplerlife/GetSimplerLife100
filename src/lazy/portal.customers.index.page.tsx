@@ -7,7 +7,7 @@ import { getAuthMethod, AGENT_TYPES } from "../content/integration-auth-map";
 // they crash SSR with "globalThis.app.config" (vinxi/http context unavailable).
 // Wired to the real portal API: GET /api/portal/connections (list),
 // POST /api/integrations/connect + /api/integrations/disconnect (actions).
-// Agent "Test" and "Route to AI Agent" controls were removed with their
+// Agent-era "Test" and "Route to Agent" controls were removed with their
 // server functions (commit b437a8b) — the backend for them was never
 // restored, and the API exposes no equivalent, so keeping them would throw.
 

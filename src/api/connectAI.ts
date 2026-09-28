@@ -1,7 +1,7 @@
 /**
  * Connect AI — Agent↔Integration Mapping Engine
  *
- * Manages the connections between deployed AI agents and integration providers.
+ * Manages the connections between deployed automations and integration providers.
  * Data stored in portal_data table with section = 'agent_integration_links'.
  */
 

@@ -84,7 +84,7 @@ function KnowledgeBase() {
       <div className="border-b border-stone-900 pb-5">
         <h1 className="text-3xl font-black text-white tracking-tight">🧠 AI Knowledge Base</h1>
         <p className="text-stone-400 text-xs mt-1">
-          Everything the AI coworkers know, aggregate SOPs, prompt blueprints, policy logs, and training matrices in one workspace.
+          Everything your automations rely on — aggregate SOPs, prompt blueprints, policy logs, and training matrices — in one workspace.
         </p>
       </div>
 

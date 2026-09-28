@@ -40,7 +40,7 @@ export async function pollInboxAndProvision(): Promise<{ processedCount: number;
           id: "stripe-receipt-demo-1",
           from: "receipts+nosend@stripe.com",
           subject: "Your Simpler Life 100 Receipt",
-          body: "Thanks for your purchase! Customer: customer-demo@example.com. Product: Document AI System. Amount: $30000.00. Your AI agent is ready to be provisioned.",
+          body: "Thanks for your purchase! Customer: customer-demo@example.com. Product: Document AI System. Amount: $30000.00. Your automation is ready to be provisioned.",
           date: new Date().toISOString(),
         }
       ];
