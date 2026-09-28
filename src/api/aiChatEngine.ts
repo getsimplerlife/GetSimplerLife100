@@ -83,7 +83,7 @@ function getAuthenticatedSystemPrompt(ctx: QueryContext): string {
     ? ctx.employees.map((e: any) =>
         `- ${e.name || "Unnamed"} (${e.role || "Generalist"}): ${e.status || "unknown"}, current task: ${e.currentTask || "idle"}`
       ).join("\n")
-    : "No AI employees deployed yet.";
+    : "No automations configured yet.";
 
   const workflowSummaries = ctx.workflows.length > 0
     ? ctx.workflows.map((w: any) =>
@@ -99,13 +99,13 @@ function getAuthenticatedSystemPrompt(ctx: QueryContext): string {
     `- ${a.title || a.name || "Approval"}: from ${a.employee || a.agent || "AI"} — priority: ${a.priority || "normal"}`
   ).join("\n");
 
-  return `You are the Simpler Life 100 AI Operations Assistant. You have access to this user's live company data and can answer questions about their automations, AI workforce, and operations.
+  return `You are the Simpler Life 100 AI Operations Assistant. You have access to this user's live company data and can answer questions about their automations, workflows, and operations.
 
 USER CONTEXT:
 - Email: ${ctx.userEmail}
 - Integration connections: ${ctx.integrationCount}
 
-AI WORKFORCE (${ctx.employees.length} total, ${activeEmployees} active):
+AUTOMATION WORKERS (${ctx.employees.length} total, ${activeEmployees} active):
 ${employeeSummaries}
 
 WORKFLOWS (${ctx.workflows.length} total, ${failedWorkflows} failed):
@@ -460,7 +460,7 @@ function generateFallbackReply(message: string, isGuest: boolean): string {
   if (lower.includes("hello") || lower.includes("hi ") || lower.includes("hey")) {
     return isGuest
       ? "Hello! I'm the Simpler Life 100 AI Assistant. I can help you understand our platform, pricing, and how we can automate your operations. What would you like to know?"
-      : "Hello! I'm your AI Operations Assistant. I can help you manage your AI workforce, monitor workflows, and answer questions about your operations. How can I help?";
+      : "Hello! I'm your AI Operations Assistant. I can help you manage your automations, monitor workflows, and answer questions about your operations. How can I help?";
   }
 
   if (lower.includes("workflow") || lower.includes("automation")) {

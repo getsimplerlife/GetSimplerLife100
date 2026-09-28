@@ -1,5 +1,5 @@
 /**
- * AI Chat Engine — processes natural language queries about the AI workforce
+ * AI Chat Engine — processes natural language queries about automations and workflows
  * by querying the portal_data database and using the AIEmployee reasoning system.
  *
  * Supports session management (conversation history stored in portal_data).
@@ -78,7 +78,7 @@ export async function getOrCreateSession(
       {
         role: "system",
         content:
-          "You are the Simpler Life 100 AI Operations Assistant. You help users manage their AI workforce, monitor workflows, analyze performance, and answer questions about their automated operations. You have access to the user's portal data including workflows, AI employees, activity logs, and analytics.",
+          "You are the Simpler Life 100 AI Operations Assistant. You help users manage their automations, monitor workflows, analyze performance, and answer questions about their automated operations. You have access to the user's portal data including workflows, activity logs, approvals, and analytics.",
         timestamp: now,
       },
     ],
@@ -151,7 +151,7 @@ async function buildQueryContext(userId: string, userEmail: string): Promise<Que
     );
     context.workflows = wfRows.map((r: any) => (typeof r.data === "string" ? JSON.parse(r.data) : r.data));
 
-    // Fetch AI employees
+    // Fetch worker records (employees data section)
     const empRows = await db.all(
       sql.raw(`SELECT data FROM portal_data WHERE user_id = '${userId}' AND section = 'employees' ORDER BY created_at`)
     );
@@ -377,7 +377,7 @@ function formatEmployeeResponse(_employees: any[], _message: string): ChatRespon
 function formatActivityResponse(activity: any[]): ChatResponse {
   if (activity.length === 0) {
     return {
-      reply: "📊 **Activity Feed**\n\nNo recent activity to show. Activity appears here when your AI employees start processing tasks.",
+      reply: "📊 **Activity Feed**\n\nNo recent activity to show. Activity appears here when your automations process tasks.",
       actions: [{ type: "navigate", label: "Open Activity Feed", payload: { path: "/portal/activity" } }],
     };
   }
@@ -410,7 +410,7 @@ function formatApprovalResponse(approvals: any[]): ChatResponse {
 
   const pending = approvals.filter((a: any) => a.status === "pending" || a.status === "needs_review");
   const lines = pending.slice(0, 5).map((a: any) => {
-    return `📋 **${a.title || a.name || "Approval Request"}**\n   From: ${a.employee || a.agent || "AI Employee"} | Priority: ${a.priority || "Normal"}`;
+    return `📋 **${a.title || a.name || "Approval Request"}**\n   From: ${a.employee || a.agent || "Automation"} | Priority: ${a.priority || "Normal"}`;
   });
 
   return {
@@ -471,10 +471,10 @@ function handleGeneralQuery(message: string, context: QueryContext): ChatRespons
   // Try to understand intent from context
   if (lower.includes("hello") || lower.includes("hi ") || lower.includes("hey")) {
     return {
-      reply: `Hello! 👋 I'm your Simpler Life 100 AI Operations Assistant. I can help you with:\n\n• 📋 **Workflow monitoring** — "Show me every workflow that failed this week"\n• 🤖 **AI Employee status** — "What is Dispatch AI working on?"\n• 💰 **Cost savings** — "How much money did we save?"\n• ⚙️ **Workflow creation** — "Build a workflow for invoice processing"\n• 📊 **Activity tracking** — "What happened recently?"\n\nWhat would you like to explore?`,
+      reply: `Hello! 👋 I'm your Simpler Life 100 AI Operations Assistant. I can help you with:\n\n• 📋 **Workflow monitoring** — "Show me every workflow that failed this week"\n• 🤖 **Automation status** — "What is Dispatch AI working on?"\n• 💰 **Cost savings** — "How much money did we save?"\n• ⚙️ **Workflow creation** — "Build a workflow for invoice processing"\n• 📊 **Activity tracking** — "What happened recently?"\n\nWhat would you like to explore?`,
       actions: [
         { type: "suggest", label: "Show failed workflows", payload: { followUp: "Show me every workflow that failed this week" } },
-        { type: "suggest", label: "Employee status", payload: { followUp: "What are my AI employees working on?" } },
+        { type: "suggest", label: "Automation status", payload: { followUp: "What are my automations working on?" } },
         { type: "suggest", label: "Cost savings", payload: { followUp: "How much money did we save?" } },
       ],
     };
@@ -487,17 +487,17 @@ function handleGeneralQuery(message: string, context: QueryContext): ChatRespons
     const activeEmps = context.employees.filter((e: any) => e.status?.toLowerCase() === "active").length;
 
     return {
-      reply: `Here's a snapshot of your AI Operations:\n\n📋 **${wfCount} workflows** configured\n🤖 **${empCount} AI employees** (${activeEmps} active)\n📊 **${context.activity.length} recent activities** logged\n✅ **${context.approvals.length} pending approvals**\n\nWhat specific area would you like to dive into?`,
+      reply: `Here's a snapshot of your automated operations:\n\n📋 **${wfCount} workflows** configured\n🤖 **${empCount} automation workers** (${activeEmps} active)\n📊 **${context.activity.length} recent activities** logged\n✅ **${context.approvals.length} pending approvals**\n\nWhat specific area would you like to dive into?`,
       actions: [
         { type: "suggest", label: "Show Workflows", payload: { followUp: "Show me all workflows" } },
-        { type: "suggest", label: "Show Employees", payload: { followUp: "Who are my AI employees?" } },
+        { type: "suggest", label: "Show Automations", payload: { followUp: "What automations do I have?" } },
         { type: "suggest", label: "Check Approvals", payload: { followUp: "Show pending approvals" } },
       ],
     };
   }
 
   return {
-    reply: `I'm your AI Operations Assistant. I can help you manage your AI workforce. Here's what I can do:\n\n• Monitor workflow status and failures\n• Check AI employee activity and tasks\n• Analyze cost savings and ROI\n• Generate new workflow blueprints\n• Review pending human approvals\n\nTry asking me something specific about your operations!`,
+    reply: `I'm your AI Operations Assistant. I can help you manage your automations. Here's what I can do:\n\n• Monitor workflow status and failures\n• Check automation activity and tasks\n• Analyze cost savings and ROI\n• Generate new workflow blueprints\n• Review pending human approvals\n\nTry asking me something specific about your operations!`,
     actions: [
       { type: "suggest", label: "What can you do?", payload: { followUp: "What can you help me with?" } },
     ],
