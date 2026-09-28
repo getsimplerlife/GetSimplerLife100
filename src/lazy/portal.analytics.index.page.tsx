@@ -107,13 +107,13 @@ function PerformanceAnalytics() {
           <div className="text-4xl mb-4">📈</div>
           <h3 className="text-lg font-bold text-white mb-2">No analytics telemetry yet</h3>
           <p className="text-sm text-stone-400 mb-6 max-w-sm leading-relaxed">
-            Labor audits, predicted savings, ROI charts, and model execution telemetry will populate automatically once your first AI employee is deployed.
+            Labor audits, predicted savings, ROI charts, and model execution telemetry will populate automatically once your automations start running.
           </p>
           <Link
-            to="/portal/billing"
+            to="/portal/workflows"
             className="inline-flex items-center justify-center bg-white hover:bg-stone-100 text-black font-extrabold px-6 py-3 rounded-xl transition-all font-mono text-xs shadow-lg shadow-white/5 active:scale-95"
           >
-            Deploy an AI Employee
+            Open Workflows
           </Link>
         </div>
       ) : (

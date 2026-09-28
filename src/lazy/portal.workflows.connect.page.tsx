@@ -152,15 +152,15 @@ function ConnectAI() {
         <Header />
         <div className="flex flex-col items-center justify-center py-16 text-center bg-stone-950 border border-stone-900 rounded-2xl">
           <div className="text-4xl mb-4">🔌</div>
-          <h3 className="text-lg font-bold text-white mb-2">No AI agents deployed yet</h3>
+          <h3 className="text-lg font-bold text-white mb-2">Nothing connected yet</h3>
           <p className="text-sm text-stone-400 mb-6 max-w-sm">
-            Deploy AI agents from the marketplace, then return here to connect them to your integrations.
+            Build automations in the Workflow Builder, then return here to map them to your integrations.
           </p>
           <Link
-            to="/portal/employees"
+            to="/portal/workflows/builder"
             className="bg-white hover:bg-stone-200 text-black font-bold text-xs px-5 py-3 rounded-xl transition-all"
           >
-            Deploy AI Employees →
+            Open Workflow Builder →
           </Link>
         </div>
       </div>
@@ -173,7 +173,7 @@ function ConnectAI() {
 
       {/* ─── Quick Stats ─── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <StatCard icon="🤖" label="AI Agents" value={mapping.agents.length} />
+        <StatCard icon="🤖" label="Automations" value={mapping.agents.length} />
         <StatCard
           icon="🔗"
           label="Connections"
@@ -194,7 +194,7 @@ function ConnectAI() {
       {/* ─── Agent Cards Grid ─── */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-bold text-stone-300 uppercase tracking-wider">Deployed AI Agents</h2>
+          <h2 className="text-sm font-bold text-stone-300 uppercase tracking-wider">Mapped Automations</h2>
           <button
             onClick={() => setShowAvailable(!showAvailable)}
             className="text-[10px] font-mono text-stone-500 hover:text-stone-300 transition-colors"
@@ -350,7 +350,7 @@ function Header() {
       <div>
         <h1 className="text-3xl font-black text-white tracking-tight">🔗 Connect AI</h1>
         <p className="text-stone-400 text-xs mt-1">
-          Map your AI agents to integrations — control which data sources each AI can access.
+          Map your automations to integrations — control which data sources each can access.
         </p>
       </div>
       <div className="flex gap-2">
@@ -361,10 +361,10 @@ function Header() {
           ← Workflow Manager
         </Link>
         <Link
-          to="/portal/employees"
+          to="/portal/workflows/builder"
           className="bg-white hover:bg-stone-200 text-black font-bold text-xs px-4 py-2.5 rounded-xl transition-all"
         >
-          Deploy Agents
+          Open Builder
         </Link>
       </div>
     </div>

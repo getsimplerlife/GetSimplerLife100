@@ -197,7 +197,7 @@ function ConnectedAccountsPage() {
                 </span>
               )}
               {!crmCanConnect && (
-                <Link to="/portal/marketplace" className="text-[10px] text-amber-400 hover:text-amber-300 font-bold">
+                <Link to="/pricing" className="text-[10px] text-amber-400 hover:text-amber-300 font-bold">
                   {crmRequiresPack ? "View plans →" : "Get more slots →"}
                 </Link>
               )}
@@ -225,7 +225,7 @@ function ConnectedAccountsPage() {
                 </span>
               )}
               {!erpCanConnect && (
-                <Link to="/portal/marketplace" className="text-[10px] text-amber-400 hover:text-amber-300 font-bold">
+                <Link to="/pricing" className="text-[10px] text-amber-400 hover:text-amber-300 font-bold">
                   {erpRequiresPack ? "View plans →" : "Get more slots →"}
                 </Link>
               )}

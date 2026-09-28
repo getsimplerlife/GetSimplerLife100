@@ -12,14 +12,14 @@ function AdminAnalyticsPage() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-black text-white tracking-tight">Platform Analytics</h1>
-        <p className="text-stone-400 mt-1">Global usage metrics across all customers and AI employees.</p>
+        <p className="text-stone-400 mt-1">Global usage metrics across all customers and automations.</p>
       </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { label: "Total API Calls", value: stats.totalCalls || "—", color: "text-white" },
-          { label: "Active AI Agents", value: stats.activeAgents || "—", color: "text-emerald-400" },
+          { label: "Active Automations", value: stats.activeAgents || "—", color: "text-emerald-400" },
           { label: "Documents Processed", value: stats.documents || "—", color: "text-blue-400" },
           { label: "Uptime", value: stats.uptime || "—", color: "text-amber-400" },
         ].map(s => (
@@ -73,7 +73,7 @@ function AdminAnalyticsPage() {
       <div className="bg-stone-900 border border-stone-800 rounded-2xl overflow-hidden">
         <div className="grid grid-cols-12 gap-4 px-6 py-3 bg-stone-950 border-b border-stone-800 text-[10px] font-mono text-stone-500 uppercase tracking-wider font-bold">
           <div className="col-span-4">Customer</div>
-          <div className="col-span-2">AI Agents</div>
+          <div className="col-span-2">Automations</div>
           <div className="col-span-2">Workflows</div>
           <div className="col-span-2">API Calls (30d)</div>
           <div className="col-span-2">Status</div>

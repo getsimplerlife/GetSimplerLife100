@@ -206,8 +206,6 @@ function PortalLayout() {
 
   const navLinks = [
     { name: "Dashboard", subtitle: "Tasks · Reports · Approvals", path: "/portal", icon: "🏠", section: "Overview" },
-    { name: "AI Employees", subtitle: "Your AI Workforce", path: "/portal/employees", icon: "🤖", section: "AI Workforce" },
-    { name: "Marketplace", subtitle: "Discover AI Agents", path: "/portal/marketplace", icon: "🛒", section: "AI Workforce" },
     { name: "Workflows", subtitle: "Builder · Management", path: "/portal/workflows", icon: "⚡", section: "Operations" },
     { name: "Documents", subtitle: "Upload · Process · Export", path: "/portal/documents", icon: "📁", section: "Operations" },
     { name: "Document Vault", subtitle: "Native capture · Filing · Rules", path: "/portal/vault", icon: "🗄️", section: "Operations" },
@@ -225,8 +223,6 @@ function PortalLayout() {
 
   const mobileLinks = [
     { name: "Dashboard", path: "/portal", icon: "🏠" },
-    { name: "Employees", path: "/portal/employees", icon: "🤖" },
-    { name: "Marketplace", path: "/portal/marketplace", icon: "🛒" },
     { name: "AI Chat", path: "/portal/chat", icon: "💬" },
     { name: "CRM", path: "/portal/crm", icon: "👥" },
     { name: "ERP", path: "/portal/erp", icon: "🏢" },

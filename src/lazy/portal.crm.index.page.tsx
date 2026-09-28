@@ -182,7 +182,7 @@ function CRMPortal() {
           </div>
           {!slots.isOwner && slots.remainingSlots === 0 && (
             <Link
-              to="/portal/marketplace"
+              to="/pricing"
               className="inline-flex items-center gap-2 bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-xl font-bold text-sm transition-all"
             >
               Upgrade →
@@ -349,7 +349,7 @@ function CRMPortal() {
             Browse All Integrations →
           </Link>
           {!slots.isOwner && slots.remainingSlots === 0 && (
-            <Link to="/portal/marketplace" className="text-amber-400 font-bold text-sm hover:text-amber-300">
+            <Link to="/pricing" className="text-amber-400 font-bold text-sm hover:text-amber-300">
               Get More Slots →
             </Link>
           )}

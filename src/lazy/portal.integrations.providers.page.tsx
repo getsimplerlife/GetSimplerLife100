@@ -91,7 +91,7 @@ function ProviderDirectoryPage() {
         <div>
           <h1 className="text-3xl font-black text-white tracking-tight">🏢 Platform Directory</h1>
           <p className="text-stone-400 text-xs mt-1">
-            Browse our directory of 133+ third-party integrations and connect them directly to your AI operations runtime.
+            Browse our directory of 133+ third-party integrations and connect them directly into your platform.
           </p>
         </div>
       </div>

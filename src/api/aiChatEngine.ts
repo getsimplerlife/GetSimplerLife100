@@ -304,12 +304,12 @@ function extractActions(reply: string): ChatAction[] {
 
   const navPatterns: { pattern: RegExp; path: string; label: string }[] = [
     { pattern: /workflow/i, path: "/portal/workflows", label: "View Workflows" },
-    { pattern: /employee|agent|workforce/i, path: "/portal/employees", label: "View AI Employees" },
+    { pattern: /employee|workforce|agent/i, path: "/portal/automations", label: "View Automations" },
     { pattern: /approval/i, path: "/portal/approvals", label: "Review Approvals" },
     { pattern: /dashboard|analytics/i, path: "/portal/dashboard", label: "Open Dashboard" },
     { pattern: /integration/i, path: "/portal/integrations", label: "Manage Integrations" },
     { pattern: /billing|plan|subscription/i, path: "/portal/billing", label: "View Billing" },
-    { pattern: /deploy|marketplace/i, path: "/portal/employees", label: "AI Employees Marketplace" },
+    { pattern: /deploy|marketplace/i, path: "/portal/integrations", label: "Explore Integrations" },
     { pattern: /document|upload|ocr/i, path: "/portal/documents", label: "Upload Documents" },
     { pattern: /knowledge|rag|search/i, path: "/portal/knowledge-base", label: "Knowledge Base" },
   ];
@@ -476,7 +476,7 @@ function generateFallbackReply(message: string, isGuest: boolean): string {
   if (lower.includes("employee") || lower.includes("agent") || lower.includes("ai team")) {
     return isGuest
       ? "Our platform automates document processing, healthcare intake, invoice management, sales follow-up, HR compliance, dispatch logistics, customer support, IT operations, financial planning, and more — every capability is included in every plan. Which area interests you?"
-      : "You can view all your AI employees in the Employee Directory. Deploy new agents from the AI Employees Marketplace.";
+      : "Your automations are built in the Workflow Builder and run through your approval queue — open Workflows to configure them, or review pending Approvals.";
   }
 
   if (lower.includes("integration") || lower.includes("connect")) {

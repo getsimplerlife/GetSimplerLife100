@@ -146,7 +146,7 @@ function CRMERPConnectorPage() {
       {/* Header */}
       <div className="px-6 pt-8 pb-4 border-b border-stone-900">
         <h2 className="text-xl font-extrabold text-white">CRM & ERP Universal Connector</h2>
-        <p className="text-xs text-stone-500 mt-1">Connect your CRM and ERP systems. Data routes automatically to your AI Operations Team.</p>
+        <p className="text-xs text-stone-500 mt-1">Connect your CRM and ERP systems. Data routes automatically into your automations.</p>
       </div>
 
       {/* Stats Dashboard */}
@@ -318,7 +318,7 @@ function CRMERPConnectorPage() {
           <div className="bg-stone-900/20 border border-stone-800 border-dashed rounded-3xl p-10 max-w-lg mx-auto space-y-4">
             <div className="text-3xl">🔌</div>
             <h3 className="text-sm font-black text-white">No CRM/ERP Connections Yet</h3>
-            <p className="text-xs text-stone-500">Connect your first CRM or ERP system above. Once connected, data flows automatically to your assigned AI agents.</p>
+            <p className="text-xs text-stone-500">Connect your first CRM or ERP system above. Once connected, data flows automatically into your automations.</p>
             <Link to="/integrations" className="inline-block text-[10px] font-mono font-bold text-indigo-400 hover:text-indigo-300 border border-indigo-500/20 rounded-lg px-4 py-2">
               Browse Full Catalog →
             </Link>

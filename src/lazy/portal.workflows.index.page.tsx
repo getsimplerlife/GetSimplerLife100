@@ -272,7 +272,7 @@ function WorkflowManager() {
                 <div className="bg-stone-900/40 rounded-xl border border-dashed border-stone-850 p-3.5 flex items-center justify-center gap-1.5 select-none text-[10px]">
                   <span className="font-bold text-stone-500">Trigger</span>
                   <span className="text-stone-700">➜</span>
-                  <span className="font-black text-emerald-400 bg-emerald-950/20 border border-emerald-900/30 px-2 py-0.5 rounded">AI Employee</span>
+                  <span className="font-black text-emerald-400 bg-emerald-950/20 border border-emerald-900/30 px-2 py-0.5 rounded">Automation</span>
                   <span className="text-stone-700">➜</span>
                   <span className="font-bold text-stone-500">Action</span>
                 </div>
@@ -398,7 +398,7 @@ function WorkflowManager() {
 
               <div>
                 <label className="block text-[10px] font-mono tracking-wider uppercase text-stone-500 mb-2">
-                  Assigned AI Employee
+                  Assigned Automation
                 </label>
                 <select
                   value={selectedAgentId}
@@ -408,7 +408,7 @@ function WorkflowManager() {
                   }}
                   className="w-full bg-stone-900 border border-stone-850 rounded-xl px-4 py-3 text-xs outline-none focus:border-stone-700 font-bold text-stone-200"
                 >
-                  <option value="">Select AI employee...</option>
+                  <option value="">Select automation...</option>
                   {purchasedAgents.length === 0 ? (
                     <option value="" disabled>No purchased agents — visit Marketplace</option>
                   ) : (
