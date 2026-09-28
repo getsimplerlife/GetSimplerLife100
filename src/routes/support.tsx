@@ -22,8 +22,8 @@ const supportTiers = [
       'Self-serve help + documentation',
       'Automation Sprint available when you need it',
     ],
-    cta: 'See Pricing',
-    link: '/pricing',
+    cta: 'Buy Starter',
+    link: 'https://buy.stripe.com/eVq5kC7qQ0909zV0sJ5os00',
     popular: false,
   },
   {
@@ -39,8 +39,8 @@ const supportTiers = [
       'Higher scale limits',
       'Onboarding to your first workflows',
     ],
-    cta: 'See Pricing',
-    link: '/pricing',
+    cta: 'Buy Growth',
+    link: 'https://buy.stripe.com/fZubJ0h1qbRI5jFcbr5os01',
     popular: true,
   },
   {
@@ -56,8 +56,8 @@ const supportTiers = [
       'Highest scale limits',
       'Advanced governance + autonomy allow-lists',
     ],
-    cta: 'Contact for Quote',
-    link: '/contact',
+    cta: 'Buy Enterprise',
+    link: 'https://buy.stripe.com/fZu28qfXmaNEdQb2AR5os02',
     popular: false,
   },
 ];
@@ -127,6 +127,8 @@ function SupportPage() {
                 </ul>
                 <a
                   href={tier.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className={`block w-full text-center py-5 rounded-2xl font-black text-xl transition-all shadow-lg ${
                     tier.popular
                       ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-100 hover:scale-[1.02]'

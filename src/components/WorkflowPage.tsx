@@ -154,7 +154,7 @@ export default function WorkflowPage({ data }: { data: WorkflowType }) {
             <div className="text-center md:text-right shrink-0">
               <div className="text-4xl font-mono font-black text-white mb-2">{currentPrice.price}</div>
               <a
-                href={w.priceTier === 'starter' ? 'https://buy.stripe.com/3cI8wR88Tasfc1B9XW2Fa2K' : w.priceTier === 'growth' ? 'https://buy.stripe.com/5kQ6oJbl5dErc1B1rq2Fa2L' : 'https://buy.stripe.com/aFa7sN60LdErc1B5HG2Fa2M'}
+                href={w.priceTier === 'starter' ? 'https://buy.stripe.com/eVq5kC7qQ0909zV0sJ5os00' : w.priceTier === 'growth' ? 'https://buy.stripe.com/fZubJ0h1qbRI5jFcbr5os01' : 'https://buy.stripe.com/fZu28qfXmaNEdQb2AR5os02'}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-block bg-emerald-600 hover:bg-emerald-500 text-stone-950 px-6 py-2.5 rounded-xl text-xs font-bold uppercase font-mono tracking-wider transition-colors"

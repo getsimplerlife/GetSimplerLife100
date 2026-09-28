@@ -590,10 +590,11 @@ function Home() {
                   features: [
                     "100% of native capabilities — records, forms, docs/e-sign, webhooks, booking, boards, AI extraction, surveys/NPS, transforms/EDI, dashboards/BI, automations",
                     "Approval-queue control with per-workflow autonomy allow-lists",
-                    "1 connection pack (CRM or ERP — your choice)",
+                    "Onboarding to your first workflows",
                     "Standard support",
                   ],
                   highlight: false,
+                  ctaHref: "https://buy.stripe.com/eVq5kC7qQ0909zV0sJ5os00",
                 },
                 {
                   name: "Growth",
@@ -608,6 +609,7 @@ function Home() {
                     "Priority support",
                   ],
                   highlight: true,
+                  ctaHref: "https://buy.stripe.com/fZubJ0h1qbRI5jFcbr5os01",
                 },
                 {
                   name: "Enterprise",
@@ -623,6 +625,7 @@ function Home() {
                     "Custom on-demand vendor-API builds (SAP BAPI, SuiteScript)",
                   ],
                   highlight: false,
+                  ctaHref: "https://buy.stripe.com/fZu28qfXmaNEdQb2AR5os02",
                 },
               ].map((t) => (
                 <div
@@ -645,6 +648,18 @@ function Home() {
                       </li>
                     ))}
                   </ul>
+                  <a
+                    href={t.ctaHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`mt-6 block text-center py-3 rounded-xl font-bold text-sm transition-all ${
+                      t.highlight
+                        ? "bg-stone-900 text-white hover:bg-stone-800"
+                        : "bg-emerald-500 hover:bg-emerald-400 text-black"
+                    }`}
+                  >
+                    Choose {t.name} →
+                  </a>
                 </div>
               ))}
             </div>
