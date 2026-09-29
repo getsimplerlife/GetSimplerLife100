@@ -44,7 +44,7 @@ export const resources: Resource[] = [
     title: "Patient Intake Optimization Workbook",
     type: "template",
     description:
-      "Map your complete patient intake journey — from first contact through registration, insurance verification, and clinical intake. Identify manual touchpoints, data re-entry, and opportunities to digitize with AI agents.",
+      "Map your complete patient intake journey — from first contact through registration, insurance verification, and clinical intake. Identify manual touchpoints, data re-entry, and opportunities to digitize.",
     industry: ["healthcare"],
     format: "Google Doc",
   },
@@ -107,7 +107,7 @@ export const resources: Resource[] = [
     title: "ERP Integration Blueprint",
     type: "guide",
     description:
-      "Technical guide for integrating AI agents with SAP, Oracle NetSuite, Microsoft Dynamics 365, and other major ERP systems. Covers API patterns, data mapping strategies, error handling, and security considerations.",
+      "Technical guide for integrating AI automations with SAP, Oracle NetSuite, Microsoft Dynamics 365, and other major ERP systems. Covers API patterns, data mapping strategies, error handling, and security considerations.",
     industry: ["manufacturing", "energy", "logistics", "retail", "financial-services"],
     format: "PDF",
   },

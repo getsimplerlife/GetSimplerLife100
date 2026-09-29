@@ -26,7 +26,7 @@ const steps = [
   {
     id: 4,
     title: "Step 4: View Results",
-    description: "The final blueprint is delivered directly in the portal. It highlights exactly where waste is occurring and provides a prioritized roadmap for AI agent deployment.",
+    description: "The final blueprint is delivered directly in the portal. It highlights exactly where waste is occurring and provides a prioritized roadmap for AI automation deployment.",
     action: "View Sample Results",
     badge: "Outcome"
   },

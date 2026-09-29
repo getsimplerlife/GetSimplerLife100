@@ -119,7 +119,7 @@ export const industries: IndustryHub[] = [
     tagline: "Ship faster. Optimize routes. Eliminate delays.",
     hook: "Logistics profits are made or lost on route efficiency and delivery accuracy.",
     description:
-      "The logistics industry runs on paper — dispatch boards, delivery receipts, driver logs, and freight invoices that all require manual processing. Simpler Life 100 eliminates this paperwork with AI agents that automate dispatch scheduling, real-time route optimization, carrier rate comparisons, proof-of-delivery capture, and freight audit reconciliation. Your team gains hours every day while your on-time performance climbs.",
+      "The logistics industry runs on paper — dispatch boards, delivery receipts, driver logs, and freight invoices that all require manual processing. Simpler Life 100 eliminates this paperwork with automations that handle dispatch scheduling, real-time route optimization, carrier rate comparisons, proof-of-delivery capture, and freight audit reconciliation. Your team gains hours every day while your on-time performance climbs.",
     painPoints: [
       {
         title: "Manual Dispatch Scheduling",
@@ -395,7 +395,7 @@ export const industries: IndustryHub[] = [
     tagline: "Meet every regulatory requirement — automatically",
     hook: "Financial services face the heaviest compliance burden of any industry.",
     description:
-      "Banks, fintechs, and investment firms operate under a microscope of regulatory scrutiny. Non-compliance is not an option, yet compliance teams spend weeks manually collecting evidence, reconciling transactions, and preparing for exams. Simpler Life 100 deploys AI agents that continuously monitor regulatory changes, map controls to requirements, generate audit-ready evidence packages, and automate KYC/AML workflows — passing every exam with zero findings.",
+      "Banks, fintechs, and investment firms operate under a microscope of regulatory scrutiny. Non-compliance is not an option, yet compliance teams spend weeks manually collecting evidence, reconciling transactions, and preparing for exams. Simpler Life 100 deploys automations that continuously monitor regulatory changes, map controls to requirements, generate audit-ready evidence packages, and automate KYC/AML workflows — passing every exam with zero findings.",
     painPoints: [
       {
         title: "Manual Audit Evidence Collection",
@@ -489,7 +489,7 @@ export const industries: IndustryHub[] = [
     tagline: "Meet every regulatory requirement — automatically",
     hook: "Financial services face the heaviest compliance burden of any industry.",
     description:
-      "Banks, fintechs, and investment firms operate under a microscope of regulatory scrutiny. Non-compliance is not an option, yet compliance teams spend weeks manually collecting evidence, reconciling transactions, and preparing for exams. Simpler Life 100 deploys AI agents that continuously monitor regulatory changes, map controls to requirements, generate audit-ready evidence packages, and automate KYC/AML workflows — passing every exam with zero findings.",
+      "Banks, fintechs, and investment firms operate under a microscope of regulatory scrutiny. Non-compliance is not an option, yet compliance teams spend weeks manually collecting evidence, reconciling transactions, and preparing for exams. Simpler Life 100 deploys automations that continuously monitor regulatory changes, map controls to requirements, generate audit-ready evidence packages, and automate KYC/AML workflows — passing every exam with zero findings.",
     painPoints: [
       {
         title: "Manual Audit Evidence Collection",
@@ -583,7 +583,7 @@ export const industries: IndustryHub[] = [
     tagline: "Grid-scale efficiency. Automated asset management.",
     hook: "Manual overhead in the energy sector eats into margins through manual intake and asset inspections.",
     description:
-      "Energy companies manage thousands of assets across vast geographic areas — from wellheads to wind turbines. Each asset generates inspection reports, maintenance logs, compliance documentation, and production data that must be processed manually. Simpler Life 100's AI agents automate asset data intake, inspection report generation, predictive maintenance scheduling, and regulatory filing preparation — giving you 24/7 operational visibility and eliminating weeks of manual reporting every quarter.",
+      "Energy companies manage thousands of assets across vast geographic areas — from wellheads to wind turbines. Each asset generates inspection reports, maintenance logs, compliance documentation, and production data that must be processed manually. Simpler Life 100's automations handle asset data intake, inspection report generation, predictive maintenance scheduling, and regulatory filing preparation — giving you 24/7 operational visibility and eliminating weeks of manual reporting every quarter.",
     painPoints: [
       {
         title: "Asset Data Intake Overload",
