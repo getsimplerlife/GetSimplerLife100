@@ -58,7 +58,6 @@ export function Header({ businessName, user }: HeaderProps) {
   const learnActive = groupActive(["/faq", "/case-studies", "/resources", "/demos", "/security", "/you-stay-in-control", "/support", "/about", "/contact"]);
 
   const renderDropdown = (
-    key: string,
     label: string,
     active: boolean,
     links: { to: string; label: string }[]
@@ -122,7 +121,7 @@ export function Header({ businessName, user }: HeaderProps) {
         </Link>
 
         <nav className="hidden lg:flex gap-5 xl:gap-7 items-center" aria-label="Main navigation">
-          {renderDropdown("platform", "Platform", platformActive, platformLinks)}
+          {renderDropdown("Platform", platformActive, platformLinks)}
 
           <div className="relative group">
             <button type="button" aria-haspopup="true" className={`text-sm font-bold transition-colors flex items-center gap-1 cursor-pointer ${
@@ -149,8 +148,8 @@ export function Header({ businessName, user }: HeaderProps) {
             </div>
           </div>
 
-          {renderDropdown("tools", "Tools", toolsActive, toolLinks)}
-          {renderDropdown("learn", "Learn", learnActive, learnLinks)}
+          {renderDropdown("Tools", toolsActive, toolLinks)}
+          {renderDropdown("Learn", learnActive, learnLinks)}
 
           <Link to="/pricing" className={navLinkClass("/pricing")}>Pricing</Link>
 
