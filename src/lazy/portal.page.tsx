@@ -379,7 +379,7 @@ function PortalLayout() {
             {pwaPrompt && (
               <button
                 onClick={handleInstallPwa}
-                className="inline-flex items-center gap-2 px-3 py-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-[10px] tracking-widest uppercase rounded-lg shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all"
+                className="inline-flex items-center gap-2 px-3 py-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-[10px] tracking-widest uppercase rounded-lg shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all"
               >
                 <span>📥</span>
                 <span>Install Web App</span>

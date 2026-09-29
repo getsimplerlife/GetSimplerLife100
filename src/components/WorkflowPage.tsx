@@ -1,18 +1,16 @@
 import { Link } from "@tanstack/react-router";
 import type { Workflow as WorkflowType } from "~/content/workflows";
+import { TIER_META, resolveWorkflowTier } from "~/content/workflow-tiers";
 
 export default function WorkflowPage({ data }: { data: WorkflowType }) {
   const w = data;
 
-  // LOCKED PLATFORM TIERS (owner 09-27): monthly platform pricing, all
-  // capabilities in every tier — no per-employee fees.
-  const priceMap = {
-    starter: { name: "Starter", price: "$199/mo" },
-    growth: { name: "Growth", price: "$599/mo" },
-    scale: { name: "Enterprise", price: "$1,499/mo" },
-  };
-
-  const currentPrice = priceMap[w.priceTier] || priceMap.starter;
+  // LOCKED PLATFORM TIERS (owner 09-27): one platform, every capability in every
+  // tier — no per-employee fees. Tier resolved against the workflow LIBRARY's
+  // difficulty mapping (single source of truth), so this detail page and the
+  // /workflows library always label the same workflow the same way.
+  const tierKey = resolveWorkflowTier(w.name, w.priceTier);
+  const currentMeta = TIER_META[tierKey];
 
   return (
     <div className="flex flex-col min-h-screen bg-stone-950 text-stone-100 font-sans">
@@ -43,7 +41,7 @@ export default function WorkflowPage({ data }: { data: WorkflowType }) {
                 ACTIVE WORKFLOW
               </span>
               <span className="text-[11px] font-mono text-stone-400 bg-stone-900 px-2.5 py-1 rounded-md border border-stone-800 uppercase">
-                Tier: {currentPrice.name}
+                Tier: {currentMeta.name}
               </span>
             </div>
             
@@ -147,19 +145,19 @@ export default function WorkflowPage({ data }: { data: WorkflowType }) {
         <section className="px-6 py-16 bg-stone-900/20 border-t border-stone-900">
           <div className="premium-card max-w-4xl mx-auto p-8 rounded-3xl flex flex-col md:flex-row justify-between items-center gap-6">
             <div className="space-y-2">
-              <span className="text-xs font-mono font-bold text-emerald-400 uppercase tracking-widest">[ One-time setup fee ]</span>
-              <h3 className="text-2xl font-black text-white">{currentPrice.name} Automated Deployment</h3>
+              <span className="text-xs font-mono font-bold text-emerald-400 uppercase tracking-widest">[ Platform subscription ]</span>
+              <h3 className="text-2xl font-black text-white">{currentMeta.name} — full platform access</h3>
               <p className="text-stone-400 text-xs">Includes 30 days of hyper-care engineering support and workflow customization.</p>
             </div>
             <div className="text-center md:text-right shrink-0">
-              <div className="text-4xl font-mono font-black text-white mb-2">{currentPrice.price}</div>
+              <div className="text-4xl font-mono font-black text-white mb-2">{currentMeta.price}</div>
               <a
-                href={w.priceTier === 'starter' ? 'https://buy.stripe.com/eVq5kC7qQ0909zV0sJ5os00' : w.priceTier === 'growth' ? 'https://buy.stripe.com/fZubJ0h1qbRI5jFcbr5os01' : 'https://buy.stripe.com/fZu28qfXmaNEdQb2AR5os02'}
+                href={currentMeta.stripeLink}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-block bg-emerald-600 hover:bg-emerald-500 text-stone-950 px-6 py-2.5 rounded-xl text-xs font-bold uppercase font-mono tracking-wider transition-colors"
               >
-                Buy Now — {currentPrice.price} →
+                Buy Now — {currentMeta.price} →
               </a>
             </div>
           </div>
@@ -175,7 +173,7 @@ export default function WorkflowPage({ data }: { data: WorkflowType }) {
             </p>
             <div className="pt-4">
               <Link to="/build" className="bg-white hover:bg-stone-200 text-stone-950 px-8 py-3.5 rounded-xl text-sm font-black inline-block transition-all transform hover:-translate-y-0.5 shadow-xl">
-                Configure This Agent In Portal
+                Configure This Workflow In Your Portal
               </Link>
             </div>
           </div>
