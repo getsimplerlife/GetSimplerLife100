@@ -212,6 +212,7 @@ function PortalLayout() {
     { name: "File Library", subtitle: "View · Edit · Print · Download", path: "/portal/files", icon: "📚", section: "Operations" },
     { name: "Approvals", subtitle: "Review · Authorize", path: "/portal/approvals", icon: "📋", section: "Operations" },
     { name: "AI Chat", subtitle: "Advisor · Assistant", path: "/portal/chat", icon: "💬", section: "Communications" },
+    { name: "Assistant", subtitle: "Ask · Draft answers · Audit", path: "/portal/assistant", icon: "✨", section: "Communications" },
     { name: "Communications", subtitle: "Messages · Log", path: "/portal/communications", icon: "📡", section: "Communications" },
     { name: "Integrations", subtitle: "Full 180+ Catalog", path: "/portal/integrations", icon: "🔌", section: "Connect" },
     { name: "CRM", subtitle: "Salesforce · HubSpot · Pipedrive", path: "/portal/crm", icon: "👥", section: "Connect" },
@@ -224,6 +225,7 @@ function PortalLayout() {
   const mobileLinks = [
     { name: "Dashboard", path: "/portal", icon: "🏠" },
     { name: "AI Chat", path: "/portal/chat", icon: "💬" },
+    { name: "Assistant", path: "/portal/assistant", icon: "✨" },
     { name: "CRM", path: "/portal/crm", icon: "👥" },
     { name: "ERP", path: "/portal/erp", icon: "🏢" },
     { name: "Settings", path: "/portal/settings", icon: "⚙️", badge: unreadCount },
