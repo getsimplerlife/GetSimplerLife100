@@ -18,18 +18,21 @@ export function Footer() {
             <div className="space-y-2">
               <Link to="/how-it-works" className="block text-stone-400 hover:text-white text-sm transition-colors">How It Works</Link>
               <Link to="/features" className="block text-stone-400 hover:text-white text-sm transition-colors">Features</Link>
-              <Link to="/build" className="block text-stone-400 hover:text-white text-sm transition-colors">Build Your Team</Link>
-              <Link to="/tools" className="block text-stone-400 hover:text-white text-sm transition-colors">Free Tools</Link>
+              <Link to="/workflows" className="block text-stone-400 hover:text-white text-sm transition-colors">Workflow Library</Link>
+              <Link to="/integrations" className="block text-stone-400 hover:text-white text-sm transition-colors">Integrations &amp; Capabilities</Link>
               <Link to="/pricing" className="block text-stone-400 hover:text-white text-sm transition-colors">Pricing</Link>
+              <Link to="/build" className="block text-stone-400 hover:text-white text-sm transition-colors">Builder</Link>
             </div>
           </div>
           <div>
-            <h4 className="text-white font-bold text-sm mb-3">Company</h4>
+            <h4 className="text-white font-bold text-sm mb-3">Learn</h4>
             <div className="space-y-2">
-              <Link to="/about" className="block text-stone-400 hover:text-white text-sm transition-colors">About</Link>
+              <Link to="/industries" className="block text-stone-400 hover:text-white text-sm transition-colors">Industries</Link>
               <Link to="/case-studies" className="block text-stone-400 hover:text-white text-sm transition-colors">Case Studies</Link>
-              <Link to="/contact" className="block text-stone-400 hover:text-white text-sm transition-colors">Contact</Link>
-              <Link to="/demo" className="block text-stone-400 hover:text-white text-sm transition-colors">Request Demo</Link>
+              <Link to="/resources" className="block text-stone-400 hover:text-white text-sm transition-colors">Resources</Link>
+              <Link to="/demos" className="block text-stone-400 hover:text-white text-sm transition-colors">Demos</Link>
+              <Link to="/roi-calculator" className="block text-stone-400 hover:text-white text-sm transition-colors">ROI Calculator</Link>
+              <Link to="/tools" className="block text-stone-400 hover:text-white text-sm transition-colors">Free Tools</Link>
             </div>
           </div>
           <div>
@@ -41,12 +44,15 @@ export function Footer() {
             </div>
           </div>
           <div>
-            <h4 className="text-white font-bold text-sm mb-3">Support</h4>
+            <h4 className="text-white font-bold text-sm mb-3">Company &amp; Support</h4>
             <div className="space-y-2">
+              <Link to="/about" className="block text-stone-400 hover:text-white text-sm transition-colors">About</Link>
+              <Link to="/contact" className="block text-stone-400 hover:text-white text-sm transition-colors">Contact</Link>
               <Link to="/faq" className="block text-stone-400 hover:text-white text-sm transition-colors">FAQ</Link>
               <Link to="/support" className="block text-stone-400 hover:text-white text-sm transition-colors">Help Center</Link>
-              <Link to="/login" className="block text-stone-400 hover:text-white text-sm transition-colors">Login</Link>
+              <Link to="/demo" className="block text-stone-400 hover:text-white text-sm transition-colors">Request Demo</Link>
               <Link to="/register" className="block text-stone-400 hover:text-white text-sm transition-colors">Register</Link>
+              <Link to="/login" className="block text-stone-400 hover:text-white text-sm transition-colors">Login</Link>
             </div>
           </div>
         </div>

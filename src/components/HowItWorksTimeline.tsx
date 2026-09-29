@@ -71,7 +71,7 @@ const steps: TimelineStep[] = [
     week: "Week 5",
     title: "Go-Live & Human-in-the-Loop Integration",
     benefit: "Continuous Operations",
-    description: "We launch the AI agents into production. Your team is onboarded to review low-confidence tasks directly inside their portal.",
+    description: "We launch the automations into production. Your team is onboarded to review low-confidence tasks directly inside their portal.",
     details: [
       "Gradual production phase-in starting with 10% volume",
       "Team training on simple approval panels",
