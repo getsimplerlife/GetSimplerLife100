@@ -1,7 +1,7 @@
 {
   "name": "Simpler Life 100",
   "short_name": "Simpler Life",
-  "description": "Premium Vertical AI Employee Platform",
+  "description": "AI platform for client operations — proposals, e-sign, checklists, deal rooms, invoices and filings in one place.",
   "start_url": "/portal",
   "display": "standalone",
   "background_color": "#000000",
