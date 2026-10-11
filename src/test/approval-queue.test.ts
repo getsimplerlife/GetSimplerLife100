@@ -100,6 +100,10 @@ describe("write-action classification", () => {
       // queue (the standing 2.5/3.1/3.2/3.3/3.4/3.5/3.6 fail-open guard).
       "createRule", "updateRule", "activateRule", "pauseRule",
       "archiveRule", "deleteRule", "sendAutomationNotification", "publishAutomationWebhook",
+      // 3.8 assistant: `ask` ADDED to WRITE_VERB so the verb-first
+      // askAssistant is gated (without it the ask write would be classified
+      // a READ and BYPASS the Approval Queue — the standing fail-open guard).
+      "askAssistant",
     ]) {
       expect(isWriteAction(name), name).toBe(true);
     }
@@ -110,6 +114,8 @@ describe("write-action classification", () => {
       "healthCheck", "xeroHealthCheck", "getGoogleSheet", "searchSlackMessages",
       "getGmailMessage", "searchJiraIssues", "downloadGDriveFile", "getSalesforceContact",
       "verifyConnection", "previewDocument",
+      // 3.8 assistant: transcript reads stay ungated (list/get are READ_VERB).
+      "listAssistantMessages", "getAssistantMessage", "getAssistantAudit",
     ]) {
       expect(isWriteAction(name), name).toBe(false);
     }

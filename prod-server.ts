@@ -1239,6 +1239,8 @@ async function handleFetch(req: Request): Promise<Response> {
       dashboardNative.registerBuiltinNativeDashboardEventTypes();
       const automationNative = await import("./src/native/automation");
       automationNative.registerBuiltinNativeAutomationEventTypes();
+      const assistantNative = await import("./src/native/assistant");
+      assistantNative.registerBuiltinNativeAssistantEventTypes();
       const sinkMatch = pathname.match(/^\/api\/native\/webhooks\/([a-zA-Z0-9_-]+)$/);
       if (sinkMatch) {
         // Unauthenticated provider-style receiver — signature-gated (401/404
@@ -1304,6 +1306,14 @@ async function handleFetch(req: Request): Promise<Response> {
       if (pathname.startsWith("/api/native/tables")) {
         const tables = await import("./src/native/tables");
         return tables.handleNativeTablesAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
+      }
+      // Phase 3.8 — native assistant (chat/ask over the tenant's own native
+      // data, /api/native/assistant*). Authed-only; gated asks ride the
+      // Approval Queue; answers are labeled drafts (LLM config-only, OFF by
+      // default — never a fabricated answer when disabled).
+      if (pathname.startsWith("/api/native/assistant")) {
+        const assistant = await import("./src/native/assistant");
+        return assistant.handleNativeAssistantAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
       }
       // Phase 2.1 — native proposals (quote-to-cash slice 1, /api/native/proposals*).
       if (pathname.startsWith("/api/native/proposals")) {
