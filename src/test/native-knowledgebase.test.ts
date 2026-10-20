@@ -53,32 +53,33 @@ afterEach(() => {
 });
 
 /** Submit a write and expect it to QUEUE (approval default ON). */
-function queueVia(op: Parameters<typeof submitKnowledgeBaseWrite>[2], payload: Record<string, unknown>, actor = T1) {
-  const res = submitKnowledgeBaseWrite(dir, T1, op, { payload, via: "portal" }, actor);
+function queueVia(op: Parameters<typeof submitKnowledgeBaseWrite>[2], payload: Record<string, unknown>, tenant = T1, actor = tenant) {
+  const res = submitKnowledgeBaseWrite(dir, tenant, op, { payload, via: "portal" }, actor);
   expect(res.applied, JSON.stringify(res)).toBe(false);
   if (res.applied || !("approvalActionId" in res)) throw new Error("expected pending");
   return res as Extract<ReturnType<typeof submitKnowledgeBaseWrite>, { pending: true }>;
 }
 /** Approve the queued write via the approve-path executor. */
-function approveVia(approvalActionId: string, actor = T1) {
-  const res = executePendingKnowledgeBaseWrite(dir, T1, approvalActionId, actor);
+function approveVia(approvalActionId: string, tenant = T1, actor = tenant) {
+  const res = executePendingKnowledgeBaseWrite(dir, tenant, approvalActionId, actor);
   expect(res.ok, JSON.stringify(res)).toBe(true);
   if (!res.ok) throw new Error("expected ok, got: " + res.reason);
   return res as { ok: true; id?: string; kbwId: string; alreadyApplied?: boolean };
 }
 /** Create a category the approved way and return its server-assigned id. */
-function seedCategory(name = "Operations", actor = T1): string {
-  approveVia(queueVia("createCategory", { name, description: "ops help" }, actor).approvalActionId, actor);
-  const categories = listCategories(dir, actor);
-  expect(categories).toHaveLength(1);
-  return categories[0]!.id;
+function seedCategory(name = "Operations", tenant = T1): string {
+  approveVia(queueVia("createCategory", { name, description: "ops help" }, tenant).approvalActionId, tenant);
+  const categories = listCategories(dir, tenant);
+  expect(categories.length).toBeGreaterThan(0);
+  return categories[categories.length - 1]!.id;
 }
-/** Create a draft article the approved way and return its server-assigned id. */
-function seedArticle(categoryId?: string, actor = T1): { id: string } {
-  approveVia(queueVia("createArticle", { categoryId, title: "How to file", body: "Step by step filing guide", tags: ["filing"] }, actor).approvalActionId, actor);
-  const articles = listArticles(dir, actor);
-  expect(articles).toHaveLength(1);
-  return { id: articles[0]!.id };
+/** Create a draft article the approved way and return its server-assigned id
+ *  (cumulative-safe — returns the newest article for the tenant). */
+function seedArticle(categoryId?: string, tenant = T1): { id: string } {
+  approveVia(queueVia("createArticle", { categoryId, title: "How to file", body: "Step by step filing guide", tags: ["filing"] }, tenant).approvalActionId, tenant);
+  const articles = listArticles(dir, tenant);
+  expect(articles.length).toBeGreaterThan(0);
+  return { id: articles[articles.length - 1]!.id };
 }
 
 // ── 1. Write-verb classification (standing fail-open guard) ───────────────
@@ -178,7 +179,7 @@ describe("category lifecycle (approval-gated)", () => {
     expect(res.applied).toBe(false);
     expect("error" in res && /still has articles/.test(res.error ?? "")).toBe(true);
     // never queued
-    expect(listPendingWrites(dir, T1)).toHaveLength(0);
+    expect(listPendingWrites(dir, T1).filter((w) => w.status === "pending")).toHaveLength(0);
   });
 });
 
@@ -251,14 +252,16 @@ describe("fail-closed validation", () => {
     expect(listPendingWrites(dir, T1).filter((w) => w.status === "pending")).toHaveLength(0);
   });
 
-  it("answer-draft cap + source ref cap are enforced before the gate", () => {
+  it("source-article-ref cap is enforced before the gate (needs >MAX unique refs)", () => {
     const maxRefs: string[] = [];
-    for (let i = 0; i < MAX_SOURCE_ARTICLE_REFS; i++) {
+    for (let i = 0; i < MAX_SOURCE_ARTICLE_REFS + 1; i++) {
       const { id } = seedArticle();
       maxRefs.push(id);
     }
-    const overRefs = submitKnowledgeBaseWrite(dir, T1, "requestAnswerDraft", { payload: { question: "Q?", sourceArticleIds: [...maxRefs, maxRefs[0]!] } }, T1);
+    const overRefs = submitKnowledgeBaseWrite(dir, T1, "requestAnswerDraft", { payload: { question: "Q?", sourceArticleIds: maxRefs } }, T1);
+    expect(overRefs.applied).toBe(false);
     expect("error" in overRefs && /sourceArticleIds must be ≤/.test(overRefs.error ?? "")).toBe(true);
+    expect(listPendingWrites(dir, T1).filter((w) => w.status === "pending")).toHaveLength(0);
   });
 
   it("unknown ops fail closed", () => {
