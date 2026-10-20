@@ -113,6 +113,13 @@ describe("write-action classification", () => {
       "createSftpConnection", "updateSftpConnection", "deleteSftpConnection",
       "createTransferRule", "updateTransferRule", "deleteTransferRule",
       "runFileTransfer", "createPgpKey", "deletePgpKey", "importPgpKey",
+      // Phase 4.2 - native dedupe/MDM: every rule mutation + scan + merge +
+      // dismissal is verb-first + WRITE. `merge` was ADDED to WRITE_VERB by
+      // this slice — without it, mergeRecords would be classified a READ and
+      // BYPASS the Approval Queue (the 2.5/3.1.../4.1 fail-open guard class).
+      "createMatchRule", "updateMatchRule", "deleteMatchRule",
+      "createQualityRule", "updateQualityRule", "deleteQualityRule",
+      "runDedupeScan", "mergeRecords", "deleteSuggestion",
     ]) {
       expect(isWriteAction(name), name).toBe(true);
     }
@@ -130,6 +137,12 @@ describe("write-action classification", () => {
       "listSftpConnections", "getSftpConnection", "listTransferRules",
       "getTransferRule", "listTransferRuns", "getTransferRun",
       "listPgpKeys", "getPgpKey", "verifyPgpKey", "previewFilePattern",
+      // 4.2 dedupe/MDM: reads stay ungated (list/get are READ_VERB; only
+      // mutations gate — rules/suggestions/runs/identities list/get).
+      "listMatchRules", "getMatchRule", "listQualityRules", "getQualityRule",
+      "listDedupeSuggestions", "getDedupeSuggestion", "listDedupeRuns",
+      "getDedupeRun", "listRecordIdentities", "getRecordIdentity",
+      "listDedupeAudit", "previewDedupeScan",
     ]) {
       expect(isWriteAction(name), name).toBe(false);
     }

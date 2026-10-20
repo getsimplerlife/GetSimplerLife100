@@ -1,0 +1,121 @@
+/**
+ * native/dedupe/index.ts — Phase 4.2 native DEDUPE/MDM slice. Barrel.
+ * Deterministic match rules + data-quality rules + scan-run ledger + merge
+ * suggestions over the tenant's OWN 1.4 records, with a NON-DESTRUCTIVE
+ * merge (record-identity pointer: survivor + superseded row ids + before/after
+ * audit snapshot). Every mutation rides the Approval Queue verb-first
+ * (`mergeRecords` rides the NEW `merge` WRITE_VERB added by this slice);
+ * matching is deterministic and LLM-assisted matching is locked OFF (honest
+ * disabled note); the scan-run ledger records honest outcomes only ("no record
+ * was deleted, merged or modified by this slice").
+ */
+import { handleNativeDedupeAuthed, registerBuiltinNativeDedupeEventTypes, type NativeDedupeCtx } from "./router";
+import {
+  submitDedupeWrite,
+  executePendingDedupeWrite,
+  rejectDedupeWrite,
+  noteOwnerDecision,
+  publicMatchRule,
+  publicQualityRule,
+  publicRun,
+  publicSuggestion,
+  publicIdentity,
+  getActionName,
+  type DedupeWriteRequest,
+  type DedupeWriteResult,
+} from "./gate";
+import {
+  listMatchRules,
+  getMatchRule,
+  listQualityRules,
+  getQualityRule,
+  listRuns,
+  getRun,
+  listSuggestions,
+  getSuggestion,
+  listIdentities,
+  getIdentity,
+  listPendingWrites,
+  listAudit,
+  generateDedupeEntityId,
+} from "./store";
+import {
+  matchPairsTable,
+  evaluateQuality,
+  qualityViolation,
+  normalizeForMatch,
+  chooseSurvivor,
+} from "./match";
+import {
+  NATIVE_DEDUPE_MATCH_RULES_KEY,
+  NATIVE_DEDUPE_QUALITY_RULES_KEY,
+  NATIVE_DEDUPE_RUNS_KEY,
+  NATIVE_DEDUPE_SUGGESTIONS_KEY,
+  NATIVE_DEDUPE_IDENTITIES_KEY,
+  NATIVE_DEDUPE_PENDING_KEY,
+  NATIVE_DEDUPE_AUDIT_KEY,
+  MAX_MATCH_RULES_PER_TENANT,
+  MAX_QUALITY_RULES_PER_TENANT,
+  MAX_MATCH_FIELDS_PER_RULE,
+  MAX_DEDUPE_RUNS_PER_TENANT,
+  MAX_SUGGESTIONS_PER_SCAN,
+  MAX_OPEN_SUGGESTIONS,
+  MAX_QUALITY_ISSUES_PER_RUN,
+  MAX_RECORD_IDENTITIES_PER_TENANT,
+  MAX_MERGE_SUPERSEDED_ROWS,
+  MAX_PENDING_DEDUPE_WRITES,
+  MAX_DAILY_SCANS,
+  MAX_PAIR_COMPARISONS,
+} from "./types";
+export {
+  handleNativeDedupeAuthed,
+  registerBuiltinNativeDedupeEventTypes,
+  submitDedupeWrite,
+  executePendingDedupeWrite,
+  rejectDedupeWrite,
+  noteOwnerDecision,
+  publicMatchRule,
+  publicQualityRule,
+  publicRun,
+  publicSuggestion,
+  publicIdentity,
+  getActionName,
+  listMatchRules,
+  getMatchRule,
+  listQualityRules,
+  getQualityRule,
+  listRuns,
+  getRun,
+  listSuggestions,
+  getSuggestion,
+  listIdentities,
+  getIdentity,
+  listPendingWrites,
+  listAudit,
+  generateDedupeEntityId,
+  matchPairsTable,
+  evaluateQuality,
+  qualityViolation,
+  normalizeForMatch,
+  chooseSurvivor,
+  NATIVE_DEDUPE_MATCH_RULES_KEY,
+  NATIVE_DEDUPE_QUALITY_RULES_KEY,
+  NATIVE_DEDUPE_RUNS_KEY,
+  NATIVE_DEDUPE_SUGGESTIONS_KEY,
+  NATIVE_DEDUPE_IDENTITIES_KEY,
+  NATIVE_DEDUPE_PENDING_KEY,
+  NATIVE_DEDUPE_AUDIT_KEY,
+  MAX_MATCH_RULES_PER_TENANT,
+  MAX_QUALITY_RULES_PER_TENANT,
+  MAX_MATCH_FIELDS_PER_RULE,
+  MAX_DEDUPE_RUNS_PER_TENANT,
+  MAX_SUGGESTIONS_PER_SCAN,
+  MAX_OPEN_SUGGESTIONS,
+  MAX_QUALITY_ISSUES_PER_RUN,
+  MAX_RECORD_IDENTITIES_PER_TENANT,
+  MAX_MERGE_SUPERSEDED_ROWS,
+  MAX_PENDING_DEDUPE_WRITES,
+  MAX_DAILY_SCANS,
+  MAX_PAIR_COMPARISONS,
+};
+export type { NativeDedupeCtx, DedupeWriteRequest, DedupeWriteResult };

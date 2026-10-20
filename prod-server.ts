@@ -1243,6 +1243,8 @@ async function handleFetch(req: Request): Promise<Response> {
       assistantNative.registerBuiltinNativeAssistantEventTypes();
       const transportNative = await import("./src/native/transport");
       transportNative.registerBuiltinNativeTransportEventTypes();
+      const dedupeNative = await import("./src/native/dedupe");
+      dedupeNative.registerBuiltinNativeDedupeEventTypes();
       const sinkMatch = pathname.match(/^\/api\/native\/webhooks\/([a-zA-Z0-9_-]+)$/);
       if (sinkMatch) {
         // Unauthenticated provider-style receiver — signature-gated (401/404
@@ -1325,6 +1327,18 @@ async function handleFetch(req: Request): Promise<Response> {
       if (pathname.startsWith("/api/native/transport")) {
         const transport = await import("./src/native/transport");
         return transport.handleNativeTransportAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
+      }
+      // Phase 4.2 — native dedupe/MDM (match rules + quality rules +
+      // deterministic scan-run ledger + merge suggestions + NON-DESTRUCTIVE
+      // record identities over the tenant's OWN 1.4 records,
+      // /api/native/dedupe*). Authed-only; every mutation rides the Approval
+      // Queue verb-first (`merge` added to WRITE_VERB for mergeRecords);
+      // matching is deterministic, LLM-assisted matching locked OFF; the run
+      // ledger records honest outcomes ("no record was deleted, merged or
+      // modified by this slice").
+      if (pathname.startsWith("/api/native/dedupe")) {
+        const dedupe = await import("./src/native/dedupe");
+        return dedupe.handleNativeDedupeAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
       }
       // Phase 2.1 — native proposals (quote-to-cash slice 1, /api/native/proposals*).
       if (pathname.startsWith("/api/native/proposals")) {
