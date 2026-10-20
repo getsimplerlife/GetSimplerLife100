@@ -104,6 +104,15 @@ describe("write-action classification", () => {
       // askAssistant is gated (without it the ask write would be classified
       // a READ and BYPASS the Approval Queue — the standing fail-open guard).
       "askAssistant",
+      // Phase 4.1 - native secure transport (SFTP/PGP): every connection/rule/
+      // key mutation + the transfer-run request is verb-first + WRITE
+      // (create/update/delete/run were ALREADY in WRITE_VERB; this standing
+      // assertion locks the whole surface so a future change can't silently
+      // bypass the Queue — the 2.5/3.1/3.2/3.3/3.4/3.5/3.6/3.7/3.8 fail-open
+      // guard class).
+      "createSftpConnection", "updateSftpConnection", "deleteSftpConnection",
+      "createTransferRule", "updateTransferRule", "deleteTransferRule",
+      "runFileTransfer", "createPgpKey", "deletePgpKey", "importPgpKey",
     ]) {
       expect(isWriteAction(name), name).toBe(true);
     }
@@ -116,6 +125,11 @@ describe("write-action classification", () => {
       "verifyConnection", "previewDocument",
       // 3.8 assistant: transcript reads stay ungated (list/get are READ_VERB).
       "listAssistantMessages", "getAssistantMessage", "getAssistantAudit",
+      // 4.1 secure transport: reads stay ungated (list/get/verify/preview are
+      // READ_VERB; only mutations gate — connections/rules/keys/runs list/get).
+      "listSftpConnections", "getSftpConnection", "listTransferRules",
+      "getTransferRule", "listTransferRuns", "getTransferRun",
+      "listPgpKeys", "getPgpKey", "verifyPgpKey", "previewFilePattern",
     ]) {
       expect(isWriteAction(name), name).toBe(false);
     }
