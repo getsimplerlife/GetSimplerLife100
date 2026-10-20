@@ -77,7 +77,7 @@ function seedTable(tenant = T1): string {
   return table.id;
 }
 /** Submit + approve a non-commit op; returns the created entity id. */
-function resError(res: { error?: string }): string {
+function resError(res: { applied: boolean; error?: string }): string {
   return typeof res.error === "string" ? res.error : "";
 }
 async function applyVia(op: Parameters<typeof submitImportWrite>[2], payload: Record<string, unknown>, tenant = T1, actor = tenant): Promise<string> {
