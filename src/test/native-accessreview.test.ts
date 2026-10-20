@@ -28,7 +28,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { isWriteAction } from "../lib/approval-queue";
 import { createTable, insertRow, listRows } from "../native/tables/store";
-import { saveRule, listRules, type AutomationRule } from "../native/automation/store";
+import { saveRule } from "../native/automation/store";
+import type { AutomationRule } from "../native/automation/types";
 import { handleNativeAccessReviewAuthed, registerBuiltinNativeAccessReviewEventTypes } from "../native/accessreview/router";
 import { executePendingAccessReviewWrite, rejectAccessReviewWrite, submitAccessReviewWrite } from "../native/accessreview/gate";
 import { listAudit, listCampaigns, listEvidence, listItems, listPendingWrites } from "../native/accessreview/store";
@@ -77,6 +78,8 @@ function seedRow(tableId: string, tenant: string, data: Record<string, unknown>)
     data,
     createdAt: new Date().toISOString(),
     createdBy: "seed",
+    updatedAt: new Date().toISOString(),
+    updatedBy: "seed",
   };
   insertRow(dir, row);
   return row.id;
