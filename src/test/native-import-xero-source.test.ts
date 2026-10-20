@@ -179,6 +179,7 @@ describe("Xero import source reader (direct)", () => {
       const actionId = create.pending ? create.approvalActionId : "";
       const done = await executePendingImportWrite(dir, T1, actionId, T1);
       expect(done.ok, JSON.stringify(done)).toBe(true);
+      if (!done.ok) throw new Error(done.reason);
       return String(done.id);
     })();
     const map = await submitImportWrite(dir, T1, "mapImportFields", { payload: { importId, mapping: [{ sourceField: "Name", targetField: "Name" }, { sourceField: "ContactID", targetField: "ContactID" }], target: { kind: "table", tableId } }, via: "portal" }, T1);

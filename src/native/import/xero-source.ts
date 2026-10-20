@@ -121,7 +121,7 @@ export interface XeroImportSourceDeps {
 /** Build the Xero import source reader (injectable for tests). */
 export function makeXeroImportSourceReader(deps: XeroImportSourceDeps = {}): ImportSourceReader {
   return async (ctx) => {
-    const { dataDir, tenantId, provider } = ctx;
+    const { dataDir, tenantId } = ctx;
     const fetchImpl = deps.fetchImpl ?? globalThis.fetch;
     // 1. STRICT tenant-scoped credential — `${tenantId}:xero` only. The loader
     //    (credential-source.ts) never falls back to another tenant's row.
