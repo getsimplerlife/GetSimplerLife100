@@ -1249,6 +1249,8 @@ async function handleFetch(req: Request): Promise<Response> {
       accessReviewNative.registerBuiltinNativeAccessReviewEventTypes();
       const knowledgeBaseNative = await import("./src/native/knowledgebase");
       knowledgeBaseNative.registerBuiltinNativeKnowledgeBaseEventTypes();
+      const importNative = await import("./src/native/import");
+      importNative.registerBuiltinNativeImportEventTypes();
       const sinkMatch = pathname.match(/^\/api\/native\/webhooks\/([a-zA-Z0-9_-]+)$/);
       if (sinkMatch) {
         // Unauthenticated provider-style receiver — signature-gated (401/404
@@ -1366,6 +1368,17 @@ async function handleFetch(req: Request): Promise<Response> {
       if (pathname.startsWith("/api/native/knowledgebase")) {
         const knowledgeBase = await import("./src/native/knowledgebase");
         return knowledgeBase.handleNativeKnowledgeBaseAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
+      }
+      // Phase 5.1 (6.1) — native import/migration lanes (/api/native/import*).
+      // Client-optional import lanes (owner 10-20): a client connects their
+      // OWN tools to bring data in — pull → map → stage → commit. Authed-only;
+      // every mutation rides the Approval Queue verb-first (pull/map/commit
+      // ADDED to WRITE_VERB — classification test extended); commit rides the
+      // TABLES slice's existing gated importTableRows write (ONE approval
+      // card, no double-queue); honest run ledger — never a fabricated count.
+      if (pathname.startsWith("/api/native/import")) {
+        const importer = await import("./src/native/import");
+        return importer.handleNativeImportAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
       }
       // Phase 2.1 — native proposals (quote-to-cash slice 1, /api/native/proposals*).
       if (pathname.startsWith("/api/native/proposals")) {
