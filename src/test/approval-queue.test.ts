@@ -137,6 +137,15 @@ describe("write-action classification", () => {
       "archiveArticle", "deleteArticle",
       "createCategory", "updateCategory", "deleteCategory",
       "requestAnswerDraft",
+      // Phase 5.1 (6.1) - native import/migration lanes: every import job
+      // mutation + pull/map/commit is verb-first + WRITE. `pull`, `map`,
+      // `commit` were ADDED to WRITE_VERB by this slice — without them
+      // pullImportData/mapImportFields/commitImport would be classified
+      // READS and BYPASS the Approval Queue (the 2.5/3.1.../4.4 fail-open
+      // guard class). commitImport also rides the tables importTableRows
+      // card (ONE approval — no double-queue).
+      "createImport", "updateImport", "deleteImport",
+      "pullImportData", "mapImportFields", "commitImport",
     ]) {
       expect(isWriteAction(name), name).toBe(true);
     }
@@ -170,6 +179,12 @@ describe("write-action classification", () => {
       "listArticles", "getArticle", "listCategories", "getCategory",
       "searchArticles", "listAnswerDrafts", "getAnswerDraft",
       "listKnowledgeBaseWrites", "listKnowledgeBaseAudit",
+      // 5.1 (6.1) import lanes: reads stay ungated (list/get/preview are
+      // READ_VERB; only mutations gate — jobs/staging/runs/writes/audit
+      // list/get + read-only preview).
+      "listImports", "getImport", "previewImport",
+      "listImportRuns", "getImportRun",
+      "listImportAudit", "listImportWrites",
     ]) {
       expect(isWriteAction(name), name).toBe(false);
     }
