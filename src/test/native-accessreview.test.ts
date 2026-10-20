@@ -114,7 +114,8 @@ function queueVia(op: Parameters<typeof submitAccessReviewWrite>[2], payload: Re
 function approveVia(approvalActionId: string, actor = T1) {
   const res = executePendingAccessReviewWrite(dir, T1, approvalActionId, actor);
   expect(res.ok, JSON.stringify(res)).toBe(true);
-  return res;
+  if (!res.ok) throw new Error("expected ok, got: " + res.reason);
+  return res as { ok: true; id?: string; apwId: string; alreadyApplied?: boolean };
 }
 
 // ── 1. Write-verb classification (standing fail-open guard) ───────────────
@@ -271,6 +272,7 @@ describe("attestReviewItem (certification)", () => {
     approveVia(queued.approvalActionId);
     const again = executePendingAccessReviewWrite(dir, T1, queued.approvalActionId, T1);
     expect(again.ok).toBe(true);
+    if (!again.ok) throw new Error("expected ok, got: " + again.reason);
     expect(again.alreadyApplied).toBe(true);
     expect(listEvidence(dir, T1)).toHaveLength(1);
     expect(listItems(dir, T1, id).filter((i) => i.evidenceIds.length > 0)).toHaveLength(1);
@@ -310,7 +312,6 @@ describe("attestReviewItem (certification)", () => {
   it("attestation requires an OPEN campaign", () => {
     const queued = queueVia("createReviewCampaign", { name: "C", reviewerEmails: ["a@co.test"] });
     approveVia(queued.approvalActionId);
-    const id = listCampaigns(dir, T1)[0]!.id;
     // item on a draft campaign is impossible (no items generated), but a
     // direct attest on a draft-campaign item would be refused — simulate by
     // attesting a bogus item id.
