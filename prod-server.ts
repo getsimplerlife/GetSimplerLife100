@@ -1247,6 +1247,8 @@ async function handleFetch(req: Request): Promise<Response> {
       dedupeNative.registerBuiltinNativeDedupeEventTypes();
       const accessReviewNative = await import("./src/native/accessreview");
       accessReviewNative.registerBuiltinNativeAccessReviewEventTypes();
+      const knowledgeBaseNative = await import("./src/native/knowledgebase");
+      knowledgeBaseNative.registerBuiltinNativeKnowledgeBaseEventTypes();
       const sinkMatch = pathname.match(/^\/api\/native\/webhooks\/([a-zA-Z0-9_-]+)$/);
       if (sinkMatch) {
         // Unauthenticated provider-style receiver — signature-gated (401/404
@@ -1352,6 +1354,18 @@ async function handleFetch(req: Request): Promise<Response> {
       if (pathname.startsWith("/api/native/accessreview")) {
         const accessReview = await import("./src/native/accessreview");
         return accessReview.handleNativeAccessReviewAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
+      }
+      // Phase 4.4 — native knowledge base / help center (article management:
+      // draft → published → archived, categories, searchable tenant-owned
+      // content + AI answer-draft suggestions, /api/native/knowledgebase*).
+      // Authed-only; every mutation rides the Approval Queue verb-first
+      // (all KB verbs already ∈ WRITE_VERB; classification test extended); AI
+      // answer drafting is config-only and OFF by default — drafts persist an
+      // honest disabled note, never a fabricated answer ("no answer was
+      // drafted by this slice").
+      if (pathname.startsWith("/api/native/knowledgebase")) {
+        const knowledgeBase = await import("./src/native/knowledgebase");
+        return knowledgeBase.handleNativeKnowledgeBaseAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
       }
       // Phase 2.1 — native proposals (quote-to-cash slice 1, /api/native/proposals*).
       if (pathname.startsWith("/api/native/proposals")) {
