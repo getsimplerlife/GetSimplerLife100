@@ -127,6 +127,16 @@ describe("write-action classification", () => {
       "createReviewCampaign", "updateReviewCampaign", "deleteReviewCampaign",
       "openReviewCampaign", "closeReviewCampaign", "cancelReviewCampaign",
       "addCampaignReviewer", "removeCampaignReviewer", "attestReviewItem",
+      // Phase 4.4 - native knowledge base: every article/category mutation +
+      // the answer-draft request is verb-first + WRITE. NO new verb was needed
+      // (create/update/publish/archive/delete/request were ALREADY in
+      // WRITE_VERB) but the classification test is extended with the whole
+      // surface so a future verb gap can't silently bypass the Queue (the
+      // 2.5/3.1.../4.3 fail-open guard class).
+      "createArticle", "updateArticle", "publishArticle",
+      "archiveArticle", "deleteArticle",
+      "createCategory", "updateCategory", "deleteCategory",
+      "requestAnswerDraft",
     ]) {
       expect(isWriteAction(name), name).toBe(true);
     }
@@ -155,6 +165,11 @@ describe("write-action classification", () => {
       "listReviewCampaigns", "getReviewCampaign", "listReviewItems",
       "getReviewItem", "listEvidenceEntries", "getEvidenceEntry",
       "listAccessReviewWrites", "listAccessReviewAudit", "previewCampaignScope",
+      // 4.4 knowledge base: reads stay ungated (list/get/search are READ_VERB;
+      // only mutations gate — articles/categories/drafts/writes/audit list/get).
+      "listArticles", "getArticle", "listCategories", "getCategory",
+      "searchArticles", "listAnswerDrafts", "getAnswerDraft",
+      "listKnowledgeBaseWrites", "listKnowledgeBaseAudit",
     ]) {
       expect(isWriteAction(name), name).toBe(false);
     }
