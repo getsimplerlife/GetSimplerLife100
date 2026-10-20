@@ -1241,6 +1241,8 @@ async function handleFetch(req: Request): Promise<Response> {
       automationNative.registerBuiltinNativeAutomationEventTypes();
       const assistantNative = await import("./src/native/assistant");
       assistantNative.registerBuiltinNativeAssistantEventTypes();
+      const transportNative = await import("./src/native/transport");
+      transportNative.registerBuiltinNativeTransportEventTypes();
       const sinkMatch = pathname.match(/^\/api\/native\/webhooks\/([a-zA-Z0-9_-]+)$/);
       if (sinkMatch) {
         // Unauthenticated provider-style receiver — signature-gated (401/404
@@ -1314,6 +1316,15 @@ async function handleFetch(req: Request): Promise<Response> {
       if (pathname.startsWith("/api/native/assistant")) {
         const assistant = await import("./src/native/assistant");
         return assistant.handleNativeAssistantAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
+      }
+      // Phase 4.1 — native secure transport (SFTP connection config + transfer
+      // rules + PGP key ring + approval-gated transfer-run ledger,
+      // /api/native/transport*). Authed-only; every mutation rides the
+      // Approval Queue verb-first; secrets encrypted at rest; run ledger
+      // records honest outcomes (never fabricated "transferred"/"signed").
+      if (pathname.startsWith("/api/native/transport")) {
+        const transport = await import("./src/native/transport");
+        return transport.handleNativeTransportAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
       }
       // Phase 2.1 — native proposals (quote-to-cash slice 1, /api/native/proposals*).
       if (pathname.startsWith("/api/native/proposals")) {
