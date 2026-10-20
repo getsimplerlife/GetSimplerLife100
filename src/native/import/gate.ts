@@ -226,15 +226,13 @@ function mapRow(mapping: ImportFieldMapping[], row: Record<string, unknown>): Re
   return out;
 }
 function jobFromCreate(dataDir: string, tenantId: string, body: Record<string, unknown>, actor: string): ImportJob {
-  if (body.id !== undefined) throw new Error("client-supplied import ids are not accepted"); // forged create-id → 400
   const now = new Date().toISOString();
-  const target = assertTarget(dataDir, tenantId, body);
   return {
     id: generateImportEntityId("imp"),
     tenantId,
     provider: assertProvider(body),
     sourceLabel: assertSourceLabel(body),
-    target,
+    target: assertTarget(dataDir, tenantId, body),
     mapping: [],
     status: "draft",
     createdAt: now,
@@ -243,8 +241,6 @@ function jobFromCreate(dataDir: string, tenantId: string, body: Record<string, u
     updatedBy: actor,
   };
 }
-/** Validate + normalize the payload into what applyNow persists. Caps are
- *  enforced HERE — invalid never reaches the gate. */
 function prepareWrite(dataDir: string, tenantId: string, op: ImportOp, payload: Record<string, unknown>, actor: string): Record<string, unknown> {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new Error("payload must be an object");
   switch (op) {
@@ -252,7 +248,12 @@ function prepareWrite(dataDir: string, tenantId: string, op: ImportOp, payload: 
       if (listJobs(dataDir, tenantId).length >= MAX_IMPORT_RUNS_PER_TENANT) {
         throw new Error(`Import cap reached (${MAX_IMPORT_RUNS_PER_TENANT} per tenant)`);
       }
-      return jobFromCreate(dataDir, tenantId, payload, actor) as unknown as Record<string, unknown>;
+      // Validation-only: the id is server-generated at APPLY time so the
+      // staged pending payload is idempotent (KB-identical). A client-supplied
+      // create id is forged and fails closed here.
+      if (payload.id !== undefined) throw new Error("client-supplied import ids are not accepted");
+      const job = jobFromCreate(dataDir, tenantId, payload, actor);
+      return { _create: true, provider: job.provider, sourceLabel: job.sourceLabel, target: job.target, _by: actor } as Record<string, unknown>;
     }
     case "updateImport": {
       const importId = assertImportId(payload);
@@ -335,7 +336,20 @@ async function applyNow(
   const now = new Date().toISOString();
   try {
     if (op === "createImport") {
-      const job = p as unknown as ImportJob;
+      const now2 = new Date().toISOString();
+      const job: ImportJob = {
+        id: generateImportEntityId("imp"),
+        tenantId,
+        provider: p.provider as string,
+        sourceLabel: p.sourceLabel as string,
+        target: p.target as { kind: "table"; tableId: string },
+        mapping: [],
+        status: "draft",
+        createdAt: now2,
+        createdBy: actor,
+        updatedAt: now2,
+        updatedBy: actor,
+      };
       saveJob(dataDir, job);
       appendAudit(dataDir, { tenantId, actor: actor, action: "native.import.created", entityId: job.id, detail: `Created import "${job.sourceLabel}" from ${job.provider}${suffix}` });
       appendRun(dataDir, { id: generateImportEntityId("imr"), tenantId, importId: job.id, op: "createImport", at: now, by: auditActor, pulled: 0, mapped: 0, skipped: 0, committed: 0, failed: 0, note: "Import job created" });

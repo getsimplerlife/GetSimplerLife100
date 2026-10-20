@@ -51,6 +51,7 @@ export interface NativeImportCtx {
   dataDir: string;
 }
 const jsonError = (error: string, status = 400) => Response.json({ error }, { status });
+const json405 = () => Response.json({ error: "Method not allowed" }, { status: 405 });
 const json404 = (error: string) => Response.json({ error }, { status: 404 });
 function gateErrorStatus(error: string): Response {
   const nf = /not found|no pending write|already applied|already decided/.test(error);
@@ -110,6 +111,18 @@ async function handleAuthed(req: Request, ctx: NativeImportCtx): Promise<Respons
       },
     });
   }
+  // POST /api/native/import/:impId/preview — READ-ONLY: returns mapped staged
+  // rows (bounded) + counts. NEVER gates, NEVER writes (no audit, no ledger,
+  // no staging mutation). preview is a READ_VERB — fail-open guard intact.
+  // (Ordered BEFORE the generic mutation branch so it is never shadowed.)
+  if (seg.length === 2 && seg[1] === "preview" && method === "POST" && RE.imp.test(seg[0] ?? "")) {
+    const job = getJob(ctx.dataDir, tenantId, seg[0]);
+    if (!job) return json404("Import not found");
+    const staging = getStaging(ctx.dataDir, tenantId, seg[0]);
+    if (!staging) return Response.json({ data: { staged: 0, previewRows: [], mapped: 0, skipped: 0, note: "nothing staged yet" } });
+    const preview = staging.rows.slice(0, MAX_PREVIEW_ROWS);
+    return Response.json({ data: { staged: staging.rows.length, byteLength: staging.byteLength, previewRows: preview, note: "read-only preview — nothing was written or queued" } });
+  }
   // POST /api/native/import/:impId/update|delete|pull|map|commit
   if (seg.length === 2 && method === "POST" && RE.imp.test(seg[0] ?? "")) {
     const verb = seg[1];
@@ -138,17 +151,6 @@ async function handleAuthed(req: Request, ctx: NativeImportCtx): Promise<Respons
     if (res.pending) return Response.json({ data: { status: "pending", approvalActionId: res.approvalActionId } }, { status: 202 });
     return gateErrorStatus(res.error ?? "operation failed");
   }
-  // POST /api/native/import/:impId/preview — READ-ONLY: returns mapped staged
-  // rows (bounded) + counts. NEVER gates, NEVER writes (no audit, no ledger,
-  // no staging mutation). preview is a READ_VERB — fail-open guard intact.
-  if (seg.length === 2 && seg[1] === "preview" && method === "POST" && RE.imp.test(seg[0] ?? "")) {
-    const job = getJob(ctx.dataDir, tenantId, seg[0]);
-    if (!job) return json404("Import not found");
-    const staging = getStaging(ctx.dataDir, tenantId, seg[0]);
-    if (!staging) return Response.json({ data: { staged: 0, previewRows: [], mapped: 0, skipped: 0, note: "nothing staged yet" } });
-    const preview = staging.rows.slice(0, MAX_PREVIEW_ROWS);
-    return Response.json({ data: { staged: staging.rows.length, byteLength: staging.byteLength, previewRows: preview, note: "read-only preview — nothing was written or queued" } });
-  }
   // GET /api/native/import/:impId/runs — honest run ledger
   if (seg.length === 2 && seg[1] === "runs" && method === "GET" && RE.imp.test(seg[0] ?? "")) {
     if (!getJob(ctx.dataDir, tenantId, seg[0])) return json404("Import not found");
@@ -165,7 +167,8 @@ async function handleAuthed(req: Request, ctx: NativeImportCtx): Promise<Respons
     return Response.json({ data: { audit: page.map(publicAudit), total: audit.length, limit, offset } });
   }
   // GET /api/native/import/writes — pending mirror (safe projection: no payloads)
-  if (seg.length === 1 && seg[0] === "writes" && method === "GET") {
+  if (seg.length === 1 && seg[0] === "writes") {
+    if (method !== "GET") return json405();
     return Response.json({ data: { writes: listPendingWrites(ctx.dataDir, tenantId).map(publicWrite) } });
   }
   // POST /api/native/import/writes/:imwId/apply|reject — APPROVE/REJECT paths

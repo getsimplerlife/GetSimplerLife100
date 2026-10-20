@@ -82,8 +82,7 @@ function resError(res: { error?: string }): string {
 }
 async function applyVia(op: Parameters<typeof submitImportWrite>[2], payload: Record<string, unknown>, tenant = T1, actor = tenant): Promise<string> {
   const res = await submitImportWrite(dir, tenant, op, { payload, via: "portal" }, actor);
-  expect(res.applied, JSON.stringify(res)).toBe(false);
-  if (!res.applied || !("approvalActionId" in res)) throw new Error("expected pending: " + JSON.stringify(res));
+  if (res.pending !== true || !("approvalActionId" in res)) throw new Error("expected pending: " + JSON.stringify(res));
   const done = await executePendingImportWrite(dir, tenant, res.approvalActionId, tenant);
   expect(done.ok, JSON.stringify(done)).toBe(true);
   if (!done.ok) throw new Error("expected ok: " + done.reason);
