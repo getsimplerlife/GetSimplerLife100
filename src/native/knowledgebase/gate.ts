@@ -54,7 +54,6 @@ import {
   NATIVE_KNOWLEDGEBASE_PROVIDER,
   NATIVE_KNOWLEDGEBASE_WORKFLOW_ID,
   type AnswerDraft,
-  type ArticleStatus,
   type KbArticle,
   type KbCategory,
   type KbOp,
@@ -80,6 +79,7 @@ import {
   saveArticle,
   saveCategory,
   savePendingWrite,
+  searchArticles,
 } from "./store";
 
 /** Verb-first action names — every verb ∈ WRITE_VERB (create/update/publish/

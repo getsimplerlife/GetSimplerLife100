@@ -36,8 +36,6 @@ import { handleNativeKnowledgeBaseAuthed, registerBuiltinNativeKnowledgeBaseEven
 import { executePendingKnowledgeBaseWrite, rejectKnowledgeBaseWrite, submitKnowledgeBaseWrite } from "../native/knowledgebase/gate";
 import { listAnswerDrafts, listArticles, listAudit, listCategories, listPendingWrites, searchArticles } from "../native/knowledgebase/store";
 import {
-  MAX_ANSWER_DRAFTS_PER_TENANT,
-  MAX_ARTICLES_PER_TENANT,
   MAX_CATEGORIES_PER_TENANT,
   MAX_SOURCE_ARTICLE_REFS,
 } from "../native/knowledgebase/types";
