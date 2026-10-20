@@ -120,6 +120,13 @@ describe("write-action classification", () => {
       "createMatchRule", "updateMatchRule", "deleteMatchRule",
       "createQualityRule", "updateQualityRule", "deleteQualityRule",
       "runDedupeScan", "mergeRecords", "deleteSuggestion",
+      // Phase 4.3 - native access reviews: every campaign/reviewer mutation +
+      // the attestation is verb-first + WRITE. `attest` was ADDED to WRITE_VERB
+      // by this slice — without it, attestReviewItem would be classified a READ
+      // and BYPASS the Approval Queue (the 2.5/3.1.../4.2 fail-open guard class).
+      "createReviewCampaign", "updateReviewCampaign", "deleteReviewCampaign",
+      "openReviewCampaign", "closeReviewCampaign", "cancelReviewCampaign",
+      "addCampaignReviewer", "removeCampaignReviewer", "attestReviewItem",
     ]) {
       expect(isWriteAction(name), name).toBe(true);
     }
@@ -143,6 +150,11 @@ describe("write-action classification", () => {
       "listDedupeSuggestions", "getDedupeSuggestion", "listDedupeRuns",
       "getDedupeRun", "listRecordIdentities", "getRecordIdentity",
       "listDedupeAudit", "previewDedupeScan",
+      // 4.3 access reviews: reads stay ungated (list/get are READ_VERB; only
+      // mutations gate — campaigns/items/evidence/writes/audit list/get).
+      "listReviewCampaigns", "getReviewCampaign", "listReviewItems",
+      "getReviewItem", "listEvidenceEntries", "getEvidenceEntry",
+      "listAccessReviewWrites", "listAccessReviewAudit", "previewCampaignScope",
     ]) {
       expect(isWriteAction(name), name).toBe(false);
     }
