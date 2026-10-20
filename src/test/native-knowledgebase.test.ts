@@ -68,18 +68,16 @@ function approveVia(approvalActionId: string, tenant = T1, actor = tenant) {
 }
 /** Create a category the approved way and return its server-assigned id. */
 function seedCategory(name = "Operations", tenant = T1): string {
-  approveVia(queueVia("createCategory", { name, description: "ops help" }, tenant).approvalActionId, tenant);
-  const categories = listCategories(dir, tenant);
-  expect(categories.length).toBeGreaterThan(0);
-  return categories[categories.length - 1]!.id;
+  const res = approveVia(queueVia("createCategory", { name, description: "ops help" }, tenant).approvalActionId, tenant);
+  const id = res.id ?? (() => { const c = listCategories(dir, tenant); return c[c.length - 1]!.id; })();
+  return id;
 }
 /** Create a draft article the approved way and return its server-assigned id
- *  (cumulative-safe — returns the newest article for the tenant). */
+ *  (taken straight from the approve result — the exact row the slice wrote). */
 function seedArticle(categoryId?: string, tenant = T1): { id: string } {
-  approveVia(queueVia("createArticle", { categoryId, title: "How to file", body: "Step by step filing guide", tags: ["filing"] }, tenant).approvalActionId, tenant);
-  const articles = listArticles(dir, tenant);
-  expect(articles.length).toBeGreaterThan(0);
-  return { id: articles[articles.length - 1]!.id };
+  const res = approveVia(queueVia("createArticle", { categoryId, title: "How to file", body: "Step by step filing guide", tags: ["filing"] }, tenant).approvalActionId, tenant);
+  const id = res.id ?? (() => { const a = listArticles(dir, tenant); return a[a.length - 1]!.id; })();
+  return { id };
 }
 
 // ── 1. Write-verb classification (standing fail-open guard) ───────────────
