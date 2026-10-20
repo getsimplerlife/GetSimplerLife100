@@ -245,7 +245,7 @@ function validateMerge(
   dataDir: string,
   tenantId: string,
   body: Record<string, unknown>,
-): { tableId: string; survivorRowId: string; supersededRowIds: string[]; suggestionId?: string } {
+): { tableId?: string; survivorRowId?: string; supersededRowIds?: string[]; suggestionId?: string } {
   const { suggestionId, survivorRowId, supersededRowIds } = body;
   if (suggestionId !== undefined && survivorRowId !== undefined) {
     throw new Error("provide either suggestionId or survivorRowId/supersededRowIds, not both");
