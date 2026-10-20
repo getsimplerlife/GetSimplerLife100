@@ -112,7 +112,7 @@ export type ImportSourceReader = (ctx: {
   tenantId: string;
   importId: string;
   provider: string;
-}) => Promise<{ rows: Record<string, unknown>[]; note?: string }>;
+}) => Promise<{ rows: Record<string, unknown>[]; note?: string; httpStatus?: number }>;
 const sourceReaders = new Map<string, ImportSourceReader>();
 export function registerImportSource(providerId: string, reader: ImportSourceReader): void {
   sourceReaders.set(providerId.toLowerCase(), reader);
@@ -395,15 +395,26 @@ async function applyNow(
         appendRun(dataDir, { id: generateImportEntityId("imr"), tenantId, importId, op: "pullImportData", at: now, by: auditActor, pulled: 0, mapped: 0, skipped: 0, committed: 0, failed: 0, note: `No import source is wired for provider "${job.provider}" in this build yet — 0 rows pulled.` });
         return { ok: false, error: `No import source is wired for provider "${job.provider}" in this build yet.` };
       }
-      const out = await reader({ dataDir, tenantId, importId, provider: job.provider });
+      // Provider read may fail (bad/expired credential, HTTP error). Record an
+      // HONEST failed run (never silent, never fabricated) and fail closed.
+      let out: { rows: Record<string, unknown>[]; note?: string; httpStatus?: number };
+      try {
+        out = await reader({ dataDir, tenantId, importId, provider: job.provider });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        const status = typeof (e as { httpStatus?: number })?.httpStatus === "number" ? (e as { httpStatus: number }).httpStatus : undefined;
+        appendRun(dataDir, { id: generateImportEntityId("imr"), tenantId, importId, op: "pullImportData", at: now, by: auditActor, pulled: 0, mapped: 0, skipped: 0, committed: 0, failed: 1, httpStatus: status, note: `Pull from ${job.provider} failed: ${msg} — 0 rows pulled.` });
+        publishEvent(dataDir, tenantId, "native.import.failed", { importId, provider: job.provider, error: msg });
+        return { ok: false, error: msg };
+      }
       const rows = Array.isArray(out.rows) ? out.rows : [];
       if (rows.length > MAX_STAGING_ROWS) {
-        appendRun(dataDir, { id: generateImportEntityId("imr"), tenantId, importId, op: "pullImportData", at: now, by: auditActor, pulled: 0, mapped: 0, skipped: 0, committed: 0, failed: 1, note: `Source returned ${rows.length} rows (cap ${MAX_STAGING_ROWS}) — 0 staged.` });
+        appendRun(dataDir, { id: generateImportEntityId("imr"), tenantId, importId, op: "pullImportData", at: now, by: auditActor, pulled: 0, mapped: 0, skipped: 0, committed: 0, failed: 1, httpStatus: out.httpStatus, note: `Source returned ${rows.length} rows (cap ${MAX_STAGING_ROWS}) — 0 staged.` });
         return { ok: false, error: `Source returned ${rows.length} rows — exceeds the ${MAX_STAGING_ROWS}-row staging cap.` };
       }
       const byteLength = new TextEncoder().encode(JSON.stringify(rows)).byteLength;
       if (byteLength > MAX_IMPORT_BYTES) {
-        appendRun(dataDir, { id: generateImportEntityId("imr"), tenantId, importId, op: "pullImportData", at: now, by: auditActor, pulled: 0, mapped: 0, skipped: 0, committed: 0, failed: 1, note: `Source payload exceeded 512 KiB (${byteLength} bytes) — 0 staged.` });
+        appendRun(dataDir, { id: generateImportEntityId("imr"), tenantId, importId, op: "pullImportData", at: now, by: auditActor, pulled: 0, mapped: 0, skipped: 0, committed: 0, failed: 1, httpStatus: out.httpStatus, note: `Source payload exceeded 512 KiB (${byteLength} bytes) — 0 staged.` });
         return { ok: false, error: "Source payload exceeds the 512 KiB staging cap." };
       }
       const staging: ImportStaging = { importId, tenantId, rows, byteLength, pulledAt: now, pulledBy: actor };
@@ -411,7 +422,7 @@ async function applyNow(
       const next: ImportJob = { ...job, status: "staged", updatedAt: now, updatedBy: actor };
       saveJob(dataDir, next);
       appendAudit(dataDir, { tenantId, actor, action: "native.import.pulled", entityId: importId, detail: `Pulled ${rows.length} row(s) from ${job.provider}${out.note ? ` (${out.note})` : ""}${suffix}` });
-      appendRun(dataDir, { id: generateImportEntityId("imr"), tenantId, importId, op: "pullImportData", at: now, by: auditActor, pulled: rows.length, mapped: 0, skipped: 0, committed: 0, failed: 0, note: `Staged ${rows.length} row(s)${out.note ? ` — ${out.note}` : ""}` });
+      appendRun(dataDir, { id: generateImportEntityId("imr"), tenantId, importId, op: "pullImportData", at: now, by: auditActor, pulled: rows.length, mapped: 0, skipped: 0, committed: 0, failed: 0, httpStatus: out.httpStatus, note: `Staged ${rows.length} row(s)${out.note ? ` — ${out.note}` : ""}` });
       publishEvent(dataDir, tenantId, "native.import.pulled", { importId, provider: job.provider, pulled: out.rows.length });
       return { ok: true, id: importId };
     }
