@@ -1245,6 +1245,8 @@ async function handleFetch(req: Request): Promise<Response> {
       transportNative.registerBuiltinNativeTransportEventTypes();
       const dedupeNative = await import("./src/native/dedupe");
       dedupeNative.registerBuiltinNativeDedupeEventTypes();
+      const accessReviewNative = await import("./src/native/accessreview");
+      accessReviewNative.registerBuiltinNativeAccessReviewEventTypes();
       const sinkMatch = pathname.match(/^\/api\/native\/webhooks\/([a-zA-Z0-9_-]+)$/);
       if (sinkMatch) {
         // Unauthenticated provider-style receiver — signature-gated (401/404
@@ -1339,6 +1341,17 @@ async function handleFetch(req: Request): Promise<Response> {
       if (pathname.startsWith("/api/native/dedupe")) {
         const dedupe = await import("./src/native/dedupe");
         return dedupe.handleNativeDedupeAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
+      }
+      // Phase 4.3 — native access reviews (certification campaigns over the
+      // tenant's OWN member access + workflow inventory + append-only evidence
+      // log, /api/native/accessreview*). Authed-only; every mutation rides the
+      // Approval Queue verb-first (`attest` added to WRITE_VERB for
+      // attestReviewItem); opening a campaign snapshots safe projections; the
+      // slice never changes access itself ("no access was granted, changed or
+      // revoked by this slice").
+      if (pathname.startsWith("/api/native/accessreview")) {
+        const accessReview = await import("./src/native/accessreview");
+        return accessReview.handleNativeAccessReviewAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
       }
       // Phase 2.1 — native proposals (quote-to-cash slice 1, /api/native/proposals*).
       if (pathname.startsWith("/api/native/proposals")) {
