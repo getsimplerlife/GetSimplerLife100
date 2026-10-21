@@ -71,6 +71,11 @@ export {
   SftpImportSourceError,
 } from "./sftp-source";
 export {
+  registerGoogleDriveImportSource,
+  makeGoogleDriveImportSourceReader,
+  GoogleDriveImportSourceError,
+} from "./google-drive-source";
+export {
   handleNativeImportAuthed,
   registerBuiltinNativeImportEventTypes,
   submitImportWrite,

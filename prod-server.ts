@@ -1265,6 +1265,10 @@ async function handleFetch(req: Request): Promise<Response> {
       // (the tenant's OWN stored Secure Transport connection/rule config
       // metadata: bounded, read-only, deterministic — no live SFTP session).
       importNative.registerSftpImportSource();
+      // Phase 5.1 (6.4): fifth client-optional import SOURCE lane — Google
+      // Drive (file metadata: non-trashed listing page 1, REAL verified
+      // google-workspace read client — read-only, bounded snapshot).
+      importNative.registerGoogleDriveImportSource();
       const sinkMatch = pathname.match(/^\/api\/native\/webhooks\/([a-zA-Z0-9_-]+)$/);
       if (sinkMatch) {
         // Unauthenticated provider-style receiver — signature-gated (401/404
