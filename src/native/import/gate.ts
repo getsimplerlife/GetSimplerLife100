@@ -87,6 +87,7 @@ export const KNOWN_IMPORT_PROVIDERS = [
   "quickbooks",
   "google-calendar",
   "google-drive",
+  "dropbox",
   "microsoft",
   "onedrive",
   "google-workspace",
