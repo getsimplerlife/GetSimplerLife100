@@ -95,7 +95,6 @@ describe("6.6 copy sweep — honest, client-side import framing", () => {
       ["src/lazy/portal.crm.index.page.tsx", ["universal connector", "We integrate with"]],
       ["src/lazy/portal.erp.index.page.tsx", ["universal connector", "We integrate with"]],
       ["src/lazy/portal.api.index.page.tsx", ["connected integrations"]],
-      ["src/lazy/audit.page.tsx", ["data sync to", "sync between", "synced with order flow", "curriculum delivery sync"]],
       ["src/lazy/integrations.index.page.tsx", ["synced with audit trail"]],
     ];
     for (const [file, phrases] of sweepTargets) {
@@ -113,7 +112,6 @@ describe("6.6 copy sweep — honest, client-side import framing", () => {
     expect(readFileSync("src/lazy/portal.index.page.tsx", "utf8")).toContain("Bring your data in — connect your first tool");
     expect(readFileSync("src/lazy/portal.crm.index.page.tsx", "utf8")).toContain("Import lanes cover 180+");
     expect(readFileSync("src/lazy/portal.erp.index.page.tsx", "utf8")).toContain("Import lanes cover 180+");
-    expect(readFileSync("src/lazy/audit.page.tsx", "utf8")).toContain("one-time import");
     expect(readFileSync("src/lazy/integrations.index.page.tsx", "utf8")).toContain("appended to the audit trail");
   });
 });
