@@ -397,6 +397,18 @@ function ActivityHubDashboard() {
                 Connect Tools →
               </Link>
             </div>
+            {/* Import & migration — client-side, one-shot transfers */}
+            <div className="bg-stone-950 border border-stone-900 rounded-xl p-5 space-y-3">
+              <h3 className="text-xs font-black text-white">📥 Import &amp; migration</h3>
+              <p className="text-[10px] text-stone-400 leading-relaxed">
+                Connect your existing tools to bring your data in — one-time, client-initiated transfers.
+                Preview before anything changes; nothing is imported until you approve.
+              </p>
+              <Link to="/portal/import"
+                className="block text-center text-[10px] font-bold bg-stone-800 hover:bg-stone-700 text-stone-200 py-2 rounded-lg border border-stone-700 transition-all">
+                Open Import &amp; migration →
+              </Link>
+            </div>
 
             {/* Onboarding progress (returning users with incomplete setup) */}
             {!isNewUser && onboardingProgress < 3 && (

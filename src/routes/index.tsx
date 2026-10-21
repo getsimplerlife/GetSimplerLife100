@@ -493,8 +493,9 @@ function Home() {
                 </h2>
                 <p className="mt-3 text-base leading-relaxed text-stone-400">
                   Nothing on this page is claimed working until it's live-tested. Every action an automation takes
-                  passes a human approval queue before it runs (or your own allow-list, audited). No silent failures — if something disconnects, you're
-                  told immediately and reconnected in one click.
+                  passes a human approval queue before it runs (or your own allow-list, audited). Nothing imports on
+                  its own — external tools are client-side, one-time transfers that bring your data in, and every
+                  import is approval-gated; nothing is written until you approve.
                 </p>
                 <div className="mt-6 flex flex-wrap gap-2">
                   {["Xero", "HubSpot", "DocuSign", "Slack", "Google", "Microsoft 365"].map((p) => (
