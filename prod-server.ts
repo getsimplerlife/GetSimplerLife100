@@ -1273,6 +1273,10 @@ async function handleFetch(req: Request): Promise<Response> {
       // Dropbox (root folder file metadata, page 1, existing verified
       // dropbox read client — read-only, bounded snapshot).
       importNative.registerDropboxImportSource();
+      // Phase 5.1 (6.4): seventh client-optional import SOURCE lane —
+      // Box (root folder file metadata, page 1, existing verified box
+      // read client — read-only, bounded snapshot).
+      importNative.registerBoxImportSource();
       const sinkMatch = pathname.match(/^\/api\/native\/webhooks\/([a-zA-Z0-9_-]+)$/);
       if (sinkMatch) {
         // Unauthenticated provider-style receiver — signature-gated (401/404

@@ -88,6 +88,7 @@ export const KNOWN_IMPORT_PROVIDERS = [
   "google-calendar",
   "google-drive",
   "dropbox",
+  "box",
   "microsoft",
   "onedrive",
   "google-workspace",
