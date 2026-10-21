@@ -81,6 +81,11 @@ export {
   DropboxImportSourceError,
 } from "./dropbox-source";
 export {
+  registerBoxImportSource,
+  makeBoxImportSourceReader,
+  BoxImportSourceError,
+} from "./box-source";
+export {
   handleNativeImportAuthed,
   registerBuiltinNativeImportEventTypes,
   submitImportWrite,
