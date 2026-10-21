@@ -1261,6 +1261,10 @@ async function handleFetch(req: Request): Promise<Response> {
       // Phase 5.1 (6.4): third client-optional import SOURCE lane — OneDrive
       // (file metadata: root children, read-only, bounded snapshot).
       importNative.registerOneDriveImportSource();
+      // Phase 5.1 (6.4): fourth client-optional import SOURCE lane — SFTP
+      // (the tenant's OWN stored Secure Transport connection/rule config
+      // metadata: bounded, read-only, deterministic — no live SFTP session).
+      importNative.registerSftpImportSource();
       const sinkMatch = pathname.match(/^\/api\/native\/webhooks\/([a-zA-Z0-9_-]+)$/);
       if (sinkMatch) {
         // Unauthenticated provider-style receiver — signature-gated (401/404
