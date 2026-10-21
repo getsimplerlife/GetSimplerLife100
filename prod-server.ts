@@ -1255,6 +1255,9 @@ async function handleFetch(req: Request): Promise<Response> {
       // Xero (client-managed creds, read-only, bounded snapshot). One-shot /
       // client-initiated re-runs only; no webhooks, no write-back.
       importNative.registerXeroImportSource();
+      // Phase 5.1 (6.3): second client-optional import SOURCE lane — HubSpot
+      // (CRM contacts/companies/deals, same client-managed read-only contract).
+      importNative.registerHubSpotImportSource();
       const sinkMatch = pathname.match(/^\/api\/native\/webhooks\/([a-zA-Z0-9_-]+)$/);
       if (sinkMatch) {
         // Unauthenticated provider-style receiver — signature-gated (401/404

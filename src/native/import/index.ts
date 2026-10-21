@@ -56,6 +56,11 @@ export {
   XeroImportSourceError,
 } from "./xero-source";
 export {
+  registerHubSpotImportSource,
+  makeHubSpotImportSourceReader,
+  HubSpotImportSourceError,
+} from "./hubspot-source";
+export {
   handleNativeImportAuthed,
   registerBuiltinNativeImportEventTypes,
   submitImportWrite,
