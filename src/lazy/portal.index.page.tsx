@@ -226,9 +226,9 @@ function ActivityHubDashboard() {
               </Link>
             ))}
           </div>
-          <Link to="/portal/integrations"
+          <Link to="/portal/import"
             className="inline-flex items-center justify-center bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold px-6 py-3 rounded-xl transition-all font-mono text-xs shadow-lg active:scale-95">
-            🔌 Connect your first integration
+            📥 Bring your data in — connect your first tool
           </Link>
         </div>
       )}
@@ -375,31 +375,19 @@ function ActivityHubDashboard() {
               </div>
             )}
 
-            {/* Connected Integrations */}
+            {/* Bring your data in — client-side, one-shot transfers */}
             <div className="bg-stone-950 border border-stone-900 rounded-xl p-5 space-y-4">
-              <h3 className="text-xs font-black text-white">🔌 Connected Integrations</h3>
+              <h3 className="text-xs font-black text-white">🔌 Your tool connections</h3>
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-stone-400 font-mono">Available</span>
+                  <span className="text-[10px] text-stone-400 font-mono">Import lanes (catalog)</span>
                   <span className="text-[10px] font-bold text-white">{integrationCount}+</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-stone-400 font-mono">Connected</span>
+                  <span className="text-[10px] text-stone-400 font-mono">You've connected</span>
                   <span className="text-[10px] font-bold text-emerald-400">{connectedCount}</span>
                 </div>
-                <div className="w-full bg-stone-900 rounded-full h-1.5 overflow-hidden">
-                  <div className="bg-emerald-500 h-full rounded-full transition-all"
-                    style={{ width: `${integrationCount > 0 ? Math.min((connectedCount / integrationCount) * 100, 100) : 0}%` }} />
-                </div>
               </div>
-              <Link to="/portal/integrations"
-                className="block text-center text-[10px] font-bold bg-stone-800 hover:bg-stone-700 text-stone-200 py-2 rounded-lg border border-stone-700 transition-all">
-                Connect Tools →
-              </Link>
-            </div>
-            {/* Import & migration — client-side, one-shot transfers */}
-            <div className="bg-stone-950 border border-stone-900 rounded-xl p-5 space-y-3">
-              <h3 className="text-xs font-black text-white">📥 Import &amp; migration</h3>
               <p className="text-[10px] text-stone-400 leading-relaxed">
                 Connect your existing tools to bring your data in — one-time, client-initiated transfers.
                 Preview before anything changes; nothing is imported until you approve.

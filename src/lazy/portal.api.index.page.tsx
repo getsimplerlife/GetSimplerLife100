@@ -120,7 +120,7 @@ function DeveloperPortal() {
       <div className="border-b border-stone-900 pb-6 flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-black text-white tracking-tight">🔑 Developer Gateway</h1>
-          <p className="text-stone-400 mt-1 text-sm">Manage API authorization tokens, linked to your connected integrations.</p>
+          <p className="text-stone-400 mt-1 text-sm">Manage API authorization tokens for your own tool connections.</p>
         </div>
         <button
           onClick={() => setShowNewKey(true)}

@@ -28,7 +28,7 @@ const VERTICALS = [
     description: "Evaluates production line throughput, inventory lifecycle, and quality control automation.",
     points: [
       "IoT-driven production line speed optimization and downtime tracking.",
-      "Just-in-Time (JIT) inventory replenishment triggers synced with order flow.",
+      "Just-in-Time (JIT) inventory replenishment triggers reconciled against the order flow.",
       "Automated visual inspection using AI to detect surface-level defects.",
       "Worker safety monitoring and incident report auto-generation.",
       "Supply chain transparency tracking from raw material to finished product."
@@ -87,7 +87,7 @@ const VERTICALS = [
     color: "bg-emerald-500/10 text-emerald-400 border-emerald-100",
     description: "Evaluates patient intake efficiency, HIPAA-compliant document storage, and insurance claim reconciliation.",
     points: [
-      "Digital patient intake forms with automated data sync to EMR systems.",
+      "Digital patient intake records brought in via one-time import from the EMR, then filed.",
       "HIPAA-compliant document archival with strict access control logging.",
       "Automated insurance eligibility verification and claim status tracking.",
       "Patient appointment reminder sequences (SMS/Email) to reduce no-shows.",
@@ -344,7 +344,7 @@ const VERTICALS = [
     points: [
       "Food waste tracking and automated order quantity adjustments.",
       "Labor cost monitoring against real-time sales and foot traffic.",
-      "Online order integration sync between platforms and kitchen displays.",
+      "Online order records reconciled across platforms after a one-time import.",
       "Digital menu management and automated price updates.",
       "Customer feedback collection and loyalty program integration."
     ]
@@ -370,9 +370,9 @@ const VERTICALS = [
     slug: "education",
     icon: "📚",
     color: "bg-purple-50 text-purple-700 border-purple-100",
-    description: "Audits student enrollment data, curriculum delivery sync, and grant compliance.",
+    description: "Audits student enrollment data, curriculum delivery tracking, and grant compliance.",
     points: [
-      "Digital student enrollment and automated data sync to SIS systems.",
+      "Digital student enrollment records brought in via one-time import from the SIS.",
       "Curriculum delivery tracking and automated assessment grading.",
       "Grant fund usage tracking and automated compliance reporting.",
       "Parent/Student communication automation and event notifications.",

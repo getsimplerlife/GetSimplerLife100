@@ -145,7 +145,7 @@ function CRMERPConnectorPage() {
 
       {/* Header */}
       <div className="px-6 pt-8 pb-4 border-b border-stone-900">
-        <h2 className="text-xl font-extrabold text-white">CRM & ERP Universal Connector</h2>
+        <h2 className="text-xl font-extrabold text-white">CRM &amp; ERP import</h2>
         <p className="text-xs text-stone-500 mt-1">Connect your CRM and ERP systems to bring your data in. Transfers are one-time and client-initiated — nothing syncs automatically and nothing writes back.</p>
       </div>
 
