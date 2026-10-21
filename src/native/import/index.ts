@@ -66,6 +66,11 @@ export {
   OneDriveImportSourceError,
 } from "./onedrive-source";
 export {
+  registerSftpImportSource,
+  makeSftpImportSourceReader,
+  SftpImportSourceError,
+} from "./sftp-source";
+export {
   handleNativeImportAuthed,
   registerBuiltinNativeImportEventTypes,
   submitImportWrite,

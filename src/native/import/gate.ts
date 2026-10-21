@@ -93,6 +93,7 @@ export const KNOWN_IMPORT_PROVIDERS = [
   "sendgrid",
   "slack",
   "priority",
+  "sftp",
 ] as const;
 export type ImportProviderId = (typeof KNOWN_IMPORT_PROVIDERS)[number];
 export type ImportWriteResult =
