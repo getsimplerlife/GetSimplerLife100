@@ -1282,6 +1282,21 @@ async function handleFetch(req: Request): Promise<Response> {
       // existing verified sharepoint read client (Graph) — read-only,
       // bounded snapshot). LAST 6.4 sibling.
       importNative.registerSharePointImportSource();
+      // Phase 5.1 (6.5): Google Calendar client-optional import SOURCE
+      // lane (events metadata: primary calendar, last 30 days, page 1,
+      // existing verified google-calendar read client — read-only,
+      // bounded snapshot).
+      importNative.registerGoogleCalendarImportSource();
+      // Phase 5.1 (6.5): Slack client-optional import SOURCE lane (workspace
+      // channels metadata, page 1, existing verified slack read client —
+      // read-only, bounded snapshot; the platform SLACK_BOT_TOKEN env is
+      // never a tenant credential).
+      importNative.registerSlackImportSource();
+      // Phase 5.1 (6.5): SendGrid client-optional import SOURCE lane
+      // (connection config METADATA only — honest config lane, NO live
+      // SendGrid API call; send-side integration, never claims email
+      // content was transferred).
+      importNative.registerSendgridImportSource();
       const sinkMatch = pathname.match(/^\/api\/native\/webhooks\/([a-zA-Z0-9_-]+)$/);
       if (sinkMatch) {
         // Unauthenticated provider-style receiver — signature-gated (401/404
