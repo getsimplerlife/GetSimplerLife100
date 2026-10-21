@@ -51,6 +51,11 @@ import {
   MAX_PAGE_SIZE,
 } from "./types";
 export {
+  registerXeroImportSource,
+  makeXeroImportSourceReader,
+  XeroImportSourceError,
+} from "./xero-source";
+export {
   handleNativeImportAuthed,
   registerBuiltinNativeImportEventTypes,
   submitImportWrite,

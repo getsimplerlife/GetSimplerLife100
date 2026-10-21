@@ -114,6 +114,9 @@ export interface ImportRun {
   committed: number;
   failed: number;
   note: string;
+  /** Provider HTTP status observed during a pull (honest ledger; absent when
+   *  no provider call happened or op is not a pull). */
+  httpStatus?: number;
 }
 /** Immutable native.import.* audit line. */
 export interface NativeImportAuditEntry {

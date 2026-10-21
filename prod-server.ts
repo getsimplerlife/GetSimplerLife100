@@ -1251,6 +1251,10 @@ async function handleFetch(req: Request): Promise<Response> {
       knowledgeBaseNative.registerBuiltinNativeKnowledgeBaseEventTypes();
       const importNative = await import("./src/native/import");
       importNative.registerBuiltinNativeImportEventTypes();
+      // Phase 5.1 (6.2): wire the FIRST client-optional import SOURCE lane —
+      // Xero (client-managed creds, read-only, bounded snapshot). One-shot /
+      // client-initiated re-runs only; no webhooks, no write-back.
+      importNative.registerXeroImportSource();
       const sinkMatch = pathname.match(/^\/api\/native\/webhooks\/([a-zA-Z0-9_-]+)$/);
       if (sinkMatch) {
         // Unauthenticated provider-style receiver — signature-gated (401/404
