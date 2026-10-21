@@ -12,8 +12,8 @@ import { ensureTestServer, testBaseUrl, testDataDir } from "./test-env";
  *   F5 — the orphaned serve.ts /api/billing/portal stub is removed; the
  *        payment webhook paths (/api/stripe-webhook, /api/stripe/webhook)
  *        are untouched.
- *   PACK-SLOT — every plan purchase includes 1 Connection Pack slot
- *        (CRM or ERP — tenant's choice) redeemed via /api/portal/pack-slot.
+ *   PACK-SLOT — RETIRED (owner 10-21). Connection Pack language must be
+ *        absent from the user-facing pricing surface (see guardrail below).
  *
  * The endpoint e2e section is probe-based: it fully asserts when the target
  * server has the new endpoint (post-deploy / branch instance) and skips with
@@ -45,7 +45,6 @@ describe("F5 — dead serve.ts removed entirely (owner-approved I5)", () => {
 
 describe("Pricing copy — LOCKED platform tiers (owner 09-27)", () => {
   const pricingSrc = readRepoFile("src/routes/pricing.tsx");
-  const PACK_LINE = "1 Connection Pack (CRM or ERP — your choice)";
   it("lists the three locked platform tiers (Starter/Growth/Enterprise) — no per-employee model", () => {
     const starter = pricingSrc.slice(pricingSrc.indexOf('name: "Starter"'), pricingSrc.indexOf('name: "Growth"'));
     const growth = pricingSrc.slice(pricingSrc.indexOf('name: "Growth"'), pricingSrc.indexOf('name: "Enterprise"'));
@@ -57,9 +56,10 @@ describe("Pricing copy — LOCKED platform tiers (owner 09-27)", () => {
     expect(pricingSrc).toContain("100% of native capabilities");
     expect(pricingSrc).not.toMatch(/per AI employee|AI employees? included/);
   });
-  it("connection-pack slot language survives where stated (no 'enabled' overclaim)", () => {
-    expect(pricingSrc).toContain(PACK_LINE);
-    expect(pricingSrc).not.toContain("CRM / ERP enabled");
+  it("connection-pack slot language is fully retired — zero pack-slot mentions (owner 10-21)", () => {
+    expect(pricingSrc).not.toMatch(/connection pack/i);
+    expect(pricingSrc).not.toMatch(/pack-slot|pack slot/i);
+    expect(pricingSrc).not.toMatch(/CRM \/ ERP enabled/);
   });
 });
 
