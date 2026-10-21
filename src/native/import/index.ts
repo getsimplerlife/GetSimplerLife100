@@ -86,6 +86,11 @@ export {
   BoxImportSourceError,
 } from "./box-source";
 export {
+  registerSharePointImportSource,
+  makeSharePointImportSourceReader,
+  SharePointImportSourceError,
+} from "./sharepoint-source";
+export {
   handleNativeImportAuthed,
   registerBuiltinNativeImportEventTypes,
   submitImportWrite,
