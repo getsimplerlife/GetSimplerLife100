@@ -10,9 +10,9 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 const PRICING = readFileSync("src/routes/pricing.tsx", "utf8").toLowerCase();
 const TIER_LINKS = [
-  "https://buy.stripe.com/eVq5kC7qQ0909zV0sJ5os00",
-  "https://buy.stripe.com/fZubJ0h1qbRI5jFcbr5os01",
-  "https://buy.stripe.com/fZu28qfXmaNEdQb2AR5os02",
+  "https://buy.stripe.com/evq5kc7qq0909zv0sj5os00",
+  "https://buy.stripe.com/fzubj0h1qbri5jfcbr5os01",
+  "https://buy.stripe.com/fzu28qfxmanedqb2ar5os02",
 ];
 const SCALE_LINK = "https://buy.stripe.com/aFa7sN60LdErc1B5HG2Fa2M";
 const RETIRED_BLUEPRINT_LINK = "https://buy.stripe.com/14AbJ3cp91VJc1Bfig2Fa2N";

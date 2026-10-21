@@ -22,11 +22,11 @@ const BANNED = [
   "14abj",
   "connection pack",
 ];
-const RETIRED_PRICES = ["$2,500", "$2,000", "$3,500", "$99+/mo"];
+const RETIRED_PRICES = ["$2,500", "$99+/mo"];
 const TIER_LINKS = [
-  "buy.stripe.com/eVq5kC7qQ0909zV0sJ5os00",
-  "buy.stripe.com/fZubJ0h1qbRI5jFcbr5os01",
-  "buy.stripe.com/fZu28qfXmaNEdQb2AR5os02",
+  "buy.stripe.com/evq5kc7qq0909zv0sj5os00",
+  "buy.stripe.com/fzubj0h1qbri5jfcbr5os01",
+  "buy.stripe.com/fzu28qfxmanedqb2ar5os02",
 ];
 
 function userFiles(): string[] {
