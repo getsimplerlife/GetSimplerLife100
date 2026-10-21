@@ -194,8 +194,6 @@ function UnifiedSettingsHub() {
           setPlanDesc("Includes cross-department automations and 60 days of standard tech support.");
         } else if (latest.type.includes("Scale")) {
           setPlanDesc("Includes custom integrations and 90 days of standard tech support.");
-        } else if (latest.type.includes("Audit")) {
-          setPlanDesc("Your Deep-Dive AI Opportunity Audit blueprint package is active.");
         } else {
           setPlanDesc("Your custom platform package is active and deployed.");
         }

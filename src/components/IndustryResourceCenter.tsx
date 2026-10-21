@@ -97,7 +97,7 @@ export function IndustryResourceCenter({ industryId }: IndustryResourceCenterPro
           Operational Intelligence Hub
         </h2>
         <p className="text-stone-400 text-sm lg:text-base max-w-2xl mx-auto leading-relaxed">
-          Deep-dive blueprint audits, ROI configurations, and implementation frameworks customized for your industry.
+          Blueprint audits, ROI configurations, and implementation frameworks customized for your industry.
         </p>
       </div>
 

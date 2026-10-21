@@ -43,11 +43,6 @@ export const PAGE_TITLES: Record<string, PageMeta> = {
     description:
       "Answer a few questions about your operations and get a free automation assessment with recommended workflows and estimated savings.",
   },
-  "/audit": {
-    title: "AI Opportunity Audit | Simpler Life 100",
-    description:
-      "Work through a structured AI opportunity audit to find which workflows you can automate and estimate your savings.",
-  },
   "/build": {
     title: "Build Your Platform | Simpler Life 100",
     description:

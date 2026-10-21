@@ -125,10 +125,10 @@ export default function IndustryHub({ data }: { data: IndustryHubType }) {
               <span className="text-xs font-mono font-bold tracking-widest text-emerald-400 uppercase">[ Where to start ]</span>
               <h2 className="text-3xl lg:text-5xl font-extrabold text-white">Simple, Risk-Free Onboarding</h2>
               <p className="text-stone-400 text-xs lg:text-sm max-w-md mx-auto leading-relaxed">
-                Start with a free data-driven scan or select our comprehensive technical blueprint.
+                Start with a free data-driven scan — no card required.
               </p>
             </div>
-            <div className="grid md:grid-cols-2 gap-8">
+            <div className="grid gap-8 max-w-md mx-auto">
               {/* Quick Scan */}
               <div className="p-8 bg-stone-950 border border-stone-800 rounded-3xl flex flex-col justify-between hover:border-stone-700 transition-colors">
                 <div>
@@ -152,34 +152,7 @@ export default function IndustryHub({ data }: { data: IndustryHubType }) {
                 </Link>
               </div>
 
-              {/* Deep Dive */}
-              <div className="p-8 bg-stone-950 border-2 border-emerald-500/20 rounded-3xl flex flex-col justify-between shadow-lg shadow-emerald-950/5 relative overflow-hidden">
-                <div className="absolute top-0 right-0 bg-emerald-500 text-stone-950 text-[10px] font-mono font-bold uppercase tracking-widest px-4 py-1.5 rounded-bl-xl">
-                  Popular
-                </div>
-                <div>
-                  <span className="text-xs font-mono font-bold text-emerald-400 uppercase tracking-widest">[ Step 02 ]</span>
-                  <h3 className="text-2xl font-black text-white mt-2 mb-1">Deep-Dive Operations Audit</h3>
-                  <p className="text-stone-400 text-sm mb-6">Full technical roadmap, ROI projection, and blueprint.</p>
-                  <div className="text-4xl font-mono font-black text-white mb-6">
-                    {c.auditPackages.deepDive.price}
-                  </div>
-                  <ul className="space-y-3.5 mb-8 border-t border-stone-900 pt-6">
-                    {c.auditPackages.deepDive.features.map((feat, i) => (
-                      <li key={i} className="text-xs text-stone-400 flex items-start gap-2.5">
-                        <span className="text-emerald-500 font-bold mt-0.5">✓</span>
-                        <span>{feat}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <a
-                  href="https://buy.stripe.com/4gMfZj88TfMz6Hh8TS2Fa1K"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="w-full bg-white hover:bg-stone-200 text-stone-950 text-center py-3 rounded-xl text-sm font-bold transition-all"
-                >
-                  Buy Blueprint Assessment Now
+  
                 </a>
               </div>
             </div>

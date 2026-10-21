@@ -43,7 +43,7 @@ const CAPABILITIES = [
     icon: "🔌",
     title: "One Platform, Every Capability",
     description:
-      "Records, forms, docs & e-sign, webhooks, booking, boards, AI extraction, surveys/NPS, transforms/EDI, dashboards/BI, and automations — all natively in one platform, in every tier. Each plan includes one CRM or ERP Connection Pack — your choice.",
+      "Records, forms, docs & e-sign, webhooks, booking, boards, AI extraction, surveys/NPS, transforms/EDI, dashboards/BI, and automations — all natively in one platform, in every tier.",
   },
   {
     icon: "🛡️",

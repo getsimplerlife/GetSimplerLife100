@@ -10,10 +10,6 @@ function DemosHub() {
         <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-4">Interactive <span className="text-emerald-400">Demos</span></h1>
         <p className="text-stone-400 text-lg max-w-2xl mx-auto mb-12">See Simpler Life 100 in action with these interactive walkthroughs.</p>
         <div className="grid gap-6 max-w-2xl mx-auto">
-          <Link to="/demos/audit-portal" className="block bg-stone-900 hover:bg-stone-800 border border-stone-800 rounded-2xl p-8 text-left transition-all">
-            <h2 className="text-xl font-black text-white mb-2">🔍 Audit Workflow Demo</h2>
-            <p className="text-stone-400 text-sm">Watch automated workflows audit compliance, flag issues, and generate reports in real time.</p>
-          </Link>
           <Link to="/demos/workflows" className="block bg-stone-900 hover:bg-stone-800 border border-stone-800 rounded-2xl p-8 text-left transition-all">
             <h2 className="text-xl font-black text-white mb-2">⚡ Workflow Automation Demo</h2>
             <p className="text-stone-400 text-sm">Explore how multi-step workflows execute across departments with AI-driven decision nodes.</p>

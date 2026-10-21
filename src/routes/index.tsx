@@ -670,7 +670,7 @@ function Home() {
                 to="/pricing"
                 className="inline-flex items-center gap-2 rounded-xl border border-stone-700 px-5 py-2.5 text-sm font-bold text-stone-300 transition-colors hover:border-emerald-500/50 hover:text-emerald-300"
               >
-                Full pricing & the $2,500 Automation Sprint →
+                Full pricing →
               </Link>
             </div>
 

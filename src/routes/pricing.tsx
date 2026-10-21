@@ -14,9 +14,9 @@ export const Route = createFileRoute("/pricing")({
  * No per-AI-employee selling, no per-feature upsell. Tiers differ by
  * scale limits, governance (multi-step approvals + autonomy allow-lists)
  * and support; Enterprise adds custom on-demand vendor-API builds.
- * Live native layer (all live-verified, Phases 1-3.7). Subscription
- * products are being set up at checkout after the owner's Stripe switch;
- * the one-time Automation Sprint ($2,500) is the live low-risk entry now.
+ * Live native layer (all live-verified, Phases 1-3.7). The three locked
+ * tiers are the ONLY SKUs; the free assessment is the sole low-risk entry
+ * (owner 10-21: the one-time sprint SKU is retired).
  */
 const PLATFORM_TIERS = [
   {
@@ -30,7 +30,6 @@ const PLATFORM_TIERS = [
     features: [
       "100% of native capabilities \u2014 records, forms, docs/e-sign, webhooks, booking, boards, AI extraction, surveys/NPS, transforms/EDI, dashboards/BI, automations",
       "Approval-queue control with per-workflow autonomy allow-lists",
-      "1 Connection Pack (CRM or ERP — your choice)",
       "Standard support (email)",
     ],
     cta: "Choose Starter",
@@ -145,52 +144,8 @@ function PricingPage() {
         <p className="text-xs text-stone-500 mt-6 text-center max-w-2xl mx-auto">
           Checkout is handled securely by Stripe — subscriptions bill monthly, with
           one-time onboarding on your first invoice. Prefer a low-risk start? The
-          one-time Automation Sprint below is a live entry point — and the free
-          assessment costs nothing.
+          free assessment costs nothing — no card required.
         </p>
-      </section>
-
-      {/* Automation Sprint — low-risk entry (P3) */}
-      <section id="sprint" className="max-w-6xl mx-auto px-6 pb-16">
-        <div className="premium-card premium-card-accent rounded-3xl p-8 md:p-12 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-bold tracking-wider mb-6">
-            ⚡ LOW-RISK START
-          </div>
-          <h2 className="text-3xl md:text-4xl font-black text-white mb-3">Automation Sprint</h2>
-          <p className="text-stone-400 text-lg max-w-2xl mx-auto mb-6">
-            The low-risk first step: one $2,500 one-time engagement where we{" "}
-            <span className="text-white font-bold">identify and build one high-value workflow</span>{" "}
-            end-to-end. If it works, expand into a full platform subscription.
-          </p>
-          <div className="text-5xl font-black text-white mb-2">
-            $2,500<span className="text-stone-500 text-lg font-normal"> one-time</span>
-          </div>
-          <p className="text-sm text-stone-400 max-w-xl mx-auto mb-8">
-            We map one process end-to-end, design the workflow, and deliver a build-ready plan.{" "}
-            <span className="text-stone-300 font-bold">The fee is credited toward a build package</span>{" "}
-            when you move forward.
-          </p>
-          <div className="flex flex-wrap justify-center gap-4">
-            <a
-              href="https://buy.stripe.com/14AbJ3cp91VJc1Bfig2Fa2N"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="premium-btn inline-flex items-center justify-center text-white px-8 py-3.5 rounded-xl font-bold text-sm"
-            >
-              Start the Sprint →
-            </a>
-            <Link
-              to="/assessment"
-              className="inline-flex items-center justify-center border border-stone-700 hover:border-emerald-500/50 text-stone-200 hover:text-white px-8 py-3.5 rounded-xl font-bold text-sm transition-all"
-            >
-              Prefer to map it first? Free assessment →
-            </Link>
-          </div>
-          <p className="text-xs text-stone-500 mt-5 max-w-xl mx-auto">
-            At checkout you'll see the item as "Industry Blueprint Assessment" — the same $2,500 one-time engagement. The site calls it Automation Sprint; the catalog name is the
-            owner's to update.
-          </p>
-        </div>
       </section>
 
       {/* What's live in every tier */}
@@ -231,7 +186,7 @@ function PricingPage() {
           <h2 className="text-2xl font-black text-white mb-2">Need help deciding?</h2>
           <p className="text-stone-400 max-w-lg mx-auto mb-6">
             Start with the free 30-second assessment — we'll map your workflows and recommend the
-            right first step (the Sprint or a platform tier).
+            right platform tier for your firm.
           </p>
           <Link
             to="/assessment"
