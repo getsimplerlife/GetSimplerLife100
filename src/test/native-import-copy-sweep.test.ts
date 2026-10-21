@@ -44,6 +44,8 @@ const BANNED_PHRASES = [
   "background sync",
   "syncs automatically",
   "on your behalf",
+  "live provider",
+  "live demo",
   "AI Operations Team",
   "AI coworkers",
   "AI Employee",

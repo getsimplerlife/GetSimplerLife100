@@ -14,13 +14,13 @@
  *
  * Copy truthfulness (per lane — enforced by
  * src/test/native-import-copy-sweep.test.ts):
- *   - LIVE provider lanes say "connect your own account to bring your data
+ *   - WIRED lanes say "connect your own account to bring your data
  *     in" and state exactly what they read (bounded page-1 snapshots) and
  *     what they do NOT read ("file contents are NOT downloaded by this
  *     lane" / "message content is NOT downloaded" / "event attachments are
  *     NOT downloaded").
  *   - CONFIG-METADATA lanes (SFTP, SendGrid) say exactly what they read
- *     (their own stored config metadata) and that no live provider call is
+ *     (their own stored config metadata) and that no live vendor API call is
  *     made ("no live SendGrid API call").
  *   - Not-wired providers are shown honestly as "Not wired yet".
  *   - The page NEVER claims we run through the tenant's tools, never
@@ -40,37 +40,37 @@ export const IMPORT_LANE_COPY: Record<
   xero: {
     name: "Xero",
     family: "live",
-    copy: "Live provider lane — connect your own Xero account to bring your accounting data in (bounded snapshot, page 1). One-shot, approval-gated. Nothing writes back.",
+    copy: "Connect your own Xero account to bring your accounting data in — bounded snapshot, page 1. One-shot, approval-gated. Nothing writes back.",
   },
   hubspot: {
     name: "HubSpot",
     family: "live",
-    copy: "Live provider lane — connect your own HubSpot account to bring your CRM data in (bounded snapshot, page 1). One-shot, approval-gated. Nothing writes back.",
+    copy: "Connect your own HubSpot account to bring your CRM data in — bounded snapshot, page 1. One-shot, approval-gated. Nothing writes back.",
   },
   onedrive: {
     name: "OneDrive",
     family: "live-file",
-    copy: "Live provider lane — lists file METADATA from your own OneDrive (root, page 1). File contents are NOT downloaded by this lane.",
+    copy: "Connect your own OneDrive account — lists file METADATA (root, page 1). File contents are NOT downloaded by this lane.",
   },
   "google-drive": {
     name: "Google Drive",
     family: "live-file",
-    copy: "Live provider lane — lists file METADATA from your own Google Drive (root, page 1). File contents are NOT downloaded by this lane.",
+    copy: "Connect your own Google Drive account — lists file METADATA (root, page 1). File contents are NOT downloaded by this lane.",
   },
   dropbox: {
     name: "Dropbox",
     family: "live-file",
-    copy: "Live provider lane — lists file METADATA from your own Dropbox (root, page 1). File contents are NOT downloaded by this lane.",
+    copy: "Connect your own Dropbox account — lists file METADATA (root, page 1). File contents are NOT downloaded by this lane.",
   },
   box: {
     name: "Box",
     family: "live-file",
-    copy: "Live provider lane — lists file METADATA from your own Box (root, page 1). File contents are NOT downloaded by this lane.",
+    copy: "Connect your own Box account — lists file METADATA (root, page 1). File contents are NOT downloaded by this lane.",
   },
   sharepoint: {
     name: "SharePoint",
     family: "live-file",
-    copy: "Live provider lane — lists file METADATA from your own SharePoint document library (root, page 1). File contents are NOT downloaded by this lane.",
+    copy: "Connect your own SharePoint account — lists file METADATA from your document library (root, page 1). File contents are NOT downloaded by this lane.",
   },
   sftp: {
     name: "SFTP (Secure Transport)",
@@ -80,12 +80,12 @@ export const IMPORT_LANE_COPY: Record<
   "google-calendar": {
     name: "Google Calendar",
     family: "live-event",
-    copy: "Live provider lane — lists calendar EVENT metadata from your own Google Calendar (primary calendar, last 30 days, page 1). Event attachments are NOT downloaded by this lane.",
+    copy: "Connect your own Google Calendar account — lists calendar EVENT metadata (primary calendar, last 30 days, page 1). Event attachments are NOT downloaded by this lane.",
   },
   slack: {
     name: "Slack",
     family: "live-channel",
-    copy: "Live provider lane — lists workspace CHANNEL metadata from your own Slack (page 1). Message content is NOT downloaded by this lane.",
+    copy: "Connect your own Slack account — lists workspace CHANNEL metadata (page 1). Message content is NOT downloaded by this lane.",
   },
   sendgrid: {
     name: "SendGrid",
@@ -101,10 +101,10 @@ export const IMPORT_LANE_COPY: Record<
 
 /** Trust badge text per lane family. */
 export const LANE_BADGE: Record<string, string> = {
-  live: "LIVE provider lane",
-  "live-file": "LIVE provider lane · file metadata",
-  "live-event": "LIVE provider lane · event metadata",
-  "live-channel": "LIVE provider lane · channel metadata",
+  live: "Connected lane",
+  "live-file": "Connected lane · file metadata",
+  "live-event": "Connected lane · event metadata",
+  "live-channel": "Connected lane · channel metadata",
   config: "Config-metadata lane",
   soon: "Not wired yet",
 };
@@ -313,7 +313,7 @@ export default function PortalImportIndexPage() {
                 <div key={l.provider} className="rounded border border-slate-700/60 bg-slate-900/60 p-3">
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-sm font-medium">{meta.name}</span>
-                    <Badge>{l.wired ? LANE_BADGE[meta.family] ?? "LIVE provider lane" : LANE_BADGE.soon}</Badge>
+                    <Badge>{l.wired ? LANE_BADGE[meta.family] ?? "Connected lane" : LANE_BADGE.soon}</Badge>
                   </div>
                   <p className="text-xs text-slate-400 mt-2 leading-relaxed">{meta.copy}</p>
                 </div>
