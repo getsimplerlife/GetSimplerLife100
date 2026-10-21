@@ -24,8 +24,8 @@
  *     made ("no live SendGrid API call").
  *   - Not-wired providers are shown honestly as "Not wired yet".
  *   - The page NEVER claims we run through the tenant's tools, never
- *     "syncs", never "writes back", and never resumes the retired reconnect
- *     program — one-shot/client-initiated only.
+ *     "syncs", never "writes back", and never resumes the retired
+ *     external-connection program — one-shot/client-initiated only.
  */
 import { useCallback, useEffect, useState } from "react";
 import { Card, CardBody, Badge, Button } from "~/components/ui";
