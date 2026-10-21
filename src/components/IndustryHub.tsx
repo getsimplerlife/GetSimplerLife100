@@ -151,10 +151,6 @@ export default function IndustryHub({ data }: { data: IndustryHubType }) {
                   Launch Free AI Assessment Tool
                 </Link>
               </div>
-
-  
-                </a>
-              </div>
             </div>
           </div>
         </section>

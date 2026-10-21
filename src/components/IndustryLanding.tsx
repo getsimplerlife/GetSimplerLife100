@@ -125,10 +125,6 @@ export default function IndustryLanding({ config }: { config: IndustryConfig }) 
                 Schedule Free Audit
               </Link>
             </div>
-
-
-              </a>
-            </div>
           </div>
         </section>
 
