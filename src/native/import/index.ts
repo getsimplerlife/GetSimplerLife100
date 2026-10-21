@@ -91,6 +91,21 @@ export {
   SharePointImportSourceError,
 } from "./sharepoint-source";
 export {
+  registerGoogleCalendarImportSource,
+  makeGoogleCalendarImportSourceReader,
+  GoogleCalendarImportSourceError,
+} from "./google-calendar-source";
+export {
+  registerSlackImportSource,
+  makeSlackImportSourceReader,
+  SlackImportSourceError,
+} from "./slack-source";
+export {
+  registerSendgridImportSource,
+  makeSendgridImportSourceReader,
+  SendgridImportSourceError,
+} from "./sendgrid-source";
+export {
   handleNativeImportAuthed,
   registerBuiltinNativeImportEventTypes,
   submitImportWrite,
