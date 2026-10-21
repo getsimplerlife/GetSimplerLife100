@@ -1258,6 +1258,9 @@ async function handleFetch(req: Request): Promise<Response> {
       // Phase 5.1 (6.3): second client-optional import SOURCE lane — HubSpot
       // (CRM contacts/companies/deals, same client-managed read-only contract).
       importNative.registerHubSpotImportSource();
+      // Phase 5.1 (6.4): third client-optional import SOURCE lane — OneDrive
+      // (file metadata: root children, read-only, bounded snapshot).
+      importNative.registerOneDriveImportSource();
       const sinkMatch = pathname.match(/^\/api\/native\/webhooks\/([a-zA-Z0-9_-]+)$/);
       if (sinkMatch) {
         // Unauthenticated provider-style receiver — signature-gated (401/404

@@ -61,6 +61,11 @@ export {
   HubSpotImportSourceError,
 } from "./hubspot-source";
 export {
+  registerOneDriveImportSource,
+  makeOneDriveImportSourceReader,
+  OneDriveImportSourceError,
+} from "./onedrive-source";
+export {
   handleNativeImportAuthed,
   registerBuiltinNativeImportEventTypes,
   submitImportWrite,
