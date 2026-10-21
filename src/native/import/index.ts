@@ -76,6 +76,11 @@ export {
   GoogleDriveImportSourceError,
 } from "./google-drive-source";
 export {
+  registerDropboxImportSource,
+  makeDropboxImportSourceReader,
+  DropboxImportSourceError,
+} from "./dropbox-source";
+export {
   handleNativeImportAuthed,
   registerBuiltinNativeImportEventTypes,
   submitImportWrite,
