@@ -39,9 +39,11 @@ interface DeveloperKey {
 
 interface InvoiceItem {
   id: string;
-  type: string;
-  amount: string;
-  date: string;
+  type?: string;
+  description?: string | null;
+  amount: string | number | null;
+  date?: string | null;
+  status?: string | null;
 }
 
 const verticalIndustries = [
@@ -103,7 +105,7 @@ function UnifiedSettingsHub() {
   const [planDesc, setPlanDesc] = useState("");
   const [invoices, setInvoices] = useState<InvoiceItem[]>([]);
   const [loadingBilling, setLoadingBilling] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<{ brand: string; last4: string; expMonth: number; expYear: number } | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<{ brand?: string; last4?: string; expMonth?: number; expYear?: number } | null>(null);
 
   // 4. API Key states
   const [developerKeys, setDeveloperKeys] = useState<DeveloperKey[]>([]);
@@ -165,39 +167,20 @@ function UnifiedSettingsHub() {
     }
   };
 
-  // Fetch Plan & Billing details
+  // Fetch real billing details from /api/native/billing (P1-1): Stripe or the
+  // tenant's own durable purchase rows. Never infers a plan from audit rows and
+  // never fabricates a payment method (P1-2).
   const fetchBillingData = async () => {
     try {
       setLoadingBilling(true);
-      const [billingRes, auditsRes] = await Promise.all([
-        fetch("/api/data/billing", { credentials: "include" }),
-        fetch("/api/data/audits", { credentials: "include" })
-      ]);
-      const billingData = await billingRes.json();
-      const auditsData = await auditsRes.json();
-
-      setInvoices(billingData.data || []);
-      // Fetch payment method
-      try {
-        const pmRes = await fetch("/api/data/payment-method", { credentials: "include" });
-        const pmData = await pmRes.json();
-        if (pmData.data) setPaymentMethod(pmData.data);
-      } catch {}
-
-      const audits = auditsData.data || [];
-      if (audits.length > 0) {
-        const latest = audits[audits.length - 1];
-        setActivePlan(latest.type || "Starter Implementation");
-        if (latest.type.includes("Starter")) {
-          setPlanDesc("Includes running automations, native capabilities, and 30 days of standard tech support.");
-        } else if (latest.type.includes("Growth")) {
-          setPlanDesc("Includes cross-department automations and 60 days of standard tech support.");
-        } else if (latest.type.includes("Scale")) {
-          setPlanDesc("Includes custom integrations and 90 days of standard tech support.");
-        } else {
-          setPlanDesc("Your custom platform package is active and deployed.");
-        }
-      }
+      const billingRes = await fetch("/api/native/billing", { credentials: "include" });
+      const packet = await billingRes.json();
+      const billing = packet?.billing ?? { source: "none", subscription: null, invoices: [], paymentMethod: null };
+      const sub = billing.subscription ?? null;
+      setActivePlan(sub?.planName || "");
+      setPlanDesc("");
+      setInvoices(Array.isArray(billing.invoices) ? billing.invoices : []);
+      setPaymentMethod(billing.paymentMethod ?? null);
     } catch (err) {
       console.error("Error loading billing info:", err);
     } finally {
@@ -852,8 +835,8 @@ function UnifiedSettingsHub() {
               <div className="bg-stone-950 border border-stone-900 rounded-3xl p-6 shadow-xl flex flex-col justify-between gap-6 hover:border-emerald-500/10 transition-all duration-300">
                 <div className="space-y-4">
                   <span className="text-[9px] font-black uppercase text-emerald-400 bg-emerald-950/40 border border-emerald-800/40 px-3 py-1 rounded-full tracking-wider">Current Plan</span>
-                  <h3 className="text-2xl font-black text-white">{activePlan || "Free"}</h3>
-                  <p className="text-stone-400 text-xs leading-relaxed font-semibold">{planDesc || "Core access with running automations and integrated systems."}</p>
+                  <h3 className="text-2xl font-black text-white">{activePlan || "No subscription on file"}</h3>
+                  <p className="text-stone-400 text-xs leading-relaxed font-semibold">{planDesc || "Choose a plan to activate billing for this workspace."}</p>
                 </div>
 
                 <button
@@ -875,7 +858,9 @@ function UnifiedSettingsHub() {
                       </div>
                       <div>
                         <div className="text-white font-bold text-sm">{paymentMethod.brand} •••• {paymentMethod.last4}</div>
-                        <div className="text-stone-500 text-[10px] font-semibold">Expires {String(paymentMethod.expMonth).padStart(2,"0")}/{String(paymentMethod.expYear).slice(-2)}</div>
+                        {paymentMethod.expMonth ? (
+                          <div className="text-stone-500 text-[10px] font-semibold">Expires {String(paymentMethod.expMonth).padStart(2,"0")}/{String(paymentMethod.expYear).slice(-2)}</div>
+                        ) : null}
                       </div>
                     </div>
                   ) : (
@@ -904,19 +889,21 @@ function UnifiedSettingsHub() {
                     {invoices.map((inv) => (
                       <div key={inv.id} className="flex justify-between items-center py-3.5">
                         <div className="space-y-0.5">
-                          <div className="font-bold text-white text-sm">{inv.type}</div>
-                          <div className="text-[10px] text-stone-500">{inv.date} • ID: {inv.id}</div>
+                          <div className="font-bold text-white text-sm">{inv.description || inv.type || "Platform subscription"}</div>
+                          <div className="text-[10px] text-stone-500">{inv.date || "—"} • ID: {inv.id}</div>
                         </div>
                         <div className="flex items-center gap-4 shrink-0">
-                          <span className="font-black text-emerald-400 text-sm">{inv.amount}</span>
-                          <span className="text-[10px] bg-stone-900 px-2.5 py-1 rounded-full text-stone-500 border border-stone-850 font-bold uppercase tracking-wider">Paid</span>
+                          <span className="font-black text-emerald-400 text-sm">{inv.amount ?? "—"}</span>
+                          {String(inv.status || "").toLowerCase() === "paid" ? (
+                            <span className="text-[10px] bg-stone-900 px-2.5 py-1 rounded-full text-stone-500 border border-stone-850 font-bold uppercase tracking-wider">Paid</span>
+                          ) : null}
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
                   <div className="text-stone-500 text-xs py-12 text-center border-2 border-dashed border-stone-900 rounded-2xl">
-                    No recent invoice records found. Active systems operating standards.
+                    No invoices or purchase records yet.
                   </div>
                 )}
               </div>

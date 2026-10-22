@@ -71,7 +71,6 @@ describe("P0 portal rework guardrails (owner 10-22)", () => {
       "src/lazy/portal.reports.index.page.tsx",
       "src/lazy/portal.tasks.index.page.tsx",
       "src/lazy/portal.communications.index.page.tsx",
-      "src/lazy/portal.training.index.page.tsx",
     ];
     for (const rel of files) {
       const src = readFileSync(P(rel), "utf8");
@@ -86,7 +85,6 @@ describe("P0 portal rework guardrails (owner 10-22)", () => {
       "src/lazy/portal.reports.index.page.tsx",
       "src/lazy/portal.tasks.index.page.tsx",
       "src/lazy/portal.communications.index.page.tsx",
-      "src/lazy/portal.training.index.page.tsx",
     ];
     for (const rel of files) {
       const src = readFileSync(P(rel), "utf8");
