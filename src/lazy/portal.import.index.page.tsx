@@ -12,6 +12,24 @@
  * Approval Queue (verb-first, verdict-first); preview never writes and never
  * gates; NO public share; tenant-keyed stores only; fail-closed auth.
  *
+ * P2-2 upgrade (portal-only — ZERO server/native/auth changes):
+ *   - run-status TIMELINE per import: pull → map → commit stage states drawn
+ *     ONLY from the honest run ledger (`GET /api/native/import/:id/runs` →
+ *     `at` timestamps + counts), with a chronological ledger list; no stage
+ *     is ever shown as done unless the ledger has a matching run. Preview is
+ *     read-only and is NOT recorded in the run ledger — the UI says so
+ *     instead of inventing a "previewed" state.
+ *   - BULK mapping: one row per source field with the target field selected
+ *     from the tenant's OWN table schema (`GET /api/native/tables` →
+ *     `fields[].key`) and sample values from the read-only preview; "Map all"
+ *     POSTs the full mapping ARRAY in ONE gated call
+ *     (`POST /api/native/import/:id/map` with `{mapping:[...]}` — same
+ *     endpoint, same payload the lane was built to accept). Deterministic
+ *     field mapping only — NO LLM anywhere.
+ *   - MAPPING REVIEW TABLE before Approve/Commit: saved mappings (from the
+ *     job's `mapping` array on `GET /api/native/import`) and any un-saved
+ *     draft, each row with source field → target field → sample value.
+ *
  * Copy truthfulness (per lane — enforced by
  * src/test/native-import-copy-sweep.test.ts):
  *   - WIRED lanes say "connect your own account to bring your data
@@ -26,6 +44,11 @@
  *   - The page NEVER claims we run through the tenant's tools, never
  *     "syncs", never "writes back", and never resumes the retired
  *     external-connection program — one-shot/client-initiated only.
+ * The static framing sentences below ("Connect your existing tools to bring
+ * your data in", "We never run through your tools", "nothing syncs in the
+ * background", "nothing writes back", "nothing is imported until you
+ * approve", "approval-gated") are pinned by the copy-sweep SSR test — keep
+ * them verbatim when editing.
  */
 import { useCallback, useEffect, useState } from "react";
 import { Card, CardBody, Badge, Button } from "~/components/ui";
@@ -110,14 +133,90 @@ export const LANE_BADGE: Record<string, string> = {
   soon: "Not wired yet",
 };
 
+// ── P2-2 pure helpers (exported for unit tests) ─────────────────────────────
+
+/** Ledger op → human stage label (only ever used to label a run the ledger
+ *  actually recorded — never to claim a stage ran). */
+export const HUMAN_OP: Record<string, string> = {
+  createImport: "Create",
+  pullImportData: "Pull",
+  mapImportFields: "Map",
+  commitImport: "Commit",
+  updateImport: "Update",
+  deleteImport: "Delete",
+  reject: "Rejected",
+};
+
+/** Map a ledger op to its timeline stage family (pull|map|commit|other). */
+export function stageOf(op: string | undefined): "pull" | "map" | "commit" | "other" {
+  switch (op) {
+    case "pullImportData":
+      return "pull";
+    case "mapImportFields":
+      return "map";
+    case "commitImport":
+      return "commit";
+    default:
+      return "other";
+  }
+}
+
+/** One-line outcome summary built ONLY from real ledger counts. */
+export function runOutcomeLine(r: { pulled?: number; mapped?: number; skipped?: number; committed?: number; failed?: number }): string {
+  const parts: string[] = [];
+  if ((r.pulled ?? 0) > 0) parts.push(`${r.pulled} pulled`);
+  if ((r.mapped ?? 0) > 0) parts.push(`${r.mapped} mapped`);
+  if ((r.skipped ?? 0) > 0) parts.push(`${r.skipped} skipped`);
+  if ((r.committed ?? 0) > 0) parts.push(`${r.committed} committed`);
+  if ((r.failed ?? 0) > 0) parts.push(`${r.failed} failed`);
+  return parts.length ? parts.join(" · ") : "recorded with no row counts";
+}
+
+/** First non-empty scalar sample for a source field across the staged preview
+ *  rows — an honest sample, never fabricated. */
+export function firstSample(rows: Array<Record<string, unknown>>, field: string): string | null {
+  for (const row of rows) {
+    const v = row[field];
+    if (v === undefined || v === null) continue;
+    const s = typeof v === "object" ? JSON.stringify(v) : String(v);
+    if (s.trim().length > 0) return s.length > 60 ? `${s.slice(0, 57)}…` : s;
+  }
+  return null;
+}
+
+/** Build the deterministic bulk-mapping payload: one entry per source field
+ *  with a non-empty target, de-duplicated by source field. */
+export function bulkMappingPayload(draft: Record<string, string>): Array<{ sourceField: string; targetField: string }> {
+  const out: Array<{ sourceField: string; targetField: string }> = [];
+  for (const [sourceField, targetField] of Object.entries(draft)) {
+    const tf = targetField?.trim() ?? "";
+    if (!sourceField || !tf) continue;
+    if (out.some((m) => m.sourceField === sourceField)) continue;
+    out.push({ sourceField, targetField: tf });
+  }
+  return out;
+}
+
+// ── API view types (mirror the public projections the endpoints return) ─────
+
 interface LaneView {
   provider: string;
   wired: boolean;
 }
+interface TableFieldView {
+  key: string;
+  label?: string;
+  type?: string;
+}
 interface TableView {
   id: string;
   name: string;
-  fieldCount?: number;
+  fields?: TableFieldView[];
+}
+interface MappingView {
+  sourceField: string;
+  targetField: string;
+  coerce?: string;
 }
 interface ImportView {
   id: string;
@@ -126,17 +225,26 @@ interface ImportView {
   status: string;
   createdAt: string;
   tableId?: string;
-  stagedRows?: number;
+  mapping?: MappingView[];
 }
-interface RunView {
+/** Ledger entry exactly as publicRun exposes it (op, at, counts, note). */
+interface RunLedger {
   id: string;
   op: string;
-  status: string;
-  note: string;
+  at: string;
+  by?: string;
   pulled?: number;
+  mapped?: number;
+  skipped?: number;
+  committed?: number;
   failed?: number;
+  note?: string;
   httpStatus?: number;
-  createdAt: string;
+}
+interface PreviewView {
+  rows: Array<Record<string, unknown>>;
+  staged?: number;
+  note?: string;
 }
 interface PendingWriteView {
   id: string;
@@ -164,8 +272,10 @@ export default function PortalImportIndexPage() {
   const [tables, setTables] = useState<TableView[]>([]);
   const [imports, setImports] = useState<ImportView[]>([]);
   const [writes, setWrites] = useState<PendingWriteView[]>([]);
-  const [runsByJob, setRunsByJob] = useState<Record<string, RunView[]>>({});
-  const [previewByJob, setPreviewByJob] = useState<Record<string, Array<Record<string, unknown>>>>({});
+  const [runsByJob, setRunsByJob] = useState<Record<string, RunLedger[]>>({});
+  const [previewByJob, setPreviewByJob] = useState<Record<string, PreviewView>>({});
+  const [mapDrafts, setMapDrafts] = useState<Record<string, Record<string, string>>>({});
+  const [busy, setBusy] = useState<Record<string, boolean>>({});
   const [note, setNote] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
@@ -180,6 +290,17 @@ export default function PortalImportIndexPage() {
     if (t.data) setTables((t.data.tables as TableView[]) ?? []);
     if (i.data) setImports((i.data.imports as ImportView[]) ?? []);
     if (w.data) setWrites((w.data.writes as PendingWriteView[]) ?? []);
+    // Auto-load each import's run ledger (honest timeline source).
+    const ids: string[] = Array.isArray(i.data?.imports)
+      ? (i.data.imports as ImportView[]).map((im) => im.id)
+      : [];
+    const results = await Promise.all(
+      ids.map(async (id) => {
+        const r = await api(`/api/native/import/${id}/runs`);
+        return [id, (r.data?.runs as RunLedger[]) ?? []] as const;
+      })
+    );
+    setRunsByJob(Object.fromEntries(results));
   }, []);
   useEffect(() => {
     void load();
@@ -212,8 +333,10 @@ export default function PortalImportIndexPage() {
       (e.currentTarget as HTMLFormElement).reset();
     });
   }
-  function act(importId: string, verb: "pull" | "map" | "commit" | "delete", payload?: Record<string, unknown>): void {
+  function act(importId: string, verb: "pull" | "commit" | "delete", payload?: Record<string, unknown>): void {
+    setBusy((b) => ({ ...b, [`${importId}:${verb}`]: true }));
     void api(`/api/native/import/${importId}/${verb}`, { method: "POST", body: JSON.stringify(payload ?? {}) }).then(async (r) => {
+      setBusy((b) => ({ ...b, [`${importId}:${verb}`]: false }));
       if (r.ok) {
         if (r.data?.status === "pending") setNote(`${verb} queued for approval — approve it below.`);
         else if (r.data?.status === "applied") setNote(`${verb} applied.`);
@@ -225,30 +348,37 @@ export default function PortalImportIndexPage() {
     });
   }
   function preview(importId: string): void {
-    void api(`/api/native/import/${importId}/preview`, { method: "POST", body: JSON.stringify({}) }).then((r) => {
+    setBusy((b) => ({ ...b, [`${importId}:preview`]: true }));
+    void api(`/api/native/import/${importId}/preview`, { method: "POST", body: JSON.stringify({}) }).then(async (r) => {
+      setBusy((b) => ({ ...b, [`${importId}:preview`]: false }));
       if (r.ok) {
         const rows = (r.data?.previewRows as Array<Record<string, unknown>>) ?? [];
-        setPreviewByJob((p) => ({ ...p, [importId]: rows }));
+        setPreviewByJob((p) => ({ ...p, [importId]: { rows, staged: r.data?.staged ?? rows.length, note: r.data?.note } }));
         setNote(r.data?.note ?? "read-only preview — nothing was written or queued");
       } else {
         setNote(`preview failed: ${r.error ?? "unknown error"}`);
       }
-      void load();
+      await load();
     });
   }
-  function runs(importId: string): void {
-    void api(`/api/native/import/${importId}/runs`).then((r) => {
-      if (r.ok) setRunsByJob((m) => ({ ...m, [importId]: (r.data?.runs as RunView[]) ?? [] }));
-    });
+  function setDraft(importId: string, sourceField: string, targetField: string): void {
+    setMapDrafts((d) => ({ ...d, [importId]: { ...(d[importId] ?? {}), [sourceField]: targetField } }));
   }
-  function mappingForm(importId: string, e: React.FormEvent<HTMLFormElement>): void {
-    e.preventDefault();
-    const f = new FormData(e.currentTarget);
-    const sourceField = String(f.get("sourceField") ?? "");
-    const targetField = String(f.get("targetField") ?? "");
-    if (!sourceField || !targetField) return;
-    void api(`/api/native/import/${importId}/map`, { method: "POST", body: JSON.stringify({ mapping: [{ sourceField, targetField }] }) }).then(async (r) => {
-      setNote(r.ok ? "Mapping saved (approve below if queued)." : `map failed: ${r.error ?? "unknown error"}`);
+  function bulkMap(importId: string): void {
+    const mapping = bulkMappingPayload(mapDrafts[importId] ?? {});
+    if (mapping.length === 0) {
+      setNote("Map at least one source field to a target field first.");
+      return;
+    }
+    setBusy((b) => ({ ...b, [`${importId}:map`]: true }));
+    void api(`/api/native/import/${importId}/map`, { method: "POST", body: JSON.stringify({ mapping }) }).then(async (r) => {
+      setBusy((b) => ({ ...b, [`${importId}:map`]: false }));
+      if (r.ok) {
+        const saved = r.data?.status === "pending" ? `${mapping.length} mapping(s) queued for approval — approve it below.` : `${mapping.length} mapping(s) saved.`;
+        setNote(r.data?.status === "pending" ? saved : `${mapping.length} mapping(s) saved.`);
+      } else {
+        setNote(`map failed: ${r.error ?? "unknown error"}`);
+      }
       await load();
     });
   }
@@ -340,7 +470,7 @@ export default function PortalImportIndexPage() {
             <select name="tableId" required className="rounded border border-slate-700 bg-slate-900 px-2 py-1">
               <option value="">Target table…</option>
               {tables.map((t) => (
-                <option key={t.id} value={t.id}>{t.name}{t.fieldCount != null ? ` (${t.fieldCount} fields)` : ""}</option>
+                <option key={t.id} value={t.id}>{t.name}{t.fields?.length != null ? ` (${t.fields.length} fields)` : ""}</option>
               ))}
             </select>
             <Button type="submit" variant="primary" size="sm" disabled={creating} className="sm:col-span-3">
@@ -350,7 +480,7 @@ export default function PortalImportIndexPage() {
         </CardBody>
       </Card>
 
-      {/* Import jobs — pull → preview → map → commit with honest run ledger */}
+      {/* Import jobs — pull → preview → map → commit with run-ledger timeline */}
       <Card>
         <CardBody>
           <h2 className="font-medium mb-2">Your imports</h2>
@@ -364,9 +494,20 @@ export default function PortalImportIndexPage() {
             <div className="space-y-3">
               {imports.map((im) => {
                 const jobRuns = runsByJob[im.id] ?? [];
-                const previewRows = previewByJob[im.id] ?? [];
+                const previewState = previewByJob[im.id];
+                const previewRows = previewState?.rows ?? [];
                 const sourceKeys = previewRows.length > 0 ? Object.keys(previewRows[0] ?? {}) : [];
                 const table = tables.find((t) => t.id === im.tableId);
+                const tableFields = table?.fields ?? [];
+                const savedMappings = im.mapping ?? [];
+                const draft = mapDrafts[im.id] ?? {};
+                const stageRun = (stage: "pull" | "map" | "commit") => {
+                  const matched = jobRuns.filter((r) => stageOf(r.op) === stage);
+                  if (matched.length === 0) return null;
+                  return matched[matched.length - 1]; // ascending by at → last = newest
+                };
+                const draftEdits = Object.entries(draft)
+                  .filter(([sourceField, targetField]) => targetField?.trim() && !savedMappings.some((m) => m.sourceField === sourceField && m.targetField === targetField?.trim()));
                 return (
                   <div key={im.id} className="rounded border border-slate-700/60 bg-slate-900/40 p-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -375,30 +516,183 @@ export default function PortalImportIndexPage() {
                         <span className="ml-2 text-xs text-slate-400">{im.sourceLabel}</span>
                         <span className="ml-2 text-xs text-slate-400">→ {table?.name ?? im.tableId ?? "table"}</span>
                       </div>
-                      <span className="text-xs text-slate-400 font-mono">{im.id} · {im.status}</span>
+                      <span className="flex items-center gap-2 text-xs text-slate-400 font-mono">
+                        <span>{im.id}</span>
+                        <Badge>{im.status}</Badge>
+                      </span>
                     </div>
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <Button variant="primary" size="sm" onClick={() => act(im.id, "pull")}>Pull</Button>
-                      <Button variant="secondary" size="sm" onClick={() => preview(im.id)}>Preview</Button>
-                      <Button variant="secondary" size="sm" onClick={() => act(im.id, "commit")}>Commit</Button>
-                      <Button variant="secondary" size="sm" onClick={() => act(im.id, "delete")}>Delete</Button>
-                      <Button variant="secondary" size="sm" onClick={() => runs(im.id)}>{jobRuns.length ? `Ledger (${jobRuns.length})` : "Ledger"}</Button>
-                      {(im as ImportView & { stagedRows?: number }).stagedRows != null && (
-                        <span className="text-xs text-slate-400">{`${(im as ImportView & { stagedRows?: number }).stagedRows} row(s) staged — nothing imported until you approve`}</span>
+
+                    {/* Run-status timeline — stage states come ONLY from the honest ledger */}
+                    <div className="mt-3 rounded border border-slate-800 bg-slate-950/40 p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">Run status</h3>
+                        {jobRuns.length > 0 && (
+                          <span className="text-[10px] text-slate-500">
+                            {jobRuns.length} run(s) recorded — from your import's run ledger
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                        {(["pull", "map", "commit"] as const).map((stage) => {
+                          const r = stageRun(stage);
+                          const lastRun = jobRuns.filter((x) => stageOf(x.op) === stage);
+                          return (
+                            <div key={stage} className={`rounded border px-3 py-2 ${r ? "border-emerald-700/40 bg-emerald-950/20" : "border-slate-800 bg-slate-900/60"}`}>
+                              <div className="flex items-center gap-2">
+                                <span className={`inline-block h-2.5 w-2.5 rounded-full ${r ? "bg-emerald-400" : "bg-slate-700"}`} />
+                                <span className="text-xs font-semibold capitalize">{stage}</span>
+                                {lastRun.length > 0 && <span className="text-[10px] text-slate-500">{lastRun.length}×</span>}
+                              </div>
+                              {r ? (
+                                <>
+                                  <p className="mt-1 text-xs text-emerald-300">{runOutcomeLine(r)}</p>
+                                  <p className="text-[10px] text-slate-400">{new Date(r.at).toLocaleString()}</p>
+                                  {r.httpStatus != null && <p className="text-[10px] text-slate-500 font-mono">HTTP {r.httpStatus}</p>}
+                                </>
+                              ) : (
+                                <p className="mt-1 text-[10px] text-slate-500">not yet run — the ledger has no {stage} entry</p>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <p className="mt-2 text-[10px] text-slate-500">
+                        Stage states are drawn only from your run ledger — no state is invented here. Preview is
+                        read-only and is not recorded in the run ledger (it never writes).
+                      </p>
+                      {jobRuns.length > 0 && (
+                        <ul className="mt-2 space-y-1 text-xs border-t border-slate-800 pt-2">
+                          {[...jobRuns].reverse().map((r) => (
+                            <li key={r.id} className="flex flex-wrap items-baseline gap-x-2 text-slate-400">
+                              <span className={`inline-block h-1.5 w-1.5 self-center rounded-full ${(r.failed ?? 0) > 0 ? "bg-rose-400" : stageOf(r.op) === "pull" ? "bg-sky-400" : stageOf(r.op) === "map" ? "bg-violet-400" : stageOf(r.op) === "commit" ? "bg-emerald-400" : "bg-slate-500"}`} />
+                              <span className="font-mono text-slate-300">{HUMAN_OP[r.op] ?? r.op}</span>
+                              <span className="text-[10px] text-slate-500">{new Date(r.at).toLocaleString()}</span>
+                              <span>{runOutcomeLine(r)}</span>
+                              {r.httpStatus != null && <span className="font-mono text-[10px] text-slate-500">HTTP {r.httpStatus}</span>}
+                              {r.note && <span className="text-[10px] text-slate-500">{r.note}</span>}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      {jobRuns.length === 0 && (
+                        <p className="mt-2 text-xs text-slate-500">No runs recorded yet — nothing has been pulled, mapped, or imported.</p>
                       )}
                     </div>
-                    {sourceKeys.length > 0 && (
-                      <form onSubmit={(e) => mappingForm(im.id, e)} className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
-                        <select name="sourceField" required className="rounded border border-slate-700 bg-slate-900 px-2 py-1">
-                          <option value="">Source field…</option>
-                          {sourceKeys.map((k) => (
-                            <option key={k} value={k}>{k}</option>
-                          ))}
-                        </select>
-                        <input name="targetField" placeholder="Target table field" required className="rounded border border-slate-700 bg-slate-900 px-2 py-1" />
-                        <Button type="submit" variant="secondary" size="sm">Save mapping</Button>
-                      </form>
+
+                    {/* Actions */}
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <Button variant="primary" size="sm" disabled={busy[`${im.id}:pull`]} onClick={() => act(im.id, "pull")}>Pull</Button>
+                      <Button variant="secondary" size="sm" disabled={busy[`${im.id}:preview`]} onClick={() => preview(im.id)}>Preview</Button>
+                      <Button variant="secondary" size="sm" disabled={busy[`${im.id}:commit`]} onClick={() => act(im.id, "commit")}>Commit</Button>
+                      <Button variant="secondary" size="sm" onClick={() => act(im.id, "delete")}>Delete</Button>
+                      {previewState?.staged != null && (
+                        <span className="text-xs text-slate-400">{`${previewState.staged} row(s) staged — nothing imported until you approve`}</span>
+                      )}
+                    </div>
+
+                    {/* Mapping review table + bulk mapping (from read-only preview) */}
+                    {previewRows.length > 0 && (
+                      <div className="mt-3">
+                        {/* Saved mappings — review grid: source → target → sample */}
+                        <div className="rounded border border-slate-800 bg-slate-950/40 p-3">
+                          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">Mapping review</h3>
+                          {savedMappings.length === 0 ? (
+                            <p className="mt-1 text-xs text-slate-500">No mappings saved yet — set them below and save as one bulk mapping.</p>
+                          ) : (
+                            <table className="mt-2 w-full text-left text-xs">
+                              <thead className="text-slate-500">
+                                <tr>
+                                  <th className="py-1 pr-2 font-medium">Source field</th>
+                                  <th className="py-1 pr-2 font-medium">→</th>
+                                  <th className="py-1 pr-2 font-medium">Target field</th>
+                                  <th className="py-1 font-medium">Sample value</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {savedMappings.map((m) => (
+                                  <tr key={`${m.sourceField}:${m.targetField}`} className="border-t border-slate-800">
+                                    <td className="py-1 pr-2 font-mono text-slate-300">{m.sourceField}</td>
+                                    <td className="py-1 pr-2 text-slate-500">→</td>
+                                    <td className="py-1 pr-2 font-mono text-emerald-300">{m.targetField}{m.coerce ? <span className="ml-1 text-[10px] text-slate-500">coerce:{m.coerce}</span> : null}</td>
+                                    <td className="py-1 text-slate-400">{firstSample(previewRows, m.sourceField) ?? "—"}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          )}
+                          {draftEdits.length > 0 && (
+                            <div className="mt-2 rounded border border-amber-700/40 bg-amber-950/20 px-2 py-1">
+                              <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-400">Un-saved draft (not yet submitted)</p>
+                              <ul className="mt-1 space-y-0.5 text-xs text-slate-300">
+                                {draftEdits.map(([s, t]) => (
+                                  <li key={s} className="font-mono">{s} → {t}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          <p className="mt-2 text-[10px] text-slate-500">
+                            Review the mapping before you commit — Commit is approval-gated and nothing is imported
+                            until you approve. Sample values come from the staged preview.
+                          </p>
+                        </div>
+
+                        {/* Bulk mapping — every source field in one pass */}
+                        {tableFields.length > 0 ? (
+                          <div className="mt-2 rounded border border-slate-800 bg-slate-950/40 p-3">
+                            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">Map source fields (bulk)</h3>
+                            <p className="mt-1 text-[10px] text-slate-500">
+                              Assign each source field a field in your target table. “Map all” saves every assignment
+                              in ONE approval-gated mapping request.
+                            </p>
+                            <table className="mt-2 w-full text-left text-xs">
+                              <thead className="text-slate-500">
+                                <tr>
+                                  <th className="py-1 pr-2 font-medium">Source field</th>
+                                  <th className="py-1 pr-2 font-medium">Sample</th>
+                                  <th className="py-1 font-medium">Target field in {table?.name ?? "table"}</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {sourceKeys.map((k) => {
+                                  const saved = savedMappings.find((m) => m.sourceField === k)?.targetField ?? "";
+                                  const value = draft[k] ?? saved;
+                                  return (
+                                    <tr key={k} className="border-t border-slate-800">
+                                      <td className="py-1 pr-2 font-mono text-slate-300">{k}</td>
+                                      <td className="py-1 pr-2 text-slate-400 max-w-[16rem] truncate">{firstSample(previewRows, k) ?? "—"}</td>
+                                      <td className="py-1">
+                                        <select
+                                          value={value}
+                                          onChange={(e) => setDraft(im.id, k, e.target.value)}
+                                          className="rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs"
+                                        >
+                                          <option value="">Not mapped</option>
+                                          {tableFields.map((f) => (
+                                            <option key={f.key} value={f.key}>{f.key}{f.label && f.label !== f.key ? ` (${f.label})` : ""}</option>
+                                          ))}
+                                        </select>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                              <Button variant="primary" size="sm" disabled={busy[`${im.id}:map`]} onClick={() => bulkMap(im.id)}>
+                                {busy[`${im.id}:map`] ? "Saving…" : `Map all ${sourceKeys.length} field(s)`}
+                              </Button>
+                              <span className="text-[10px] text-slate-500">Rows left as “Not mapped” are skipped.</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="mt-2 text-xs text-slate-500">
+                            The target table has no fields yet — add fields in the Tables area, then map source fields
+                            here.
+                          </p>
+                        )}
+                      </div>
                     )}
+
                     {previewRows.length > 0 && (
                       <div className="mt-2 max-h-64 overflow-auto rounded border border-slate-800">
                         <table className="w-full text-left text-xs">
@@ -417,18 +711,6 @@ export default function PortalImportIndexPage() {
                         </table>
                         <p className="text-[10px] text-slate-500 px-2 py-1">Read-only preview — nothing was written or queued.</p>
                       </div>
-                    )}
-                    {jobRuns.length > 0 && (
-                      <ul className="mt-2 space-y-1 text-xs">
-                        {jobRuns.map((r) => (
-                          <li key={r.id} className="text-slate-400">
-                            <span className="font-mono text-slate-500">{r.op}</span>
-                            <span className="ml-2">{r.status}</span>
-                            {r.httpStatus != null && <span className="ml-2 font-mono">HTTP {r.httpStatus}</span>}
-                            {r.note && <span className="ml-2">{r.note}</span>}
-                          </li>
-                        ))}
-                      </ul>
                     )}
                   </div>
                 );
