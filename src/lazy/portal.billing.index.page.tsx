@@ -1,55 +1,138 @@
 import { Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 
+interface BillingInvoice {
+  id: string;
+  date: string | null;
+  description: string | null;
+  amount: number | null;
+  status: string | null;
+  pdfUrl: string | null;
+}
+interface BillingSubscription {
+  planName: string | null;
+  tier: string | null;
+  amount: number | null;
+  interval: "month" | "year" | null;
+  status: string | null;
+  purchasedAt: string | null;
+  currentPeriodEnd: string | null;
+}
+interface NativeBillingView {
+  source: "stripe" | "durable" | "none";
+  subscription: BillingSubscription | null;
+  invoices: BillingInvoice[];
+  paymentMethod: { brand: string; last4: string } | null;
+}
+
+const usd = (n: number | null) => (n == null ? "—" : `$${n.toFixed(2)}`);
+const fmtDate = (iso: string | null) => {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+};
+const statusBadge = (status: string | null) => {
+  const s = (status || "").toLowerCase();
+  const tone = s === "paid" || s === "active" ? "bg-emerald-950/40 text-emerald-400" : "bg-stone-900 text-stone-300";
+  return <span className={`${tone} px-2 py-0.5 rounded-full text-[10px] font-bold`}>{status || "recorded"}</span>;
+};
+
 function BillingPage() {
-  const [invoices, setInvoices] = useState<any[]>([]);
+  const [billing, setBilling] = useState<NativeBillingView | null>(null);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
-    fetch("/api/data/billing", { credentials: "include" })
-      .then(r => r.ok ? r.json() : { data: [] })
-      .then(d => { setInvoices(d.data || []); setLoading(false); })
-      .catch(() => setLoading(false));
+    fetch("/api/native/billing", { credentials: "include" })
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => setBilling(d?.billing ?? { source: "none", subscription: null, invoices: [], paymentMethod: null }))
+      .catch(() => setBilling({ source: "none", subscription: null, invoices: [], paymentMethod: null }))
+      .finally(() => setLoading(false));
   }, []);
+
   if (loading) return (
     <div className="flex items-center justify-center min-h-[400px]">
       <div className="w-8 h-8 border-2 border-stone-800 border-t-white rounded-full animate-spin" />
     </div>
   );
+
+  const sub = billing?.subscription ?? null;
+  const invoices = billing?.invoices ?? [];
+  const paymentMethod = billing?.paymentMethod ?? null;
+  const hasAny = sub !== null || invoices.length > 0;
+
   return (
     <div className="space-y-8 max-w-4xl mx-auto">
       <div>
         <h1 className="text-3xl font-black text-white tracking-tight">💳 Billing & Subscriptions</h1>
-        <p className="text-stone-400 text-sm mt-1">Manage your plan, payment method, and view invoices.</p>
+        <p className="text-stone-400 text-sm mt-1">Your plan, payments, and invoice history — straight from Stripe.</p>
       </div>
-      {/* Subscription info */}
+
+      {/* Current plan */}
       <div className="bg-stone-950 border border-stone-900 rounded-2xl p-6 space-y-4">
         <h2 className="text-lg font-black text-white">Current Plan</h2>
-        <div className="flex items-center justify-between">
-          <div>
-            <span className="text-emerald-400 font-bold text-sm">AI Operations Platform</span>
-            <p className="text-stone-500 text-xs mt-1">Platform subscription · Billed monthly</p>
+        {sub ? (
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-emerald-400 font-bold text-lg">{sub.planName || "Platform subscription"}</span>
+                {statusBadge(sub.status)}
+              </div>
+              <p className="text-stone-500 text-xs mt-1">
+                {usd(sub.amount)}{sub.interval ? ` / ${sub.interval}` : ""}
+                {sub.currentPeriodEnd ? ` · renews ${fmtDate(sub.currentPeriodEnd)}` : ""}
+                {sub.purchasedAt ? ` · on file since ${fmtDate(sub.purchasedAt)}` : ""}
+              </p>
+              {billing?.source === "durable" && (
+                <p className="text-stone-600 text-[11px] mt-2">
+                  Recorded from your Stripe checkout. Live renewal status appears here once secure Stripe billing access is enabled.
+                </p>
+              )}
+            </div>
+            <Link to="/pricing" className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 py-2 rounded-xl transition-colors">
+              Manage Plan
+            </Link>
           </div>
-          <Link to="/pricing" className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 py-2 rounded-xl transition-colors">
-            Manage Plan
-          </Link>
-        </div>
+        ) : (
+          <div className="text-center py-10 border border-dashed border-stone-800 rounded-xl">
+            <p className="text-stone-300 font-bold text-sm">No subscription on file</p>
+            <p className="text-stone-500 text-xs mt-1 max-w-sm mx-auto">
+              You don't have a plan on file yet. Choose a tier to get started — every plan includes all platform capabilities.
+            </p>
+            <Link to="/pricing" className="inline-block mt-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-colors">
+              View Pricing →
+            </Link>
+          </div>
+        )}
       </div>
+
       {/* Payment method */}
       <div className="bg-stone-950 border border-stone-900 rounded-2xl p-6 space-y-4">
         <h2 className="text-lg font-black text-white">Payment Method</h2>
-        <p className="text-stone-500 text-sm">Payment methods are managed through Stripe. Add or update your card on file.</p>
-        <a href="https://billing.stripe.com" target="_blank" rel="noopener noreferrer"
-           className="inline-block bg-stone-900 hover:bg-stone-800 text-white font-bold text-xs px-4 py-2 rounded-xl border border-stone-800 transition-colors">
-          Manage in Stripe →
-        </a>
+        {paymentMethod ? (
+          <div className="flex items-center justify-between">
+            <p className="text-stone-300 text-sm">
+              <span className="font-bold text-white">{paymentMethod.brand}</span> •••• {paymentMethod.last4}
+            </p>
+            <p className="text-stone-500 text-[11px]">Card on file in Stripe</p>
+          </div>
+        ) : (
+          <p className="text-stone-500 text-sm">
+            No payment method on file. Card details are collected securely by Stripe at checkout.
+          </p>
+        )}
       </div>
+
       {/* Invoice history */}
       <div className="bg-stone-950 border border-stone-900 rounded-2xl p-6 space-y-4">
-        <h2 className="text-lg font-black text-white">Invoice History</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-black text-white">Invoice History</h2>
+          {billing?.source === "durable" && invoices.length > 0 && (
+            <span className="text-stone-600 text-[10px] font-semibold">RECORDED FROM YOUR STRIPE CHECKOUT</span>
+          )}
+        </div>
         {invoices.length === 0 ? (
           <div className="text-center py-12 border border-dashed border-stone-800 rounded-xl">
             <p className="text-stone-400 font-bold text-sm">No invoices yet</p>
-            <p className="text-stone-500 text-xs mt-1">Invoices appear here after your first invoice is issued.</p>
+            <p className="text-stone-500 text-xs mt-1">Invoices appear here after your first Stripe invoice is issued.</p>
             <Link to="/pricing" className="inline-block mt-3 text-emerald-400 font-bold text-sm hover:text-emerald-300">
               View Pricing →
             </Link>
@@ -63,28 +146,41 @@ function BillingPage() {
                   <th className="py-3 px-4 font-bold">Description</th>
                   <th className="py-3 px-4 font-bold text-right">Amount</th>
                   <th className="py-3 px-4 font-bold text-right">Status</th>
+                  <th className="py-3 px-4 font-bold text-right">Receipt</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-900">
-                {invoices.map((inv: any, i: number) => (
-                  <tr key={i} className="text-stone-300">
-                    <td className="py-3 px-4">{inv.date || inv.purchasedAt || "—"}</td>
-                    <td className="py-3 px-4 font-bold text-white">{inv.type || inv.productName || inv.agentName || "Subscription"}</td>
-                    <td className="py-3 px-4 text-right font-mono text-emerald-400">{inv.amount || "$0"}</td>
+                {invoices.map(inv => (
+                  <tr key={inv.id} className="text-stone-300">
+                    <td className="py-3 px-4">{fmtDate(inv.date)}</td>
+                    <td className="py-3 px-4 font-bold text-white">{inv.description || "Platform subscription"}</td>
+                    <td className="py-3 px-4 text-right font-mono text-emerald-400">{usd(inv.amount)}</td>
+                    <td className="py-3 px-4 text-right">{statusBadge(inv.status)}</td>
                     <td className="py-3 px-4 text-right">
-                      <span className="text-emerald-400 bg-emerald-950/30 px-2 py-0.5 rounded-full text-[10px] font-bold">
-                        {inv.status || "Active"}
-                      </span>
+                      {inv.pdfUrl ? (
+                        <a href={inv.pdfUrl} target="_blank" rel="noopener noreferrer" className="text-emerald-400 font-bold hover:text-emerald-300">PDF →</a>
+                      ) : (
+                        <span className="text-stone-600">—</span>
+                      )}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            {billing?.source === "durable" && (
+              <p className="text-stone-600 text-[10px] mt-3">
+                Listed from the purchase events recorded on your account. Live Stripe invoices appear here once secure billing access is enabled.
+              </p>
+            )}
           </div>
+        )}
+        {!hasAny && (
+          <p className="text-center text-stone-600 text-[11px]">
+            Need help deciding? <Link to="/assessment" className="text-emerald-400 font-bold hover:text-emerald-300">Start with the free assessment ←</Link>
+          </p>
         )}
       </div>
     </div>
   );
 }
-
 export default BillingPage;

@@ -1492,6 +1492,18 @@ async function handleFetch(req: Request): Promise<Response> {
         const automations = await import("./src/native/automation");
         return automations.handleNativeAutomationsAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
       }
+      // P1-1 (owner 10-22) — native BILLING read (/api/native/billing). Pure
+      // GET, tenant-scoped, fail-closed (wired AFTER the session check →
+      // anonymous 401). Returns the CALLING TENANT'S OWN Stripe
+      // subscription/tier/setup status + invoice list when STRIPE_SECRET_KEY
+      // is available; otherwise the tenant's durable purchase ledger (written
+      // only by the signature-verified Stripe webhook) with honest source
+      // labeling — never fabricated billing data. See src/native/billing/
+      // router.ts for the full truthfulness contract.
+      if (pathname === "/api/native/billing") {
+        const billingNative = await import("./src/native/billing");
+        return billingNative.handleNativeBillingAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
+      }
       return native.handleNativeAuthed(req, {
         userEmail: user.email,
         dataDir: DATA_DIR,
