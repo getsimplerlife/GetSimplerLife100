@@ -173,15 +173,15 @@ function CanWeAutomateThis() {
                 <div className="text-[10px] font-mono text-stone-400 mt-1">INDUSTRY</div>
               </div>
               <div className="bg-stone-900/80 border border-stone-800 rounded-xl p-4 text-center">
-                <div className="text-lg font-black text-emerald-400">$99+/mo</div>
-                <div className="text-[10px] font-mono text-stone-400 mt-1">AUTOMATION</div>
+                <div className="text-lg font-black text-emerald-400">Included</div>
+                <div className="text-[10px] font-mono text-stone-400 mt-1">EVERY TIER</div>
               </div>
             </div>
             <div className="mt-6 flex gap-3 flex-wrap">
-              <a href={result.paymentLink || "https://buy.stripe.com/4gMfZj88TfMz6Hh8TS2Fa1K"} target="_blank" rel="noopener"
+              <Link to="/pricing"
                 className="bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-sm px-6 py-3 rounded-xl transition-all">
-                🚀 Deploy This Automation →
-              </a>
+                See platform pricing →
+              </Link>
               <Link to="/build" className="bg-stone-800 hover:bg-stone-700 text-white font-bold text-sm px-6 py-3 rounded-xl transition-all">
                 🛠️ Build Your Platform
               </Link>

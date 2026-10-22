@@ -20,7 +20,6 @@ const supportTiers = [
       'Standard support (email)',
       'Onboarding to your first workflows',
       'Self-serve help + documentation',
-      'Automation Sprint available when you need it',
     ],
     cta: 'Buy Starter',
     link: 'https://buy.stripe.com/eVq5kC7qQ0909zV0sJ5os00',

@@ -27,9 +27,10 @@ const CUST_DIRS = ["src/routes", "src/components", "src/lazy", "src/lib"];
 
 // Known-WRONG links that must NEVER appear in a customer-facing checkout button.
 // NOTE: the $30k Scale link (aFa7sN60…) legitimately appears on the Scale package
-// button, so it is NOT in this list; the "Scale misused as a <$2,500> Blueprint CTA"
-// regression is instead guarded by pricing-blueprint-checkout.test.ts (PR #206),
-// which asserts the Blueprint button href is the canonical 14Ab… link. Only links
+// button, so it is NOT in this list; the retired $2,500 Sprint/Blueprint link
+// (14Ab…) is instead guarded by pricing-blueprint-checkout.test.ts +
+// automation-sprint-retirement.test.ts, which assert the retired link is ABSENT
+// from /pricing and the user-facing surface (owner 10-21 retirement). Only links
 // that are wrong at ANY use go here.
 const BAD_LINKS = [
   "buy.stripe.com/fZufZj2OzdEr6Hh0nm2Fa00", // $25 wrong-unit Blueprint/Audit (was on the assessment page)
@@ -77,15 +78,20 @@ describe("stripe catalog guardrail (customer-facing checkout links)", () => {
     }
   });
 
-  it("the canonical Sprint (Blueprint) link is present in pricing.tsx; discontinued per-employee build-package links are NOT sold there (owner 09-27 locked platform tiers)", () => {
-    const p = readFileSync("src/routes/pricing.tsx", "utf8");
-    // The $2,500 Automation Sprint (Blueprint) is the live one-time SKU.
-    expect(p).toContain(CANONICAL.blueprint);
+  it("the retired Sprint (Blueprint) link is ABSENT from pricing.tsx; discontinued per-employee build-package links are NOT sold there (owner 09-27 locked tiers; owner 10-21 retirement)", () => {
+    const p = readFileSync("src/routes/pricing.tsx", "utf8").toLowerCase();
+    // The $2,500 Sprint/Blueprint one-time SKU is RETIRED (owner 10-21) — its
+    // legacy Stripe link and product names must not appear on the pricing page.
+    expect(p).not.toContain(CANONICAL.blueprint.toLowerCase());
+    expect(p).not.toContain("automation sprint");
+    expect(p).not.toContain("industry blueprint");
+    expect(p).not.toContain("$2,500");
     // The old per-employee build packages were DISCONTINUED (owner 09-27) — their
     // Stripe links must not be bound to any CTA on the pricing page anymore.
-    expect(p).not.toContain(CANONICAL.starter);
-    expect(p).not.toContain(CANONICAL.growth);
-    expect(p).not.toContain(CANONICAL.scale);
+    const pRaw = readFileSync("src/routes/pricing.tsx", "utf8");
+    expect(pRaw).not.toContain(CANONICAL.starter);
+    expect(pRaw).not.toContain(CANONICAL.growth);
+    expect(pRaw).not.toContain(CANONICAL.scale);
     // But the runtime (stripe-webhook) still maps legacy purchases via those links.
     const w = readFileSync("src/lib/stripe-webhook.ts", "utf8");
     expect(w).toContain(CANONICAL.starter);
@@ -136,11 +142,12 @@ describe("stripe catalog guardrail (customer-facing checkout links)", () => {
     expect(s).toContain("monthly: '$1,499'");
   });
 
-  it("the assessment 'Purchase Audit' button uses the canonical $2,500 link, not the $25 one", () => {
-    const a = readFileSync("src/lazy/assessment.page.tsx", "utf8");
-    // It must contain the canonical link...
-    expect(a).toContain(CANONICAL.blueprint);
-    // ...and NOT the wrong $25 link.
+  it("the assessment page no longer sells a paid audit (owner 10-21 retirement — free assessment only)", () => {
+    const a = readFileSync("src/lazy/assessment.page.tsx", "utf8").toLowerCase();
+    expect(a).not.toContain(CANONICAL.blueprint.toLowerCase());
+    expect(a).not.toContain("purchase audit");
+    expect(a).not.toContain("$2,500");
+    expect(a).not.toContain("deep-dive");
     expect(a).not.toContain(BAD_LINKS[0]);
   });
 });

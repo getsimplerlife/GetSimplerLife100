@@ -298,14 +298,12 @@ export function IndustryRecommendationEngine({ industry }: IndustryRecommendatio
                       <span className="text-white font-bold">{card.timeSaved}</span>
                     </div>
 
-                    <a
-                      href="https://buy.stripe.com/4gMfZj88TfMz6Hh8TS2Fa1K"
-                      target="_blank"
-                      rel="noreferrer"
+                    <Link
+                      to="/assessment"
                       className="w-full bg-stone-950 border border-stone-800 hover:bg-stone-900 hover:border-stone-700 text-stone-200 text-center py-2 rounded-xl text-xs font-bold block transition-all font-mono"
                     >
-                      Buy Blueprint Assessment →
-                    </a>
+                      Free assessment →
+                    </Link>
                   </div>
                 </div>
               ))}

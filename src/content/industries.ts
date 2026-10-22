@@ -13,7 +13,6 @@ export interface IndustryHub {
   integrations: string[];
   auditPackages: {
     efficiency: { price: string; features: string[] };
-    deepDive: { price: string; features: string[] };
   };
 }
 
@@ -98,16 +97,6 @@ export const industries: IndustryHub[] = [
           "24-hour executive summary with risk score",
         ],
       },
-      deepDive: {
-        price: "$2,500",
-        features: [
-          "Full manufacturing operations audit",
-          "Supply chain automation analysis",
-          "Production scheduling optimization plan",
-          "Lean AI deployment roadmap",
-          "Custom ROI projections for AI automation",
-        ],
-      },
     },
   },
   {
@@ -188,16 +177,6 @@ export const industries: IndustryHub[] = [
           "On-time delivery performance analysis",
           "Fuel efficiency opportunity assessment",
           "24-hour executive summary with risk score",
-        ],
-      },
-      deepDive: {
-        price: "$2,500",
-        features: [
-          "Full logistics operations audit",
-          "Route optimization & fuel savings analysis",
-          "Dispatch scheduling automation plan",
-          "Shipment tracking & proof-of-delivery assessment",
-          "Custom automation roadmap with ROI projections",
         ],
       },
     },
@@ -282,16 +261,6 @@ export const industries: IndustryHub[] = [
           "24-hour executive summary with risk score",
         ],
       },
-      deepDive: {
-        price: "$2,500",
-        features: [
-          "Full HIPAA compliance diagnostic",
-          "Patient intake & scheduling audit",
-          "Medical coding workflow assessment",
-          "Claims cycle time analysis",
-          "Custom automation roadmap with ROI projections",
-        ],
-      },
     },
   },
   {
@@ -372,16 +341,6 @@ export const industries: IndustryHub[] = [
           "Change order process efficiency analysis",
           "Budget tracking gap assessment",
           "24-hour executive summary with risk score",
-        ],
-      },
-      deepDive: {
-        price: "$2,500",
-        features: [
-          "Full project operations audit",
-          "Estimation accuracy & bid win-rate analysis",
-          "Change order lifecycle assessment",
-          "Field-to-office data flow audit",
-          "Custom automation roadmap with ROI projections",
         ],
       },
     },
@@ -468,16 +427,6 @@ export const industries: IndustryHub[] = [
           "24-hour executive summary with risk score",
         ],
       },
-      deepDive: {
-        price: "$2,500",
-        features: [
-          "Full regulatory compliance audit",
-          "KYC/AML onboarding workflow analysis",
-          "Transaction monitoring effectiveness assessment",
-          "Audit trail completeness verification",
-          "Custom automation roadmap with ROI projections",
-        ],
-      },
     },
   },
   {
@@ -562,16 +511,6 @@ export const industries: IndustryHub[] = [
           "24-hour executive summary with risk score",
         ],
       },
-      deepDive: {
-        price: "$2,500",
-        features: [
-          "Full regulatory compliance audit",
-          "KYC/AML onboarding workflow analysis",
-          "Transaction monitoring effectiveness assessment",
-          "Audit trail completeness verification",
-          "Custom automation roadmap with ROI projections",
-        ],
-      },
     },
   },
   {
@@ -652,16 +591,6 @@ export const industries: IndustryHub[] = [
           "Inspection reporting cycle assessment",
           "Compliance document review analysis",
           "24-hour executive summary with risk score",
-        ],
-      },
-      deepDive: {
-        price: "$2,500",
-        features: [
-          "Full energy operations audit",
-          "Predictive maintenance opportunity analysis",
-          "Grid-scale automation roadmap",
-          "Real-time data integration assessment",
-          "Custom ROI model for platform automation",
         ],
       },
     },
@@ -748,16 +677,6 @@ export const industries: IndustryHub[] = [
           "24-hour executive summary with risk score",
         ],
       },
-      deepDive: {
-        price: "$2,500",
-        features: [
-          "Full retail operations audit",
-          "Supply chain & inventory optimization plan",
-          "Fulfillment automation opportunity map",
-          "Pricing & promotions workflow assessment",
-          "Custom automation roadmap with ROI projections",
-        ],
-      },
     },
   },
   {
@@ -840,16 +759,6 @@ export const industries: IndustryHub[] = [
           "Document workflow bottleneck mapping",
           "Matter management efficiency audit",
           "24-hour executive summary with risk score",
-        ],
-      },
-      deepDive: {
-        price: "$2,500",
-        features: [
-          "Full practice management workflow audit",
-          "Billable hour leakage quantification",
-          "Document automation opportunity assessment",
-          "Conflict check & intake process redesign",
-          "Custom automation roadmap with ROI projections",
         ],
       },
     },
@@ -936,16 +845,6 @@ export const industries: IndustryHub[] = [
           "24-hour executive summary with risk score",
         ],
       },
-      deepDive: {
-        price: "$2,500",
-        features: [
-          "Full claims operations audit",
-          "Claims lifecycle automation opportunity map",
-          "Underwriting process efficiency assessment",
-          "Fraud detection model optimization plan",
-          "Custom automation roadmap with ROI projections",
-        ],
-      },
     },
   },
   {
@@ -1030,16 +929,6 @@ export const industries: IndustryHub[] = [
           "24-hour executive summary with risk score",
         ],
       },
-      deepDive: {
-        price: "$2,500",
-        features: [
-          "Full sales pipeline & conversion audit",
-          "Lead response automation opportunity map",
-          "Showing coordination bottleneck analysis",
-          "Contract workflow optimization plan",
-          "Custom automation roadmap with ROI projections",
-        ],
-      },
     },
   },
   // ============================================================
@@ -1120,16 +1009,6 @@ export const industries: IndustryHub[] = [
           "24-hour executive summary with risk score",
         ],
       },
-      deepDive: {
-        price: "$2,500",
-        features: [
-          "Full aerospace operations audit",
-          "AS9100 compliance gap analysis",
-          "DCAA billing readiness assessment",
-          "Supply chain documentation optimization plan",
-          "Custom automation roadmap with ROI projections",
-        ],
-      },
     },
   },
   {
@@ -1204,16 +1083,6 @@ export const industries: IndustryHub[] = [
           "FSMA traceability gap analysis",
           "Maintenance scheduling workflow assessment",
           "24-hour executive summary with risk score",
-        ],
-      },
-      deepDive: {
-        price: "$2,500",
-        features: [
-          "Full agribusiness operations audit",
-          "Commodity settlement accuracy analysis",
-          "Equipment uptime optimization plan",
-          "FSMA compliance readiness assessment",
-          "Custom automation roadmap with ROI projections",
         ],
       },
     },
@@ -1291,16 +1160,6 @@ export const industries: IndustryHub[] = [
           "EDI order accuracy assessment",
           "Supplier quality scorecard gap analysis",
           "24-hour executive summary with risk score",
-        ],
-      },
-      deepDive: {
-        price: "$2,500",
-        features: [
-          "Full automotive supply chain audit",
-          "IATF 16949 compliance assessment",
-          "JIT material release optimization plan",
-          "Premium freight root cause analysis",
-          "Custom automation roadmap with ROI projections",
         ],
       },
     },
@@ -1382,16 +1241,6 @@ export const industries: IndustryHub[] = [
           "24-hour executive summary with risk score",
         ],
       },
-      deepDive: {
-        price: "$2,500",
-        features: [
-          "Full e-commerce operations audit",
-          "Multi-channel inventory optimization plan",
-          "Returns reduction & automation analysis",
-          "Support ticket deflection strategy",
-          "Custom automation roadmap with ROI projections",
-        ],
-      },
     },
   },
   {
@@ -1469,16 +1318,6 @@ export const industries: IndustryHub[] = [
           "24-hour executive summary with risk score",
         ],
       },
-      deepDive: {
-        price: "$2,500",
-        features: [
-          "Full education administration audit",
-          "Title fund compliance readiness assessment",
-          "Faculty onboarding workflow optimization",
-          "Procurement-to-payment cycle analysis",
-          "Custom automation roadmap with ROI projections",
-        ],
-      },
     },
   },
   {
@@ -1553,16 +1392,6 @@ export const industries: IndustryHub[] = [
           "Permit processing cycle assessment",
           "Grant compliance readiness review",
           "24-hour executive summary with risk score",
-        ],
-      },
-      deepDive: {
-        price: "$2,500",
-        features: [
-          "Full agency operations audit",
-          "Statutory deadline compliance analysis",
-          "Constituent service optimization plan",
-          "Digital records management assessment",
-          "Custom automation roadmap with ROI projections",
         ],
       },
     },
@@ -1642,16 +1471,6 @@ export const industries: IndustryHub[] = [
           "24-hour executive summary with risk score",
         ],
       },
-      deepDive: {
-        price: "$2,500",
-        features: [
-          "Full hospitality operations audit",
-          "Revenue management & group block analysis",
-          "Event operations workflow optimization",
-          "Vendor spend & AP efficiency assessment",
-          "Custom automation roadmap with ROI projections",
-        ],
-      },
     },
   },
   {
@@ -1727,16 +1546,6 @@ export const industries: IndustryHub[] = [
           "Talent payment accuracy assessment",
           "Content metadata consistency review",
           "24-hour executive summary with risk score",
-        ],
-      },
-      deepDive: {
-        price: "$2,500",
-        features: [
-          "Full media operations audit",
-          "Rights compliance & risk exposure analysis",
-          "Production accounting workflow optimization",
-          "Content distribution metadata audit",
-          "Custom automation roadmap with ROI projections",
         ],
       },
     },
@@ -1815,16 +1624,6 @@ export const industries: IndustryHub[] = [
           "24-hour executive summary with risk score",
         ],
       },
-      deepDive: {
-        price: "$2,500",
-        features: [
-          "Full GxP compliance audit",
-          "Regulatory submission readiness assessment",
-          "Deviation trend analysis & CAPA optimization",
-          "Supplier quality management review",
-          "Custom automation roadmap with ROI projections",
-        ],
-      },
     },
   },
   {
@@ -1901,16 +1700,6 @@ export const industries: IndustryHub[] = [
           "Engagement setup cycle analysis",
           "Expense processing workflow assessment",
           "24-hour executive summary with risk score",
-        ],
-      },
-      deepDive: {
-        price: "$2,500",
-        features: [
-          "Full practice operations audit",
-          "Billing & collections optimization plan",
-          "Utilization & realization analysis",
-          "Client profitability assessment",
-          "Custom automation roadmap with ROI projections",
         ],
       },
     },
@@ -1993,16 +1782,6 @@ export const industries: IndustryHub[] = [
           "24-hour executive summary with risk score",
         ],
       },
-      deepDive: {
-        price: "$2,500",
-        features: [
-          "Full tech operations audit",
-          "SaaS portfolio optimization plan",
-          "Order-to-cash cycle analysis",
-          "Customer onboarding efficiency assessment",
-          "Custom automation roadmap with ROI projections",
-        ],
-      },
     },
   },
   {
@@ -2080,16 +1859,6 @@ export const industries: IndustryHub[] = [
           "24-hour executive summary with risk score",
         ],
       },
-      deepDive: {
-        price: "$2,500",
-        features: [
-          "Full telecom operations audit",
-          "Carrier cost optimization plan",
-          "Service delivery cycle analysis",
-          "MACD processing workflow assessment",
-          "Custom automation roadmap with ROI projections",
-        ],
-      },
     },
   },
   {
@@ -2165,16 +1934,6 @@ export const industries: IndustryHub[] = [
           "Driver qualification compliance assessment",
           "Passenger communication gap analysis",
           "24-hour executive summary with risk score",
-        ],
-      },
-      deepDive: {
-        price: "$2,500",
-        features: [
-          "Full transportation operations audit",
-          "Fleet uptime & PM optimization plan",
-          "Paratransit scheduling efficiency analysis",
-          "DOT compliance readiness assessment",
-          "Custom automation roadmap with ROI projections",
         ],
       },
     },

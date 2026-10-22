@@ -99,13 +99,13 @@ export default function SecurityPage() {
               {[
                 {
                   icon: "🔔",
-                  title: "Never silently lost",
-                  d: "Connections are monitored. If an integration disconnects or an API fails, you're told immediately — WARN state, clear message, and a reconnect path.",
+                  title: "Alerts on everything that matters",
+                  d: "Every failed verification and every approval request alerts you immediately — nothing is imported, sent, or written without your team's yes/no.",
                 },
                 {
                   icon: "♻️",
-                  title: "Self-healing where possible",
-                  d: "Transient failures retry with backoff; tokens refresh before expiry. If a connection can't be restored automatically, it stays visible as reconnect-required — it is never silently dropped.",
+                  title: "Client-side, one-shot transfers",
+                  d: "External tools connect on your side, one-time, to bring your data in — no background sync, no write-back, nothing runs through your tools. Import runs are bounded, audited, and approval-gated.",
                 },
                 {
                   icon: "🚫",

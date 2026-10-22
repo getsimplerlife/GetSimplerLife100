@@ -1,84 +1,41 @@
 /**
- * pricing-blueprint-checkout.test.ts — regression guardrail for the
- * $2,500 entry on /pricing (site name "Automation Sprint"; Stripe catalog
- * name "Industry Blueprint Assessment" — the owner renames the catalog).
- *
- * Bug (d40f2677): the $2,500 Blueprint button's href pointed at
- * aFa7sN60LdErc1B5HG2Fa2M — the SAME Stripe Payment Link as the $30,000
- * Scale Build Package. A customer clicking "Get Your Blueprint" expecting
- * $2,500 landed on a $30,000 checkout.
- *
- * Fix: the $2,500 button now points at its own real $2,500 Blueprint
- * Payment Link (https://buy.stripe.com/14AbJ3cp91VJc1Bfig2Fa2N, generated
- * from price_1Tv7GiRcz95wEmJa2nEHrpaZ / prod_UuxBKQU2FvfQsB).
- *
- * SITE rework (owner 09-27): /pricing is the LOCKED platform-tiers page; the
- * $2,500 Automation Sprint remains the lone live one-time SKU until the owner's
- * Stripe switch lands subscription products.
- * Truthfulness: the site calls it "Automation Sprint" but the Stripe
- * catalog/checkout still shows "Industry Blueprint Assessment" (the owner's
- * rename step) — so the CTA must link to the canonical $2,500 link AND the
- * page must disclose the checkout label to avoid implying the checkout says
- * "Automation Sprint".
- *
- * These assertions read the source of src/routes/pricing.tsx (source of
- * truth) so any future accidental re-binding of the $2,500 CTA to Scale's
- * link — or removal of the checkout-label disclosure — fails CI immediately.
+ * pricing-blueprint-checkout.test.ts — retired one-time SKU guardrail (owner 10-21).
+ * The $2,500 Automation Sprint / "Industry Blueprint Assessment" / "Deep-Dive AI
+ * Opportunity Audit" one-time SKU is RETIRED: the three locked platform tiers
+ * (Starter/Growth/Enterprise) are the ONLY SKUs, and the free assessment is the
+ * sole low-risk entry. /pricing must therefore carry NO Sprint/Blueprint surface
+ * and NO buy.stripe.com link other than the three tier payment links.
  */
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-
-const PRICING = readFileSync("src/routes/pricing.tsx", "utf8");
-
+const PRICING = readFileSync("src/routes/pricing.tsx", "utf8").toLowerCase();
+const TIER_LINKS = [
+  "https://buy.stripe.com/evq5kc7qq0909zv0sj5os00",
+  "https://buy.stripe.com/fzubj0h1qbri5jfcbr5os01",
+  "https://buy.stripe.com/fzu28qfxmanedqb2ar5os02",
+];
 const SCALE_LINK = "https://buy.stripe.com/aFa7sN60LdErc1B5HG2Fa2M";
-const BLUEPRINT_LINK = "https://buy.stripe.com/14AbJ3cp91VJc1Bfig2Fa2N";
+const RETIRED_BLUEPRINT_LINK = "https://buy.stripe.com/14AbJ3cp91VJc1Bfig2Fa2N";
 
-describe("pricing $2,500 Automation Sprint checkout button", () => {
-  it("Sprint CTA points at the real $2,500 Blueprint link (not Scale's $30k link)", () => {
-    // The Sprint block in /pricing: find the "Start the Sprint" CTA and
-    // assert its href is the canonical $2,500 link.
-    const sprintIdx = PRICING.indexOf("Start the Sprint");
-    expect(sprintIdx).toBeGreaterThan(0);
-    const sprintBlock = PRICING.slice(0, sprintIdx);
-    const hrefIn = sprintBlock.lastIndexOf("href=");
-    expect(hrefIn).toBeGreaterThan(0);
-    const href = (sprintBlock.slice(hrefIn).match(/href="([^"]+)"/) || [])[1];
-    expect(href).toBe(BLUEPRINT_LINK);
-    // Critically, it must NOT be Scale's link.
-    expect(href).not.toBe(SCALE_LINK);
+describe("pricing page: retired one-time SKU surface is gone (owner 10-21)", () => {
+  it("contains no Automation Sprint / $2,500 / Industry Blueprint Assessment / retired link", () => {
+    expect(PRICING).not.toContain("automation sprint");
+    expect(PRICING).not.toContain("$2,500");
+    expect(PRICING).not.toContain("industry blueprint");
+    expect(PRICING).not.toContain(RETIRED_BLUEPRINT_LINK);
+    expect(PRICING).not.toContain("start the sprint");
   });
-
-  it("Sprint block advertises $2,500, names 'Automation Sprint', and discloses the checkout label", () => {
-    const sprintIdx = PRICING.indexOf('href="' + BLUEPRINT_LINK + '"');
-    expect(sprintIdx).toBeGreaterThan(0);
-    const block = PRICING.slice(0, sprintIdx);
-    expect(block).toContain("$2,500");
-    expect(block).toContain("Automation Sprint");
-    // Truthfulness: the site names it Automation Sprint, and the checkout
-    // is disclosed as "Industry Blueprint Assessment" — the catalog name
-    // the owner will rename in Stripe.
-    expect(PRICING).toContain('At checkout you\'ll see the item as "Industry Blueprint Assessment"');
-    expect(PRICING).toContain("the same $2,500 one-time engagement");
+  it("the ONLY buy.stripe.com links on /pricing are the three locked tier payment links", () => {
+    const links = [...PRICING.matchAll(/buy\.stripe\.com\/[a-z0-9]+/g)].map((m) => "https://" + m[0]);
+    expect(new Set(links)).toEqual(new Set(TIER_LINKS));
   });
-
-  it("no per-employee/old build-package SKUs remain on the pricing page (LOCKED platform tiers, owner 09-27)", () => {
-    // The old $30k Scale build package is DISCONTINUED (owner 09-27: one platform,
-    // all capabilities in every tier). Guard: the old price literals and the old
-    // $30k link must not be bound to any CTA on /pricing.
+  it("no discontinued per-employee / build-package SKUs remain (owner 09-27 locked tiers)", () => {
     expect(PRICING).not.toContain("price: 30000");
     expect(PRICING).not.toContain("price: 7500");
     expect(PRICING).not.toContain("price: 15000");
-    expect(PRICING).not.toContain(SCALE_LINK);
-    // The Sprint CTA must still be the canonical $2,500 Blueprint link (live SKU).
-    expect(PRICING).toContain(BLUEPRINT_LINK);
+    expect(PRICING).not.toContain(SCALE_LINK.toLowerCase());
   });
-
-  it("Blueprint is a distinct buy.stripe.com URL from Scale", () => {
-    // The two links resolve to different paths under buy.stripe.com.
-    const bp = new URL(BLUEPRINT_LINK);
-    const sc = new URL(SCALE_LINK);
-    expect(bp.pathname).not.toBe(sc.pathname);
-    expect(BLUEPRINT_LINK).toContain("buy.stripe.com/");
-    expect(SCALE_LINK).toContain("buy.stripe.com/");
+  it("the free assessment remains the low-risk entry — /pricing links to it", () => {
+    expect(PRICING).toContain('to="/assessment"');
   });
 });

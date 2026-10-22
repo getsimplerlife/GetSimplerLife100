@@ -493,8 +493,9 @@ function Home() {
                 </h2>
                 <p className="mt-3 text-base leading-relaxed text-stone-400">
                   Nothing on this page is claimed working until it's live-tested. Every action an automation takes
-                  passes a human approval queue before it runs (or your own allow-list, audited). No silent failures — if something disconnects, you're
-                  told immediately and reconnected in one click.
+                  passes a human approval queue before it runs (or your own allow-list, audited). Nothing imports on
+                  its own — external tools are client-side, one-time transfers that bring your data in, and every
+                  import is approval-gated; nothing is written until you approve.
                 </p>
                 <div className="mt-6 flex flex-wrap gap-2">
                   {["Xero", "HubSpot", "DocuSign", "Slack", "Google", "Microsoft 365"].map((p) => (
@@ -669,7 +670,7 @@ function Home() {
                 to="/pricing"
                 className="inline-flex items-center gap-2 rounded-xl border border-stone-700 px-5 py-2.5 text-sm font-bold text-stone-300 transition-colors hover:border-emerald-500/50 hover:text-emerald-300"
               >
-                Full pricing & the $2,500 Automation Sprint →
+                Full pricing →
               </Link>
             </div>
 

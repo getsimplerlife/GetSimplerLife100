@@ -506,7 +506,7 @@ function AutomationAssessment() {
             <div className="bg-gradient-to-br from-emerald-950/30 to-stone-900/60 border border-emerald-900/40 rounded-2xl p-6 text-center">
               <h3 className="text-lg font-bold text-emerald-400 mb-2">Ready to Get Started?</h3>
               <p className="text-sm text-stone-400 mb-6 max-w-md mx-auto">
-                Start with the $2,500 Automation Sprint or a platform subscription — one platform, every capability.
+                Start with a platform subscription — one platform, every capability.
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <Link

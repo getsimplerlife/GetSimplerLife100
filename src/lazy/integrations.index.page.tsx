@@ -157,7 +157,7 @@ const SEE_IT_IN_ACTION_DEMOS: SeeItInActionDemo[] = [
       "COMPARE: Reconciled 12,000 SKUs. Found 4 discrepancies.",
       "TRACE: Traced 3 variances to receiving delays, 1 to vendor credit.",
       "WRITE: Prepared inventory adjustment draft for warehouse manager.",
-      "SUCCESS: Reconciliations logged. SAP records synced with audit trail."
+      "SUCCESS: Reconciliations logged. SAP records matched and appended to the audit trail."
     ]
   },
   {

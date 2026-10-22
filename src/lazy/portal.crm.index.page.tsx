@@ -342,7 +342,7 @@ function CRMPortal() {
       <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 text-center">
         <h3 className="text-white font-bold mb-2">Don't see your CRM?</h3>
         <p className="text-stone-400 text-sm mb-4">
-          We integrate with 180+ business platforms. If your system isn't listed here, it may be available through our universal connector.
+          Import lanes cover 180+ business platforms. If your system isn't listed here, check the import page — and if it's not wired yet, it will be in a future slice.
         </p>
         <div className="flex justify-center gap-4">
           <Link to="/portal/integrations" className="text-emerald-400 font-bold text-sm hover:text-emerald-300">

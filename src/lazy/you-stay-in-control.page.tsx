@@ -76,13 +76,13 @@ export default function YouStayInControlPage() {
                 },
                 {
                   icon: "🔁",
-                  title: "Connections that self-heal",
-                  d: "Integrations are monitored and reconnected automatically where possible — never silently lost.",
+                  title: "Bring your data in",
+                  d: "Connect your existing tools to bring your data in — one-time, client-initiated transfers. Nothing syncs automatically and nothing writes back to your tools.",
                 },
                 {
                   icon: "🔔",
-                  title: "Notifications + one-click reconnect",
-                  d: "If a connection needs you, you're alerted immediately and can re-authorize in one click from the portal.",
+                  title: "Approval-gated imports",
+                  d: "Every import is a pull → preview → approve → commit flow with a durable audit trail — nothing is imported until your team approves it.",
                 },
                 {
                   icon: "🚧",

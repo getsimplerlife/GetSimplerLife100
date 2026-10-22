@@ -96,9 +96,9 @@ export default function IndustryLanding({ config }: { config: IndustryConfig }) 
         <section className="px-6 py-16 max-w-5xl mx-auto">
           <h2 className="text-3xl font-bold mb-4 text-center">Where is your team losing time?</h2>
           <p className="text-center text-gray-500 dark:text-gray-400 mb-12 max-w-2xl mx-auto">
-            Choose how you want to start. We'll identify your best opportunities for AI and build a roadmap to automate them.
+            Start free — we'll identify your best opportunities for AI and build a roadmap to automate them.
           </p>
-          <div className="grid md:grid-cols-2 gap-8">
+          <div className="grid gap-8 max-w-md mx-auto">
             {/* Efficiency Audit */}
             <div className="flex flex-col p-8 bg-white dark:bg-stone-800 border rounded-2xl shadow-sm">
               <h3 className="text-xl font-bold mb-2">Efficiency Audit</h3>
@@ -124,38 +124,6 @@ export default function IndustryLanding({ config }: { config: IndustryConfig }) 
               >
                 Schedule Free Audit
               </Link>
-            </div>
-
-            {/* Deep-Dive Audit */}
-            <div className="flex flex-col p-8 bg-white dark:bg-stone-800 border-2 rounded-2xl shadow-md relative">
-              <div
-                className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 text-white text-xs font-bold rounded-full"
-                style={{ backgroundColor: c.accent }}
-              >
-                Most Popular
-              </div>
-              <h3 className="text-xl font-bold mb-2">Deep-Dive AI Audit</h3>
-              <div className="text-3xl font-extrabold mb-4" style={{ color: c.accent }}>$2,500</div>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-                A technical roadmap for your business. We map your workflows and show exactly how AI automation will save you time.
-              </p>
-              <ul className="space-y-2 mb-8 flex-1">
-                {c.deepAuditFeatures.map((f, i) => (
-                  <li key={i} className="flex items-center gap-2 text-sm">
-                    <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: c.accent }}>
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                    </svg>
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <a
-                href="https://buy.stripe.com/4gMfZj88TfMz6Hh8TS2Fa1K"
-                className="w-full text-center text-white py-3 rounded-lg font-bold hover:opacity-90 transition-opacity"
-                style={{ backgroundColor: c.accent }}
-              >
-                Buy Now — $2,500
-              </a>
             </div>
           </div>
         </section>
