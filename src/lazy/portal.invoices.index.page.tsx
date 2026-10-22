@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Card, Badge, Button } from "~/components/ui";
+import { PortalEmptyState, scrollToId } from "~/components/PortalEmptyState";
 
 interface InvoiceSummary {
   id: string;
@@ -134,7 +135,7 @@ export default function InvoicesPage() {
       {error && <div className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
       {feedback && <div className="rounded border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-800">{feedback}</div>}
 
-      <Card>
+      <Card id="invoice-composer">
         <h2 className="mb-3 text-lg font-semibold">Create invoice from a deal room</h2>
         <div className="flex flex-wrap items-end gap-3">
           <select className="min-w-64 rounded border p-2" value={dealRoomId} onChange={(e) => setDealRoomId(e.target.value)}>
@@ -160,8 +161,26 @@ export default function InvoicesPage() {
         </select>
         {loading ? (
           <p className="text-sm text-gray-500">Loading…</p>
+        ) : items.length === 0 ? (
+          dealRooms.length === 0 ? (
+            <PortalEmptyState
+              title="No invoices yet"
+              body="Invoices are built from approved deal rooms. Create and approve a deal room first, then issue the invoice from the composer above."
+              action={{ label: "Open deal rooms", to: "/deal-rooms/" }}
+            />
+          ) : (
+            <PortalEmptyState
+              title="No invoices yet"
+              body="Invoices are built from approved deal rooms. Use the composer above to issue an invoice from an active deal room."
+              action={{ label: "Open the composer", onClick: () => scrollToId("invoice-composer") }}
+            />
+          )
         ) : visible.length === 0 ? (
-          <p className="text-sm text-gray-500">No invoices yet — create one from an active deal room above.</p>
+          <PortalEmptyState
+            title="No invoices match this filter"
+            body="Try a different deal room filter, or clear it to see every invoice."
+            action={{ label: "Clear filter", onClick: () => setFilter("") }}
+          />
         ) : (
           <div className="space-y-3">
             {visible.map((i) => (

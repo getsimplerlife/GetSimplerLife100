@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { PortalEmptyState } from "~/components/PortalEmptyState";
 
 
 
@@ -19,18 +20,22 @@ function ReportsCenter() {
 
   const handleAction = async (name: string, action: string) => {
     try {
-      setFeedback(`Processing report: ${action}...`);
       const res = await fetch("/api/data/reports", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({ action: "report_" + action.toLowerCase(), resource: name }),
       });
-      await res.json();
-      setFeedback(`Success: ${action} processed`);
-      setTimeout(() => setFeedback(""), 3000);
+      setFeedback(
+        res.ok
+          ? `Request logged for "${name}" — ${action} is not executed from this workspace yet.`
+          : "Request failed — try again.",
+      );
+      setTimeout(() => setFeedback(""), 4000);
     } catch (err) {
       console.error(err);
+      setFeedback("Request failed — try again.");
+      setTimeout(() => setFeedback(""), 4000);
     }
   };
 
@@ -58,6 +63,14 @@ function ReportsCenter() {
       </div>
 
       <div className="bg-stone-900 rounded-3xl border border-stone-800 overflow-hidden">
+        {reports.length === 0 ? (
+          <div className="p-8">
+            <PortalEmptyState
+              title="No reports yet"
+              body="Reports appear here once they're generated. Use Generate New Report above to request your first one — the request is logged for your workspace."
+            />
+          </div>
+        ) : (
         <table className="w-full text-left text-xs font-semibold">
           <thead>
             <tr className="bg-stone-800 text-stone-400 border-b border-stone-800 uppercase tracking-wider">
@@ -82,6 +95,7 @@ function ReportsCenter() {
             ))}
           </tbody>
         </table>
+        )}
       </div>
 
       {feedback && (

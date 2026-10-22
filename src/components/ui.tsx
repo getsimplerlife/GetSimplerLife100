@@ -61,11 +61,14 @@ interface CardProps {
   children: React.ReactNode;
   className?: string;
   onClick?: () => void;
+  /** Optional DOM id (e.g. a scroll target for empty-state CTAs). */
+  id?: string;
 }
 
-export const Card: React.FC<CardProps> = ({ children, className = "", onClick }) => {
+export const Card: React.FC<CardProps> = ({ children, className = "", onClick, id }) => {
   return (
     <div 
+      id={id}
       onClick={onClick}
       className={`bg-white dark:bg-stone-900 border border-stone-100 dark:border-stone-800 rounded-3xl shadow-sm hover:shadow-md transition-all duration-300 ${onClick ? "cursor-pointer active:scale-[0.99]" : ""} ${className}`}
     >

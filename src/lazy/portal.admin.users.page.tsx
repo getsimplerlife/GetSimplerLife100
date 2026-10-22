@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { PortalEmptyState } from "~/components/PortalEmptyState";
 // P1-2 honesty: this page previously rendered HARDCODED demo rows
 // (hardcoded demo accounts with fake "joined" dates) and dead
 // Edit/Suspend buttons. It now renders the REAL registered accounts from
@@ -54,7 +55,13 @@ function AdminUsersPage() {
         </div>
         <div className="divide-y divide-stone-800">
           {users.length === 0 ? (
-            <div className="px-6 py-8 text-center text-xs text-stone-500">No registered accounts yet.</div>
+            <div className="px-6 py-6">
+              <PortalEmptyState
+                compact
+                title="No registered accounts yet"
+                body="Accounts appear here after their first signup."
+              />
+            </div>
           ) : (
             users.map((user: any) => (
               <div key={user.id || user.email} className="grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-stone-800/30 transition-colors">

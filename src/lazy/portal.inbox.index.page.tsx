@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { PortalEmptyState } from "~/components/PortalEmptyState";
 
 
 
@@ -191,10 +192,11 @@ function UnifiedInbox() {
         {/* Left Col: Inbox Item Feed List (Grid 5/12) */}
         <div className="lg:col-span-5 space-y-3 max-h-[550px] overflow-y-auto pr-1">
           {filteredItems.length === 0 ? (
-            <div className="text-center py-10 bg-stone-950 border border-stone-900 rounded-xl space-y-2">
-              <span className="text-3xl block opacity-45">📭</span>
-              <p className="text-xs font-mono text-stone-500 uppercase tracking-widest">No active items matched</p>
-            </div>
+            <PortalEmptyState
+              icon="📭"
+              title="No inbox items matched"
+              body="Items appear here when your workspace receives email or document activity. Adjust the filters above to see everything."
+            />
           ) : (
             filteredItems.map((itm) => {
               const isSelected = selectedItemId === itm.id;

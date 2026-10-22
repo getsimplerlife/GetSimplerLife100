@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Card, Badge, Button } from "~/components/ui";
+import { PortalEmptyState, scrollToId } from "~/components/PortalEmptyState";
 
 // ── Types (Phase 3.4 native surveys — NPS / CSAT / scorecard / custom) ─────
 interface QuestionDraft {
@@ -178,7 +179,7 @@ export default function SurveysPage() {
       )}
 
       {/* Builder */}
-      <Card className="p-5">
+      <Card id="survey-composer" className="p-5">
         <h2 className="mb-3 text-sm font-semibold text-slate-900">New survey</h2>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <input
@@ -265,7 +266,11 @@ export default function SurveysPage() {
           <Badge variant="stone">{surveys.length}</Badge>
         </div>
         {surveys.length === 0 ? (
-          <p className="text-sm text-slate-400">No surveys yet — build your first one above.</p>
+          <PortalEmptyState
+            title="No surveys yet"
+            body="Build your first survey in the composer above."
+            action={{ label: "Open the composer", onClick: () => scrollToId("survey-composer") }}
+          />
         ) : (
           <ul className="divide-y divide-slate-100">
             {surveys.map((s) => (

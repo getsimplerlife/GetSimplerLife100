@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Card, Badge, Button } from "~/components/ui";
+import { PortalEmptyState, scrollToId } from "~/components/PortalEmptyState";
 
 interface DealRoomSummary {
   id: string;
@@ -196,7 +197,7 @@ export default function DealRoomsPage() {
       {error && <div className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
       {feedback && <div className="rounded border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-800">{feedback}</div>}
 
-      <Card>
+      <Card id="deal-room-composer">
         <h2 className="mb-3 text-lg font-semibold">New deal room</h2>
         <div className="grid gap-3 md:grid-cols-2">
           <input className="rounded border p-2" placeholder="Deal room name" value={name} onChange={(e) => setName(e.target.value)} />
@@ -226,7 +227,11 @@ export default function DealRoomsPage() {
         {loading ? (
           <p className="text-sm text-gray-500">Loading…</p>
         ) : items.length === 0 ? (
-          <p className="text-sm text-gray-500">No deal rooms yet — create your first one above.</p>
+          <PortalEmptyState
+            title="No deal rooms yet"
+            body="Create your first deal room above to start the proposal-to-cash flow — every write is approval-gated and audited."
+            action={{ label: "Open the composer", onClick: () => scrollToId("deal-room-composer") }}
+          />
         ) : (
           <div className="space-y-3">
             {items.map((d) => (

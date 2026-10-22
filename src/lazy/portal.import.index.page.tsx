@@ -29,6 +29,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { Card, CardBody, Badge, Button } from "~/components/ui";
+import { PortalEmptyState, scrollToId } from "~/components/PortalEmptyState";
 
 /** Per-lane HONEST trust copy — the single source of truth for what each
  *  lane reads and does NOT read. Keyed by canonical provider id (the ids the
@@ -324,7 +325,7 @@ export default function PortalImportIndexPage() {
       </Card>
 
       {/* New import — client-managed, targets the tenant's own table */}
-      <Card>
+      <Card id="import-composer">
         <CardBody>
           <h2 className="font-medium mb-1">Start an import</h2>
           <p className="text-xs text-slate-400 mb-3">Pick a wired lane, label the import, and choose one of your own tables as the target. Creation is approval-gated.</p>
@@ -350,10 +351,16 @@ export default function PortalImportIndexPage() {
       </Card>
 
       {/* Import jobs — pull → preview → map → commit with honest run ledger */}
-      {imports.length > 0 && (
-        <Card>
-          <CardBody>
-            <h2 className="font-medium mb-2">Your imports</h2>
+      <Card>
+        <CardBody>
+          <h2 className="font-medium mb-2">Your imports</h2>
+          {imports.length === 0 ? (
+            <PortalEmptyState
+              title="No imports yet"
+              body="Set up your first import with the form above: pick a lane, name it, and choose one of your own tables as the target. Preview and approve every step — nothing is imported until you approve."
+              action={{ label: "New import", onClick: () => scrollToId("import-composer") }}
+            />
+          ) : (
             <div className="space-y-3">
               {imports.map((im) => {
                 const jobRuns = runsByJob[im.id] ?? [];
@@ -427,9 +434,9 @@ export default function PortalImportIndexPage() {
                 );
               })}
             </div>
+          )}
           </CardBody>
         </Card>
-      )}
 
       <p className="text-xs text-slate-500">
         One-shot, client-initiated imports only — no background sync, no write-back, no connection we maintain on

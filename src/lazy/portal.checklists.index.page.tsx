@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Card, Badge, Button } from "~/components/ui";
+import { PortalEmptyState, scrollToId } from "~/components/PortalEmptyState";
 
 interface ChecklistSummary {
   id: string;
@@ -146,7 +147,7 @@ export default function ChecklistsPage() {
       {error && <div className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
       {feedback && <div className="rounded border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-800">{feedback}</div>}
 
-      <Card>
+      <Card id="checklist-composer">
         <h2 className="mb-3 text-lg font-semibold">New checklist</h2>
         <div className="grid gap-3 md:grid-cols-2">
           <input className="rounded border p-2" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
@@ -169,7 +170,11 @@ export default function ChecklistsPage() {
         {loading ? (
           <p className="text-sm text-gray-500">Loading…</p>
         ) : items.length === 0 ? (
-          <p className="text-sm text-gray-500">No checklists yet — create your first one above.</p>
+          <PortalEmptyState
+            title="No checklists yet"
+            body="Create your first checklist in the composer above — every write is approval-gated and audited."
+            action={{ label: "Open the composer", onClick: () => scrollToId("checklist-composer") }}
+          />
         ) : (
           <div className="space-y-3">
             {items.map((c) => (
