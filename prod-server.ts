@@ -2910,7 +2910,7 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
     if (pathname === "/api/data/payment-method") {
       const user = await getUserFromSession(req);
       if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
-      // P1-2 honest-outcome: this endpoint previously fabricated a "Visa 4242"
+      // P1-2 honest-outcome: this endpoint previously fabricated a dummy
       // card for the owner. Payment methods are now read ONLY from the caller's
       // own durable rows (tenant_payment_methods.json, written only by real
       // billing flows) and otherwise return honest null — no code path can

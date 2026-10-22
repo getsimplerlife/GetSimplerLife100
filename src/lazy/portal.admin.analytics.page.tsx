@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 // P1-2 honesty: this page previously rendered HARDCODED usage bars (OpenAI 45%…)
-// and demo customer rows (mathewortiz97@gmail.com agents:8 calls:342K). KPIs now
+// and fabricated per-customer call volumes. KPIs now
 // map to REAL aggregate keys served by /api/data/analytics, and breakdowns show
 // an honest placeholder until real per-account usage exists.
 function AdminAnalyticsPage() {

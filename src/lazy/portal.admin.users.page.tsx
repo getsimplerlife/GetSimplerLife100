@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 // P1-2 honesty: this page previously rendered HARDCODED demo rows
-// (mathewortiz97@gmail.com / demo@test.com / newclient@test.com with fake
-// "joined" dates) and dead Edit/Suspend buttons. It now renders the REAL
-// registered accounts from /api/data/users (users.json) only.
+// (hardcoded demo accounts with fake "joined" dates) and dead
+// Edit/Suspend buttons. It now renders the REAL registered accounts from
+// /api/data/users (users.json) only.
 function AdminUsersPage() {
   const [stats, setStats] = useState<Record<string, number>>({});
   const [users, setUsers] = useState<any[]>([]);

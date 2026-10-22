@@ -104,7 +104,7 @@ async function authedGet(path: string, cookie: string) {
 }
 
 beforeAll(async () => {
-  ensureTestServer();
+  await ensureTestServer();
   snapshotAll();
   seedOwner();
   // Real durable card rows keyed by email (structural per-tenant store).
