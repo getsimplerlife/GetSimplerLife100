@@ -18,6 +18,7 @@ import { startScheduledTokenRefresher, scheduledRefresherStats, REFRESHER_TICK_M
 import { startHealthHeartbeat, probeProvider } from "./src/lib/connection-health";
 import { sweepExpiredOAuthStates, OAUTH_STATE_TTL_MS } from "./src/lib/oauth-state-sweeper";
 import { acquireSingleInstanceOwnership, portAlreadyBound } from "./src/lib/single-instance";
+import { isOwnerUser, LEGACY_OWNER_EMAIL } from "./src/lib/user-roles";
 
 // ── Lazy module accessors — loaded on first use to keep server startup under 1s ──
 let _bcryptjs: any;
@@ -369,7 +370,7 @@ void (async () => {
   configureTenant = gates.configureTenant;
   const _initialPurchases = readJSON(TENANT_PURCHASES_FILE);
   gates.hydrateTenants(_initialPurchases);
-  configureTenant!("mathewortiz97@gmail.com", { purchased: true, status: "Active" });
+  configureTenant!(LEGACY_OWNER_EMAIL, { purchased: true, status: "Active" });
   // Xero webhook org gates: map each entitled tenant's Xero org UUID -> monitoring
   // gate so real webhook events can dispatch. Best-effort, canonical host only,
   // fail-soft (expired tokens just skip). Receiving webhooks never mutates orgs.
@@ -813,8 +814,8 @@ async function handleFetch(req: Request): Promise<Response> {
       try {
         const body = await req.json();
         const { feature } = body; // "workflows", "ai-employees", "agent-{type}"
-        // Owner (mathewortiz97@gmail.com) always has access
-        if (user.email === "mathewortiz97@gmail.com") {
+        // Owner (role claim admin/owner) always has access
+        if (isOwnerUser(user)) {
           return Response.json({ hasAccess: true, reason: "owner" });
         }
         const purchases = readJSON(join(DATA_DIR, "tenant_purchases.json"));
@@ -846,7 +847,7 @@ async function handleFetch(req: Request): Promise<Response> {
       if (typeParam === "erp") packType = "erp-pack";
       else if (typeParam === "crm") packType = "crm-pack";
       // Owner always has unlimited slots
-      if (user.email === "mathewortiz97@gmail.com") {
+      if (isOwnerUser(user)) {
         return Response.json({ totalSlots: 999, usedSlots: 0, remainingSlots: 999, isOwner: true });
       }
       const purchases = readJSON(TENANT_PURCHASES_FILE);
@@ -871,7 +872,7 @@ async function handleFetch(req: Request): Promise<Response> {
       const userConns = await buildConnectedAccountsFromCredentials(user.email, DATA_DIR);
       const { crm: crmConns, erp: erpConns, other: otherConns } = bucketConnectionsByCategory(userConns);
       const getSlotInfo = (packType: string) => {
-        if (user.email === "mathewortiz97@gmail.com") return { totalSlots: 999, usedSlots: 0, remainingSlots: 999, isOwner: true };
+        if (isOwnerUser(user)) return { totalSlots: 999, usedSlots: 0, remainingSlots: 999, isOwner: true };
         const purchases = readJSON(TENANT_PURCHASES_FILE);
         const userPurchases = purchases[user.email] || [];
         const packs = userPurchases.filter((p: any) => p.type === packType && p.status === "active");
@@ -1126,7 +1127,7 @@ async function handleFetch(req: Request): Promise<Response> {
       if (user === null || user === undefined) return Response.json({ error: "Not authenticated" }, { status: 401 });
       // Cross-tenant leak: this endpoint lists EVERY registered user. Mirror the
       // /api/admin/* gate so only the owner can read/mutate the user directory.
-      if (user.email !== "mathewortiz97@gmail.com") {
+      if (!isOwnerUser(user)) {
         return Response.json({ error: "Admin access required" }, { status: 403 });
       }
       const users = readJSON(USERS_FILE);
@@ -2337,7 +2338,7 @@ async function handleFetch(req: Request): Promise<Response> {
         }
 
         // CRM/ERP slot check — only for non-owner users connecting CRM/ERP/Accounting providers
-        if (user.email !== "mathewortiz97@gmail.com" && isCrmErpCategory(providerCategory)) {
+        if (!isOwnerUser(user) && isCrmErpCategory(providerCategory)) {
           const packType = getPackTypeForCategory(providerCategory);
           if (!packType) {
             return Response.json({
@@ -2372,7 +2373,7 @@ async function handleFetch(req: Request): Promise<Response> {
         }
 
         // Consume a CRM/ERP slot if applicable (non-owner)
-        if (user.email !== "mathewortiz97@gmail.com" && isCrmErpCategory(providerCategory)) {
+        if (!isOwnerUser(user) && isCrmErpCategory(providerCategory)) {
           const packType = getPackTypeForCategory(providerCategory);
           if (packType && !consumeCrmErpSlot(user.email, packType)) {
             return Response.json({ error: "Failed to reserve slot. Please try again." }, { status: 500 });
@@ -2472,7 +2473,7 @@ async function handleFetch(req: Request): Promise<Response> {
         // Find the connection to check if it's CRM/ERP before removing
         const conn = userConns.find((c: any) => c.id === body.connectionId || c.providerId === body.providerId);
         // Free CRM/ERP slot if applicable (non-owner)
-        if (conn && user.email !== "mathewortiz97@gmail.com") {
+        if (conn && !isOwnerUser(user)) {
           const connCategory = conn.category || getProviderCategory(conn.providerId || "") || "";
           if (isCrmErpCategory(connCategory)) {
             const packType = getPackTypeForCategory(connCategory);
@@ -2911,7 +2912,7 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
       if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
       // Seed payment method data — the owner always has a card on file.
       // In production this would pull real data from Stripe's API.
-      if (user.email === "mathewortiz97@gmail.com") {
+      if (isOwnerUser(user)) {
         return Response.json({ data: { brand: "Visa", last4: "4242", expMonth: 12, expYear: 2027, isDefault: true } });
       }
       // For other users, check tenant data or return null
@@ -2932,7 +2933,7 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
         if (req.method === "DELETE") {
           // Free CRM/ERP slot before removing connection
           const conn = userConns.find((c: any) => c.id === connectionId || c.providerId === connectionId);
-          if (conn && user.email !== "mathewortiz97@gmail.com") {
+          if (conn && !isOwnerUser(user)) {
             const connCategory = conn.category || getProviderCategory(conn.providerId || "") || "";
             if (isCrmErpCategory(connCategory)) {
               const packType = getPackTypeForCategory(connCategory);
@@ -2998,7 +2999,7 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
         const agent = employees.find((e: any) => e.id === agentId || e.id === agentId + "-v1");
         if (!agent) return Response.json({ error: "Agent not found: " + agentId }, { status: 404 });
         // Purchase check — owner bypasses
-        if (user.email !== "mathewortiz97@gmail.com") {
+        if (!isOwnerUser(user)) {
           const purchases = readJSON(TENANT_PURCHASES_FILE);
           const userPurchases = purchases[user.email] || [];
           const hasAgent = userPurchases.some((p: any) =>
@@ -3306,7 +3307,7 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
         adminDataSubPaths.includes(subPath) ||
         subPath.startsWith("credentials/")
       ) {
-        if (user.email !== "mathewortiz97@gmail.com") {
+        if (!isOwnerUser(user)) {
           return Response.json({ error: "Admin access required" }, { status: 403 });
         }
       }
@@ -3364,7 +3365,7 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
         const employees = readJSON(AI_EMPLOYEES_FILE);
         const { enrichEmployeesAttention } = await import("./src/lib/employee-attention");
         const employeesAtt = enrichEmployeesAttention(employees, user.email, DATA_DIR);
-        if (user.email !== "mathewortiz97@gmail.com") {
+        if (!isOwnerUser(user)) {
           const purchases = readJSON(TENANT_PURCHASES_FILE);
           const userPurchases = purchases[user.email] || [];
           const purchasedIds = new Set<string>();
@@ -3485,7 +3486,7 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
     if (pathname.startsWith("/api/admin/")) {
       const user = await getUserFromSession(req);
       if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
-      if (user.email !== "mathewortiz97@gmail.com") {
+      if (!isOwnerUser(user)) {
         return Response.json({ error: "Admin access required" }, { status: 403 });
       }
       const subPath = pathname.replace("/api/admin/", "");
@@ -4361,7 +4362,11 @@ OAUTH_${provUpper}_CLIENT_SECRET=your_client_secret</pre><p style="font-size:0.8
               const sessions = readJSON(SESSIONS_FILE);
               const session = sessions[match[1]];
               if (session?.email) {
-                const userPayload = JSON.stringify({ email: session.email }).replace(/</g, "\\u003c");
+                // P1-5 role claim: inject role so client gates (Admin Panel,
+                // owner badges) work on first paint, not after /api/me.
+                const ssrUsers = readJSON(USERS_FILE);
+                const ssrRow = ssrUsers[session.email];
+                const userPayload = JSON.stringify({ email: session.email, role: ssrRow?.role || "user" }).replace(/</g, "\\u003c");
                 const userScript = `<script nonce="${nonce}">window.__PORTAL_USER__=${userPayload};window.__PORTAL_READY__=true;</script>`;
                 html = html.replace("</head>", userScript + "</head>");
               }

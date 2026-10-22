@@ -2,6 +2,7 @@ import { join } from "path";
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync, copyFileSync } from "fs";
 import { durableEnabled, durableGet, durableHas, durableKeyFor, durableSet, durableGetLive, durableFlush, isPlainObject } from "./durable-store";
 import { AGENTS } from "../data/agents";
+import { isOwnerRole, LEGACY_OWNER_EMAIL } from "./user-roles";
 
 /**
  * data-store.ts — runtime data directory resolution and boot-time seeding.
@@ -276,20 +277,32 @@ export function seedDataFiles(dataDir: string): void {
   // Seed admin user if no admin exists (create-if-missing only). users.json
   // must be a plain object first — the admin block below assigns `users[email]`.
   ensurePlainObjectFile(join(dataDir, "users.json"));
-  const adminEmail = process.env.ADMIN_EMAIL || "mathewortiz97@gmail.com";
+  const adminEmail = process.env.ADMIN_EMAIL || LEGACY_OWNER_EMAIL;
   const usersFile = join(dataDir, "users.json");
   const users = readJSON(usersFile);
-  const hasAdmin = Object.values(users).some((u: any) => u && u.role === "admin");
+  const hasAdmin = Object.values(users).some((u: any) => u && isOwnerRole(u.role));
   if (!hasAdmin) {
     const { hashSync } = require("bcryptjs") as typeof import("bcryptjs");
     const adminPass = process.env.ADMIN_PASSWORD || "Mdsl1234";
-    users[adminEmail] = {
-      email: adminEmail,
-      password: hashSync(adminPass, 10),
-      role: "admin",
-      createdAt: Date.now(),
-    };
-    writeJSON(usersFile, users);
+    // P1-5 role-based gating: if the owner account ALREADY exists (e.g. it was
+    // registered before roles existed) promote it to admin in place so role
+    // gates never silently lock the owner out — and NEVER overwrite a live
+    // password. Only a missing/broken row gets a fresh hash.
+    const existing = users[adminEmail];
+    if (existing && typeof existing === "object") {
+      existing.role = "admin";
+      if (!existing.password) existing.password = hashSync(adminPass, 10);
+      existing.createdAt = existing.createdAt || Date.now();
+      writeJSON(usersFile, users);
+    } else {
+      users[adminEmail] = {
+        email: adminEmail,
+        password: hashSync(adminPass, 10),
+        role: "admin",
+        createdAt: Date.now(),
+      };
+      writeJSON(usersFile, users);
+    }
   }
 
   // Critical files exist with correct OBJECT shape (never overwrite real data).

@@ -19,8 +19,9 @@ function AdminLayout() {
         }
         const me = await meRes.json();
         const userData = me.user || me;
-        // Only the business owner can access the admin panel
-        if (userData.email !== 'mathewortiz97@gmail.com') {
+        // Only the business owner (role claim admin/owner) can access the
+        // admin panel — P1-5 role-based gating, no hardcoded email.
+        if (userData.role !== "admin" && userData.role !== "owner") {
           navigate({ to: "/portal" as any });
           return;
         }

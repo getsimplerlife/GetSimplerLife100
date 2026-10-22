@@ -4,6 +4,7 @@ import { PortalContext } from "~/routes/portal.context";
 import type { SystemNotification, PortalContextType } from "~/routes/portal.context";
 export { PortalContext, usePortalContext } from "~/routes/portal.context";
 export type { SystemNotification, PortalContextType } from "~/routes/portal.context";
+import { isOwnerUser } from "../lib/user-roles";
 
 
 
@@ -19,14 +20,14 @@ function PortalLayout() {
 
   // Read injected user synchronously on the client. SSR has no window
   // so this always returns null during SSR (spinner renders correctly).
-  const getInjectedUser = (): { email: string } | null => {
+  const getInjectedUser = (): { email: string; role?: string } | null => {
     if (typeof window !== "undefined" && (window as any).__PORTAL_USER__) {
       return (window as any).__PORTAL_USER__;
     }
     return null;
   };
 
-  const [user, setUser] = useState<{ email: string } | null>(null);
+  const [user, setUser] = useState<{ email: string; role?: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
@@ -72,7 +73,9 @@ function PortalLayout() {
             return;
           }
           const userData = await rMe.json();
-          setUser(userData);
+          // /api/me returns { user: { email, role } } — normalize so the client
+          // user object always carries the role claim (P1-5).
+          setUser(userData?.user ?? userData);
           setLoading(false);
         }
         // Load notifications non-blocking
@@ -294,7 +297,7 @@ function PortalLayout() {
           <Link to="/" className="text-xs font-black tracking-widest text-white uppercase hover:opacity-85 transition-opacity">
             Simpler Life 100
           </Link>
-          {user?.email === "mathewortiz97@gmail.com" && <span className="text-[9px] text-stone-500 font-mono tracking-wider">v3.5</span>}
+          {/* P1-5: stale "v3.5" dev badge removed — version is not derived from a real const. */}
         </div>
 
         {/* Navigation list */}
@@ -304,7 +307,7 @@ function PortalLayout() {
             return sections.map(section => (
               <div key={section} className="mb-4">
                 <p className="text-[9px] font-bold text-stone-600 uppercase tracking-widest px-3 mb-1.5">{section}</p>
-                {navLinks.filter(l => l.section === section && (!(l as any).adminOnly || user?.email === "mathewortiz97@gmail.com")).map((link) => {
+                {navLinks.filter(l => l.section === section && (!(l as any).adminOnly || isOwnerUser(user))).map((link) => {
                   const isActive = currentPath === link.path || (link.path === "/portal" && currentPath === "/portal/");
                   const isIntegrations = link.name === "Integrations";
                   return (
