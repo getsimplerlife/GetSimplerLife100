@@ -158,7 +158,7 @@ function ConnectAI() {
           </p>
           <Link
             to="/portal/workflows/builder"
-            className="bg-white hover:bg-stone-200 text-black font-bold text-xs px-5 py-3 rounded-xl transition-all"
+            className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-5 py-3 rounded-xl transition-all"
           >
             Open Workflow Builder →
           </Link>
@@ -254,7 +254,7 @@ function ConnectAI() {
               {/* Connection Lines */}
               {agent.links.length > 0 ? (
                 <div className="space-y-2 mb-3">
-                  <p className="text-[9px] font-bold text-stone-600 uppercase tracking-wider">Connected To</p>
+                  <p className="text-[10px] font-bold text-stone-600 uppercase tracking-wider">Connected To</p>
                   {agent.links.map((link) => (
                     <div
                       key={link.id}
@@ -266,13 +266,13 @@ function ConnectAI() {
                           style={{ backgroundColor: CATEGORY_COLORS[link.integrationCategory]?.split(" ")[0]?.replace("bg-", "#").replace("/20", "") || "#6b7280" }}
                         />
                         <span className="text-[11px] font-medium text-stone-300 truncate">{link.integrationName}</span>
-                        <span className={`text-[8px] px-1.5 py-0.5 rounded-full border font-mono ${categoryBadge(link.integrationCategory)}`}>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-mono ${categoryBadge(link.integrationCategory)}`}>
                           {link.integrationCategory}
                         </span>
                       </div>
                       <button
                         onClick={(e) => { e.stopPropagation(); handleUnlink(link.id); }}
-                        className="opacity-0 group-hover:opacity-100 text-[9px] text-rose-400 hover:text-rose-300 font-medium transition-all ml-2 shrink-0"
+                        className="opacity-0 group-hover:opacity-100 text-[10px] text-rose-400 hover:text-rose-300 font-medium transition-all ml-2 shrink-0"
                       >
                         Disconnect
                       </button>
@@ -288,7 +288,7 @@ function ConnectAI() {
               {/* Available Integrations (shown when assigning) */}
               {assigningTo === agent.agentId && agent.availableIntegrations.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-stone-900">
-                  <p className="text-[9px] font-bold text-stone-500 uppercase tracking-wider mb-2">
+                  <p className="text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-2">
                     Available to connect ({agent.availableIntegrations.length})
                   </p>
                   <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
@@ -296,7 +296,7 @@ function ConnectAI() {
                       <button
                         key={int.id}
                         onClick={(e) => { e.stopPropagation(); handleLink(agent.agentId, int); }}
-                        className={`text-[9px] font-medium px-2 py-1 rounded-lg border transition-all hover:scale-105 ${categoryBadge(int.category)}`}
+                        className={`text-[10px] font-medium px-2 py-1 rounded-lg border transition-all hover:scale-105 ${categoryBadge(int.category)}`}
                       >
                         + {int.name}
                       </button>
@@ -325,7 +325,7 @@ function ConnectAI() {
               </div>
             ))}
           </div>
-          <p className="text-[9px] text-stone-600 mt-3">
+          <p className="text-[10px] text-stone-600 mt-3">
             Click "+ Connect" on any agent above to link these integrations.
           </p>
         </div>
@@ -362,7 +362,7 @@ function Header() {
         </Link>
         <Link
           to="/portal/workflows/builder"
-          className="bg-white hover:bg-stone-200 text-black font-bold text-xs px-4 py-2.5 rounded-xl transition-all"
+          className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all"
         >
           Open Builder
         </Link>
@@ -377,7 +377,7 @@ function StatCard({ icon, label, value }: { icon: string; label: string; value: 
       <div className="flex items-center gap-3">
         <span className="text-xl">{icon}</span>
         <div>
-          <p className="text-[9px] font-bold text-stone-500 uppercase tracking-wider">{label}</p>
+          <p className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">{label}</p>
           <p className="text-lg font-black text-white">{value}</p>
         </div>
       </div>
@@ -391,7 +391,7 @@ function StatusDot({ status }: { status: string }) {
     paused: "bg-amber-500", idle: "bg-stone-500", error: "bg-rose-500",
   };
   return (
-    <span className="flex items-center gap-1 text-[9px] text-stone-500">
+    <span className="flex items-center gap-1 text-[10px] text-stone-500">
       <span className={`h-1.5 w-1.5 rounded-full ${colors[status] || "bg-stone-600"}`} />
       {status}
     </span>

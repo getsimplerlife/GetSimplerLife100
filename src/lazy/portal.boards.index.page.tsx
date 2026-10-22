@@ -204,7 +204,7 @@ export default function BoardsPage() {
     <div className="mx-auto max-w-6xl space-y-6 p-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Boards</h1>
+          <h1 className="text-2xl font-bold text-stone-100">Boards</h1>
           <p className="text-sm text-slate-500">Native task/project boards — every write is approval-gated.</p>
         </div>
         <div className="flex gap-2">
@@ -217,14 +217,14 @@ export default function BoardsPage() {
       </div>
 
       {error && <div className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
-      {feedback && <div className="rounded border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{feedback}</div>}
+      {feedback && <div className="rounded border border-emerald-500/20 bg-emerald-500/10 p-3 text-sm text-emerald-300">{feedback}</div>}
 
       <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
         <div className="space-y-2">
           {boards.map((b) => (
             <Card key={b.id} className="cursor-pointer p-4" onClick={() => void openBoard(b.id)}>
               <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-slate-800">{b.name}</h3>
+                <h3 className="font-semibold text-stone-100">{b.name}</h3>
                 <Badge variant={b.status === "archived" ? "stone" : "emerald"}>{STATUS_LABEL[b.status] ?? b.status}</Badge>
               </div>
               <p className="mt-1 line-clamp-2 text-xs text-slate-500">{b.description}</p>
@@ -242,14 +242,14 @@ export default function BoardsPage() {
 
         <Card className="p-5">
           {!selected ? (
-            <div className="flex h-40 items-center justify-center rounded border border-dashed border-slate-200 text-sm text-slate-400">
+            <div className="flex h-40 items-center justify-center rounded border border-dashed border-stone-800 text-sm text-slate-400">
               Select a board to open it.
             </div>
           ) : (
             <div>
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-xl font-bold text-slate-900">{selected.name}</h2>
+                  <h2 className="text-xl font-bold text-stone-100">{selected.name}</h2>
                   <span className="text-xs text-slate-500">v{selected.version} · {STATUS_LABEL[selected.status] ?? selected.status}</span>
                 </div>
                 {selected.status === "active" && (
@@ -282,15 +282,15 @@ export default function BoardsPage() {
               <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                 {selected.columns.map((col) => (
                   <div key={col.id} className="rounded border bg-slate-50 p-3">
-                    <h4 className="mb-2 text-sm font-semibold text-slate-700">{col.name}</h4>
+                    <h4 className="mb-2 text-sm font-semibold text-stone-400">{col.name}</h4>
                     <div className="space-y-2">
                       {cards
                         .filter((c) => c.columnId === col.id)
                         .sort((a, b) => a.position - b.position)
                         .map((c) => (
-                          <div key={c.id} className="rounded border bg-white p-3 shadow-sm">
+                          <div key={c.id} className="rounded border border-stone-800 bg-stone-900 p-3 shadow-sm">
                             <div className="flex items-start justify-between gap-2">
-                              <p className="text-sm font-medium text-slate-800">{c.title}</p>
+                              <p className="text-sm font-medium text-stone-200">{c.title}</p>
                               <Badge variant={c.status === "closed" ? "stone" : "blue"}>{CARD_STATUS_LABEL[c.status] ?? c.status}</Badge>
                             </div>
                             {c.description && <p className="mt-1 text-xs text-slate-500">{c.description}</p>}
@@ -342,7 +342,7 @@ export default function BoardsPage() {
 
       {writes.length > 0 && (
         <Card className="p-4">
-          <h3 className="mb-2 text-sm font-semibold text-slate-700">Pending approvals ({writes.length})</h3>
+          <h3 className="mb-2 text-sm font-semibold text-stone-400">Pending approvals ({writes.length})</h3>
           <div className="space-y-2">
             {writes.map((w) => (
               <div key={w.id} className="flex items-center justify-between rounded border p-2 text-sm">

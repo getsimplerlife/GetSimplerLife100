@@ -127,21 +127,21 @@ function SystemAuditLogs() {
       {stats && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="bg-stone-950 border border-stone-900 rounded-xl p-4">
-            <span className="text-[9px] font-mono uppercase tracking-wider text-stone-500 font-bold">Total Events</span>
+            <span className="text-[10px] font-mono uppercase tracking-wider text-stone-500 font-bold">Total Events</span>
             <p className="text-xl font-black text-white mt-1">{stats.totalEvents?.toLocaleString() || 0}</p>
           </div>
           <div className="bg-stone-950 border border-stone-900 rounded-xl p-4">
-            <span className="text-[9px] font-mono uppercase tracking-wider text-stone-500 font-bold">Unique Users</span>
+            <span className="text-[10px] font-mono uppercase tracking-wider text-stone-500 font-bold">Unique Users</span>
             <p className="text-xl font-black text-white mt-1">{stats.uniqueUsers || 0}</p>
           </div>
           <div className="bg-stone-950 border border-stone-900 rounded-xl p-4">
-            <span className="text-[9px] font-mono uppercase tracking-wider text-stone-500 font-bold">Recent Errors</span>
+            <span className="text-[10px] font-mono uppercase tracking-wider text-stone-500 font-bold">Recent Errors</span>
             <p className={`text-xl font-black mt-1 ${stats.recentErrors > 0 ? "text-rose-400" : "text-emerald-400"}`}>
               {stats.recentErrors || 0}
             </p>
           </div>
           <div className="bg-stone-950 border border-stone-900 rounded-xl p-4">
-            <span className="text-[9px] font-mono uppercase tracking-wider text-stone-500 font-bold">7-Day Window</span>
+            <span className="text-[10px] font-mono uppercase tracking-wider text-stone-500 font-bold">7-Day Window</span>
             <p className="text-xl font-black text-white mt-1">Last 7d</p>
           </div>
         </div>
@@ -248,12 +248,12 @@ function SystemAuditLogs() {
                       {typeof log.details === "string" ? log.details : (log.details ? JSON.stringify(log.details).slice(0, 80) : "—")}
                     </td>
                     <td className="p-4">
-                      <span className={`px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider border ${severityBadge(log.severity)}`}>
+                      <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${severityBadge(log.severity)}`}>
                         {log.severity || "info"}
                       </span>
                     </td>
                     <td className="p-4">
-                      <span className={`px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider border ${statusBadge(log.status)}`}>
+                      <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${statusBadge(log.status)}`}>
                         {log.status || "success"}
                       </span>
                     </td>

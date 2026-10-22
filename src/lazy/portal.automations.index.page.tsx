@@ -132,7 +132,7 @@ export default function AutomationsPage() {
         <p className="text-sm text-stone-500">Rules: event or schedule trigger → conditions → actions. Every write rides your Approval Queue; only allow-listed kinds auto-run.</p>
       </div>
       {error && <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{error}</div>}
-      {notice && <div className="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-700">{notice}</div>}
+      {notice && <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-4 py-3 text-sm text-emerald-300">{notice}</div>}
 
       <Card><CardBody>
         <h2 className="font-semibold mb-3">New rule</h2>
@@ -167,7 +167,7 @@ export default function AutomationsPage() {
           <span className="text-xs text-stone-500">Auto-run (allow-list):</span>
           {["notify", "webhook", "tableWrite", "runTransform"].map((k) => (
             <button key={k} type="button" onClick={() => toggleAutonomy(k)}
-              className={`px-2 py-1 rounded-lg text-xs font-medium border ${autonomy.includes(k) ? "bg-emerald-500 text-black border-emerald-400" : "bg-stone-100 text-stone-600 border-stone-200"}`}>
+              className={`px-2 py-1 rounded-lg text-xs font-medium border ${autonomy.includes(k) ? "bg-emerald-500 text-black border-emerald-400" : "bg-stone-800 text-stone-300 border-stone-700"}`}>
               {k}
             </button>
           ))}
@@ -182,7 +182,7 @@ export default function AutomationsPage() {
         {rules.length === 0 && <p className="text-sm text-stone-400">No rules yet.</p>}
         <div className="space-y-2">
           {rules.map((r) => (
-            <div key={r.id} className="flex items-center justify-between gap-3 rounded-xl border border-stone-200 px-4 py-3">
+            <div key={r.id} className="flex items-center justify-between gap-3 rounded-xl border border-stone-800 px-4 py-3">
               <div>
                 <div className="flex items-center gap-2">
                   <span className="font-medium">{r.name}</span>
@@ -209,7 +209,7 @@ export default function AutomationsPage() {
         <h2 className="font-semibold mb-2">Pending automation approvals</h2>
         {writes.length === 0 && <p className="text-sm text-stone-400">None pending.</p>}
         {writes.map((w) => (
-          <div key={w.id} className="flex items-center justify-between gap-3 rounded-xl border border-stone-200 px-4 py-2 mb-2">
+          <div key={w.id} className="flex items-center justify-between gap-3 rounded-xl border border-stone-800 px-4 py-2 mb-2">
             <span className="text-sm">{w.op} <span className="text-stone-400">by {w.requestedBy}</span></span>
             <div className="flex gap-2">
               <Button onClick={() => decide(w.id, "apply")}>Apply</Button>
@@ -224,7 +224,7 @@ export default function AutomationsPage() {
         {runs.length === 0 && <p className="text-sm text-stone-400">No runs recorded.</p>}
         <div className="space-y-1">
           {runs.slice(0, 20).map((r) => (
-            <div key={r.id} className="text-xs flex items-center gap-2 border-b border-stone-100 py-1">
+            <div key={r.id} className="text-xs flex items-center gap-2 border-b border-stone-800 py-1">
               <Badge>{r.matched ? "matched" : "unmatched"}</Badge>
               <span>{r.ruleName}</span>
               <span className="text-stone-400">{r.triggerKind} · {r.triggeredAt}</span>

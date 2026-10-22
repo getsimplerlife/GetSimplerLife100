@@ -188,7 +188,7 @@ function WorkflowManager() {
         </div>
         <Link
           to="/portal/workflows/builder"
-          className="bg-white hover:bg-stone-100 text-black font-extrabold text-xs font-mono px-5 py-3 rounded-xl transition-all shadow-lg active:scale-95"
+          className="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs font-mono px-5 py-3 rounded-xl transition-all shadow-lg active:scale-95"
         >
           ➕ Create Custom Workflow
         </Link>
@@ -229,7 +229,7 @@ function WorkflowManager() {
           </p>
           <Link
             to="/portal/workflows/builder"
-            className="inline-flex items-center justify-center bg-white hover:bg-stone-100 text-black font-extrabold px-6 py-3 rounded-xl transition-all font-mono text-xs shadow-lg shadow-white/5 active:scale-95"
+            className="inline-flex items-center justify-center bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold px-6 py-3 rounded-xl transition-all font-mono text-xs shadow-lg shadow-black/20 active:scale-95"
           >
             Launch Natural Language Builder
           </Link>
@@ -244,11 +244,11 @@ function WorkflowManager() {
               <div className="space-y-4">
                 {/* Header inside Card */}
                 <div className="flex justify-between items-start">
-                  <span className="text-[9px] font-mono font-bold text-stone-400 bg-stone-900 border border-stone-900 px-2 py-0.5 rounded-md truncate max-w-[150px]">
+                  <span className="text-[10px] font-mono font-bold text-stone-400 bg-stone-900 border border-stone-900 px-2 py-0.5 rounded-md truncate max-w-[150px]">
                     ID: {(wf._id || wf.id || "").substring(0, 8)}
                   </span>
                   <span
-                    className={`inline-block px-2 py-0.5 rounded-md text-[9px] font-mono font-black uppercase tracking-wider ${
+                    className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-mono font-black uppercase tracking-wider ${
                       wf.status === "Active"
                         ? "bg-emerald-950/40 text-emerald-400 border border-emerald-900/50"
                         : wf.status === "Paused"
@@ -292,15 +292,15 @@ function WorkflowManager() {
               <div className="border-t border-stone-900 pt-4 flex flex-col gap-4">
                 <div className="flex justify-between items-center text-[10px] font-mono">
                   <div>
-                    <div className="text-[8px] font-bold text-stone-500 uppercase tracking-wider">Success Rate</div>
+                    <div className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Success Rate</div>
                     <div className="font-black text-white text-xs">{wf.successRate || "100"}%</div>
                   </div>
                   <div>
-                    <div className="text-[8px] font-bold text-stone-500 uppercase tracking-wider">Runtime</div>
+                    <div className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Runtime</div>
                     <div className="font-black text-white text-xs">{wf.runtime || "1.2s"}</div>
                   </div>
                   <div>
-                    <div className="text-[8px] font-bold text-stone-500 uppercase tracking-wider">Errors (24h)</div>
+                    <div className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Errors (24h)</div>
                     <div className={`font-black text-xs ${wf.errors > 0 ? "text-rose-500 animate-pulse" : "text-white"}`}>
                       {wf.errors || 0}
                     </div>

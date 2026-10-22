@@ -151,11 +151,11 @@ export default function ProposalsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Proposals</h1>
-          <p className="text-sm text-gray-500">Draft, share, and track proposals. Every write is approval-gated.</p>
+          <p className="text-sm text-stone-500">Draft, share, and track proposals. Every write is approval-gated.</p>
         </div>
       </div>
       {error && <div className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
-      {feedback && <div className="rounded border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-800">{feedback}</div>}
+      {feedback && <div className="rounded border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-300">{feedback}</div>}
       {clip && <div className="rounded border border-sky-300 bg-sky-50 p-3 text-sm text-sky-800 break-all">{clip}</div>}
 
       <Card id="proposal-composer">
@@ -174,7 +174,7 @@ export default function ProposalsPage() {
             onChange={(e) => setValidityDays(Number(e.target.value))}
           />
         </div>
-        <label className="mt-3 block text-sm text-gray-600">Line items — one per line: description | qty | unit price</label>
+        <label className="mt-3 block text-sm text-stone-400">Line items — one per line: description | qty | unit price</label>
         <textarea className="mt-1 w-full rounded border p-2 font-mono text-sm" rows={3} value={lineItemsText} onChange={(e) => setLineItemsText(e.target.value)} />
         <Button className="mt-3" onClick={createProposal} disabled={creating || !title || !clientName}>
           {creating ? "Creating…" : "Create draft"}
@@ -184,7 +184,7 @@ export default function ProposalsPage() {
       <Card>
         <h2 className="mb-3 text-lg font-semibold">Open proposals ({items.length})</h2>
         {loading ? (
-          <p className="text-sm text-gray-500">Loading…</p>
+          <p className="text-sm text-stone-500">Loading…</p>
         ) : items.length === 0 ? (
           <PortalEmptyState
             title="No proposals yet"
@@ -200,7 +200,7 @@ export default function ProposalsPage() {
                     <span className="font-medium">{p.title}</span>
                     <Badge>{STATUS_LABEL[p.status] || p.status}</Badge>
                   </div>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-stone-500">
                     {p.clientName}{p.clientCompany ? ` — ${p.clientCompany}` : ""} · {p.total} · v{p.version}
                   </p>
                   {p.shareUrl && (
@@ -234,12 +234,12 @@ export default function ProposalsPage() {
       <Card>
         <h2 className="mb-3 text-lg font-semibold">Pending writes ({writes.filter((w) => w.status === "pending").length})</h2>
         {writes.filter((w) => w.status === "pending").length === 0 ? (
-          <p className="text-sm text-gray-500">Nothing waiting for approval.</p>
+          <p className="text-sm text-stone-500">Nothing waiting for approval.</p>
         ) : (
           <div className="space-y-2">
             {writes.map((w) => (
               <div key={w.id} className="flex items-center justify-between rounded border p-2 text-sm">
-                <span className="text-gray-600">
+                <span className="text-stone-400">
                   <code>{w.op}</code> · {w.via} · {new Date(w.requestedAt).toLocaleString()}
                 </span>
                 <Button onClick={() => applyWrite(w.id)}>Apply</Button>

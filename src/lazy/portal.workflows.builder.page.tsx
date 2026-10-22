@@ -177,7 +177,7 @@ function WorkflowBuilderPage() {
             </div>
 
             <div className="p-3 bg-stone-900/30 rounded-xl border border-stone-900/50">
-              <span className="text-[9px] font-mono tracking-wide text-stone-500 uppercase block mb-1">PROMPT SUGGESTIONS</span>
+              <span className="text-[10px] font-mono tracking-wide text-stone-500 uppercase block mb-1">PROMPT SUGGESTIONS</span>
               <p className="text-[10px] text-stone-400 font-medium leading-normal">
                 Describe your automation workflow in plain English — include triggers, conditions, and desired outcomes.
               </p>
@@ -187,7 +187,7 @@ function WorkflowBuilderPage() {
           <button
             onClick={handleGenerate}
             disabled={isGenerating}
-            className="w-full bg-white hover:bg-stone-100 text-black text-xs font-mono font-bold py-3 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 select-none disabled:opacity-50"
+            className="w-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-mono font-bold py-3 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 select-none disabled:opacity-50"
           >
             {isGenerating ? (
               <>
@@ -261,7 +261,7 @@ function WorkflowBuilderPage() {
                           </div>
                           
                           <div className="flex items-center gap-2">
-                            <span className="text-[9px] font-mono text-stone-500 bg-stone-900 border border-stone-900 px-2 py-0.5 rounded-md uppercase">
+                            <span className="text-[10px] font-mono text-stone-500 bg-stone-900 border border-stone-900 px-2 py-0.5 rounded-md uppercase">
                               {step.type}
                             </span>
                             <span className="text-stone-600 text-xs">➔</span>
@@ -330,7 +330,7 @@ function WorkflowBuilderPage() {
               </div>
 
               <div>
-                <label className="block text-[9px] font-mono tracking-wider uppercase text-stone-500 mb-1">
+                <label className="block text-[10px] font-mono tracking-wider uppercase text-stone-500 mb-1">
                   Responsible Coworker
                 </label>
                 <div className="text-xs font-bold text-stone-300 bg-stone-900 border border-stone-900 px-3 py-2 rounded-lg">
@@ -339,12 +339,12 @@ function WorkflowBuilderPage() {
               </div>
 
               <div className="space-y-3">
-                <span className="text-[9px] font-mono tracking-wider uppercase text-stone-500 block">
+                <span className="text-[10px] font-mono tracking-wider uppercase text-stone-500 block">
                   Configuration Options
                 </span>
                 {Object.entries(selectedStep.config).map(([key, val]) => (
                   <div key={key}>
-                    <label className="block text-[9px] text-stone-400 font-mono capitalize mb-1">{key.replace(/([A-Z])/g, ' $1')}</label>
+                    <label className="block text-[10px] text-stone-400 font-mono capitalize mb-1">{key.replace(/([A-Z])/g, ' $1')}</label>
                     <input
                       type="text"
                       value={val}

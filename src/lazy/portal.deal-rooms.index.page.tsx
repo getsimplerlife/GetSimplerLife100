@@ -191,11 +191,11 @@ export default function DealRoomsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Deal rooms</h1>
-          <p className="text-sm text-gray-500">Per-customer document rooms tying the approved proposal to delivery.</p>
+          <p className="text-sm text-stone-500">Per-customer document rooms tying the approved proposal to delivery.</p>
         </div>
       </div>
       {error && <div className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
-      {feedback && <div className="rounded border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-800">{feedback}</div>}
+      {feedback && <div className="rounded border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-300">{feedback}</div>}
 
       <Card id="deal-room-composer">
         <h2 className="mb-3 text-lg font-semibold">New deal room</h2>
@@ -225,7 +225,7 @@ export default function DealRoomsPage() {
       <Card>
         <h2 className="mb-3 text-lg font-semibold">Deal rooms ({items.length})</h2>
         {loading ? (
-          <p className="text-sm text-gray-500">Loading…</p>
+          <p className="text-sm text-stone-500">Loading…</p>
         ) : items.length === 0 ? (
           <PortalEmptyState
             title="No deal rooms yet"
@@ -242,10 +242,10 @@ export default function DealRoomsPage() {
                       <span className="font-medium">{d.name}</span>
                       <Badge>{STATUS_LABEL[d.status] || d.status}</Badge>
                     </div>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-stone-500">
                       {d.customerName} · {d.customerEmail} · v{d.version}
                     </p>
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-stone-400">
                       proposal {d.linkedProposalId}
                       {d.linkedChecklistId ? ` · checklist ${d.linkedChecklistId}` : ""}
                     </p>
@@ -264,15 +264,15 @@ export default function DealRoomsPage() {
                   if (roomInvoices.length === 0) return null;
                   return (
                     <div className="mt-3 rounded border-t pt-3">
-                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Invoices</p>
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-400">Invoices</p>
                       <div className="space-y-2">
                         {roomInvoices.map((i) => (
-                          <div key={i.id} className="flex items-center justify-between rounded bg-gray-50 px-3 py-2 text-sm">
-                            <span className="text-gray-700">
+                          <div key={i.id} className="flex items-center justify-between rounded bg-stone-900 border border-stone-800 px-3 py-2 text-sm">
+                            <span className="text-stone-200">
                               {i.invoiceNumber} · {i.currency} {(i.amountDueCents / 100).toFixed(2)} ·{" "}
                               <Badge>{i.status === "sent" ? "Sent" : "Draft"}</Badge>
                             </span>
-                            <span className="text-xs text-gray-400">{i.docId ? "PDF on file" : "No PDF yet"}</span>
+                            <span className="text-xs text-stone-400">{i.docId ? "PDF on file" : "No PDF yet"}</span>
                           </div>
                         ))}
                       </div>
@@ -291,12 +291,12 @@ export default function DealRoomsPage() {
       <Card>
         <h2 className="mb-3 text-lg font-semibold">Pending writes ({writes.filter((w) => w.status === "pending").length})</h2>
         {writes.filter((w) => w.status === "pending").length === 0 ? (
-          <p className="text-sm text-gray-500">Nothing waiting for approval.</p>
+          <p className="text-sm text-stone-500">Nothing waiting for approval.</p>
         ) : (
           <div className="space-y-2">
             {writes.map((w) => (
               <div key={w.id} className="flex items-center justify-between rounded border p-2 text-sm">
-                <span className="text-gray-600">
+                <span className="text-stone-400">
                   <code>{w.op}</code> · {w.via} · {new Date(w.requestedAt).toLocaleString()}
                 </span>
                 <Button onClick={() => applyWrite(w.id)}>Apply</Button>

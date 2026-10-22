@@ -139,27 +139,27 @@ export default function SurveysPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Surveys &amp; feedback</h1>
+        <h1 className="text-2xl font-semibold text-stone-100">Surveys &amp; feedback</h1>
         <p className="mt-1 text-sm text-slate-500">
           Build NPS / CSAT / interview-scorecard surveys, share a public link, and review every response before it is
           recorded. All writes are approval-gated.
         </p>
       </div>
       {error && <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
-      {notice && <div className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{notice}</div>}
+      {notice && <div className="rounded-lg bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">{notice}</div>}
 
       {/* Pending responses / lifecycle writes */}
       {writes.length > 0 && (
         <Card className="p-5">
           <div className="mb-3 flex items-center gap-2">
-            <h2 className="text-sm font-semibold text-slate-900">Pending approvals</h2>
+            <h2 className="text-sm font-semibold text-stone-100">Pending approvals</h2>
             <Badge variant="warning">{writes.length}</Badge>
           </div>
-          <ul className="divide-y divide-slate-100">
+          <ul className="divide-y divide-stone-800">
             {writes.map((w) => (
               <li key={w.id} className="flex items-center justify-between py-2">
                 <div>
-                  <p className="text-sm text-slate-800">
+                  <p className="text-sm text-stone-300">
                     {w.op === "submit" ? "New survey response" : `${w.op} survey ${w.surveyId ?? ""}`}
                   </p>
                   <p className="text-xs text-slate-400">Requested {new Date(w.requestedAt).toLocaleString()}</p>
@@ -180,21 +180,21 @@ export default function SurveysPage() {
 
       {/* Builder */}
       <Card id="survey-composer" className="p-5">
-        <h2 className="mb-3 text-sm font-semibold text-slate-900">New survey</h2>
+        <h2 className="mb-3 text-sm font-semibold text-stone-100">New survey</h2>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <input
-            className="rounded-md border border-slate-200 px-3 py-2 text-sm"
+            className="rounded-md border border-stone-800 px-3 py-2 text-sm"
             placeholder="Survey name"
             value={draftName}
             onChange={(e) => setDraftName(e.target.value)}
           />
           <input
-            className="rounded-md border border-slate-200 px-3 py-2 text-sm"
+            className="rounded-md border border-stone-800 px-3 py-2 text-sm"
             placeholder="Description (optional)"
             value={draftDesc}
             onChange={(e) => setDraftDesc(e.target.value)}
           />
-          <select className="rounded-md border border-slate-200 px-3 py-2 text-sm" value={draftKind} onChange={(e) => setDraftKind(e.target.value)}>
+          <select className="rounded-md border border-stone-800 px-3 py-2 text-sm" value={draftKind} onChange={(e) => setDraftKind(e.target.value)}>
             <option value="csat">CSAT (1-5)</option>
             <option value="nps">NPS (0-10)</option>
             <option value="scorecard">Interview scorecard</option>
@@ -205,7 +205,7 @@ export default function SurveysPage() {
           {draftQuestions.map((q, i) => (
             <div key={i} className="flex flex-wrap items-center gap-2">
               <input
-                className="min-w-0 flex-1 rounded-md border border-slate-200 px-3 py-2 text-sm"
+                className="min-w-0 flex-1 rounded-md border border-stone-800 px-3 py-2 text-sm"
                 placeholder="Question"
                 value={q.label}
                 onChange={(e) => {
@@ -215,7 +215,7 @@ export default function SurveysPage() {
                 }}
               />
               <select
-                className="rounded-md border border-slate-200 px-2 py-2 text-sm"
+                className="rounded-md border border-stone-800 px-2 py-2 text-sm"
                 value={q.kind}
                 onChange={(e) => {
                   const next = [...draftQuestions];
@@ -262,7 +262,7 @@ export default function SurveysPage() {
       {/* Survey list */}
       <Card className="p-5">
         <div className="mb-3 flex items-center gap-2">
-          <h2 className="text-sm font-semibold text-slate-900">Surveys</h2>
+          <h2 className="text-sm font-semibold text-stone-100">Surveys</h2>
           <Badge variant="stone">{surveys.length}</Badge>
         </div>
         {surveys.length === 0 ? (
@@ -272,12 +272,12 @@ export default function SurveysPage() {
             action={{ label: "Open the composer", onClick: () => scrollToId("survey-composer") }}
           />
         ) : (
-          <ul className="divide-y divide-slate-100">
+          <ul className="divide-y divide-stone-800">
             {surveys.map((s) => (
               <li key={s.id} className="flex items-center justify-between py-2">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-medium text-slate-800">{s.name}</p>
+                    <p className="text-sm font-medium text-stone-100">{s.name}</p>
                     <Badge variant="stone">{KIND_LABEL[s.kind] ?? s.kind}</Badge>
                     <Badge variant={s.status === "published" ? "success" : s.status === "archived" ? "stone" : "warning"}>{s.status}</Badge>
                   </div>
@@ -309,10 +309,10 @@ export default function SurveysPage() {
       {/* Selected survey: share link + stats */}
       {selected && (
         <Card className="p-5">
-          <h2 className="text-sm font-semibold text-slate-900">{selected.name}</h2>
+          <h2 className="text-sm font-semibold text-stone-100">{selected.name}</h2>
           {selected.status === "published" && (
             <div className="mt-2 flex items-center gap-2">
-              <input readOnly value={shareUrl} className="min-w-0 flex-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600" />
+              <input readOnly value={shareUrl} className="min-w-0 flex-1 rounded-md border border-stone-800 bg-slate-50 px-3 py-2 text-xs text-slate-600" />
               <Button
                 variant="ghost"
                 size="sm"
@@ -328,18 +328,18 @@ export default function SurveysPage() {
             <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="rounded-md bg-slate-50 p-3">
                 <p className="text-xs text-slate-400">Responses recorded</p>
-                <p className="text-lg font-semibold text-slate-900">{stats.total}</p>
+                <p className="text-lg font-semibold text-stone-100">{stats.total}</p>
               </div>
               {stats.nps !== null && (
                 <div className="rounded-md bg-slate-50 p-3">
                   <p className="text-xs text-slate-400">NPS</p>
-                  <p className="text-lg font-semibold text-slate-900">{stats.nps}</p>
+                  <p className="text-lg font-semibold text-stone-100">{stats.nps}</p>
                 </div>
               )}
               {stats.csatAvg !== null && (
                 <div className="rounded-md bg-slate-50 p-3">
                   <p className="text-xs text-slate-400">CSAT average</p>
-                  <p className="text-lg font-semibold text-slate-900">{stats.csatAvg} / 5</p>
+                  <p className="text-lg font-semibold text-stone-100">{stats.csatAvg} / 5</p>
                 </div>
               )}
               {stats.pending > 0 && (
@@ -353,7 +353,7 @@ export default function SurveysPage() {
           {stats && Object.keys(stats.perQuestion).length > 0 && (
             <div className="mt-4 rounded-md bg-slate-50 p-3">
               <p className="mb-1 text-xs font-medium text-slate-500">Per-question averages</p>
-              <ul className="text-xs text-slate-700">
+              <ul className="text-xs text-stone-400">
                 {selected.questions.map((q) => {
                   const cur = stats.perQuestion[q.id];
                   return (
@@ -368,9 +368,9 @@ export default function SurveysPage() {
           {stats && stats.comments.length > 0 && (
             <div className="mt-4 rounded-md bg-slate-50 p-3">
               <p className="mb-1 text-xs font-medium text-slate-500">Comments ({stats.comments.length})</p>
-              <ul className="max-h-40 space-y-2 overflow-auto text-xs text-slate-700">
+              <ul className="max-h-40 space-y-2 overflow-auto text-xs text-stone-400">
                 {stats.comments.slice().reverse().map((c, i) => (
-                  <li key={i} className="rounded bg-white p-2">
+                  <li key={i} className="rounded bg-stone-900 p-2">
                     “{c.comment}” <span className="text-slate-400">({new Date(c.at).toLocaleDateString()})</span>
                   </li>
                 ))}

@@ -128,33 +128,33 @@ export default function BookingsPage() {
     <div className="mx-auto max-w-5xl space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Booking pages</h1>
+          <h1 className="text-2xl font-semibold text-stone-100">Booking pages</h1>
           <p className="text-sm text-slate-500">Self-serve scheduling pages. Clients book via the public link; you confirm (approval-gated) and the host is assigned round-robin.</p>
         </div>
         <Button onClick={() => setShowCreate((v) => !v)}>{showCreate ? "Cancel" : "New booking page"}</Button>
       </div>
       {error && <div className="rounded-lg bg-rose-50 px-4 py-2 text-sm text-rose-700">{error}</div>}
-      {feedback && <div className="rounded-lg bg-emerald-50 px-4 py-2 text-sm text-emerald-700">{feedback}</div>}
+      {feedback && <div className="rounded-lg bg-emerald-500/10 px-4 py-2 text-sm text-emerald-300">{feedback}</div>}
 
       {showCreate && (
         <Card className="space-y-4 p-5">
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Name *</label>
+              <label className="mb-1 block text-sm font-medium text-stone-300">Name *</label>
               <input value={name} onChange={(e) => setName(e.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2" />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Time zone</label>
+              <label className="mb-1 block text-sm font-medium text-stone-300">Time zone</label>
               <input value={timeZone} onChange={(e) => setTimeZone(e.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2" />
             </div>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Description</label>
+            <label className="mb-1 block text-sm font-medium text-stone-300">Description</label>
             <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="w-full rounded-lg border border-slate-300 px-3 py-2" />
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Slot duration</label>
+              <label className="mb-1 block text-sm font-medium text-stone-300">Slot duration</label>
               <select value={slotDuration} onChange={(e) => setSlotDuration(Number(e.target.value))} className="w-full rounded-lg border border-slate-300 px-3 py-2">
                 <option value={15}>15 min</option>
                 <option value={30}>30 min</option>
@@ -162,16 +162,16 @@ export default function BookingsPage() {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Buffer (min)</label>
+              <label className="mb-1 block text-sm font-medium text-stone-300">Buffer (min)</label>
               <input type="number" min={0} max={240} value={buffer} onChange={(e) => setBuffer(Math.max(0, Number(e.target.value)))} className="w-full rounded-lg border border-slate-300 px-3 py-2" />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Round-robin team (emails, comma)</label>
+              <label className="mb-1 block text-sm font-medium text-stone-300">Round-robin team (emails, comma)</label>
               <input value={team} onChange={(e) => setTeam(e.target.value)} placeholder="host@example.com, …" className="w-full rounded-lg border border-slate-300 px-3 py-2" />
             </div>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Availability (per day of week)</label>
+            <label className="mb-1 block text-sm font-medium text-stone-300">Availability (per day of week)</label>
             <div className="flex flex-wrap items-end gap-2">
               <select value={availDay} onChange={(e) => setAvailDay(Number(e.target.value))} className="rounded-lg border border-slate-300 px-2 py-2">
                 {DAYS.map((d, i) => <option key={d} value={i}>{d}</option>)}
@@ -199,7 +199,7 @@ export default function BookingsPage() {
         {pages.map((p) => (
           <Card key={p.id} className="space-y-2 p-5">
             <div className="flex items-center justify-between">
-              <h2 className="font-semibold text-slate-900">{p.name}</h2>
+              <h2 className="font-semibold text-stone-100">{p.name}</h2>
               <Badge>{PAGE_STATUS_LABEL[p.status] ?? p.status}</Badge>
             </div>
             <p className="text-xs text-slate-500">{p.timeZone} · {p.slotDurationMinutes}min{p.bufferMinutes ? ` + ${p.bufferMinutes}min buffer` : ""} · {p.availability.length} weekly window{p.availability.length === 1 ? "" : "s"}{p.team.length ? ` · ${p.team.length}-host round-robin` : ""}</p>
@@ -215,7 +215,7 @@ export default function BookingsPage() {
       </div>
 
       <div>
-        <h2 className="mb-2 text-lg font-semibold text-slate-900">Bookings</h2>
+        <h2 className="mb-2 text-lg font-semibold text-stone-100">Bookings</h2>
         <div className="mb-2 flex items-center gap-2 text-sm">
           <label className="text-slate-500">Filter:</label>
           <select value={filterPage} onChange={(e) => setFilterPage(e.target.value)} className="rounded-lg border border-slate-300 px-2 py-1">
@@ -223,11 +223,11 @@ export default function BookingsPage() {
             {pages.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
         </div>
-        <Card className="divide-y divide-slate-100">
+        <Card className="divide-y divide-stone-800">
           {bookings.filter((b) => !filterPage || b.bookingPageId === filterPage).map((b) => (
             <div key={b.id} className="flex flex-wrap items-center justify-between gap-2 px-5 py-3">
               <div>
-                <p className="text-sm font-medium text-slate-900">{b.clientName} <span className="text-slate-400">·</span> <span className="text-slate-500">{b.clientEmail}</span></p>
+                <p className="text-sm font-medium text-stone-100">{b.clientName} <span className="text-slate-400">·</span> <span className="text-slate-500">{b.clientEmail}</span></p>
                 <p className="text-xs text-slate-500">{pageName(b.bookingPageId)} · {fmtSlot(b.startAt, pages.find((p) => p.id === b.bookingPageId)?.timeZone ?? "UTC")}{b.roundRobinAssignee ? ` · → ${b.roundRobinAssignee}` : ""} · calendar: {b.calendarSync?.status ?? "not-synced"} (Google Calendar adapter)</p>
               </div>
               <div className="flex items-center gap-2">
@@ -242,12 +242,12 @@ export default function BookingsPage() {
       </div>
 
       <div>
-        <h2 className="mb-2 text-lg font-semibold text-slate-900">Pending approvals</h2>
-        <Card className="divide-y divide-slate-100">
+        <h2 className="mb-2 text-lg font-semibold text-stone-100">Pending approvals</h2>
+        <Card className="divide-y divide-stone-800">
           {writes.filter((w) => w.status === "pending").map((w) => (
             <div key={w.id} className="flex flex-wrap items-center justify-between gap-2 px-5 py-3">
               <div>
-                <p className="text-sm font-medium text-slate-900">{w.op} {w.bookingPageId ? `· ${pageName(w.bookingPageId)}` : w.bookingId ? `· booking ${w.bookingId}` : ""}</p>
+                <p className="text-sm font-medium text-stone-100">{w.op} {w.bookingPageId ? `· ${pageName(w.bookingPageId)}` : w.bookingId ? `· booking ${w.bookingId}` : ""}</p>
                 <p className="text-xs text-slate-500">via {w.via} · {w.requestedBy} · {new Date(w.requestedAt).toLocaleString()}</p>
               </div>
               <div className="flex gap-2">

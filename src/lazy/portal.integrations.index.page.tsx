@@ -446,7 +446,7 @@ function ConnectedServices() {
             onClick={() => setActiveTab("connections")}
             className={`px-4 py-2 rounded-lg transition-all ${
               activeTab === "connections"
-                ? "bg-white text-black font-black"
+                ? "bg-emerald-600 text-white font-black"
                 : "text-stone-400 hover:text-white"
             }`}
           >
@@ -456,7 +456,7 @@ function ConnectedServices() {
             onClick={() => setActiveTab("intake")}
             className={`px-4 py-2 rounded-lg transition-all ${
               activeTab === "intake"
-                ? "bg-white text-black font-black"
+                ? "bg-emerald-600 text-white font-black"
                 : "text-stone-400 hover:text-white"
             }`}
           >
@@ -496,7 +496,7 @@ function ConnectedServices() {
             <div className="flex flex-wrap gap-2 max-w-full overflow-x-auto scrollbar-none">
               <button
                 onClick={() => setSelectedCategory("all")}
-                className={`px-3 py-1.5 rounded-lg border text-[9px] font-mono font-bold uppercase tracking-wider transition-all ${
+                className={`px-3 py-1.5 rounded-lg border text-[10px] font-mono font-bold uppercase tracking-wider transition-all ${
                   selectedCategory === "all"
                     ? "bg-emerald-950/40 text-emerald-400 border-emerald-800/80"
                     : "bg-stone-900/20 text-stone-400 border-stone-900 hover:border-stone-800 hover:text-stone-200"
@@ -508,7 +508,7 @@ function ConnectedServices() {
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
-                  className={`px-3 py-1.5 rounded-lg border text-[9px] font-mono font-bold uppercase tracking-wider transition-all ${
+                  className={`px-3 py-1.5 rounded-lg border text-[10px] font-mono font-bold uppercase tracking-wider transition-all ${
                     selectedCategory === cat
                       ? "bg-emerald-950/40 text-emerald-400 border-emerald-800/80"
                       : "bg-stone-900/20 text-stone-400 border-stone-900 hover:border-stone-800 hover:text-stone-200"
@@ -524,26 +524,26 @@ function ConnectedServices() {
           {/* Connected Count Indicator / Stats banner */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="bg-stone-950 border border-stone-900 p-4 rounded-2xl flex flex-col justify-between">
-              <span className="text-[9px] font-mono font-bold tracking-wider text-stone-500 uppercase">ACTIVE CHANNELS</span>
+              <span className="text-[10px] font-mono font-bold tracking-wider text-stone-500 uppercase">ACTIVE CHANNELS</span>
               <span className="text-2xl font-black text-white mt-1">
                 {(filteredConnections||[]).filter(c => c.status === "Connected").length} <span className="text-stone-600 text-sm font-semibold">connected</span>
               </span>
             </div>
             <div className="bg-stone-950 border border-stone-900 p-4 rounded-2xl flex flex-col justify-between">
-              <span className="text-[9px] font-mono font-bold tracking-wider text-stone-500 uppercase">CONNECTABLE PROVIDERS</span>
+              <span className="text-[10px] font-mono font-bold tracking-wider text-stone-500 uppercase">CONNECTABLE PROVIDERS</span>
               <span className="text-2xl font-black text-white mt-1">
                 {connectableNowCount} <span className="text-stone-600 text-sm font-semibold">connectable now</span>
               </span>
               <span className="text-[10px] text-stone-500 font-semibold mt-1">{inDevelopmentCount} more in development</span>
             </div>
             <div className="bg-stone-950 border border-stone-900 p-4 rounded-2xl flex flex-col justify-between">
-              <span className="text-[9px] font-mono font-bold tracking-wider text-stone-500 uppercase">ATTENTION NEEDED</span>
+              <span className="text-[10px] font-mono font-bold tracking-wider text-stone-500 uppercase">ATTENTION NEEDED</span>
               <span className="text-2xl font-black text-amber-400 mt-1">
                 {(filteredConnections||[]).filter(c => c.status === "error" || c.status === "expired").length} <span className="text-stone-600 text-sm font-semibold">exceptions</span>
               </span>
             </div>
             <div className="bg-stone-950 border border-stone-900 p-4 rounded-2xl flex flex-col justify-between">
-              <span className="text-[9px] font-mono font-bold tracking-wider text-stone-500 uppercase">SECURE SECURITY TIER</span>
+              <span className="text-[10px] font-mono font-bold tracking-wider text-stone-500 uppercase">SECURE SECURITY TIER</span>
               <span className="text-2xl font-black text-emerald-400 mt-1">
                 AES-256 <span className="text-stone-600 text-sm font-semibold">GCM</span>
               </span>
@@ -625,14 +625,14 @@ function ConnectedServices() {
                           <div className="h-11 w-11 bg-stone-900 border border-stone-800 rounded-xl flex items-center justify-center text-xl shadow-md">
                             {getProviderEmoji(prov.id, prov.category)}
                           </div>
-                          <span className="text-[8px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded border bg-amber-950/40 text-amber-500 border-amber-900/40">
+                          <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded border bg-amber-950/40 text-amber-500 border-amber-900/40">
                             In Development
                           </span>
                         </div>
                         <div className="space-y-1">
                           <h3 className="text-xs font-bold text-white leading-snug">
                             {prov.name}
-                            <span className="text-[8px] font-mono text-stone-600 font-normal"> ({prov.id})</span>
+                            <span className="text-[10px] font-mono text-stone-600 font-normal"> ({prov.id})</span>
                           </h3>
                           <p className="text-stone-400 text-[10px] leading-relaxed font-semibold">
                             {PLACEHOLDER_STATUS_COPY}
@@ -646,10 +646,10 @@ function ConnectedServices() {
                         </div>
                       </div>
                       <div className="border-t border-stone-900 pt-3.5 mt-5 flex items-center justify-between gap-2">
-                        <span className="text-[9px] font-mono text-stone-600 uppercase tracking-wider">
+                        <span className="text-[10px] font-mono text-stone-600 uppercase tracking-wider">
                           {categoryLabels[prov.category] || prov.category}
                         </span>
-                        <span className="text-[9px] font-mono text-stone-600">Coming soon</span>
+                        <span className="text-[10px] font-mono text-stone-600">Coming soon</span>
                       </div>
                     </div>
                   );
@@ -668,7 +668,7 @@ function ConnectedServices() {
                           {getProviderEmoji(prov.id, prov.category)}
                         </div>
 
-                        <span className="text-[8px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded border bg-stone-900 text-stone-500 border-stone-850">
+                        <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded border bg-stone-900 text-stone-500 border-stone-850">
                           Available
                         </span>
                       </div>
@@ -677,7 +677,7 @@ function ConnectedServices() {
                       <div className="space-y-1">
                         <h3 className="text-xs font-bold text-white leading-snug flex items-center gap-1.5">
                           {prov.name}
-                          <span className="text-[8px] font-mono text-stone-600 font-normal">({prov.id})</span>
+                          <span className="text-[10px] font-mono text-stone-600 font-normal">({prov.id})</span>
                         </h3>
                         <p className="text-stone-400 text-[10px] leading-relaxed font-semibold min-h-[44px] line-clamp-2">
                           {prov.description || `${prov.name} enterprise integration for workflow synchronization.`}
@@ -685,7 +685,7 @@ function ConnectedServices() {
                       </div>
 
                       {/* Technical Details / Connection Health Indicator */}
-                      <div className="bg-stone-900/30 border border-stone-900 rounded-xl p-2.5 space-y-1 font-mono text-[9px] text-stone-500">
+                      <div className="bg-stone-900/30 border border-stone-900 rounded-xl p-2.5 space-y-1 font-mono text-[10px] text-stone-500">
                         <div className="flex justify-between">
                           <span>CATEGORY</span>
                           <span className="text-stone-400 font-bold uppercase">{categoryLabels[prov.category] || prov.category}</span>
@@ -703,15 +703,15 @@ function ConnectedServices() {
                       {/* Schema capabilities list */}
                       {prov.actions && prov.actions.length > 0 && (
                         <div className="space-y-1.5">
-                          <span className="text-[8px] font-mono text-stone-500 tracking-wider uppercase block">CAPABILITIES EXPOSED ({prov.actions.length})</span>
+                          <span className="text-[10px] font-mono text-stone-500 tracking-wider uppercase block">CAPABILITIES EXPOSED ({prov.actions.length})</span>
                           <div className="flex flex-wrap gap-1">
                             {prov.actions.slice(0, 3).map((act, idx) => (
-                              <span key={idx} className="bg-stone-900/80 border border-stone-850 text-stone-400 text-[8px] px-1.5 py-0.5 rounded font-mono">
+                              <span key={idx} className="bg-stone-900/80 border border-stone-850 text-stone-400 text-[10px] px-1.5 py-0.5 rounded font-mono">
                                 {act.name}
                               </span>
                             ))}
                             {prov.actions.length > 3 && (
-                              <span className="text-stone-600 text-[8px] font-mono px-1">+{prov.actions.length - 3} more</span>
+                              <span className="text-stone-600 text-[10px] font-mono px-1">+{prov.actions.length - 3} more</span>
                             )}
                           </div>
                         </div>
@@ -720,10 +720,10 @@ function ConnectedServices() {
                       {/* Connection Requirements (collapsible) */}
                       {prov.connectionRequirements && (
                         <details className="group mt-2">
-                          <summary className="text-[8px] font-mono text-stone-500 hover:text-stone-300 cursor-pointer uppercase tracking-wider">
+                          <summary className="text-[10px] font-mono text-stone-500 hover:text-stone-300 cursor-pointer uppercase tracking-wider">
                             Connection Requirements
                           </summary>
-                          <div className="mt-2 bg-stone-900/40 border border-stone-900 rounded-lg p-2 space-y-1 text-[8px] font-mono">
+                          <div className="mt-2 bg-stone-900/40 border border-stone-900 rounded-lg p-2 space-y-1 text-[10px] font-mono">
                             <div className="flex justify-between">
                               <span className="text-stone-500">AUTH</span>
                               <span className="text-stone-300 font-bold">{prov.connectionRequirements.authType}</span>
@@ -758,7 +758,7 @@ function ConnectedServices() {
                         {prov.actions && prov.actions.length > 0 && (
                           <button
                             onClick={() => setSelectedProviderDetails(prov)}
-                            className="text-stone-500 hover:text-stone-300 text-[9px] font-mono underline"
+                            className="text-stone-500 hover:text-stone-300 text-[10px] font-mono underline"
                           >
                             View Schemas
                           </button>
@@ -769,7 +769,7 @@ function ConnectedServices() {
                         {activeApiKeyProvider === prov.id ? (
                               <div className="w-full space-y-2">
                                 {manualError && (
-                                  <div className="bg-rose-950/20 border border-rose-800/30 text-rose-400 p-2 rounded-lg text-[9px] font-bold">
+                                  <div className="bg-rose-950/20 border border-rose-800/30 text-rose-400 p-2 rounded-lg text-[10px] font-bold">
                                     ⚠️ {manualError}
                                   </div>
                                 )}
@@ -799,14 +799,14 @@ function ConnectedServices() {
                                 <div className="flex gap-1">
                                   <button
                                     onClick={() => { setActiveApiKeyProvider(null); setManualError(null); }}
-                                    className="flex-1 bg-stone-900 hover:bg-stone-800 text-stone-400 border border-stone-800 text-[9px] font-mono font-bold px-3 py-1.5 rounded-lg transition-all"
+                                    className="flex-1 bg-stone-900 hover:bg-stone-800 text-stone-400 border border-stone-800 text-[10px] font-mono font-bold px-3 py-1.5 rounded-lg transition-all"
                                   >
                                     Cancel
                                   </button>
                                   <button
                                     onClick={handleConnectManual}
                                     disabled={manualSaving}
-                                    className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-[9px] font-mono font-bold px-3 py-1.5 rounded-lg transition-all disabled:opacity-50"
+                                    className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-mono font-bold px-3 py-1.5 rounded-lg transition-all disabled:opacity-50"
                                   >
                                     {manualSaving ? "..." : "Connect"}
                                   </button>
@@ -814,7 +814,7 @@ function ConnectedServices() {
                                 <div className="flex justify-end">
                                   <button
                                     onClick={() => handleConnect(prov.id)}
-                                    className="bg-white text-black border-white hover:bg-stone-200 text-[9px] font-mono font-black tracking-wide uppercase px-3 py-1.5 rounded-lg border transition-all"
+                                    className="bg-emerald-600 text-white border-emerald-400/50 hover:bg-emerald-500 text-[10px] font-mono font-black tracking-wide uppercase px-3 py-1.5 rounded-lg border transition-all"
                                   >
                                     or use OAuth
                                   </button>
@@ -831,7 +831,7 @@ function ConnectedServices() {
                                 {(isOAuth || showBoth) && (
                                 <button
                                   onClick={() => handleConnect(prov.id)}
-                                  className="bg-white text-black border-white hover:bg-stone-200 text-[9px] font-mono font-black tracking-wide uppercase px-3 py-1.5 rounded-lg border transition-all"
+                                  className="bg-emerald-600 text-white border-emerald-400/50 hover:bg-emerald-500 text-[10px] font-mono font-black tracking-wide uppercase px-3 py-1.5 rounded-lg border transition-all"
                                 >
                                   OAuth
                                 </button>
@@ -846,7 +846,7 @@ function ConnectedServices() {
                                     setManualSubdomain("");
                                     setManualError(null);
                                   }}
-                                  className="bg-stone-900 hover:bg-stone-800 text-stone-300 border border-stone-800 hover:text-white text-[9px] font-mono font-bold px-3 py-1.5 rounded-lg transition-all"
+                                  className="bg-stone-900 hover:bg-stone-800 text-stone-300 border border-stone-800 hover:text-white text-[10px] font-mono font-bold px-3 py-1.5 rounded-lg transition-all"
                                 >
                                   API Key
                                 </button>
@@ -916,7 +916,7 @@ function ConnectedServices() {
                       </div>
                       <div className="space-y-2">
                         <p className="text-white text-xs font-bold font-mono uppercase tracking-wider animate-pulse">Processing Document...</p>
-                        <p className="text-stone-500 text-[9px] font-mono leading-relaxed max-w-[250px] mx-auto">
+                        <p className="text-stone-500 text-[10px] font-mono leading-relaxed max-w-[250px] mx-auto">
                           {uploadStep}
                         </p>
                       </div>
@@ -933,7 +933,7 @@ function ConnectedServices() {
                         <p className="text-xs font-extrabold text-white">
                           Drag file here or <span className="text-emerald-400 hover:underline">browse files</span>
                         </p>
-                        <p className="text-[9px] text-stone-500 font-mono tracking-wide">
+                        <p className="text-[10px] text-stone-500 font-mono tracking-wide">
                           PDF, CSV, XLS, DOCX, PNG, JPG (MAX 10MB)
                         </p>
                       </div>
@@ -942,7 +942,7 @@ function ConnectedServices() {
                 </div>
 
                 {/* Upload capabilities bullet list */}
-                <div className="bg-stone-900/20 border border-stone-900 rounded-xl p-3.5 space-y-2 font-mono text-[9px] text-stone-500">
+                <div className="bg-stone-900/20 border border-stone-900 rounded-xl p-3.5 space-y-2 font-mono text-[10px] text-stone-500">
                   <span className="font-bold uppercase text-stone-400">Layout OCR Pipeline Specs</span>
                   <ul className="space-y-1 list-disc list-inside">
                     <li>Horizontal projection profiling OCR fallback</li>
@@ -966,7 +966,7 @@ function ConnectedServices() {
                     <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
                       📖 Ingested Document History Ledger
                     </h3>
-                    <span className="text-[8px] font-mono text-stone-500 bg-stone-900 px-2 py-0.5 rounded border border-stone-850 font-bold uppercase">
+                    <span className="text-[10px] font-mono text-stone-500 bg-stone-900 px-2 py-0.5 rounded border border-stone-850 font-bold uppercase">
                       SECURE DB MATRIX
                     </span>
                   </div>
@@ -975,7 +975,7 @@ function ConnectedServices() {
                   {loadingDocs ? (
                     <div className="flex flex-col items-center justify-center py-20">
                       <div className="w-8 h-8 border-2 border-stone-850 border-t-emerald-500 rounded-full animate-spin mb-3" />
-                      <p className="text-stone-500 text-[9px] font-mono tracking-widest uppercase">Fetching audit history logs...</p>
+                      <p className="text-stone-500 text-[10px] font-mono tracking-widest uppercase">Fetching audit history logs...</p>
                     </div>
                   ) : documentsHistory.length === 0 ? (
                     <div className="text-center py-16 space-y-3">
@@ -989,7 +989,7 @@ function ConnectedServices() {
                     <div className="overflow-x-auto">
                       <table className="w-full text-left border-collapse">
                         <thead>
-                          <tr className="border-b border-stone-900 font-mono text-[8px] text-stone-500 uppercase tracking-wider pb-2">
+                          <tr className="border-b border-stone-900 font-mono text-[10px] text-stone-500 uppercase tracking-wider pb-2">
                             <th className="pb-2 font-bold">Document Name</th>
                             <th className="pb-2 font-bold">Extracted Type</th>
                             <th className="pb-2 font-bold">Size</th>
@@ -1003,14 +1003,14 @@ function ConnectedServices() {
                               <td className="py-3 font-extrabold text-white max-w-[180px] truncate">
                                 {doc.file_name}
                               </td>
-                              <td className="py-3 text-stone-400 font-mono text-[9px]">
+                              <td className="py-3 text-stone-400 font-mono text-[10px]">
                                 {doc.document_type || "Unstructured Raw"}
                               </td>
                               <td className="py-3 text-stone-500 font-mono">
                                 {formatFileSize(doc.file_size)}
                               </td>
                               <td className="py-3">
-                                <span className={`text-[8px] font-mono font-bold px-1.5 py-0.5 rounded border ${
+                                <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border ${
                                   doc.status === "processed"
                                     ? "bg-emerald-950/40 text-emerald-400 border-emerald-900/40"
                                     : "bg-amber-950/40 text-amber-400 border-amber-900/40"
@@ -1021,7 +1021,7 @@ function ConnectedServices() {
                               <td className="py-3 text-right">
                                 <button
                                   onClick={() => setSelectedDocDetails(doc)}
-                                  className="text-emerald-500 hover:text-emerald-400 font-mono text-[9px] underline uppercase font-bold"
+                                  className="text-emerald-500 hover:text-emerald-400 font-mono text-[10px] underline uppercase font-bold"
                                 >
                                   Review Data
                                 </button>
@@ -1035,7 +1035,7 @@ function ConnectedServices() {
                 </div>
 
                 {/* Secure Disclaimer Footnote */}
-                <div className="border-t border-stone-900 pt-3 text-[8px] font-mono text-stone-600 flex justify-between">
+                <div className="border-t border-stone-900 pt-3 text-[10px] font-mono text-stone-600 flex justify-between">
                   <span>SYSTEM LAYER: DRIZZLE PORTAL DATA INTEGRITY LOCK</span>
                   <span>ENCRYPTED REPOSITORY: /TMP/UPLOADS SECURE ERASE</span>
                 </div>
@@ -1074,7 +1074,7 @@ function ConnectedServices() {
               {selectedProviderDetails.actions && selectedProviderDetails.actions.length > 0 ? (
                 selectedProviderDetails.actions.map((act, idx) => (
                   <div key={idx} className="bg-stone-900/40 border border-stone-900 rounded-lg p-3 space-y-1">
-                    <span className="text-[9px] font-mono font-bold text-emerald-400 block uppercase tracking-wide">
+                    <span className="text-[10px] font-mono font-bold text-emerald-400 block uppercase tracking-wide">
                       ⚡ {act.name}
                     </span>
                     <p className="text-[10px] text-stone-300 leading-normal font-semibold">
@@ -1090,7 +1090,7 @@ function ConnectedServices() {
             <div className="flex justify-end pt-2 border-t border-stone-900">
               <button
                 onClick={() => setSelectedProviderDetails(null)}
-                className="bg-white text-black font-mono font-bold text-[10px] px-4 py-2 rounded-lg hover:bg-stone-200"
+                className="bg-emerald-600 text-white font-mono font-bold text-[10px] px-4 py-2 rounded-lg hover:bg-emerald-500"
               >
                 Acknowledge Specs
               </button>
@@ -1108,7 +1108,7 @@ function ConnectedServices() {
                 <span className="text-xl">📊</span>
                 <div>
                   <h3 className="font-extrabold text-white text-sm">Extracted Payload: {selectedDocDetails.file_name}</h3>
-                  <span className="text-[8px] font-mono text-stone-500 uppercase">DOCUMENT TYPE: {selectedDocDetails.document_type || "UNKNOWN"}</span>
+                  <span className="text-[10px] font-mono text-stone-500 uppercase">DOCUMENT TYPE: {selectedDocDetails.document_type || "UNKNOWN"}</span>
                 </div>
               </div>
               <button
@@ -1125,10 +1125,10 @@ function ConnectedServices() {
               {/* Key Info JSON block */}
               {selectedDocDetails.key_info && Object.keys(selectedDocDetails.key_info).length > 0 && (
                 <div className="space-y-2">
-                  <span className="text-[9px] font-mono font-bold text-stone-500 uppercase tracking-wider block">Extracted Schema Key-Values</span>
+                  <span className="text-[10px] font-mono font-bold text-stone-500 uppercase tracking-wider block">Extracted Schema Key-Values</span>
                   <div className="grid grid-cols-2 gap-3">
                     {Object.entries(selectedDocDetails.key_info).map(([k, v]) => (
-                      <div key={k} className="bg-stone-900/30 border border-stone-900/60 rounded-xl p-3 font-mono text-[9px] space-y-1">
+                      <div key={k} className="bg-stone-900/30 border border-stone-900/60 rounded-xl p-3 font-mono text-[10px] space-y-1">
                         <span className="text-stone-500 uppercase block font-bold truncate" title={k}>{k.replace(/_/g, " ")}</span>
                         <span className="text-white font-extrabold break-all">{typeof v === "object" ? JSON.stringify(v) : String(v)}</span>
                       </div>
@@ -1140,8 +1140,8 @@ function ConnectedServices() {
               {/* Raw text section */}
               {selectedDocDetails.extracted_text && (
                 <div className="space-y-2">
-                  <span className="text-[9px] font-mono font-bold text-stone-500 uppercase tracking-wider block">Raw Extracted Text OCR Stream</span>
-                  <div className="bg-stone-900/20 border border-stone-900 rounded-xl p-3 max-h-[150px] overflow-y-auto text-[9px] font-mono text-stone-400 whitespace-pre-wrap leading-relaxed select-text">
+                  <span className="text-[10px] font-mono font-bold text-stone-500 uppercase tracking-wider block">Raw Extracted Text OCR Stream</span>
+                  <div className="bg-stone-900/20 border border-stone-900 rounded-xl p-3 max-h-[150px] overflow-y-auto text-[10px] font-mono text-stone-400 whitespace-pre-wrap leading-relaxed select-text">
                     {selectedDocDetails.extracted_text}
                   </div>
                 </div>
@@ -1149,11 +1149,11 @@ function ConnectedServices() {
 
             </div>
 
-            <div className="flex justify-between items-center pt-3 border-t border-stone-900 text-[8px] font-mono text-stone-600">
+            <div className="flex justify-between items-center pt-3 border-t border-stone-900 text-[10px] font-mono text-stone-600">
               <span>LEDGER TIMESTAMP: {new Date(selectedDocDetails._created_at).toLocaleString()}</span>
               <button
                 onClick={() => setSelectedDocDetails(null)}
-                className="bg-white text-black font-mono font-bold text-[10px] px-4 py-2 rounded-lg hover:bg-stone-200"
+                className="bg-emerald-600 text-white font-mono font-bold text-[10px] px-4 py-2 rounded-lg hover:bg-emerald-500"
               >
                 Done Reviewing
               </button>

@@ -189,27 +189,27 @@ export default function DocumentAiPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Document understanding</h1>
+        <h1 className="text-2xl font-semibold text-stone-100">Document understanding</h1>
         <p className="mt-1 text-sm text-slate-500">
           Run AI extraction on uploaded documents. Every run and every record write is approval-gated; low-confidence
           drafts go to the human-review lane.
         </p>
       </div>
       {error && <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
-      {notice && <div className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{notice}</div>}
+      {notice && <div className="rounded-lg bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">{notice}</div>}
 
       {/* Pending extraction runs */}
       {writes.length > 0 && (
         <Card className="p-5">
           <div className="mb-3 flex items-center gap-2">
-            <h2 className="text-sm font-semibold text-slate-900">Pending extraction runs</h2>
+            <h2 className="text-sm font-semibold text-stone-100">Pending extraction runs</h2>
             <Badge variant="warning">{writes.length}</Badge>
           </div>
-          <ul className="divide-y divide-slate-100">
+          <ul className="divide-y divide-stone-800">
             {writes.map((w) => (
               <li key={w.id} className="flex items-center justify-between py-2">
                 <div>
-                  <p className="text-sm text-slate-800">Run extraction on document {w.documentId ?? "–"}</p>
+                  <p className="text-sm text-stone-300">Run extraction on document {w.documentId ?? "–"}</p>
                   <p className="text-xs text-slate-400">Requested {new Date(w.requestedAt).toLocaleString()}</p>
                 </div>
                 <div className="flex gap-2">
@@ -229,17 +229,17 @@ export default function DocumentAiPage() {
       {/* Documents */}
       <Card className="p-5">
         <div className="mb-3 flex items-center gap-2">
-          <h2 className="text-sm font-semibold text-slate-900">Documents</h2>
+          <h2 className="text-sm font-semibold text-stone-100">Documents</h2>
           <Badge variant="stone">{documents.length}</Badge>
         </div>
         {documents.length === 0 ? (
           <p className="text-sm text-slate-400">Upload a document to the vault first, then run extraction on it.</p>
         ) : (
-          <ul className="divide-y divide-slate-100">
+          <ul className="divide-y divide-stone-800">
             {documents.map((d) => (
               <li key={d.id} className="flex items-center justify-between py-2">
                 <div>
-                  <p className="text-sm text-slate-800">{d.name}</p>
+                  <p className="text-sm text-stone-200">{d.name}</p>
                   <p className="text-xs text-slate-400">
                     {d.ext?.toUpperCase()} · {Math.round((d.size ?? 0) / 1024)} KB · {d.status}
                   </p>
@@ -256,13 +256,13 @@ export default function DocumentAiPage() {
       {/* Extraction drafts */}
       <Card className="p-5">
         <div className="mb-3 flex items-center gap-2">
-          <h2 className="text-sm font-semibold text-slate-900">Extraction drafts</h2>
+          <h2 className="text-sm font-semibold text-stone-100">Extraction drafts</h2>
           <Badge variant="stone">{extractions.length}</Badge>
         </div>
         {extractions.length === 0 ? (
           <p className="text-sm text-slate-400">No extraction runs yet.</p>
         ) : (
-          <ul className="divide-y divide-slate-100">
+          <ul className="divide-y divide-stone-800">
             {extractions.map((x) => {
               const f = full[x.id];
               return (
@@ -270,7 +270,7 @@ export default function DocumentAiPage() {
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-medium text-slate-800">{x.fileName}</p>
+                        <p className="text-sm font-medium text-stone-200">{x.fileName}</p>
                         <Badge variant="stone">{CATEGORY_LABEL[x.category] ?? x.category}</Badge>
                         {x.requiresReview && <Badge variant="warning">Needs review</Badge>}
                         <Badge variant={x.status === "pending_review" ? "warning" : x.status === "applied" ? "success" : "stone"}>
@@ -290,7 +290,7 @@ export default function DocumentAiPage() {
                           {f.fields.map((fv) => (
                             <div key={fv.key} className="text-xs">
                               <span className="text-slate-400">{fv.label}: </span>
-                              <span className="text-slate-800">{fv.value}</span>
+                              <span className="text-stone-200">{fv.value}</span>
                               {fv.confidence < 0.55 && <span className="ml-1 text-amber-600">low confidence</span>}
                             </div>
                           ))}
@@ -311,7 +311,7 @@ export default function DocumentAiPage() {
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <span className="text-xs text-slate-400">Write to table:</span>
                     <select
-                      className="rounded-md border border-slate-200 px-2 py-1 text-xs"
+                      className="rounded-md border border-stone-800 px-2 py-1 text-xs"
                       value={rowData?.resultId === x.id ? rowData.tableId : ""}
                       onChange={(e) => void chooseTable(x.id, e.target.value)}
                     >
@@ -330,7 +330,7 @@ export default function DocumentAiPage() {
                   </div>
                   {rowData?.resultId === x.id && (
                     <div className="mt-2 max-h-40 overflow-auto rounded-md bg-slate-50 p-3 text-xs">
-                      <pre className="text-slate-700">{JSON.stringify(rowData.rowData, null, 2)}</pre>
+                      <pre className="text-stone-300">{JSON.stringify(rowData.rowData, null, 2)}</pre>
                     </div>
                   )}
                 </li>

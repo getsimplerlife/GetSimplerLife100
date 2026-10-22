@@ -289,15 +289,15 @@ function FileLibrary() {
                         <p className="text-xs font-extrabold text-white truncate" title={file.name}>{file.name}</p>
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
                           <Badge variant="emerald">{kind.label}</Badge>
-                          <span className={`text-[9px] font-mono font-bold rounded px-1.5 py-0.5 ${file.workspace === "microsoft" ? "bg-sky-900/40 text-sky-300" : "bg-emerald-900/40 text-emerald-300"}`}>
+                          <span className={`text-[10px] font-mono font-bold rounded px-1.5 py-0.5 ${file.workspace === "microsoft" ? "bg-sky-900/40 text-sky-300" : "bg-emerald-900/40 text-emerald-300"}`}>
                             {file.workspace === "microsoft" ? "Microsoft" : "Google"}
                           </span>
-                          <span className="text-[9px] font-mono text-stone-500">{providerLabel}</span>
+                          <span className="text-[10px] font-mono text-stone-500">{providerLabel}</span>
                         </div>
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 text-[9px] font-mono text-stone-500 uppercase tracking-wider">
+                  <div className="flex items-center gap-2 text-[10px] font-mono text-stone-500 uppercase tracking-wider">
                     <span>Created {new Date(file.createdAt).toLocaleDateString()}</span>
                   </div>
                   <div className="flex flex-wrap gap-2 pt-1 border-t border-stone-900">
@@ -342,7 +342,7 @@ function FileLibrary() {
                 <span className="text-xl">{(KIND_META[previewFile.kind] || KIND_META.file).icon}</span>
                 <div className="min-w-0">
                   <h3 className="font-extrabold text-white text-sm truncate">{previewFile.name}</h3>
-                  <span className="text-[9px] font-mono text-stone-400 uppercase tracking-wider">
+                  <span className="text-[10px] font-mono text-stone-400 uppercase tracking-wider">
                     {PROVIDER_LABEL[previewFile.provider] || previewFile.provider} · {previewFile.kind}
                   </span>
                 </div>

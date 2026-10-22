@@ -132,13 +132,13 @@ function UnifiedInbox() {
         {/* Real-time telemetry widgets */}
         <div className="flex gap-4">
           <div className="bg-stone-950 border border-stone-900 px-4 py-2 rounded-xl text-center">
-            <span className="text-[9px] font-mono tracking-wider text-stone-500 uppercase block">UNRESOLVED</span>
+            <span className="text-[10px] font-mono tracking-wider text-stone-500 uppercase block">UNRESOLVED</span>
             <span className="text-lg font-bold text-rose-500 font-mono">
               {items.filter((i) => i.status === "Unresolved").length}
             </span>
           </div>
           <div className="bg-stone-950 border border-stone-900 px-4 py-2 rounded-xl text-center">
-            <span className="text-[9px] font-mono tracking-wider text-stone-500 uppercase block">AUTO-PROCESSED</span>
+            <span className="text-[10px] font-mono tracking-wider text-stone-500 uppercase block">AUTO-PROCESSED</span>
             <span className="text-lg font-bold text-emerald-500 font-mono">
               {items.filter((i) => i.aiCategory === "Auto-Processed").length}
             </span>
@@ -220,14 +220,14 @@ function UnifiedInbox() {
                       </span>
                       <span className="text-[10px] font-mono font-bold text-stone-400 truncate max-w-[150px]">{itm.sender}</span>
                     </div>
-                    <span className="text-[9px] font-mono text-stone-500">{itm.time}</span>
+                    <span className="text-[10px] font-mono text-stone-500">{itm.time}</span>
                   </div>
 
                   <h4 className="font-bold text-xs text-white mt-2 truncate leading-tight">{itm.title}</h4>
                   <p className="text-[10px] text-stone-400 mt-1 truncate leading-relaxed">{itm.content}</p>
 
                   <div className="flex justify-between items-center mt-3 pt-3 border-t border-stone-900/60">
-                    <span className={`text-[8px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                    <span className={`text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
                       itm.aiCategory === "Exception Needed" ? "bg-rose-950/50 text-rose-400 border border-rose-900" :
                       itm.aiCategory === "Auto-Processed" ? "bg-emerald-950/50 text-emerald-400 border border-emerald-900" :
                       itm.aiCategory === "Action Required" ? "bg-amber-950/50 text-amber-400 border border-amber-900" :
@@ -236,7 +236,7 @@ function UnifiedInbox() {
                       {itm.aiCategory}
                     </span>
 
-                    <span className={`text-[8px] font-mono uppercase font-bold tracking-wider ${
+                    <span className={`text-[10px] font-mono uppercase font-bold tracking-wider ${
                       itm.status === "Unresolved" ? "text-rose-500 animate-pulse" : "text-stone-500"
                     }`}>
                       {itm.status}
@@ -286,7 +286,7 @@ function UnifiedInbox() {
                 
                 {/* Content Box */}
                 <div className="space-y-2">
-                  <span className="text-[9px] font-mono tracking-wider text-stone-500 uppercase block">INCOMING CONTENT</span>
+                  <span className="text-[10px] font-mono tracking-wider text-stone-500 uppercase block">INCOMING CONTENT</span>
                   <div className="bg-stone-900/30 border border-stone-900 p-4 rounded-xl text-xs leading-relaxed text-stone-300 whitespace-pre-line font-medium">
                     {selectedItem.content}
                   </div>
@@ -295,7 +295,7 @@ function UnifiedInbox() {
                 {/* AI Reasoning Blueprint Box */}
                 <div className="bg-stone-900/50 border border-stone-900 p-4 rounded-xl space-y-3">
                   <div className="flex justify-between items-center select-none">
-                    <span className="text-[9px] font-mono tracking-wider text-emerald-500 uppercase font-black">AI COGNITIVE ANALYTICS</span>
+                    <span className="text-[10px] font-mono tracking-wider text-emerald-500 uppercase font-black">AI COGNITIVE ANALYTICS</span>
                     <div className="text-[10px] font-mono text-stone-500">
                       Conf. Score: <span className="font-bold text-emerald-400 font-mono">{selectedItem.confidenceScore}%</span>
                     </div>
@@ -307,7 +307,7 @@ function UnifiedInbox() {
 
                 {/* Technical Meta Key-Value table */}
                 <div className="space-y-2 select-none">
-                  <span className="text-[9px] font-mono tracking-wider text-stone-500 uppercase block">METADATA TRACE</span>
+                  <span className="text-[10px] font-mono tracking-wider text-stone-500 uppercase block">METADATA TRACE</span>
                   <div className="bg-stone-900/20 border border-stone-900 rounded-xl overflow-hidden text-[10px] font-mono">
                     {Object.entries(selectedItem.details).map(([key, val]) => (
                       <div key={key} className="flex justify-between p-3 border-b border-stone-900/60 last:border-0">
@@ -323,7 +323,7 @@ function UnifiedInbox() {
               {/* Response Drafting Bar */}
               <div className="p-4 border-t border-stone-900 bg-stone-950/80">
                 <div className="space-y-2">
-                  <label className="block text-[9px] font-mono tracking-wider text-stone-500 uppercase select-none">
+                  <label className="block text-[10px] font-mono tracking-wider text-stone-500 uppercase select-none">
                     Compose Draft Response
                   </label>
                   <div className="flex gap-2">
@@ -337,7 +337,7 @@ function UnifiedInbox() {
                     <button
                       onClick={() => handleSendDraftReply(selectedItem.id)}
                       disabled={isSendingReply || !replyText.trim()}
-                      className="bg-white hover:bg-stone-100 text-black text-xs font-mono font-bold px-4 py-2.5 rounded-lg transition-all disabled:opacity-50"
+                      className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-mono font-bold px-4 py-2.5 rounded-lg transition-all disabled:opacity-50"
                     >
                       Draft
                     </button>

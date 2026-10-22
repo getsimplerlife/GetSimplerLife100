@@ -141,11 +141,11 @@ export default function ChecklistsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Checklists</h1>
-          <p className="text-sm text-gray-500">Delivery checklists with approval-gated item tracking.</p>
+          <p className="text-sm text-stone-500">Delivery checklists with approval-gated item tracking.</p>
         </div>
       </div>
       {error && <div className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
-      {feedback && <div className="rounded border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-800">{feedback}</div>}
+      {feedback && <div className="rounded border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-300">{feedback}</div>}
 
       <Card id="checklist-composer">
         <h2 className="mb-3 text-lg font-semibold">New checklist</h2>
@@ -158,7 +158,7 @@ export default function ChecklistsPage() {
           </select>
         </div>
         <input className="mt-3 w-full rounded border p-2" placeholder="Description (optional)" value={description} onChange={(e) => setDescription(e.target.value)} />
-        <label className="mt-3 block text-sm text-gray-600">Items — one per line (start each with "in_progress:" or "done:" to set status)</label>
+        <label className="mt-3 block text-sm text-stone-400">Items — one per line (start each with "in_progress:" or "done:" to set status)</label>
         <textarea className="mt-1 w-full rounded border p-2 font-mono text-sm" rows={3} value={itemsText} onChange={(e) => setItemsText(e.target.value)} />
         <Button className="mt-3" onClick={createChecklist} disabled={creating || !name}>
           {creating ? "Creating…" : "Create checklist"}
@@ -168,7 +168,7 @@ export default function ChecklistsPage() {
       <Card>
         <h2 className="mb-3 text-lg font-semibold">Checklists ({items.length})</h2>
         {loading ? (
-          <p className="text-sm text-gray-500">Loading…</p>
+          <p className="text-sm text-stone-500">Loading…</p>
         ) : items.length === 0 ? (
           <PortalEmptyState
             title="No checklists yet"
@@ -186,7 +186,7 @@ export default function ChecklistsPage() {
                       <Badge>{STATUS_LABEL[c.status] || c.status}</Badge>
                       <Badge>{c.kind}</Badge>
                     </div>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-stone-500">
                       {c.progress.done}/{c.progress.total} done · v{c.version}
                       {c.linkedProposalId ? ` · linked ${c.linkedProposalId}` : ""}
                     </p>
@@ -199,11 +199,11 @@ export default function ChecklistsPage() {
                 {c.items.length > 0 && (
                   <ul className="mt-2 space-y-1">
                     {c.items.map((it) => (
-                      <li key={it.id} className="flex flex-wrap items-center justify-between gap-2 rounded border bg-gray-50 p-2 text-sm">
+                      <li key={it.id} className="flex flex-wrap items-center justify-between gap-2 rounded border border-stone-800 bg-stone-900 p-2 text-sm">
                         <span className="min-w-0">
                           <span className="font-medium">{it.title}</span>
-                          {it.assignee ? <span className="ml-2 text-gray-500">{it.assignee}</span> : null}
-                          {it.completedAt ? <span className="ml-2 text-xs text-gray-400">done {new Date(it.completedAt).toLocaleDateString()}</span> : null}
+                          {it.assignee ? <span className="ml-2 text-stone-500">{it.assignee}</span> : null}
+                          {it.completedAt ? <span className="ml-2 text-xs text-stone-400">done {new Date(it.completedAt).toLocaleDateString()}</span> : null}
                         </span>
                         <span className="flex items-center gap-1">
                           <Badge>{ITEM_STATUS_LABEL[it.status] || it.status}</Badge>
@@ -227,12 +227,12 @@ export default function ChecklistsPage() {
       <Card>
         <h2 className="mb-3 text-lg font-semibold">Pending writes ({writes.filter((w) => w.status === "pending").length})</h2>
         {writes.filter((w) => w.status === "pending").length === 0 ? (
-          <p className="text-sm text-gray-500">Nothing waiting for approval.</p>
+          <p className="text-sm text-stone-500">Nothing waiting for approval.</p>
         ) : (
           <div className="space-y-2">
             {writes.map((w) => (
               <div key={w.id} className="flex items-center justify-between rounded border p-2 text-sm">
-                <span className="text-gray-600">
+                <span className="text-stone-400">
                   <code>{w.op}</code> · {w.via} · {new Date(w.requestedAt).toLocaleString()}
                 </span>
                 <Button onClick={() => applyWrite(w.id)}>Apply</Button>

@@ -57,19 +57,19 @@ function IndustriesHub() {
 
   return (
     <div className="space-y-8 font-sans">
-      <div className="border-b border-stone-200 pb-6">
+      <div className="border-b border-stone-800 pb-6">
         <h1 className="text-3xl font-black text-stone-100 tracking-tight">🏢 Vertical Blueprints</h1>
         <p className="text-stone-500 mt-1">Configure and manage industry-specific automation blueprints built for your business sector.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {blueprints.map((b, idx) => (
-          <div key={idx} className="bg-white p-6 rounded-3xl border border-stone-200 shadow-sm flex flex-col justify-between gap-6">
+          <div key={idx} className="bg-stone-900 p-6 rounded-3xl border border-stone-800 shadow-sm flex flex-col justify-between gap-6">
             <div className="space-y-3">
               <div className="flex justify-between items-center text-xs">
-                <span className="font-bold text-stone-900">{b.name}</span>
+                <span className="font-bold text-stone-100">{b.name}</span>
                 <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
-                  b.status === "Activated" ? "bg-emerald-50 text-emerald-700" : "bg-stone-100 text-stone-500"
+                  b.status === "Activated" ? "bg-emerald-500/15 text-emerald-300" : "bg-stone-800/60 text-stone-400"
                 }`}>{b.status}</span>
               </div>
               <p className="text-xs text-stone-500 leading-relaxed font-semibold">{b.description}</p>
@@ -78,7 +78,7 @@ function IndustriesHub() {
             <button
               onClick={() => handleAction(b.name, b.status === "Activated" ? "deactivate" : "activate")}
               className={`w-full font-bold py-2 rounded-xl text-xs border transition-all ${
-                b.status === "Activated" ? "bg-stone-50 border-stone-200 text-stone-700 hover:bg-stone-100" : "bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-700 shadow-lg"
+                b.status === "Activated" ? "bg-stone-50 border-stone-800 text-stone-700 hover:bg-stone-100" : "bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-700 shadow-lg"
               }`}
             >
               {b.status === "Activated" ? "Deactivate Blueprint" : "Activate Blueprint"}
