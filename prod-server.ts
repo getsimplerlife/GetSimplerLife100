@@ -1251,6 +1251,13 @@ async function handleFetch(req: Request): Promise<Response> {
       knowledgeBaseNative.registerBuiltinNativeKnowledgeBaseEventTypes();
       const importNative = await import("./src/native/import");
       importNative.registerBuiltinNativeImportEventTypes();
+      // P1-4 (owner 10-22): native COMMUNICATIONS slice — portal working
+      // Reply (thread read + gated createReply write; every mutation rides
+      // the Approval Queue verb-first; honest "saved to your communications
+      // log" — no email-send claim). Registers typed native.communications.*
+      // events.
+      const communicationsNative = await import("./src/native/communications");
+      communicationsNative.registerBuiltinNativeCommunicationsEventTypes();
       // Phase 5.1 (6.2): wire the FIRST client-optional import SOURCE lane —
       // Xero (client-managed creds, read-only, bounded snapshot). One-shot /
       // client-initiated re-runs only; no webhooks, no write-back.
@@ -1503,6 +1510,18 @@ async function handleFetch(req: Request): Promise<Response> {
       if (pathname === "/api/native/billing") {
         const billingNative = await import("./src/native/billing");
         return billingNative.handleNativeBillingAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
+      }
+      // P1-4 (owner 10-22) — native COMMUNICATIONS (/api/native/communications*).
+      // AUTHED-ONLY (wired AFTER the session check → anonymous 401). Thread read
+      // is tenant-scoped; Reply is a REAL gated write (createReply verb-first —
+      // "create" ∈ WRITE_VERB; Approval Queue by default) that appends a reply
+      // record to the tenant's OWN communications log. Honest outcomes only:
+      // the slice has NO email-send path — copy says "saved to your
+      // communications log", never an email-send claim. See src/native/
+      // communications/.
+      if (pathname.startsWith("/api/native/communications")) {
+        const communications = await import("./src/native/communications");
+        return communications.handleNativeCommunicationsAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
       }
       return native.handleNativeAuthed(req, {
         userEmail: user.email,
