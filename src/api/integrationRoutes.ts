@@ -10,6 +10,7 @@ import { createConnection, getConnection, deleteConnection, updateConnectionConf
 import { generateState, generateCodeVerifier, buildAuthorizeUrl, type OAuthConfig } from "../integrations/framework/oauth";
 import { getUserFromRequest } from "./auditLogs";
 import { readJSONLive, writeJSON, resolveDataDir } from "../lib/data-store";
+import { isOwnerRole } from "../lib/user-roles";
 import { durableFlush } from "../lib/durable-store";
 import { probeProvider } from "../lib/connection-health";
 import { join } from "node:path";
@@ -52,7 +53,20 @@ async function isAdmin(userId: string): Promise<boolean> {
     const { users } = await import("../db/schema");
     const { eq } = await import("drizzle-orm");
     const currentUser = await db.query.users.findFirst({ where: eq(users.id, userId) });
-    return currentUser?.email === 'mathewortiz97@gmail.com';
+    if (!currentUser) return false;
+    // P1-5 role claim: the tenant user model (users.json — the portal auth
+    // store) is the source of truth for the owner/admin role. Resolve the DB
+    // user's email to its JSON row's role; fail-closed (false) on any error so
+    // a broken role read can never widen access.
+    const dataDir = resolveDataDir(
+      process.env.DATA_DIR,
+      typeof import.meta?.dir !== "undefined" ? import.meta.dir : process.cwd(),
+    );
+    const usersJson = ((await readJSONLive(join(dataDir, "users.json"))) as Record<string, any>) || {};
+    const row = usersJson[currentUser.email];
+    if (isOwnerRole(row?.role)) return true;
+    // Forward-compat: a future role column on the DB row is also honored.
+    return isOwnerRole((currentUser as any)?.role);
   } catch {
     return false;
   }

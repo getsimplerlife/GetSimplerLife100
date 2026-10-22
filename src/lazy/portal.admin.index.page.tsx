@@ -150,7 +150,7 @@ function AdminIndex() {
               const userPurchases = purchasesByUser[u.id] || [];
               const userActivity = activityByUser[u.id] || [];
               const lastAction = userActivity.length > 0 ? userActivity[0] : null;
-              const isOwner = u.email === 'mathewortiz97@gmail.com';
+              const isOwner = u.role === 'admin' || u.role === 'owner';
               return (
                 <button
                   key={u.id}
