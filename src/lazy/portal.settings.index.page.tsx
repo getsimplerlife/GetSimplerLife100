@@ -779,7 +779,7 @@ function UnifiedSettingsHub() {
                             <span className={`h-2 w-2 rounded-full ${
                               conn.status === "active" ? "bg-emerald-500" : "bg-rose-500"
                             }`}></span>
-                            <span className="uppercase font-bold text-stone-400 tracking-wider text-[9px]">{conn.status}</span>
+                            <span className="uppercase font-bold text-stone-400 tracking-wider text-[10px]">{conn.status}</span>
                             <span className="text-stone-600">•</span>
                             <span className="font-semibold text-stone-500">{new Date(conn.updatedAt).toLocaleDateString()}</span>
                           </div>
@@ -834,7 +834,7 @@ function UnifiedSettingsHub() {
               {/* Subscription Info Panel */}
               <div className="bg-stone-950 border border-stone-900 rounded-3xl p-6 shadow-xl flex flex-col justify-between gap-6 hover:border-emerald-500/10 transition-all duration-300">
                 <div className="space-y-4">
-                  <span className="text-[9px] font-black uppercase text-emerald-400 bg-emerald-950/40 border border-emerald-800/40 px-3 py-1 rounded-full tracking-wider">Current Plan</span>
+                  <span className="text-[10px] font-black uppercase text-emerald-400 bg-emerald-950/40 border border-emerald-800/40 px-3 py-1 rounded-full tracking-wider">Current Plan</span>
                   <h3 className="text-2xl font-black text-white">{activePlan || "No subscription on file"}</h3>
                   <p className="text-stone-400 text-xs leading-relaxed font-semibold">{planDesc || "Choose a plan to activate billing for this workspace."}</p>
                 </div>
@@ -850,7 +850,7 @@ function UnifiedSettingsHub() {
               {/* Payment Method Card */}
               <div className="bg-stone-950 border border-stone-900 rounded-3xl p-6 shadow-xl flex flex-col justify-between gap-4 hover:border-emerald-500/10 transition-all duration-300">
                 <div className="space-y-3">
-                  <span className="text-[9px] font-black uppercase text-emerald-400 bg-emerald-950/40 border border-emerald-800/40 px-3 py-1 rounded-full tracking-wider">Payment Method</span>
+                  <span className="text-[10px] font-black uppercase text-emerald-400 bg-emerald-950/40 border border-emerald-800/40 px-3 py-1 rounded-full tracking-wider">Payment Method</span>
                   {paymentMethod ? (
                     <div className="bg-stone-900/50 border border-stone-800 rounded-2xl p-4 flex items-center gap-4">
                       <div className="w-12 h-8 bg-gradient-to-br from-stone-700 to-stone-800 rounded-lg border border-stone-600 flex items-center justify-center text-lg shadow-inner">

@@ -140,7 +140,7 @@ function ConnectedAccountsPage() {
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <span className="font-bold text-white text-sm truncate">{conn._provider?.name || conn.provider}</span>
-            <span className={`text-[8px] font-mono font-bold uppercase px-1.5 py-0.5 rounded border ${
+            <span className={`text-[10px] font-mono font-bold uppercase px-1.5 py-0.5 rounded border ${
               conn.status === "Connected"
                 ? "bg-emerald-950/40 text-emerald-400 border-emerald-900/40"
                 : conn.status === "error"

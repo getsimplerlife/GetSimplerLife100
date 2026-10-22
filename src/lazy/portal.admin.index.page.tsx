@@ -182,7 +182,7 @@ function AdminIndex() {
                         <div className="font-bold text-white truncate flex items-center gap-2">
                           {u.email}
                           {isOwner && (
-                            <span className="text-[9px] font-black text-amber-400 uppercase bg-amber-950/40 border border-amber-900/60 px-1.5 py-0.5 rounded-full">Owner</span>
+                            <span className="text-[10px] font-black text-amber-400 uppercase bg-amber-950/40 border border-amber-900/60 px-1.5 py-0.5 rounded-full">Owner</span>
                           )}
                         </div>
                         <div className="text-xs text-stone-500 font-semibold">

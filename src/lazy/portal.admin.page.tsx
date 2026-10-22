@@ -109,7 +109,7 @@ function AdminLayout() {
         {/* Admin Roster profile */}
         <div className="p-4 border-t border-stone-800 bg-stone-900/50">
           <div className="px-4 py-2 mb-2">
-            <p className="text-[9px] text-stone-500 font-bold uppercase tracking-wider">Active Admin</p>
+            <p className="text-[10px] text-stone-500 font-bold uppercase tracking-wider">Active Admin</p>
             <p className="text-xs font-bold text-stone-300 truncate">{user.email}</p>
           </div>
           <button

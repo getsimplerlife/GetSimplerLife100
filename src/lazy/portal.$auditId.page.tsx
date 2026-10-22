@@ -38,41 +38,41 @@ function AuditDetail() {
         .print-only { display: none; }
       `}</style>
 
-      <header className="bg-white border-b px-6 py-4 no-print">
+      <header className="bg-stone-950 border-b border-stone-800 px-6 py-4 no-print">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <Link to="/" className="text-2xl font-bold text-emerald-600">
             Simpler Life 100
           </Link>
-          <Link to="/portal" className="text-sm font-medium text-gray-600 hover:text-emerald-600">
+          <Link to="/portal" className="text-sm font-medium text-stone-400 hover:text-emerald-400">
             ← Back to Dashboard
           </Link>
         </div>
       </header>
 
       <main className="max-w-4xl mx-auto px-6 py-12">
-        <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
+        <div className="bg-stone-900 rounded-2xl border border-stone-800 shadow-lg shadow-black/20 overflow-hidden">
           <div className="p-8 border-b bg-stone-50/50">
             <div className="flex justify-between items-start mb-4">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">{audit.type}</h1>
-                <p className="text-gray-600">Audit ID: {audit.id}</p>
+                <h1 className="text-3xl font-bold text-stone-100">{audit.type}</h1>
+                <p className="text-stone-400">Audit ID: {audit.id}</p>
               </div>
               <span className={`text-sm px-3 py-1 rounded-full font-bold uppercase ${
-                audit.status === "completed" ? "bg-green-100 text-green-700" :
-                audit.status === "in-progress" ? "bg-blue-100 text-blue-700" :
-                "bg-gray-100 text-gray-700"
+                audit.status === "completed" ? "bg-green-500/15 text-green-300" :
+                audit.status === "in-progress" ? "bg-blue-500/15 text-blue-300" :
+                "bg-stone-600/25 text-stone-300"
               }`}>
                 {audit.status}
               </span>
             </div>
             <div className="grid grid-cols-2 gap-8 mt-6">
               <div>
-                <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Ordered On</div>
-                <div className="text-gray-900">{new Date(audit.createdAt).toLocaleDateString()}</div>
+                <div className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-1">Ordered On</div>
+                <div className="text-stone-100">{new Date(audit.createdAt).toLocaleDateString()}</div>
               </div>
               <div>
-                <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Last Updated</div>
-                <div className="text-gray-900">{new Date(audit.updatedAt).toLocaleDateString()}</div>
+                <div className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-1">Last Updated</div>
+                <div className="text-stone-100">{new Date(audit.updatedAt).toLocaleDateString()}</div>
               </div>
             </div>
           </div>
@@ -83,7 +83,7 @@ function AuditDetail() {
             {audit.status === "completed" ? (
               <div className="space-y-6">
                 {audit.results && (
-                  <div className="prose max-w-none text-gray-600 bg-gray-50 p-6 rounded-xl border">
+                  <div className="prose max-w-none text-stone-300 bg-stone-900 p-6 rounded-xl border border-stone-800">
                     <pre className="whitespace-pre-wrap font-sans">{audit.results}</pre>
                   </div>
                 )}
@@ -100,10 +100,10 @@ function AuditDetail() {
                 </div>
               </div>
             ) : (
-              <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed">
+              <div className="text-center py-12 bg-stone-900 rounded-xl border border-dashed border-stone-700">
                 <div className="text-3xl mb-4">⏳</div>
                 <h3 className="text-lg font-bold mb-2">Audit in Progress</h3>
-                <p className="text-gray-600 max-w-sm mx-auto">
+                <p className="text-stone-400 max-w-sm mx-auto">
                   Our team is currently analyzing your workflows. You'll receive an email once your results are ready.
                 </p>
               </div>
@@ -112,7 +112,7 @@ function AuditDetail() {
             {/* Feedback Section */}
             <div className="mt-12 pt-12 border-t no-print">
               <h2 className="text-xl font-bold mb-4">Request Adjustments</h2>
-              <p className="text-gray-600 mb-4 text-sm">
+              <p className="text-stone-400 mb-4 text-sm">
                 Need to add more detail or adjust your audit focus? Let us know and we'll update your report.
               </p>
               {feedbackSent ? (
@@ -123,7 +123,7 @@ function AuditDetail() {
                 <div className="space-y-4">
                   <textarea
                     rows={4}
-                    className="w-full rounded-xl border border-stone-200 px-4 py-3 text-gray-900 focus:ring-2 focus:ring-emerald-500 outline-none resize-none"
+                    className="w-full rounded-xl border border-stone-800 px-4 py-3 text-stone-100 focus:ring-2 focus:ring-emerald-500 outline-none resize-none"
                     placeholder="Describe what you'd like us to adjust or add to your audit..."
                     value={feedbackText}
                     onChange={(e) => setFeedbackText(e.target.value)}

@@ -129,11 +129,11 @@ export default function InvoicesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Invoices</h1>
-          <p className="text-sm text-gray-500">Native invoices built from approved deal rooms. Posting to the customer's books stays with the connected accounting adapter (Xero/QuickBooks).</p>
+          <p className="text-sm text-stone-500">Native invoices built from approved deal rooms. Posting to the customer's books stays with the connected accounting adapter (Xero/QuickBooks).</p>
         </div>
       </div>
       {error && <div className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
-      {feedback && <div className="rounded border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-800">{feedback}</div>}
+      {feedback && <div className="rounded border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-300">{feedback}</div>}
 
       <Card id="invoice-composer">
         <h2 className="mb-3 text-lg font-semibold">Create invoice from a deal room</h2>
@@ -148,7 +148,7 @@ export default function InvoicesPage() {
             {creating ? "Creating…" : "Create invoice"}
           </Button>
         </div>
-        <p className="mt-2 text-xs text-gray-500">Line items are snapshotted from the deal room's linked proposal (integer cents); the amount can only change through a new proposal revision.</p>
+        <p className="mt-2 text-xs text-stone-500">Line items are snapshotted from the deal room's linked proposal (integer cents); the amount can only change through a new proposal revision.</p>
       </Card>
 
       <Card>
@@ -160,7 +160,7 @@ export default function InvoicesPage() {
           ))}
         </select>
         {loading ? (
-          <p className="text-sm text-gray-500">Loading…</p>
+          <p className="text-sm text-stone-500">Loading…</p>
         ) : items.length === 0 ? (
           dealRooms.length === 0 ? (
             <PortalEmptyState
@@ -191,10 +191,10 @@ export default function InvoicesPage() {
                       <span className="font-medium">{i.invoiceNumber}</span>
                       <Badge>{STATUS_LABEL[i.status] || i.status}</Badge>
                     </div>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-stone-500">
                       {dealName(i.linkedDealRoomId)} · {money(i.amountDueCents, i.currency)} · v{i.version}
                     </p>
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-stone-400">
                       {i.docId ? "PDF on file" : "No PDF yet"} · issued {new Date(i.createdAt).toLocaleDateString()}
                       {i.sentAt ? ` · sent ${new Date(i.sentAt).toLocaleDateString()}` : ""}
                     </p>
@@ -214,12 +214,12 @@ export default function InvoicesPage() {
       <Card>
         <h2 className="mb-3 text-lg font-semibold">Pending writes ({writes.filter((w) => w.status === "pending").length})</h2>
         {writes.filter((w) => w.status === "pending").length === 0 ? (
-          <p className="text-sm text-gray-500">Nothing waiting for approval.</p>
+          <p className="text-sm text-stone-500">Nothing waiting for approval.</p>
         ) : (
           <div className="space-y-2">
             {writes.map((w) => (
               <div key={w.id} className="flex items-center justify-between rounded border p-2 text-sm">
-                <span className="text-gray-600">
+                <span className="text-stone-400">
                   <code>{w.op}</code> · {w.via} · {new Date(w.requestedAt).toLocaleString()}
                 </span>
                 <Button onClick={() => applyWrite(w.id)}>Apply</Button>

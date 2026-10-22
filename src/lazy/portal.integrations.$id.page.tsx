@@ -304,7 +304,7 @@ function ConnectionDetailPage() {
                     <div className="flex justify-between items-center">
                       <p className="text-xs font-bold text-white leading-snug">{log.message}</p>
                       {log.duration && (
-                        <span className="text-[9px] font-mono text-stone-600">({log.duration})</span>
+                        <span className="text-[10px] font-mono text-stone-600">({log.duration})</span>
                       )}
                     </div>
                     <p className="text-[10px] font-mono text-stone-500">

@@ -112,7 +112,7 @@ function UnifiedNotificationCenter() {
           <span>📥</span>
           <span>Inbox Alerts</span>
           {unreadCount > 0 && (
-            <span className="bg-rose-500 text-white text-[9px] font-black h-4 px-1.5 rounded-full flex items-center justify-center">
+            <span className="bg-rose-500 text-white text-[10px] font-black h-4 px-1.5 rounded-full flex items-center justify-center">
               {unreadCount}
             </span>
           )}
@@ -193,7 +193,7 @@ function UnifiedNotificationCenter() {
                       <p className="text-[11px] text-stone-400 leading-normal font-medium">
                         {item.message}
                       </p>
-                      <span className="text-[9px] text-stone-600 font-mono block">
+                      <span className="text-[10px] text-stone-600 font-mono block">
                         Timestamp: {new Date(item.createdAt).toLocaleString()}
                       </span>
                     </div>

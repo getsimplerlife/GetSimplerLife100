@@ -106,7 +106,7 @@ function PerformanceAnalytics() {
           </p>
           <Link
             to="/portal/workflows"
-            className="inline-flex items-center justify-center bg-white hover:bg-stone-100 text-black font-extrabold px-6 py-3 rounded-xl transition-all font-mono text-xs shadow-lg shadow-white/5 active:scale-95"
+            className="inline-flex items-center justify-center bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold px-6 py-3 rounded-xl transition-all font-mono text-xs shadow-lg shadow-black/20 active:scale-95"
           >
             Open Workflows
           </Link>
@@ -121,7 +121,7 @@ function PerformanceAnalytics() {
             onClick={() => setActiveTab(tab)}
             className={`px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold tracking-wide uppercase transition-all ${
               activeTab === tab
-                ? "bg-white text-black font-black"
+                ? "bg-emerald-600 text-white font-black"
                 : "bg-stone-900/60 text-stone-400 hover:text-stone-200"
             }`}
           >
@@ -138,7 +138,7 @@ function PerformanceAnalytics() {
             className="bg-stone-950 border border-stone-900 rounded-xl p-6 flex flex-col justify-between space-y-6 hover:shadow-lg transition-all"
           >
             <div className="space-y-2">
-              <span className="text-[9px] font-mono tracking-wider uppercase text-stone-500 block">
+              <span className="text-[10px] font-mono tracking-wider uppercase text-stone-500 block">
                 {itm.name}
               </span>
               <div className="text-3xl font-black text-white tracking-tight font-sans">
@@ -150,7 +150,7 @@ function PerformanceAnalytics() {
             </div>
 
             <div className="border-t border-stone-900/80 pt-3 flex items-center justify-between">
-              <span className="text-[9px] font-mono text-stone-500 uppercase">Trend Matrix</span>
+              <span className="text-[10px] font-mono text-stone-500 uppercase">Trend Matrix</span>
               <span className={`text-[10px] font-mono font-black ${
                 itm.trendType === "up" ? "text-emerald-500" :
                 itm.trendType === "down" ? "text-rose-500 animate-pulse" : "text-stone-400"

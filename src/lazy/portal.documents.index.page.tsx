@@ -248,7 +248,7 @@ function DocumentManagement() {
                   </div>
                   <div className="space-y-2">
                     <p className="text-white text-xs font-bold font-mono uppercase tracking-wider animate-pulse">Parsing file...</p>
-                    <p className="text-stone-400 text-[9px] font-mono leading-relaxed max-w-[200px] mx-auto">
+                    <p className="text-stone-400 text-[10px] font-mono leading-relaxed max-w-[200px] mx-auto">
                       {uploadStep}
                     </p>
                   </div>
@@ -265,7 +265,7 @@ function DocumentManagement() {
                     <p className="text-xs font-extrabold text-white">
                       Drag file here or <span className="text-emerald-400 hover:underline">browse files</span>
                     </p>
-                    <p className="text-[9px] text-stone-400 font-mono tracking-wide">
+                    <p className="text-[10px] text-stone-400 font-mono tracking-wide">
                       PDF, CSV, XLSX, DOCX, PNG, JPG (MAX 10MB)
                     </p>
                   </div>
@@ -274,7 +274,7 @@ function DocumentManagement() {
             </div>
 
             {/* Layout OCR Bullet List */}
-            <div className="bg-stone-900/20 border border-stone-900 rounded-xl p-3.5 space-y-2 font-mono text-[9px] text-stone-500">
+            <div className="bg-stone-900/20 border border-stone-900 rounded-xl p-3.5 space-y-2 font-mono text-[10px] text-stone-500">
               <span className="font-bold uppercase text-stone-400">Layout OCR Pipeline Specs</span>
               <ul className="space-y-1 list-disc list-inside">
                 <li>Horizontal projection profiling OCR fallback</li>
@@ -324,7 +324,7 @@ function DocumentManagement() {
               ) : (
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-stone-900/60 border-b border-stone-850 font-mono text-[9px] text-stone-400 uppercase tracking-wider">
+                    <tr className="bg-stone-900/60 border-b border-stone-850 font-mono text-[10px] text-stone-400 uppercase tracking-wider">
                       <th className="p-4 font-bold">Document Name</th>
                       <th className="p-4 font-bold">Extracted Type</th>
                       <th className="p-4 font-bold">File Size</th>
@@ -355,12 +355,12 @@ function DocumentManagement() {
                           </div>
                         </td>
                         <td className="p-4">
-                          <span className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border uppercase bg-indigo-950/40 text-indigo-400 border-indigo-900/40`}>
+                          <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border uppercase bg-indigo-950/40 text-indigo-400 border-indigo-900/40`}>
                             {doc.routing_status || "Auto-Routed"}
                           </span>
                         </td>
                         <td className="p-4">
-                          <span className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border uppercase ${
+                          <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border uppercase ${
                             doc.status?.toLowerCase() === "processed"
                               ? "bg-emerald-950/40 text-emerald-400 border-emerald-900/40"
                               : "bg-rose-950/40 text-rose-400 border-rose-900/40"
@@ -402,7 +402,7 @@ function DocumentManagement() {
             </div>
 
             {/* Secure Disclaimer Footnote */}
-            <div className="border-t border-stone-850 pt-4 text-[9px] font-mono text-stone-400 flex justify-between uppercase">
+            <div className="border-t border-stone-850 pt-4 text-[10px] font-mono text-stone-400 flex justify-between uppercase">
               <span>SYSTEM LAYER: DRIZZLE PORTAL DATA INTEGRITY LOCK</span>
               <span>ENCRYPTED REPOSITORY: /TMP/UPLOADS SECURE ERASE</span>
             </div>
@@ -419,7 +419,7 @@ function DocumentManagement() {
                 <span className="text-xl">📊</span>
                 <div>
                   <h3 className="font-extrabold text-white text-base">Extracted Payload: {selectedDoc.file_name}</h3>
-                  <span className="text-[9px] font-mono text-stone-400 uppercase tracking-wider block mt-0.5">DOCUMENT TYPE: {selectedDoc.document_type || "UNKNOWN"}</span>
+                  <span className="text-[10px] font-mono text-stone-400 uppercase tracking-wider block mt-0.5">DOCUMENT TYPE: {selectedDoc.document_type || "UNKNOWN"}</span>
                 </div>
               </div>
               <button
@@ -462,7 +462,7 @@ function DocumentManagement() {
               )}
             </div>
 
-            <div className="flex justify-between items-center pt-3 border-t border-stone-900 text-[9px] font-mono text-stone-400 uppercase">
+            <div className="flex justify-between items-center pt-3 border-t border-stone-900 text-[10px] font-mono text-stone-400 uppercase">
               <span>LEDGER TIMESTAMP: {new Date(selectedDoc._created_at).toLocaleString()}</span>
               <button
                 onClick={() => setSelectedDoc(null)}

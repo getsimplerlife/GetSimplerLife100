@@ -5,6 +5,7 @@ import type { SystemNotification, PortalContextType } from "~/routes/portal.cont
 export { PortalContext, usePortalContext } from "~/routes/portal.context";
 export type { SystemNotification, PortalContextType } from "~/routes/portal.context";
 import { isOwnerUser } from "../lib/user-roles";
+import { PortalIcon, NoticeIcon, type PortalIconName, type NoticeIconName } from "../components/PortalIcons";
 
 
 
@@ -207,41 +208,49 @@ function PortalLayout() {
     }
   };
 
-  const navLinks = [
-    { name: "Dashboard", subtitle: "Activity · Overview", path: "/portal", icon: "🏠", section: "Overview" },
-    { name: "Proposals", subtitle: "Quote-to-cash · E-sign", path: "/portal/proposals", icon: "📄", section: "Workspace" },
-    { name: "Invoices", subtitle: "Bill · Track · Notify", path: "/portal/invoices", icon: "🧾", section: "Workspace" },
-    { name: "Checklists", subtitle: "Onboarding · Drives", path: "/portal/checklists", icon: "✅", section: "Workspace" },
-    { name: "Deal Rooms", subtitle: "Shared client spaces", path: "/portal/deal-rooms", icon: "🤝", section: "Workspace" },
-    { name: "Boards", subtitle: "Kanban views", path: "/portal/boards", icon: "🗂️", section: "Workspace" },
-    { name: "Tasks", subtitle: "Queue · Assignments", path: "/portal/tasks", icon: "📋", section: "Workspace" },
-    { name: "Surveys", subtitle: "NPS · CSAT · Scorecards", path: "/portal/surveys", icon: "📊", section: "Workspace" },
-    { name: "Inbox", subtitle: "Messages in one place", path: "/portal/inbox", icon: "📥", section: "Workspace" },
-    { name: "Workflows", subtitle: "Builder · Management", path: "/portal/workflows", icon: "⚡", section: "Operations" },
-    { name: "Bring your data in", subtitle: "One-time import · Migration", path: "/portal/import", icon: "📥", section: "Operations" },
-    { name: "Documents", subtitle: "Upload · Process · Export", path: "/portal/documents", icon: "📁", section: "Operations" },
-    { name: "Document Vault", subtitle: "Native capture · Filing · Rules", path: "/portal/vault", icon: "🗄️", section: "Operations" },
-    { name: "File Library", subtitle: "View · Edit · Print · Download", path: "/portal/files", icon: "📚", section: "Operations" },
-    { name: "Approvals", subtitle: "Review · Authorize", path: "/portal/approvals", icon: "📋", section: "Operations" },
-    { name: "Assistant", subtitle: "Ask · Draft answers · Audit", path: "/portal/assistant", icon: "✨", section: "Communications" },
-    { name: "Communications", subtitle: "Messages · Log", path: "/portal/communications", icon: "📡", section: "Communications" },
-    { name: "Integrations", subtitle: "Full 180+ Catalog", path: "/portal/integrations", icon: "🔌", section: "Data & Connect" },
-    { name: "Secure Transport", subtitle: "SFTP · PGP keys · Transfer rules", path: "/portal/secure-transport", icon: "🔐", section: "Data & Connect" },
-    { name: "Dedupe & MDM", subtitle: "Match rules · Merge · Data quality", path: "/portal/dedupe", icon: "🧹", section: "Data & Connect" },
-    { name: "Access Reviews", subtitle: "Certification campaigns · Attestations", path: "/portal/accessreview", icon: "🛡️", section: "Data & Connect" },
-    { name: "Knowledge Base", subtitle: "Articles · Help center", path: "/portal/knowledgebase", icon: "📚", section: "Data & Connect" },
-    { name: "Settings", subtitle: "Account · Billing · API Keys", path: "/portal/settings", icon: "⚙️", section: "Settings" },
-    { name: "Admin", subtitle: "Users · Health · Audit", path: "/portal/admin", icon: "🛡️", section: "Settings", adminOnly: true },
+type NavLink = {
+    name: string;
+    subtitle?: string;
+    path: string;
+    icon: PortalIconName;
+    section?: string;
+    adminOnly?: boolean;
+    badge?: number;
+  };
+  const navLinks: NavLink[] = [
+    { name: "Dashboard", subtitle: "Activity · Overview", path: "/portal", icon: "dashboard", section: "Overview" },
+    { name: "Proposals", subtitle: "Quote-to-cash · E-sign", path: "/portal/proposals", icon: "proposals", section: "Workspace" },
+    { name: "Invoices", subtitle: "Bill · Track · Notify", path: "/portal/invoices", icon: "invoices", section: "Workspace" },
+    { name: "Checklists", subtitle: "Onboarding · Drives", path: "/portal/checklists", icon: "checklists", section: "Workspace" },
+    { name: "Deal Rooms", subtitle: "Shared client spaces", path: "/portal/deal-rooms", icon: "deal-rooms", section: "Workspace" },
+    { name: "Boards", subtitle: "Kanban views", path: "/portal/boards", icon: "boards", section: "Workspace" },
+    { name: "Tasks", subtitle: "Queue · Assignments", path: "/portal/tasks", icon: "tasks", section: "Workspace" },
+    { name: "Surveys", subtitle: "NPS · CSAT · Scorecards", path: "/portal/surveys", icon: "surveys", section: "Workspace" },
+    { name: "Inbox", subtitle: "Messages in one place", path: "/portal/inbox", icon: "inbox", section: "Workspace" },
+    { name: "Workflows", subtitle: "Builder · Management", path: "/portal/workflows", icon: "workflows", section: "Operations" },
+    { name: "Bring your data in", subtitle: "One-time import · Migration", path: "/portal/import", icon: "import", section: "Operations" },
+    { name: "Documents", subtitle: "Upload · Process · Export", path: "/portal/documents", icon: "documents", section: "Operations" },
+    { name: "Document Vault", subtitle: "Native capture · Filing · Rules", path: "/portal/vault", icon: "vault", section: "Operations" },
+    { name: "File Library", subtitle: "View · Edit · Print · Download", path: "/portal/files", icon: "files", section: "Operations" },
+    { name: "Approvals", subtitle: "Review · Authorize", path: "/portal/approvals", icon: "approvals", section: "Operations" },
+    { name: "Assistant", subtitle: "Ask · Draft answers · Audit", path: "/portal/assistant", icon: "assistant", section: "Communications" },
+    { name: "Communications", subtitle: "Messages · Log", path: "/portal/communications", icon: "communications", section: "Communications" },
+    { name: "Integrations", subtitle: "Full 180+ Catalog", path: "/portal/integrations", icon: "integrations", section: "Data & Connect" },
+    { name: "Secure Transport", subtitle: "SFTP · PGP keys · Transfer rules", path: "/portal/secure-transport", icon: "secure", section: "Data & Connect" },
+    { name: "Dedupe & MDM", subtitle: "Match rules · Merge · Data quality", path: "/portal/dedupe", icon: "dedupe", section: "Data & Connect" },
+    { name: "Access Reviews", subtitle: "Certification campaigns · Attestations", path: "/portal/accessreview", icon: "access", section: "Data & Connect" },
+    { name: "Knowledge Base", subtitle: "Articles · Help center", path: "/portal/knowledgebase", icon: "knowledge", section: "Data & Connect" },
+    { name: "Settings", subtitle: "Account · Billing · API Keys", path: "/portal/settings", icon: "settings", section: "Settings" },
+    { name: "Admin", subtitle: "Users · Health · Audit", path: "/portal/admin", icon: "admin", section: "Settings", adminOnly: true },
   ];
-
-  const mobileLinks = [
-    { name: "Dashboard", path: "/portal", icon: "🏠" },
-    { name: "Proposals", path: "/portal/proposals", icon: "📄" },
-    { name: "Bring data in", path: "/portal/import", icon: "📥" },
-    { name: "Approvals", path: "/portal/approvals", icon: "📋" },
-    { name: "Assistant", path: "/portal/assistant", icon: "✨" },
-    { name: "Integrations", path: "/portal/integrations", icon: "🔌" },
-    { name: "Settings", path: "/portal/settings", icon: "⚙️", badge: unreadCount },
+  const mobileLinks: NavLink[] = [
+    { name: "Dashboard", path: "/portal", icon: "dashboard" },
+    { name: "Proposals", path: "/portal/proposals", icon: "proposals" },
+    { name: "Bring data in", path: "/portal/import", icon: "import" },
+    { name: "Approvals", path: "/portal/approvals", icon: "approvals" },
+    { name: "Assistant", path: "/portal/assistant", icon: "assistant" },
+    { name: "Integrations", path: "/portal/integrations", icon: "integrations" },
+    { name: "Settings", path: "/portal/settings", icon: "settings", badge: unreadCount },
   ];
 
   const currentPath = location.pathname;
@@ -265,10 +274,10 @@ function PortalLayout() {
         </Link>
         <div className="flex items-center gap-4">
           {/* Mobile Bell Button */}
-          <Link to="/portal/notifications" className="relative p-1 text-stone-400 hover:text-white transition-colors">
-            <span>🔔</span>
+          <Link to="/portal/notifications" className="relative p-1 text-stone-400 hover:text-white transition-colors" aria-label="Notifications">
+            <PortalIcon name="bell" className="w-5 h-5" />
             {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[8px] font-bold text-white ring-2 ring-stone-950">
+              <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white ring-2 ring-stone-950">
                 {unreadCount}
               </span>
             )}
@@ -306,7 +315,7 @@ function PortalLayout() {
             const sections = [...new Set(navLinks.map(l => l.section))];
             return sections.map(section => (
               <div key={section} className="mb-4">
-                <p className="text-[9px] font-bold text-stone-600 uppercase tracking-widest px-3 mb-1.5">{section}</p>
+                <p className="text-[10px] font-bold text-stone-600 uppercase tracking-widest px-3 mb-1.5">{section}</p>
                 {navLinks.filter(l => l.section === section && (!(l as any).adminOnly || isOwnerUser(user))).map((link) => {
                   const isActive = currentPath === link.path || (link.path === "/portal" && currentPath === "/portal/");
                   const isIntegrations = link.name === "Integrations";
@@ -317,24 +326,21 @@ function PortalLayout() {
                       onClick={() => setSidebarOpen(false)}
                       className={`flex items-center gap-3 px-3 py-2 rounded-lg font-bold text-xs transition-all group ${
                         isActive
-                          ? "bg-stone-900 text-white border-l-2 border-blue-500"
+                          ? "bg-stone-900 text-white border-l-2 border-emerald-500"
                           : isIntegrations
-                          ? "text-stone-300 hover:bg-stone-900/50 hover:text-white border-l-2 border-transparent hover:border-blue-500/50"
+                          ? "text-stone-300 hover:bg-stone-900/50 hover:text-white border-l-2 border-transparent hover:border-emerald-500/50"
                           : "text-stone-400 hover:bg-stone-900/50 hover:text-stone-200 border-l-2 border-transparent"
                       }`}
                     >
-                      <span className="text-sm shrink-0">{link.icon}</span>
+                      <PortalIcon name={link.icon} className="w-4 h-4 shrink-0 text-emerald-400" />
                       <div className="min-w-0">
                         <div className="truncate">{link.name}</div>
                         {link.subtitle && (
-                          <div className={`text-[9px] font-medium truncate ${isActive ? "text-stone-500" : "text-stone-600 group-hover:text-stone-500"}`}>
+                          <div className={`text-[10px] font-medium truncate ${isActive ? "text-stone-500" : "text-stone-600 group-hover:text-stone-500"}`}>
                             {link.subtitle}
                           </div>
                         )}
                       </div>
-                      {isIntegrations && !isActive && (
-                        <span className="ml-auto bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[8px] px-1.5 py-0.5 rounded-md font-bold tracking-wider shrink-0">180+</span>
-                      )}
                     </Link>
                   );
                 })}
@@ -343,12 +349,12 @@ function PortalLayout() {
           })()}
 
           <div className="pt-4 mt-4 border-t border-stone-900 space-y-1">
-            <p className="text-[9px] font-bold text-stone-600 uppercase tracking-widest px-3 mb-2">Controls</p>
+            <p className="text-[10px] font-bold text-stone-600 uppercase tracking-widest px-3 mb-2">Controls</p>
             <Link
               to="/"
               className="flex items-center gap-3 px-3 py-2 rounded-lg font-bold text-xs text-stone-400 hover:bg-stone-900/50 hover:text-stone-200 border-l-2 border-transparent"
             >
-              <span className="text-sm shrink-0">🏠</span>
+              <PortalIcon name="dashboard" className="w-4 h-4 shrink-0 text-emerald-400" />
               <span>Landing Page</span>
             </Link>
           </div>
@@ -357,14 +363,14 @@ function PortalLayout() {
         {/* User Footer */}
         <div className="p-4 border-t border-stone-900 bg-stone-950 shrink-0 mb-16 lg:mb-0">
           <div className="px-3 py-1.5 mb-2 rounded-lg bg-stone-900/30">
-            <p className="text-[8px] text-stone-600 font-bold uppercase tracking-wider">Identity</p>
+            <p className="text-[10px] text-stone-600 font-bold uppercase tracking-wider">Identity</p>
             <p className="text-xs font-bold text-stone-400 truncate">{displayEmail}</p>
           </div>
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-3 px-3 py-2 rounded-lg font-bold text-xs text-stone-500 hover:bg-stone-900 hover:text-stone-200 transition-all text-left"
           >
-            <span>🚪</span>
+            <PortalIcon name="logout" className="w-4 h-4 shrink-0 text-emerald-400" />
             <span>Sign Out Session</span>
           </button>
         </div>
@@ -387,7 +393,7 @@ function PortalLayout() {
                 onClick={handleInstallPwa}
                 className="inline-flex items-center gap-2 px-3 py-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-[10px] tracking-widest uppercase rounded-lg shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all"
               >
-                <span>📥</span>
+                <PortalIcon name="install" className="w-4 h-4" />
                 <span>Install Web App</span>
               </button>
             )}
@@ -398,9 +404,9 @@ function PortalLayout() {
                 onClick={() => setBellOpen(!bellOpen)}
                 className="relative p-1.5 rounded-lg bg-stone-900 border border-stone-800 hover:bg-stone-800 hover:border-stone-700 hover:text-white text-stone-300 transition-all focus:outline-none"
               >
-                <span className="text-xs">🔔</span>
+                <PortalIcon name="bell" className="w-5 h-5" />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[8px] font-bold text-white ring-2 ring-stone-950">
+                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white ring-2 ring-stone-950">
                     {unreadCount}
                   </span>
                 )}
@@ -414,7 +420,7 @@ function PortalLayout() {
                     {unreadCount > 0 && (
                       <button
                         onClick={markAllAsRead}
-                        className="text-[10px] text-blue-400 hover:text-blue-300 font-mono font-bold"
+                        className="text-[10px] text-emerald-400 hover:text-emerald-300 font-mono font-bold"
                       >
                         Mark all read
                       </button>
@@ -425,11 +431,11 @@ function PortalLayout() {
                       <div className="p-6 text-center text-stone-600">No active system alerts.</div>
                     ) : (
                       notifications.map((item) => {
-                        const iconMap = {
-                          approval: "⏳",
-                          complete: "✅",
-                          error: "⚠️",
-                          info: "💡",
+                        const iconMap: Record<string, NoticeIconName> = {
+                          approval: "approval",
+                          complete: "complete",
+                          error: "error",
+                          info: "info",
                         };
                         return (
                           <div
@@ -440,10 +446,10 @@ function PortalLayout() {
                               navigate({ to: item.link as any });
                             }}
                             className={`p-3.5 hover:bg-stone-900/40 transition-all cursor-pointer flex gap-3 ${
-                              !item.read ? "bg-blue-500/5 border-l-2 border-blue-500" : ""
+                              !item.read ? "bg-emerald-500/5 border-l-2 border-emerald-500/50" : ""
                             }`}
                           >
-                            <span className="text-sm shrink-0">{iconMap[item.type]}</span>
+                            <span className="shrink-0 text-emerald-400"><NoticeIcon name={iconMap[item.type]} className="w-4 h-4" /></span>
                             <div className="space-y-0.5 min-w-0">
                               <p className={`text-xs font-bold leading-tight truncate ${!item.read ? "text-white" : "text-stone-300"}`}>
                                 {item.title}
@@ -487,18 +493,18 @@ function PortalLayout() {
               key={link.path}
               to={link.path as any}
               className={`flex flex-col items-center justify-center flex-1 py-1 text-center transition-all ${
-                isActive ? "text-blue-500 font-black" : "text-stone-500 font-medium hover:text-stone-300"
+                isActive ? "text-emerald-400 font-black" : "text-stone-500 font-medium hover:text-stone-300"
               }`}
             >
-              <div className="relative text-lg">
-                {link.icon}
+              <div className="relative">
+                <PortalIcon name={link.icon} className="w-6 h-6" />
                 {link.badge !== undefined && link.badge > 0 && (
-                  <span className="absolute -top-1 -right-2 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[8px] font-bold text-white ring-2 ring-stone-950">
+                  <span className="absolute -top-1 -right-2 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white ring-2 ring-stone-950">
                     {link.badge}
                   </span>
                 )}
               </div>
-              <span className="text-[9px] mt-0.5 tracking-tight font-bold">{link.name}</span>
+              <span className="text-[10px] mt-0.5 tracking-tight font-bold">{link.name}</span>
             </Link>
           );
         })}

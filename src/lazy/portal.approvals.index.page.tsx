@@ -155,7 +155,7 @@ function ApprovalQueue() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="border-b border-stone-200 pb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="border-b border-stone-800 pb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-black text-stone-100 tracking-tight">✅ Approval Queue</h1>
           <p className="text-stone-500 mt-1">
@@ -167,7 +167,7 @@ function ApprovalQueue() {
           className={`px-4 py-2 rounded-xl text-xs font-bold border transition-colors ${
             mode === "on"
               ? "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600"
-              : "bg-stone-100 hover:bg-stone-200 text-stone-700 border-stone-200"
+              : "bg-stone-800 hover:bg-stone-700 text-stone-200 border-stone-700"
           }`}
         >
           {mode === "on" ? "🛡️ Approvals ON — writes wait for review" : "⚡ Auto-approve ON — writes execute immediately"}
@@ -183,7 +183,7 @@ function ApprovalQueue() {
       {/* Pending */}
       <section>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-black text-stone-800 uppercase tracking-wide">Pending ({pending.length})</h2>
+          <h2 className="text-sm font-black text-stone-100 uppercase tracking-wide">Pending ({pending.length})</h2>
           <Badge variant={pending.length > 0 ? "warning" : "emerald"}>
             {pending.length === 0 ? "All clear" : `${pending.length} awaiting review`}
           </Badge>
@@ -191,7 +191,7 @@ function ApprovalQueue() {
         {pending.length === 0 ? (
           <Card className="p-12 text-center">
             <span className="text-4xl">🎉</span>
-            <h3 className="text-md font-bold mt-4 text-stone-800">All Clear!</h3>
+            <h3 className="text-md font-bold mt-4 text-stone-100">All Clear!</h3>
             <p className="text-xs text-stone-400 mt-1">No agent writes are waiting for approval.</p>
           </Card>
         ) : (
@@ -203,8 +203,8 @@ function ApprovalQueue() {
                     <span className="font-mono text-stone-400">{a.actionId.slice(0, 14)}…</span>
                     <Badge variant="warning">{providerName(a.provider)}</Badge>
                   </div>
-                  <h3 className="font-black text-stone-900 text-sm leading-snug break-all">{a.actionType}</h3>
-                  <div className="bg-stone-50 p-3 rounded-xl border border-stone-200 text-xs space-y-1.5">
+                  <h3 className="font-black text-stone-100 text-sm leading-snug break-all">{a.actionType}</h3>
+                  <div className="bg-stone-50 p-3 rounded-xl border border-stone-800 text-xs space-y-1.5">
                     <div><strong className="text-stone-700">Where:</strong> <span className="text-stone-600">{a.summary.where}</span></div>
                     <div><strong className="text-stone-700">What:</strong> <span className="text-stone-600 break-all">{a.summary.what}</span></div>
                     <div><strong className="text-stone-700">Why:</strong> <span className="text-stone-600">{a.summary.why}</span></div>
@@ -213,7 +213,7 @@ function ApprovalQueue() {
                     </div>
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-2 border-t border-stone-100 pt-4">
+                <div className="grid grid-cols-3 gap-2 border-t border-stone-800 pt-4">
                   <button
                     onClick={() => decide(a.actionId, "approve")}
                     disabled={busyId === a.actionId}
@@ -224,7 +224,7 @@ function ApprovalQueue() {
                   <button
                     onClick={() => openEdit(a)}
                     disabled={busyId === a.actionId}
-                    className="bg-stone-100 hover:bg-stone-200 disabled:opacity-50 text-stone-700 border border-stone-200 font-bold py-2 rounded-xl text-xs"
+                    className="bg-stone-800 hover:bg-stone-700 disabled:opacity-50 text-stone-200 border border-stone-700 font-bold py-2 rounded-xl text-xs"
                   >
                     Edit
                   </button>
@@ -245,12 +245,12 @@ function ApprovalQueue() {
       {/* Decided audit trail */}
       {decided.length > 0 && (
         <section>
-          <h2 className="text-sm font-black text-stone-800 uppercase tracking-wide mb-4">Decided ({decided.length})</h2>
+          <h2 className="text-sm font-black text-stone-100 uppercase tracking-wide mb-4">Decided ({decided.length})</h2>
           <Card className="divide-y divide-stone-100">
             {decided.slice(0, 20).map((a) => (
               <div key={a.actionId} className="flex items-center justify-between gap-4 py-3 px-4 text-xs">
                 <div className="min-w-0">
-                  <div className="font-bold text-stone-800 truncate">{a.actionType}</div>
+                  <div className="font-bold text-stone-100 truncate">{a.actionType}</div>
                   <div className="text-stone-400 truncate">
                     {providerName(a.provider)} · decided {timeAgo(a.decidedAt || 0)}{a.decidedBy ? ` by ${a.decidedBy}` : ""}
                   </div>
@@ -277,14 +277,14 @@ function ApprovalQueue() {
         {editing && (
           <div className="space-y-4">
             <div className="text-xs text-stone-500">
-              Editing <strong className="font-mono text-stone-800">{editing.actionType}</strong> in{" "}
+              Editing <strong className="font-mono text-stone-100">{editing.actionType}</strong> in{" "}
               <strong>{providerName(editing.provider)}</strong>. The edited payload is what executes on approve.
             </div>
             <textarea
               value={editPayload}
               onChange={(e) => setEditPayload(e.target.value)}
               rows={10}
-              className="w-full font-mono text-xs bg-stone-50 border border-stone-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full font-mono text-xs bg-stone-50 border border-stone-800 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-emerald-500"
               spellCheck={false}
             />
             <div className="flex gap-2 justify-end">

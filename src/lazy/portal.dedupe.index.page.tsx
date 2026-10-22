@@ -178,7 +178,7 @@ export default function PortalDedupeIndexPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Dedupe &amp; Master Data</h1>
+        <h1 className="text-2xl font-bold text-stone-100">Dedupe &amp; Master Data</h1>
         <p className="mt-1 text-sm text-slate-600">
           Deterministic duplicate detection and data-quality checks over your own record tables, with non-destructive
           merge — a merge records a golden-record pointer; your underlying rows are never deleted or modified. Every
@@ -192,7 +192,7 @@ export default function PortalDedupeIndexPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardBody>
-            <h2 className="text-lg font-semibold text-slate-900">Create match rule</h2>
+            <h2 className="text-lg font-semibold text-stone-100">Create match rule</h2>
             <p className="mt-1 text-xs text-slate-500">
               Pairs of rows in the same table that agree on every field below are suggested as duplicates (exact or
               normalized comparison).
@@ -216,11 +216,11 @@ export default function PortalDedupeIndexPage() {
               <Button type="submit" variant="primary">Create match rule</Button>
             </form>
             {rules.length > 0 && (
-              <ul className="mt-4 divide-y divide-slate-100">
+              <ul className="mt-4 divide-y divide-stone-800">
                 {rules.map((r) => (
                   <li key={r.id} className="flex items-center justify-between py-2 text-sm">
                     <div>
-                      <span className="font-medium text-slate-800">{r.name}</span>
+                      <span className="font-medium text-stone-100">{r.name}</span>
                       <span className="ml-2 text-xs text-slate-500">
                         {tableName(r.tableId)} · {r.fields.join(", ")} · {r.matchMode}
                       </span>
@@ -235,7 +235,7 @@ export default function PortalDedupeIndexPage() {
 
         <Card>
           <CardBody>
-            <h2 className="text-lg font-semibold text-slate-900">Create quality rule</h2>
+            <h2 className="text-lg font-semibold text-stone-100">Create quality rule</h2>
             <p className="mt-1 text-xs text-slate-500">
               Deterministic validators checked on scan: required, email, phone, number-range, date-format. Scans report
               violation counts — records are never edited.
@@ -266,11 +266,11 @@ export default function PortalDedupeIndexPage() {
               <Button type="submit" variant="primary">Create quality rule</Button>
             </form>
             {quality.length > 0 && (
-              <ul className="mt-4 divide-y divide-slate-100">
+              <ul className="mt-4 divide-y divide-stone-800">
                 {quality.map((r) => (
                   <li key={r.id} className="flex items-center justify-between py-2 text-sm">
                     <div>
-                      <span className="font-medium text-slate-800">{r.name}</span>
+                      <span className="font-medium text-stone-100">{r.name}</span>
                       <span className="ml-2 text-xs text-slate-500">
                         {tableName(r.tableId)}.{r.field} · {r.ruleType}
                       </span>
@@ -288,7 +288,7 @@ export default function PortalDedupeIndexPage() {
         <CardBody>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-semibold text-slate-900">Run scan</h2>
+              <h2 className="text-lg font-semibold text-stone-100">Run scan</h2>
               <p className="mt-1 text-xs text-slate-500">
                 Compares rows with all active match rules and evaluates all active quality rules. Produces candidate
                 suggestions only — nothing is merged by a scan, and no record is modified.
@@ -310,7 +310,7 @@ export default function PortalDedupeIndexPage() {
                     <th className="py-2">Note</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-stone-800">
                   {runs.slice(0, 8).map((r) => (
                     <tr key={r.id}>
                       <td className="py-2 pr-4 font-mono text-xs">{r.id}</td>
@@ -331,7 +331,7 @@ export default function PortalDedupeIndexPage() {
 
       <Card>
         <CardBody>
-          <h2 className="text-lg font-semibold text-slate-900">Merge suggestions</h2>
+          <h2 className="text-lg font-semibold text-stone-100">Merge suggestions</h2>
           <p className="mt-1 text-xs text-slate-500">
             Deterministic duplicates (confidence 1.0). Merging records an identity pointer — the richer row becomes the
             survivor, duplicates are marked superseded, and no underlying record is deleted or modified.
@@ -339,7 +339,7 @@ export default function PortalDedupeIndexPage() {
           {suggestions.length === 0 ? (
             <p className="mt-3 text-sm text-slate-500">No open suggestions. Run a scan to find candidate duplicates.</p>
           ) : (
-            <ul className="mt-3 divide-y divide-slate-100">
+            <ul className="mt-3 divide-y divide-stone-800">
               {suggestions.slice(0, 20).map((s) => (
                 <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
                   <div>
@@ -368,15 +368,15 @@ export default function PortalDedupeIndexPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardBody>
-            <h2 className="text-lg font-semibold text-slate-900">Record identities</h2>
+            <h2 className="text-lg font-semibold text-stone-100">Record identities</h2>
             <p className="mt-1 text-xs text-slate-500">Golden-record pointers from approved merges.</p>
             {identities.length === 0 ? (
               <p className="mt-3 text-sm text-slate-500">No merges yet.</p>
             ) : (
-              <ul className="mt-3 divide-y divide-slate-100">
+              <ul className="mt-3 divide-y divide-stone-800">
                 {identities.slice(0, 8).map((i) => (
                   <li key={i.id} className="py-2 text-sm">
-                    <div className="font-mono text-xs text-slate-700">
+                    <div className="font-mono text-xs text-stone-400">
                       survivor {i.survivorRowId} ← {i.supersededRowIds.length} superseded
                     </div>
                     <div className="text-xs text-slate-500">{i.note.slice(0, 100)}…</div>
@@ -388,16 +388,16 @@ export default function PortalDedupeIndexPage() {
         </Card>
         <Card>
           <CardBody>
-            <h2 className="text-lg font-semibold text-slate-900">Pending approvals</h2>
+            <h2 className="text-lg font-semibold text-stone-100">Pending approvals</h2>
             <p className="mt-1 text-xs text-slate-500">Every dedupe mutation waits here until you approve or reject it.</p>
             {writes.length === 0 ? (
               <p className="mt-3 text-sm text-slate-500">Nothing waiting for approval.</p>
             ) : (
-              <ul className="mt-3 divide-y divide-slate-100">
+              <ul className="mt-3 divide-y divide-stone-800">
                 {writes.map((w) => (
                   <li key={w.id} className="flex items-center justify-between py-2 text-sm">
                     <div>
-                      <span className="font-medium text-slate-800">{w.action}</span>
+                      <span className="font-medium text-stone-100">{w.action}</span>
                       <span className="ml-2 text-xs text-slate-500">{w.requestedAt}</span>
                     </div>
                     <div className="flex gap-2">

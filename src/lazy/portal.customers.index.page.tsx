@@ -228,7 +228,7 @@ function CRMERPConnectorPage() {
                   <h4 className="font-extrabold text-sm text-white truncate">{provider.name}</h4>
                   <span className="text-[10px] font-mono text-stone-500 uppercase">{provider.category}</span>
                 </div>
-                <span className={`shrink-0 text-[9px] font-mono font-bold px-2 py-0.5 rounded border ${
+                <span className={`shrink-0 text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${
                   authMethod === "oauth2" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-amber-500/10 text-amber-400 border-amber-500/20"
                 }`}>{authMethod === "oauth2" ? "OAuth" : "API Key"}</span>
               </div>
@@ -239,7 +239,7 @@ function CRMERPConnectorPage() {
                   <span className={`inline-block h-2 w-2 rounded-full ${STATUS_COLORS[conn!.status] || "bg-stone-600"}`} />
                   <span className="text-[10px] font-mono font-bold text-stone-400 uppercase">{conn!.status}</span>
                   {conn!.assignedAgent && (
-                    <span className="text-[9px] font-mono text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-1.5 py-0.5 rounded">
+                    <span className="text-[10px] font-mono text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-1.5 py-0.5 rounded">
                       → {AGENT_TYPES.find((a) => a.id === conn!.assignedAgent)?.name ?? conn!.assignedAgent}
                     </span>
                   )}
@@ -267,7 +267,7 @@ function CRMERPConnectorPage() {
                       placeholder="API Key" className="w-full bg-stone-950 border border-stone-800 focus:border-indigo-600 rounded-lg px-3 py-1.5 text-xs text-stone-200 outline-none" />
                     <input type="text" value={subdomain} onChange={(e) => setSubdomain(e.target.value)}
                       placeholder="Subdomain / Instance URL" className="w-full bg-stone-950 border border-stone-800 focus:border-indigo-600 rounded-lg px-3 py-1.5 text-xs text-stone-200 outline-none" />
-                    {connectError && <p className="text-[9px] text-rose-400 font-mono">{connectError}</p>}
+                    {connectError && <p className="text-[10px] text-rose-400 font-mono">{connectError}</p>}
                     <div className="flex gap-2">
                       <button onClick={handleConnect} disabled={connecting}
                         className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-mono text-[10px] font-bold py-1.5 rounded-lg disabled:opacity-50">
@@ -293,12 +293,12 @@ function CRMERPConnectorPage() {
                     <div className="flex items-center gap-2">
                       <span className={`inline-block h-2 w-2 rounded-full ${STATUS_COLORS[conn!.status]}`} />
                       <span className="text-[10px] font-mono font-bold text-stone-300 uppercase">{conn!.status}</span>
-                      {conn!.healthAt && <span className="text-[9px] font-mono text-stone-500">Last: {new Date(conn!.healthAt).toLocaleString()}</span>}
+                      {conn!.healthAt && <span className="text-[10px] font-mono text-stone-500">Last: {new Date(conn!.healthAt).toLocaleString()}</span>}
                     </div>
                   </div>
                   {conn!.errorMsg && (
                     <div className="bg-rose-500/5 border border-rose-500/20 rounded-lg p-2.5">
-                      <p className="text-[9px] font-mono text-rose-400">{conn!.errorMsg}</p>
+                      <p className="text-[10px] font-mono text-rose-400">{conn!.errorMsg}</p>
                     </div>
                   )}
                 </div>

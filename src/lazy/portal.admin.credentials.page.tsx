@@ -350,7 +350,7 @@ function AdminCredentialsPage() {
                     <div>
                       <div className="flex items-center gap-2.5">
                         <h3 className="font-bold text-white tracking-tight">{provider.name}</h3>
-                        <Badge className="bg-stone-950 text-stone-400 border border-stone-800 px-2 py-0.5 text-[9px] uppercase font-black">
+                        <Badge className="bg-stone-950 text-stone-400 border border-stone-800 px-2 py-0.5 text-[10px] uppercase font-black">
                           {provider.category}
                         </Badge>
                       </div>

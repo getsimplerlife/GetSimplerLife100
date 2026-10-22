@@ -202,7 +202,7 @@ function DeveloperPortal() {
                   <td className="p-4 font-mono text-[10px] text-stone-400">{maskKey(k.value)}</td>
                   <td className="p-4 text-stone-500 text-[11px]">{k.createdAt ? new Date(k.createdAt).toLocaleDateString() : "—"}</td>
                   <td className="p-4">
-                    <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded border bg-emerald-950/40 text-emerald-400 border-emerald-900/40">
+                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded border bg-emerald-950/40 text-emerald-400 border-emerald-900/40">
                       Active
                     </span>
                   </td>

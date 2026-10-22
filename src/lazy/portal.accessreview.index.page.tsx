@@ -129,7 +129,7 @@ export default function PortalAccessReviewIndexPage() {
     <div className="p-6">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold">Access Reviews</h1>
-        <p className="mt-1 text-sm text-gray-600">
+        <p className="mt-1 text-sm text-stone-400">
           Periodic certification campaigns over your own member access + workflow inventory. Attestations record durable
           evidence — this slice never changes access itself.
         </p>
@@ -191,7 +191,7 @@ export default function PortalAccessReviewIndexPage() {
         <Card>
           <CardBody>
             <h2 className="mb-3 text-lg font-medium">Campaigns</h2>
-            {campaigns.length === 0 && <p className="text-sm text-gray-500">No campaigns yet.</p>}
+            {campaigns.length === 0 && <p className="text-sm text-stone-500">No campaigns yet.</p>}
             <div className="space-y-3">
               {campaigns.map((c) => (
                 <div key={c.id} className="rounded-md border p-3">
@@ -204,7 +204,7 @@ export default function PortalAccessReviewIndexPage() {
                     </button>
                     <Badge variant={statusVariant(c.status)}>{c.status}</Badge>
                   </div>
-                  <p className="mt-1 text-xs text-gray-500">
+                  <p className="mt-1 text-xs text-stone-500">
                     {c.cadence} · {c.reviewerEmails.length} reviewer(s) · {c.itemsGenerated} item(s)
                   </p>
                   <div className="mt-2 flex flex-wrap gap-2">
@@ -252,7 +252,7 @@ export default function PortalAccessReviewIndexPage() {
           <CardBody>
             <h2 className="mb-3 text-lg font-medium">Review items — pending attestation</h2>
             {items.filter((i) => i.status === "pending").length === 0 && (
-              <p className="text-sm text-gray-500">No pending items.</p>
+              <p className="text-sm text-stone-500">No pending items.</p>
             )}
             <div className="space-y-3">
               {items
@@ -261,7 +261,7 @@ export default function PortalAccessReviewIndexPage() {
                   <div key={i.id} className="rounded-md border p-3">
                     <p className="text-sm font-medium">
                       {i.kind === "member" ? "👤" : "⚡"} {i.subjectName}{" "}
-                      <span className="text-xs text-gray-500">({i.kind})</span>
+                      <span className="text-xs text-stone-500">({i.kind})</span>
                     </p>
                     <div className="mt-2 flex flex-wrap gap-2">
                       <Button size="sm" onClick={() => void attest(i, "certified")}>
@@ -288,14 +288,14 @@ export default function PortalAccessReviewIndexPage() {
       <Card className="mt-6">
         <CardBody>
           <h2 className="mb-3 text-lg font-medium">Evidence log</h2>
-          {evidence.length === 0 && <p className="text-sm text-gray-500">No attestations recorded yet.</p>}
+          {evidence.length === 0 && <p className="text-sm text-stone-500">No attestations recorded yet.</p>}
           <div className="max-h-72 space-y-2 overflow-y-auto">
             {evidence.map((e) => (
               <div key={e.id} className="rounded-md border p-2 text-sm">
                 <span className="font-medium">{e.decision}</span> · {e.itemId} by{" "}
                 {e.decidedBy} · {new Date(e.createdAt).toLocaleString()}
-                {e.comment && <p className="mt-1 text-xs text-gray-600">{e.comment}</p>}
-                <p className="mt-1 text-xs text-gray-400">{e.note}</p>
+                {e.comment && <p className="mt-1 text-xs text-stone-400">{e.comment}</p>}
+                <p className="mt-1 text-xs text-stone-400">{e.note}</p>
               </div>
             ))}
           </div>
@@ -305,12 +305,12 @@ export default function PortalAccessReviewIndexPage() {
       <Card className="mt-6">
         <CardBody>
           <h2 className="mb-3 text-lg font-medium">Pending approvals</h2>
-          {writes.length === 0 && <p className="text-sm text-gray-500">Nothing awaiting approval.</p>}
+          {writes.length === 0 && <p className="text-sm text-stone-500">Nothing awaiting approval.</p>}
           <div className="space-y-2">
             {writes.map((w) => (
               <div key={w.id} className="flex items-center justify-between rounded-md border p-2 text-sm">
                 <span>
-                  {w.action} <span className="text-gray-500">· {new Date(w.requestedAt).toLocaleString()}</span>
+                  {w.action} <span className="text-stone-500">· {new Date(w.requestedAt).toLocaleString()}</span>
                 </span>
                 <div className="flex gap-2">
                   <Button size="sm" onClick={() => void submit(`/api/native/accessreview/writes/${w.id}/apply`, {})}>

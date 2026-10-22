@@ -192,7 +192,7 @@ export default function TransformsPage() {
             </h2>
             <div className="space-y-2">
               {pending.map((w) => (
-                <div key={w.id} className="flex items-center justify-between rounded border border-slate-200 px-3 py-2 text-sm">
+                <div key={w.id} className="flex items-center justify-between rounded border border-stone-800 px-3 py-2 text-sm">
                   <span>
                     <Badge variant="warning">{w.op}</Badge> <span className="font-mono">{w.transformId ?? "—"}</span>
                   </span>
@@ -287,7 +287,7 @@ export default function TransformsPage() {
           <div className="space-y-2">
             {transforms.length === 0 ? <p className="text-sm text-slate-400">No transforms yet — create one above.</p> : null}
             {transforms.map((t) => (
-              <div key={t.id} className="rounded border border-slate-200 p-3">
+              <div key={t.id} className="rounded border border-stone-800 p-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold">{t.name}</span>
@@ -331,7 +331,7 @@ export default function TransformsPage() {
                     </Button>
                     <div className="space-y-1">
                       {runs.map((r) => (
-                        <div key={r.id} className="flex items-center justify-between rounded border border-slate-100 px-2 py-1 text-xs">
+                        <div key={r.id} className="flex items-center justify-between rounded border border-stone-800 px-2 py-1 text-xs">
                           <span className="font-mono">{r.id}</span>
                           <span>
                             <Badge variant={r.status === "applied" ? "success" : "danger"}>{r.status}</Badge> {r.rowCount} rows {r.artifactKind ? `· ${r.artifactKind}` : ""}
@@ -365,14 +365,14 @@ export default function TransformsPage() {
             </h2>
             {selectedRun.error ? <p className="text-sm text-rose-600">{selectedRun.error}</p> : null}
             {selectedRun.artifact ? (
-              <pre className="max-h-72 overflow-auto rounded border border-slate-200 bg-slate-50 p-3 font-mono text-xs">{selectedRun.artifact.text}</pre>
+              <pre className="max-h-72 overflow-auto rounded border border-stone-800 bg-slate-50 p-3 font-mono text-xs">{selectedRun.artifact.text}</pre>
             ) : null}
             {selectedRun.rows && selectedRun.rows.length > 0 ? (
               <table className="mt-2 w-full text-xs">
                 <thead>
                   <tr className="text-left text-slate-500">
                     {Object.keys(selectedRun.rows[0]!.values).map((k) => (
-                      <th key={k} className="border-b border-slate-200 px-2 py-1">
+                      <th key={k} className="border-b border-stone-800 px-2 py-1">
                         {k}
                       </th>
                     ))}
@@ -380,7 +380,7 @@ export default function TransformsPage() {
                 </thead>
                 <tbody>
                   {selectedRun.rows.map((row, i) => (
-                    <tr key={i} className="border-b border-slate-100">
+                    <tr key={i} className="border-b border-stone-800">
                       {Object.entries(row.values).map(([k, v]) => (
                         <td key={k} className="px-2 py-1">
                           {String(v)}

@@ -289,7 +289,7 @@ function ActivityHubDashboard() {
                                 fetchDashboardData();
                               } catch {}
                             }}
-                            className="text-[9px] font-bold text-emerald-400 hover:text-emerald-300 bg-emerald-950/20 border border-emerald-900/40 px-2 py-1 rounded-lg"
+                            className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 bg-emerald-950/20 border border-emerald-900/40 px-2 py-1 rounded-lg"
                           >
                             ✓ Complete
                           </button>
@@ -314,7 +314,7 @@ function ActivityHubDashboard() {
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-black text-white">📥 Pending Approvals</h3>
                 {pendingApprovals > 0 && (
-                  <span className="bg-amber-500/10 text-amber-400 text-[9px] font-bold px-2 py-0.5 rounded-md border border-amber-500/20">{pendingApprovals}</span>
+                  <span className="bg-amber-500/10 text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded-md border border-amber-500/20">{pendingApprovals}</span>
                 )}
               </div>
               {approvals.length === 0 ? (
@@ -326,12 +326,12 @@ function ActivityHubDashboard() {
                 <div className="space-y-3">
                   {approvals.slice(0, 3).map((app: any) => (
                     <div key={app.actionId} className="bg-stone-900/50 border border-stone-800 rounded-lg p-3 space-y-2">
-                      <div className="flex justify-between text-[9px] font-mono">
+                      <div className="flex justify-between text-[10px] font-mono">
                         <span className="text-stone-500 truncate">{app.actionId?.slice(0, 12) || "PENDING"}</span>
                         <span className="text-blue-400">{app.provider || "unknown"}</span>
                       </div>
                       <p className="text-[10px] font-bold text-white leading-snug">{app.actionType}</p>
-                      <p className="text-[9px] text-stone-400 leading-relaxed bg-stone-950 rounded-lg p-2">{(app.summary?.what || "No details") + (app.summary?.where ? " \u2192 " + app.summary.where : "")}</p>
+                      <p className="text-[10px] text-stone-400 leading-relaxed bg-stone-950 rounded-lg p-2">{(app.summary?.what || "No details") + (app.summary?.where ? " \u2192 " + app.summary.where : "")}</p>
                       <div className="grid grid-cols-2 gap-1.5">
                         <button onClick={() => handleApprovalAction(app.actionId, "approve")}
                           className="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold py-1.5 rounded-lg transition-all">Approve</button>
@@ -403,7 +403,7 @@ function ActivityHubDashboard() {
               <div className="bg-stone-950 border border-stone-900 rounded-xl p-5 space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-black text-white">🚀 Setup Progress</h3>
-                  <span className="text-[9px] font-mono text-stone-500">{onboardingProgress}/3</span>
+                  <span className="text-[10px] font-mono text-stone-500">{onboardingProgress}/3</span>
                 </div>
                 <div className="w-full bg-stone-900 rounded-full h-1.5 overflow-hidden">
                   <div className="bg-blue-500 h-full rounded-full transition-all"
@@ -413,7 +413,7 @@ function ActivityHubDashboard() {
                   {onboardingSteps.filter(s => !s.done).slice(0, 2).map((step, i) => (
                     <Link key={i} to={step.link as any}
                       className="flex items-center gap-2 text-[10px] text-stone-400 hover:text-white transition-colors py-1">
-                      <span className="w-4 h-4 rounded-full bg-stone-800 flex items-center justify-center text-[8px] text-stone-500 shrink-0">{i + 1}</span>
+                      <span className="w-4 h-4 rounded-full bg-stone-800 flex items-center justify-center text-[10px] text-stone-500 shrink-0">{i + 1}</span>
                       {step.label} →
                     </Link>
                   ))}
