@@ -377,7 +377,7 @@ function PortalLayout() {
         <header className="hidden lg:flex w-full h-14 bg-stone-950 border-b border-stone-900 items-center justify-between px-10 sticky top-0 z-30 select-none">
           <div className="flex items-center gap-3">
             <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-[10px] font-mono tracking-widest text-stone-400 uppercase font-bold">WORKSPACE RUNNING UNDER SECURITY LAYER</span>
+            <span className="text-[10px] font-mono tracking-widest text-stone-400 uppercase font-bold">WORKSPACE ACTIVE</span>
           </div>
 
           <div className="flex items-center gap-6">

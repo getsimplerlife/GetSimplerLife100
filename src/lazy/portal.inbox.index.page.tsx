@@ -53,11 +53,11 @@ function UnifiedInbox() {
     })();
   }, []);
 
-  const handleStatusChange = async (itemId: string, newStatus: "Unresolved" | "Resolved") => {
+  const handleStatusChange = async (_itemId: string, newStatus: "Unresolved" | "Resolved") => {
     try {
       setFeedback(`Updating item state to ${newStatus}...`);
       const updatedItems = items.map((itm) => {
-        if (itm.id === itemId) {
+        if (itm.id === _itemId) {
           return { ...itm, status: itm.status === "Resolved" ? "Unresolved" as const : "Resolved" as const };
         }
         return itm;
@@ -65,27 +65,9 @@ function UnifiedInbox() {
 
       setItems(updatedItems);
 
-      // Persist the changes
-      await fetch("/api/data/inbox", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ data: updatedItems }),
-      });
-
-      // Trigger audit log action
-      await fetch("/api/data/inbox", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          action: "inbox_resolve",
-          resource: itemId,
-          details: { id: itemId, status: newStatus },
-        }),
-      });
-
-      setFeedback(`Success: Item is now marked as ${newStatus}!`);
+      // P1-2 honesty: the inbox data endpoint is read-only for this surface —
+      // status changes are NOT persisted and no audit row is written.
+      setFeedback(`Marked as ${newStatus} for this session — changes aren't saved yet.`);
       setTimeout(() => setFeedback(""), 2000);
     } catch (err) {
       console.error(err);
@@ -93,31 +75,21 @@ function UnifiedInbox() {
     }
   };
 
-  const handleSendDraftReply = async (itemId: string) => {
+  const handleSendDraftReply = async (_itemId: string) => {
     if (!replyText.trim()) return;
     setIsSendingReply(true);
-    setFeedback("Drafting response using RAG Context Matrix...");
+    setFeedback("Checking reply availability...");
 
     try {
-      // Simulate/Trigger active response pipeline
-      await fetch("/api/data/inbox", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          action: "inbox_reply",
-          resource: itemId,
-          details: { reply: replyText },
-        }),
-      });
-
-      setFeedback("Success: Response sent successfully!");
+      // P1-2 honesty: replies are not wired on this page (the Communications
+      // log compose is the real path). Nothing is sent — say exactly that.
+      setFeedback("Replies aren't sent from this workspace yet — no email was sent.");
       setReplyText("");
       setIsSendingReply(false);
       setTimeout(() => setFeedback(""), 2000);
     } catch (err) {
       console.error(err);
-      setFeedback("Failed to send response.");
+      setFeedback("Reply unavailable on this page.");
       setIsSendingReply(false);
     }
   };

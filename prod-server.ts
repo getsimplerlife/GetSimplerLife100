@@ -2910,15 +2910,16 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
     if (pathname === "/api/data/payment-method") {
       const user = await getUserFromSession(req);
       if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
-      // Seed payment method data — the owner always has a card on file.
-      // In production this would pull real data from Stripe's API.
-      if (isOwnerUser(user)) {
-        return Response.json({ data: { brand: "Visa", last4: "4242", expMonth: 12, expYear: 2027, isDefault: true } });
-      }
-      // For other users, check tenant data or return null
+      // P1-2 honest-outcome: this endpoint previously fabricated a "Visa 4242"
+      // card for the owner. Payment methods are now read ONLY from the caller's
+      // own durable rows (tenant_payment_methods.json, written only by real
+      // billing flows) and otherwise return honest null — no code path can
+      // surface a card that does not exist.
       const pmFile = join(DATA_DIR, "tenant_payment_methods.json");
       const pmData = readJSON(pmFile);
-      return Response.json({ data: pmData[user.email] || null });
+      const pmRows = pmData && typeof pmData === "object" && !Array.isArray(pmData) ? pmData[user.email] : [];
+      const card = Array.isArray(pmRows) && pmRows.length > 0 ? pmRows[0] : null;
+      return Response.json({ data: card });
     }
 
     // ── /api/integrations/:id/sync & /api/integrations/:id DELETE ──

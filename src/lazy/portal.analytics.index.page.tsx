@@ -27,48 +27,43 @@ function PerformanceAnalytics() {
   const [feedback, setFeedback] = useState("");
   const [activeTab, setActiveTab] = useState<"all" | "executive" | "coworker" | "bottleneck">("all");
 
+  const loadAnalytics = async () => {
+    const res = await fetch("/api/data/analytics", { credentials: "include" });
+    const d = await res.json();
+    if (d.data) {
+      if (Array.isArray(d.data)) {
+        setMetrics(d.data);
+      } else {
+        setMetrics([]);
+        if (Array.isArray(d.data.departments)) setDepartments(d.data.departments);
+      }
+    } else {
+      setMetrics([]);
+    }
+  };
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("/api/data/analytics", { credentials: "include" });
-        const d = await res.json();
-        
-        if (d.data) {
-          // Handle both array (old format) and object (new format) responses
-          if (Array.isArray(d.data)) {
-            setMetrics(d.data);
-          } else {
-            // New format: { totalUsers, totalAgents, ..., departments }
-            setMetrics([]);
-            if (Array.isArray(d.data.departments)) {
-              setDepartments(d.data.departments);
-            }
-          }
-        } else {
-          setMetrics([]);
-        }
-        setLoading(false);
+        await loadAnalytics();
       } catch (err) {
         console.error("Analytics fetch error:", err);
         setMetrics([]);
+      } finally {
         setLoading(false);
       }
     })();
   }, []);
 
-  const handleAction = async (action: string) => {
+  const handleAction = async (_action: string) => {
     try {
-      setFeedback(`Updating analytics data...`);
-      await fetch("/api/data/analytics", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ action: "analytics_" + action.toLowerCase() }),
-      });
-      setFeedback(`Success: Performance data refreshed`);
+      setFeedback(`Refreshing analytics data...`);
+      // The analytics endpoint is read-only; refreshing means refetching it.
+      await loadAnalytics();
+      setFeedback(`Analytics data refreshed`);
       setTimeout(() => setFeedback(""), 2000);
     } catch (err) {
       console.error(err);
+      setFeedback(`Failed to refresh analytics`);
     }
   };
 

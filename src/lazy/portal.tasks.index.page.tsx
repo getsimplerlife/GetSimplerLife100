@@ -39,7 +39,9 @@ function TasksQueue() {
         }),
       });
       await res.json();
-      setFeedback("Success: " + action + " completed for Task " + id);
+      // P1-2 honesty: the data API only appends a request record for arbitrary
+      // task actions — no execution engine is wired for them. Say exactly that.
+      setFeedback("Request logged for Task " + id + " — \"" + action + "\" is not executed from this workspace yet.");
       setTimeout(() => setFeedback(""), 4000);
     } catch (err) {
       console.error(err);
@@ -76,7 +78,7 @@ function TasksQueue() {
       <div className="border-b border-stone-800 pb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-black text-stone-100 tracking-tight">📋 Tasks Queue</h1>
-          <p className="text-stone-400 mt-1">Review live processes, inspect queue backlogs, download execution transcripts, and override holds.</p>
+          <p className="text-stone-400 mt-1">Review your task history and workflow runs. The purge action is the only task action executed from this page.</p>
         </div>
         <button
           onClick={async () => {
