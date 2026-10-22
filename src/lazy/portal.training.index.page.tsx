@@ -44,26 +44,26 @@ function ModelTraining() {
 
   return (
     <div className="space-y-8 font-sans">
-      <div className="border-b border-stone-200 pb-6 flex justify-between items-center">
+      <div className="border-b border-stone-800 pb-6 flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-black text-stone-900 tracking-tight">🏋️ AI Model Training</h1>
-          <p className="text-stone-500 mt-1">Upload customized datasets to fine-tune system OCR parsing weights and neural pipelines.</p>
+          <h1 className="text-3xl font-black text-stone-100 tracking-tight">🏋️ AI Model Training</h1>
+          <p className="text-stone-400 mt-1">Upload customized datasets to fine-tune system OCR parsing weights and neural pipelines.</p>
         </div>
         <button onClick={() => handleAction("Generic model", "upload_dataset")} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm px-6 py-3 rounded-2xl shadow-lg">📤 Upload Dataset</button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {models.map((m, idx) => (
-          <div key={idx} className="bg-white p-6 rounded-3xl border border-stone-200 shadow-sm flex flex-col justify-between gap-6">
+          <div key={idx} className="bg-stone-900 p-6 rounded-3xl border border-stone-800 shadow-sm flex flex-col justify-between gap-6">
             <div className="space-y-3">
               <div className="flex justify-between items-center text-xs">
-                <span className="font-bold text-stone-900">{m.name}</span>
-                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">{m.status}</span>
+                <span className="font-bold text-stone-100">{m.name}</span>
+                <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/25">{m.status}</span>
               </div>
-              <p className="text-xs text-stone-500 font-semibold">{m.type}</p>
-              <div className="text-xs font-bold text-stone-800">Target Accuracy: {m.accuracy}%</div>
+              <p className="text-xs text-stone-400 font-semibold">{m.type}</p>
+              <div className="text-xs font-bold text-stone-300">Target Accuracy: {m.accuracy}%</div>
             </div>
-            <button onClick={() => handleAction(m.name, "train")} className="w-full bg-stone-900 hover:bg-stone-850 text-white font-bold py-2 rounded-xl text-xs">🏋️ Train neural weights</button>
+            <button onClick={() => handleAction(m.name, "train")} className="w-full bg-stone-700 hover:bg-stone-600 text-white font-bold py-2 rounded-xl text-xs">🏋️ Train neural weights</button>
           </div>
         ))}
       </div>

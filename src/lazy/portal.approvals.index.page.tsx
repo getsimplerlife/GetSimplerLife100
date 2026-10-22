@@ -157,7 +157,7 @@ function ApprovalQueue() {
       {/* Header */}
       <div className="border-b border-stone-200 pb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black text-stone-900 tracking-tight">✅ Approval Queue</h1>
+          <h1 className="text-3xl font-black text-stone-100 tracking-tight">✅ Approval Queue</h1>
           <p className="text-stone-500 mt-1">
             Every AI write action waits here for your approval. Nothing executes until you say so.
           </p>
