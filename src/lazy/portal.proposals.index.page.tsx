@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Card, Badge, Button } from "~/components/ui";
+import { PortalEmptyState, scrollToId } from "~/components/PortalEmptyState";
 
 interface ProposalSummary {
   id: string;
@@ -157,7 +158,7 @@ export default function ProposalsPage() {
       {feedback && <div className="rounded border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-800">{feedback}</div>}
       {clip && <div className="rounded border border-sky-300 bg-sky-50 p-3 text-sm text-sky-800 break-all">{clip}</div>}
 
-      <Card>
+      <Card id="proposal-composer">
         <h2 className="mb-3 text-lg font-semibold">New proposal</h2>
         <div className="grid gap-3 md:grid-cols-2">
           <input className="rounded border p-2" placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
@@ -185,7 +186,11 @@ export default function ProposalsPage() {
         {loading ? (
           <p className="text-sm text-gray-500">Loading…</p>
         ) : items.length === 0 ? (
-          <p className="text-sm text-gray-500">No proposals yet — create your first draft above.</p>
+          <PortalEmptyState
+            title="No proposals yet"
+            body="Draft your first proposal in the composer above — every write is approval-gated and audited."
+            action={{ label: "Open the composer", onClick: () => scrollToId("proposal-composer") }}
+          />
         ) : (
           <div className="space-y-3">
             {items.map((p) => (

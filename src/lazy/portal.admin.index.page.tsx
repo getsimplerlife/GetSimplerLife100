@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { PortalEmptyState } from "~/components/PortalEmptyState";
 
 
 
@@ -144,7 +145,20 @@ function AdminIndex() {
           </div>
           <div className="divide-y divide-stone-800/60">
             {filteredUsers.length === 0 && (
-              <div className="p-8 text-center text-stone-500 font-bold">No clients found</div>
+              users.length === 0 ? (
+                <PortalEmptyState
+                  compact
+                  title="No clients yet"
+                  body="Clients appear here after their first signup."
+                />
+              ) : (
+                <PortalEmptyState
+                  compact
+                  title="No clients match your search"
+                  body="Try a different search term."
+                  action={{ label: "Clear search", onClick: () => setSearch("") }}
+                />
+              )
             )}
             {filteredUsers.map((u) => {
               const userPurchases = purchasesByUser[u.id] || [];

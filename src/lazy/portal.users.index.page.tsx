@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { PortalEmptyState } from "~/components/PortalEmptyState";
 
 
 
@@ -19,17 +20,22 @@ function UserManagement() {
 
   const handleAction = async (email: string, action: string) => {
     try {
-      setFeedback(`Processing user action: ${action}...`);
-      await fetch("/api/data/users", {
+      const res = await fetch("/api/data/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({ action: "user_" + action.toLowerCase(), resource: email }),
       });
-      setFeedback("Success: Action completed");
-      setTimeout(() => setFeedback(""), 3000);
+      setFeedback(
+        res.ok
+          ? `Request logged for ${email} — "${action}" is not executed from this workspace yet.`
+          : "Request failed — try again.",
+      );
+      setTimeout(() => setFeedback(""), 4000);
     } catch (err) {
       console.error(err);
+      setFeedback("Request failed — try again.");
+      setTimeout(() => setFeedback(""), 4000);
     }
   };
 
@@ -52,6 +58,14 @@ function UserManagement() {
       </div>
 
       <div className="bg-stone-900 rounded-3xl border border-stone-800 overflow-hidden">
+        {users.length === 0 ? (
+          <div className="p-8">
+            <PortalEmptyState
+              title="No team members yet"
+              body="Team members appear here after their first signup. Use Invite Member above to add your first teammate."
+            />
+          </div>
+        ) : (
         <table className="w-full text-left text-xs font-semibold">
           <thead>
             <tr className="bg-stone-800 text-stone-400 border-b border-stone-800 uppercase tracking-wider">
@@ -76,6 +90,7 @@ function UserManagement() {
             ))}
           </tbody>
         </table>
+        )}
       </div>
 
       {feedback && (

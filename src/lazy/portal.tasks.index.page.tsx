@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { PortalEmptyState } from "~/components/PortalEmptyState";
 
 
 
@@ -83,17 +84,24 @@ function TasksQueue() {
         <button
           onClick={async () => {
             try {
-              setFeedback("Initializing queue purging sequence...");
-              await fetch("/api/data/tasks", {
+              setFeedback("Purging failed tasks…");
+              const res = await fetch("/api/data/tasks", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 credentials: "include",
                 body: JSON.stringify({ action: "purge_failed_tasks", resource: "tasks_queue" }),
               });
-              setFeedback("Success: Failed tasks backlog queue cleared");
+              const data = await res.json().catch(() => ({}));
+              setFeedback(
+                res.ok
+                  ? `Failed tasks purged${typeof data?.purged === "number" ? ` (${data.purged} removed)` : ""}.`
+                  : "Purge failed — try again.",
+              );
               setTimeout(() => setFeedback(""), 4000);
             } catch (err) {
               console.error(err);
+              setFeedback("Purge failed — try again.");
+              setTimeout(() => setFeedback(""), 4000);
             }
           }}
           className="bg-stone-900 text-stone-300 hover:text-stone-100 border border-stone-300 hover:border-stone-400 font-bold text-sm px-6 py-3 rounded-2xl shadow-sm self-start sm:self-auto"
@@ -128,6 +136,18 @@ function TasksQueue() {
       </div>
 
       {/* Table */}
+      {filteredTasks.length === 0 ? (
+        <div className="bg-stone-900 rounded-3xl border border-stone-800 shadow-sm p-8">
+          <PortalEmptyState
+            title={tasks.length === 0 ? "No tasks recorded yet" : "No tasks match this view"}
+            body={
+              tasks.length === 0
+                ? "Task activity appears here as your workspaces run. Nothing has been recorded for this account yet."
+                : "Try a different search or status tab."
+            }
+          />
+        </div>
+      ) : (
       <div className="bg-stone-900 rounded-3xl border border-stone-800 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs font-semibold">
@@ -188,6 +208,7 @@ function TasksQueue() {
           </table>
         </div>
       </div>
+      )}
 
       {feedback && (
         <div className="fixed bottom-6 right-6 bg-stone-900 border border-emerald-500 text-white px-5 py-3 rounded-2xl shadow-xl z-50 flex items-center gap-3 animate-slideUp">

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Card, Badge, Button } from "~/components/ui";
+import { PortalEmptyState } from "~/components/PortalEmptyState";
 
 interface ColumnSummary {
   id: string;
@@ -230,7 +231,13 @@ export default function BoardsPage() {
               <p className="mt-2 text-xs text-slate-400">{b.columns.length} columns · selected: {selected?.id === b.id ? "yes" : "click to open"}</p>
             </Card>
           ))}
-          {boards.length === 0 && <p className="text-sm text-slate-400">No boards yet — create one (it rides the approval queue).</p>}
+          {boards.length === 0 && (
+            <PortalEmptyState
+              compact
+              title="No boards yet"
+              body="Create your first board with New board above — new boards ride the approval queue."
+            />
+          )}
         </div>
 
         <Card className="p-5">
@@ -321,7 +328,9 @@ export default function BoardsPage() {
                             )}
                           </div>
                         ))}
-                      {cards.filter((c) => c.columnId === col.id).length === 0 && <p className="text-xs text-slate-400">empty</p>}
+                      {cards.filter((c) => c.columnId === col.id).length === 0 && (
+                        <p className="text-xs text-slate-400 py-2 text-center">No cards in this column yet.</p>
+                      )}
                     </div>
                   </div>
                 ))}
