@@ -1,11 +1,12 @@
 import { Link, Outlet, useNavigate, useLocation } from "@tanstack/react-router";
 import { useState, useLayoutEffect, useRef } from "react";
 import { PortalContext } from "~/routes/portal.context";
-import type { SystemNotification, PortalContextType } from "~/routes/portal.context";
+import type { PortalContextType } from "~/routes/portal.context";
 export { PortalContext, usePortalContext } from "~/routes/portal.context";
-export type { SystemNotification, PortalContextType } from "~/routes/portal.context";
+export type { PortalContextType } from "~/routes/portal.context";
 import { isOwnerUser } from "../lib/user-roles";
-import { PortalIcon, NoticeIcon, type PortalIconName, type NoticeIconName } from "../components/PortalIcons";
+import { usePortalNotifications } from "../lib/portal-notifications";
+import { PortalIcon, type PortalIconName } from "../components/PortalIcons";
 
 
 
@@ -31,32 +32,13 @@ function PortalLayout() {
   const [user, setUser] = useState<{ email: string; role?: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [bellOpen, setBellOpen] = useState(false);
-  const [notifications, setNotifications] = useState<SystemNotification[]>([]);
   const [pwaPrompt, setPwaPrompt] = useState<any>(null);
 
-  const bellRef = useRef<HTMLDivElement>(null);
-
-  // Load notifications
-  const loadNotifications = async () => {
-    try {
-      const res = await fetch("/api/data/system_notifications", { credentials: "include" });
-      if (res.ok) {
-        const json = await res.json();
-        if (json.data && json.data.length > 0) {
-          // Sort newest first
-          const sorted = [...json.data].sort(
-            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-          );
-          setNotifications(sorted);
-        } else {
-          setNotifications([]);
-        }
-      }
-    } catch (err) {
-      console.error("Failed to load system notifications:", err);
-    }
-  };
+  // P2-3: the notification surface is derived LIVE from real workspace
+  // endpoints (approval queue, import runs, quote-to-cash records) — the
+  // legacy agent-era notifications store is not served anywhere, so every
+  // legacy write was dead-end theater and is gone.
+  const { feed, unreadCount, notificationsError, updatedAt, refreshNotifications } = usePortalNotifications();
 
   useLayoutEffect(() => {
     (async () => {
@@ -79,8 +61,6 @@ function PortalLayout() {
           setUser(userData?.user ?? userData);
           setLoading(false);
         }
-        // Load notifications non-blocking
-        loadNotifications();
       } catch (err) {
         console.error("Auth check failed:", err);
         navigateRef.current({ to: "/login" as any });
@@ -102,95 +82,17 @@ function PortalLayout() {
       setPwaPrompt((window as any).deferredPrompt);
     }
 
-    // Setup polling every 30 seconds
-    const interval = setInterval(loadNotifications, 30000);
-
-    // Handle clicks outside notification dropdown
-    const handleOutsideClick = (e: MouseEvent) => {
-      if (bellRef.current && !bellRef.current.contains(e.target as Node)) {
-        setBellOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleOutsideClick);
+    // Note: notification polling lives inside usePortalNotifications()
+    // (30s interval, single source for shell badge + Notifications page).
 
     return () => {
       window.removeEventListener("pwa-install-available", onPwaAvailable);
-      document.removeEventListener("mousedown", handleOutsideClick);
-      clearInterval(interval);
     };
   }, []);
 
   const handleLogout = async () => {
     await fetch("/api/logout", { method: "POST" });
     navigate({ to: "/" });
-  };
-
-  const unreadCount = notifications.filter(n => !n.read).length;
-
-  const markAsRead = async (id: string) => {
-    try {
-      const updated = notifications.map(n => {
-        if (n.id === id || n._id === id) {
-          return { ...n, read: true };
-        }
-        return n;
-      });
-      setNotifications(updated);
-
-      const target = notifications.find(n => n.id === id || n._id === id);
-      if (target) {
-        const { _id, ...cleanObj } = target;
-        await fetch(`/api/data/system_notifications`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ ...cleanObj, _id, read: true }),
-        });
-      }
-    } catch (err) {
-      console.error("Failed to mark notification as read:", err);
-    }
-  };
-
-  const markAllAsRead = async () => {
-    try {
-      const updated = notifications.map(n => ({ ...n, read: true }));
-      setNotifications(updated);
-      
-      for (const item of notifications) {
-        if (!item.read) {
-          const { _id, ...cleanObj } = item;
-          await fetch(`/api/data/system_notifications`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({ ...cleanObj, _id, read: true }),
-          });
-        }
-      }
-    } catch (err) {
-      console.error("Failed to mark all as read:", err);
-    }
-  };
-
-  const addNotification = async (notif: Omit<SystemNotification, "id" | "createdAt" | "read">) => {
-    try {
-      const newNotif: SystemNotification = {
-        ...notif,
-        id: "n-" + Math.random().toString(36).substr(2, 9),
-        read: false,
-        createdAt: new Date().toISOString(),
-      };
-      setNotifications([newNotif, ...notifications]);
-      await fetch("/api/data/system_notifications", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(newNotif),
-      });
-    } catch (err) {
-      console.error("Failed to add system notification:", err);
-    }
   };
 
   const handleInstallPwa = () => {
@@ -250,7 +152,7 @@ type NavLink = {
     { name: "Approvals", path: "/portal/approvals", icon: "approvals" },
     { name: "Assistant", path: "/portal/assistant", icon: "assistant" },
     { name: "Integrations", path: "/portal/integrations", icon: "integrations" },
-    { name: "Settings", path: "/portal/settings", icon: "settings", badge: unreadCount },
+    { name: "Settings", path: "/portal/settings", icon: "settings" },
   ];
 
   const currentPath = location.pathname;
@@ -264,7 +166,7 @@ type NavLink = {
   if (!user && !loading) return null;
 
   return (
-    <PortalContext.Provider value={{ userEmail: user?.email || "", notifications, unreadCount, markAsRead, markAllAsRead, addNotification }}>
+    <PortalContext.Provider value={{ userEmail: user?.email || "", feed, unreadCount, notificationsError, updatedAt, refreshNotifications }}>
       <div className="min-h-screen bg-black text-stone-100 font-sans antialiased selection:bg-stone-800 selection:text-white pb-16 lg:pb-0">
       
       {/* Mobile Top Header */}
@@ -398,89 +300,27 @@ type NavLink = {
               </button>
             )}
 
-            {/* Notification Bell Dropdown Button */}
-            <div className="relative" ref={bellRef}>
-              <button
-                onClick={() => setBellOpen(!bellOpen)}
-                className="relative p-1.5 rounded-lg bg-stone-900 border border-stone-800 hover:bg-stone-800 hover:border-stone-700 hover:text-white text-stone-300 transition-all focus:outline-none"
-              >
-                <PortalIcon name="bell" className="w-5 h-5" />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white ring-2 ring-stone-950">
-                    {unreadCount}
-                  </span>
-                )}
-              </button>
-
-              {/* Notification Dropdown Menu */}
-              {bellOpen && (
-                <div className="absolute right-0 mt-3 w-80 rounded-2xl bg-stone-950 border border-stone-800 shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150">
-                  <div className="p-4 border-b border-stone-900 flex justify-between items-center bg-stone-900/40">
-                    <span className="text-xs font-black text-white">System Notifications</span>
-                    {unreadCount > 0 && (
-                      <button
-                        onClick={markAllAsRead}
-                        className="text-[10px] text-emerald-400 hover:text-emerald-300 font-mono font-bold"
-                      >
-                        Mark all read
-                      </button>
-                    )}
-                  </div>
-                  <div className="divide-y divide-stone-900 max-h-64 overflow-y-auto font-mono text-[11px] text-stone-400 scrollbar-none">
-                    {notifications.length === 0 ? (
-                      <div className="p-6 text-center text-stone-600">No active system alerts.</div>
-                    ) : (
-                      notifications.map((item) => {
-                        const iconMap: Record<string, NoticeIconName> = {
-                          approval: "approval",
-                          complete: "complete",
-                          error: "error",
-                          info: "info",
-                        };
-                        return (
-                          <div
-                            key={item.id}
-                            onClick={() => {
-                              markAsRead(item.id);
-                              setBellOpen(false);
-                              navigate({ to: item.link as any });
-                            }}
-                            className={`p-3.5 hover:bg-stone-900/40 transition-all cursor-pointer flex gap-3 ${
-                              !item.read ? "bg-emerald-500/5 border-l-2 border-emerald-500/50" : ""
-                            }`}
-                          >
-                            <span className="shrink-0 text-emerald-400"><NoticeIcon name={iconMap[item.type]} className="w-4 h-4" /></span>
-                            <div className="space-y-0.5 min-w-0">
-                              <p className={`text-xs font-bold leading-tight truncate ${!item.read ? "text-white" : "text-stone-300"}`}>
-                                {item.title}
-                              </p>
-                              <p className="text-[10px] text-stone-500 leading-normal line-clamp-2">
-                                {item.message}
-                              </p>
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                  <div className="p-3 border-t border-stone-900 bg-stone-900/20 text-center">
-                    <Link
-                      to="/portal/reports"
-                      onClick={() => setBellOpen(false)}
-                      className="text-[10px] text-stone-400 hover:text-white font-bold tracking-wider uppercase"
-                    >
-                      See All Reports & Alerts →
-                    </Link>
-                  </div>
-                </div>
+            {/* Notification bell — ONE surface (desktop + mobile): link to the
+                Notifications page. The old dropdown + mark-all wrote to a store
+                that prod-server never serves — removed. */}
+            <Link
+              to="/portal/notifications"
+              className="relative p-1.5 rounded-lg bg-stone-900 border border-stone-800 hover:bg-stone-800 hover:border-stone-700 hover:text-white text-stone-300 transition-all"
+              aria-label="Notifications"
+            >
+              <PortalIcon name="bell" className="w-5 h-5" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white ring-2 ring-stone-950">
+                  {unreadCount}
+                </span>
               )}
-            </div>
+            </Link>
           </div>
         </header>
 
         {/* Content Viewport */}
         <div className="flex-1 p-6 lg:p-10 overflow-y-auto max-w-6xl w-full mx-auto animate-fadeIn select-text">
-          <TypedOutlet context={{ notifications, unreadCount, markAsRead, markAllAsRead, addNotification } as PortalContextType} />
+          <TypedOutlet context={{ userEmail: user?.email || "", feed, unreadCount, notificationsError, updatedAt, refreshNotifications } as PortalContextType} />
         </div>
       </main>
 
