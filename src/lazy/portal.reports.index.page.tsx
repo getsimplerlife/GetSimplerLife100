@@ -44,10 +44,10 @@ function ReportsCenter() {
 
   return (
     <div className="space-y-8">
-      <div className="border-b border-stone-200 pb-6 flex justify-between items-center">
+      <div className="border-b border-stone-800 pb-6 flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-black text-stone-900 tracking-tight">📊 Analytics Reports</h1>
-          <p className="text-stone-500 mt-1">Download auto-generated operational and financial reports.</p>
+          <h1 className="text-3xl font-black text-stone-100 tracking-tight">📊 Analytics Reports</h1>
+          <p className="text-stone-400 mt-1">Download auto-generated operational and financial reports.</p>
         </div>
         <button
           onClick={() => handleAction("On-demand Report", "generate")}
@@ -57,10 +57,10 @@ function ReportsCenter() {
         </button>
       </div>
 
-      <div className="bg-white rounded-3xl border border-stone-200 overflow-hidden">
+      <div className="bg-stone-900 rounded-3xl border border-stone-800 overflow-hidden">
         <table className="w-full text-left text-xs font-semibold">
           <thead>
-            <tr className="bg-stone-50 text-stone-500 border-b border-stone-150 uppercase tracking-wider">
+            <tr className="bg-stone-800 text-stone-400 border-b border-stone-800 uppercase tracking-wider">
               <th className="p-4 font-bold">Report Name</th>
               <th className="p-4 font-bold">Type</th>
               <th className="p-4 font-bold">Frequency</th>
@@ -68,15 +68,15 @@ function ReportsCenter() {
               <th className="p-4 text-right font-bold">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-stone-100 font-semibold text-stone-700">
+          <tbody className="divide-y divide-stone-800 font-semibold text-stone-300">
             {reports.map((rep, idx) => (
-              <tr key={idx} className="hover:bg-stone-50/40">
-                <td className="p-4 font-black text-stone-900">{rep.name}</td>
+              <tr key={idx} className="hover:bg-stone-800/40">
+                <td className="p-4 font-black text-stone-100">{rep.name}</td>
                 <td className="p-4">{rep.type}</td>
                 <td className="p-4">{rep.frequency}</td>
                 <td className="p-4">{rep.format}</td>
                 <td className="p-4 text-right">
-                  <button onClick={() => handleAction(rep.name, "download")} className="text-emerald-600">Download</button>
+                  <button onClick={() => handleAction(rep.name, "download")} className="text-emerald-400">Download</button>
                 </td>
               </tr>
             ))}

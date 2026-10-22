@@ -205,37 +205,39 @@ function PortalLayout() {
   };
 
   const navLinks = [
-    { name: "Dashboard", subtitle: "Tasks · Reports · Approvals", path: "/portal", icon: "🏠", section: "Overview" },
+    { name: "Dashboard", subtitle: "Activity · Overview", path: "/portal", icon: "🏠", section: "Overview" },
+    { name: "Proposals", subtitle: "Quote-to-cash · E-sign", path: "/portal/proposals", icon: "📄", section: "Workspace" },
+    { name: "Invoices", subtitle: "Bill · Track · Notify", path: "/portal/invoices", icon: "🧾", section: "Workspace" },
+    { name: "Checklists", subtitle: "Onboarding · Drives", path: "/portal/checklists", icon: "✅", section: "Workspace" },
+    { name: "Deal Rooms", subtitle: "Shared client spaces", path: "/portal/deal-rooms", icon: "🤝", section: "Workspace" },
+    { name: "Boards", subtitle: "Kanban views", path: "/portal/boards", icon: "🗂️", section: "Workspace" },
+    { name: "Tasks", subtitle: "Queue · Assignments", path: "/portal/tasks", icon: "📋", section: "Workspace" },
+    { name: "Surveys", subtitle: "NPS · CSAT · Scorecards", path: "/portal/surveys", icon: "📊", section: "Workspace" },
+    { name: "Inbox", subtitle: "Messages in one place", path: "/portal/inbox", icon: "📥", section: "Workspace" },
     { name: "Workflows", subtitle: "Builder · Management", path: "/portal/workflows", icon: "⚡", section: "Operations" },
+    { name: "Bring your data in", subtitle: "One-time import · Migration", path: "/portal/import", icon: "📥", section: "Operations" },
     { name: "Documents", subtitle: "Upload · Process · Export", path: "/portal/documents", icon: "📁", section: "Operations" },
     { name: "Document Vault", subtitle: "Native capture · Filing · Rules", path: "/portal/vault", icon: "🗄️", section: "Operations" },
     { name: "File Library", subtitle: "View · Edit · Print · Download", path: "/portal/files", icon: "📚", section: "Operations" },
     { name: "Approvals", subtitle: "Review · Authorize", path: "/portal/approvals", icon: "📋", section: "Operations" },
-    { name: "AI Chat", subtitle: "Advisor · Assistant", path: "/portal/chat", icon: "💬", section: "Communications" },
     { name: "Assistant", subtitle: "Ask · Draft answers · Audit", path: "/portal/assistant", icon: "✨", section: "Communications" },
     { name: "Communications", subtitle: "Messages · Log", path: "/portal/communications", icon: "📡", section: "Communications" },
-    { name: "Secure Transport", subtitle: "SFTP · PGP keys · Transfer rules", path: "/portal/secure-transport", icon: "🔐", section: "Connect" },
-    { name: "Dedupe & MDM", subtitle: "Match rules · Merge · Data quality", path: "/portal/dedupe", icon: "🧹", section: "Connect" },
-    { name: "Access Reviews", subtitle: "Certification campaigns · Attestations", path: "/portal/accessreview", icon: "🛡️", section: "Connect" },
-    { name: "Knowledge Base", subtitle: "Articles · Help center · Search", path: "/portal/knowledgebase", icon: "📚", section: "Connect" },
-    { name: "Integrations", subtitle: "Full 180+ Catalog", path: "/portal/integrations", icon: "🔌", section: "Connect" },
-    { name: "CRM", subtitle: "Salesforce · HubSpot · Pipedrive", path: "/portal/crm", icon: "👥", section: "Connect" },
-    { name: "ERP", subtitle: "SAP · NetSuite · QuickBooks", path: "/portal/erp", icon: "🏢", section: "Connect" },
-    { name: "Connected Accounts", subtitle: "Manage All Connections", path: "/portal/connected-accounts", icon: "🔗", section: "Connect" },
+    { name: "Integrations", subtitle: "Full 180+ Catalog", path: "/portal/integrations", icon: "🔌", section: "Data & Connect" },
+    { name: "Secure Transport", subtitle: "SFTP · PGP keys · Transfer rules", path: "/portal/secure-transport", icon: "🔐", section: "Data & Connect" },
+    { name: "Dedupe & MDM", subtitle: "Match rules · Merge · Data quality", path: "/portal/dedupe", icon: "🧹", section: "Data & Connect" },
+    { name: "Access Reviews", subtitle: "Certification campaigns · Attestations", path: "/portal/accessreview", icon: "🛡️", section: "Data & Connect" },
+    { name: "Knowledge Base", subtitle: "Articles · Help center", path: "/portal/knowledgebase", icon: "📚", section: "Data & Connect" },
     { name: "Settings", subtitle: "Account · Billing · API Keys", path: "/portal/settings", icon: "⚙️", section: "Settings" },
     { name: "Admin", subtitle: "Users · Health · Audit", path: "/portal/admin", icon: "🛡️", section: "Settings", adminOnly: true },
   ];
 
   const mobileLinks = [
     { name: "Dashboard", path: "/portal", icon: "🏠" },
-    { name: "AI Chat", path: "/portal/chat", icon: "💬" },
+    { name: "Proposals", path: "/portal/proposals", icon: "📄" },
+    { name: "Bring data in", path: "/portal/import", icon: "📥" },
+    { name: "Approvals", path: "/portal/approvals", icon: "📋" },
     { name: "Assistant", path: "/portal/assistant", icon: "✨" },
-    { name: "Secure Transport", path: "/portal/secure-transport", icon: "🔐" },
-    { name: "Dedupe & MDM", path: "/portal/dedupe", icon: "🧹" },
-    { name: "Access Reviews", path: "/portal/accessreview", icon: "🛡️" },
-    { name: "Knowledge Base", path: "/portal/knowledgebase", icon: "📚" },
-    { name: "CRM", path: "/portal/crm", icon: "👥" },
-    { name: "ERP", path: "/portal/erp", icon: "🏢" },
+    { name: "Integrations", path: "/portal/integrations", icon: "🔌" },
     { name: "Settings", path: "/portal/settings", icon: "⚙️", badge: unreadCount },
   ];
 
@@ -339,15 +341,6 @@ function PortalLayout() {
 
           <div className="pt-4 mt-4 border-t border-stone-900 space-y-1">
             <p className="text-[9px] font-bold text-stone-600 uppercase tracking-widest px-3 mb-2">Controls</p>
-            {user?.email === "mathewortiz97@gmail.com" && (
-              <Link
-                to="/portal/admin"
-                className="flex items-center gap-3 px-3 py-2 rounded-lg font-bold text-xs text-stone-400 hover:bg-stone-900/50 hover:text-stone-200 border-l-2 border-transparent"
-              >
-                <span className="text-sm shrink-0">👑</span>
-                <span>Admin Panel</span>
-              </Link>
-            )}
             <Link
               to="/"
               className="flex items-center gap-3 px-3 py-2 rounded-lg font-bold text-xs text-stone-400 hover:bg-stone-900/50 hover:text-stone-200 border-l-2 border-transparent"
@@ -400,7 +393,7 @@ function PortalLayout() {
             <div className="relative" ref={bellRef}>
               <button
                 onClick={() => setBellOpen(!bellOpen)}
-                className="relative p-1.5 rounded-lg bg-stone-900 border border-stone-850 hover:bg-stone-800 hover:border-stone-700 hover:text-white text-stone-300 transition-all focus:outline-none"
+                className="relative p-1.5 rounded-lg bg-stone-900 border border-stone-800 hover:bg-stone-800 hover:border-stone-700 hover:text-white text-stone-300 transition-all focus:outline-none"
               >
                 <span className="text-xs">🔔</span>
                 {unreadCount > 0 && (
@@ -412,7 +405,7 @@ function PortalLayout() {
 
               {/* Notification Dropdown Menu */}
               {bellOpen && (
-                <div className="absolute right-0 mt-3 w-80 rounded-2xl bg-stone-950 border border-stone-850 shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                <div className="absolute right-0 mt-3 w-80 rounded-2xl bg-stone-950 border border-stone-800 shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150">
                   <div className="p-4 border-b border-stone-900 flex justify-between items-center bg-stone-900/40">
                     <span className="text-xs font-black text-white">System Notifications</span>
                     {unreadCount > 0 && (

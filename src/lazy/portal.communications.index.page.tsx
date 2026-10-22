@@ -43,26 +43,26 @@ function CommsInbox() {
 
   return (
     <div className="space-y-8">
-      <div className="border-b border-stone-200 pb-6">
-        <h1 className="text-3xl font-black text-stone-900 tracking-tight">💬 Communication Center</h1>
-        <p className="text-stone-500 mt-1">Review live communication feeds routed through the omni-channel support engine.</p>
+      <div className="border-b border-stone-800 pb-6">
+        <h1 className="text-3xl font-black text-stone-100 tracking-tight">💬 Communication Center</h1>
+        <p className="text-stone-400 mt-1">Review live communication feeds routed through the omni-channel support engine.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {comms.map((c, i) => (
-          <div key={i} className="bg-white p-6 rounded-3xl border border-stone-200 shadow-sm flex flex-col justify-between gap-4">
+          <div key={i} className="bg-stone-900 p-6 rounded-3xl border border-stone-800 shadow-sm flex flex-col justify-between gap-4">
             <div className="space-y-3">
               <div className="flex justify-between items-center text-xs">
-                <span className="font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">{c.channel}</span>
+                <span className="font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/25">{c.channel}</span>
                 <span className="text-stone-400 font-bold">{c.time}</span>
               </div>
-              <h3 className="font-black text-stone-900 text-sm leading-tight">{c.subject}</h3>
-              <p className="text-stone-500 text-xs">{c.preview}</p>
+              <h3 className="font-black text-stone-100 text-sm leading-tight">{c.subject}</h3>
+              <p className="text-stone-400 text-xs">{c.preview}</p>
               <div className="text-[10px] font-bold text-stone-400">From: {c.from}</div>
             </div>
-            <div className="border-t border-stone-100 pt-3 flex justify-between items-center">
-              <span className="text-xs font-semibold text-stone-400">Sentiment: <span className="text-stone-700 font-bold">{c.sentiment}</span></span>
-              <button onClick={() => handleAction(c.from, "reply")} className="bg-stone-900 hover:bg-stone-850 text-white font-bold text-[10px] px-3 py-1.5 rounded-xl">Reply</button>
+            <div className="border-t border-stone-800 pt-3 flex justify-between items-center">
+              <span className="text-xs font-semibold text-stone-400">Sentiment: <span className="text-stone-300 font-bold">{c.sentiment}</span></span>
+              <button onClick={() => handleAction(c.from, "reply")} className="bg-stone-700 hover:bg-stone-600 text-white font-bold text-[10px] px-3 py-1.5 rounded-xl">Reply</button>
             </div>
           </div>
         ))}

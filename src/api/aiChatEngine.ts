@@ -311,7 +311,7 @@ function extractActions(reply: string): ChatAction[] {
     { pattern: /billing|plan|subscription/i, path: "/portal/billing", label: "View Billing" },
     { pattern: /deploy|marketplace/i, path: "/portal/integrations", label: "Explore Integrations" },
     { pattern: /document|upload|ocr/i, path: "/portal/documents", label: "Upload Documents" },
-    { pattern: /knowledge|rag|search/i, path: "/portal/knowledge-base", label: "Knowledge Base" },
+    { pattern: /knowledge|rag|search/i, path: "/portal/knowledgebase", label: "Knowledge Base" },
   ];
 
   for (const np of navPatterns) {
