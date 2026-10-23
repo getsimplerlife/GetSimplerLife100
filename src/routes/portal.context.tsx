@@ -1,23 +1,21 @@
 import { createContext, useContext } from "react";
+import type { NoticeItem } from "~/lib/portal-notifications";
 
-export interface SystemNotification {
-  _id?: string;
-  id: string;
-  type: "approval" | "complete" | "error" | "info";
-  title: string;
-  message: string;
-  link: string;
-  read: boolean;
-  createdAt: string;
-}
-
+/**
+ * Portal context — P2-3. The notification surface is derived LIVE from real
+ * workspace endpoints (see src/lib/portal-notifications.ts) and shared through
+ * this context so the shell badge and the Notifications page always agree.
+ * The legacy agent-era notification API was removed in this slice: it wrote to
+ * a store that prod-server never serves, so every write was theater.
+ */
 export interface PortalContextType {
   userEmail: string;
-  notifications: SystemNotification[];
+  feed: NoticeItem[];
   unreadCount: number;
-  markAsRead: (id: string) => Promise<void>;
-  markAllAsRead: () => Promise<void>;
-  addNotification: (notification: Omit<SystemNotification, "id" | "createdAt" | "read">) => Promise<void>;
+  notificationsError: string | null;
+  /** Epoch ms of the last successful refresh — real, not fabricated. */
+  updatedAt: number | null;
+  refreshNotifications: () => void;
 }
 
 export const PortalContext = createContext<PortalContextType | null>(null);
