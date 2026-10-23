@@ -1,10 +1,25 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { pageHead } from "~/lib/site-meta";
+import { PortalIcon } from "~/components/PortalIcons";
+
 export const Route = createFileRoute("/set-password")({
   head: () => pageHead("/set-password"),
   component: SetPassword,
 });
+
+/**
+ * Set / reset password — P2-4. Unifies the auth experience with the P2-1
+ * portal visual system (emerald-token dark theme, PortalIcons stroke glyphs,
+ * ≥10px type). Portal-only restyle: the step machine (email → code → done),
+ * validation, endpoints, and the honest no-enumeration copy are unchanged.
+ */
+
+const FIELD =
+  "w-full pl-10 pr-4 py-3 rounded-xl border border-stone-800 bg-stone-900/60 " +
+  "text-white placeholder-stone-500 focus:outline-none " +
+  "focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/20 transition-all text-sm disabled:opacity-50";
+
 function SetPassword() {
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -96,13 +111,18 @@ function SetPassword() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
+    <div className="min-h-screen bg-black flex items-center justify-center relative overflow-hidden px-4 py-12 sm:px-6">
+      {/* Subtle emerald glow behind the card — pure decoration, aria-hidden */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -top-32 left-1/2 -translate-x-1/2 h-72 w-[36rem] rounded-full bg-emerald-500/10 blur-3xl"
+      />
+      <div className="relative w-full max-w-md space-y-8 bg-stone-950 border border-stone-900 rounded-2xl p-8 sm:p-10 shadow-2xl shadow-black/60">
         <div>
-          <h1 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+          <h1 className="text-center text-2xl font-black tracking-tight text-white">
             Reset Your Password
           </h1>
-          <p className="mt-2 text-center text-sm text-gray-600">
+          <p className="mt-2 text-center text-sm text-stone-400">
             {step === "done"
               ? "Your password has been reset. Sign in with your new password."
               : "Verify ownership of your account email to choose a new password."}
@@ -110,81 +130,120 @@ function SetPassword() {
         </div>
 
         {step === "done" ? (
-          <div className="mt-8 rounded-md bg-emerald-50 border border-emerald-200 p-4 text-sm text-emerald-700">
+          <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
             Your password was changed successfully. You can now sign in.
           </div>
         ) : (
           <form className="mt-8 space-y-6" onSubmit={step === "email" ? handleSendCode : handleSubmit}>
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
-                {error}
+              <div
+                role="alert"
+                className="flex items-start gap-2.5 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3"
+              >
+                <span aria-hidden className="mt-1.5 h-1.5 w-1.5 rounded-full bg-rose-400 shrink-0" />
+                <p className="text-xs font-medium text-rose-300 leading-relaxed">{error}</p>
               </div>
             )}
             {notice && (
-              <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded-lg text-sm">
+              <p className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-xs leading-relaxed text-emerald-300">
                 {notice}
-              </div>
+              </p>
             )}
-            <div className="rounded-md shadow-sm -space-y-px">
+            <div className="space-y-4">
               <div>
-                <label htmlFor="email-address" className="sr-only">Email address</label>
-                <input
-                  id="email-address"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  disabled={step !== "email"}
-                  className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 focus:z-10 sm:text-sm disabled:bg-gray-100"
-                  placeholder="Email address"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
+                <label htmlFor="email-address" className="block text-xs font-bold text-stone-300 mb-1.5">
+                  Email address
+                </label>
+                <div className="relative">
+                  <PortalIcon
+                    name="mail"
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-500 pointer-events-none"
+                  />
+                  <input
+                    id="email-address"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    required
+                    disabled={step !== "email"}
+                    className={FIELD}
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                </div>
               </div>
               {step === "code" && (
                 <>
                   <div>
-                    <label htmlFor="reset-code" className="sr-only">One-time code</label>
-                    <input
-                      id="reset-code"
-                      name="code"
-                      type="text"
-                      inputMode="numeric"
-                      autoComplete="one-time-code"
-                      required
-                      className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 focus:z-10 sm:text-sm"
-                      placeholder="One-time code"
-                      value={code}
-                      onChange={(e) => setCode(e.target.value)}
-                    />
+                    <label htmlFor="reset-code" className="block text-xs font-bold text-stone-300 mb-1.5">
+                      One-time code
+                    </label>
+                    <div className="relative">
+                      <PortalIcon
+                        name="secure"
+                        className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-500 pointer-events-none"
+                      />
+                      <input
+                        id="reset-code"
+                        name="code"
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        required
+                        className={FIELD}
+                        placeholder="6-digit code"
+                        value={code}
+                        onChange={(e) => setCode(e.target.value)}
+                      />
+                    </div>
+                    <p className="mt-1.5 text-[10px] text-stone-500">
+                      The code is single-use and expires 10 minutes after it is sent.
+                    </p>
                   </div>
                   <div>
-                    <label htmlFor="password" className="sr-only">New Password</label>
-                    <input
-                      id="password"
-                      name="password"
-                      type="password"
-                      autoComplete="new-password"
-                      required
-                      className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 focus:z-10 sm:text-sm"
-                      placeholder="New Password"
-                      value={password}
-                      onChange={(e) => setPasswordState(e.target.value)}
-                    />
+                    <label htmlFor="password" className="block text-xs font-bold text-stone-300 mb-1.5">
+                      New Password
+                    </label>
+                    <div className="relative">
+                      <PortalIcon
+                        name="secure"
+                        className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-500 pointer-events-none"
+                      />
+                      <input
+                        id="password"
+                        name="password"
+                        type="password"
+                        autoComplete="new-password"
+                        required
+                        className={FIELD}
+                        placeholder="At least 8 characters"
+                        value={password}
+                        onChange={(e) => setPasswordState(e.target.value)}
+                      />
+                    </div>
                   </div>
                   <div>
-                    <label htmlFor="confirm-password" className="sr-only">Confirm Password</label>
-                    <input
-                      id="confirm-password"
-                      name="confirm-password"
-                      type="password"
-                      autoComplete="new-password"
-                      required
-                      className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 focus:z-10 sm:text-sm"
-                      placeholder="Confirm Password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                    />
+                    <label htmlFor="confirm-password" className="block text-xs font-bold text-stone-300 mb-1.5">
+                      Confirm Password
+                    </label>
+                    <div className="relative">
+                      <PortalIcon
+                        name="secure"
+                        className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-500 pointer-events-none"
+                      />
+                      <input
+                        id="confirm-password"
+                        name="confirm-password"
+                        type="password"
+                        autoComplete="new-password"
+                        required
+                        className={FIELD}
+                        placeholder="Re-enter your new password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                      />
+                    </div>
                   </div>
                 </>
               )}
@@ -193,7 +252,7 @@ function SetPassword() {
               <button
                 type="submit"
                 disabled={loading}
-                className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 disabled:opacity-50"
+                className="w-full flex justify-center items-center gap-2 py-3 px-4 rounded-xl bg-emerald-500 text-stone-950 text-sm font-bold hover:bg-emerald-400 active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-emerald-500/40 disabled:opacity-50 transition-all duration-200"
               >
                 {loading
                   ? "Processing..."
@@ -207,14 +266,17 @@ function SetPassword() {
                 <button
                   type="button"
                   onClick={goBackToEmail}
-                  className="text-sm text-gray-600 hover:text-emerald-500"
+                  className="text-xs font-semibold text-stone-400 hover:text-emerald-300 transition-colors"
                 >
                   Didn't get a code? Restart
                 </button>
               </div>
             )}
-            <div className="text-center">
-              <Link to="/login" className="text-sm text-gray-600 hover:text-emerald-500">
+            <div className="text-center border-t border-stone-900 pt-4">
+              <Link
+                to="/login"
+                className="text-xs font-semibold text-stone-400 hover:text-emerald-300 transition-colors"
+              >
                 Back to Sign In
               </Link>
             </div>
