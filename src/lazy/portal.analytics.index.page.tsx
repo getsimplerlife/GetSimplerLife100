@@ -1,216 +1,151 @@
 import { Link } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useMemo } from "react";
+import { PortalEmptyState } from "~/components/PortalEmptyState";
+import {
+  WINDOW_ALL_MS,
+  deriveDashboard,
+  usePortalDashboard,
+} from "~/lib/portal-dashboard";
 
+/**
+ * Workspace Analytics — /portal/analytics (P2-5). Replaces the old analytics
+ * page, which fetched a data-layer route that has no server handler (silent
+ * SPA-200) and promised fabricated outputs — labor-cost claims, investment-
+ * return-tracker claims, department-category breakdowns, and model execution
+ * stats. This surface now shows ONLY real counts derived from the tenant's
+ * actual records via the same live read endpoints as the Activity Hub (see
+ * src/lib/portal-dashboard.ts). No estimates or projections: hours, savings,
+ * and percentages are never computed because there is no honest source for
+ * them. Portal-only.
+ */
 
+function WorkspaceAnalytics() {
+  const { inputs, signedOut, loading, error, updatedAt, refreshDashboard } = usePortalDashboard();
 
-interface AnalyticsMetric {
-  id: string;
-  name: string;
-  value: string;
-  subtext: string;
-  trend: string;
-  trendType: "up" | "down" | "neutral";
-  category: "executive" | "coworker" | "bottleneck";
-}
-
-interface DepartmentShare {
-  name: string;
-  percentage: number;
-  hours: number;
-  color: string;
-}
-
-function PerformanceAnalytics() {
-  const [metrics, setMetrics] = useState<AnalyticsMetric[]>([]);
-  const [departments, setDepartments] = useState<DepartmentShare[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [feedback, setFeedback] = useState("");
-  const [activeTab, setActiveTab] = useState<"all" | "executive" | "coworker" | "bottleneck">("all");
-
-  const loadAnalytics = async () => {
-    const res = await fetch("/api/data/analytics", { credentials: "include" });
-    const d = await res.json();
-    if (d.data) {
-      if (Array.isArray(d.data)) {
-        setMetrics(d.data);
-      } else {
-        setMetrics([]);
-        if (Array.isArray(d.data.departments)) setDepartments(d.data.departments);
-      }
-    } else {
-      setMetrics([]);
-    }
-  };
-  useEffect(() => {
-    (async () => {
-      try {
-        await loadAnalytics();
-      } catch (err) {
-        console.error("Analytics fetch error:", err);
-        setMetrics([]);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
-
-  const handleAction = async (_action: string) => {
-    try {
-      setFeedback(`Refreshing analytics data...`);
-      // The analytics endpoint is read-only; refreshing means refetching it.
-      await loadAnalytics();
-      setFeedback(`Analytics data refreshed`);
-      setTimeout(() => setFeedback(""), 2000);
-    } catch (err) {
-      console.error(err);
-      setFeedback(`Failed to refresh analytics`);
-    }
-  };
-
-  const filteredMetrics = metrics.filter((m) => activeTab === "all" || m.category === activeTab);
+  // Analytics is all-time — every record with a known timestamp, no windowing.
+  const d = useMemo(() => deriveDashboard(inputs, Date.now(), WINDOW_ALL_MS), [inputs]);
 
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px]">
-        <div className="w-10 h-10 border-2 border-stone-850 border-t-white rounded-full animate-spin mb-4" />
-        <p className="text-stone-500 text-[10px] font-mono tracking-widest uppercase">Calculating Metrics...</p>
+        <div className="w-10 h-10 border-2 border-stone-800 border-t-white rounded-full animate-spin mb-4" />
+        <p className="text-stone-500 text-[10px] font-mono tracking-widest uppercase">Loading real counts…</p>
       </div>
     );
   }
 
+  if (signedOut) {
+    return (
+      <div className="max-w-xl mx-auto mt-16 bg-stone-950 border border-stone-900 rounded-2xl p-8 text-center">
+        <h1 className="text-lg font-bold text-white mb-2">Sign in to see your analytics.</h1>
+        <p className="text-sm text-stone-400 mb-6">Workspace counts appear here once you're signed in.</p>
+        <Link to="/login" className="inline-flex items-center justify-center bg-emerald-500 hover:bg-emerald-400 text-stone-950 font-extrabold px-6 py-3 rounded-xl transition-all text-sm">
+          Sign in
+        </Link>
+      </div>
+    );
+  }
+
+  const operationsCards = [
+    { label: "Approvals pending", value: d.approvals.pending, link: "/portal/approvals", sub: "awaiting a decision" },
+    { label: "Approvals decided", value: d.approvals.decided, link: "/portal/approvals", sub: "all-time decisions" },
+    { label: "Integrations connected", value: d.integrations.connected, link: "/portal/integrations", sub: "from your credentials" },
+    { label: "Import lanes connected", value: d.lanes.wired, link: "/portal/import", sub: `of ${d.lanes.total} available lanes` },
+    { label: "Task / run records", value: d.records.total, link: "/portal/workflows", sub: "tasks + workflow runs" },
+    { label: "Completed records", value: d.records.completedInWindow, link: "/portal/workflows", sub: "status: completed" },
+  ] as const;
+
+  const quoteCards = [
+    { label: "Proposals awaiting review", value: d.quotes.proposals.awaitingReview, link: "/portal/proposals" },
+    { label: "Proposals approved", value: d.quotes.proposals.approved, link: "/portal/proposals" },
+    { label: "Proposals declined", value: d.quotes.proposals.declined, link: "/portal/proposals" },
+    { label: "Invoices sent", value: d.quotes.invoicesSent, link: "/portal/invoices" },
+    { label: "Deal rooms to open", value: d.quotes.dealRooms.draft, link: "/portal/deal-rooms" },
+  ] as const;
+
   return (
-    <div className="space-y-8 max-w-6xl mx-auto text-stone-100 select-none">
-      
+    <div className="space-y-8 max-w-6xl mx-auto text-stone-100">
+
       {/* ─── Header ─── */}
       <div className="border-b border-stone-900 pb-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black text-white tracking-tight">📈 Executive Analytics</h1>
+          <h1 className="text-3xl font-black text-white tracking-tight">Workspace Analytics</h1>
           <p className="text-stone-400 text-xs mt-1">
-            Real-time telemetry, automated labor audits, ROI trackers, and bottleneck indicators.
+            Real counts from your workspace's records — approvals, tasks and workflow runs, integrations, and quote-to-cash. No estimates or projections.
           </p>
         </div>
         <button
-          onClick={() => handleAction("refresh")}
-          className="bg-stone-900 hover:bg-stone-850 text-stone-300 hover:text-white border border-stone-800 text-xs font-mono font-bold px-4 py-2.5 rounded-xl transition-all self-start md:self-auto"
+          onClick={() => void refreshDashboard()}
+          className="bg-stone-900 hover:bg-stone-800 text-stone-300 hover:text-white border border-stone-800 text-xs font-mono font-bold px-4 py-2.5 rounded-xl transition-all self-start md:self-auto"
         >
-          🔄 Refresh Metrics
+          Refresh
         </button>
       </div>
 
-      {metrics.length === 0 ? (
-        <div className="flex flex-col items-center justify-center text-center p-8 py-16 bg-stone-950 border border-stone-900 rounded-2xl max-w-xl mx-auto my-8">
-          <div className="text-4xl mb-4">📈</div>
-          <h3 className="text-lg font-bold text-white mb-2">No analytics telemetry yet</h3>
-          <p className="text-sm text-stone-400 mb-6 max-w-sm leading-relaxed">
-            Labor audits, predicted savings, ROI charts, and model execution telemetry will populate automatically once your automations start running.
-          </p>
-          <Link
-            to="/portal/workflows"
-            className="inline-flex items-center justify-center bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold px-6 py-3 rounded-xl transition-all font-mono text-xs shadow-lg shadow-black/20 active:scale-95"
-          >
-            Open Workflows
-          </Link>
+      {error && (
+        <div className="bg-rose-950/20 border border-rose-500/30 rounded-xl px-5 py-3 text-xs font-mono text-rose-300">
+          Couldn't refresh dashboard data — showing the last loaded values.
+        </div>
+      )}
+
+      {d.isEmpty ? (
+        <div className="max-w-xl mx-auto my-8">
+          <PortalEmptyState
+            title="No activity yet in this workspace"
+            body="Counts here come from your workspace's real records — approvals, tasks and workflow runs, integrations, and quote-to-cash. They appear as you use the platform, starting with bringing your data in."
+            action={{ label: "Bring your data in", to: "/portal/import" }}
+          />
         </div>
       ) : (
         <>
-          {/* ─── Tabs Filter bar ─── */}
-          <div className="flex gap-2">
-        {(["all", "executive", "coworker", "bottleneck"] as const).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold tracking-wide uppercase transition-all ${
-              activeTab === tab
-                ? "bg-emerald-600 text-white font-black"
-                : "bg-stone-900/60 text-stone-400 hover:text-stone-200"
-            }`}
-          >
-            {tab === "all" ? "All Statistics" : `${tab} indicators`}
-          </button>
-        ))}
-      </div>
-
-      {/* ─── Executive Metrics Cards Grid ─── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredMetrics.map((itm) => (
-          <div
-            key={itm.id}
-            className="bg-stone-950 border border-stone-900 rounded-xl p-6 flex flex-col justify-between space-y-6 hover:shadow-lg transition-all"
-          >
-            <div className="space-y-2">
-              <span className="text-[10px] font-mono tracking-wider uppercase text-stone-500 block">
-                {itm.name}
-              </span>
-              <div className="text-3xl font-black text-white tracking-tight font-sans">
-                {itm.value}
-              </div>
-              <p className="text-[10px] text-stone-400 font-semibold leading-relaxed">
-                {itm.subtext}
-              </p>
+          {/* ─── Operations ─── */}
+          <section className="space-y-4">
+            <h2 className="text-sm font-black tracking-tight text-white">Operations</h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {operationsCards.map((c) => (
+                <Link
+                  key={c.label}
+                  to={c.link}
+                  className="bg-stone-950 border border-stone-900 rounded-xl p-5 flex flex-col justify-between gap-3 hover:border-stone-700 transition-colors"
+                >
+                  <span className="text-[10px] font-mono uppercase tracking-widest text-stone-500 font-bold">{c.label}</span>
+                  <div>
+                    <p className="text-2xl font-black text-white">{c.value}</p>
+                    <span className="text-[10px] text-stone-500 font-mono">{c.sub}</span>
+                  </div>
+                </Link>
+              ))}
             </div>
+          </section>
 
-            <div className="border-t border-stone-900/80 pt-3 flex items-center justify-between">
-              <span className="text-[10px] font-mono text-stone-500 uppercase">Trend Matrix</span>
-              <span className={`text-[10px] font-mono font-black ${
-                itm.trendType === "up" ? "text-emerald-500" :
-                itm.trendType === "down" ? "text-rose-500 animate-pulse" : "text-stone-400"
-              }`}>
-                {itm.trend}
-              </span>
+          {/* ─── Quote-to-cash ─── */}
+          <section className="space-y-4">
+            <h2 className="text-sm font-black tracking-tight text-white">Quote-to-cash</h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {quoteCards.map((c) => (
+                <Link
+                  key={c.label}
+                  to={c.link}
+                  className="bg-stone-950 border border-stone-900 rounded-xl p-5 flex flex-col justify-between gap-3 hover:border-stone-700 transition-colors"
+                >
+                  <span className="text-[10px] font-mono uppercase tracking-widest text-stone-500 font-bold">{c.label}</span>
+                  <p className="text-2xl font-black text-white">{c.value}</p>
+                </Link>
+              ))}
             </div>
-          </div>
-        ))}
-      </div>
-
-      {/* ─── Segmented Department Share Breakdown ─── */}
-      {departments.length > 0 && (
-      <div className="bg-stone-950 border border-stone-900 p-6 rounded-2xl space-y-6">
-        <div>
-          <h2 className="text-lg font-black text-white">Labor Allocation Share</h2>
-          <p className="text-stone-500 text-xs mt-1">Cumulative labor hours saved mapped directly to specialized enterprise divisions.</p>
-        </div>
-
-        {/* Minimal segmented progress bar segment */}
-        <div className="h-4 w-full bg-stone-900 rounded-full overflow-hidden flex">
-          {departments.map((dep) => (
-            <div
-              key={dep.name}
-              className={`${dep.color} h-full transition-all`}
-              style={{ width: `${dep.percentage}%` }}
-              title={`${dep.name}: ${dep.percentage}%`}
-            />
-          ))}
-        </div>
-
-        {/* Legend grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 pt-2 select-none">
-          {departments.map((dep) => (
-            <div key={dep.name} className="flex items-center gap-3">
-              <span className={`h-2.5 w-2.5 rounded-full ${dep.color} shrink-0`} />
-              <div>
-                <span className="text-xs font-bold text-white block">{dep.name}</span>
-                <span className="text-[10px] font-mono text-stone-500">
-                  {dep.hours} hrs ({dep.percentage}%)
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+          </section>
+        </>
       )}
-    </>
-  )}
 
-      {/* ─── Feedback Toast Confirmation ─── */}
-      {feedback && (
-        <div className="fixed bottom-6 right-6 bg-stone-900 border border-emerald-500 text-white px-5 py-3 rounded-2xl shadow-xl z-50 flex items-center gap-3 animate-slideUp select-none">
-          <span className="text-emerald-500">✓</span>
-          <span className="text-xs font-bold">{feedback}</span>
-        </div>
-      )}
+      {/* ─── Honest refresh note ─── */}
+      <p className="text-center text-[10px] font-mono text-stone-600 pt-2">
+        {updatedAt != null
+          ? `Data refreshes every 30 seconds · Last refreshed ${new Date(updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`
+          : "Data refreshes every 30 seconds."}
+      </p>
 
     </div>
   );
 }
 
-export default PerformanceAnalytics;
+export default WorkspaceAnalytics;
