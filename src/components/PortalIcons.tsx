@@ -37,7 +37,8 @@ export type PortalIconName =
   | "logout"
   | "install"
   | "bell"
-  | "mail";
+  | "mail"
+  | "search";
 
 export type NoticeIconName = "approval" | "complete" | "error" | "info";
 
@@ -70,6 +71,7 @@ const NAV_PATHS: Record<PortalIconName, string> = {
   install: "M12 3v10m0 0l-4-4m4 4l4-4M5 19h14",
   bell: "M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9M12 21a2 2 0 001.7-1H10.3A2 2 0 0012 21z",
   mail: "M4 6h16a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V7a1 1 0 011-1zm0 2l8 5 8-5",
+  search: "M11 19a8 8 0 100-16 8 8 0 000 16zm10 2l-4.35-4.35",
 };
 
 const NOTICE_PATHS: Record<NoticeIconName, string> = {

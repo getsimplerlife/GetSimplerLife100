@@ -1,5 +1,5 @@
 import { Link, Outlet, useNavigate, useLocation } from "@tanstack/react-router";
-import { useState, useLayoutEffect, useRef } from "react";
+import { useState, useLayoutEffect, useRef, type FormEvent } from "react";
 import { PortalContext } from "~/routes/portal.context";
 import type { PortalContextType } from "~/routes/portal.context";
 export { PortalContext, usePortalContext } from "~/routes/portal.context";
@@ -33,6 +33,7 @@ function PortalLayout() {
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [pwaPrompt, setPwaPrompt] = useState<any>(null);
+  const [headerQuery, setHeaderQuery] = useState("");
 
   // P2-3: the notification surface is derived LIVE from real workspace
   // endpoints (approval queue, import runs, quote-to-cash records) — the
@@ -93,6 +94,18 @@ function PortalLayout() {
   const handleLogout = async () => {
     await fetch("/api/logout", { method: "POST" });
     navigate({ to: "/" });
+  };
+
+  // P2-7: header search opens the global search page with the term in the URL.
+  const handleHeaderSearch = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const q = headerQuery.trim();
+    setHeaderQuery("");
+    if (q) {
+      window.location.assign(`/portal/search?q=${encodeURIComponent(q)}`);
+    } else {
+      void navigate({ to: "/portal/search" });
+    }
   };
 
   const handleInstallPwa = () => {
@@ -175,6 +188,10 @@ type NavLink = {
           Simpler Life 100
         </Link>
         <div className="flex items-center gap-4">
+          {/* Mobile Search Button (P2-7) */}
+          <Link to="/portal/search" className="p-1 text-stone-400 hover:text-white transition-colors" aria-label="Search workspace">
+            <PortalIcon name="search" className="w-5 h-5" />
+          </Link>
           {/* Mobile Bell Button */}
           <Link to="/portal/notifications" className="relative p-1 text-stone-400 hover:text-white transition-colors" aria-label="Notifications">
             <PortalIcon name="bell" className="w-5 h-5" />
@@ -289,6 +306,21 @@ type NavLink = {
           </div>
 
           <div className="flex items-center gap-6">
+            {/* P2-7: Global search entry — navigates to /portal/search with the term. */}
+            <form onSubmit={handleHeaderSearch} className="relative" aria-label="Search your workspace">
+              <PortalIcon
+                name="search"
+                className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-stone-500 pointer-events-none"
+              />
+              <input
+                type="text"
+                value={headerQuery}
+                onChange={(e) => setHeaderQuery(e.target.value)}
+                placeholder="Search your workspace…"
+                aria-label="Search your workspace"
+                className="w-64 bg-stone-900 border border-stone-800 rounded-xl pl-9 pr-3 py-1.5 text-xs font-semibold text-stone-200 outline-none focus:ring-2 focus:ring-emerald-500 placeholder-stone-600"
+              />
+            </form>
             {/* PWA Install Button */}
             {pwaPrompt && (
               <button
