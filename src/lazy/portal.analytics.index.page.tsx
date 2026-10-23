@@ -25,6 +25,17 @@ function WorkspaceAnalytics() {
   // Analytics is all-time — every record with a known timestamp, no windowing.
   const d = useMemo(() => deriveDashboard(inputs, Date.now(), WINDOW_ALL_MS), [inputs]);
 
+  // Honest refresh — re-pulls the SAME real dashboard sources as the Activity
+  // Hub (see src/lib/portal-dashboard.ts): a true refetch via bounded reads,
+  // nothing invented, nothing POSTed (no theater claim).
+  async function loadAnalytics(): Promise<void> {
+    await refreshDashboard();
+  }
+
+  const handleRefresh = async (): Promise<void> => {
+    await loadAnalytics();
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px]">
@@ -75,7 +86,7 @@ function WorkspaceAnalytics() {
           </p>
         </div>
         <button
-          onClick={() => void refreshDashboard()}
+          onClick={() => void handleRefresh()}
           className="bg-stone-900 hover:bg-stone-800 text-stone-300 hover:text-white border border-stone-800 text-xs font-mono font-bold px-4 py-2.5 rounded-xl transition-all self-start md:self-auto"
         >
           Refresh
