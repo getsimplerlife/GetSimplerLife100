@@ -296,7 +296,7 @@ export function usePortalDashboard(intervalMs = 30000): PortalDashboardState {
       const [a, t, i, l, b, p, inv, dr] = await Promise.all([
         fetch("/api/portal/approvals", { credentials: "include" }),
         fetch("/api/data/tasks", { credentials: "include" }),
-        fetch("/api/integrations", { credentials: "include" }),
+        fetch("/api/data/connected-accounts", { credentials: "include" }),
         fetch("/api/native/import/lanes", { credentials: "include" }),
         fetch("/api/native/billing", { credentials: "include" }),
         fetch("/api/native/proposals", { credentials: "include" }),
@@ -318,7 +318,7 @@ export function usePortalDashboard(intervalMs = 30000): PortalDashboardState {
           decided: Array.isArray(aj?.data?.decided) ? aj.data.decided : [],
         },
         taskRecords: Array.isArray(tj?.data) ? tj.data : [],
-        integrations: Array.isArray(ij?.data) ? ij.data : [],
+        integrations: [...(ij?.crm ?? []), ...(ij?.erp ?? []), ...(ij?.other ?? [])],
         lanes: Array.isArray(lj?.data?.lanes) ? lj.data.lanes : [],
         billing: {
           subscription: bj?.data?.subscription ?? null,

@@ -41,7 +41,6 @@ let nativeSweepRunning = false;
 const USERS_FILE = join(DATA_DIR, "users.json");
 const PASSWORD_RESETS_FILE = join(DATA_DIR, "password_resets.json");
 const SESSIONS_FILE = join(DATA_DIR, "sessions.json");
-const TENANT_INTEGRATIONS_FILE = join(DATA_DIR, "tenant_integrations.json");
 const LEADS_FILE = join(DATA_DIR, "leads.json");
 const LEAD_NOTIFICATIONS_FILE = join(DATA_DIR, "lead_notifications.json");
 const PENDING_EMAILS_FILE = join(DATA_DIR, "pending_emails.json");
@@ -845,8 +844,8 @@ async function handleFetch(req: Request): Promise<Response> {
       const user = await getUserFromSession(req);
       if (user === null || user === undefined) return Response.json({ error: "Not authenticated" }, { status: 401 });
       // Portal data-truth (#236): read the REAL OAuth credential store
-      // (tenant_oauth_credentials.json keyed email:provider) — not the stale
-      // legacy tenant_integrations.json fixtures — so the owner's live
+      // (tenant_oauth_credentials.json keyed email:provider) — not the
+      // retired flat-key connection fixtures — so the owner's live
       // connections actually show. Health overlay applied inside the builder.
       const { buildConnectedAccountsFromCredentials } = await import("./src/lib/connected-accounts");
       const userConns = await buildConnectedAccountsFromCredentials(user.email, DATA_DIR);
@@ -987,8 +986,8 @@ async function handleFetch(req: Request): Promise<Response> {
     if (pathname === "/api/data/customers") {
       const user = await getUserFromSession(req);
       if (user === null || user === undefined) return Response.json({ error: "Not authenticated" }, { status: 401 });
-      const all = readJSON(TENANT_INTEGRATIONS_FILE);
-      const userConns = all[user.email] || [];
+      const { buildConnectedAccountsFromCredentials } = await import("./src/lib/connected-accounts");
+      const userConns = await buildConnectedAccountsFromCredentials(user.email, DATA_DIR);
       const crmErpConns = userConns.filter((c: any) => {
         const cat = (c.category || "").toLowerCase();
         return cat.includes("crm") || cat.includes("erp") || cat.includes("accounting");
@@ -1928,7 +1927,7 @@ async function handleFetch(req: Request): Promise<Response> {
       return Response.json({ error: "Method not allowed" }, { status: 405 });
     }
     // ── /api/portal/connections — #230 connection health + reconnect surface ──
-    // GET → per-tenant { provider, status, health, expiresAt, reconnectPath }
+    // GET → per-tenant { provider, status, health, expiresAt }
     if (pathname === "/api/portal/connections") {
       const user = await getUserFromSession(req);
       if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
@@ -1954,7 +1953,6 @@ async function handleFetch(req: Request): Promise<Response> {
           lastOkAt: healthRec?.lastOkAt ?? null,
           lastError: healthRec?.lastError ?? null,
           consecutiveFailures: healthRec?.consecutiveFailures ?? 0,
-          reconnectPath: hasRefresh ? "/portal/integrations" : null,
         });
       }
       return Response.json({ data: { connections: list, refreshTicks: scheduledRefresherStats.tickCount } });
@@ -2155,20 +2153,6 @@ async function handleFetch(req: Request): Promise<Response> {
     }
 
     // ── Integration APIs ──────────────────────────────────────────
-    if (pathname === "/api/integrations") {
-      const user = await getUserFromSession(req);
-      if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
-      // Purchase gating: non-owners need active purchases for CRM/ERP/Accounting.
-      // Other integrations (Communication, Marketing, Data, etc.) are ungated.
-
-      // #232 item 3 + data-truth (#236): the connected list comes from the REAL
-      // OAuth credential store with the live health overlay — never the stale
-      // tenant_integrations.json fixtures. This is also what the /portal
-      // dashboard "integrations connected" count reads.
-      const { buildConnectedAccountsFromCredentials } = await import("./src/lib/connected-accounts");
-      return Response.json({ data: await buildConnectedAccountsFromCredentials(user.email, DATA_DIR) });
-    }
-
     if (pathname === "/api/integrations/providers") {
       const page = parseInt(url.searchParams.get("page") || "0");
       const limit = parseInt(url.searchParams.get("limit") || "180");
@@ -2287,200 +2271,6 @@ async function handleFetch(req: Request): Promise<Response> {
       }
     }
 
-    if (pathname === "/api/integrations/connect" && req.method === "POST") {
-      const user = await getUserFromSession(req);
-      if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
-      // Purchase gating: non-owners need active purchases for CRM/ERP/Accounting.
-      // Other integrations (Communication, Marketing, Data, etc.) are ungated.
-
-      try {
-        const body = await req.json();
-        // Accept flexible field names: providerId/provider, providerName/name, credentials.apiKey or flat apiKey
-        const providerId = body.providerId || body.provider || "";
-        const providerName = body.providerName || body.provider || body.name || providerId;
-        const providerCategory = body.category || getProviderCategory(providerId) || "";
-        // Prevent duplicate connections
-        const allConns = readJSON(TENANT_INTEGRATIONS_FILE);
-        const existingConns = allConns[user.email] || [];
-        const alreadyConnected = existingConns.find((c: any) => c.providerId === providerId && c.status === "Connected");
-        if (alreadyConnected) {
-          return Response.json({
-            error: `${providerName || providerId} is already connected (since ${new Date(alreadyConnected.connectedAt).toLocaleDateString()}). Disconnect it first to reconnect with new credentials.`,
-          }, { status: 409 });
-        }
-        const creds = body.credentials || body;
-        const apiKey = creds.apiKey || creds.api_key || creds.key || "";
-        if (!apiKey || !apiKey.trim()) {
-          return Response.json({ error: "API credentials required. Please provide at least an API key." }, { status: 400 });
-        }
-        if (apiKey.trim().length < 4) {
-          return Response.json({ error: "Invalid API key — too short." }, { status: 400 });
-        }
-
-        // CRM/ERP slot check — only for non-owner users connecting CRM/ERP/Accounting providers
-        if (!isOwnerUser(user) && isCrmErpCategory(providerCategory)) {
-          const packType = getPackTypeForCategory(providerCategory);
-          if (!packType) {
-            return Response.json({
-              error: "Could not determine slot type for provider",
-            }, { status: 400 });
-          }
-          const purchases = readJSON(TENANT_PURCHASES_FILE);
-          const userPurchases = purchases[user.email] || [];
-          const pack = userPurchases.find((p: any) => p.type === packType && p.status === "active");
-          if (!pack) {
-            return Response.json({
-              error: `This provider requires a ${packType === "crm-pack" ? "CRM" : "ERP"} Connection Pack purchase`,
-              requiresPurchase: true,
-              upgradeUrl: "/portal/marketplace",
-            }, { status: 402 });
-          }
-          const remainingSlots = (pack.slots || 0) - (pack.usedSlots || 0);
-          if (remainingSlots <= 0) {
-            return Response.json({
-              error: `No ${packType === "crm-pack" ? "CRM" : "ERP"} connection slots remaining (${pack.slots || 0}/${pack.slots || 0} used). Purchase more slots.`,
-              requiresPurchase: true,
-              upgradeUrl: "/portal/marketplace",
-            }, { status: 402 });
-          }
-        }
-
-        const credentials = { apiKey: apiKey.trim() };
-        // Test the connection before saving
-        const testResult = await testProviderConnection(providerId, providerName, credentials);
-        if (!testResult.success) {
-          return Response.json({ error: testResult.error || "Connection test failed. Check your credentials." }, { status: 400 });
-        }
-
-        // Consume a CRM/ERP slot if applicable (non-owner)
-        if (!isOwnerUser(user) && isCrmErpCategory(providerCategory)) {
-          const packType = getPackTypeForCategory(providerCategory);
-          if (packType && !consumeCrmErpSlot(user.email, packType)) {
-            return Response.json({ error: "Failed to reserve slot. Please try again." }, { status: 500 });
-          }
-        }
-
-        const all = readJSON(TENANT_INTEGRATIONS_FILE);
-        const userConns = all[user.email] || [];
-        const entry = {
-          id: "int-" + Math.random().toString(36).substr(2, 9),
-          provider: providerName || providerId,
-          providerId,
-          category: providerCategory || getProviderCategory(providerId),
-          status: "Connected",
-          connectedAt: new Date().toISOString(),
-          lastSync: new Date().toISOString(),
-          credentials,
-        };
-        userConns.push(entry);
-        all[user.email] = userConns;
-        writeJSON(TENANT_INTEGRATIONS_FILE, all);
-        // Audit log
-        const alogs2 = readJSON(AUDIT_LOG_FILE);
-        const alogUser2 = alogs2[user.email] || [];
-        alogUser2.push({
-          id: "log-" + Math.random().toString(36).substr(2, 9),
-          timestamp: new Date().toISOString(),
-          user: user.email,
-          action: "integration.connect",
-          resource: providerId,
-          detail: "Connected " + (providerName || providerId) + " via API key",
-          ip: "127.0.0.1",
-        });
-        alogs2[user.email] = alogUser2;
-        writeJSON(AUDIT_LOG_FILE, alogs2);
-        return Response.json({ success: true, connection: entry, tested: true });
-      } catch (e: any) {
-        return Response.json({ error: e.message || "Invalid request" }, { status: 400 });
-      }
-    }
-
-    if (pathname === "/api/integrations/disconnect" && req.method === "POST") {
-      const user = await getUserFromSession(req);
-      if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
-      // Purchase gating: non-owners need active purchases for CRM/ERP/Accounting.
-      // Other integrations (Communication, Marketing, Data, etc.) are ungated.
-
-      try {
-        const body = await req.json();
-        // ── Authoritative removal (P0 — #178 regression) ─────────────────────
-        // Since #178, Connected Accounts reads the durable
-        // tenant_oauth_credentials.json (keyed `${email}:${provider}`). The legacy
-        // TENANT_INTEGRATIONS_FILE cleanup below alone never clears the card, so
-        // Disconnect returned success while the credential row (and the card)
-        // stayed — the owner couldn't clear Xero to reconnect. Remove the durable
-        // row via the same readJSONLive/writeJSON/durableFlush pattern as
-        // persistOAuthTokenDurable so it lands in the Neon durable store.
-        let disconnectProvider = String(body.providerId || "").trim();
-        if (!disconnectProvider && body.connectionId) {
-          const parts = String(body.connectionId).split(":");
-          if (parts.length >= 2) {
-            const connEmail = (parts[0] || "").trim();
-            // Fail closed: never trust a connectionId whose email isn't the
-            // session user (prevents cross-tenant removal).
-            if (connEmail && connEmail !== user.email) {
-              return Response.json({ error: "connectionId does not match session user" }, { status: 403 });
-            }
-            disconnectProvider = (parts.slice(1).join(":") || "").trim();
-          }
-        }
-        if (disconnectProvider) {
-          const credsFile = join(DATA_DIR, "tenant_oauth_credentials.json");
-          const creds = ((await readJSONLive(credsFile)) as Record<string, any>) || {};
-          let credsChanged = false;
-          for (const k of Object.keys(creds)) {
-            const sep = k.indexOf(":");
-            if (sep === -1) continue;
-            const kEmail = k.slice(0, sep);
-            const kProv = k.slice(sep + 1);
-            if (kEmail === user.email && kProv === disconnectProvider) {
-              delete creds[k];
-              credsChanged = true;
-            }
-          }
-          if (credsChanged) {
-            writeJSON(credsFile, creds);
-            await durableFlush();
-          }
-        }
-        // NOTE (health): the durable ConnectionHealthTracker prunes any health row
-        // whose credential key is absent from tenant_oauth_credentials.json on the
-        // next heartbeat (prune() in connection-health.ts), so removing the key
-        // above also stops further probing/emailing for this provider+tenant. No
-        // manual health pruning needed.
-        const all = readJSON(TENANT_INTEGRATIONS_FILE);
-        const userConns = all[user.email] || [];
-        // Find the connection to check if it's CRM/ERP before removing
-        const conn = userConns.find((c: any) => c.id === body.connectionId || c.providerId === body.providerId);
-        // Free CRM/ERP slot if applicable (non-owner)
-        if (conn && !isOwnerUser(user)) {
-          const connCategory = conn.category || getProviderCategory(conn.providerId || "") || "";
-          if (isCrmErpCategory(connCategory)) {
-            const packType = getPackTypeForCategory(connCategory);
-            if (packType) freeCrmErpSlot(user.email, packType);
-          }
-        }
-        all[user.email] = userConns.filter((c: any) => c.id !== body.connectionId && c.providerId !== body.providerId);
-        writeJSON(TENANT_INTEGRATIONS_FILE, all);
-        // Audit log
-        const alogs3 = readJSON(AUDIT_LOG_FILE);
-        const alogUser3 = alogs3[user.email] || [];
-        alogUser3.push({
-          id: "log-" + Math.random().toString(36).substr(2, 9),
-          timestamp: new Date().toISOString(),
-          user: user.email,
-          action: "integration.disconnect",
-          resource: body.connectionId || body.providerId || "",
-          detail: "Disconnected " + ((conn && conn.provider) || body.providerId || "integration"),
-          ip: "127.0.0.1",
-        });
-        alogs3[user.email] = alogUser3;
-        writeJSON(AUDIT_LOG_FILE, alogs3);
-        return Response.json({ success: true });
-      } catch (e: any) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
-        return Response.json({ error: "Invalid request" }, { status: 400 });
-      }
-    }
     if (pathname === "/api/tools/analyze" && req.method === "POST") {
       // Cleanup (c): the AI-employee catalog is retired — no per-agent
       // pricing or payment links remain. The analysis stays a plain
@@ -2855,74 +2645,6 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
       return Response.json({ data: card });
     }
 
-    // ── /api/integrations/:id/sync & /api/integrations/:id DELETE ──
-    const integrationDetailMatch = pathname.match(/^\/api\/integrations\/([^/]+)$/);
-    if (integrationDetailMatch && (req.method === "DELETE" || req.method === "POST")) {
-      const user = await getUserFromSession(req);
-      if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
-      const connectionId = integrationDetailMatch[1];
-      try {
-        const all = readJSON(TENANT_INTEGRATIONS_FILE);
-        const userConns = all[user.email] || [];
-        if (req.method === "DELETE") {
-          // Free CRM/ERP slot before removing connection
-          const conn = userConns.find((c: any) => c.id === connectionId || c.providerId === connectionId);
-          if (conn && !isOwnerUser(user)) {
-            const connCategory = conn.category || getProviderCategory(conn.providerId || "") || "";
-            if (isCrmErpCategory(connCategory)) {
-              const packType = getPackTypeForCategory(connCategory);
-              if (packType) freeCrmErpSlot(user.email, packType);
-            }
-          }
-          all[user.email] = userConns.filter((c: any) => c.id !== connectionId && c.providerId !== connectionId);
-          writeJSON(TENANT_INTEGRATIONS_FILE, all);
-          return Response.json({ success: true });
-        }
-        // POST = sync. A timestamp/status update is not a provider health check.
-        // Fail closed until this provider has an explicit tenant-scoped read handler.
-        const conn = userConns.find((c: any) => c.id === connectionId || c.providerId === connectionId);
-        if (!conn) return Response.json({ error: "Connection not found" }, { status: 404 });
-        return Response.json({ error: "Integration verification is not available for this provider; no request was made", verificationRequired: true, synced: false }, { status: 409 });
-      } catch (e: any) {
-        return Response.json({ error: e.message || "Failed" }, { status: 500 });
-      }
-    }
-    const integrationSyncMatch = pathname.match(/^\/api\/integrations\/([^/]+)\/sync$/);
-    if (integrationSyncMatch && req.method === "POST") {
-      const user = await getUserFromSession(req);
-      if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
-      const connectionId = integrationSyncMatch[1];
-      try {
-        const all = readJSON(TENANT_INTEGRATIONS_FILE);
-        const userConns = all[user.email] || [];
-        const conn = userConns.find((c: any) => c.id === connectionId || c.providerId === connectionId);
-        if (!conn) return Response.json({ error: "Connection not found" }, { status: 404 });
-        return Response.json({ error: "Integration verification is not available for this provider; no request was made", verificationRequired: true, synced: false }, { status: 409 });
-      } catch (e: any) {
-        return Response.json({ error: e.message || "Sync failed" }, { status: 500 });
-      }
-    }
-
-    // ── /api/integrations/:id/logs GET ──
-    const integrationLogsMatch = pathname.match(/^\/api\/integrations\/([^/]+)\/logs$/);
-    if (integrationLogsMatch && req.method === "GET") {
-      const user = await getUserFromSession(req);
-      if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
-      const connectionId = integrationLogsMatch[1];
-      try {
-        const activity = readJSON(join(DATA_DIR, "tenant_activity.json"));
-        const userActivity = activity[user.email] || {};
-        const connActivity = userActivity[connectionId] || [];
-        const logs = Array.isArray(connActivity) ? connActivity : [];
-        return Response.json({ data: logs, connectionId });
-      } catch (e: any) {
-        return Response.json({ error: e.message || "Failed to fetch logs" }, { status: 500 });
-      }
-    }
-
-    
-
-
     // ── /api/chat & /api/chat/sessions ───────────────────────────
     if (pathname === "/api/chat/sessions") {
       const user = await getUserFromSession(req);
@@ -2952,9 +2674,10 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
           };
           userSessions.push(session);
         }
-        // Generate contextual response
-        const userIntegrations = readJSON(TENANT_INTEGRATIONS_FILE);
-        const userConns = userIntegrations[user.email] || [];
+        // Generate contextual response — a2: external tools are import/migration
+        // lanes only (flat connection store retired); derive from the real OAuth store.
+        const { buildConnectedAccountsFromCredentials } = await import("./src/lib/connected-accounts");
+        const userConns = await buildConnectedAccountsFromCredentials(user.email, DATA_DIR);
         // ── File-creation intents (owner directive 2026-08-13) ──
         // "create a spreadsheet of unpaid invoices" → route to the tenant's
         // preferred connected workspace (google|microsoft) and say which one
@@ -3000,14 +2723,14 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
             });
             createReply = outcome.ok
               ? outcome.message + " Open it in your portal File Library, or here: " + (outcome.file.url || outcome.file.nativeUrl || "") + "."
-              : "I couldn't create that: " + outcome.error + (outcome.connectHint?.length ? " Connect: " + outcome.connectHint.join(", ") : "") + ".";
+              : "I couldn't create that: " + outcome.error + (outcome.connectHint?.length ? " — " + outcome.connectHint.join(", ") + " to allow file creation." : "") + ".";
           } catch (e: any) {
             createReply = "I couldn't create that right now: " + (e?.message || String(e));
           }
         }
         const responseText = createReply !== null ? createReply : `I'm your AI assistant at Simpler Life 100. ${userConns.length > 0 ?
-          `I can see you have ${userConns.length} integration(s) connected (${userConns.map((c: any) => c.provider).join(", ")}). ` :
-          "You don't have any integrations connected yet — I can help you set those up. "
+          `I can see ${userConns.length} external tool(s) your account has granted access to (${userConns.map((c: any) => c.provider).join(", ")}). You can import data from them from the Import page. ` :
+          "No external-tool access is set up on your account yet — you can import data from your tools from the Import page whenever you're ready. "
         }Our platform runs every capability natively — automations with human approval by default, and opt-in autonomy with a full audit trail. How can I help you optimize your operations today?`;
         const msg = { role: "user", content: message, timestamp: new Date().toISOString() };
         const reply = { role: "assistant", content: responseText, timestamp: new Date().toISOString() };
@@ -3028,7 +2751,7 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
     // count/total; there is deliberately NO fabricated hours/effort field.
     function computePortalAnalyticsSnapshot() {
       const purchases = readJSON(TENANT_PURCHASES_FILE);
-      const integrations = readJSON(TENANT_INTEGRATIONS_FILE);
+      const integrations = (readJSON(join(DATA_DIR, "tenant_oauth_credentials.json")) as Record<string, any>) || {};
       const sessions = readJSON(CHAT_SESSIONS_FILE);
       const runs = readJSON(join(DATA_DIR, "workflow_runs.json"));
       const users = readJSON(USERS_FILE);
@@ -3067,7 +2790,7 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
       return {
         totalUsers: Object.keys(users).length,
         totalAgents: defs.length,
-        totalIntegrations: Object.values(integrations).reduce((sum: number, v: any) => sum + (Array.isArray(v) ? v.length : 0), 0),
+        totalIntegrations: Object.values(integrations).filter((v: any) => v && typeof v === "object" && (v.accessToken || v.apiToken)).length,
         totalChatSessions: Object.values(sessions).reduce((sum: number, v: any) => sum + (Array.isArray(v) ? v.length : 0), 0),
         totalAgentRuns: Object.values(runs).reduce((sum: number, v: any) => sum + (Array.isArray(v) ? v.length : 0), 0),
         totalPurchases: Object.values(purchases).reduce((sum: number, v: any) => sum + (Array.isArray(v) ? v.length : 0), 0),
@@ -3248,16 +2971,12 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
       }
       if (subPath === "datadir") {
         const legacyDir = findLegacyDataDir();
-        const currentConns = readJSON(TENANT_INTEGRATIONS_FILE);
-        const legacyConns = legacyDir ? readJSON(join(legacyDir, "tenant_integrations.json")) : {};
         const store = durableStoreStatus();
         return Response.json({
           dataDir: DATA_DIR,
           insidePublishTree: isInsidePublishTree(DATA_DIR),
           legacyDirExists: !!legacyDir,
           legacyDir: legacyDir,
-          legacyConnectionCount: countConnections(legacyConns),
-          currentConnectionCount: countConnections(currentConns),
           durableStore: durableEnabled() ? "postgres" : "file",
           durableKeyCount: durableEnabled() ? durableKeyCount() : 0,
           hydrationState: store.hydrationState,
@@ -3761,31 +3480,6 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
         writeJSON(tokenFile, tokenData);
         await durableFlush();
         
-        // Create connection record in tenant_integrations.json
-        const allConns = readJSON(TENANT_INTEGRATIONS_FILE);
-        const userConns = allConns[user.email] || [];
-        
-        // Check for existing connection
-        const existingIdx = userConns.findIndex((c: any) => c.providerId === canonicalProvider);
-        const entry = {
-          id: "int-" + Math.random().toString(36).substr(2, 9),
-          provider: canonicalProvider,
-          providerId: canonicalProvider,
-          category: getProviderCategory(canonicalProvider) || "Integration",
-          status: "Connected",
-          connectedAt: new Date().toISOString(),
-          lastSync: new Date().toISOString(),
-          credentials: { apiKey: tokens.accessToken, oauth: true },
-        };
-        
-        if (existingIdx >= 0) {
-          // Update existing connection
-          userConns[existingIdx] = { ...userConns[existingIdx], ...entry, id: userConns[existingIdx].id };
-        } else {
-          userConns.push(entry);
-        }
-        allConns[user.email] = userConns;
-        writeJSON(TENANT_INTEGRATIONS_FILE, allConns);
         
         // Audit log
         const alogs = readJSON(AUDIT_LOG_FILE);
