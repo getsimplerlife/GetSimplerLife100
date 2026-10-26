@@ -4285,8 +4285,7 @@ OAUTH_${provUpper}_CLIENT_SECRET=your_client_secret</pre><p style="font-size:0.8
 
     // AUDIT-D (10-26): fail CLOSED on the API namespace — any unmatched
     // /api request (any verb) gets 404 JSON, never the SPA HTML fallback.
-    // The five pre-D dead endpoints (audit-logs/stats, connect-ai/mapping,
-    // v1/trigger, portal/files/view, workflows/generate) flip to 404 here.
+    // Dead endpoints retired by the AUDIT-B slice now return 404 here.
     // Real /api handlers are all matched above this point and keep their
     // auth-gated codes (401/400/200) exactly as before.
     if (pathname === "/api" || pathname.startsWith("/api/")) {
