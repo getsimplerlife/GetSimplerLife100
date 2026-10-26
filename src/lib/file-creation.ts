@@ -5,8 +5,8 @@
  * files within both Google apps and Microsoft apps based on what is being
  * done within all integrations/connections."
  *
- * `createDataFile` is the single entry point AI employees / chat / the
- * portal use to create a data file. It:
+ * `createDataFile` is the single entry point the portal, the chat
+ * assistant, and automations use to create a data file. It:
  *   1. reads the tenant's workspace preference (tenant_settings.json,
  *      default 'auto'),
  *   2. reads the tenant's connected integrations (tenant_integrations.json),

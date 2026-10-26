@@ -8,7 +8,7 @@
  * Shape: { [tenantEmail]: { workspacePreference: 'google'|'microsoft'|'auto' } }
  * — tenant-scoped, keyed by email exactly like client_files.json.
  *
- * The workspace preference decides where AI employees create data files
+ * The workspace preference decides where the platform creates data files
  * (Google OR Microsoft) when a file-creation request does not name a
  * provider explicitly. Default: 'auto' (route to whichever file workspace
  * the tenant has connected).

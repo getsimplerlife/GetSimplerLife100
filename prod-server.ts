@@ -3,7 +3,7 @@ import { join } from "path";
 import { readFileSync, existsSync, readdirSync } from "fs";
 import { createHash, randomBytes } from "crypto";
 import { resolveDataDir, isInsidePublishTree, readJSON, readJSONLive, writeJSON, seedDataFiles, bucketConnectionsByCategory, migrateLegacyData, findLegacyDataDir, countConnections, mergeDurableCredential } from "./src/lib/data-store";
-import { detectPackType, buildPackPurchase, verifyStripeSignature } from "./src/lib/stripe-webhook";
+import { detectPackType, buildPackPurchase, verifyStripeSignature, detectPlanType, buildPlanPurchase, planAgentIds } from "./src/lib/stripe-webhook";
 import { buildOwnerSaleEvent, provisionAccountForPurchase, ownerSaleEmailBody } from "./src/lib/purchase-sales-events";
 import {
   generateResetCode,
@@ -3054,7 +3054,30 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
       const defs = (Array.isArray(workflows) ? workflows : Object.values(workflows))
         .flat()
         .filter((w: any) => w && typeof w === "object") as any[];
-      const departments: Array<{ name: string; count: number; percentage: number; color: string }> = [];
+      // Departments "from real data" (p0 B1 pin): REAL purchase records by
+      // type now that the AI-employee roster categories are retired.
+      const departmentLabels: Record<string, string> = {
+        "crm-pack": "CRM Pack",
+        "erp-pack": "ERP Pack",
+        plan: "Plan",
+        generic: "Generic",
+      };
+      const catCounts: Record<string, number> = {};
+      for (const arr of Object.values(purchases)) {
+        if (!Array.isArray(arr)) continue;
+        for (const p of arr) {
+          const cat = p && (p.type || (p.tier ? "plan" : "generic"));
+          if (cat) catCounts[cat] = (catCounts[cat] || 0) + 1;
+        }
+      }
+      const totalCat = Object.values(catCounts).reduce((a, b) => a + b, 0) || 1;
+      const deptColors = ["bg-blue-500", "bg-purple-500", "bg-emerald-500", "bg-amber-500", "bg-rose-500", "bg-cyan-500", "bg-indigo-500", "bg-stone-600"];
+      const departments = Object.entries(catCounts).map(([cat, count], idx) => ({
+        name: departmentLabels[cat] || cat,
+        count,
+        percentage: Math.round((count / totalCat) * 100),
+        color: deptColors[idx % deptColors.length],
+      }));
       return {
         totalUsers: Object.keys(users).length,
         totalAgents: defs.length,
@@ -3540,10 +3563,32 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
             return Response.json({ received: true });
           }
 
-          // Cleanup (c): the per-agent plan/agent purchase branches are
-          // retired — every checkout that reaches this point (including the
-          // three current tier links and legacy links) records as a generic
-          // platform purchase. No employees store is read anywhere.
+          // Legacy tier mapping (guardrail-pinned runtime): detectPlanType
+          // still resolves the retired tier links so historical sessions keep
+          // mapping. Cleanup (c): per-agent grants are retired — the grant
+          // list is ALWAYS empty and no employees store is read.
+          const planSpec = detectPlanType(paymentLink);
+          if (planSpec && customerEmail) {
+            const purchases = readJSON(TENANT_PURCHASES_FILE);
+            const userPurchases = purchases[customerEmail] || [];
+            const agentIds = planAgentIds([], planSpec);
+            userPurchases.push(buildPlanPurchase(planSpec, amountTotal, session.id, agentIds));
+            purchases[customerEmail] = userPurchases;
+            writeJSON(TENANT_PURCHASES_FILE, purchases);
+            configureTenant!(customerEmail, { purchased: true, status: "Active" });
+            await handlePurchaseCompleted({
+              customerEmail,
+              productName: planSpec.productName,
+              opportunityType: "plan",
+              amountTotal,
+              sessionId: session.id,
+            });
+            return Response.json({ received: true });
+          }
+
+          // Cleanup (c): every other checkout (current tier links, legacy
+          // links) records as a generic platform purchase — no per-agent
+          // matcher, no employees store read anywhere.
           if (customerEmail) {
             // Generic purchase — record it
             const purchases = readJSON(TENANT_PURCHASES_FILE);
@@ -3564,7 +3609,7 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
           // Notify the owner + provision the account — exactly once per real
           // session (handlePurchaseCompleted is idempotent on session.id).
           if (customerEmail && session.id) {
-            const saleInfo = { productName: "Simpler Life 100 Platform", opportunityType: "other" };
+            const saleInfo = { productName: "AI Automation Package", opportunityType: "other" };
             await handlePurchaseCompleted({
               customerEmail,
               productName: saleInfo.productName,

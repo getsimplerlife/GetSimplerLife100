@@ -259,7 +259,7 @@ export function renderEmailTemplate(variables: EmailTemplateVariables): {
   const text = `
 Dear ${recipientName},
 
-Your AI Employee "${agentName}" has completed a run for the workflow "${workflowName}".
+Your workflow "${workflowName}" has completed a run.
 
 Status: ${statusEmoji} ${statusText}
 
@@ -383,7 +383,7 @@ https://simplerlife100.ctonew.app
       
       <div class="message-box">
         <p>Dear ${recipientName},</p>
-        <p>Your AI Employee <strong>${agentName}</strong> has completed execution of the workflow <strong>${workflowName}</strong> with the following outcome:</p>
+        <p>Your workflow <strong>${workflowName}</strong> has completed execution with the following outcome:</p>
         <blockquote style="border-left: 4px solid #4f46e5; margin: 16px 0; padding-left: 16px; font-style: italic; color: #94a3b8;">
           ${message}
         </blockquote>

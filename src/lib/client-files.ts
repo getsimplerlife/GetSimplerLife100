@@ -4,7 +4,7 @@ import { workspaceForProvider, type Workspace } from "./workspace-routing";
 /**
  * client-files.ts — the client portal File Library registry.
  *
- * WHY (owner directive 2026-08-12): AI employees create Google productivity
+ * WHY (owner directive 2026-08-12): the platform's AI capabilities create Google productivity
  * files (Docs/Sheets/Slides/Drive) and Microsoft Office files
  * (Word/Excel/PowerPoint in OneDrive), and those files must be "ready within
  * clients portals ready for clients to view, edit or print/download".

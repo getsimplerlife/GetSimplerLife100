@@ -9,9 +9,17 @@
  *   - src/lib/employee-attention.ts (only consumer was the employees handler)
  *   - /api/data/employees + /api/data/marketplace subPath handlers
  *   - /api/agents/run + /api/agents/:id/pause|resume|status
- *   - per-agent purchase gating (employees-catalog purchase check, plan-agent
- *     grants, per-agent payment-link matching, suggestion price-ids)
- *   - the seed/repair of the employees file inside seedDataFiles
+ *   - per-agent purchase gating: the run-gate 402 path, the per-agent
+ *     payment-link/meta matchers (agentPaymentLink / matchAgentBy*),
+ *     suggestion price-ids, plan-agent GRANTS (the grant list is now ALWAYS
+ *     empty and no employees store is read), lead-email roster matching,
+ *     and the employees seed/repair inside seedDataFiles.
+ *
+ * KEPT by design (guardrail-pinned legacy runtime): the tier LINK mapping in
+ * src/lib/stripe-webhook.ts (stripe-catalog-guardrail asserts the retired
+ * tier constants still resolve there) and the plan purchase branch (the
+ * legacy checkout mapping + packSlot redemption stay functional; it writes
+ * an EMPTY grant list and never touches an employees store).
  *
  * Assertions:
  *   1. ZERO retired literals in product source (src/lazy|routes|api|native),
@@ -23,7 +31,8 @@
  *      catch-all empty-store shape ({data: []}) — never SPA HTML, never a
  *      roster.
  *   3. Isolation positive: seedDataFiles on a FRESH dir creates NO global
- *      employees store, and no catalog/attention module exists on disk.
+ *      employees store, no catalog/attention module exists on disk, and the
+ *      user-visible "AI Employee" spoken copy is gone from reachable code.
  */
 import { describe, expect, it, beforeAll } from "vitest";
 import { existsSync, readFileSync, readdirSync, statSync } from "fs";
@@ -77,9 +86,8 @@ describe("CLEANUP (c) — AI-employee layer retired", () => {
       ["the employees file constant", /AI_EMPLOYEES_FILE/],
       ["per-agent run gate message", /Purchase required to run this agent/],
       ["suggested per-agent price-id field", /suggestedAgentPriceId/],
-      ["plan/per-agent purchase matchers", /planAgentIds|agentPaymentLink|matchAgentByPaymentLink|matchAgentByMetadata/],
+      ["per-agent payment-link/meta matchers", /agentPaymentLink|matchAgentByPaymentLink|matchAgentByMetadata/],
       ["employees-attention enrichment", /enrichEmployeesAttention/],
-      ["per-agent plan record builder", /buildPlanPurchase|detectPlanType/],
     ])("%s — zero references remain", (label, re) => {
       assertAbsent(ALL_SCOPES, re as RegExp, String(label));
     });
@@ -97,6 +105,29 @@ describe("CLEANUP (c) — AI-employee layer retired", () => {
         const content = readFileSync(join(dataDir, f), "utf8");
         expect(content, `.data/${f} mentions the retired store`).not.toMatch(/ai_employees/);
       }
+    });
+
+    it("no retired-store literals remain anywhere in src/lib + src/integrations", () => {
+      const libAndInt = [...walkTs("src/lib"), ...walkTs("src/integrations")];
+      assertAbsent(libAndInt, /ai_employees|AI_EMPLOYEES_FILE/, "retired-store literals (libs+integrations)");
+    });
+
+    it("reachable 'AI Employee' spoken copy is zero across product src, src/lib and src/integrations", () => {
+      // The slice-c sweep covers the USER-VISIBLE employee wording too: the
+      // file-creation reply string and the run-notification email templates.
+      // Dead runtime modules (src/agents/**, the provider-api/agent-processor
+      // leftovers) are a separate follow-on purge.
+      const libAndInt = [...walkTs("src/lib"), ...walkTs("src/integrations")];
+      assertAbsent([...productSrc, ...libAndInt], /AI Employee|AI employee/i, "AI Employee spoken copy");
+    });
+
+    it("the server never reads an employees store and grants NO plan agents", () => {
+      expect(serverSrc).not.toMatch(/AI_EMPLOYEES_FILE/);
+      expect(serverSrc).not.toMatch(/readJSON\(join\(DATA_DIR, "ai_employees/);
+      // The kept plan branch must not materialize agent grants — the call is
+      // always planAgentIds([], …) so the grant list stays empty.
+      expect(serverSrc).toContain("planAgentIds([], planSpec)");
+      expect(serverSrc).not.toMatch(/const employees = readJSON\(AI_EMPLOYEES_FILE\)/);
     });
   });
 
