@@ -33,20 +33,6 @@ async function _getOAuthSafety() {
 async function consumeOAuthState(...args: any[]) { return (await _getOAuthSafety()).consumeOAuthState(...args); }
 async function usableOAuthToken(...args: any[]) { return (await _getOAuthSafety()).usableOAuthToken(...args); }
 async function validateOAuthState(...args: any[]) { return (await _getOAuthSafety()).validateOAuthState(...args); }
-let _providerApi: any;
-async function _getProviderApi() {
-  if (!_providerApi) _providerApi = await import("./src/lib/provider-api");
-  return _providerApi;
-}
-async function executeAgent(...args: any[]) { return (await _getProviderApi()).executeAgent(...args); }
-async function executeProviderAction(...args: any[]) { return (await _getProviderApi()).executeProviderAction(...args); }
-async function getHubSpotTrustedTenantId(...args: any[]) { return (await _getProviderApi()).getHubSpotTrustedTenantId(...args); }
-let _agentProcessor: any;
-async function _getAgentProcessor() {
-  if (!_agentProcessor) _agentProcessor = await import("./src/lib/agent-processor");
-  return _agentProcessor;
-}
-async function processAgentResults(...args: any[]) { return (await _getAgentProcessor()).processAgentResults(...args); }
 const BUILD_ID = Date.now().toString(36);
 const DIST_CLIENT = join(typeof import.meta?.dir !== "undefined" ? import.meta.dir : __dirname, "dist");
 const DATA_DIR = resolveDataDir(process.env.DATA_DIR, typeof import.meta?.dir !== "undefined" ? import.meta.dir : __dirname);
@@ -3048,8 +3034,8 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
       const users = readJSON(USERS_FILE);
       // Cleanup (c): the AI-employee roster is retired — the automation count
       // below derives from REAL per-tenant workflow definitions (no global
-      // employees file). departments is empty: the old roster-category
-      // breakdown has no honest replacement store.
+      // employees file). departments derives from REAL purchase records by
+      // type (crm-pack/erp-pack/plan/generic) — see the labels map below.
       const workflows = readJSON(join(DATA_DIR, "tenant_workflows.json"));
       const defs = (Array.isArray(workflows) ? workflows : Object.values(workflows))
         .flat()

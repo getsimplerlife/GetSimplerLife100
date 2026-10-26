@@ -14,6 +14,10 @@
  *     suggestion price-ids, plan-agent GRANTS (the grant list is now ALWAYS
  *     empty and no employees store is read), lead-email roster matching,
  *     and the employees seed/repair inside seedDataFiles.
+ *   - singular/no-space residue of the same layer in reachable code:
+ *     the fake Python "code" tab in the admin workflow builder (the
+ *     `ai_employee` import + `AIEmployee` pseudo-code blueprint) and stale
+ *     chat-engine comments naming the retired reasoning system.
  *
  * KEPT by design (guardrail-pinned legacy runtime): the tier LINK mapping in
  * src/lib/stripe-webhook.ts (stripe-catalog-guardrail asserts the retired
@@ -88,6 +92,7 @@ describe("CLEANUP (c) — AI-employee layer retired", () => {
       ["suggested per-agent price-id field", /suggestedAgentPriceId/],
       ["per-agent payment-link/meta matchers", /agentPaymentLink|matchAgentByPaymentLink|matchAgentByMetadata/],
       ["employees-attention enrichment", /enrichEmployeesAttention/],
+      ["singular/no-space ai-employee literals", /ai_employee|AIEmployee/],
     ])("%s — zero references remain", (label, re) => {
       assertAbsent(ALL_SCOPES, re as RegExp, String(label));
     });
@@ -103,13 +108,13 @@ describe("CLEANUP (c) — AI-employee layer retired", () => {
       for (const f of readdirSync(dataDir)) {
         if (!f.endsWith(".json")) continue;
         const content = readFileSync(join(dataDir, f), "utf8");
-        expect(content, `.data/${f} mentions the retired store`).not.toMatch(/ai_employees/);
+        expect(content, `.data/${f} mentions the retired store`).not.toMatch(/ai_employee/);
       }
     });
 
     it("no retired-store literals remain anywhere in src/lib + src/integrations", () => {
       const libAndInt = [...walkTs("src/lib"), ...walkTs("src/integrations")];
-      assertAbsent(libAndInt, /ai_employees|AI_EMPLOYEES_FILE/, "retired-store literals (libs+integrations)");
+      assertAbsent(libAndInt, /ai_employees|ai_employee|AIEmployee|AI_EMPLOYEES_FILE/, "retired-store literals (libs+integrations)");
     });
 
     it("reachable 'AI Employee' spoken copy is zero across product src, src/lib and src/integrations", () => {
