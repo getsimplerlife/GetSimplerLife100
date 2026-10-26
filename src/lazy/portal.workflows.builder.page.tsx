@@ -1,7 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
-
-
+import { useState } from "react";
 
 interface WorkflowStep {
   id: string;
@@ -9,16 +7,37 @@ interface WorkflowStep {
   type: "trigger" | "action" | "condition" | "integration";
   icon: string;
   description: string;
-  assignedEmployee: string;
   config: Record<string, string>;
+}
+
+/**
+ * B2 (audit 10-23): the ONLY workflow save payload this page can produce —
+ * real fields only. Fabricated metric fields have no source here and never
+ * enter the tenant workflow store; the server whitelist enforces the same
+ * rule (the payload builder and the POST handler agree field-for-field).
+ */
+export function buildWorkflowSavePayload(
+  name: string,
+  description: string,
+  steps: WorkflowStep[]
+) {
+  return {
+    name,
+    description,
+    status: "Active",
+    steps: (steps || []).map((s) => ({
+      id: s.id,
+      name: s.name,
+      type: s.type,
+      icon: s.icon,
+      description: s.description,
+      config: s.config || {},
+    })),
+  };
 }
 
 function WorkflowBuilderPage() {
   const navigate = useNavigate();
-  const [prompt, setPrompt] = useState("");
-  const [operators, setOperators] = useState<any[]>([]);
-  const [operatorId, setOperatorId] = useState("");
-  const [isGenerating, setIsGenerating] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [generatedWorkflow, setGeneratedWorkflow] = useState<{
     name: string;
@@ -28,82 +47,36 @@ function WorkflowBuilderPage() {
 
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
 
-  // Fetch workflow operators for the operator dropdown
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch("/api/data/employees", { credentials: "include" });
-        if (res.ok) {
-          const data = await res.json();
-          const emps = data.data || data || [];
-          if (Array.isArray(emps) && emps.length > 0) {
-            setOperators(emps);
-            setOperatorId(emps[0].id);
-          }
-        }
-      } catch (err) {
-        console.error("Failed to fetch employees for workflow builder:", err);
-      }
-    })();
-  }, []);
-
-  const handleGenerate = async () => {
-    if (!prompt.trim()) return;
-    setIsGenerating(true);
-    setFeedback("");
-    setGeneratedWorkflow(null);
-
-    try {
-      // Attempt to hit the real endpoint first
-      const res = await fetch("/api/workflows/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ prompt, operatorId }),
-      });
-      
-      if (res.ok) {
-        const data = await res.json();
-        if (data.workflow) {
-          setGeneratedWorkflow(data.workflow);
-          setIsGenerating(false);
-          return;
-        }
-      }
-    } catch (err) {
-      console.warn("Backend generate API unavailable:", err);
-    }
-
-    // No fallback — show error state
-    setFeedback("Workflow generation is not available yet. The API endpoint is being deployed.");
-    setIsGenerating(false);
+  // A3 (audit 10-23): there is no generation endpoint — the dead POST was
+  // removed and the button is an honest disabled state. No theater request,
+  // no spinner.
+  const handleGenerate = () => {
+    setFeedback(
+      "Workflow generation isn't available yet — create and manage workflows from the Workflows registry instead."
+    );
   };
 
   const handleSave = async () => {
     if (!generatedWorkflow) return;
-    
+
     try {
-      setFeedback("Installing workflow schema to active orchestrator registry...");
+      setFeedback("Saving workflow to your registry…");
       const res = await fetch("/api/data/workflows", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({
-          name: generatedWorkflow.name,
-          description: generatedWorkflow.description,
-          status: "Active",
-          successRate: "100",
-          runtime: "1.4s",
-          errors: 0,
-          dependencies: "PDF Parser, Slack App, CRM Integration",
-          lastTriggered: "Never",
-          steps: generatedWorkflow.steps,
-        }),
+        body: JSON.stringify(
+          buildWorkflowSavePayload(
+            generatedWorkflow.name,
+            generatedWorkflow.description,
+            generatedWorkflow.steps
+          )
+        ),
       });
 
       if (!res.ok) throw new Error("Failed to save workflow");
 
-      setFeedback("Success: " + generatedWorkflow.name + " is now active & live on port 3000!");
+      setFeedback("Saved " + generatedWorkflow.name + " to your workflow registry.");
       setTimeout(() => {
         setFeedback("");
         navigate({ to: "/portal/workflows" as any });
@@ -118,7 +91,7 @@ function WorkflowBuilderPage() {
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto text-stone-100">
-      
+
       {/* ─── Breadcrumb Header ─── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-stone-900 pb-5 gap-4">
         <div>
@@ -140,90 +113,46 @@ function WorkflowBuilderPage() {
 
       {/* ─── Dual Pane Layout ─── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        {/* Left Side: Text Input Panel (Grid 5/12) */}
+
+        {/* Left Side: Honest builder status (A3 — generation unavailable) */}
         <div className="lg:col-span-5 bg-stone-950 border border-stone-900 rounded-2xl p-5 space-y-6 flex flex-col justify-between">
           <div className="space-y-4">
-            <div>
-              <label className="block text-[10px] font-mono tracking-wider uppercase text-stone-400 mb-2">
-                1. Select Workflow Operator (Automation)
-              </label>
-              <select
-                value={operatorId}
-                onChange={(e) => setOperatorId(e.target.value)}
-                className="w-full bg-stone-900 border border-stone-800 rounded-xl px-4 py-3 text-xs outline-none focus:border-stone-700 font-bold text-stone-200"
-              >
-                {operators.length === 0 ? (
-                  <option value="">Loading employees...</option>
-                ) : (
-                  operators.map((emp: any) => (
-                    <option key={emp.id} value={emp.id}>{emp.name} — {emp.purpose || emp.agentType || "Automation"}</option>
-                  ))
-                )}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-[10px] font-mono tracking-wider uppercase text-stone-400 mb-2">
-                2. Describe your Workflow automation requirements
-              </label>
-              <textarea
-                rows={8}
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                className="w-full bg-stone-900/40 border border-stone-900 rounded-xl p-4 text-xs font-medium leading-relaxed outline-none focus:border-stone-800 placeholder-stone-600 resize-none text-stone-200"
-                placeholder="E.g. When a file is uploaded, verify it on Stripe..."
-              />
-            </div>
-
             <div className="p-3 bg-stone-900/30 rounded-xl border border-stone-900/50">
-              <span className="text-[10px] font-mono tracking-wide text-stone-500 uppercase block mb-1">PROMPT SUGGESTIONS</span>
+              <span className="text-[10px] font-mono tracking-wide text-stone-500 uppercase block mb-1">BUILDER STATUS</span>
               <p className="text-[10px] text-stone-400 font-medium leading-normal">
-                Describe your automation workflow in plain English — include triggers, conditions, and desired outcomes.
+                Workflow generation isn't available yet. Create and manage workflows directly in the{" "}
+                <Link to="/portal/workflows" className="text-emerald-400 hover:text-emerald-300 font-bold">
+                  Workflows registry
+                </Link>
+                .
               </p>
             </div>
           </div>
 
           <button
+            disabled
             onClick={handleGenerate}
-            disabled={isGenerating}
-            className="w-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-mono font-bold py-3 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 select-none disabled:opacity-50"
+            className="w-full bg-stone-900 border border-stone-800 text-stone-500 text-xs font-mono font-bold py-3 rounded-xl cursor-not-allowed select-none"
           >
-            {isGenerating ? (
-              <>
-                <div className="w-3 h-3 border border-stone-500 border-t-black rounded-full animate-spin" />
-                Compiling Node Map...
-              </>
-            ) : (
-              "🪄 Compile Workflow Blueprint"
-            )}
+            ⚙️ Generation isn't available yet
           </button>
         </div>
 
-        {/* Right Side: Generated Node Visualizer (Grid 7/12) */}
+        {/* Right Side: Visualizer */}
         <div className="lg:col-span-7 bg-stone-950 border border-stone-900 rounded-2xl overflow-hidden min-h-[400px] flex flex-col">
-          
+
           {/* Visualizer Header */}
           <div className="border-b border-stone-900 p-4 bg-stone-950/80 flex justify-between items-center select-none">
             <span className="text-[10px] font-mono tracking-wider uppercase text-stone-400">
               Generated Interactive Map
             </span>
-            <div className="flex items-center gap-1.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-[10px] font-mono text-stone-500">Auto-validating</span>
-            </div>
           </div>
 
           {/* Map Area */}
           <div className="flex-1 p-6 flex flex-col justify-center items-center relative overflow-y-auto min-h-[350px]">
-            {isGenerating ? (
-              <div className="text-center space-y-3">
-                <div className="w-8 h-8 border-2 border-stone-900 border-t-emerald-500 rounded-full animate-spin mx-auto" />
-                <p className="text-xs font-mono text-stone-500 uppercase tracking-widest animate-pulse">Running cognitive reasoning...</p>
-              </div>
-            ) : generatedWorkflow ? (
+            {generatedWorkflow ? (
               <div className="w-full space-y-4 max-w-md">
-                
+
                 {/* Generated Info Card */}
                 <div className="bg-stone-900/40 border border-stone-900 p-4 rounded-xl text-center mb-6">
                   <h3 className="font-bold text-sm text-white">{generatedWorkflow.name}</h3>
@@ -232,12 +161,12 @@ function WorkflowBuilderPage() {
 
                 {/* Steps Sequential Node Trace */}
                 <div className="space-y-4 relative">
-                  
+
                   {generatedWorkflow.steps.map((step, index) => {
                     const isSelected = selectedStepId === step.id;
                     return (
                       <div key={step.id} className="relative">
-                        
+
                         {/* Connecting Line to next step */}
                         {index < generatedWorkflow.steps.length - 1 && (
                           <div className="absolute left-[21px] top-10 w-0.5 h-6 bg-stone-900" />
@@ -259,7 +188,7 @@ function WorkflowBuilderPage() {
                               <div className="text-[10px] text-stone-400 truncate max-w-[200px]">{step.description}</div>
                             </div>
                           </div>
-                          
+
                           <div className="flex items-center gap-2">
                             <span className="text-[10px] font-mono text-stone-500 bg-stone-900 border border-stone-900 px-2 py-0.5 rounded-md uppercase">
                               {step.type}
@@ -294,9 +223,10 @@ function WorkflowBuilderPage() {
             ) : (
               <div className="text-center text-stone-500 max-w-sm space-y-2">
                 <span className="text-4xl block opacity-40">⚙️</span>
-                <h3 className="font-bold text-xs text-stone-400">No active blueprint loaded</h3>
+                <h3 className="font-bold text-xs text-stone-400">Builder unavailable</h3>
                 <p className="text-[10px] leading-relaxed">
-                  Enter your automation idea in the prompt window on the left and compile to visualize your custom node workflow map.
+                  Workflow generation isn't available yet. Create and manage workflows from the
+                  Workflows registry instead.
                 </p>
               </div>
             )}
@@ -326,15 +256,6 @@ function WorkflowBuilderPage() {
                 <div>
                   <h4 className="font-bold text-sm text-white">{selectedStep.name}</h4>
                   <span className="text-[10px] font-mono text-emerald-500 uppercase">{selectedStep.type}</span>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-mono tracking-wider uppercase text-stone-500 mb-1">
-                  Responsible Coworker
-                </label>
-                <div className="text-xs font-bold text-stone-300 bg-stone-900 border border-stone-900 px-3 py-2 rounded-lg">
-                  {selectedStep.assignedEmployee}
                 </div>
               </div>
 

@@ -3294,6 +3294,51 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
     }
 
     // ── /api/data/* ──────────────────────────────────────────────
+    // ── B1 (audit 10-23): ONE honest analytics derivation ─────────────
+    // Shared by /api/data/analytics and /api/admin/analytics — real counts
+    // only. Departments reflect real category counts; percentage is
+    // count/total; there is deliberately NO fabricated hours/effort field.
+    function computePortalAnalyticsSnapshot() {
+      const employees = readJSON(AI_EMPLOYEES_FILE);
+      const purchases = readJSON(TENANT_PURCHASES_FILE);
+      const integrations = readJSON(TENANT_INTEGRATIONS_FILE);
+      const sessions = readJSON(CHAT_SESSIONS_FILE);
+      const runs = readJSON(join(DATA_DIR, "workflow_runs.json"));
+      const users = readJSON(USERS_FILE);
+      const categoryLabels: Record<string, string> = {
+        finance: "Finance & Accounting",
+        sales: "Sales & CRM",
+        support: "Customer Support",
+        communications: "Communications",
+        logistics: "Logistics & Operations",
+        hr: "HR & People",
+        marketing: "Marketing",
+        compliance: "Compliance & Legal",
+      };
+      const catCounts: Record<string, number> = {};
+      for (const emp of employees) {
+        const cat = emp.category || "other";
+        catCounts[cat] = (catCounts[cat] || 0) + 1;
+      }
+      const totalCat = Object.values(catCounts).reduce((a, b) => a + b, 0) || 1;
+      const deptColors = ["bg-blue-500", "bg-purple-500", "bg-emerald-500", "bg-amber-500", "bg-rose-500", "bg-cyan-500", "bg-indigo-500", "bg-stone-600"];
+      const departments = Object.entries(catCounts).map(([cat, count], idx) => ({
+        name: categoryLabels[cat] || cat,
+        count,
+        percentage: Math.round((count / totalCat) * 100),
+        color: deptColors[idx % deptColors.length],
+      }));
+      return {
+        totalUsers: Object.keys(users).length,
+        totalAgents: employees.length,
+        totalIntegrations: Object.values(integrations).reduce((sum: number, v: any) => sum + (Array.isArray(v) ? v.length : 0), 0),
+        totalChatSessions: Object.values(sessions).reduce((sum: number, v: any) => sum + (Array.isArray(v) ? v.length : 0), 0),
+        totalAgentRuns: Object.values(runs).reduce((sum: number, v: any) => sum + (Array.isArray(v) ? v.length : 0), 0),
+        totalPurchases: Object.values(purchases).reduce((sum: number, v: any) => sum + (Array.isArray(v) ? v.length : 0), 0),
+        serverUptime: Math.floor(process.uptime()),
+        departments,
+      };
+    }
     if (pathname.startsWith("/api/data/")) {
       const user = await getUserFromSession(req);
       if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
@@ -3314,49 +3359,10 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
       }
 
       if (subPath === "analytics" || subPath === "analytics/") {
-        const employees = readJSON(AI_EMPLOYEES_FILE);
-        const purchases = readJSON(TENANT_PURCHASES_FILE);
-        const integrations = readJSON(TENANT_INTEGRATIONS_FILE);
-        const sessions = readJSON(CHAT_SESSIONS_FILE);
-        const runs = readJSON(join(DATA_DIR, "workflow_runs.json"));
-        const users = readJSON(USERS_FILE);
-        const categoryLabels: Record<string, string> = {
-          finance: "Finance & Accounting",
-          sales: "Sales & CRM",
-          support: "Customer Support",
-          communications: "Communications",
-          logistics: "Logistics & Operations",
-          hr: "HR & People",
-          marketing: "Marketing",
-          compliance: "Compliance & Legal",
-        };
-        const catCounts: Record<string, number> = {};
-        for (const emp of employees) {
-          const cat = emp.category || "other";
-          catCounts[cat] = (catCounts[cat] || 0) + 1;
-        }
-        const totalCat = Object.values(catCounts).reduce((a, b) => a + b, 0) || 1;
-        const deptColors = ["bg-blue-500", "bg-purple-500", "bg-emerald-500", "bg-amber-500", "bg-rose-500", "bg-cyan-500", "bg-indigo-500", "bg-stone-600"];
-        const departments = Object.entries(catCounts).map(([cat, count], idx) => ({
-          name: categoryLabels[cat] || cat,
-          percentage: Math.round((count / totalCat) * 100),
-          hours: Math.round(count * 47.3 * 10) / 10,
-          color: deptColors[idx % deptColors.length],
-        }));
-        return Response.json({
-          data: {
-            totalUsers: Object.keys(users).length,
-            totalAgents: employees.length,
-            totalIntegrations: Object.values(integrations).reduce((sum: number, v: any) => sum + (Array.isArray(v) ? v.length : 0), 0),
-            totalChatSessions: Object.values(sessions).reduce((sum: number, v: any) => sum + (Array.isArray(v) ? v.length : 0), 0),
-            totalAgentRuns: Object.values(runs).reduce((sum: number, v: any) => sum + (Array.isArray(v) ? v.length : 0), 0),
-            totalPurchases: Object.values(purchases).reduce((sum: number, v: any) => sum + (Array.isArray(v) ? v.length : 0), 0),
-            serverUptime: Math.floor(process.uptime()),
-            departments,
-          },
-        });
+        // B1 (audit 10-23): honest counts only — shared derivation with
+        // /api/admin/analytics. No fabricated hours/effort fields anywhere.
+        return Response.json({ data: computePortalAnalyticsSnapshot() });
       }
-
       if (subPath === "marketplace" || subPath === "marketplace/") {
         const employees = readJSON(AI_EMPLOYEES_FILE);
         return Response.json({ data: employees });
@@ -3455,9 +3461,16 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
         if (req.method === "GET") return Response.json({ data: list });
         if (req.method === "POST") {
           const body = await req.json().catch(() => ({}));
+          // B2 (audit 10-23): persist ONLY real workflow fields — the client
+          // body is never spread, so fabricated metric fields cannot enter the
+          // store. Registry writes (status toggle / rename) round-trip the
+          // same whitelisted shape.
           const entry = {
-            id: body.id || "wf-" + Math.random().toString(36).substr(2, 9),
-            ...body,
+            id: typeof body.id === "string" && body.id ? body.id : "wf-" + Math.random().toString(36).substr(2, 9),
+            name: typeof body.name === "string" ? body.name : "Untitled workflow",
+            description: typeof body.description === "string" ? body.description : "",
+            status: typeof body.status === "string" ? body.status : "draft",
+            steps: Array.isArray(body.steps) ? body.steps : [],
             updatedAt: new Date().toISOString(),
           };
           const existing = (list || []).find((w: any) => w.id === entry.id);
@@ -3500,48 +3513,8 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
         return Response.json({ data: userList, total: userList.length });
       }
       if (subPath === "analytics") {
-        const employees = readJSON(AI_EMPLOYEES_FILE);
-        const purchases = readJSON(TENANT_PURCHASES_FILE);
-        const integrations = readJSON(TENANT_INTEGRATIONS_FILE);
-        const sessions = readJSON(CHAT_SESSIONS_FILE);
-        const runs = readJSON(join(DATA_DIR, "workflow_runs.json"));
-        const users = readJSON(USERS_FILE);
-        // Compute department shares from real agent categories
-        const categoryLabels: Record<string, string> = {
-          finance: "Finance & Accounting",
-          sales: "Sales & CRM",
-          support: "Customer Support",
-          communications: "Communications",
-          logistics: "Logistics & Operations",
-          hr: "HR & People",
-          marketing: "Marketing",
-          compliance: "Compliance & Legal",
-        };
-        const catCounts: Record<string, number> = {};
-        for (const emp of employees) {
-          const cat = emp.category || "other";
-          catCounts[cat] = (catCounts[cat] || 0) + 1;
-        }
-        const totalCat = Object.values(catCounts).reduce((a, b) => a + b, 0) || 1;
-        const deptColors = ["bg-blue-500", "bg-purple-500", "bg-emerald-500", "bg-amber-500", "bg-rose-500", "bg-cyan-500", "bg-indigo-500", "bg-stone-600"];
-        const departments = Object.entries(catCounts).map(([cat, count], idx) => ({
-          name: categoryLabels[cat] || cat,
-          percentage: Math.round((count / totalCat) * 100),
-          hours: Math.round(count * 47.3 * 10) / 10, // avg hours per agent type
-          color: deptColors[idx % deptColors.length],
-        }));
-        return Response.json({
-          data: {
-            totalUsers: Object.keys(users).length,
-            totalAgents: employees.length,
-            totalIntegrations: Object.values(integrations).reduce((sum: number, v: any) => sum + (Array.isArray(v) ? v.length : 0), 0),
-            totalChatSessions: Object.values(sessions).reduce((sum: number, v: any) => sum + (Array.isArray(v) ? v.length : 0), 0),
-            totalAgentRuns: Object.values(runs).reduce((sum: number, v: any) => sum + (Array.isArray(v) ? v.length : 0), 0),
-            totalPurchases: Object.values(purchases).reduce((sum: number, v: any) => sum + (Array.isArray(v) ? v.length : 0), 0),
-            serverUptime: Math.floor(process.uptime()),
-            departments,
-          },
-        });
+        // B1 (audit 10-23): same honest derivation as /api/data/analytics.
+        return Response.json({ data: computePortalAnalyticsSnapshot() });
       }
       if (subPath === "health") {
         return Response.json({
