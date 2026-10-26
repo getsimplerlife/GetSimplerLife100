@@ -85,13 +85,16 @@ describe("AUDIT-D — unknown /api/* fails closed (404 JSON, no HTML)", () => {
     });
   });
 
-  describe("the five pre-D dead endpoints flip to 404 JSON automatically", () => {
+  describe("pre-D dead endpoints + a2-retired persistent-connect flip to 404 JSON automatically", () => {
     it.each([
       ["/api/audit-logs/stats", "GET"],
       ["/api/connect-ai/mapping", "GET"],
       ["/api/connect-ai/mapping/abc123", "DELETE"],
       ["/api/v1/trigger", "POST"],
       ["/api/portal/files/view", "POST"],
+      ["/api/integrations", "GET"],
+      ["/api/integrations/connect", "POST"],
+      ["/api/integrations/disconnect", "POST"],
     ])("%s %s → 404 JSON (no HTML)", (path, method) => {
       return expectApi404(path as string, method as string);
     });
@@ -106,7 +109,6 @@ describe("AUDIT-D — unknown /api/* fails closed (404 JSON, no HTML)", () => {
       ["GET /api/portal/files (unauth)", "GET", "/api/portal/files", 401],
       ["POST /api/admin/backup (unauth)", "POST", "/api/admin/backup", 401],
       ["GET /api/audit-logs (unauth)", "GET", "/api/audit-logs", 401],
-      ["GET /api/integrations (unauth)", "GET", "/api/integrations", 401],
       ["GET /api/native/billing (unauth)", "GET", "/api/native/billing", 401],
     ])("%s %s → %i (unchanged)", async (_label, method, path, expected) => {
       const res = await probe(path as string, { method: method as string });

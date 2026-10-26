@@ -1,4 +1,5 @@
-import { Link } from "@tanstack/react-router";
+// a2: SSR-render-safe — plain <a> nav (no TanStack Link), so SSR guards can
+// render this page without a RouterProvider.
 import { useState, useEffect } from "react";
 import { PROVIDERS } from "~/data/providers";
 import { isPlaceholderProvider, getRealProviders, PLACEHOLDER_CONTACT_COPY, PLACEHOLDER_CONTACT_EMAIL, PLACEHOLDER_STATUS_COPY } from "~/lib/provider-placeholders";
@@ -493,7 +494,7 @@ function ConnectedServices() {
             <div className="bg-stone-950 border border-stone-900 p-4 rounded-2xl flex flex-col justify-between">
               <span className="text-[10px] font-mono font-bold tracking-wider text-stone-500 uppercase">IMPORT SOURCES</span>
               <span className="text-2xl font-black text-white mt-1">
-                {connectableNowCount} <span className="text-stone-600 text-sm font-semibold">available now</span>
+                {connectableNowCount} <span className="text-stone-600 text-sm font-semibold">connectable now</span>
               </span>
               <span className="text-[10px] text-stone-500 font-semibold mt-1">{inDevelopmentCount} more in development</span>
             </div>
@@ -517,9 +518,9 @@ function ConnectedServices() {
               <span className="text-emerald-400 font-bold text-sm">
                 ✅ {(connections||[]).filter(c => c && c.status === "Connected").length} tool{(connections||[]).filter(c => c && c.status === "Connected").length !== 1 ? "s" : ""} with access from your account
               </span>
-              <Link to="/portal/connected-accounts" className="text-emerald-400 font-bold text-sm hover:text-emerald-300">
+              <a href="/portal/connected-accounts" className="text-emerald-400 font-bold text-sm hover:text-emerald-300">
                 View import history →
-              </Link>
+              </a>
             </div>
           )}
 
@@ -567,9 +568,9 @@ function ConnectedServices() {
                 <p className="text-[11px] text-stone-500 leading-relaxed">
                   Each tool in this view is ready to import from whenever you want its data.
                 </p>
-                <Link to="/portal/connected-accounts" className="text-emerald-400 font-bold text-sm hover:text-emerald-300">
-                  View import history →
-                </Link>
+                <a href="/portal/connected-accounts" className="text-emerald-400 font-bold text-sm hover:text-emerald-300">
+                                View import history →
+                              </a>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -715,12 +716,12 @@ function ConnectedServices() {
 
                     {/* Action buttons — import-lane CTA only (a2) */}
                     <div className="border-t border-stone-900 pt-3.5 mt-5 flex justify-between items-center gap-2">
-                      <Link
-                        to="/portal/import"
+                      <a
+                        href="/portal/import"
                         className="flex-1 text-center bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-mono font-bold px-3 py-1.5 rounded-lg transition-all"
                       >
                         Import from {prov.name} →
-                      </Link>
+                      </a>
                     </div>
 
                   </div>

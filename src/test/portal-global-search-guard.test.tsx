@@ -190,7 +190,7 @@ describe("endpoint discipline", () => {
     "/api/native/proposals",
     "/api/native/invoice",
     "/api/native/dealroom",
-    "/api/integrations",
+    "/api/data/connected-accounts",
     "/api/native/import",
     "/api/native/import/lanes",
   ];
@@ -211,7 +211,6 @@ describe("endpoint discipline", () => {
       "/api/data/system_notifications",
       "/api/search",
       "/api/native/search",
-      "/api/data/connected-accounts",
     ];
     for (const bad of denylist) {
       expect(libSrc).not.toContain(bad);

@@ -52,7 +52,7 @@ function CrmPage() {
       <div>
         <h1 className="text-2xl font-black text-white tracking-tight">Bring your CRM data in</h1>
         <p className="text-stone-400 mt-1 text-sm">
-          Import your customer records from the CRM you already use. Transfers are one-time and
+          Import lanes cover 180+ catalog capabilities — pull your customer records in from the CRM you already use. Transfers are one-time and
           client-initiated — they pull data INTO your workspace using the access your own CRM account
           grants. Nothing syncs automatically and nothing writes back.
         </p>
