@@ -7,7 +7,7 @@
  *
  *   approvals   /api/portal/approvals        approval-queue records
  *   tasks       /api/data/tasks              tenant task/workflow-run records
- *   integrations /api/integrations           the live OAuth credential store
+ *   integrations /api/data/connected-accounts   the per-tenant OAuth import store
  *   lanes       /api/native/import/lanes     per-tenant import lane wiring
  *   imports     /api/native/import           per-tenant import jobs
  *   proposals   /api/native/proposals        quote-to-cash proposals

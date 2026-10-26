@@ -30,13 +30,6 @@ interface ConnectionItem {
   updatedAt: string;
 }
 
-interface DeveloperKey {
-  name: string;
-  type: string;
-  value: string;
-  _id?: string;
-}
-
 interface InvoiceItem {
   id: string;
   type?: string;
@@ -73,7 +66,7 @@ const verticalIndustries = [
 ];
 
 function UnifiedSettingsHub() {
-  const [activeTab, setActiveTab] = useState<"profile" | "connections" | "billing" | "keys">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "connections" | "billing">("profile");
 
   // 1. Business Profile states
   const [companyName, setCompanyName] = useState("");
@@ -106,10 +99,6 @@ function UnifiedSettingsHub() {
   const [invoices, setInvoices] = useState<InvoiceItem[]>([]);
   const [loadingBilling, setLoadingBilling] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<{ brand?: string; last4?: string; expMonth?: number; expYear?: number } | null>(null);
-
-  // 4. API Key states
-  const [developerKeys, setDeveloperKeys] = useState<DeveloperKey[]>([]);
-  const [loadingKeys, setLoadingKeys] = useState(false);
 
   // General Loading & Feedback
   const [loadingSettings, setLoadingSettings] = useState(true);
@@ -199,26 +188,11 @@ function UnifiedSettingsHub() {
     }
   };
 
-  // Fetch Developer Keys
-  const fetchDeveloperKeys = async () => {
-    try {
-      setLoadingKeys(true);
-      const res = await fetch("/api/data/api", { credentials: "include" });
-      const data = await res.json();
-      setDeveloperKeys(data.data || []);
-    } catch (err) {
-      console.error("Error loading developer keys:", err);
-    } finally {
-      setLoadingKeys(false);
-    }
-  };
-
   // Handle Tab switches and load corresponding data
-  const handleTabSwitch = (tab: "profile" | "connections" | "billing" | "keys") => {
+  const handleTabSwitch = (tab: "profile" | "connections" | "billing") => {
     setActiveTab(tab);
     if (tab === "connections") fetchConnectionsData();
     if (tab === "billing") fetchBillingData();
-    if (tab === "keys") fetchDeveloperKeys();
   };
 
   // Handle Profile Update Save
@@ -290,29 +264,9 @@ function UnifiedSettingsHub() {
     }
   };
 
-  // API Developer Action (Generate or Revoke keys)
-  const handleKeyAction = async (name: string, action: string) => {
-    try {
-      setFeedback(`${action === "generate" ? "Generating" : "Revoking"} key "${name}"...`);
-      const res = await fetch("/api/data/api", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ name, action }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setFeedback(`Success: Key ${action === "generate" ? "created" : "revoked"} — ${data.key || data.message || "done"}`);
-        fetchDeveloperKeys(); // refresh the list
-      } else {
-        setFeedback(`Error: ${data.error || "Key action failed"}`);
-      }
-    } catch (err) {
-      console.error("Key action error:", err);
-      setFeedback("Error: Failed to process key action.");
-    }
-    setTimeout(() => setFeedback(""), 4000);
-  };
+  // API access is not offered as a key store (cleanup-b 10-26): no API-key
+  // store exists, and scoped tokens will be built only when a paying
+  // enterprise asks. Nothing here mints or manages keys.
 
   // Navigate to /pricing for plan upgrades
   const handleUpgradePlan = () => {
@@ -335,7 +289,7 @@ function UnifiedSettingsHub() {
           <span className="text-emerald-500">⚙️</span> Workspace Settings
         </h1>
         <p className="text-stone-400 mt-1 max-w-3xl">
-          Configure business brand profiles, manage connected accounts, monitor deployment billing licenses, and generate secure API keys.
+          Configure business brand profiles, review one-shot import history, and manage plan and billing.
         </p>
       </div>
 
@@ -344,8 +298,7 @@ function UnifiedSettingsHub() {
         {[
           { id: "profile", label: "🏢 Business Profile", desc: "Corporate profile & brand values" },
           { id: "connections", label: "📥 Import History", desc: "One-shot imports of your tool data" },
-          { id: "billing", label: "💳 Plan & Billing", desc: "Subscriptions & invoice history" },
-          { id: "keys", label: "🔑 Developer Keys", desc: "Access tokens & API management" }
+          { id: "billing", label: "💳 Plan & Billing", desc: "Subscriptions & invoice history" }
         ].map((tab) => (
           <button
             key={tab.id}
@@ -902,77 +855,6 @@ function UnifiedSettingsHub() {
               </div>
             </div>
 
-          </div>
-        )}
-
-        {/* TAB 4: DEVELOPER GATEWAY API KEYS */}
-        {activeTab === "keys" && (
-          <div className="bg-stone-950 border border-stone-900 rounded-[2rem] p-6 md:p-8 space-y-6 shadow-xl animate-fadeIn">
-            
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-stone-900 pb-4 gap-4">
-              <div>
-                <h3 className="text-xl font-black text-white flex items-center gap-2">
-                  <span>🔑</span> Developer Access Gateways
-                </h3>
-                <p className="text-xs text-stone-500">Generate secure API authorization tokens for human or automated client operations.</p>
-              </div>
-              <button
-                onClick={() => handleKeyAction("Token", "generate_key")}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-5 py-3 rounded-2xl shadow-lg transition-all flex items-center gap-1.5"
-              >
-                <span>➕</span> Generate API Key
-              </button>
-            </div>
-
-            {loadingKeys ? (
-              <div className="flex items-center justify-center py-16">
-                <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-emerald-500"></div>
-              </div>
-            ) : developerKeys.length > 0 ? (
-              <div className="overflow-hidden border border-stone-900 rounded-3xl bg-stone-950">
-                <table className="w-full text-left text-xs font-semibold">
-                  <thead>
-                    <tr className="bg-stone-900/60 text-stone-400 border-b border-stone-900 uppercase tracking-wider text-[10px]">
-                      <th className="p-4 font-black">Credential Name</th>
-                      <th className="p-4 font-black">Type</th>
-                      <th className="p-4 font-black">Credential Token Key</th>
-                      <th className="p-4 text-right font-black">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-stone-900 font-semibold text-stone-300">
-                    {developerKeys.map((k, idx) => (
-                      <tr key={idx} className="hover:bg-stone-900/20 transition-colors">
-                        <td className="p-4 font-black text-white">{k.name}</td>
-                        <td className="p-4 text-stone-500 font-medium">{k.type}</td>
-                        <td className="p-4 font-mono text-[10px] text-emerald-400/80">{k.value}</td>
-                        <td className="p-4 text-right">
-                          <button
-                            onClick={() => handleKeyAction(k.name, "revoke")}
-                            className="text-rose-400 hover:text-rose-300 font-bold transition-colors"
-                          >
-                            Revoke
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="text-center py-16 border-2 border-dashed border-stone-900 rounded-3xl space-y-4 max-w-xl mx-auto">
-                <span className="text-4xl">🔑</span>
-                <div className="space-y-1">
-                  <div className="font-bold text-white text-sm">No API Access Tokens Generated</div>
-                  <p className="text-xs text-stone-500 max-w-sm mx-auto">Generate workspace developer keys to safely trigger agent executions, webhooks, or database lookups from external scripts.</p>
-                </div>
-                <button
-                  onClick={() => handleKeyAction("Token", "generate_key")}
-                  className="bg-stone-900 hover:bg-stone-800 text-emerald-400 font-bold text-xs px-5 py-3 rounded-xl border border-stone-800 transition-all"
-                >
-                  Generate First Secret API Key
-                </button>
-              </div>
-            )}
           </div>
         )}
 

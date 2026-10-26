@@ -2100,7 +2100,7 @@ async function handleFetch(req: Request): Promise<Response> {
           hubspot: { authType: "OAuth2", scopes: ["contacts", "content", "oauth"], apiKeyType: "Private App access token", prerequisites: ["HubSpot developer account"] },
           zoho: { authType: "OAuth2", scopes: ["ZohoCRM.modules.ALL"], apiKeyType: "Self Client credentials", prerequisites: ["Zoho developer console account"] },
           pipedrive: { authType: "OAuth2", scopes: ["deals:read", "contacts:read"], apiKeyType: "API token (Settings > Personal preferences > API)", prerequisites: ["Pipedrive admin account"] },
-          copper: { authType: "API Key", scopes: [], apiKeyType: "API key from Settings > Integrations > API Keys", prerequisites: ["Copper admin account"] },
+          copper: { authType: "API Key", scopes: [], apiKeyType: "API key from your Copper admin account", prerequisites: ["Copper admin account"] },
           creatio: { authType: "OAuth2", scopes: ["read", "write"], apiKeyType: "OAuth2 app credentials", prerequisites: ["Creatio system administrator account"] },
           netsuite: { authType: "OAuth2", scopes: ["restlets", "rest_webservices"], apiKeyType: "SuiteApp client credentials", prerequisites: ["NetSuite administrator account", "SuiteApp enabled"] },
           sage: { authType: "API Key", scopes: [], apiKeyType: "Sage ID API credentials", prerequisites: ["Sage Business Cloud subscription", "Developer account"] },
@@ -2777,6 +2777,14 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
           return Response.json({ success: true, workflow: entry });
         }
       }
+      // Cleanup (b) 10-26: the API-key store never existed (portal audit
+      // 10-23) — the /portal/api page and the settings Developer-Keys tab
+      // are retired. The retired path answers fail-closed 404 JSON; an
+      // authenticated caller can never read, mint, or revoke a key here.
+      if (subPath === "api" || subPath === "api/") {
+        return Response.json({ error: "not found" }, { status: 404 });
+      }
+
       // Generic: return data from matching JSON file
       const fileName = `${subPath.replace(/\/$/, "")}.json`;
       const filePath = join(DATA_DIR, fileName);
