@@ -19,28 +19,28 @@ interface DemoActivity {
 
 const MOCK_AGENTS: DemoAgent[] = [
   { name: "Invoice Processor", type: "Invoice Processor", status: "Active", purpose: "Invoice processing, PO matching, payment reconciliation", performance: 99, icon: "💸" },
-  { name: "CRM Sync Agent", type: "Sales Follow-Up Agent", status: "Active", purpose: "Lead enrichment, deal tracking, email sequencing", performance: 97, icon: "🚀" },
+  { name: "CRM Sync Automation", type: "Sales Follow-Up Automation", status: "Active", purpose: "Lead enrichment, deal tracking, email sequencing", performance: 97, icon: "🚀" },
   { name: "Route Optimizer", type: "Route Optimizer", status: "Active", purpose: "Carrier bid matching, route optimization, ETA tracking", performance: 98, icon: "📦" },
-  { name: "PO Management Agent", type: "Invoice Processor", status: "Idle", purpose: "Dunning, past-due follow-ups, payment reminders", performance: 95, icon: "💸" },
-  { name: "Sarah Jenkins", type: "Operations Audit AI", status: "Paused", purpose: "Operational audit logging, anomaly detection, report generation", performance: 93, icon: "⚙️" },
+  { name: "PO Management Automation", type: "Invoice Processor", status: "Idle", purpose: "Dunning, past-due follow-ups, payment reminders", performance: 95, icon: "💸" },
+  { name: "Sarah Jenkins", type: "Operations Audit Automation", status: "Paused", purpose: "Operational audit logging, anomaly detection, report generation", performance: 93, icon: "⚙️" },
 ];
 
 const MOCK_ACTIVITIES: DemoActivity[] = [
   { agent: "Invoice Processor", action: "Processed invoice INV-2026-442 from Acme Corp — $12,440.00", time: "2 min ago", status: "success" },
-  { agent: "CRM Sync Agent", action: "Enriched 14 new leads from LinkedIn — 3 matched to existing contacts", time: "5 min ago", status: "success" },
+  { agent: "CRM Sync Automation", action: "Enriched 14 new leads from LinkedIn — 3 matched to existing contacts", time: "5 min ago", status: "success" },
   { agent: "Route Optimizer", action: "Matched 8 carrier bids to load L-9923 — optimal rate found", time: "8 min ago", status: "success" },
   { agent: "Invoice Processor", action: "Flagged PO-10229 mismatch — $450 variance requires review", time: "12 min ago", status: "warning" },
-  { agent: "CRM Sync Agent", action: "Sent 32 follow-up emails in sequence 'Q3 Outreach — Batch 2'", time: "18 min ago", status: "success" },
-  { agent: "PO Management Agent", action: "Scheduled 5 payment reminders for accounts 60+ days overdue", time: "25 min ago", status: "pending" },
+  { agent: "CRM Sync Automation", action: "Sent 32 follow-up emails in sequence 'Q3 Outreach — Batch 2'", time: "18 min ago", status: "success" },
+  { agent: "PO Management Automation", action: "Scheduled 5 payment reminders for accounts 60+ days overdue", time: "25 min ago", status: "pending" },
 ];
 
 const MOCK_MARKETPLACE = [
   { name: "Invoice Processor", price: "Included", rating: 4.8, tasks: "42.8k/mo", icon: "💸", category: "Finance" },
-  { name: "Sales Follow-Up Agent", price: "Included", rating: 4.7, tasks: "8.9k/mo", icon: "🚀", category: "Sales" },
+  { name: "Sales Follow-Up Automation", price: "Included", rating: 4.7, tasks: "8.9k/mo", icon: "🚀", category: "Sales" },
   { name: "Route Optimizer", price: "Included", rating: 4.9, tasks: "25.4k/mo", icon: "📦", category: "Logistics" },
   { name: "Data Entry Bot", price: "Included", rating: 4.9, tasks: "35.7k/mo", icon: "📄", category: "Operations" },
-  { name: "Support Triage Agent", price: "Included", rating: 4.7, tasks: "12.1k/mo", icon: "🎧", category: "Operations" },
-  { name: "HR Onboarding Agent", price: "Included", rating: 4.6, tasks: "5.1k/mo", icon: "👤", category: "HR" },
+  { name: "Support Triage Automation", price: "Included", rating: 4.7, tasks: "12.1k/mo", icon: "🎧", category: "Operations" },
+  { name: "HR Onboarding Automation", price: "Included", rating: 4.6, tasks: "5.1k/mo", icon: "👤", category: "HR" },
 ];
 
 function PortalDemoPage() {
@@ -88,6 +88,13 @@ function PortalDemoPage() {
           ))}
         </div>
 
+        {/* Simulation disclosure — /demo is an illustrative mock, never real results */}
+        <div className="mb-8 p-4 rounded-xl border border-amber-900/60 bg-amber-950/20 text-[11px] font-mono text-amber-200/90 leading-relaxed">
+          Simulation — everything on this page (automations, activity, metrics, savings) is
+          illustrative example data for demo purposes only. It is not real product behavior
+          and does not reflect real customer results.
+        </div>
+
         {/* ─── DASHBOARD TAB ─── */}
         {activeTab === "dashboard" && (
           <div className="space-y-8 animate-fadeIn">
@@ -96,7 +103,7 @@ function PortalDemoPage() {
               {[
                 { value: "1,247", label: "Tasks Completed", change: "+12% today", icon: "✓" },
                 { value: "187 hrs", label: "Hours Saved", change: "This week", icon: "⏱" },
-                { value: "5", label: "Active Agents", change: "2 idle, 1 paused", icon: "🤖" },
+                { value: "5", label: "Active Automations", change: "2 idle, 1 paused", icon: "🤖" },
                 { value: "$8,415", label: "ROI Saved", change: "Since deployment", icon: "💰" },
               ].map((metric) => (
                 <div key={metric.label} className="bg-stone-900/40 border border-stone-800 rounded-xl p-5">
@@ -110,7 +117,7 @@ function PortalDemoPage() {
               ))}
             </div>
 
-            {/* Agent Cards */}
+            {/* Automation Cards */}
             <div className="space-y-4">
               <h2 className="text-sm font-black text-white">🤖 Deployed AI Automations</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -232,9 +239,9 @@ function PortalDemoPage() {
                   successRate: "98.5%",
                 },
                 {
-                  name: "Cross-Agent Chain: Invoice → Audit → Slack",
-                  desc: "When Invoice AI completes, send to Audit Logger, then notify #ops channel",
-                  steps: ["💰 Invoice AI", "→ ⚙️ Audit Logger", "→ 💬 Slack Alert"],
+                  name: "Multi-Step Flow: Invoice → Audit → Slack",
+                  desc: "When the invoice step finishes, hand off to the audit step, then notify the #ops channel",
+                  steps: ["💰 Invoice", "→ ⚙️ Audit Logger", "→ 💬 Slack Alert"],
                   status: "Paused",
                   savings: "$3,100/mo",
                   successRate: "96.1%",

@@ -465,14 +465,17 @@ const BACKUP_SNAPSHOT_INTERVAL_MS = (() => {
 })();
 let backupTimer: any = null;
 let backupRunning = false;
-async function runBackupSnapshot(): Promise<void> {
-  if (backupRunning) return; // never overlap snapshots
+async function runBackupSnapshot(): Promise<{ ok: boolean; count: number; error?: string }> {
+  if (backupRunning) return { ok: false, count: 0, error: "Backup already running" };
   backupRunning = true;
   try {
     const r = await durableSnapshotBackup();
     console.log(`[durable-store] backup snapshot: ok=${r.ok} keys=${r.count}` + (r.error ? ` err=${r.error}` : ""));
+    return { ok: r.ok, count: r.count, error: r.error };
   } catch (e: any) {
-    console.log("[durable-store] backup snapshot error: " + (e?.message || String(e)));
+    const msg = String(e?.message || e);
+    console.log("[durable-store] backup snapshot error: " + msg);
+    return { ok: false, count: 0, error: msg };
   } finally {
     backupRunning = false;
   }
@@ -830,7 +833,7 @@ async function handleFetch(req: Request): Promise<Response> {
       }
     }
 
-    // ── Direct Deploy API (provision AI employee without Stripe) ──
+    // ── Direct Deploy API (retired: all purchases go through Stripe) ──
     if (pathname === "/api/purchases/deploy" && req.method === "POST") {
       // Free deployment disabled: all purchases must go through Stripe checkout.
       // Provisioning is handled by the Stripe webhook (checkout.session.completed).
@@ -1138,8 +1141,8 @@ async function handleFetch(req: Request): Promise<Response> {
     }
 
     // ── /api/portal/files (File Library — owner directive 2026-08-12) ──
-    // GET  /api/portal/files?fileId=...  → list tenant files (or one file)
-    // POST /api/portal/files/view        → audit a view action
+    // GET  /api/portal/files?fileId=...    → list tenant files (or one file)
+    // POST /api/portal/files                → audit a view action
     // GET  /api/portal/files/download?fileId=... → server proxy stream
     if (pathname === "/api/portal/files") {
       const user = await getUserFromSession(req);
@@ -2057,7 +2060,7 @@ async function handleFetch(req: Request): Promise<Response> {
         },
       });
     }
-    // ── /api/portal/approvals — cross-agent Approval Queue ──────────
+    // ── /api/portal/approvals — cross-module Approval Queue ─────────
     // GET  → { data: { pending: [...], decided: [...], mode: "on"|"auto" } }
     // POST { actionId, decision: "approve"|"reject"|"edit", payload? } →
     //        approve executes the stored write (engine, gate bypassed);
@@ -3416,7 +3419,7 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
           }
           const newTask = {
             id: "task-" + Math.random().toString(36).substr(2, 9),
-            aiEmployee: body.aiEmployee || "AI Employee",
+            aiEmployee: body.aiEmployee || "Automation",
             customer: user.email,
             status: body.status || "completed",
             startedAt: new Date().toISOString(),
@@ -3431,7 +3434,7 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
         const userRuns = Array.isArray(runs) ? runs : (runs[user.email] || []);
         const taskLike = (userRuns || []).map((r: any) => ({
           id: r.id || r.runId || "run-" + (r.startedAt || Date.now()),
-          aiEmployee: r.agentName || r.agentId || "AI Employee",
+          aiEmployee: r.agentName || r.agentId || "Automation",
           status: String(r.status || "completed").toLowerCase(),
           customer: r.email || user.email,
           startedAt: r.startedAt || r.completedAt || null,
@@ -3515,6 +3518,17 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
       if (subPath === "analytics") {
         // B1 (audit 10-23): same honest derivation as /api/data/analytics.
         return Response.json({ data: computePortalAnalyticsSnapshot() });
+      }
+      if (subPath === "backup") {
+        // Audit-B (10-26): wire the Health-page backup button to the REAL
+        // durable-store snapshot flow — the same one the hourly sweeper runs.
+        const r = await runBackupSnapshot();
+        return Response.json({
+          success: r.ok,
+          keys: r.count,
+          error: r.error || undefined,
+          completedAt: new Date().toISOString(),
+        });
       }
       if (subPath === "health") {
         return Response.json({
