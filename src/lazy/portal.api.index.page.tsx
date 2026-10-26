@@ -15,36 +15,21 @@ interface ApiKeyItem {
 
 function DeveloperPortal() {
   const [keys, setKeys] = useState<ApiKeyItem[]>([]);
-  const [connections, setConnections] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState("");
   const [showNewKey, setShowNewKey] = useState(false);
   const [newKeyName, setNewKeyName] = useState("");
-  const [newKeyConnection, setNewKeyConnection] = useState("");
 
   useEffect(() => {
-    Promise.all([
-      fetch("/api/data/api", { credentials: "include" }).then(r => r.json()),
-      fetch("/api/integrations", { credentials: "include" }).then(r => r.json()),
-    ]).then(([keysData, connsData]) => {
-      const rawKeys = keysData.data || [];
-      const conns = connsData.data || [];
-      setConnections(conns);
-
-      // Link keys to connections by matching providerId or name
-      const linked = rawKeys.map((k: any) => {
-        const conn = conns.find((c: any) => 
-          c.providerId === k.providerId || c.provider === k.name || c.name === k.connectionName
-        );
-        return {
-          ...k,
-          connectionName: conn?.provider || conn?.displayName || k.connectionName || "—",
-          providerId: conn?.providerId || k.providerId || "",
-        };
-      });
-      setKeys(linked);
-      setLoading(false);
-    }).catch(() => setLoading(false));
+    // a2: the /api/integrations connection list is retired (persistent-connect
+    // removed) — keys load from the API-key store alone.
+    fetch("/api/data/api", { credentials: "include" })
+      .then((r) => r.json())
+      .then((keysData) => {
+        setKeys(keysData.data || []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
   }, []);
 
   // Mask key: show only first 4 and last 4 characters
@@ -65,8 +50,8 @@ function DeveloperPortal() {
         name: newKeyName.trim(),
         type: "API Key",
         value: newKey,
-        connectionName: newKeyConnection || undefined,
-        providerId: newKeyConnection || undefined,
+        connectionName: undefined,
+        providerId: undefined,
         createdAt: new Date().toISOString(),
       };
 
@@ -81,7 +66,6 @@ function DeveloperPortal() {
         setFeedback("✓ API key generated! Copy it now — it won't be shown again.");
         setShowNewKey(false);
         setNewKeyName("");
-        setNewKeyConnection("");
       } else {
         setFeedback("Failed to save key");
       }
@@ -144,19 +128,6 @@ function DeveloperPortal() {
                 placeholder="e.g. Salesforce Sync Key"
                 className="w-full bg-stone-900 border border-stone-800 rounded-xl px-4 py-3 text-sm text-white placeholder-stone-600 outline-none focus:border-emerald-600"
               />
-            </div>
-            <div>
-              <label className="block text-[10px] font-mono uppercase text-stone-500 mb-1">Linked Connection (optional)</label>
-              <select
-                value={newKeyConnection}
-                onChange={e => setNewKeyConnection(e.target.value)}
-                className="w-full bg-stone-900 border border-stone-800 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-emerald-600"
-              >
-                <option value="">No connection</option>
-                {connections.map((c: any) => (
-                  <option key={c.id} value={c.providerId || c.provider}>{c.provider || c.displayName}</option>
-                ))}
-              </select>
             </div>
           </div>
           <div className="flex justify-end gap-3">

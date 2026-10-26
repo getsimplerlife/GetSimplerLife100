@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { IntegrationsProviderCard, type Provider } from "~/components/IntegrationsProviderCard";
-import { IntegrationsConnectModal } from "~/components/IntegrationsConnectModal";
 import { Card } from "~/components/ui";
 
 
@@ -10,9 +9,6 @@ function ProviderDirectoryPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
-  const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [feedback, setFeedback] = useState("");
 
   const loadData = async () => {
     try {
@@ -29,21 +25,7 @@ function ProviderDirectoryPage() {
         );
       }
 
-      // Load connected connections to show badge
-      const connRes = await fetch("/api/integrations", { credentials: "include" });
-      if (connRes.ok) {
-        const connData = await connRes.json();
-        const connectedProviders = connData.map((c: any) => c.provider);
-
-        // Update provider object isConnected state
-        const mapped = provData.map((p) => ({
-          ...p,
-          isConnected: connectedProviders.includes(p.id),
-        }));
-        setProviders(mapped);
-      } else {
-        setProviders(provData);
-      }
+      setProviders(provData);
     } catch (err) {
       console.error("Failed to load provider catalog:", err);
     } finally {
@@ -64,14 +46,9 @@ function ProviderDirectoryPage() {
     return matchesSearch && matchesCategory;
   });
 
-  const handleProviderClick = (provider: Provider) => {
-    if (provider.authType === "oauth2") {
-      setFeedback(`Redirecting to authorize ${provider.name}...`);
-      window.location.href = `/api/oauth/authorize?provider=${provider.id}`;
-    } else {
-      setSelectedProvider(provider);
-      setIsModalOpen(true);
-    }
+  // a2: connect-era actions retired — the catalog's one action is importing.
+  const handleProviderClick = (_provider: Provider) => {
+    window.location.href = "/portal/import";
   };
 
   if (loading && providers.length === 0) {
@@ -143,25 +120,7 @@ function ProviderDirectoryPage() {
         </div>
       )}
 
-      {/* Connection modal for API Key providers */}
-      {selectedProvider && (
-        <IntegrationsConnectModal
-          isOpen={isModalOpen}
-          onClose={() => {
-            setIsModalOpen(false);
-            setSelectedProvider(null);
-          }}
-          onConnectionSuccess={loadData}
-        />
-      )}
 
-      {/* Feedback Toast */}
-      {feedback && (
-        <div className="fixed bottom-6 right-6 bg-stone-900 border border-emerald-500 text-white px-5 py-3 rounded-2xl shadow-xl z-50 flex items-center gap-3 animate-slideUp select-none">
-          <span className="text-emerald-500">⚡</span>
-          <span className="text-xs font-bold">{feedback}</span>
-        </div>
-      )}
 
     </div>
   );

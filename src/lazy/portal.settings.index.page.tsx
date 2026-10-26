@@ -154,12 +154,23 @@ function UnifiedSettingsHub() {
       setLoadingConns(true);
       const [providersRes, connsRes] = await Promise.all([
         fetch("/api/integrations/providers"),
-        fetch("/api/integrations")
+        fetch("/api/data/connected-accounts")
       ]);
       const provsData = await providersRes.json();
       const connsData = await connsRes.json();
       setProviders(provsData.data || provsData || []);
-      setConnections(connsData.data || connsData || []);
+      // a2: derive the list from the real OAuth-store buckets.
+      const flat = [...(connsData.crm || []), ...(connsData.erp || []), ...(connsData.other || [])].map((c: any) => ({
+        id: c.id,
+        userId: "",
+        provider: c.providerId || c.provider || "",
+        displayName: c._provider?.name || c.provider || c.providerId || "",
+        config: {},
+        status: (c.status === "Connected" ? "active" : c.status === "error" ? "error" : "pending") as "active" | "expired" | "error" | "pending",
+        createdAt: c.connectedAt || new Date().toISOString(),
+        updatedAt: c.updatedAt || c.connectedAt || new Date().toISOString(),
+      }));
+      setConnections(flat);
     } catch (err) {
       console.error("Error fetching integrations:", err);
     } finally {
@@ -279,53 +290,6 @@ function UnifiedSettingsHub() {
     }
   };
 
-  // Sync / Health Trigger for connection
-  const handleSyncConnection = async (connectionId: string, displayName: string) => {
-    try {
-      setFeedback(`Verifying secure link to ${displayName}...`);
-      const res = await fetch(`/api/integrations/${connectionId}/sync`);
-      const result = await res.json();
-      
-      if (result.synced) {
-        setFeedback(`Success: Connected accounts verified! Health: ${result.health ? "Healthy" : "Attention Required"}`);
-        fetchConnectionsData();
-      } else {
-        setFeedback(`Verification failed: ${result.error || "Unable to sync connection"}`);
-      }
-      setTimeout(() => setFeedback(""), 3500);
-    } catch (err) {
-      console.error("Sync connection error:", err);
-      setFeedback("Error: Communication link timeout.");
-    }
-  };
-
-  // Disconnect Handler
-  const handleDisconnect = async (connectionId: string, displayName: string) => {
-    if (!confirm(`Are you sure you want to disconnect ${displayName}? This will erase active OAuth tokens and disconnect associated automations.`)) {
-      return;
-    }
-
-    try {
-      setFeedback(`Erasing credentials for ${displayName}...`);
-      const res = await fetch(`/api/integrations/${connectionId}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-      
-      if (res.ok) {
-        setFeedback(`Success: Safely disconnected ${displayName}`);
-        fetchConnectionsData();
-      } else {
-        const data = await res.json();
-        setFeedback(`Error: ${data.error || "Failed to disconnect"}`);
-      }
-      setTimeout(() => setFeedback(""), 3000);
-    } catch (err) {
-      console.error("Disconnect error:", err);
-      setFeedback("Error: Failed to disconnect integration.");
-    }
-  };
-
   // API Developer Action (Generate or Revoke keys)
   const handleKeyAction = async (name: string, action: string) => {
     try {
@@ -379,7 +343,7 @@ function UnifiedSettingsHub() {
       <div className="flex flex-wrap gap-2 border-b border-stone-900 pb-px">
         {[
           { id: "profile", label: "🏢 Business Profile", desc: "Corporate profile & brand values" },
-          { id: "connections", label: "🔌 Connected Accounts", desc: "SaaS integrations & API logs" },
+          { id: "connections", label: "📥 Import History", desc: "One-shot imports of your tool data" },
           { id: "billing", label: "💳 Plan & Billing", desc: "Subscriptions & invoice history" },
           { id: "keys", label: "🔑 Developer Keys", desc: "Access tokens & API management" }
         ].map((tab) => (
@@ -738,14 +702,14 @@ function UnifiedSettingsHub() {
           <div className="bg-stone-950 border border-stone-900 rounded-[2rem] p-6 md:p-8 space-y-8 animate-fadeIn">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-stone-900 pb-4 gap-4">
               <div>
-                <h3 className="text-xl font-black text-white">Active Integrations & Connected Accounts</h3>
-                <p className="text-xs text-stone-500">Manage connected SaaS systems used by your automations.</p>
+                <h3 className="text-xl font-black text-white">Import History</h3>
+                <p className="text-xs text-stone-500">One-shot, client-initiated imports — nothing stays connected.</p>
               </div>
               <Link
-                to="/portal/integrations"
+                to="/portal/import"
                 className="bg-stone-900 hover:bg-stone-800 text-emerald-400 font-bold text-xs px-5 py-3 rounded-2xl border border-stone-800 flex items-center gap-2"
               >
-                🔌 Connect New Account
+                📥 Bring your data in
               </Link>
             </div>
 
@@ -786,38 +750,23 @@ function UnifiedSettingsHub() {
                         </div>
                       </div>
 
-                      <div className="flex gap-2 shrink-0">
-                        <button
-                          onClick={() => handleSyncConnection(conn.id, conn.displayName)}
-                          className="p-2.5 bg-stone-900 hover:bg-stone-800 rounded-xl text-stone-400 hover:text-white transition-all border border-stone-800"
-                          title="Verify Sync Integrity"
-                        >
-                          🔄 Check Health
-                        </button>
-                        <button
-                          onClick={() => handleDisconnect(conn.id, conn.displayName)}
-                          className="p-2.5 bg-rose-950/20 hover:bg-rose-950/40 border border-rose-900/30 hover:border-rose-900/50 text-rose-400 font-bold rounded-xl transition-all"
-                          title="Disconnect Integration"
-                        >
-                          Revoke
-                        </button>
-                      </div>
+                      <div className="text-[10px] text-stone-500 shrink-0">read-only</div>
                     </div>
                   );
                 })}
               </div>
             ) : (
               <div className="text-center py-16 border-2 border-dashed border-stone-900 rounded-3xl space-y-4 max-w-xl mx-auto">
-                <span className="text-4xl">🔌</span>
+                <span className="text-4xl">📥</span>
                 <div className="space-y-1">
-                  <div className="font-bold text-white text-sm">No Connected SaaS Accounts</div>
-                  <p className="text-xs text-stone-500 max-w-sm mx-auto">Connect your workspace databases, CRMs, email servers, or helpdesks to deploy autonomous digital employees.</p>
+                  <div className="font-bold text-white text-sm">No imports yet</div>
+                  <p className="text-xs text-stone-500 max-w-sm mx-auto">Imports you run from the Import page appear here in your history — one-shot transfers of your own tool data, nothing stays connected.</p>
                 </div>
                 <Link
-                  to="/portal/integrations"
+                  to="/portal/import"
                   className="inline-block bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-5 py-3 rounded-xl shadow-lg transition-all"
                 >
-                  Configure Integrations Directory
+                  Bring your data in
                 </Link>
               </div>
             )}

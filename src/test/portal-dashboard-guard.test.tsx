@@ -312,7 +312,7 @@ describe("content guard — pages never fetch; the lib owns ALL wiring", () => {
     for (const path of [
       '"/api/portal/approvals"',
       '"/api/data/tasks"',
-      '"/api/integrations"',
+      '"/api/data/connected-accounts"',
       '"/api/native/import/lanes"',
       '"/api/native/billing"',
       '"/api/native/proposals"',

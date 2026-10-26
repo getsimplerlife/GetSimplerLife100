@@ -9,7 +9,7 @@
  * assistant, and automations use to create a data file. It:
  *   1. reads the tenant's workspace preference (tenant_settings.json,
  *      default 'auto'),
- *   2. reads the tenant's connected integrations (tenant_integrations.json),
+ *   2. reads the tenant's OAuth-granted file providers (tenant_oauth_credentials.json),
  *   3. resolves the target provider with `resolveWorkspaceProvider`
  *      (fail-closed — never a guessed provider),
  *   4. creates the file with the provider's own audited client (Google or
@@ -213,14 +213,14 @@ function auditFileCreation(tenantId: string, file: ClientFile, dataDir: string):
   } catch { /* audit is best-effort */ }
 }
 
-/** Connected provider ids for a tenant (status "Connected"), file providers only. */
+/** File-creation provider ids a tenant has granted OAuth access to (real store, a2). */
 export function connectedFileProviders(tenantId: string, dataDir: string): string[] {
-  const all = readJSON(join(dataDir, "tenant_integrations.json"));
-  const conns = (all || {})[tenantId] || [];
+  const all = readJSON(join(dataDir, "tenant_oauth_credentials.json")) as Record<string, any>;
   const ids: string[] = [];
-  for (const c of conns) {
-    if (c && typeof c.providerId === "string" && (c.status === "Connected" || c.status === "connected")) {
-      ids.push(c.providerId);
+  for (const [key, entry] of Object.entries(all || {})) {
+    if (key.startsWith(`${tenantId}:`) && entry && typeof entry === "object" && (entry.accessToken || entry.apiToken)) {
+      const pid = key.slice(tenantId.length + 1);
+      if (pid && workspaceForProvider(pid) !== null) ids.push(pid);
     }
   }
   return ids;
@@ -277,8 +277,8 @@ export async function createDataFile(
     return {
       ok: false,
       status: 409,
-      error: `No stored connection for ${providerLabel(provider)} — connect it first to create files there.`,
-      connectHint: [provider],
+      error: `No ${providerLabel(provider)} access is set up on this account — import your files from ${providerLabel(provider)} on the Import page instead.`,
+      connectHint: [],
     };
   }
   // 3. Refresh when expired (provider module's audited refresh fn).

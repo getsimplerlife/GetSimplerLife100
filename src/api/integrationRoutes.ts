@@ -447,44 +447,6 @@ export async function persistOAuthTokenDurable(
   return { key };
 }
 
-// ─── 3. Connection Management ─────────────────────────────────────────────────
-
-export async function handleListConnections(req: Request): Promise<Response> {
-  const user = await requireUser(req);
-  if (!user) return error("Not authenticated", 401);
-  const conns = await listConnections(user.userId);
-  return json(conns);
-}
-
-export async function handleCreateConnection(req: Request): Promise<Response> {
-  const user = await requireUser(req);
-  if (!user) return error("Not authenticated", 401);
-
-  const body = await req.json().catch(() => null);
-  if (!body) return error("Invalid JSON body");
-  if (!body.provider) return error("Missing provider field");
-
-  const providerMeta = registry.getProvider(body.provider);
-  if (!providerMeta) return error(`Unknown provider: ${body.provider}`, 404);
-
-  const config: ConnectionConfig = {
-    apiKey: body.apiKey || "",
-    apiSecret: body.apiSecret || "",
-    subdomain: body.subdomain || "",
-    instanceUrl: body.instanceUrl || "",
-    ...(body.config || {}),
-  };
-
-  const conn = await createConnection(
-    user.userId,
-    body.provider,
-    body.displayName || providerMeta.name,
-    config,
-  );
-
-  return json(conn, 201);
-}
-
 export async function handleDeleteConnection(req: Request): Promise<Response> {
   const user = await requireUser(req);
   if (!user) return error("Not authenticated", 401);
@@ -668,8 +630,6 @@ export async function routeIntegrationRequest(req: Request): Promise<Response | 
   if (pathname.match(/^\/api\/integrations\/providers\//) && req.method === "GET") return handleGetProvider(req);
 
   // Connection Management
-  if (pathname === "/api/integrations" && req.method === "GET") return handleListConnections(req);
-  if (pathname === "/api/integrations" && req.method === "POST") return handleCreateConnection(req);
   if (pathname === "/api/integrations/health" && req.method === "GET") return handleHealthCheck(req);
   if (pathname.match(/^\/api\/integrations\/[^/]+\/status$/) && req.method === "GET") return handleConnectionStatus(req);
   if (pathname.match(/^\/api\/integrations\/[^/]+\/sync$/) && req.method === "GET") return handleConnectionSync(req);

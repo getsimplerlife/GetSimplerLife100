@@ -488,7 +488,7 @@ export function usePortalGlobalSearch(intervalMs = 30000): PortalGlobalSearchSta
         fetch("/api/native/proposals", { credentials: "include" }),
         fetch("/api/native/invoice", { credentials: "include" }),
         fetch("/api/native/dealroom", { credentials: "include" }),
-        fetch("/api/integrations", { credentials: "include" }),
+        fetch("/api/data/connected-accounts", { credentials: "include" }),
         fetch("/api/native/import", { credentials: "include" }),
         fetch("/api/native/import/lanes", { credentials: "include" }),
       ]);
@@ -512,7 +512,7 @@ export function usePortalGlobalSearch(intervalMs = 30000): PortalGlobalSearchSta
         proposals: Array.isArray(pj?.data) ? pj.data : [],
         invoices: Array.isArray(invj?.data) ? invj.data : [],
         dealRooms: Array.isArray(drj?.data) ? drj.data : [],
-        integrations: Array.isArray(ij?.data) ? ij.data : [],
+        integrations: [...(ij?.crm ?? []), ...(ij?.erp ?? []), ...(ij?.other ?? [])],
         importJobs: Array.isArray(impj?.data?.imports) ? impj.data.imports : [],
         lanes: Array.isArray(lj?.data?.lanes) ? lj.data.lanes : [],
       });

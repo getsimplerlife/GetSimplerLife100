@@ -137,7 +137,7 @@ function removeTestRecords(): void {
   }
 }
 
-describe("/api/integrations/disconnect — removes the durable credential row", () => {
+describe("persistent-connect RETIRED (a2) — the disconnect surface is gone", () => {
   beforeAll(async () => {
     await ensureTestServer();
     if (!existsSync(TEST_DATA_DIR)) mkdirSync(TEST_DATA_DIR, { recursive: true });
@@ -147,38 +147,28 @@ describe("/api/integrations/disconnect — removes the durable credential row", 
     removeTestRecords();
   });
 
-  it("removes the durable credential row + legacy row via providerId (real readers see it gone)", async () => {
+  it("POST /api/integrations/disconnect is fail-closed 404 for EVERY body — nothing is removed", async () => {
     seedFully();
     expect(credRowExists()).toBe(true);
 
     const res = await authedDisconnect({ providerId: PROVIDER });
-    expect(res.status).toBe(200);
-    expect(res.json).toEqual({ success: true });
+    expect(res.status).toBe(404);
 
-    expect(credRowExists()).toBe(false);
-    const accounts = await buildConnectedAccountsFromCredentials(EMAIL, TEST_DATA_DIR);
-    expect(accounts.some((a: any) => a.provider === PROVIDER)).toBe(false);
-    const hit = loadStoredCredential(PROVIDER, { tenant: EMAIL, dataDir: TEST_DATA_DIR });
-    expect(hit.credential).toBeUndefined();
-    expect(legacyRowExists()).toBe(false);
-  });
-
-  it("derives providerId from connectionId (email:provider) and removes the durable row", async () => {
-    seedFully();
-    const res = await authedDisconnect({ connectionId: KEY() });
-    expect(res.status).toBe(200);
-    expect(res.json).toEqual({ success: true });
-    expect(credRowExists()).toBe(false);
-    expect(legacyRowExists()).toBe(false);
-  });
-
-  it("FAILS CLOSED: a connectionId for a different user's email removes nothing", async () => {
-    seedFully();
-    const res = await authedDisconnect({ connectionId: `${OTHER_EMAIL}:${PROVIDER}` });
-    expect(res.status).toBe(403);
-    expect(res.json?.error).toBe("connectionId does not match session user");
-    // Our tenant's durable row + legacy row are untouched.
+    // The retired endpoint can never mutate the durable store: real readers
+    // still see the row exactly as seeded, and the legacy-era flat copy is
+    // untouched as well.
     expect(credRowExists()).toBe(true);
     expect(legacyRowExists()).toBe(true);
+    const accounts = await buildConnectedAccountsFromCredentials(EMAIL, TEST_DATA_DIR);
+    expect(accounts.some((a: any) => a.provider === PROVIDER)).toBe(true);
+    const hit = loadStoredCredential(PROVIDER, { tenant: EMAIL, dataDir: TEST_DATA_DIR });
+    expect(hit.credential?.accessToken).toBe("at_disconnect_test");
+  });
+
+  it("cross-tenant attempts hit the SAME 404 — no path can remove another tenant's rows", async () => {
+    seedFully();
+    const res = await authedDisconnect({ connectionId: `${OTHER_EMAIL}:${PROVIDER}` });
+    expect(res.status).toBe(404);
+    expect(credRowExists()).toBe(true);
   });
 });

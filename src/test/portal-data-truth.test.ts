@@ -187,13 +187,13 @@ describe("PORTAL DATA-TRUTH (#236)", () => {
     expect(res.json?.crmSlots.isOwner).toBe(false);
   });
 
-  it("/api/integrations builds the list from the real credential store", async () => {
-    const res = await authedGet("/api/integrations", ownerCookie!);
-    expect(res.status).toBe(200);
-    const provs = (res.json?.data || []).map((c: any) => c.providerId || c.provider);
-    expect(provs).toContain("xero");
-    expect(provs).toContain("slack");
-    expect(provs).not.toContain("someone-else");
+  it("the retired /api/integrations list is fail-closed 404 for owner and customer alike", async () => {
+    // a2: persistent-connect retired — the conn-list endpoint no longer exists.
+    // Both callers get the same 404 JSON, so a dead path can never leak a list.
+    const ownerRes = await authedGet("/api/integrations", ownerCookie!);
+    expect(ownerRes.status).toBe(404);
+    const custRes = await authedGet("/api/integrations", customerCookie!);
+    expect(custRes.status).toBe(404);
   });
 
   it("the retired employee catalog surface serves no roster (empty-store fallback)", async () => {
@@ -234,9 +234,10 @@ describe("PORTAL DATA-TRUTH (#236)", () => {
     expect(get2.json?.data?.some((w: any) => w.id === "wf-truth")).toBe(false);
   });
 
-  it("fresh customer sees ZERO connections on /api/integrations (isolation)", async () => {
+  it("a fresh customer's call to the retired list is the same 404 — zero-connections isolation on the live surface", async () => {
+    // The live zero-isolation proof lives on the real surface (connected-accounts
+    // is EMPTY above); the retired path answers 404 for this caller too.
     const res = await authedGet("/api/integrations", customerCookie!);
-    expect(res.status).toBe(200);
-    expect(res.json?.data || []).toEqual([]);
+    expect(res.status).toBe(404);
   });
 });
