@@ -46,7 +46,8 @@ function AdminWorkflowBuilder() {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [workflowName, setWorkflowName] = useState("");
   const [activeTab, setActiveTab] = useState<"visual" | "json">("visual");
-  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [exportNotice, setExportNotice] = useState<string | null>(null);
   const [draggedTemplate, setDraggedTemplate] = useState<IntegrationCategory | null>(null);
 
   const selectedNode = nodes.find((n) => n.id === selectedNodeId);
@@ -118,6 +119,24 @@ function AdminWorkflowBuilder() {
     2
   );
 
+  // CLEANUP (e): this admin canvas has no deployment or registry backend —
+  // the previous save prompt only pretended to store anything. The honest
+  // action here is a client-side download of the blueprint JSON; registry
+  // saves happen on the Workflows builder page.
+  const handleExport = () => {
+    const blob = new Blob([serializedWorkflow], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${workflowName.trim() || "workflow"}.blueprint.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setIsExportModalOpen(false);
+    setExportNotice("Blueprint downloaded to this device. The design canvas doesn't save to your portal — to store a workflow in your portal registry, use Workflows → Builder.");
+  };
+
 
   return (
     <div className="space-y-8 animate-in fade-in duration-200">
@@ -130,14 +149,17 @@ function AdminWorkflowBuilder() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" className="border-stone-800 text-stone-300" onClick={() => setIsSaveModalOpen(true)}>
-            💾 Save Blueprint
-          </Button>
-          <Button variant="primary" onClick={() => alert("Pipeline deployed and compiled live successfully!")}>
-            🚀 Deploy Live
+          <Button variant="outline" className="border-stone-800 text-stone-300" onClick={() => setIsExportModalOpen(true)}>
+            💾 Export Blueprint (JSON)
           </Button>
         </div>
       </div>
+
+      {exportNotice && (
+        <div className="rounded-2xl border border-emerald-800 bg-emerald-950/40 px-5 py-3 text-sm text-emerald-300">
+          {exportNotice}
+        </div>
+      )}
 
       {/* Workflow Settings & Mode selector */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-stone-900 border border-stone-800 p-6 rounded-3xl">
@@ -385,11 +407,12 @@ function AdminWorkflowBuilder() {
       )}
 
 
-      {/* Save Modal */}
-      <Modal isOpen={isSaveModalOpen} onClose={() => setIsSaveModalOpen(false)} title="Save Workflow Blueprint">
+      {/* Export Modal */}
+      <Modal isOpen={isExportModalOpen} onClose={() => setIsExportModalOpen(false)} title="Export Workflow Blueprint">
         <div className="space-y-5">
           <p className="text-sm text-stone-300 font-semibold leading-relaxed">
-            Are you sure you want to serialize and export this configured automation pipeline to the system registry?
+            This downloads your blueprint as a JSON file to this device. The design canvas doesn't save to your
+            portal — to store a workflow in your portal registry, use Workflows → Builder, which saves it to your registry.
           </p>
           <div className="bg-stone-950 p-4 border border-stone-800 rounded-2xl">
             <p className="text-xs font-bold text-stone-500 uppercase tracking-wider">Workflow Configuration</p>
@@ -397,17 +420,11 @@ function AdminWorkflowBuilder() {
             <p className="text-xs text-emerald-400 font-mono mt-1">{nodes.length} nodes configured</p>
           </div>
           <div className="flex justify-end gap-3 pt-4 border-t border-stone-800">
-            <Button variant="secondary" onClick={() => setIsSaveModalOpen(false)}>
+            <Button variant="secondary" onClick={() => setIsExportModalOpen(false)}>
               Cancel
             </Button>
-            <Button
-              variant="primary"
-              onClick={() => {
-                setIsSaveModalOpen(false);
-                alert("Workflow successfully stored into system registry database!");
-              }}
-            >
-              Confirm Save
+            <Button variant="primary" onClick={handleExport}>
+              Download JSON
             </Button>
           </div>
         </div>
