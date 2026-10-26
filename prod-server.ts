@@ -4283,6 +4283,15 @@ OAUTH_${provUpper}_CLIENT_SECRET=your_client_secret</pre><p style="font-size:0.8
       }
     }
 
+    // AUDIT-D (10-26): fail CLOSED on the API namespace — any unmatched
+    // /api request (any verb) gets 404 JSON, never the SPA HTML fallback.
+    // The five pre-D dead endpoints (audit-logs/stats, connect-ai/mapping,
+    // v1/trigger, portal/files/view, workflows/generate) flip to 404 here.
+    // Real /api handlers are all matched above this point and keep their
+    // auth-gated codes (401/400/200) exactly as before.
+    if (pathname === "/api" || pathname.startsWith("/api/")) {
+      return Response.json({ error: "not found" }, { status: 404 });
+    }
     // CRM/ERP purchase gating is handled client-side by React components.
     // portal.crm.index.tsx and portal.erp.index.tsx render upgrade states when
     // no slots are available. The server must serve the SPA, not a 402 JSON block.
