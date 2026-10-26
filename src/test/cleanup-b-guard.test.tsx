@@ -27,7 +27,7 @@
  *      (anon → 302 → /login); sibling /api/data stores are untouched.
  */
 import { describe, expect, it, beforeAll } from "vitest";
-import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync } from "fs";
 import { join } from "path";
 import { ensureTestServer, testBaseUrl, testDataDir } from "./test-env";
 
