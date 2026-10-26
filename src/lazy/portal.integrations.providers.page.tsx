@@ -46,14 +46,9 @@ function ProviderDirectoryPage() {
     return matchesSearch && matchesCategory;
   });
 
-  const handleProviderClick = (provider: Provider) => {
-    if (provider.authType === "oauth2") {
-      setFeedback(`Redirecting to authorize ${provider.name}...`);
-      window.location.href = `/api/oauth/authorize?provider=${provider.id}`;
-    } else {
-      setSelectedProvider(provider);
-      setIsModalOpen(true);
-    }
+  // a2: connect-era actions retired — the catalog's one action is importing.
+  const handleProviderClick = (_provider: Provider) => {
+    window.location.href = "/portal/import";
   };
 
   if (loading && providers.length === 0) {

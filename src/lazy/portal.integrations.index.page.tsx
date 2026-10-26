@@ -180,55 +180,6 @@ function ConnectedServices() {
   // Common Feedback State
   const [feedback, setFeedback] = useState("");
 
-  // Manual Credential Modal State
-  const [activeApiKeyProvider, setActiveApiKeyProvider] = useState<string | null>(null);
-  const [credentialProvider, setCredentialProvider] = useState<ProviderItem | null>(null);
-  const [manualApiKey, setManualApiKey] = useState("");
-  const [manualApiSecret, setManualApiSecret] = useState("");
-  const [manualSubdomain, setManualSubdomain] = useState("");
-  const [manualSaving, setManualSaving] = useState(false);
-  const [manualError, setManualError] = useState<string | null>(null);
-
-  // Connect via Manual API Key
-  const handleConnectManual = async () => {
-    if (!credentialProvider) return;
-    if (!manualApiKey.trim()) {
-      setManualError("API Key is required");
-      return;
-    }
-    setManualSaving(true);
-    setManualError(null);
-    try {
-      const res = await fetch("/api/integrations/connect", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          provider: credentialProvider.id,
-          apiKey: manualApiKey.trim(),
-          apiSecret: manualApiSecret.trim() || undefined,
-          subdomain: manualSubdomain.trim() || undefined,
-          displayName: credentialProvider.name,
-        }),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Failed to connect");
-      }
-      setFeedback(`✅ ${credentialProvider.name} connected successfully!`);
-      setActiveApiKeyProvider(null);
-      setCredentialProvider(null);
-      setManualApiKey("");
-      setManualApiSecret("");
-      setManualSubdomain("");
-      fetchConnectionsData();
-    } catch (err: any) {
-      setManualError(err.message || "Connection failed");
-    } finally {
-      setManualSaving(false);
-      setTimeout(() => setFeedback(""), 3000);
-    }
-  };
 
   // Fetch Providers and Connections
   const fetchConnectionsData = async () => {
@@ -237,16 +188,31 @@ function ConnectedServices() {
       setLoadingConns(true);
       const [providersRes, connsRes] = await Promise.all([
         fetch("/api/integrations/providers"),
-        fetch("/api/integrations")
+        fetch("/api/data/connected-accounts")
       ]);
       if (!providersRes.ok || !connsRes.ok) {
         throw new Error(`Server error (${providersRes.status}/${connsRes.status}). Please try again.`);
       }
       const provsData = await providersRes.json();
       const connsData = await connsRes.json();
-      
+
       setProviders(provsData.data || []);
-      setConnections(connsData.data || []);
+      // a2: the flat connection list is retired — derive from the real OAuth
+      // store buckets (same shape the dashboard + import history use).
+      const flat = [...(connsData.crm || []), ...(connsData.erp || []), ...(connsData.other || [])].map((c: any) => ({
+        id: c.id,
+        userId: "",
+        provider: c.providerId || c.provider || "",
+        providerId: c.providerId || c.provider || "",
+        displayName: c._provider?.name || c.provider || c.providerId || "",
+        config: {},
+        status: (c.status === "error" ? "error" : c.status === "Connected" ? "Connected" : "pending") as "error" | "expired" | "Connected" | "pending",
+        healthAt: c.healthAt || null,
+        errorMsg: c.errorMsg || null,
+        createdAt: c.connectedAt || new Date().toISOString(),
+        updatedAt: c.updatedAt || c.connectedAt || new Date().toISOString(),
+      }));
+      setConnections(flat);
     } catch (err: any) {
       console.error("Error fetching integrations:", err);
       setFetchError(err.message || "Failed to load integrations. Check your connection.");
@@ -290,12 +256,6 @@ function ConnectedServices() {
         window.history.replaceState({}, "", url.toString());
       }
     }, []);
-
-  // Connect Redirect Handler
-  const handleConnect = (providerId: string) => {
-    setFeedback(`Redirecting to authorize secure connection...`);
-    window.location.href = `/api/oauth/authorize?provider=${providerId}`;
-  };
 
   // Disconnect Handler
 
@@ -433,10 +393,11 @@ function ConnectedServices() {
       <div className="border-b border-stone-900 pb-5 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
           <h1 className="text-3xl font-black text-white tracking-tight flex items-center gap-2">
-            🔌 Cognitive Connectivity Center
+            🔌 Integrations catalog
           </h1>
           <p className="text-stone-400 text-xs mt-1">
-            Securely link third-party operations systems via real OAuth channels or ingest general documentation payload nodes.
+            The tools your business runs on, ready to import from. External tools are import/migration
+            lanes only — bring data in as a one-time, client-initiated import, and nothing stays connected.
           </p>
         </div>
 
@@ -450,7 +411,7 @@ function ConnectedServices() {
                 : "text-stone-400 hover:text-white"
             }`}
           >
-            🔌 App Connections ({(filteredConnections||[]).filter(c => c.status === "Connected").length}/{connectableNowCount})
+            🔌 Integrations ({connectableNowCount})
           </button>
           <button
             onClick={() => setActiveTab("intake")}
@@ -524,15 +485,15 @@ function ConnectedServices() {
           {/* Connected Count Indicator / Stats banner */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="bg-stone-950 border border-stone-900 p-4 rounded-2xl flex flex-col justify-between">
-              <span className="text-[10px] font-mono font-bold tracking-wider text-stone-500 uppercase">ACTIVE CHANNELS</span>
+              <span className="text-[10px] font-mono font-bold tracking-wider text-stone-500 uppercase">TOOLS WITH ACCESS</span>
               <span className="text-2xl font-black text-white mt-1">
-                {(filteredConnections||[]).filter(c => c.status === "Connected").length} <span className="text-stone-600 text-sm font-semibold">connected</span>
+                {(filteredConnections||[]).filter(c => c.status === "Connected").length} <span className="text-stone-600 text-sm font-semibold">from your account</span>
               </span>
             </div>
             <div className="bg-stone-950 border border-stone-900 p-4 rounded-2xl flex flex-col justify-between">
-              <span className="text-[10px] font-mono font-bold tracking-wider text-stone-500 uppercase">CONNECTABLE PROVIDERS</span>
+              <span className="text-[10px] font-mono font-bold tracking-wider text-stone-500 uppercase">IMPORT SOURCES</span>
               <span className="text-2xl font-black text-white mt-1">
-                {connectableNowCount} <span className="text-stone-600 text-sm font-semibold">connectable now</span>
+                {connectableNowCount} <span className="text-stone-600 text-sm font-semibold">available now</span>
               </span>
               <span className="text-[10px] text-stone-500 font-semibold mt-1">{inDevelopmentCount} more in development</span>
             </div>
@@ -554,10 +515,10 @@ function ConnectedServices() {
           {(connections||[]).length > 0 && (
             <div className="bg-emerald-950/10 border border-emerald-900/30 rounded-2xl p-4 flex items-center justify-between">
               <span className="text-emerald-400 font-bold text-sm">
-                ✅ {(connections||[]).filter(c => c && c.status === "Connected").length} connection{(connections||[]).filter(c => c && c.status === "Connected").length !== 1 ? "s" : ""} active
+                ✅ {(connections||[]).filter(c => c && c.status === "Connected").length} tool{(connections||[]).filter(c => c && c.status === "Connected").length !== 1 ? "s" : ""} with access from your account
               </span>
               <Link to="/portal/connected-accounts" className="text-emerald-400 font-bold text-sm hover:text-emerald-300">
-                Manage connected accounts →
+                View import history →
               </Link>
             </div>
           )}
@@ -602,12 +563,12 @@ function ConnectedServices() {
             return unconnectedProviders.length === 0 ? (
               <div className="bg-stone-950 rounded-2xl border border-stone-900 p-12 text-center max-w-xl mx-auto space-y-4">
                 <span className="text-4xl block">✅</span>
-                <h3 className="text-sm font-bold text-white">All providers connected</h3>
+                <h3 className="text-sm font-bold text-white">Every provider here is available</h3>
                 <p className="text-[11px] text-stone-500 leading-relaxed">
-                  Every provider in this view is already connected. 
+                  Each tool in this view is ready to import from whenever you want its data.
                 </p>
                 <Link to="/portal/connected-accounts" className="text-emerald-400 font-bold text-sm hover:text-emerald-300">
-                  Manage your connections →
+                  View import history →
                 </Link>
               </div>
             ) : (
@@ -752,109 +713,14 @@ function ConnectedServices() {
 
                     </div>
 
-                    {/* Action buttons */}
+                    {/* Action buttons — import-lane CTA only (a2) */}
                     <div className="border-t border-stone-900 pt-3.5 mt-5 flex justify-between items-center gap-2">
-                      <div>
-                        {prov.actions && prov.actions.length > 0 && (
-                          <button
-                            onClick={() => setSelectedProviderDetails(prov)}
-                            className="text-stone-500 hover:text-stone-300 text-[10px] font-mono underline"
-                          >
-                            View Schemas
-                          </button>
-                        )}
-                      </div>
-
-                      <div className="flex gap-1">
-                        {activeApiKeyProvider === prov.id ? (
-                              <div className="w-full space-y-2">
-                                {manualError && (
-                                  <div className="bg-rose-950/20 border border-rose-800/30 text-rose-400 p-2 rounded-lg text-[10px] font-bold">
-                                    ⚠️ {manualError}
-                                  </div>
-                                )}
-                                <input
-                                  type="text"
-                                  value={manualApiKey}
-                                  onChange={e => setManualApiKey(e.target.value)}
-                                  placeholder="Paste API key"
-                                  className="w-full bg-stone-900 border border-stone-800 text-white rounded-lg px-3 py-2 text-[10px] font-mono placeholder-stone-700 focus:border-emerald-600 outline-none"
-                                />
-                                <div className="flex gap-1">
-                                  <input
-                                    type="text"
-                                    value={manualApiSecret}
-                                    onChange={e => setManualApiSecret(e.target.value)}
-                                    placeholder="Secret (optional)"
-                                    className="flex-1 bg-stone-900 border border-stone-800 text-white rounded-lg px-3 py-2 text-[10px] font-mono placeholder-stone-700 focus:border-emerald-600 outline-none"
-                                  />
-                                  <input
-                                    type="text"
-                                    value={manualSubdomain}
-                                    onChange={e => setManualSubdomain(e.target.value)}
-                                    placeholder="Subdomain"
-                                    className="w-24 bg-stone-900 border border-stone-800 text-white rounded-lg px-3 py-2 text-[10px] font-mono placeholder-stone-700 focus:border-emerald-600 outline-none"
-                                  />
-                                </div>
-                                <div className="flex gap-1">
-                                  <button
-                                    onClick={() => { setActiveApiKeyProvider(null); setManualError(null); }}
-                                    className="flex-1 bg-stone-900 hover:bg-stone-800 text-stone-400 border border-stone-800 text-[10px] font-mono font-bold px-3 py-1.5 rounded-lg transition-all"
-                                  >
-                                    Cancel
-                                  </button>
-                                  <button
-                                    onClick={handleConnectManual}
-                                    disabled={manualSaving}
-                                    className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-mono font-bold px-3 py-1.5 rounded-lg transition-all disabled:opacity-50"
-                                  >
-                                    {manualSaving ? "..." : "Connect"}
-                                  </button>
-                                </div>
-                                <div className="flex justify-end">
-                                  <button
-                                    onClick={() => handleConnect(prov.id)}
-                                    className="bg-emerald-600 text-white border-emerald-400/50 hover:bg-emerald-500 text-[10px] font-mono font-black tracking-wide uppercase px-3 py-1.5 rounded-lg border transition-all"
-                                  >
-                                    or use OAuth
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (() => {
-                              const authType = (prov.connectionRequirements?.authType || "").toLowerCase();
-                              const isOAuth = authType.includes("oauth");
-                              const isApiKey = authType.includes("api") || authType.includes("basic") || authType.includes("token");
-                              // Show both if authType has both or is unknown
-                              const showBoth = (isOAuth && isApiKey) || (!isOAuth && !isApiKey);
-                              return (
-                              <div className="flex gap-1">
-                                {(isOAuth || showBoth) && (
-                                <button
-                                  onClick={() => handleConnect(prov.id)}
-                                  className="bg-emerald-600 text-white border-emerald-400/50 hover:bg-emerald-500 text-[10px] font-mono font-black tracking-wide uppercase px-3 py-1.5 rounded-lg border transition-all"
-                                >
-                                  OAuth
-                                </button>
-                                )}
-                                {(isApiKey || showBoth) && (
-                                <button
-                                  onClick={() => {
-                                    setCredentialProvider(prov);
-                                    setActiveApiKeyProvider(prov.id);
-                                    setManualApiKey("");
-                                    setManualApiSecret("");
-                                    setManualSubdomain("");
-                                    setManualError(null);
-                                  }}
-                                  className="bg-stone-900 hover:bg-stone-800 text-stone-300 border border-stone-800 hover:text-white text-[10px] font-mono font-bold px-3 py-1.5 rounded-lg transition-all"
-                                >
-                                  API Key
-                                </button>
-                                )}
-                              </div>
-                              );
-                            })()}
-                      </div>
+                      <Link
+                        to="/portal/import"
+                        className="flex-1 text-center bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-mono font-bold px-3 py-1.5 rounded-lg transition-all"
+                      >
+                        Import from {prov.name} →
+                      </Link>
                     </div>
 
                   </div>

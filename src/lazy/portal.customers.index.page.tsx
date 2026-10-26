@@ -1,15 +1,13 @@
 import { Link } from "@tanstack/react-router";
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { integrations } from "../content/integrations";
-import { getAuthMethod, AGENT_TYPES } from "../content/integration-auth-map";
+import { getAuthMethod } from "../content/integration-auth-map";
 
 // Data loaded client-side via fetch() — server functions removed because
 // they crash SSR with "globalThis.app.config" (vinxi/http context unavailable).
-// Wired to the real portal API: GET /api/portal/connections (list),
-// POST /api/integrations/connect + /api/integrations/disconnect (actions).
-// Agent-era "Test" and "Route to Agent" controls were removed with their
-// server functions (commit b437a8b) — the backend for them was never
-// restored, and the API exposes no equivalent, so keeping them would throw.
+// Wired to the real portal API: GET /api/portal/connections (list, read-only).
+// a2: persistent connect/disconnect are retired — external tools are
+// import/migration lanes only (Import page), and nothing is stored here.
 
 
 
@@ -34,18 +32,6 @@ function CRMERPConnectorPage() {
   const [loaded, setLoaded] = useState(false);
   const [search, setSearch] = useState("");
   const [activeCat, setActiveCat] = useState<"ALL" | "CRM" | "ERP">("ALL");
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [connectTarget, setConnectTarget] = useState<string | null>(null);
-  const [apiKey, setApiKey] = useState("");
-  const [subdomain, setSubdomain] = useState("");
-  const [connecting, setConnecting] = useState(false);
-  const [connectError, setConnectError] = useState("");
-  const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
-
-  const showToast = (msg: string, type: "success" | "error" = "success") => {
-    setToast({ msg, type }); setTimeout(() => setToast(null), 3500);
-  };
-
   const refresh = useCallback(async () => {
     try {
       const res = await fetch("/api/portal/connections", { credentials: "include" });
@@ -87,61 +73,11 @@ function CRMERPConnectorPage() {
   }, [search, activeCat]);
 
   const activeConns = connections.filter((c) => c.status === "active");
-  const routedConns = connections.filter((c) => c.assignedAgent);
   const errConns = connections.filter((c) => c.status === "error" || c.status === "expired");
-
-  const handleConnect = async () => {
-    if (!connectTarget || !apiKey.trim()) { setConnectError("API Key required"); return; }
-    setConnecting(true); setConnectError("");
-    try {
-      const provider = crmErpProviders.find((p) => p.id === connectTarget);
-      const res = await fetch("/api/integrations/connect", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          provider: connectTarget,
-          displayName: provider?.name ?? connectTarget,
-          apiKey: apiKey.trim(),
-          subdomain: subdomain.trim() || undefined,
-        }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Connection failed");
-      }
-      showToast(`Connected to ${provider?.name ?? connectTarget}`);
-      setConnectTarget(null); setApiKey(""); setSubdomain("");
-      await refresh();
-    } catch (e: any) { setConnectError(e.message || "Connection failed"); }
-    finally { setConnecting(false); }
-  };
-
-  const handleDisconnect = async (cid: string, name: string) => {
-    if (!confirm(`Disconnect ${name}?`)) return;
-    const res = await fetch("/api/integrations/disconnect", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ providerId: cid }),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || "Disconnect failed");
-    }
-    showToast(`Disconnected ${name}`);
-    await refresh();
-  };
 
 
   return (
     <div className="min-h-screen bg-stone-950 text-stone-100">
-      {/* Toast */}
-      {toast && (
-        <div className={`fixed top-4 right-4 z-50 px-4 py-2.5 rounded-xl text-xs font-mono font-bold shadow-lg ${
-          toast.type === "success" ? "bg-emerald-600 text-white" : "bg-rose-600 text-white"
-        }`}>{toast.msg}</div>
-      )}
 
       {/* Header */}
       <div className="px-6 pt-8 pb-4 border-b border-stone-900">
@@ -157,11 +93,7 @@ function CRMERPConnectorPage() {
         </div>
         <div className="bg-stone-900/50 border border-emerald-500/20 rounded-xl p-4">
           <div className="text-2xl font-black text-emerald-400">{activeConns.length}</div>
-          <div className="text-[10px] font-mono text-stone-500 uppercase">Connected</div>
-        </div>
-        <div className="bg-stone-900/50 border border-indigo-500/20 rounded-xl p-4">
-          <div className="text-2xl font-black text-indigo-400">{routedConns.length}</div>
-          <div className="text-[10px] font-mono text-stone-500 uppercase">AI-Routed</div>
+          <div className="text-[10px] font-mono text-stone-500 uppercase">With access</div>
         </div>
         {errConns.length > 0 && (
           <div className="bg-stone-900/50 border border-amber-500/20 rounded-xl p-4">
@@ -171,27 +103,6 @@ function CRMERPConnectorPage() {
         )}
       </div>
 
-      {/* AI Routing Overview */}
-      {routedConns.length > 0 && (
-        <div className="px-6 pb-4">
-          <div className="bg-stone-900/30 border border-stone-800 rounded-xl p-4">
-            <h4 className="text-xs font-mono font-bold text-stone-400 uppercase mb-3">AI Processing Pipeline</h4>
-            <div className="flex flex-wrap gap-2">
-              {routedConns.map((c) => {
-                const agent = AGENT_TYPES.find((a) => a.id === c.assignedAgent);
-                const provider = crmErpProviders.find((p) => p.id === c.provider);
-                return (
-                  <div key={c.id} className="flex items-center gap-1.5 bg-stone-950 border border-stone-800 rounded-lg px-3 py-1.5">
-                    <span className="text-[10px] font-bold text-stone-300">{provider?.name ?? c.provider}</span>
-                    <span className="text-stone-600">→</span>
-                    <span className="text-[10px] font-mono font-bold text-indigo-400">{agent?.name ?? c.assignedAgent}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Toolbar */}
       <div className="px-6 py-3 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between border-b border-stone-900">
@@ -214,8 +125,6 @@ function CRMERPConnectorPage() {
           const conn = connMap[provider.id];
           const isConnected = !!conn;
           const authMethod = getAuthMethod(provider.id);
-          const isExpanded = expandedId === provider.id;
-          const isConnecting = connectTarget === provider.id;
 
           return (
             <div key={provider.id}
@@ -238,11 +147,7 @@ function CRMERPConnectorPage() {
                 <div className="mt-3 flex items-center gap-2">
                   <span className={`inline-block h-2 w-2 rounded-full ${STATUS_COLORS[conn!.status] || "bg-stone-600"}`} />
                   <span className="text-[10px] font-mono font-bold text-stone-400 uppercase">{conn!.status}</span>
-                  {conn!.assignedAgent && (
-                    <span className="text-[10px] font-mono text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-1.5 py-0.5 rounded">
-                      → {AGENT_TYPES.find((a) => a.id === conn!.assignedAgent)?.name ?? conn!.assignedAgent}
-                    </span>
-                  )}
+
                 </div>
               )}
 
@@ -251,58 +156,15 @@ function CRMERPConnectorPage() {
               {/* Actions */}
               <div className="mt-4 pt-3 border-t border-stone-850/60 flex items-center justify-between gap-2">
                 {isConnected ? (
-                  <>
-                    <button onClick={() => setExpandedId(isExpanded ? null : provider.id)}
-                      className="text-[10px] font-mono font-bold text-indigo-400 hover:text-indigo-300">
-                      {isExpanded ? "▼ Configure" : "▶ Configure"}
-                    </button>
-                    <button onClick={() => handleDisconnect(conn!.id, provider.name)}
-                      className="text-[10px] font-mono font-bold text-rose-400 hover:text-rose-300 border border-rose-500/20 rounded-lg px-3 py-1.5">
-                      Disconnect
-                    </button>
-                  </>
-                ) : isConnecting ? (
-                  <div className="w-full space-y-2">
-                    <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)}
-                      placeholder="API Key" className="w-full bg-stone-950 border border-stone-800 focus:border-indigo-600 rounded-lg px-3 py-1.5 text-xs text-stone-200 outline-none" />
-                    <input type="text" value={subdomain} onChange={(e) => setSubdomain(e.target.value)}
-                      placeholder="Subdomain / Instance URL" className="w-full bg-stone-950 border border-stone-800 focus:border-indigo-600 rounded-lg px-3 py-1.5 text-xs text-stone-200 outline-none" />
-                    {connectError && <p className="text-[10px] text-rose-400 font-mono">{connectError}</p>}
-                    <div className="flex gap-2">
-                      <button onClick={handleConnect} disabled={connecting}
-                        className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-mono text-[10px] font-bold py-1.5 rounded-lg disabled:opacity-50">
-                        {connecting ? "Connecting…" : "Connect"}
-                      </button>
-                      <button onClick={() => { setConnectTarget(null); setConnectError(""); setApiKey(""); setSubdomain(""); }}
-                        className="px-3 text-[10px] font-mono text-stone-500 hover:text-stone-300 border border-stone-800 rounded-lg">Cancel</button>
-                    </div>
-                  </div>
+                  <span className="text-[10px] font-mono font-bold text-emerald-400">✓ Access set up</span>
                 ) : (
-                  <button onClick={() => setConnectTarget(provider.id)}
-                    className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-mono text-[10px] font-bold py-1.5 rounded-lg">
-                    Connect
-                  </button>
+                  <Link to="/portal/import" className="w-full text-center bg-indigo-600 hover:bg-indigo-500 text-white font-mono text-[10px] font-bold py-1.5 rounded-lg">
+                    Import from {provider.name} →
+                  </Link>
                 )}
               </div>
 
-              {/* Expanded config */}
-              {isExpanded && isConnected && (
-                <div className="mt-4 pt-3 border-t border-stone-850/60 space-y-3">
-                  {/* Health */}
-                  <div className="flex items-center justify-between bg-stone-950/50 rounded-lg p-2.5 border border-stone-850/50">
-                    <div className="flex items-center gap-2">
-                      <span className={`inline-block h-2 w-2 rounded-full ${STATUS_COLORS[conn!.status]}`} />
-                      <span className="text-[10px] font-mono font-bold text-stone-300 uppercase">{conn!.status}</span>
-                      {conn!.healthAt && <span className="text-[10px] font-mono text-stone-500">Last: {new Date(conn!.healthAt).toLocaleString()}</span>}
-                    </div>
-                  </div>
-                  {conn!.errorMsg && (
-                    <div className="bg-rose-500/5 border border-rose-500/20 rounded-lg p-2.5">
-                      <p className="text-[10px] font-mono text-rose-400">{conn!.errorMsg}</p>
-                    </div>
-                  )}
-                </div>
-              )}
+
             </div>
           );
         })}
@@ -316,9 +178,9 @@ function CRMERPConnectorPage() {
       {loaded && connections.length === 0 && (
         <div className="px-6 pb-12 text-center">
           <div className="bg-stone-900/20 border border-stone-800 border-dashed rounded-3xl p-10 max-w-lg mx-auto space-y-4">
-            <div className="text-3xl">🔌</div>
-            <h3 className="text-sm font-black text-white">No CRM/ERP Connections Yet</h3>
-            <p className="text-xs text-stone-500">Connect your first CRM or ERP system above, then run a one-time import to bring your records in — nothing flows automatically and nothing writes back.</p>
+            <div className="text-3xl">📥</div>
+            <h3 className="text-sm font-black text-white">No imports yet</h3>
+            <p className="text-xs text-stone-500">Import your first CRM or ERP system above — records come in as a one-time import, nothing flows automatically, and nothing writes back.</p>
             <Link to="/integrations" className="inline-block text-[10px] font-mono font-bold text-indigo-400 hover:text-indigo-300 border border-indigo-500/20 rounded-lg px-4 py-2">
               Browse Full Catalog →
             </Link>

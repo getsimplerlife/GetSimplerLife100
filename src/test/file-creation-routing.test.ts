@@ -2,7 +2,7 @@
  * file-creation-routing.test.ts — end-to-end routing of a data-file creation
  * request through createDataFile. Covers fail-closed paths (invalid input,
  * nothing connected, preference not connected, explicit request not
- * connected, missing token, refresh failure) and the success path (routes to
+ * connected, no-token invisibility, refresh failure) and the success path (routes to
  * the tenant's preferred workspace, registers the artifact with workspace +
  * nativeUrl + createdConnector, and reports the workspace used).
  *
@@ -26,6 +26,24 @@ afterEach(() => {
 });
 
 function connectProvider(dir: string, tenantId: string, providerId: string): void {
+  // a2: the flat tenant_integrations store is retired — access is derived from
+  // the real per-tenant OAuth credential store ONLY, so the helper seeds that
+  // store (the flat write below is inert, kept to document the old shape).
+  const tokenEntry = {
+    accessToken: "tok-helper",
+    refreshToken: "rt-helper",
+    expiresAt: Math.floor(Date.now() / 1000) + 3600,
+    tokenType: "Bearer",
+    scope: "x",
+  };
+  const tokFile = join(dir, "tenant_oauth_credentials.json");
+  let allTok: Record<string, any> = {};
+  try {
+    allTok = JSON.parse(fsReadFileSync(tokFile, "utf-8"));
+  } catch { /* first write */ }
+  allTok[`${tenantId}:${providerId}`] = tokenEntry;
+  writeFileSync(tokFile, JSON.stringify(allTok));
+
   const file = join(dir, "tenant_integrations.json");
   let all: Record<string, any[]> = {};
   try {
@@ -116,17 +134,21 @@ describe("createDataFile — routing fail-closed (no network)", () => {
       expect(out.error).toContain("Google Sheets is not connected");
     }
   });
-  it("connected but no stored tenant token → 409 connect-first message", async () => {
+  it("a2: flat-store-only rows are invisible → 409 no-workspace (fail closed)", async () => {
+    // The flat connection store is retired: only the real OAuth store
+    // contributes provider access, so a stale flat row must NEVER surface as
+    // a usable workspace (it didn't even get a token in the old flat world).
     const dir = freshDir();
     dirs.push(dir);
+    const tokFile = join(dir, "tenant_oauth_credentials.json");
+    // null the store write by removing tokens afterwards (simulate flat-only)
     connectProvider(dir, "acme@test.com", "google-sheets");
-    // no token stored
+    writeFileSync(tokFile, JSON.stringify({}));
     const out = await createDataFile(baseReq(dir));
     expect(out.ok).toBe(false);
     if (!out.ok) {
       expect(out.status).toBe(409);
-      expect(out.error).toContain("No stored connection");
-      expect(out.connectHint).toEqual(["google-sheets"]);
+      expect(out.error).toContain("No file workspace is connected");
     }
   });
   it("expired token with no refresh token → 502 refresh failure (no silent create)", async () => {

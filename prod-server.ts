@@ -2,7 +2,7 @@ import { serve } from "bun";
 import { join } from "path";
 import { readFileSync, existsSync, readdirSync } from "fs";
 import { createHash, randomBytes } from "crypto";
-import { resolveDataDir, isInsidePublishTree, readJSON, readJSONLive, writeJSON, seedDataFiles, bucketConnectionsByCategory, migrateLegacyData, findLegacyDataDir, countConnections, mergeDurableCredential } from "./src/lib/data-store";
+import { resolveDataDir, isInsidePublishTree, readJSON, readJSONLive, writeJSON, seedDataFiles, bucketConnectionsByCategory, migrateLegacyData, findLegacyDataDir, mergeDurableCredential } from "./src/lib/data-store";
 import { detectPackType, buildPackPurchase, verifyStripeSignature, detectPlanType, buildPlanPurchase, planAgentIds } from "./src/lib/stripe-webhook";
 import { buildOwnerSaleEvent, provisionAccountForPurchase, ownerSaleEmailBody } from "./src/lib/purchase-sales-events";
 import {
@@ -199,145 +199,7 @@ function appendAudit(user: any, action: string, resource: string, detail: string
   } catch { /* audit is best-effort */ }
 }
 
-async function testProviderConnection(providerId: string, providerName: string, credentials: any): Promise<{ success: boolean; error?: string }> {
-  // Test the connection by making a real HTTP request
-  const apiKey = credentials.apiKey || "";
-
-  
-  // Provider-specific connection tests
-  const testUrls: Record<string, { url: string; headers: Record<string, string> }> = {
-    salesforce: { url: "https://login.salesforce.com/services/oauth2/userinfo", headers: { "Authorization": `Bearer ${apiKey}` } },
-    hubspot: { url: "https://api.hubapi.com/oauth/v1/access-tokens", headers: { "Authorization": `Bearer ${apiKey}` } },
-    slack: { url: "https://slack.com/api/auth.test", headers: { "Authorization": `Bearer ${apiKey}` } },
-    zoho: { url: "https://accounts.zoho.com/oauth/user/info", headers: { "Authorization": `Bearer ${apiKey}` } },
-    pipedrive: { url: "https://api.pipedrive.com/v1/users/me", headers: {} },
-    mailchimp: { url: "https://login.mailchimp.com/oauth2/metadata", headers: { "Authorization": `Bearer ${apiKey}` } },
-    stripe: { url: "https://api.stripe.com/v1/balance", headers: { "Authorization": `Bearer ${apiKey}` } },
-    quickbooks: { url: "https://quickbooks.api.intuit.com/v3/company", headers: { "Authorization": `Bearer ${apiKey}` } },
-    google: { url: "https://www.googleapis.com/oauth2/v3/userinfo", headers: { "Authorization": `Bearer ${apiKey}` } },
-    xero: { url: "https://api.xero.com/connections", headers: { "Authorization": `Bearer ${apiKey}` } },
-    zendesk: { url: "https://{subdomain}.zendesk.com/api/v2/users/me", headers: { "Authorization": `Bearer ${apiKey}` } },
-    netsuite: { url: "https://{account}.suitetalk.api.netsuite.com/services/rest/query/v1/suiteql", headers: { "Authorization": `Bearer ${apiKey}` } },
-    jira: { url: "https://api.atlassian.com/me", headers: { "Authorization": `Bearer ${apiKey}` } },
-    shopify: { url: "https://{store}.myshopify.com/admin/api/2024-01/shop.json", headers: { "X-Shopify-Access-Token": apiKey } },
-    intercom: { url: "https://api.intercom.io/me", headers: { "Authorization": `Bearer ${apiKey}` } },
-    servicenow: { url: "https://{instance}.service-now.com/api/now/table/sys_user", headers: { "Authorization": `Bearer ${apiKey}` } },
-    bamboohr: { url: "https://api.bamboohr.com/api/gateway.php/{subdomain}/v1/employees/directory", headers: { "Authorization": `Bearer ${apiKey}` } },
-    asana: { url: "https://app.asana.com/api/1.0/users/me", headers: { "Authorization": `Bearer ${apiKey}` } },
-    monday: { url: "https://api.monday.com/v2", headers: { "Authorization": apiKey } },
-    airtable: { url: "https://api.airtable.com/v0/meta/bases", headers: { "Authorization": `Bearer ${apiKey}` } },
-    linear: { url: "https://api.linear.app/graphql", headers: { "Authorization": apiKey } },
-    clickup: { url: "https://api.clickup.com/api/v2/user", headers: { "Authorization": apiKey } },
-    trello: { url: "https://api.trello.com/1/members/me", headers: { "Authorization": `Bearer ${apiKey}` } },
-    basecamp: { url: "https://3.basecampapi.com/999999999/authorization.json", headers: { "Authorization": `Bearer ${apiKey}` } },
-    zoom: { url: "https://api.zoom.us/v2/users/me", headers: { "Authorization": `Bearer ${apiKey}` } },
-  };
-
-  const testConfig = testUrls[providerId.toLowerCase()];
-  
-  if (!testConfig) {
-    return { success: false, error: `Cannot verify credentials for ${providerName}. Please provide valid API credentials from your ${providerName} account.` };
-  }
-  try {
-    // Never send credentials to unresolved or customer-supplied host placeholders.
-    if (testConfig.url.includes("{")) {
-      return { success: false, error: `Cannot verify credentials for ${providerName} without an explicit vetted host.` };
-    }
-    // Real connection test for known providers
-    const res = await fetch(testConfig.url, {
-      headers: testConfig.headers,
-      signal: AbortSignal.timeout(10000)
-    });
-    // 401/403 means definitely invalid
-    if (res.status === 401 || res.status === 403) {
-      return { success: false, error: `Invalid credentials for ${providerName}. Please check your API key.` };
-    }
-    // 200-series: check response body for provider-specific error indicators
-    if (res.status >= 200 && res.status < 300) {
-      const contentType = res.headers.get("content-type") || "";
-      if (contentType.includes("json")) {
-        try {
-          const body = await res.json();
-          // Slack-style: { ok: false, error: "invalid_auth" }
-          if (body.ok === false) {
-            return { success: false, error: `Invalid credentials for ${providerName}: ${body.error || "authentication failed"}.` };
-          }
-          // Generic auth-related error in response body
-          if (body.error && typeof body.error === "string") {
-            const errMsg = body.error.toLowerCase();
-            if (errMsg.includes("auth") || errMsg.includes("invalid") || errMsg.includes("unauthorized") || errMsg.includes("permission")) {
-              return { success: false, error: `Invalid credentials for ${providerName}: ${body.error}.` };
-            }
-          }
-        } catch (e: any) { console.log("[SSR] FAILED url=" + testConfig.url + " err=" + (e?.message || String(e)));
-          // Non-JSON body on 200 — accept cautiously
-        }
-      }
-      return { success: true };
-    }
-    // 4xx (non 401/403) — likely bad request
-    if (res.status >= 400 && res.status < 500) {
-      return { success: false, error: `${providerName} rejected the connection (HTTP ${res.status}). Please verify your credentials and API configuration.` };
-    }
-    // 5xx — server error, could be temporary
-    return { success: false, error: `${providerName} is unreachable (HTTP ${res.status}). Please try again later.` };
-  } catch (e: any) {
-    return { success: false, error: `Could not reach ${providerName} API. Please verify your credentials and network connectivity.` };
-  }
-}
-
 // CRM/ERP/Accounting category detection — these categories require slot purchases
-const CRM_ERP_CATEGORIES = ["CRM", "ERP", "Accounting"];
-
-function isCrmErpCategory(category: string): boolean {
-  const cat = (category || "").toLowerCase();
-  return CRM_ERP_CATEGORIES.some(c => cat.includes(c.toLowerCase()));
-}
-
-function consumeCrmErpSlot(email: string, packType: "crm-pack" | "erp-pack"): boolean {
-  const purchases = readJSON(TENANT_PURCHASES_FILE);
-  const userPurchases = purchases[email] || [];
-  const crmPack = userPurchases.find((p: any) => p.type === packType && p.status === "active");
-  if (!crmPack) return false;
-  const usedSlots = crmPack.usedSlots || 0;
-  const totalSlots = crmPack.slots || 0;
-  if (usedSlots >= totalSlots) return false;
-  crmPack.usedSlots = usedSlots + 1;
-  purchases[email] = userPurchases;
-  writeJSON(TENANT_PURCHASES_FILE, purchases);
-  return true;
-}
-
-function freeCrmErpSlot(email: string, packType: "crm-pack" | "erp-pack"): void {
-  const purchases = readJSON(TENANT_PURCHASES_FILE);
-  const userPurchases = purchases[email] || [];
-  const crmPack = userPurchases.find((p: any) => p.type === packType && p.status === "active");
-  if (crmPack && (crmPack.usedSlots || 0) > 0) {
-    crmPack.usedSlots = Math.max(0, (crmPack.usedSlots || 0) - 1);
-    purchases[email] = userPurchases;
-    writeJSON(TENANT_PURCHASES_FILE, purchases);
-  }
-}
-
-function getPackTypeForCategory(category: string): "crm-pack" | "erp-pack" | null {
-  const cat = (category || "").toLowerCase();
-  if (cat.includes("crm")) return "crm-pack";
-  if (cat.includes("erp") || cat.includes("accounting") || cat.includes("finance")) return "erp-pack";
-  return null;
-}
-
-function getProviderCategory(providerId: string): string {
-  // Quick lookup for known CRM/ERP/Accounting providers
-  const id = providerId.toLowerCase();
-  if (["salesforce","hubspot","zoho","pipedrive","copper","creatio","freshsales","insightly","nimble","close",
-       "caspio","salesmate","freshworks","agilecrm","nutshell","sugarcrm"].includes(id)) return "CRM";
-  if (["netsuite","sage","sap","infor","acumatica","dynamics-365","oracle","epicor","syspro","odoo","microsoft-dynamics",
-       "ifs","deltek","qad","ramco","unit4","ifs-applications"].includes(id)) return "ERP";
-  if (["quickbooks-online","quickbooks","quickbooks-desktop","xero","freshbooks","wave","sage-intacct","netsuite",
-       "blackline","floqast","bill.com"].includes(id)) return "Accounting";
-  return "";
-}
-
 // ── Background init: monitoring gates + SSR preload (non-blocking) ──
 let ssrReady = false;
 let configureTenant: ((tenantId: string, gate: { purchased: boolean; status: "Active" | "Paused" | "Inactive" }) => void) | null = null;

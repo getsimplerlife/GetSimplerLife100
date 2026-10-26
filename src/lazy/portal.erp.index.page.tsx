@@ -1,361 +1,146 @@
 import { Link } from "@tanstack/react-router";
 import { useState, useEffect, useCallback } from "react";
 
+/**
+ * ERP import sources — cleanup (a2). The pack-era "ERP connector" surface
+ * (connect API keys, disconnect, slot gating) is retired with the persistent
+ * connection store. External tools are import/migration lanes only (owner
+ * 10-20): this page honestly lists ERP/accounting tools you can import from,
+ * plus the real access health for this workspace (read-only, no asks).
+ */
 
+const ERP_PROVIDERS_MARKETING = [
+  { id: "quickbooks", name: "QuickBooks", icon: "🟢", category: "Accounting" },
+  { id: "xero", name: "Xero", icon: "🔵", category: "Accounting" },
+  { id: "netsuite", name: "NetSuite", icon: "🏢", category: "ERP" },
+  { id: "sage", name: "Sage", icon: "🏷️", category: "ERP" },
+  { id: "microsoft-dynamics", name: "Microsoft Dynamics 365", icon: "💼", category: "ERP" },
+];
 
-interface ProviderItem {
-  id: string;
-  name: string;
-  category: string;
-  icon?: string;
-  description?: string;
-  connectionRequirements?: {
-    authType: string;
-    scopes: string[];
-    apiKeyType: string;
-    prerequisites: string[];
-  } | null;
-}
-
-interface ConnectionItem {
-  id: string;
+interface AccessRow {
   provider: string;
-  providerId: string;
   status: string;
+  lastProbeAt?: string | null;
+  lastError?: string | null;
 }
 
-interface SlotInfo {
-  totalSlots: number;
-  usedSlots: number;
-  remainingSlots: number;
-  isOwner: boolean;
-}
+function ErpPage() {
+  const [access, setAccess] = useState<AccessRow[]>([]);
+  const [loaded, setLoaded] = useState(false);
 
-const ERP_CATEGORIES = ["ERP", "Accounting", "Finance"];
-
-function ERPPortal() {
-  const [search, setSearch] = useState("");
-  const [connecting, setConnecting] = useState<string | null>(null);
-  useState<string | null>(null);
-  const [providers, setProviders] = useState<ProviderItem[]>([]);
-  const [connections, setConnections] = useState<ConnectionItem[]>([]);
-  const [slots, setSlots] = useState<SlotInfo>({ totalSlots: 0, usedSlots: 0, remainingSlots: 0, isOwner: false });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [expandedProvider, setExpandedProvider] = useState<string | null>(null);
-
-  const fetchData = useCallback(async () => {
+  const refresh = useCallback(async () => {
     try {
-      setLoading(true);
-      setError(null);
-      const [providersRes, connsRes, slotsRes] = await Promise.all([
-        fetch("/api/integrations/providers"),
-        fetch("/api/integrations"),
-        fetch("/api/data/erp-slots"),
-      ]);
-
-      const provsData = await providersRes.json();
-      const connsData = await connsRes.json();
-      const slotsData = await slotsRes.json();
-
-      // Filter to ERP/Accounting/Finance only
-      const allProviders: ProviderItem[] = provsData.data || provsData || [];
-      const erpProviders = allProviders.filter(p => {
-        if (p == null) return false;
-        const cat = (p.category || "").toLowerCase();
-        return ERP_CATEGORIES.some(c => cat.includes(c.toLowerCase()));
-      });
-
-      setProviders(erpProviders);
-      setConnections(connsData.data || connsData || []);
-      setSlots(slotsData);
-    } catch (err) {
-      console.error("Error fetching ERP data:", err);
-      setError("Failed to load ERP providers. Please try again.");
+      const res = await fetch("/api/portal/connections", { credentials: "include" });
+      if (!res.ok) throw new Error(`Failed to load access health (${res.status})`);
+      const payload = await res.json();
+      setAccess(Array.isArray(payload?.data?.connections) ? payload.data.connections : []);
+    } catch (e) {
+      console.error("Failed to load access health:", e);
     } finally {
-      setLoading(false);
+      setLoaded(true);
     }
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
-
-  const filtered = providers.filter(p => p != null && p.name.toLowerCase().includes(search.toLowerCase()));
-
-  const erpConnections = connections.filter(c => {
-    const provider = providers.find(p => p.id === c.providerId);
-    if (!provider) return false;
-    const cat = (provider.category || "").toLowerCase();
-    return ERP_CATEGORIES.some(catPrefix => cat.includes(catPrefix.toLowerCase()));
-  });
-
-  const handleConnect = async (providerId: string, providerCategory: string) => {
-    setConnecting(providerId);
-    try {
-      const provider = providers.find(p => p.id === providerId);
-      const apiKey = prompt(`Enter API key for ${provider?.name || providerId}:`);
-      if (!apiKey?.trim()) {
-        setConnecting(null);
-        return;
-      }
-
-      const res = await fetch("/api/integrations/connect", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          providerId,
-          providerName: provider?.name || providerId,
-          category: providerCategory,
-          credentials: { apiKey: apiKey.trim() },
-        }),
-      });
-      const data = await res.json();
-
-      if (res.ok) {
-        setConnections(prev => [...prev, data.connection]);
-        const slotsRes = await fetch("/api/data/erp-slots");
-        setSlots(await slotsRes.json());
-      } else if (res.status === 402) {
-        alert(data.error || "Purchase required. Visit the marketplace to buy ERP connection slots.");
-      } else {
-        alert(data.error || "Connection failed");
-      }
-    } catch (err) {
-      console.error("Connect error:", err);
-      alert("Connection failed. Please try again.");
-    } finally {
-      setConnecting(null);
-    }
-  };
-
-  const handleOAuthConnect = (providerId: string) => {
-    window.location.href = `/api/oauth/authorize?provider=${encodeURIComponent(providerId)}`;
-  };
-
-
-
-  const canConnect = slots.isOwner || slots.remainingSlots > 0;
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="w-8 h-8 border-2 border-stone-800 border-t-white rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] text-center space-y-4">
-        <div className="text-4xl">⚠️</div>
-        <p className="text-stone-400 font-bold">{error}</p>
-        <button onClick={fetchData} className="text-emerald-400 font-bold text-sm hover:text-emerald-300">
-          Try Again
-        </button>
-      </div>
-    );
-  }
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 text-stone-100">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-black text-white tracking-tight">ERP & Accounting Connections</h1>
-        <p className="text-stone-400 mt-1">Connect your enterprise resource planning and accounting systems for AI-powered financial automation.</p>
+        <h1 className="text-2xl font-black text-white tracking-tight">Bring your ERP &amp; accounting data in</h1>
+        <p className="text-stone-400 mt-1 text-sm">
+          Import your financial records from the ERP or accounting tool you already use. Transfers are
+          one-time and client-initiated — they pull data INTO your workspace using the access your own
+          tool account grants. Nothing syncs automatically and nothing writes back.
+        </p>
       </div>
 
-      {/* Slot Availability Banner */}
-      <div className={`rounded-2xl p-5 border ${canConnect ? "bg-emerald-950/20 border-emerald-900/50" : "bg-amber-950/20 border-amber-900/50"}`}>
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div className="flex items-center gap-4">
-            <div className={`text-3xl font-black ${canConnect ? "text-emerald-400" : "text-amber-400"}`}>
-              {erpConnections.length}{" "}
-              <span className="text-lg font-normal text-stone-400">/ {slots.isOwner ? "∞" : slots.totalSlots} connections</span>
-            </div>
-            {!slots.isOwner && (
-              <div className="text-sm">
-                <span className={`font-bold ${slots.remainingSlots > 0 ? "text-emerald-400" : "text-amber-400"}`}>
-                  {slots.remainingSlots} slot{slots.remainingSlots !== 1 ? "s" : ""} remaining
-                </span>
-              </div>
-            )}
+      {/* Honest framing */}
+      <div className="rounded-2xl border border-stone-800 bg-stone-900/60 p-5">
+        <div className="flex items-start gap-3">
+          <div className="text-2xl">🔐</div>
+          <div className="text-xs text-stone-400 leading-relaxed">
+            <span className="font-bold text-stone-200">Nothing stays connected.</span> External tools are
+            import/migration lanes only — there is nothing to manage or reconnect here. After an import
+            the data lives in your workspace, and every import is recorded in your Import History.
           </div>
-          {!slots.isOwner && slots.remainingSlots === 0 && (
-            <Link
-              to="/pricing"
-              className="inline-flex items-center gap-2 bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-xl font-bold text-sm transition-all"
-            >
-              Upgrade →
-            </Link>
-          )}
         </div>
       </div>
 
-      {/* Connected Accounts Banner */}
-      {erpConnections.length > 0 && (
-        <div className="bg-emerald-950/10 border border-emerald-900/30 rounded-2xl p-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="text-emerald-400 font-bold text-sm">
-              ✅ {erpConnections.length} ERP account{erpConnections.length !== 1 ? "s" : ""} connected
-            </span>
-          </div>
-          <Link
-            to="/portal/connected-accounts"
-            className="text-emerald-400 font-bold text-sm hover:text-emerald-300"
-          >
-            Manage in Connected Accounts →
+      {/* Provider grid */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-black text-white">ERP &amp; accounting tools to import from</h2>
+          <Link to="/portal/import" className="text-xs text-emerald-400 hover:text-emerald-300 font-bold">
+            Open the Import page →
           </Link>
         </div>
-      )}
-
-      {/* Search */}
-      <div>
-        <input
-          type="text"
-          placeholder="Search ERP & Accounting providers..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="w-full bg-stone-900 border border-stone-800 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-emerald-500 transition-colors placeholder:text-stone-600"
-        />
-      </div>
-
-      {/* Provider Grid — Available to connect (connected providers are managed in Connected Accounts) */}
-      {providers.length === 0 ? (
-        <div className="text-center py-16 text-stone-500">
-          <div className="text-4xl mb-4">🔌</div>
-          <p className="font-bold">No ERP or accounting providers available</p>
-          <p className="text-sm mt-1">Check your connection or browse all integrations.</p>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {ERP_PROVIDERS_MARKETING.map((p) => (
+            <div key={p.id} className="bg-stone-900 border border-stone-800 rounded-2xl p-5">
+              <div className="flex items-center gap-3 mb-3">
+                <span className="text-2xl">{p.icon}</span>
+                <div>
+                  <div className="font-bold text-white text-sm">{p.name}</div>
+                  <span className="text-[10px] font-mono uppercase text-stone-500">{p.category}</span>
+                </div>
+              </div>
+              <Link
+                to="/portal/import"
+                className="inline-block w-full text-center bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2 rounded-xl transition-all"
+              >
+                Import from {p.name} →
+              </Link>
+            </div>
+          ))}
         </div>
-      ) : (() => {
-        const unconnectedProviders = filtered.filter(p => !connections.some(c => c.providerId === p.id));
-        return unconnectedProviders.length === 0 ? (
-          <div className="text-center py-16 text-stone-500">
-            <div className="text-4xl mb-4">✅</div>
-            <p className="font-bold">All available ERP providers are connected</p>
-            <p className="text-sm mt-1">
-              <Link to="/portal/connected-accounts" className="text-emerald-400 hover:text-emerald-300 font-bold">Manage your connections →</Link>
+      </section>
+
+      {/* Access health (read-only, real) */}
+      <section className="space-y-3">
+        <h3 className="text-xs font-black text-stone-300 uppercase tracking-wider">Access in this workspace</h3>
+        {!loaded ? (
+          <p className="text-xs text-stone-500">Checking access health…</p>
+        ) : access.length === 0 ? (
+          <p className="text-xs text-stone-500">
+            No external-tool access is set up on this account yet. You can still import data from your
+            tools from the Import page whenever you're ready.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {access.map((a) => (
+              <div
+                key={a.provider}
+                className="bg-stone-900 border border-stone-800 rounded-xl px-4 py-3 flex items-center gap-3"
+              >
+                <span
+                  className={`h-2 w-2 rounded-full ${
+                    a.status === "ok" || a.status === "active" ? "bg-emerald-500" : "bg-amber-500"
+                  }`}
+                />
+                <div className="min-w-0">
+                  <div className="text-sm font-bold text-white">{a.provider}</div>
+                  {a.lastError && <div className="text-[10px] text-rose-400 truncate">{a.lastError}</div>}
+                </div>
+              </div>
+            ))}
+            <p className="text-[10px] text-stone-500">
+              Health reflects the access this workspace already holds — read-only, nothing to reconnect.
             </p>
           </div>
-        ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {unconnectedProviders.map(provider => {
-              const reqs = provider.connectionRequirements;
-              const isExpanded = expandedProvider === provider.id;
+        )}
+      </section>
 
-              return (
-                <div
-                  key={provider.id}
-                  className="bg-stone-900 border border-stone-800 hover:border-stone-700 rounded-2xl p-6 transition-all group"
-                >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">{provider.icon || "🏢"}</span>
-                      <div>
-                        <div className="font-bold text-white text-sm">{provider.name}</div>
-                        <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-stone-800 text-stone-400">
-                          {provider.category}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="w-2 h-2 rounded-full bg-stone-600" title="Available" />
-                  </div>
-
-                  {/* Connection Requirements */}
-                  {reqs && (
-                    <div className="mb-4">
-                      <button
-                        onClick={() => setExpandedProvider(isExpanded ? null : provider.id)}
-                        className="text-[10px] font-mono text-stone-500 hover:text-stone-300 underline mb-2"
-                      >
-                        {isExpanded ? "Hide requirements ▲" : "View requirements ▼"}
-                      </button>
-                      {isExpanded && (
-                        <div className="bg-stone-950 rounded-xl p-3 space-y-2 text-[10px] font-mono">
-                          <div>
-                            <span className="text-stone-500">Auth: </span>
-                            <span className="text-stone-300 font-bold">{reqs.authType}</span>
-                          </div>
-                          {reqs.scopes?.length > 0 && (
-                            <div>
-                              <span className="text-stone-500">Scopes: </span>
-                              <span className="text-stone-400">{reqs.scopes.join(", ")}</span>
-                            </div>
-                          )}
-                          <div>
-                            <span className="text-stone-500">Key type: </span>
-                            <span className="text-stone-400">{reqs.apiKeyType}</span>
-                          </div>
-                          {reqs.prerequisites?.length > 0 && (
-                            <div>
-                              <span className="text-stone-500">Required: </span>
-                              <span className="text-stone-400">{reqs.prerequisites.join(" · ")}</span>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Action Buttons */}
-                  {!canConnect ? (
-                    <button
-                      disabled
-                      className="w-full py-2.5 rounded-xl font-bold text-sm bg-stone-800 text-stone-500 cursor-not-allowed disabled:opacity-50"
-                    >
-                      No slots available
-                    </button>
-                  ) : (() => {
-                    const authType = ((provider as any).connectionRequirements?.authType || "").toLowerCase();
-                    const isOAuth = authType.includes("oauth");
-                    const isApiKey = authType.includes("api") || authType.includes("basic") || authType.includes("token");
-                    const showBoth = (isOAuth && isApiKey) || (!isOAuth && !isApiKey);
-                    return (
-                    <div className="flex gap-2">
-                      {(isOAuth || showBoth) && (
-                      <button
-                        onClick={() => handleOAuthConnect(provider.id)}
-                        className="flex-1 py-2.5 rounded-xl font-bold text-sm bg-stone-800 text-stone-300 hover:bg-emerald-600 hover:text-white transition-all"
-                      >
-                        OAuth
-                      </button>
-                      )}
-                      {(isApiKey || showBoth) && (
-                      <button
-                        onClick={() => handleConnect(provider.id, provider.category)}
-                        disabled={connecting === provider.id}
-                        className="flex-1 py-2.5 rounded-xl font-bold text-sm bg-stone-800 text-stone-300 hover:bg-emerald-600 hover:text-white transition-all disabled:opacity-50"
-                      >
-                        {connecting === provider.id ? "Connecting..." : "API Key"}
-                      </button>
-                      )}
-                    </div>
-                    );
-                  })()}
-                </div>
-              );
-            })}
-          </div>
-        );
-      })()}
-
-      {/* Upgrade / Browse All */}
-      <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 text-center">
-        <h3 className="text-white font-bold mb-2">Don't see your ERP or accounting system?</h3>
-        <p className="text-stone-400 text-sm mb-4">
-          Import lanes cover 180+ business platforms including SAP, NetSuite, QuickBooks, Xero, and more. If your system isn't listed here, check the import page — and if it's not wired yet, it will be in a future slice.
-        </p>
-        <div className="flex justify-center gap-4">
-          <Link to="/portal/integrations" className="text-emerald-400 font-bold text-sm hover:text-emerald-300">
-            Browse All Integrations →
-          </Link>
-          {!slots.isOwner && slots.remainingSlots === 0 && (
-            <Link to="/pricing" className="text-amber-400 font-bold text-sm hover:text-amber-300">
-              Get More Slots →
-            </Link>
-          )}
-        </div>
+      <div className="rounded-2xl border border-stone-800 bg-stone-900/60 p-4 text-[11px] text-stone-500 leading-relaxed">
+        <Link to="/portal/connected-accounts" className="text-emerald-400 hover:text-emerald-300 font-bold">
+          View import history →
+        </Link>{" "}
+        — every import that has run in this workspace, straight from the platform's import ledger.
       </div>
     </div>
   );
 }
 
-export default ERPPortal;
+export default ErpPage;
