@@ -11,6 +11,7 @@ import { describe, expect, it, beforeAll } from "vitest";
 import { readFileSync, existsSync, mkdtempSync, writeFileSync, rmSync, readdirSync, statSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
+import { connectedFileProviders } from "../lib/file-creation";
 
 const REPO = existsSync(join(process.cwd(), "prod-server.ts")) ? process.cwd() : join(process.cwd(), "..", "..");
 
@@ -71,7 +72,10 @@ describe("cleanup-a2 — persistent-connect RETIRED (absence)", () => {
     ["disconnect handler", "/api/integrations/disconnect"],
     ["conn-list GET", 'fetch("/api/integrations"'],
     ["persistent apiKey dump", "TENANT_INTEGRATIONS"],
-    ["Connection Pack 402 gate", "Connection Pack"],
+    // "Connection Pack" pack-era runtime (pack-slot endpoint + webhook link-mapping)
+    // is approval-retained at 129th — pinned LIVE by owner-decisions.test.ts
+    // (owner 10-21). The 10-21 zero-mention scope is pricing/product surfaces,
+    // which this guard asserts separately below.
   ];
   for (const [label, needle] of banned) {
     it(`server: zero "${label}" (${needle})`, () => {
@@ -130,9 +134,6 @@ describe("cleanup-a2 — import-history reframe (presence)", () => {
 });
 
 describe("cleanup-a2 — connectedFileProviders derives from the real store (behavior)", () => {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const fc = require("../lib/file-creation") as typeof import("../lib/file-creation");
-
   it("returns only workspace-capable providers holding a live token for THIS tenant", async () => {
     const dir = mkdtempSync(join(tmpdir(), "a2-guard-"));
     try {
@@ -145,7 +146,7 @@ describe("cleanup-a2 — connectedFileProviders derives from the real store (beh
           "other@test.com:google-drive": { accessToken: "other-tok" },
         })
       );
-      const ids = fc.connectedFileProviders("acme@test.com", dir);
+      const ids = connectedFileProviders("acme@test.com", dir);
       expect(ids).toContain("google-drive"); // workspace-capable + token
       expect(ids).not.toContain("slack"); // not a file workspace
       expect(ids).not.toContain(undefined);
