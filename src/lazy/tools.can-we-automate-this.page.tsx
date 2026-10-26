@@ -16,9 +16,7 @@ interface AnalysisData {
   allMatches: { name: string; match: number }[];
   industryGuess: string;
   savingsSummary: string;
-  suggestedAgentPriceId: string;
   suggestedAgentName: string;
-  paymentLink: string;
 }
 
 function CanWeAutomateThis() {
@@ -51,9 +49,7 @@ function CanWeAutomateThis() {
         allMatches: (analysis.allMatches || []).map((r: any) => ({ name: r.suggestedAgentName, match: r.confidence })),
         industryGuess: analysis.industryGuess || "cross-industry",
         savingsSummary: `${analysis.topMatch.estimatedHoursSaved} hours/week`,
-        suggestedAgentPriceId: "",
         suggestedAgentName: analysis.topMatch.suggestedAgentName,
-        paymentLink: "",
       });
       setStep("email");
     }

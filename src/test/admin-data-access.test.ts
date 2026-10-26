@@ -185,9 +185,12 @@ describe("SECURITY: admin data endpoints are owner-only", () => {
     expect(res.status).toBe(403);
   });
 
-  it("customer-facing /api/data/marketplace stays open for non-owners", async () => {
+  it("the retired marketplace subPath serves only the empty-store fallback (no handler, no roster)", async () => {
+    // Cleanup (c): the AI-employee marketplace handler is gone. The subPath
+    // now rides the catch-all generic file reader → the documented dead-store
+    // {data: []} shape (same as /api/data/purchases etc.) — never a roster.
     const res = await authedGet("/api/data/marketplace", customerCookie!);
     expect(res.status).toBe(200);
-    expect(Array.isArray(res.json?.data)).toBe(true);
+    expect(res.json?.data).toEqual([]);
   });
 });

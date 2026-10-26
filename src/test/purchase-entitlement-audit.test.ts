@@ -4,49 +4,29 @@ import { join } from "path";
 import { createHmac } from "crypto";
 import { ensureTestServer, testBaseUrl, testDataDir } from "./test-env";
 import { newPasswordResetRecord } from "../lib/password-reset";
+import { CRM_PACK_LINK } from "../lib/stripe-webhook";
 
 /**
  * purchase-entitlement-audit.test.ts — post-deploy purchase-flow integrity
  * audit (owner directive 2026-08-13: "We don't want any free stuff being
- * given out").
- *
- * Proves, end-to-end against a Neon-backed server:
- *   A. per-purchase-type record shapes (plan / pack / agent / generic);
- *   B. entitlements granted after purchase (register → portal shows exactly
- *      what was bought: pack → slots+agentType; agent → that agent only);
+ * given out"). Updated for cleanup slice (c), 10-26: the per-agent purchase
+ * branches, the plan-grant (agentIds) machinery and the AI-employee catalog
+ * are RETIRED, so the audit now covers the surviving purchase types and the
+ * fail-closed behavior of the retired surfaces:
+ *   A. pack purchase → crm-pack record (CLEANUP (c): no employees involvement)
+ *      + the CRM slot APIs entitle exactly the pack's 5 slots;
+ *   B. generic purchase → amount-only record, no grants;
  *   C. no-free-stuff: unsigned/forged events → 400 + NO record + NO tenant
  *      gate; non-purchased emails stay fully gated;
  *   D. idempotency: a re-delivered checkout.session.completed (Stripe
- *      at-least-once) must NOT double-provision (a duplicated pack event
- *      would otherwise grant 10 slots instead of 5).
- *
- * RUN (live Neon-backed server — the audit target):
- *   TEST_DATA_DIR=/var/lib/simplerlife100/.data SLACK_BOT_TOKEN= \
- *     bun run test -- --run src/test/purchase-entitlement-audit.test.ts
- *
- * RUN (isolated branch instance, no live server contact):
- *   TEST_BASE_URL=http://localhost:3999 TEST_DATA_DIR=/tmp/audit-data \
- *     SLACK_BOT_TOKEN= STRIPE_WEBHOOK_SECRET=whsec_test \
- *     bun run test -- --run src/test/purchase-entitlement-audit.test.ts
- *
- * The file-backed run against a FRESH tmp dir cannot verify the agent-grant
- * path until the runtime ai_employees.json contains paymentLink values —
- * seedDataFiles seeds it from src/data/agents.ts (paymentLink included), so a
- * fresh tmp dir works. Pointing TEST_DATA_DIR at the live data dir would read
- * the LIVE store (no free stuff: only assert records for OUR test emails).
- *
- * LIVE-RUN CLEANUP: after a run against the live Neon-backed server, the test
- * emails also live in the server's in-memory durable cache + the Neon
- * kv_store rows (tenant_purchases.json / users.json / sessions.json). The
- * afterAll only clears the files. Remove the test emails from the Neon rows
- * directly (or restart the server so the cache re-hydrates from the cleaned
- * store) before considering the live store clean.
+ *      at-least-once) must NOT double-provision;
+ *   E. RETIRED SURFACES FAIL CLOSED: /api/data/employees + /api/agents/run
+ *      no longer exist — authenticated use returns 404 JSON (never a roster
+ *      or SPA HTML).
  */
 
 const TEST_DATA_DIR = testDataDir();
 const PURCHASES_FILE = join(TEST_DATA_DIR, "tenant_purchases.json");
-const USERS_FILE = join(TEST_DATA_DIR, "users.json");
-const SESSIONS_FILE = join(TEST_DATA_DIR, "sessions.json");
 const RESETS_FILE = join(TEST_DATA_DIR, "password_resets.json");
 
 const BASE_URL = testBaseUrl();
@@ -54,13 +34,11 @@ const PASSWORD = "audit-pass-2026";
 
 // One timestamp for all emails so cleanup is a single glob-friendly prefix.
 const TS = Date.now();
-const AGENT_EMAIL = "audit-agent@" + TS + ".test";
 const PACK_EMAIL = "audit-pack@" + TS + ".test";
-const PLAN_EMAIL = "audit-plan@" + TS + ".test";
 const GENERIC_EMAIL = "audit-generic@" + TS + ".test";
 const FORGED_EMAIL = "audit-forged@" + TS + ".test";
 const NOPURCHASE_EMAIL = "audit-nopurchase@" + TS + ".test";
-const ALL_EMAILS = [AGENT_EMAIL, PACK_EMAIL, PLAN_EMAIL, GENERIC_EMAIL, FORGED_EMAIL, NOPURCHASE_EMAIL];
+const ALL_EMAILS = [PACK_EMAIL, GENERIC_EMAIL, FORGED_EMAIL, NOPURCHASE_EMAIL];
 
 // ── Stripe signature awareness (same contract as purchase-provisioning.test.ts) ──
 function resolveWebhookSecret(): string | undefined {
@@ -126,8 +104,6 @@ function readJSONFile(path: string): any {
 function removeTestRecords() {
   for (const [path, key] of [
     [PURCHASES_FILE, null],
-    [USERS_FILE, null],
-    [SESSIONS_FILE, null],
   ] as [string, string | null][]) {
     if (!existsSync(path)) continue;
     const data = readJSONFile(path);
@@ -136,13 +112,6 @@ function removeTestRecords() {
     if (key) { if (data[key] !== undefined) { delete data[key]; changed = true; } }
     else {
       for (const email of ALL_EMAILS) if (data[email] !== undefined) { delete data[email]; changed = true; }
-      // sessions are keyed by token — delete sessions whose email is one of ours
-      for (const [tok, v] of Object.entries(data)) {
-        const s = v as any;
-        if (s && typeof s === "object" && typeof s.email === "string" && s.email.endsWith("@" + TS + ".test")) {
-          delete (data as any)[tok]; changed = true;
-        }
-      }
     }
     if (changed) writeFileSync(path, JSON.stringify(data, null, 2));
   }
@@ -211,9 +180,6 @@ describe("Purchase-flow integrity audit (owner directive: no free stuff)", () =>
       throw new Error("Server enforces Stripe signatures but STRIPE_WEBHOOK_SECRET is not set in env/.env");
     }
     if (!serverEnforcesSignatures) {
-      // This audit's forged-event assertions require signature enforcement.
-      // The live server has STRIPE_WEBHOOK_SECRET active; only isolated
-      // file-backed instances without the secret skip the forged checks.
       console.warn("[audit] server does NOT enforce Stripe signatures — forged-event assertions will be skipped");
     }
   });
@@ -227,50 +193,11 @@ describe("Purchase-flow integrity audit (owner directive: no free stuff)", () =>
     expect(res.status).toBe(200);
   });
 
-  describe("AGENT purchase → grants exactly that agent (regression: runtime catalog uses paymentLink, not stripePaymentLink)", () => {
-    it("provisions the agent purchase record with agentId + agentName", async () => {
-      const sessionId = "cs_audit_agent_" + TS;
-      const { status, json } = await postWebhook(checkoutEvent(
-        AGENT_EMAIL, sessionId, "https://buy.stripe.com/dRm3cx60Lbwj7Lleec2Fa29", 95000,
-      ));
-      expect(status).toBe(200);
-      expect(json.received).toBe(true);
-
-      const purchases = readJSONFile(PURCHASES_FILE);
-      const recs = purchases[AGENT_EMAIL] || [];
-      expect(recs.length).toBe(1);
-      expect(recs[0].agentId).toBe("invoice-processor-v1");
-      expect(recs[0].agentName).toBe("Invoice Processor");
-      expect(recs[0].amount).toBe(95000);
-      expect(recs[0].status).toBe("active");
-    });
-
-    it("registering as the buyer shows exactly the bought agent in the portal employee list", async () => {
-      const cookie = await registerAndGetCookie(AGENT_EMAIL);
-      expect(cookie).toBeTruthy();
-      const { status, json } = await authedGet("/api/data/employees", cookie!);
-      expect(status).toBe(200);
-      const ids = (json.data || []).map((e: any) => e.id);
-      expect(ids).toEqual(["invoice-processor-v1"]); // exactly what was bought — nothing more
-      expect(json.data[0].purchased).toBe(true);
-    });
-
-    it("a re-delivered event with the same session id does NOT double-provision", async () => {
-      const sessionId = "cs_audit_agent_" + TS;
-      const { status } = await postWebhook(checkoutEvent(
-        AGENT_EMAIL, sessionId, "https://buy.stripe.com/dRm3cx60Lbwj7Lleec2Fa29", 95000,
-      ));
-      expect(status).toBe(200);
-      const purchases = readJSONFile(PURCHASES_FILE);
-      expect((purchases[AGENT_EMAIL] || []).length).toBe(1); // still one record
-    });
-  });
-
-  describe("PACK purchase → grants slots + agentType", () => {
+  describe("PACK purchase → records a crm-pack and grants exactly its 5 slots", () => {
     it("provisions a CRM pack record (type/slots/agentType) and grants 5 slots", async () => {
       const sessionId = "cs_audit_pack_" + TS;
       const { status, json } = await postWebhook(checkoutEvent(
-        PACK_EMAIL, sessionId, "https://buy.stripe.com/5kQaEZ60LcAn8Ppgmk2Fa2I", 200000,
+        PACK_EMAIL, sessionId, CRM_PACK_LINK, 200000,
       ));
       expect(status).toBe(200);
       expect(json.received).toBe(true);
@@ -293,7 +220,7 @@ describe("Purchase-flow integrity audit (owner directive: no free stuff)", () =>
 
     it("a re-delivered pack event does NOT double the slot grant (5, not 10)", async () => {
       const sessionId = "cs_audit_pack_" + TS;
-      await postWebhook(checkoutEvent(PACK_EMAIL, sessionId, "https://buy.stripe.com/5kQaEZ60LcAn8Ppgmk2Fa2I", 200000));
+      await postWebhook(checkoutEvent(PACK_EMAIL, sessionId, CRM_PACK_LINK, 200000));
       const purchases = readJSONFile(PURCHASES_FILE);
       const recs = (purchases[PACK_EMAIL] || []).filter((p: any) => p.type === "crm-pack");
       expect(recs.length).toBe(1); // idempotency guard: duplicate session skipped
@@ -305,92 +232,11 @@ describe("Purchase-flow integrity audit (owner directive: no free stuff)", () =>
     });
   });
 
-  describe("PLAN purchase (Starter $7,500) → grants its 3 agents (owner decision F3: Starter 3 / Professional 8 / Enterprise 17)", () => {
-    it("provisions a plan record with tier + agentIds (Starter grants the first 3 catalog agents)", async () => {
-      const sessionId = "cs_audit_plan_" + TS;
-      const { status, json } = await postWebhook(checkoutEvent(
-        PLAN_EMAIL, sessionId, "https://buy.stripe.com/3cI8wR88Tasfc1B9XW2Fa2K", 750000,
-      ));
-      expect(status).toBe(200);
-      expect(json.received).toBe(true);
-
-      const purchases = readJSONFile(PURCHASES_FILE);
-      const recs = purchases[PLAN_EMAIL] || [];
-      expect(recs.length).toBe(1);
-      expect(recs[0].type).toBe("plan");
-      expect(recs[0].tier).toBe("starter");
-      expect(recs[0].productName).toBe("Starter Plan");
-      expect(recs[0].agentCount).toBe(3);
-      expect(recs[0].amount).toBe(750000);
-      expect(recs[0].agentIds).toEqual([
-        "invoice-processor-v1",
-        "crm-sync-agent-v1",
-        "email-assistant-v1",
-      ]);
-      // Owner decision 2026-08-14: every plan includes 1 Connection Pack
-      // slot (CRM or ERP — the customer's choice), redeemed via
-      // /api/portal/pack-slot. Assert the entitlement shape when the record
-      // carries it (post-deploy / branch instance); a legacy server record
-      // without packSlot is tolerated by the audit so the suite stays green
-      // against older deployments.
-      if (recs[0].packSlot) {
-        expect(recs[0].packSlot).toEqual({ included: true, chosen: null });
-      }
-    });
-
-    it("plan buyer sees EXACTLY the 3 granted agents in the portal employee list", async () => {
-      const cookie = await registerAndGetCookie(PLAN_EMAIL);
-      expect(cookie).toBeTruthy();
-      const { status, json } = await authedGet("/api/data/employees", cookie!);
-      expect(status).toBe(200);
-      const ids = (json.data || []).map((e: any) => e.id);
-      expect(ids).toEqual(["invoice-processor-v1", "crm-sync-agent-v1", "email-assistant-v1"]);
-      expect(json.data.every((e: any) => e.purchased === true)).toBe(true);
-    });
-
-    it("plan buyer can run a granted agent but is blocked (402) from a NON-granted agent", async () => {
-      const cookie = await registerAndGetCookie(PLAN_EMAIL);
-      expect(cookie).toBeTruthy();
-      // data-entry-bot-v1 is catalog #4 — NOT in Starter's first 3 → must 402.
-      const runRes = await fetch(`${BASE_URL}/api/agents/run`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Cookie: `session=${cookie}` },
-        body: JSON.stringify({ agentId: "data-entry-bot-v1", input: "test" }),
-      });
-      expect(runRes.status).toBe(402);
-    });
-
-    it("plan purchase does NOT unlock feature flags (has-access unchanged)", async () => {
-      const cookie = await registerAndGetCookie(PLAN_EMAIL);
-      expect(cookie).toBeTruthy();
-      const accessRes = await fetch(`${BASE_URL}/api/purchases/has-access`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Cookie: `session=${cookie}` },
-        body: JSON.stringify({ feature: "ai-employees" }),
-      });
-      const access = await accessRes.json();
-      expect(access.hasAccess).toBe(false);
-    });
-    it("F4: plan purchase enables monitoring ingress for that tenant", async () => {
-      // Owner decision 2026-08-14 (F4): ANY successful purchase — including
-      // plans — sets canMonitor true. The plan was purchased above; the
-      // monitoring webhook must now be accepted for this tenant.
-      const monRes = await fetch(`${BASE_URL}/api/monitoring/webhook/hubspot`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ employeeId: "emp-invoice-ledger-ai", eventType: "invoice.created", tenantId: PLAN_EMAIL, payload: { f4plan: true } }),
-      });
-      const mon = await monRes.json();
-      expect(mon.status).toBe("processed");
-      expect(mon.dispatchedTo).toBe("emp-invoice-ledger-ai");
-    });
-  });
-
-  describe("GENERIC purchase (industry link) — minimal record, no free agent access", () => {
-    it("records amount-only and grants NO agents / NO feature access", async () => {
+  describe("GENERIC purchase — minimal record, no grants", () => {
+    it("records amount-only and grants nothing (and the retired surfaces 404)", async () => {
       const sessionId = "cs_audit_generic_" + TS;
       const { status } = await postWebhook(checkoutEvent(
-        GENERIC_EMAIL, sessionId, "https://buy.stripe.com/4gMfZj88TfMz6Hh8TS2Fa1K", 100,
+        GENERIC_EMAIL, sessionId, "https://buy.stripe.com/test_generic_" + TS, 100,
       ));
       expect(status).toBe(200);
 
@@ -402,19 +248,24 @@ describe("Purchase-flow integrity audit (owner directive: no free stuff)", () =>
 
       const cookie = await registerAndGetCookie(GENERIC_EMAIL);
       expect(cookie).toBeTruthy();
-      const { json: empJson } = await authedGet("/api/data/employees", cookie!);
-      expect(empJson.data || []).toEqual([]);
 
-      const accessRes = await fetch(`${BASE_URL}/api/purchases/has-access`, {
+      // Cleanup (c): the AI-employee catalog endpoint is retired — the
+      // subPath rides the catch-all empty-store fallback ({data: []}, the
+      // documented dead-store shape) — never a roster, no employees machinery.
+      const empRes = await authedGet("/api/data/employees", cookie!);
+      expect(empRes.status).toBe(200);
+      expect(empRes.json?.data).toEqual([]);
+
+      // Cleanup (c): the per-agent run surface is retired — 404 JSON.
+      const runRes = await fetch(`${BASE_URL}/api/agents/run`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Cookie: `session=${cookie}` },
-        body: JSON.stringify({ feature: "ai-employees" }),
+        body: JSON.stringify({ agentId: "any-agent", input: "test" }),
       });
-      const access = await accessRes.json();
-      expect(access.hasAccess).toBe(false);
-      expect(access.reason).toBe("not purchased");
+      expect(runRes.status).toBe(404);
+      expect((await runRes.json()).error).toBe("not found");
     });
-    it("F4: ANY purchase (incl. $1 generic) enables monitoring ingress for that tenant", async () => {
+    it("F4: ANY purchase (incl. the $1 generic) enables monitoring ingress for that tenant", async () => {
       // Owner decision 2026-08-14 (F4): a successful purchase of ANY type —
       // including the $1 generic product — sets canMonitor true for the
       // tenant (monitoring ingress enabled). Provider ACTIONS stay
@@ -475,27 +326,24 @@ describe("Purchase-flow integrity audit (owner directive: no free stuff)", () =>
   });
 
   describe("NO-FREE-STUFF: a registered email with NO purchase stays fully gated", () => {
-    it("sees no agents, no feature access, cannot run agents, monitoring denied", async () => {
+    it("sees no employees, no feature access, cannot run agents, monitoring denied", async () => {
       const cookie = await registerAndGetCookie(NOPURCHASE_EMAIL);
       expect(cookie).toBeTruthy();
 
-      const { json: empJson } = await authedGet("/api/data/employees", cookie!);
-      expect(empJson.data || []).toEqual([]);
+      // Cleanup (c): the employee catalog surface is retired — the subPath
+      // serves the empty-store fallback ({data: []}) even for a signed-in
+      // non-purchaser — no roster exists anywhere for it to leak.
+      const empRes = await authedGet("/api/data/employees", cookie!);
+      expect(empRes.status).toBe(200);
+      expect(empRes.json?.data).toEqual([]);
 
-      const accessRes = await fetch(`${BASE_URL}/api/purchases/has-access`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Cookie: `session=${cookie}` },
-        body: JSON.stringify({ feature: "ai-employees" }),
-      });
-      const access = await accessRes.json();
-      expect(access.hasAccess).toBe(false);
-
+      // Cleanup (c): the per-agent run surface is retired — 404 JSON.
       const runRes = await fetch(`${BASE_URL}/api/agents/run`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Cookie: `session=${cookie}` },
         body: JSON.stringify({ agentId: "invoice-processor-v1", input: "test" }),
       });
-      expect(runRes.status).toBe(402); // purchase required
+      expect(runRes.status).toBe(404);
 
       const monRes = await fetch(`${BASE_URL}/api/monitoring/webhook/hubspot`, {
         method: "POST",

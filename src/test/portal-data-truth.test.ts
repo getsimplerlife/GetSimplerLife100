@@ -7,10 +7,9 @@
  *     email:provider), NOT the legacy tenant_integrations.json fixtures. The
  *     owner's real providers (xero/hubspot/slack) show; a fresh customer shows
  *     zero.
- *  2. /api/data/employees marks `needsAttention` only on REAL failure signals
- *     (explicit error record / unhealthy connection) — unconfigured catalog
- *     agents (status "available"/"paused") are NOT flagged, so the dashboard
- *     "17 AIs need attention" false alarm is gone.
+ *  2. The AI-employee surface is RETIRED (cleanup batch slice c): the former
+ *     catalog subPath + its attention signals no longer exist — the subPath
+ *     rides the catch-all empty-store fallback ({data: []}), never a roster.
  *  3. The previously-dead pages are wired to real stores:
  *       documents  -> tenant_documents.json (the /api/upload write-target)
  *       tasks      -> workflow_runs.json real run records (+ POST persistence)
@@ -43,7 +42,6 @@ function writeJSONFile(path: string, data: any): void {
 
 const TRACKED_FILES = [
   "tenant_oauth_credentials.json",
-  "ai_employees.json",
   "tenant_documents.json",
   "tenant_workflows.json",
   "tenant_tasks.json",
@@ -150,13 +148,6 @@ describe("PORTAL DATA-TRUTH (#236)", () => {
       "xero": [{ providerId: "xero", status: "Connected" }],
       "tenant@example.com": [],
     });
-    // Catalog employees: unconfigured/purchasable (available) + a genuinely failed one.
-    writeJSONFile(join(TEST_DATA_DIR, "ai_employees.json"), [
-      { id: "emp-1", name: "Appointment Setter", status: "available", category: "sales" },
-      { id: "emp-2", name: "Bookkeeper", status: "paused", category: "finance" },
-      { id: "emp-3", name: "Broken Agent", status: "failed", lastError: "oauth grant revoked", category: "sales" },
-      { id: "emp-4", name: "Active Agent", status: "Active", category: "ops" },
-    ]);
     // Real documents + a run record in the true stores.
     writeJSONFile(join(TEST_DATA_DIR, "tenant_documents.json"), {
       [OWNER_EMAIL]: [{ _id: "doc-1", file_name: "invoice.pdf", status: "processed", createdAt: new Date().toISOString() }],
@@ -205,15 +196,13 @@ describe("PORTAL DATA-TRUTH (#236)", () => {
     expect(provs).not.toContain("someone-else");
   });
 
-  it("dashboard banner does NOT fire for unconfigured/purchasable catalog agents", async () => {
+  it("the retired employee catalog surface serves no roster (empty-store fallback)", async () => {
+    // Cleanup (c): the AI-employee catalog handler is gone — an authenticated
+    // request gets the catch-all empty-store shape ({data: []}), never a
+    // roster of employees and never SPA HTML.
     const res = await authedGet("/api/data/employees", ownerCookie!);
     expect(res.status).toBe(200);
-    const data = res.json?.data || [];
-    const byId = new Map<string, { needsAttention?: boolean }>(data.map((e: any) => [e.id, e]));
-    expect(byId.get("emp-1")?.needsAttention).toBe(false); // available
-    expect(byId.get("emp-2")?.needsAttention).toBe(false); // paused
-    expect(byId.get("emp-4")?.needsAttention).toBe(false); // active
-    expect(byId.get("emp-3")?.needsAttention).toBe(true);  // real failure
+    expect(res.json?.data).toEqual([]);
   });
 
   it("/api/data/documents reads the real upload store (tenant_documents.json)", async () => {
