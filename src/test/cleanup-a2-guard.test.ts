@@ -7,7 +7,7 @@
  * PRESENCE pins: every surface now points at the REAL import ledger +
  * real OAuth access, with honest import-lane copy and zero reconnect asks.
  */
-import { describe, expect, it, beforeAll } from "vitest";
+import { describe, expect, it } from "vitest";
 import { readFileSync, existsSync, mkdtempSync, writeFileSync, rmSync, readdirSync, statSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
@@ -89,6 +89,7 @@ describe("cleanup-a2 — persistent-connect RETIRED (absence)", () => {
     ["conn-list GET", '"/api/integrations"'],
     ["reconnect ask", "Manage your connections"],
     ["connect CTA", "Connect New Account"],
+    ["pack-era copy", "Connection Pack"],
   ] as Array<[string, string]>) {
     it(`product surfaces: zero "${label}" (${needle})`, () => {
       expect(dirSrc.includes(needle)).toBe(false);
