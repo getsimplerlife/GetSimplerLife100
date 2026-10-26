@@ -63,11 +63,12 @@ function AdminHealthPage() {
     setBackupLoading(true);
     setBackupMessage(null);
     try {
-      // Create local backup script execution endpoint
+      // Audit-B (10-26): wired to the REAL durable-store backup snapshot.
       const res = await fetch("/api/admin/backup", { method: "POST" });
       const json = await res.json();
       if (res.ok && json.success) {
-        setBackupMessage(`✅ Backup created successfully at: ${json.path} (${json.size_kb} KB)`);
+        const detail = json.error ? ` (${json.error})` : "";
+        setBackupMessage(`✅ Backup snapshot completed — ${json.keys ?? 0} value(s)${detail}`);
       } else {
         setBackupMessage(`❌ Backup failed: ${json.error || "Unknown error"}`);
       }

@@ -24,7 +24,8 @@ interface IntegrationCategory {
 const TRIGGER_TEMPLATES: IntegrationCategory[] = [
   { id: "t_upload", name: "File Upload Trigger", icon: "📁", description: "Fires when user uploads PDFs, CSVs, or handwriting scans to the portal.", defaultConfig: { allowedTypes: "PDF, CSV, JPEG", maxBytes: "10485760" } },
   { id: "t_cron", name: "Time Schedule Trigger", icon: "⏰", description: "Fires on a background cron schedule (e.g. every 5 mins).", defaultConfig: { cron: "*/5 * * * *", cooldown: "300" } },
-  { id: "t_webhook", name: "REST Webhook Trigger", icon: "🔌", description: "Listens for incoming POST requests from external systems.", defaultConfig: { secretHeader: "X-SL100-Signature", path: "/api/v1/trigger" } },
+  // Audit-B (10-26): the advertised REST-webhook trigger was removed — no
+  // server handler exists for it (the path offered silently did nothing).
 ];
 
 const ACTION_TEMPLATES: IntegrationCategory[] = [

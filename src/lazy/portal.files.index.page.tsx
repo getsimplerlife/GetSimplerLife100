@@ -117,7 +117,7 @@ function FileLibrary() {
 
   const auditView = useCallback(async (file: PortalFile) => {
     try {
-      await fetch("/api/portal/files/view", {
+      await fetch("/api/portal/files", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fileId: file.id }),
