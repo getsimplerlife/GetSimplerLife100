@@ -4,7 +4,7 @@
  * within both Google apps and Microsoft apps based on what is being done
  * within all integrations/connections").
  *
- * When an AI employee creates a data file, we route it to the tenant's
+ * When the platform creates a data file, route it to the tenant's
  * chosen workspace (Google OR Microsoft) based on:
  *   (a) the tenant's workspace preference ('google' | 'microsoft' | 'auto'),
  *   (b) which workspace(s) the tenant has actually connected,
@@ -197,7 +197,7 @@ export function resolveWorkspaceProvider(input: ResolveWorkspaceInput): ResolveW
     return {
       ok: false,
       error:
-        `No file workspace is connected — connect ${providerLabel(googleProvider)} (Google) or ${providerLabel(msProvider)} (Microsoft) to let AI employees create files for you.`,
+        `No file workspace is connected — connect ${providerLabel(googleProvider)} (Google) or ${providerLabel(msProvider)} (Microsoft) to let automated workflows create files for you.`,
       connectHint: [googleProvider, msProvider],
     };
   }

@@ -1,6 +1,6 @@
 /**
  * AI Chat Engine — processes natural language queries about automations and workflows
- * by querying the portal_data database and using the AIEmployee reasoning system.
+ * by matching them against the portal's stored automation and workflow definitions.
  *
  * Supports session management (conversation history stored in portal_data).
  */

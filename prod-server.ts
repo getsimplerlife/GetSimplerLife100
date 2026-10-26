@@ -3,7 +3,7 @@ import { join } from "path";
 import { readFileSync, existsSync, readdirSync } from "fs";
 import { createHash, randomBytes } from "crypto";
 import { resolveDataDir, isInsidePublishTree, readJSON, readJSONLive, writeJSON, seedDataFiles, bucketConnectionsByCategory, migrateLegacyData, findLegacyDataDir, countConnections, mergeDurableCredential } from "./src/lib/data-store";
-import { detectPackType, buildPackPurchase, verifyStripeSignature, matchAgentByPaymentLink, matchAgentByMetadata, detectPlanType, buildPlanPurchase, planAgentIds } from "./src/lib/stripe-webhook";
+import { detectPackType, buildPackPurchase, verifyStripeSignature, detectPlanType, buildPlanPurchase, planAgentIds } from "./src/lib/stripe-webhook";
 import { buildOwnerSaleEvent, provisionAccountForPurchase, ownerSaleEmailBody } from "./src/lib/purchase-sales-events";
 import {
   generateResetCode,
@@ -12,7 +12,6 @@ import {
   isPasswordResetRateLimited,
   MAX_RESET_VERIFY_ATTEMPTS,
 } from "./src/lib/password-reset";
-import { AGENTS } from "./src/data/agents";
 import { initDurableStore, durableEnabled, durableKeyCount, durableStoreStatus, durableSnapshotBackup, durableFlush } from "./src/lib/durable-store";
 import { startScheduledTokenRefresher, scheduledRefresherStats, REFRESHER_TICK_MS, type RefreshTokenValidator } from "./src/lib/token-refresher";
 import { startHealthHeartbeat, probeProvider } from "./src/lib/connection-health";
@@ -34,26 +33,6 @@ async function _getOAuthSafety() {
 async function consumeOAuthState(...args: any[]) { return (await _getOAuthSafety()).consumeOAuthState(...args); }
 async function usableOAuthToken(...args: any[]) { return (await _getOAuthSafety()).usableOAuthToken(...args); }
 async function validateOAuthState(...args: any[]) { return (await _getOAuthSafety()).validateOAuthState(...args); }
-let _providerApi: any;
-async function _getProviderApi() {
-  if (!_providerApi) _providerApi = await import("./src/lib/provider-api");
-  return _providerApi;
-}
-async function executeAgent(...args: any[]) { return (await _getProviderApi()).executeAgent(...args); }
-async function executeProviderAction(...args: any[]) { return (await _getProviderApi()).executeProviderAction(...args); }
-async function getHubSpotTrustedTenantId(...args: any[]) { return (await _getProviderApi()).getHubSpotTrustedTenantId(...args); }
-let _agentProcessor: any;
-async function _getAgentProcessor() {
-  if (!_agentProcessor) _agentProcessor = await import("./src/lib/agent-processor");
-  return _agentProcessor;
-}
-async function processAgentResults(...args: any[]) { return (await _getAgentProcessor()).processAgentResults(...args); }
-let _agentsData: any;
-async function getAgents() {
-  if (!_agentsData) _agentsData = await import("./src/data/agents");
-  return _agentsData;
-}
-
 const BUILD_ID = Date.now().toString(36);
 const DIST_CLIENT = join(typeof import.meta?.dir !== "undefined" ? import.meta.dir : __dirname, "dist");
 const DATA_DIR = resolveDataDir(process.env.DATA_DIR, typeof import.meta?.dir !== "undefined" ? import.meta.dir : __dirname);
@@ -63,7 +42,6 @@ const USERS_FILE = join(DATA_DIR, "users.json");
 const PASSWORD_RESETS_FILE = join(DATA_DIR, "password_resets.json");
 const SESSIONS_FILE = join(DATA_DIR, "sessions.json");
 const TENANT_INTEGRATIONS_FILE = join(DATA_DIR, "tenant_integrations.json");
-const AI_EMPLOYEES_FILE = join(DATA_DIR, "ai_employees.json");
 const LEADS_FILE = join(DATA_DIR, "leads.json");
 const LEAD_NOTIFICATIONS_FILE = join(DATA_DIR, "lead_notifications.json");
 const PENDING_EMAILS_FILE = join(DATA_DIR, "pending_emails.json");
@@ -80,7 +58,6 @@ const INDUSTRY_BLUEPRINTS = [
   { name: "Manufacturing Quality Control", category: "manufacturing", description: "Computer vision QC pipeline for assembly line defect detection. Real-time alerts and trend analysis via Power BI dashboards." },
   { name: "Financial Reconciliation Suite", category: "finance", description: "Automated bank reconciliation, intercompany settlement matching, and audit trail generation across NetSuite, BlackLine, and SAP." },
 ];
-
 
 
 // ── OAuth Credential Resolution ────────────────────────────────────
@@ -2505,50 +2482,18 @@ async function handleFetch(req: Request): Promise<Response> {
       }
     }
     if (pathname === "/api/tools/analyze" && req.method === "POST") {
+      // Cleanup (c): the AI-employee catalog is retired — no per-agent
+      // pricing or payment links remain. The analysis stays a plain
+      // automation suggestion carrying no roster fields.
       try {
-        const body = await req.json();
-        const desc = (body.description || "").toLowerCase();
-        const employees = readJSON(AI_EMPLOYEES_FILE);
-        const matches = employees.filter((e: any) => 
-          e.name.toLowerCase().includes(desc.split(" ")[0]) || 
-          desc.includes(e.name.toLowerCase().split(" ")[0])
-        );
-        const top = matches[0] || employees[0];
         return Response.json({ analysis: {
-          topMatch: top?.name || "Automation AI",
-          allMatches: matches.slice(0,5).map((m: any) => ({ name: m.name, match: m === top ? "high" : "medium" })),
+          topMatch: "Automation AI",
+          allMatches: [],
           industryGuess: "General Business",
-          savingsSummary: "20 hours/week",
-          suggestedAgentPriceId: top?.priceId || "",
-          suggestedAgentName: top?.name || "Automation AI",
-          paymentLink: top?.paymentLink || ""
+          savingsSummary: "20 hours/week"
         }});
       } catch (e: any) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e))); return Response.json({ analysis: { topMatch: "Automation AI", allMatches: [] } }); }
     }
-function lookupAgent(agentName: string): { name: string; paymentLink: string; description: string } | null {
-  if (!agentName) return null;
-  const name = agentName.toLowerCase().trim();
-  // Try exact name match first
-  for (const a of (globalThis as any).__cachedAgents || []) {
-    const an = a.name.toLowerCase();
-    // Strip "Agent" suffix for matching if needed
-    const simple = an.replace(/ agent$/, '');
-    if (simple === name || an === name || simple.includes(name) || name.includes(simple)) {
-      return { name: a.name, paymentLink: a.paymentLink, description: a.description || a.purpose };
-    }
-  }
-  // Partial keyword match
-  for (const a of (globalThis as any).__cachedAgents || []) {
-    const an = a.name.toLowerCase();
-    const words = name.split(/\s+/);
-    if (words.some((w: string) => w.length > 3 && an.includes(w))) {
-      return { name: a.name, paymentLink: a.paymentLink, description: a.description || a.purpose };
-    }
-  }
-  return null;
-}
-
-
 // ── Email Sender (SendGrid) ───────────────────────────────────────────────────
 async function sendEmailSMTP(opts: { to: string; subject: string; body: string }): Promise<{ sent: boolean; error?: string }> {
   const apiKey = process.env.SENDGRID_API_KEY;
@@ -2686,41 +2631,31 @@ async function handlePurchaseCompleted(args: {
   }
 }
 
-function buildLeadEmail(email: string, toolName: string, result: any): { subject: string; body: string; matchedAgents: any[]; bestPlan: string; planLink: string } {
-  // Collect all matched agents across any tool type
-  const matched: { name: string; paymentLink: string; price: number }[] = [];
+function buildLeadEmail(email: string, toolName: string, result: any): { subject: string; body: string; matchedAgents: { name: string }[]; bestPlan: string; planLink: string } {
+  // Cleanup (c): the AI-employee roster is retired — "matched" are now the
+  // automation/workflow names the tool itself returned (no per-agent pricing,
+  // payment links, or catalog lookups).
+  const matched: { name: string }[] = [];
   const seen = new Set<string>();
-  const addAgent = (a: any) => {
-    if (a && !seen.has(a.name)) { seen.add(a.name); matched.push({ name: a.name, paymentLink: a.paymentLink, price: a.price || 0 }); }
+  const addName = (n: string) => {
+    if (n && !seen.has(n)) { seen.add(n); matched.push({ name: n }); }
   };
 
   let processInfo = "";
 
   if (toolName === "can-we-automate-this" && result.topMatch) {
-    const agent = lookupAgent(result.topMatch);
-    if (agent) addAgent(agent);
+    addName(typeof result.topMatch === "string" ? result.topMatch : (result.topMatch.name || ""));
     processInfo = (result.processDescription || "Automation workflow");
     if (result.savingsSummary) processInfo += "\nSavings: " + result.savingsSummary;
   } else if (toolName === "assessment" && result.topWorkflows) {
     const wfs = Array.isArray(result.topWorkflows) ? result.topWorkflows.slice(0, 5) : [];
     for (const wf of wfs) {
       const wfName = typeof wf === 'string' ? wf : (wf.name || '');
-      const agent = lookupAgent(wfName);
-      if (agent) addAgent(agent);
+      addName(wfName);
     }
   } else if (toolName === "ai-advisor" && result.messages) {
-    const msgs = Array.isArray(result.messages) ? result.messages : [];
-    const fullText = msgs.map((m: any) => typeof m === 'string' ? m : (m.content || '')).join(' ');
-    for (const a of (globalThis as any).__cachedAgents || []) {
-      if (fullText.toLowerCase().includes(a.name.toLowerCase())) addAgent(a);
-    }
-  }
-
-  // Fallback: if no agents matched, suggest top-level automation
-  if (matched.length === 0) {
-    const all = (globalThis as any).__cachedAgents || [];
-    const top = all.slice(0, 2);
-    for (const a of top) addAgent(a);
+    // No catalog matcher remains — the advisor surfaces nothing sku-like;
+    // its suggestions appear under the can-we-automate/assessment tools.
   }
 
   // Plan recommendation: locked platform tiers (owner 09-27) — one platform,
@@ -2766,11 +2701,6 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
       if (rateLimited(req, "lead", 10)) return rateLimitedResponse();
       try {
         const body = await req.json();
-        // Load agents for lookup
-        if (!(globalThis as any).__cachedAgents) {
-          const ag = await getAgents();
-          (globalThis as any).__cachedAgents = ag.AGENTS || [];
-        }
         const leads = readJSON(LEADS_FILE) || {};
         leads[body.email] = { email: body.email, toolName: body.toolName, result: body.result || {}, capturedAt: new Date().toISOString() };
         writeJSON(LEADS_FILE, leads);
@@ -2990,208 +2920,8 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
       }
     }
 
-    // ── /api/agents/run ──────────────────────────────────────────
-    if (pathname === "/api/agents/run" && req.method === "POST") {
-      const user = await getUserFromSession(req);
-      if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
-      try {
-        const body = await req.json();
-        const { agentId } = body;
-        if (!agentId) return Response.json({ error: "agentId required" }, { status: 400 });
-        // Look up agent
-        const employees = readJSON(AI_EMPLOYEES_FILE);
-        const agent = employees.find((e: any) => e.id === agentId || e.id === agentId + "-v1");
-        if (!agent) return Response.json({ error: "Agent not found: " + agentId }, { status: 404 });
-        // Purchase check — owner bypasses
-        if (!isOwnerUser(user)) {
-          const purchases = readJSON(TENANT_PURCHASES_FILE);
-          const userPurchases = purchases[user.email] || [];
-          const hasAgent = userPurchases.some((p: any) =>
-            p.agentId === agentId || p.agentType === agentId || p.productId === agentId ||
-            (Array.isArray(p.agentIds) && (p.agentIds.includes(agentId) || p.agentIds.includes(agentId + "-v1")))
-          );
-          if (!hasAgent) {
-            return Response.json({
-              error: "Purchase required to run this agent",
-              agentId,
-              paymentLink: agent.paymentLink || agent.stripePaymentLink || null,
-            }, { status: 402 });
-          }
-        }
-        // Execute agent — real API calls to connected integrations
-        const integrationMap = readJSON(join(DATA_DIR, "agent_integration_map.json"));
-        const agentIntegrations = integrationMap[agent.id] || [];
-        // Get user's connected integrations
-        const tenantInts = readJSON(TENANT_INTEGRATIONS_FILE);
-        const userConnections = tenantInts[user.email] || [];
-        // Execute with real queries
-        const agentResult = await executeAgent(agent.id, agent.name, agentIntegrations, userConnections);
+    
 
-        // ── Post-query processing pipeline ──
-        let processedData: any = {};
-        let processorInsights: any[] = [];
-        let processorAlerts: any[] = [];
-        let actionsTaken: any[] = [];
-        try {
-          const processorResult = await processAgentResults(
-            { id: agent.id, name: agent.name, category: agent.category || "general", instructions: agent.instructions || "" },
-            agentResult,
-            userConnections.filter((c: any) => c.status === "Connected")
-          );
-          processedData = processorResult.processedData;
-          processorInsights = processorResult.insights;
-          processorAlerts = processorResult.alerts;
-
-          // Execute write actions the processor recommended
-          for (const action of processorResult.actionsTaken) {
-            const connected = userConnections.find((c: any) =>
-              c.providerId === action.providerId && c.status === "Connected"
-            );
-            if (connected) {
-              // Actual launch guard: only the configured single-user tenant owner may execute HubSpot writes. Other users receive no trusted scope and fail closed until DB-backed tenant membership exists.
-              const hubSpotTenant = action.providerId === "hubspot" ? await getHubSpotTrustedTenantId(user.email, undefined, readJSON(USERS_FILE)) : null;
-              const actionPayload = { action: action.action, detail: action.detail, ...(action.payload || {}), tenantId: user.email, __trustedTenantId: hubSpotTenant || undefined };
-              const execResult = await executeProviderAction(
-                action.providerId,
-                action.provider,
-                connected.credentials || {},
-                actionPayload
-              );
-              actionsTaken.push({
-                provider: action.provider,
-                providerId: action.providerId,
-                action: action.action,
-                status: execResult.status,
-                detail: execResult.detail,
-                result: execResult.result || null,
-                error: execResult.error || null,
-              });
-            } else {
-              actionsTaken.push({
-                provider: action.provider,
-                providerId: action.providerId,
-                action: action.action,
-                status: "skipped",
-                detail: `${action.provider} is not connected — write operation skipped`,
-              });
-            }
-          }
-        } catch (procErr: any) {
-          // Processor failed — continue with query results only
-          processorInsights = [{ type: "summary", severity: "info", message: `Agent "${agent.name}" completed. Post-processing skipped: ${procErr.message}` }];
-        }
-
-        // ── Build enhanced response ──
-        const enhancedSummary = processorInsights.length > 0
-          ? processorInsights.find((i: any) => i.type === "summary")?.message || agentResult.summary
-          : agentResult.summary;
-        const summaryWithActions = actionsTaken.length > 0
-          ? `${enhancedSummary} Took ${actionsTaken.filter((a: any) => a.status === "executed").length} action(s).`
-          : enhancedSummary;
-
-        const output = {
-          success: true,
-          agentId: agent.id,
-          status: "completed",
-          summary: summaryWithActions,
-          // Original query results
-          queryResults: agentResult.integrationsUsed,
-          totalRecordsProcessed: agentResult.totalRecordsProcessed,
-          startedAt: agentResult.startedAt,
-          completedAt: agentResult.completedAt,
-          // Processor output
-          processedData,
-          actionsTaken,
-          insights: processorInsights,
-          alerts: processorAlerts.filter((a: any) => a.requiresAttention),
-        };
-
-        // ── Log run in workflow_runs (enriched) ──
-        const runs = readJSON(join(DATA_DIR, "workflow_runs.json"));
-        const userRuns = runs[user.email] || [];
-        userRuns.push({
-          id: "run-" + Math.random().toString(36).substr(2, 9),
-          type: "agent-run",
-          agentId: agent.id,
-          agentName: agent.name,
-          status: "completed",
-          startedAt: output.startedAt,
-          completedAt: output.completedAt,
-          output: output.summary,
-          insightsCount: processorInsights.length,
-          actionsCount: actionsTaken.filter((a: any) => a.status === "executed").length,
-          alertsCount: processorAlerts.filter((a: any) => a.requiresAttention).length,
-        });
-        runs[user.email] = userRuns;
-        writeJSON(join(DATA_DIR, "workflow_runs.json"), runs);
-
-        // ── Log to agent_insights.json ──
-        const insightsFile = join(DATA_DIR, "agent_insights.json");
-        const allInsights = readJSON(insightsFile);
-        const userInsights = allInsights[user.email] || [];
-        userInsights.push({
-          id: "insight-" + Math.random().toString(36).substr(2, 9),
-          timestamp: new Date().toISOString(),
-          agentId: agent.id,
-          agentName: agent.name,
-          category: agent.category,
-          insights: processorInsights,
-          actionsTaken,
-          alerts: processorAlerts,
-        });
-        // Keep last 100 insights per user
-        allInsights[user.email] = userInsights.slice(-100);
-        writeJSON(insightsFile, allInsights);
-
-        // ── Audit log (enriched) ──
-        const alogs1 = readJSON(AUDIT_LOG_FILE);
-        const alogUser1 = alogs1[user.email] || [];
-        alogUser1.push({
-          id: "log-" + Math.random().toString(36).substr(2, 9),
-          timestamp: new Date().toISOString(),
-          user: user.email,
-          action: "agent.run",
-          resource: agent.name,
-          detail: "Agent executed with processing: " + output.summary,
-          actions: actionsTaken.map((a: any) => ({ providerId: a.providerId, action: a.action, status: a.status, error: a.error || null })),
-          ip: "127.0.0.1",
-        });
-        alogs1[user.email] = alogUser1;
-        writeJSON(AUDIT_LOG_FILE, alogs1);
-
-        return Response.json(output);
-      } catch (e: any) {
-        return Response.json({ error: e.message || "Agent execution failed" }, { status: 500 });
-      }
-    }
-
-    // ── /api/agents/:id/pause, /api/agents/:id/resume, /api/agents/:id/status ──
-    const agentActionMatch = pathname.match(/^\/api\/agents\/([^/]+)\/(pause|resume|status)$/);
-    if (agentActionMatch && (req.method === "POST" || (req.method === "GET" && agentActionMatch[2] === "status"))) {
-      const user = await getUserFromSession(req);
-      if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
-      const agentId = agentActionMatch[1];
-      const action = agentActionMatch[2];
-      try {
-        const employees = readJSON(AI_EMPLOYEES_FILE);
-        const agent = employees.find((e: any) => e.id === agentId);
-        if (!agent) return Response.json({ error: "Agent not found: " + agentId }, { status: 404 });
-        if (action === "status") {
-          return Response.json({ agentId, status: agent.status || "Active", lastRun: agent.lastRun || null, capabilities: agent.capabilities || [] });
-        }
-        // pause or resume
-        const newStatus = action === "pause" ? "Paused" : "Active";
-        // Update the agent status in employees file
-        const idx = employees.findIndex((e: any) => e.id === agentId);
-        if (idx >= 0) {
-          employees[idx].status = newStatus;
-          writeJSON(AI_EMPLOYEES_FILE, employees);
-        }
-        return Response.json({ success: true, agentId, status: newStatus, action });
-      } catch (e: any) {
-        return Response.json({ error: e.message || "Agent action failed" }, { status: 500 });
-      }
-    }
 
     // ── /api/chat & /api/chat/sessions ───────────────────────────
     if (pathname === "/api/chat/sessions") {
@@ -3223,11 +2953,6 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
           userSessions.push(session);
         }
         // Generate contextual response
-        const employeesData = readJSON(AI_EMPLOYEES_FILE);
-        // ai_employees.json can be {} if seeded before this fix (or missing);
-        // {}.length is undefined -> "undefined count". Fall back to the
-        // canonical AGENTS list so the count is always real.
-        const employees = Array.isArray(employeesData) && employeesData.length > 0 ? employeesData : AGENTS;
         const userIntegrations = readJSON(TENANT_INTEGRATIONS_FILE);
         const userConns = userIntegrations[user.email] || [];
         // ── File-creation intents (owner directive 2026-08-13) ──
@@ -3283,7 +3008,7 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
         const responseText = createReply !== null ? createReply : `I'm your AI assistant at Simpler Life 100. ${userConns.length > 0 ?
           `I can see you have ${userConns.length} integration(s) connected (${userConns.map((c: any) => c.provider).join(", ")}). ` :
           "You don't have any integrations connected yet — I can help you set those up. "
-        }Our platform has ${employees.length} automation blueprints ready to deploy across the industries we serve. How can I help you optimize your operations today?`;
+        }Our platform runs every capability natively — automations with human approval by default, and opt-in autonomy with a full audit trail. How can I help you optimize your operations today?`;
         const msg = { role: "user", content: message, timestamp: new Date().toISOString() };
         const reply = { role: "assistant", content: responseText, timestamp: new Date().toISOString() };
         session.messages.push(msg, reply);
@@ -3302,38 +3027,46 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
     // only. Departments reflect real category counts; percentage is
     // count/total; there is deliberately NO fabricated hours/effort field.
     function computePortalAnalyticsSnapshot() {
-      const employees = readJSON(AI_EMPLOYEES_FILE);
       const purchases = readJSON(TENANT_PURCHASES_FILE);
       const integrations = readJSON(TENANT_INTEGRATIONS_FILE);
       const sessions = readJSON(CHAT_SESSIONS_FILE);
       const runs = readJSON(join(DATA_DIR, "workflow_runs.json"));
       const users = readJSON(USERS_FILE);
-      const categoryLabels: Record<string, string> = {
-        finance: "Finance & Accounting",
-        sales: "Sales & CRM",
-        support: "Customer Support",
-        communications: "Communications",
-        logistics: "Logistics & Operations",
-        hr: "HR & People",
-        marketing: "Marketing",
-        compliance: "Compliance & Legal",
+      // Cleanup (c): the AI-employee roster is retired — the automation count
+      // below derives from REAL per-tenant workflow definitions (no global
+      // employees file). departments derives from REAL purchase records by
+      // type (crm-pack/erp-pack/plan/generic) — see the labels map below.
+      const workflows = readJSON(join(DATA_DIR, "tenant_workflows.json"));
+      const defs = (Array.isArray(workflows) ? workflows : Object.values(workflows))
+        .flat()
+        .filter((w: any) => w && typeof w === "object") as any[];
+      // Departments "from real data" (p0 B1 pin): REAL purchase records by
+      // type now that the AI-employee roster categories are retired.
+      const departmentLabels: Record<string, string> = {
+        "crm-pack": "CRM Pack",
+        "erp-pack": "ERP Pack",
+        plan: "Plan",
+        generic: "Generic",
       };
       const catCounts: Record<string, number> = {};
-      for (const emp of employees) {
-        const cat = emp.category || "other";
-        catCounts[cat] = (catCounts[cat] || 0) + 1;
+      for (const arr of Object.values(purchases)) {
+        if (!Array.isArray(arr)) continue;
+        for (const p of arr) {
+          const cat = p && (p.type || (p.tier ? "plan" : "generic"));
+          if (cat) catCounts[cat] = (catCounts[cat] || 0) + 1;
+        }
       }
       const totalCat = Object.values(catCounts).reduce((a, b) => a + b, 0) || 1;
       const deptColors = ["bg-blue-500", "bg-purple-500", "bg-emerald-500", "bg-amber-500", "bg-rose-500", "bg-cyan-500", "bg-indigo-500", "bg-stone-600"];
       const departments = Object.entries(catCounts).map(([cat, count], idx) => ({
-        name: categoryLabels[cat] || cat,
+        name: departmentLabels[cat] || cat,
         count,
         percentage: Math.round((count / totalCat) * 100),
         color: deptColors[idx % deptColors.length],
       }));
       return {
         totalUsers: Object.keys(users).length,
-        totalAgents: employees.length,
+        totalAgents: defs.length,
         totalIntegrations: Object.values(integrations).reduce((sum: number, v: any) => sum + (Array.isArray(v) ? v.length : 0), 0),
         totalChatSessions: Object.values(sessions).reduce((sum: number, v: any) => sum + (Array.isArray(v) ? v.length : 0), 0),
         totalAgentRuns: Object.values(runs).reduce((sum: number, v: any) => sum + (Array.isArray(v) ? v.length : 0), 0),
@@ -3366,31 +3099,6 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
         // /api/admin/analytics. No fabricated hours/effort fields anywhere.
         return Response.json({ data: computePortalAnalyticsSnapshot() });
       }
-      if (subPath === "marketplace" || subPath === "marketplace/") {
-        const employees = readJSON(AI_EMPLOYEES_FILE);
-        return Response.json({ data: employees });
-      }
-
-      if (subPath === "employees" || subPath === "employees/") {
-        const employees = readJSON(AI_EMPLOYEES_FILE);
-        const { enrichEmployeesAttention } = await import("./src/lib/employee-attention");
-        const employeesAtt = enrichEmployeesAttention(employees, user.email, DATA_DIR);
-        if (!isOwnerUser(user)) {
-          const purchases = readJSON(TENANT_PURCHASES_FILE);
-          const userPurchases = purchases[user.email] || [];
-          const purchasedIds = new Set<string>();
-          for (const p of userPurchases) {
-            if (p.agentId) purchasedIds.add(p.agentId);
-            if (Array.isArray(p.agentIds)) for (const id of p.agentIds) purchasedIds.add(id);
-          }
-          const filtered = employeesAtt
-            .filter((e: any) => purchasedIds.has(e.id))
-            .map((e: any) => ({ ...e, purchased: true }));
-          return Response.json({ data: filtered });
-        }
-        return Response.json({ data: employeesAtt.map((e: any) => ({ ...e, purchased: true })) });
-      }
-
       if (subPath === "billing" || subPath === "billing/") {
         const purchases = readJSON(TENANT_PURCHASES_FILE);
         const userPurchases = purchases[user.email] || [];
@@ -3841,21 +3549,19 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
             return Response.json({ received: true });
           }
 
-          // Plan purchases (owner decision F3): Starter grants 3 agents,
-          // Professional 8, Enterprise all 17. One record with the granted
-          // agentIds; the portal list and /api/agents/run gate treat agentIds
-          // like agentId.
+          // Legacy tier mapping (guardrail-pinned runtime): detectPlanType
+          // still resolves the retired tier links so historical sessions keep
+          // mapping. Cleanup (c): per-agent grants are retired — the grant
+          // list is ALWAYS empty and no employees store is read.
           const planSpec = detectPlanType(paymentLink);
           if (planSpec && customerEmail) {
             const purchases = readJSON(TENANT_PURCHASES_FILE);
             const userPurchases = purchases[customerEmail] || [];
-            const employees = readJSON(AI_EMPLOYEES_FILE);
-            const agentIds = planAgentIds(employees, planSpec);
+            const agentIds = planAgentIds([], planSpec);
             userPurchases.push(buildPlanPurchase(planSpec, amountTotal, session.id, agentIds));
             purchases[customerEmail] = userPurchases;
             writeJSON(TENANT_PURCHASES_FILE, purchases);
             configureTenant!(customerEmail, { purchased: true, status: "Active" });
-            console.log(`[webhook] Provisioned ${planSpec.productName} (${agentIds.length} agents) for ${customerEmail}`);
             await handlePurchaseCompleted({
               customerEmail,
               productName: planSpec.productName,
@@ -3866,33 +3572,10 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
             return Response.json({ received: true });
           }
 
-          // Match payment link to agent. The runtime catalog stores the link
-          // as `paymentLink` (some catalogs used `stripePaymentLink`) — match
-          // BOTH spellings or every per-agent purchase falls through to the
-          // generic branch (no agentId) and the paid agent is never granted.
-          // (Live bug 2026-08-13: runtime records had only `paymentLink`, so
-          // the old `e.stripePaymentLink` matcher never fired.)
-          const employees = readJSON(AI_EMPLOYEES_FILE);
-          const matchedAgent = matchAgentByPaymentLink(employees, session.payment_link)
-            || matchAgentByMetadata(employees, session.metadata);
-          if (customerEmail && matchedAgent) {
-            // Provision the purchase
-            const purchases = readJSON(TENANT_PURCHASES_FILE);
-            const userPurchases = purchases[customerEmail] || [];
-            userPurchases.push({
-              id: "purchase-" + Math.random().toString(36).substr(2, 9),
-              agentId: matchedAgent.id,
-              agentName: matchedAgent.name,
-              amount: amountTotal,
-              stripeSessionId: session.id || "unknown",
-              status: "active",
-              purchasedAt: new Date().toISOString(),
-            });
-            purchases[customerEmail] = userPurchases;
-            writeJSON(TENANT_PURCHASES_FILE, purchases);
-            configureTenant!(customerEmail, { purchased: true, status: "Active" });
-            console.log(`[webhook] Provisioned ${matchedAgent.name} for ${customerEmail}`);
-          } else if (customerEmail) {
+          // Cleanup (c): every other checkout (current tier links, legacy
+          // links) records as a generic platform purchase — no per-agent
+          // matcher, no employees store read anywhere.
+          if (customerEmail) {
             // Generic purchase — record it
             const purchases = readJSON(TENANT_PURCHASES_FILE);
             const userPurchases = purchases[customerEmail] || [];
@@ -3912,18 +3595,14 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
           // Notify the owner + provision the account — exactly once per real
           // session (handlePurchaseCompleted is idempotent on session.id).
           if (customerEmail && session.id) {
-            const saleInfo = (matchedAgent && customerEmail)
-              ? { productName: matchedAgent.name, opportunityType: "agent" }
-              : { productName: "AI Automation Package", opportunityType: "other" };
-            if (saleInfo) {
-              await handlePurchaseCompleted({
-                customerEmail,
-                productName: saleInfo.productName,
-                opportunityType: saleInfo.opportunityType,
-                amountTotal,
-                sessionId: session.id,
-              });
-            }
+            const saleInfo = { productName: "AI Automation Package", opportunityType: "other" };
+            await handlePurchaseCompleted({
+              customerEmail,
+              productName: saleInfo.productName,
+              opportunityType: saleInfo.opportunityType,
+              amountTotal,
+              sessionId: session.id,
+            });
           }
         }
         return Response.json({ received: true });

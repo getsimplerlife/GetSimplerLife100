@@ -2,7 +2,7 @@
  * src/lib/firm-memory.ts — SERVER-SIDE ONLY. Do NOT import in any .tsx file.
  *
  * OPERATIONAL MEMORY PER FIRM (capability upgrade #3): a durable per-tenant
- * memory store so each AI employee behaves smarter "per client" over time.
+ * memory store so the platform's AI features behave smarter "per client" over time.
  *
  * Pattern mirrors the established durable JSON store (data-store.ts) and the
  * tenant-keyed settings file (tenant-settings.ts): a single `firm_memory.json`

@@ -1,26 +1,26 @@
 /**
- * homepage pricing-band test (reworked for LOCKED platform tiers, owner 09-27).
+ * homepage pricing-band test (reworked for LOCKED platform tiers, owner 09-27;
+ * updated for cleanup slice (c), 10-26).
  * The old "Monthly per AI Employee" roster is GONE from the homepage — the
- * homepage now shows the three locked platform tiers (Starter/Growth/Enterprise,
- * monthly + onboarding), with no per-employee selling.
- *
- * src/data/agents.ts remains the canonical RUNTIME data module (purchase
- * provisioning still materializes agents per Stripe product metadata), so we
- * keep guarding it for its own integrity — but the public homepage must NOT
- * sell per-employee anymore.
+ * homepage now shows the three locked platform tiers (Starter/Growth/
+ * Enterprise, monthly + onboarding), with no per-employee selling. Since
+ * slice (c), the AI-employee runtime catalog (src/data/agents.ts) is also
+ * RETIRED — the module must not come back, and the homepage must still not
+ * sell per-employee.
  */
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "fs";
-import { AGENTS } from "../data/agents";
+import { readFileSync, existsSync } from "fs";
+import { join } from "path";
 
-const homeSource = readFileSync("src/routes/index.tsx", "utf8");
-const agentsSource = readFileSync("src/data/agents.ts", "utf8");
+const REPO = process.cwd();
+const homeSource = readFileSync(join(REPO, "src/routes/index.tsx"), "utf8");
 
 describe("homepage platform-tier pricing band", () => {
-  it("canonical runtime data source still exposes the catalog agents (runtime module, not sold per-employee)", () => {
-    expect(AGENTS.length).toBe(17);
-    expect(agentsSource).toContain('price: 950');
-    expect(agentsSource).toContain('price: 2000');
+  it("the AI-employee catalog module is retired (cleanup slice c)", () => {
+    // slice (c): the global ai_employees.json + its seed module (the 17-agent
+    // catalog with per-agent prices/payment links) are deleted. Asserting the
+    // file is GONE keeps the zero-cross-tenant-file guarantee literal.
+    expect(existsSync(join(REPO, "src/data/agents.ts"))).toBe(false);
   });
 
   it("homepage shows the LOCKED platform tiers (monthly + onboarding), not per-employee cards", () => {

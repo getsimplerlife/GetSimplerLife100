@@ -68,8 +68,8 @@ export function detectPackType(
 
 /**
  * Build the persisted pack purchase record. `agentType` mirrors `type` so the
- * portal marketplace (which matches employees by `agentType`) shows the pack
- * as owned after the webhook provisions it.
+ * CRM/ERP slot entitlements (consumeCrmErpSlot / the slots APIs) recognize
+ * the pack after the webhook provisions it.
  */
 export function buildPackPurchase(
   spec: PackSpec,
@@ -107,7 +107,7 @@ export type PlanTier = "starter" | "professional" | "enterprise";
 export interface PlanSpec {
   tier: PlanTier;
   productName: string;
-  /** Number of AI employees the tier grants (owner decision: 3 / 8 / all 17). */
+  /** Number of roster agents a legacy tier granted (owner decision: 3 / 8 / all 17). */
   agentCount: number;
 }
 
@@ -180,64 +180,6 @@ export function buildPlanPurchase(
     status: "active",
     purchasedAt: new Date().toISOString(),
   };
-}
-
-/**
- * The payment-link field an AI-employee record carries. The runtime catalog
- * (ai_employees.json, seeded from src/data/agents.ts) stores it as
- * `paymentLink`; some older/other catalogs used `stripePaymentLink`. The
- * webhook must match BOTH spellings or every per-agent purchase falls through
- * to the generic branch (no agentId) and the paid agent is never granted
- * (live bug found 2026-08-13: runtime records had only `paymentLink`, so the
- * `e.stripePaymentLink` matcher never fired and per-agent buyers got nothing).
- */
-export function agentPaymentLink(employee: any): string | undefined {
-  const link = employee?.paymentLink || employee?.stripePaymentLink;
-  return typeof link === "string" && link.trim() ? link.trim() : undefined;
-}
-
-/**
- * Find the AI-employee whose payment link matches a Stripe checkout session's
- * `payment_link`. Match rules (fail closed — never guess):
- *   1. exact equality; or
- *   2. the session link is a SUPERSET of the catalog link (e.g. Stripe appends
- *      query params like ?prefilled_email=…); or
- *   3. the catalog link is a superset of the session link (legacy behavior —
- *      `e.stripePaymentLink.includes(session.payment_link)` from the original
- *      handler).
- * Returns the matched employee or null. Multiple candidates never happen
- * (each agent has its own link); if they did, the first match wins.
- */
-export function matchAgentByPaymentLink(
-  employees: any[] | undefined | null,
-  sessionPaymentLink: string | undefined | null,
-): any | null {
-  if (!Array.isArray(employees) || !sessionPaymentLink) return null;
-  const link = sessionPaymentLink.trim();
-  if (!link) return null;
-  for (const e of employees) {
-    const eLink = agentPaymentLink(e);
-    if (!eLink) continue;
-    if (eLink === link || link.includes(eLink) || eLink.includes(link)) return e;
-  }
-  return null;
-}
-
-/**
- * Find an AI-employee by Stripe metadata priceId (legacy path: some flows
- * create Checkout Sessions with metadata.priceId == the employee's
- * stripePriceId instead of using a Payment Link).
- */
-export function matchAgentByMetadata(
-  employees: any[] | undefined | null,
-  metadata: Record<string, unknown> | undefined | null,
-): any | null {
-  if (!Array.isArray(employees) || !metadata?.priceId) return null;
-  const priceId = String(metadata.priceId);
-  for (const e of employees) {
-    if (e?.stripePriceId && String(e.stripePriceId) === priceId) return e;
-  }
-  return null;
 }
 
 /** Max age of a valid Stripe signature timestamp (Stripe recommends 5 min). */

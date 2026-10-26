@@ -67,17 +67,14 @@ describe("restart persistence: seedDataFiles is create-if-missing only", () => {
       "lead_notifications.json",
       "pending_emails.json",
       "chat_sessions.json",
-      "ai_employees.json",
     ]) {
       expect(existsSync(join(dir, f)), `missing ${f}`).toBe(true);
     }
     // integrations.json must be an array (the server calls .find() on it)
     expect(Array.isArray(readJSON(join(dir, "integrations.json")))).toBe(true);
-    // ai_employees.json must be an array too (chat/agent handlers call
-    // .length/.find() on it) — seeded from the canonical AGENTS list
-    const seededEmployees = readJSON(join(dir, "ai_employees.json"));
-    expect(Array.isArray(seededEmployees)).toBe(true);
-    expect(seededEmployees.length).toBeGreaterThan(0);
+    // Cleanup (c): the global ai_employees.json store is retired — seedDataFiles
+    // no longer creates it, so no cross-tenant catalog file can exist.
+    expect(existsSync(join(dir, "ai_employees.json"))).toBe(false);
   });
 
   it("does NOT wipe an existing connection when the server restarts", () => {
