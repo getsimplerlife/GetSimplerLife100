@@ -16,6 +16,7 @@ import {
 } from "./router";
 import { submitInvoiceWrite, executePendingInvoiceWrite, noteOwnerDecision } from "./gate";
 import { renderInvoicePdf, invoiceHtml, invoiceTotalCents, formatCurrency } from "./generate";
+import { resolveIssuerDisplayName, NEUTRAL_ISSUER_LABEL } from "./issuer";
 export {
   handleNativeInvoicesAuthed,
   handleNativeInvoiceShare,
@@ -27,5 +28,7 @@ export {
   invoiceHtml,
   invoiceTotalCents,
   formatCurrency,
+  resolveIssuerDisplayName,
+  NEUTRAL_ISSUER_LABEL,
 };
 export type { NativeInvoicesCtx, NativeInvoicePublicCtx };

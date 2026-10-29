@@ -17,6 +17,7 @@ import { escapeHtmlValue, renderHtmlDocument, type RenderedPdf } from "../docume
 import { createDocument, updateDocument, generateDocEntityId, getDoc } from "../documents/store";
 import { getBucket, createBucket } from "../documents/store";
 import { MAX_INVOICE_LINE_ITEMS, type InvoiceRecord } from "./types";
+import { NEUTRAL_ISSUER_LABEL } from "./issuer";
 
 export const INVOICE_DOC_BUCKET = "invoices";
 
@@ -35,11 +36,17 @@ export function formatCurrency(cents: number, currency: string): string {
 /**
  * Build the invoice HTML body. All user text escaped; the line-item table is
  * generated programmatically (no {{field}} placeholders in the pricing block).
- * Client-facing strings on the invoice body are the deal room customer name
- * plus the snapped proposal line descriptions — each escaped via escapeHtmlValue.
+ * Client-facing strings on the invoice body are the issuer DISPLAY NAME, the
+ * deal room customer name, and the snapped proposal line descriptions — each
+ * escaped via escapeHtmlValue.
+ *
+ * NO IDS: the customer sees the invoice number, never the internal record id
+ * (inv_…) and never a doc id. An absent display name falls back to a neutral
+ * human label — never an id.
  */
-export function invoiceHtml(inv: InvoiceRecord, billTo: { name: string }): string {
+export function invoiceHtml(inv: InvoiceRecord, billTo: { name: string }, issuer?: { name: string }): string {
   const e = escapeHtmlValue;
+  const issuerName = (issuer?.name || "").trim() || NEUTRAL_ISSUER_LABEL;
   const totalCents = invoiceTotalCents(inv);
   const rows = inv.lineItems
     .map((li) => {
@@ -50,8 +57,9 @@ export function invoiceHtml(inv: InvoiceRecord, billTo: { name: string }): strin
   const issued = new Date(inv.createdAt).toISOString().slice(0, 10);
   return `
 <h1>Invoice ${e(inv.invoiceNumber)}</h1>
+<p><strong>From:</strong> ${e(issuerName)}</p>
 <p><strong>Bill to:</strong> ${e(billTo.name)}</p>
-<p><strong>Issued:</strong> ${e(issued)} · <strong>Invoice:</strong> ${e(inv.id)} · <strong>Status:</strong> ${e(inv.status)}</p>
+<p><strong>Issued:</strong> ${e(issued)} · <strong>Invoice:</strong> ${e(inv.invoiceNumber)} · <strong>Status:</strong> ${e(inv.status)}</p>
 <hr />
 <h2>Services</h2>
 <table>
@@ -67,12 +75,14 @@ export function invoiceHtml(inv: InvoiceRecord, billTo: { name: string }): strin
 /**
  * Render the invoice to PDF bytes via the Phase 1.2 safe-HTML renderer.
  * Throws on unsafe HTML / unresolved placeholders (fail-closed).
+ * The footer carries the invoice NUMBER only — a record id is never printed
+ * on a document the customer keeps.
  */
-export function renderInvoicePdf(inv: InvoiceRecord, billTo: { name: string }): RenderedPdf {
-  const html = invoiceHtml(inv, billTo);
+export function renderInvoicePdf(inv: InvoiceRecord, billTo: { name: string }, issuer?: { name: string }): RenderedPdf {
+  const html = invoiceHtml(inv, billTo, issuer);
   return renderHtmlDocument(html, {
     pageNumbers: true,
-    footerText: `Invoice ${inv.invoiceNumber} · ${inv.id}`,
+    footerText: `Invoice ${inv.invoiceNumber}`,
   });
 }
 

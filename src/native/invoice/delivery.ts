@@ -41,7 +41,8 @@ export interface InvoiceEmailInput {
   invoice: InvoiceRecord;
   /** Customer name from the deal room (already validated upstream). */
   customerName: string;
-  /** Who the invoice is from — the tenant's own workspace account. */
+  /** Who the invoice is from — the workspace DISPLAY NAME only (issuer.ts).
+   *  Never the tenant id and never an entity id: the customer reads this. */
   issuerName: string;
   shareUrl: string;
 }

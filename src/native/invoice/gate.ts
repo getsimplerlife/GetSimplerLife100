@@ -55,6 +55,7 @@ import {
   unregisterInvoiceSlug,
 } from "./store";
 import { renderInvoicePdf, storeInvoicePdf, lineTotalCents, invoiceTotalCents } from "./generate";
+import { resolveIssuerDisplayName } from "./issuer";
 import { validateInvoiceMutation, createInvoiceMutationFromInput, isInvoiceId, validateCustomerEmail } from "./validate";
 import { deliverInvoiceEmail, invoiceShareUrl } from "./delivery";
 import {
@@ -190,9 +191,11 @@ function validateWrite(
   return { mutation: {}, nextStatus };
 }
 
-/** Render + persist the invoice PDF (Phase 1.2 add-only doc). Throws on failure. */
+/** Render + persist the invoice PDF (Phase 1.2 add-only doc). Throws on failure.
+ *  The issuer block carries the workspace DISPLAY NAME only (issuer.ts) —
+ *  never the tenant id, never an entity id. */
 function persistPdf(dataDir: string, tenantId: string, invoice: InvoiceRecord, actor: string, billTo: { name: string }): string {
-  const rendered = renderInvoicePdf(invoice, billTo);
+  const rendered = renderInvoicePdf(invoice, billTo, { name: resolveIssuerDisplayName(tenantId, dataDir) });
   const docId = storeInvoicePdf(dataDir, tenantId, invoice, rendered, actor, invoice.docId);
   if (!docId) throw new Error("failed to store invoice PDF");
   return docId;
@@ -300,7 +303,9 @@ async function applySend(
   const result = await deliverInvoiceEmail({
     invoice: record,
     customerName: billTo.name,
-    issuerName: tenantId,
+    // Customer-facing sender label — the workspace display name, never the
+    // tenant id (issuer.ts is the single authority for this string).
+    issuerName: resolveIssuerDisplayName(tenantId, dataDir),
     shareUrl: invoiceShareUrl(shareSlug),
   });
   // 4. Terminal status from the lane's own answer.

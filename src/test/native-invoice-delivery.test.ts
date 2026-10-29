@@ -9,7 +9,11 @@
  *   (c) the public signed-slug route: unknown/foreign/never-sent → 404, and it
  *       only ever renders the ONE invoice behind the slug,
  *   (d) malformed/absent customerEmail → 400 BEFORE any gating,
- *   (e) every transition writes its immutable audit line + typed event.
+ *   (e) every transition writes its immutable audit line + typed event,
+ *   (f) every CUSTOMER-facing surface (public view, PDF, email) carries a human
+ *       DISPLAY NAME only — never the tenant id, never an entity id. Security
+ *       finding (1) of the PR #317 review: the public view used to publish
+ *       `issuerName: inv.tenantId`, i.e. the workspace's account identifier.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -23,6 +27,10 @@ import {
   insertInvoice,
 } from "../native/invoice/store";
 import { handleNativeInvoicesAuthed, handleNativeInvoiceShare, registerBuiltinNativeInvoiceEventTypes } from "../native/invoice/router";
+import { resolveIssuerDisplayName, NEUTRAL_ISSUER_LABEL } from "../native/invoice/issuer";
+import { getDoc } from "../native/documents/store";
+import { writeJSON } from "../lib/data-store";
+import { tenantSettingsPath } from "../lib/tenant-settings";
 import { insertProposal } from "../native/proposals/store";
 import { insertChecklist } from "../native/checklists/store";
 import { setNativeEventObserver } from "../native/webhooks/outbound";
@@ -293,13 +301,20 @@ describe("(c) public signed-slug route", () => {
     expect(body.data.amountDueCents).toBe(500000 + 2 * 125050);
     expect(body.data.dueDate).toBe(sent.dueDate);
     expect(body.data.billToName).toBe("Acme Corp");
-    expect(body.data.issuerName).toBe(T1);
+    // SECURITY (finding 1): the issuer label is a HUMAN display name — the
+    // tenant id (the workspace account identifier) must never be published.
+    expect(body.data.issuerName).not.toBe(T1);
+    expect(body.data.issuerName).toBe(NEUTRAL_ISSUER_LABEL); // no company name configured
+    expect(String(body.data.issuerName).length).toBeGreaterThan(0);
     expect((body.data.lineItems as unknown[]).length).toBe(2);
     expect(body.data.hasPdf).toBe(true);
     // No internals, no ids, no enumeration surface.
     const raw = JSON.stringify(body.data);
+    expect(raw).not.toContain(T1); // never the issuer's account identifier
     expect(raw).not.toMatch(/inv_[A-Za-z0-9]/); // no inv_ record id
     expect(raw).not.toMatch(/dea_[A-Za-z0-9]/); // no deal-room id
+    expect(raw).not.toMatch(/doc_[A-Za-z0-9]/); // no doc id
+    expect(raw).not.toMatch(/ipw_[A-Za-z0-9]/); // no approval-action id
     expect(raw).not.toContain("docId");
     expect(raw).not.toContain("audit");
     expect(raw).not.toContain("pendingWrites");
@@ -335,12 +350,102 @@ describe("(c) public signed-slug route", () => {
 
     const bodyA = (await (await publicRoute(`/api/native/invoice/share/${invA.shareSlug}`)).json()) as { data: Record<string, unknown> };
     const bodyB = (await (await publicRoute(`/api/native/invoice/share/${invB.shareSlug}`)).json()) as { data: Record<string, unknown> };
-    expect(bodyA.data.issuerName).toBe(T1);
-    expect(bodyB.data.issuerName).toBe(T2);
+    expect(bodyA.data.issuerName).toBe(NEUTRAL_ISSUER_LABEL);
+    expect(bodyB.data.issuerName).toBe(NEUTRAL_ISSUER_LABEL);
+    expect(JSON.stringify(bodyA.data)).not.toContain(T1);
     expect(JSON.stringify(bodyA.data)).not.toContain(T2);
     expect(JSON.stringify(bodyB.data)).not.toContain(T1);
+    expect(JSON.stringify(bodyB.data)).not.toContain(T2);
     // T2 cannot reach A's invoice by id, and A's slug never lists B's records.
     expect((await route("GET", `/api/native/invoice/${invA.id}`, undefined, T2)).status).toBe(404);
+  });
+});
+
+// ── SECURITY finding (1): customer surfaces carry display names, never ids ──
+describe("(f) issuer label on customer surfaces — display names only, never ids", () => {
+  /** Any entity id shape that must never reach a customer. */
+  const ID_SHAPE = /\b(?:inv|dea|doc|ipw|bkt)_[A-Za-z0-9_-]+/;
+  const NEUTRAL = NEUTRAL_ISSUER_LABEL;
+
+  it("no display name configured → neutral human label; no tenant id and no ids on the public view, the PDF or the email", async () => {
+    vi.stubEnv("SENDGRID_API_KEY", "SG.test-key");
+    const fetchMock = vi.fn(async () => ACK_202());
+    vi.stubGlobal("fetch", fetchMock);
+    const dealRoomId = await createDealRoom();
+    const id = await createInvoice(dealRoomId);
+    await sendInvoice(id);
+    const inv = getInvoice(dir, T1, id)!;
+    expect(inv.status).toBe("sent");
+
+    // (c) a non-empty HUMAN label when nothing is configured — never an id.
+    expect(resolveIssuerDisplayName(T1, dir)).toBe(NEUTRAL);
+    expect(NEUTRAL.trim().length).toBeGreaterThan(0);
+
+    // (a)+(b) the public view payload — exactly what the share page renders.
+    const payload = (await (await publicRoute(`/api/native/invoice/share/${inv.shareSlug}`)).json()) as { data: Record<string, unknown> };
+    expect(payload.data.issuerName).toBe(NEUTRAL);
+    const rawView = JSON.stringify(payload.data);
+    expect(rawView).not.toContain(T1); // (a) never the tenant id
+    expect(rawView).not.toMatch(ID_SHAPE); // (b) never an entity id
+
+    // (a)+(b) the PDF the customer keeps — body AND footer.
+    expect(inv.docId).toBeTruthy();
+    const doc = getDoc(dir, T1, inv.docId!)!;
+    expect(doc.textProjection).toContain(NEUTRAL);
+    expect(doc.textProjection).toContain("Acme Corp"); // bill-to display name survives
+    expect(doc.textProjection).not.toContain(inv.id); // no internal record id
+    expect(doc.textProjection).not.toContain(T1);
+    expect(doc.textProjection).not.toMatch(ID_SHAPE);
+
+    // (a)+(b) the email that lands in the customer's inbox.
+    const init = (fetchMock.mock.calls[0] as unknown[])[1] as { body: string };
+    const mail = JSON.parse(init.body) as { subject: string; content: { value: string }[] };
+    const mailText = `${mail.subject}\n${mail.content.map((c) => c.value).join("\n")}`;
+    expect(mailText).toContain(NEUTRAL);
+    expect(mailText).not.toContain(T1);
+    expect(mailText).not.toMatch(ID_SHAPE);
+  });
+
+  it("uses the workspace display name from the ONE settings store when it is configured", async () => {
+    // tenant_settings.json keyed by tenant id — the field the portal's
+    // Brand & Profile section captures. Nothing new is introduced.
+    writeJSON(tenantSettingsPath(dir), { [T1]: { companyName: "Acme Advisory Ltd" } });
+    expect(resolveIssuerDisplayName(T1, dir)).toBe("Acme Advisory Ltd");
+
+    vi.stubEnv("SENDGRID_API_KEY", "SG.test-key");
+    const fetchMock = vi.fn(async () => ACK_202());
+    vi.stubGlobal("fetch", fetchMock);
+    const dealRoomId = await createDealRoom();
+    const id = await createInvoice(dealRoomId);
+    await sendInvoice(id);
+    const inv = getInvoice(dir, T1, id)!;
+
+    const payload = (await (await publicRoute(`/api/native/invoice/share/${inv.shareSlug}`)).json()) as { data: Record<string, unknown> };
+    expect(payload.data.issuerName).toBe("Acme Advisory Ltd");
+    expect(JSON.stringify(payload.data)).not.toContain(T1);
+    expect(JSON.stringify(payload.data)).not.toMatch(ID_SHAPE);
+
+    const doc = getDoc(dir, T1, inv.docId!)!;
+    expect(doc.textProjection).toContain("Acme Advisory Ltd");
+    expect(doc.textProjection).not.toContain(T1);
+    expect(doc.textProjection).not.toMatch(ID_SHAPE);
+
+    const init = (fetchMock.mock.calls[0] as unknown[])[1] as { body: string };
+    expect(init.body).toContain("Acme Advisory Ltd");
+    expect(init.body).not.toContain(T1);
+  });
+
+  it("never echoes an identifier back as a display name (account id, entity id, email shape, blank)", () => {
+    expect(resolveIssuerDisplayName(T1, dir)).toBe(NEUTRAL); // nothing configured
+    writeJSON(tenantSettingsPath(dir), { [T1]: { companyName: T1 } }); // the account id itself
+    expect(resolveIssuerDisplayName(T1, dir)).toBe(NEUTRAL);
+    writeJSON(tenantSettingsPath(dir), { [T1]: { companyName: "inv_abc123def456" } }); // an entity id
+    expect(resolveIssuerDisplayName(T1, dir)).toBe(NEUTRAL);
+    writeJSON(tenantSettingsPath(dir), { [T1]: { companyName: "   " } }); // blank
+    expect(resolveIssuerDisplayName(T1, dir)).toBe(NEUTRAL);
+    // The `{ items: [{ key, value }] }` shape the settings page also reads.
+    writeJSON(tenantSettingsPath(dir), { [T1]: { items: [{ key: "companyName", value: "Acme Advisory Ltd" }] } });
+    expect(resolveIssuerDisplayName(T1, dir)).toBe("Acme Advisory Ltd");
   });
 });
 

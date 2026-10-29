@@ -31,6 +31,7 @@ import {
   listAudit,
 } from "./store";
 import { submitInvoiceWrite, executePendingInvoiceWrite, noteOwnerDecision, createInvoiceMutationFromInput } from "./gate";
+import { resolveIssuerDisplayName } from "./issuer";
 import { isInvoiceId } from "./validate";
 import { getDealRoom } from "../dealroom/store";
 import { readDocumentBytes, getDoc } from "../documents/store";
@@ -85,11 +86,13 @@ function summary(i: {
 /**
  * Customer-facing view of a SENT invoice — only what that invoice says.
  * No record ids, no docId, no deal-room id, no audit, no other records.
+ * `issuerName` is a human DISPLAY NAME resolved by issuer.ts — never the
+ * tenant id (the workspace account identifier) and never an entity id.
  */
-export function publicInvoiceView(inv: InvoiceRecord, billToName: string): Record<string, unknown> {
+export function publicInvoiceView(inv: InvoiceRecord, billToName: string, issuerName: string): Record<string, unknown> {
   return {
     invoiceNumber: inv.invoiceNumber,
-    issuerName: inv.tenantId, // the workspace that issued it (its account id)
+    issuerName,
     billToName,
     currency: inv.currency,
     lineItems: inv.lineItems.map((li) => ({
@@ -271,7 +274,13 @@ async function handleShareAsync(req: Request, ctx: NativeInvoicePublicCtx): Prom
   if (req.method !== "GET") return Response.json({ error: "Method not allowed" }, { status: 405 });
   const dealRoom = getDealRoom(ctx.dataDir, tenantId, invoice.linkedDealRoomId);
   return Response.json(
-    { data: publicInvoiceView(invoice, dealRoom?.customerName || "Customer") },
+    {
+      data: publicInvoiceView(
+        invoice,
+        dealRoom?.customerName || "Customer",
+        resolveIssuerDisplayName(tenantId, ctx.dataDir),
+      ),
+    },
     { headers: { "cache-control": "no-store", "x-robots-tag": "noindex, nofollow" } },
   );
 }
