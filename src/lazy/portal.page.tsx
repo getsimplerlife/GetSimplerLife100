@@ -141,6 +141,8 @@ type NavLink = {
     { name: "Boards", subtitle: "Kanban views", path: "/portal/boards", icon: "boards", section: "Workspace" },
     { name: "Tasks", subtitle: "Queue · Assignments", path: "/portal/tasks", icon: "tasks", section: "Workspace" },
     { name: "Surveys", subtitle: "NPS · CSAT · Scorecards", path: "/portal/surveys", icon: "surveys", section: "Workspace" },
+    { name: "Forms", subtitle: "Build · Submissions", path: "/portal/forms", icon: "forms", section: "Workspace" },
+    { name: "Dashboards", subtitle: "Reports · Widgets", path: "/portal/dashboards", icon: "dashboards", section: "Workspace" },
     { name: "Workflows", subtitle: "Builder · Management", path: "/portal/workflows", icon: "workflows", section: "Operations" },
     { name: "Bring your data in", subtitle: "One-time import · Migration", path: "/portal/import", icon: "import", section: "Operations" },
     // Cleanup (a): storage triad consolidated to ONE surface — vault keeps
@@ -148,6 +150,7 @@ type NavLink = {
     // their real data remains reachable through this single entry point.
     { name: "Documents & Vault", subtitle: "Upload · File · Filing · Rules", path: "/portal/vault", icon: "vault", section: "Operations" },
     { name: "Approvals", subtitle: "Review · Authorize", path: "/portal/approvals", icon: "approvals", section: "Operations" },
+    { name: "Webhooks", subtitle: "Subscriptions · Deliveries", path: "/portal/webhooks", icon: "webhooks", section: "Operations" },
     { name: "Assistant", subtitle: "Ask · Draft answers · Audit", path: "/portal/assistant", icon: "assistant", section: "Communications" },
     { name: "Communications", subtitle: "Messages · Log", path: "/portal/communications", icon: "communications", section: "Communications" },
     { name: "Integrations", subtitle: "Full 180+ Catalog", path: "/portal/integrations", icon: "integrations", section: "Data & Connect" },
@@ -155,6 +158,7 @@ type NavLink = {
     { name: "Dedupe & MDM", subtitle: "Match rules · Merge · Data quality", path: "/portal/dedupe", icon: "dedupe", section: "Data & Connect" },
     { name: "Access Reviews", subtitle: "Certification campaigns · Attestations", path: "/portal/accessreview", icon: "access", section: "Data & Connect" },
     { name: "Knowledge Base", subtitle: "Articles · Help center", path: "/portal/knowledgebase", icon: "knowledge", section: "Data & Connect" },
+    { name: "Tables", subtitle: "Rows · Gated writes", path: "/portal/tables", icon: "tables", section: "Data & Connect" },
     { name: "Settings", subtitle: "Profile · Billing · Import History", path: "/portal/settings", icon: "settings", section: "Settings" },
     { name: "Admin", subtitle: "Users · Health · Audit", path: "/portal/admin", icon: "admin", section: "Settings", adminOnly: true },
   ];

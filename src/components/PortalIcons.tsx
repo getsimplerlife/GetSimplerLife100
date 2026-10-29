@@ -18,6 +18,10 @@ export type PortalIconName =
   | "boards"
   | "tasks"
   | "surveys"
+  | "forms"
+  | "tables"
+  | "dashboards"
+  | "webhooks"
   | "inbox"
   | "workflows"
   | "import"
@@ -51,6 +55,10 @@ const NAV_PATHS: Record<PortalIconName, string> = {
   boards: "M4 5h16v14H4zM10 5v14M16 5v14",
   tasks: "M8 3h8a2 2 0 012 2v15H6V5a2 2 0 012-2zM9 3v2M15 3v2M9 12h6M9 16h6",
   surveys: "M4 20h16M6 16v-4M10 16V8M14 16v-6M18 16v-2",
+  forms: "M6 3h9l3 3v15H6V3zm3 5h6M9 11h6M9 15h4",
+  tables: "M4 5h16v14H4V5zm0 5h16M4 14h16M10 5v14",
+  dashboards: "M4 4h7v7H4V4zm9 0h7v4h-7V4zM4 13h7v7H4v-7zm9-3h7v10h-7V10z",
+  webhooks: "M9 7a3 3 0 116 0c0 1.5-1 2.2-1 3.5M12 10.5V14m-4.5 3.5A3.5 3.5 0 1112 14m0 0h6m0 0a3 3 0 11-3 3",
   inbox: "M4 6h16a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V7a1 1 0 011-1zm0 2l8 5 8-5",
   workflows: "M13 3L5 13h6l-1 8 8-10h-6l1-8z",
   import: "M12 4v10m0 0l-4-4m4 4l4-4M5 19h14",
