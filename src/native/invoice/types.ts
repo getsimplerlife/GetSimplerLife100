@@ -89,6 +89,15 @@ export interface InvoiceRecord {
   shareSlug: string | null;
   /** Latest delivery attempt (null until the first send). */
   lastAttempt: InvoiceDeliveryAttempt | null;
+  /**
+   * TRUTHFUL PAYMENT STATE (slice 134): set when the customer was handed off to
+   * a Stripe Checkout Session created on the ISSUING TENANT's own Stripe
+   * account. It records only that a payment was STARTED — never that money was
+   * received. Confirming a payment needs a webhook from the tenant's own Stripe
+   * account, which is deliberately out of scope, so this record never claims
+   * "paid".
+   */
+  paymentStartedAt?: string;
   version: number;
   createdAt: string;
   createdBy: string;

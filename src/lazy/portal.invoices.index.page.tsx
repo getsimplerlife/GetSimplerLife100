@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { Card, Badge, Button } from "~/components/ui";
 import { PortalEmptyState, scrollToId } from "~/components/PortalEmptyState";
 
@@ -22,6 +23,8 @@ interface InvoiceSummary {
   dueDate: string;
   shareSlug: string | null;
   lastAttempt: DeliveryAttempt | null;
+  /** Truthful "a payment was started" stamp — never a "paid" claim. */
+  paymentStartedAt?: string;
   version: number;
   createdAt: string;
   updatedAt: string;
@@ -79,6 +82,12 @@ export default function InvoicesPage() {
   const [composerEmail, setComposerEmail] = useState("");
   const [rowEmail, setRowEmail] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState("");
+  /**
+   * Whether THIS workspace can accept payment at all (it connected its own
+   * Stripe account). `null` = not loaded yet. This is the tenant's own
+   * capability flag — it carries no key material.
+   */
+  const [stripeConnected, setStripeConnected] = useState<boolean | null>(null);
 
   const load = useCallback(async () => {
     const res = await fetch("/api/native/invoice", { credentials: "include" });
@@ -87,6 +96,8 @@ export default function InvoicesPage() {
     setItems(json.data || []);
     const wr = await fetch("/api/native/invoice/writes", { credentials: "include" });
     if (wr.ok) setWrites((await wr.json()).data || []);
+    const st = await fetch("/api/native/invoice/stripe", { credentials: "include" });
+    if (st.ok) setStripeConnected(Boolean((await st.json()).data?.connected));
     const dr = await fetch("/api/native/dealroom", { credentials: "include" });
     if (dr.ok) {
       const dj = await dr.json();
@@ -207,6 +218,41 @@ export default function InvoicesPage() {
       {error && <div className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
       {feedback && <div className="rounded border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-300">{feedback}</div>}
 
+      {/* Can this workspace take payment at all? (its OWN Stripe account) */}
+      {stripeConnected !== null && (
+        <Card>
+          {stripeConnected ? (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-emerald-400">Online payment is on</p>
+                <p className="text-xs text-stone-400">
+                  Customers pay from the invoice page through your own Stripe account. The money never passes through us.
+                </p>
+              </div>
+              <Link to="/portal/settings" className="text-xs text-sky-400 underline">
+                Payment settings
+              </Link>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-amber-400">Online payment is not set up</p>
+                <p className="text-xs text-stone-400">
+                  Your invoice pages say payment is arranged directly with you and show no Pay button. Connect your own
+                  Stripe account to add one — payments settle in your Stripe account, never ours.
+                </p>
+              </div>
+              <Link
+                to="/portal/settings"
+                className="rounded bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700"
+              >
+                Set up payments
+              </Link>
+            </div>
+          )}
+        </Card>
+      )}
+
       <Card id="invoice-composer">
         <h2 className="mb-3 text-lg font-semibold">Create invoice from a deal room</h2>
         <div className="flex flex-wrap items-end gap-3">
@@ -287,6 +333,12 @@ export default function InvoicesPage() {
                     {i.lastAttempt?.outcome === "unconfigured" && (
                       <p className="mt-1 text-xs text-amber-500">
                         Email not configured — the invoice PDF was generated only. Nothing was emailed.
+                      </p>
+                    )}
+                    {i.paymentStartedAt && (
+                      <p className="text-xs text-stone-400">
+                        Payment started {new Date(i.paymentStartedAt).toLocaleString()} — not confirmed as paid (that
+                        needs a confirmation from your Stripe account).
                       </p>
                     )}
                     {i.lastAttempt?.outcome === "failed" && i.lastAttempt.error && (
