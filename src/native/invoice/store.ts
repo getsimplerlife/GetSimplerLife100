@@ -16,7 +16,9 @@ import { readJSON, writeJSON, resolveDataDir } from "../../lib/data-store";
 import {
   NATIVE_INVOICES_KEY,
   NATIVE_INVOICES_AUDIT_KEY,
+  NATIVE_INVOICE_SLUGS_KEY,
   MAX_INVOICES_PER_TENANT,
+  type InvoiceDeliveryAttempt,
   type InvoiceRecord,
   type InvoiceStatus,
   type PendingInvoiceWrite,
@@ -51,6 +53,42 @@ function saveState(dataDir: string, state: Record<string, TenantInvoiceState>): 
 }
 export function generateInvoiceEntityId(prefix: "inv" | "ipw" | "invli"): string {
   return `${prefix}_${Date.now().toString(36)}${randomBytes(6).toString("hex")}`;
+}
+/** Randomized, unguessable public share slug (no tenant data inside it). */
+export function generateInvoiceShareSlug(): string {
+  return `si_${Date.now().toString(36)}${randomBytes(9).toString("base64url")}`;
+}
+
+// ── Public share-slug index (slug → tenantId ONLY) ─────────────────────────
+// Same discipline as native forms (1.3) / proposals (2.1): the global index
+// carries nothing but the tenant pointer, so a public lookup can never be
+// turned into a listing. A slug that is not in the index → 404 (fail-closed).
+function loadSlugs(dataDir: string): Record<string, string> {
+  const raw = readJSON(dataPath(dataDir, NATIVE_INVOICE_SLUGS_KEY));
+  return raw && typeof raw === "object" ? (raw as Record<string, string>) : {};
+}
+function saveSlugs(dataDir: string, slugs: Record<string, string>): void {
+  writeJSON(dataPath(dataDir, NATIVE_INVOICE_SLUGS_KEY), slugs);
+}
+export function lookupInvoiceShareTenant(dataDir: string, slug: string): string | null {
+  if (!/^si_[A-Za-z0-9_-]+$/.test(slug)) return null;
+  const t = loadSlugs(dataDir)[slug];
+  return typeof t === "string" && t.length > 0 ? t : null;
+}
+export function registerInvoiceSlug(dataDir: string, slug: string, tenantId: string): void {
+  const slugs = loadSlugs(dataDir);
+  slugs[slug] = tenantId;
+  saveSlugs(dataDir, slugs);
+}
+/** Remove ONE slug (never a glob, never a bulk sweep). */
+export function unregisterInvoiceSlug(dataDir: string, slug: string): void {
+  const slugs = loadSlugs(dataDir);
+  if (!(slug in slugs)) return;
+  delete slugs[slug];
+  saveSlugs(dataDir, slugs);
+}
+export function getInvoiceBySlug(dataDir: string, tenantId: string, slug: string): InvoiceRecord | null {
+  return listInvoices(dataDir, tenantId).find((i) => i.shareSlug === slug) ?? null;
 }
 /** Human invoice number: per-tenant monotonic sequence, zero-padded. */
 export function nextInvoiceNumber(dataDir: string, tenantId: string): string {
@@ -95,8 +133,10 @@ export function insertInvoice(dataDir: string, record: InvoiceRecord): void {
 }
 
 /**
- * Apply an op-specific mutation to an existing invoice (status transition + a
- * newly generated docId). Returns the updated record or null (unknown → 404).
+ * Apply an op-specific mutation to an existing invoice (status transition,
+ * newly generated docId, minted share slug, delivery attempt). Returns the
+ * updated record or null (unknown → 404). `sentAt`/`sentBy` are stamped ONLY
+ * on a transition to "sent" — the one status that claims delivery happened.
  */
 export function applyInvoiceMutation(
   dataDir: string,
@@ -105,6 +145,9 @@ export function applyInvoiceMutation(
   mutation: {
     status?: InvoiceStatus;
     docId?: string;
+    shareSlug?: string;
+    customerEmail?: string;
+    lastAttempt?: InvoiceDeliveryAttempt;
   },
   actor: string,
 ): InvoiceRecord | null {
@@ -116,8 +159,13 @@ export function applyInvoiceMutation(
   const now = new Date().toISOString();
   const updated: InvoiceRecord = {
     ...inv,
-    ...(mutation.status === "sent" ? { status: "sent" as const, sentAt: now, sentBy: actor } : {}),
+    ...(mutation.status !== undefined
+      ? { status: mutation.status, ...(mutation.status === "sent" ? { sentAt: now, sentBy: actor } : {}) }
+      : {}),
     ...(mutation.docId !== undefined && mutation.docId !== null ? { docId: mutation.docId } : {}),
+    ...(mutation.shareSlug !== undefined ? { shareSlug: mutation.shareSlug } : {}),
+    ...(mutation.customerEmail !== undefined ? { customerEmail: mutation.customerEmail } : {}),
+    ...(mutation.lastAttempt !== undefined ? { lastAttempt: mutation.lastAttempt } : {}),
     version: inv.version + 1,
     updatedAt: now,
     updatedBy: actor,

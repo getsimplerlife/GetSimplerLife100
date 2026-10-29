@@ -21,7 +21,33 @@
  *   - posting to the customer's accounting books (Xero/QBO) is OUT OF SCOPE
  *     (owner 09-20): that remains the existing verified external adapters.
  */
-export type InvoiceStatus = "draft" | "sent";
+/**
+ * HONEST STATUS MACHINE (delivery slice, 10-29):
+ *   draft   → created, PDF may or may not exist. Nothing left the building.
+ *   queued  → the send write was approved and a dispatch attempt is IN FLIGHT
+ *             (written BEFORE the email attempt — durable intent).
+ *   sent    → the email lane ACKNOWLEDGED the message (provider accepted it).
+ *             Terminal. Never set without a provider acknowledgement.
+ *   failed  → a dispatch attempt was made and did not succeed (provider error
+ *             stored on the record), OR the email lane is not configured at
+ *             all (lastAttempt.outcome "unconfigured"). Retryable via `send`.
+ * `queued` and `failed` are NOT legal records — only `sent` is terminal.
+ */
+export type InvoiceStatus = "draft" | "queued" | "sent" | "failed";
+
+/** One delivery attempt against the email lane (append-style, latest wins). */
+export interface InvoiceDeliveryAttempt {
+  at: string; // ISO timestamp of the attempt
+  by: string; // actor that triggered it
+  /** Which lane was used — "none" means the lane was unconfigured (no dispatch). */
+  channel: "sendgrid" | "smtp" | "none";
+  /** "sent" = provider acknowledged; "failed" = provider error; "unconfigured" = no lane. */
+  outcome: "sent" | "failed" | "unconfigured";
+  /** Provider message id — present ONLY on an acknowledged send. */
+  messageId?: string;
+  /** Provider/config error, verbatim (never fabricated, never swallowed). */
+  error?: string;
+}
 
 /** One billed line — a snapshot of the linked proposal line item in cents. */
 export interface InvoiceLineItem {
@@ -47,6 +73,22 @@ export interface InvoiceRecord {
   status: InvoiceStatus;
   /** Latest generated PDF (Phase 1.2 doc store, add-only versions). */
   docId: string | null;
+  /**
+   * Customer recipient — snapshotted from the deal room at create (or given
+   * explicitly, validated). "" means NO recipient is on file: `send` then
+   * fails validation (400) instead of inventing or defaulting an address.
+   */
+  customerEmail: string;
+  /** Payment due date (ISO yyyy-mm-dd) — net-30 from creation. */
+  dueDate: string;
+  /**
+   * Public, unguessable read-only share slug (si_…). Minted at SEND time and
+   * registered in the global slug → tenantId index; null until then. The
+   * public route serves ONLY invoices whose status is "sent".
+   */
+  shareSlug: string | null;
+  /** Latest delivery attempt (null until the first send). */
+  lastAttempt: InvoiceDeliveryAttempt | null;
   version: number;
   createdAt: string;
   createdBy: string;
@@ -59,6 +101,9 @@ export interface InvoiceRecord {
 /** Create payload — linkedDealRoomId required; everything else derived. */
 export interface InvoiceMutation {
   linkedDealRoomId?: string;
+  /** Optional explicit recipient; validated BEFORE the gate. Omitted → the
+   *  deal room's own customerEmail is snapshotted (never invented). */
+  customerEmail?: string;
 }
 
 /**
@@ -92,7 +137,12 @@ export const MAX_INVOICES_PER_TENANT = 50;
 export const MAX_PENDING_INVOICE_WRITES = 50;
 export const MAX_INVOICE_LINE_ITEMS = 50;
 export const MAX_LINE_DESCRIPTION = 400;
+export const MAX_CUSTOMER_EMAIL = 200;
+/** Payment term applied at creation: net-30 (the invoice's own due date). */
+export const INVOICE_DUE_DAYS = 30;
 
 // ── Store keys ──────────────────────────────────────────────────────────────
 export const NATIVE_INVOICES_KEY = "native_invoices.json";
 export const NATIVE_INVOICES_AUDIT_KEY = "native_invoices_audit.json";
+/** Global public-slug index — slug → tenantId ONLY (nothing else). */
+export const NATIVE_INVOICE_SLUGS_KEY = "native_invoice_slugs.json";

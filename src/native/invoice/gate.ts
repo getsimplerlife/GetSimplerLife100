@@ -15,8 +15,16 @@
  *     never a foreign room); the invoice SNAPSHOTS the room's proposal line
  *     items into INTEGER CENTS at create — a client can never inject prices,
  *     and money math never touches floats after the snapshot,
- *   - lifecycle draft → sent is fail-closed: sent is TERMINAL (no regenerate,
- *     no delete — it's a legal record); generate/send only from draft,
+ *   - lifecycle draft → queued → sent|failed is fail-closed: `send` is only
+ *     legal from draft|failed, `sent` is TERMINAL (no regenerate, no delete —
+ *     it's a legal record), and `sent` is written ONLY after the email lane
+ *     acknowledged the message (see delivery.ts) — never on a blind flip,
+ *   - DURABLE INTENT: the PDF is rendered/stored and the record is written to
+ *     `queued` BEFORE the outbound email attempt; the terminal status is
+ *     written AFTER it, with the provider's answer stored on the record,
+ *   - the customer recipient (customerEmail) is validated BEFORE the gate:
+ *     malformed → 400, foreign/unknown invoice → 404, and an invoice with no
+ *     recipient can never be "sent" to a guessed address,
  *   - the PDF is rendered (Phase 1.2 safe-HTML) and STORED BEFORE the status
  *     flip (the Phase 2.2 bug-fix discipline: render+store first, then flip),
  *   - posting to the customer's books (Xero/QBO) is OUT OF SCOPE — that is the
@@ -41,12 +49,19 @@ import {
   markPendingWrite,
   appendAudit,
   generateInvoiceEntityId,
+  generateInvoiceShareSlug,
   nextInvoiceNumber,
+  registerInvoiceSlug,
+  unregisterInvoiceSlug,
 } from "./store";
 import { renderInvoicePdf, storeInvoicePdf, lineTotalCents, invoiceTotalCents } from "./generate";
-import { validateInvoiceMutation, createInvoiceMutationFromInput, isInvoiceId } from "./validate";
+import { resolveIssuerDisplayName } from "./issuer";
+import { validateInvoiceMutation, createInvoiceMutationFromInput, isInvoiceId, validateCustomerEmail } from "./validate";
+import { deliverInvoiceEmail, invoiceShareUrl } from "./delivery";
 import {
+  INVOICE_DUE_DAYS,
   MAX_PENDING_INVOICE_WRITES,
+  type InvoiceDeliveryAttempt,
   type InvoiceMutation,
   type InvoiceOp,
   type InvoiceRecord,
@@ -72,17 +87,23 @@ const ACTION_NAME: Record<InvoiceOp, string> = {
   delete: "deleteInvoice",
 };
 
-/** Status transition allowed from a given current status (fail-closed). */
+/**
+ * Status transition allowed from a given current status (fail-closed).
+ * `send` targets "queued" — the pre-dispatch state written BEFORE the email
+ * attempt; the terminal "sent"/"failed" is written only after the lane answers.
+ */
 function statusFor(op: InvoiceOp, current: InvoiceStatus): InvoiceStatus | null {
   switch (op) {
     case "create":
       return "draft";
     case "generate":
-      return current === "draft" ? "draft" : null; // only drafts can (re)generate a PDF
+      // Only drafts / failed (not-sent) invoices can (re)generate a PDF.
+      return current === "draft" || current === "failed" ? current : null;
     case "send":
-      return current === "draft" ? "sent" : null; // sent is terminal — no re-send
+      // draft → send, or retry a failed delivery. `sent` is terminal.
+      return current === "draft" || current === "failed" ? "queued" : null;
     case "delete":
-      return null; // removal handled separately (draft-only, exact-id)
+      return null; // removal handled separately (not-sent only, exact-id)
     default:
       return null;
   }
@@ -92,13 +113,19 @@ function statusFor(op: InvoiceOp, current: InvoiceStatus): InvoiceStatus | null 
  * Validate the write intent BEFORE the gate — throws on invalid (→ 400/404).
  * For create: the linked deal room must exist in-tenant and not be archived,
  * and its linked proposal must exist with ≥1 line item (the snapshot source).
+ * For send: the customer recipient must be present AND valid, or the write
+ * never reaches the queue (no invoice is ever mailed to a guessed address).
  */
 function validateWrite(
   dataDir: string,
   tenantId: string,
   op: InvoiceOp,
   req: InvoiceWriteRequest,
-): { mutation: InvoiceMutation; nextStatus: InvoiceStatus; snapshot?: { proposalId: string; currency: string; lineItems: InvoiceRecord["lineItems"] } } {
+): {
+  mutation: InvoiceMutation;
+  nextStatus: InvoiceStatus;
+  snapshot?: { proposalId: string; currency: string; lineItems: InvoiceRecord["lineItems"]; customerEmail: string };
+} {
   if (op === "create") {
     const data = req.data ?? {};
     const v = validateInvoiceMutation(data, { requireDealRoom: true });
@@ -108,6 +135,14 @@ function validateWrite(
     const dealRoom = getDealRoom(dataDir, tenantId, dealRoomId);
     if (!dealRoom) throw new Error("unknown linkedDealRoomId (invoice must belong to a real deal room)");
     if (dealRoom.status === "archived") throw new Error("cannot invoice an archived deal room");
+    // Recipient: an explicit (validated) address wins; otherwise snapshot the
+    // deal room's own customerEmail. Never invented, never defaulted.
+    const explicitEmail = v.data?.customerEmail;
+    const recipient = (explicitEmail ?? (dealRoom.customerEmail || "")).trim();
+    if (recipient.length > 0) {
+      const ev = validateCustomerEmail(recipient);
+      if (!ev.ok) throw new Error(ev.error);
+    }
     // Snapshot source: the deal room's linked proposal (2.4 requires it).
     const proposal = dealRoom.linkedProposalId ? getProposal(dataDir, tenantId, dealRoom.linkedProposalId) : null;
     if (!proposal) throw new Error("linked deal room has no proposal — cannot build an invoice");
@@ -119,9 +154,9 @@ function validateWrite(
       unitPriceCents: Math.round(li.unitPrice * 100), // integer cents, no float drift
     }));
     return {
-      mutation: { linkedDealRoomId: dealRoomId },
+      mutation: { linkedDealRoomId: dealRoomId, ...(explicitEmail ? { customerEmail: explicitEmail } : {}) },
       nextStatus: "draft" as const,
-      snapshot: { proposalId: proposal.id, currency: proposal.currency, lineItems },
+      snapshot: { proposalId: proposal.id, currency: proposal.currency, lineItems, customerEmail: recipient },
     };
   }
   if (op === "delete") {
@@ -137,12 +172,30 @@ function validateWrite(
   if (!inv) throw new Error("invoice not found");
   const nextStatus = statusFor(op, inv.status);
   if (nextStatus === null) throw new Error(`cannot ${op} an invoice in status ${inv.status}`);
+  if (op === "send") {
+    const mutation: InvoiceMutation = {};
+    let recipient = (inv.customerEmail || "").trim();
+    // An explicit recipient on the send request is validated BEFORE the gate
+    // and carried with the pending write (revalidated again on apply).
+    if (req.data?.customerEmail !== undefined) {
+      const ev = validateCustomerEmail(req.data.customerEmail);
+      if (!ev.ok) throw new Error(ev.error);
+      recipient = req.data.customerEmail.trim();
+      mutation.customerEmail = recipient;
+    }
+    if (!recipient) throw new Error("customerEmail is required to send an invoice (add the customer's email address)");
+    const ev = validateCustomerEmail(recipient);
+    if (!ev.ok) throw new Error(ev.error);
+    return { mutation, nextStatus };
+  }
   return { mutation: {}, nextStatus };
 }
 
-/** Render + persist the invoice PDF (Phase 1.2 add-only doc). Throws on failure. */
+/** Render + persist the invoice PDF (Phase 1.2 add-only doc). Throws on failure.
+ *  The issuer block carries the workspace DISPLAY NAME only (issuer.ts) —
+ *  never the tenant id, never an entity id. */
 function persistPdf(dataDir: string, tenantId: string, invoice: InvoiceRecord, actor: string, billTo: { name: string }): string {
-  const rendered = renderInvoicePdf(invoice, billTo);
+  const rendered = renderInvoicePdf(invoice, billTo, { name: resolveIssuerDisplayName(tenantId, dataDir) });
   const docId = storeInvoicePdf(dataDir, tenantId, invoice, rendered, actor, invoice.docId);
   if (!docId) throw new Error("failed to store invoice PDF");
   return docId;
@@ -156,11 +209,13 @@ function applyMutation(
   req: InvoiceWriteRequest,
   mutation: InvoiceMutation,
   actor: string,
-  snapshot?: { proposalId: string; currency: string; lineItems: InvoiceRecord["lineItems"] },
+  snapshot?: { proposalId: string; currency: string; lineItems: InvoiceRecord["lineItems"]; customerEmail: string },
 ): InvoiceRecord {
   if (op === "create") {
     const now = new Date().toISOString();
     const lineItems = snapshot?.lineItems ?? [];
+    const due = new Date(now);
+    due.setUTCDate(due.getUTCDate() + INVOICE_DUE_DAYS);
     const record: InvoiceRecord = {
       id: generateInvoiceEntityId("inv"),
       tenantId,
@@ -171,6 +226,10 @@ function applyMutation(
       amountDueCents: invoiceTotalCents({ lineItems }),
       status: "draft",
       docId: null,
+      customerEmail: snapshot?.customerEmail ?? "",
+      dueDate: due.toISOString().slice(0, 10),
+      shareSlug: null,
+      lastAttempt: null,
       version: 1,
       createdAt: now,
       createdBy: actor,
@@ -178,32 +237,110 @@ function applyMutation(
       updatedBy: actor,
     };
     insertInvoice(dataDir, record);
-    appendAudit(dataDir, { tenantId, actor, action: "native.invoice.create", invoiceId: record.id, detail: `Created invoice ${record.invoiceNumber} for deal room ${record.linkedDealRoomId} (${snapshot?.proposalId ?? "?"}) — ${record.currency} ${(record.amountDueCents / 100).toFixed(2)}` });
+    appendAudit(dataDir, { tenantId, actor, action: "native.invoice.create", invoiceId: record.id, detail: `Created invoice ${record.invoiceNumber} for deal room ${record.linkedDealRoomId} (${snapshot?.proposalId ?? "?"}) — ${record.currency} ${(record.amountDueCents / 100).toFixed(2)}, due ${record.dueDate}${record.customerEmail ? `, bill to ${record.customerEmail}` : " (no customer email on file)"}` });
     publishEvent(dataDir, tenantId, "native.invoice.created", { invoiceId: record.id, invoiceNumber: record.invoiceNumber, linkedDealRoomId: record.linkedDealRoomId, currency: record.currency, amountDueCents: record.amountDueCents, status: record.status });
     return record;
   }
   if (op === "delete") {
     const inv = getInvoice(dataDir, tenantId, req.invoiceId!)!;
-    appendAudit(dataDir, { tenantId, actor, action: "native.invoice.delete", invoiceId: inv.id, detail: `Deleted draft invoice ${inv.invoiceNumber} (deal room ${inv.linkedDealRoomId})` });
+    appendAudit(dataDir, { tenantId, actor, action: "native.invoice.delete", invoiceId: inv.id, detail: `Deleted ${inv.status} invoice ${inv.invoiceNumber} (deal room ${inv.linkedDealRoomId})` });
     removeInvoice(dataDir, tenantId, inv.id);
+    // A never-sent invoice may still carry a slug from a failed attempt —
+    // retire exactly that one entry (never a sweep).
+    if (inv.shareSlug) unregisterInvoiceSlug(dataDir, inv.shareSlug);
     publishEvent(dataDir, tenantId, "native.invoice.deleted", { invoiceId: inv.id, invoiceNumber: inv.invoiceNumber, linkedDealRoomId: inv.linkedDealRoomId });
     return { ...inv, status: "deleted" } as unknown as InvoiceRecord;
   }
-  // generate / send — PDF first, THEN the durable status/docId write (2.2 discipline).
+  // generate — PDF first, THEN the durable docId write (2.2 discipline).
   const inv = getInvoice(dataDir, tenantId, req.invoiceId!)!;
   const dealRoom = getDealRoom(dataDir, tenantId, inv.linkedDealRoomId);
   const billTo = { name: dealRoom?.customerName || "Customer" };
   const docId = persistPdf(dataDir, tenantId, inv, actor, billTo);
-  let record = applyInvoiceMutation(dataDir, tenantId, inv.id, { docId }, actor)!;
-  if (op === "send") {
-    record = applyInvoiceMutation(dataDir, tenantId, inv.id, { status: "sent" }, actor)!;
-    appendAudit(dataDir, { tenantId, actor, action: "native.invoice.send", invoiceId: record.id, detail: `Sent invoice ${record.invoiceNumber} (${record.currency} ${(record.amountDueCents / 100).toFixed(2)}) — PDF ${record.docId ?? "?"}` });
-    publishEvent(dataDir, tenantId, "native.invoice.sent", { invoiceId: record.id, invoiceNumber: record.invoiceNumber, linkedDealRoomId: record.linkedDealRoomId, currency: record.currency, amountDueCents: record.amountDueCents, docId: record.docId ?? null });
+  const record = applyInvoiceMutation(dataDir, tenantId, inv.id, { docId }, actor)!;
+  appendAudit(dataDir, { tenantId, actor, action: "native.invoice.generate", invoiceId: record.id, detail: `Generated invoice ${record.invoiceNumber} PDF (${record.status}) — ${record.docId ?? "?"}` });
+  publishEvent(dataDir, tenantId, "native.invoice.generated", { invoiceId: record.id, invoiceNumber: record.invoiceNumber, docId: record.docId ?? null });
+  return record;
+}
+
+/**
+ * The SEND path (async — the email attempt is the side effect).
+ *
+ * Order is deliberate and non-negotiable:
+ *   1. render + store the PDF (nothing is claimed yet),
+ *   2. mint/keep the public slug and write status "queued" + docId + recipient
+ *      (DURABLE INTENT — if the process dies here, the record says queued,
+ *      never sent),
+ *   3. dispatch the email through the existing lane,
+ *   4. write the TERMINAL status from the lane's own answer: "sent" ONLY on a
+ *      provider acknowledgement, otherwise "failed" with the reason stored.
+ * Every step appends its immutable audit line + typed native.invoice.* event.
+ */
+async function applySend(
+  dataDir: string,
+  tenantId: string,
+  req: InvoiceWriteRequest,
+  mutation: InvoiceMutation,
+  actor: string,
+): Promise<InvoiceRecord> {
+  const inv = getInvoice(dataDir, tenantId, req.invoiceId!)!;
+  const dealRoom = getDealRoom(dataDir, tenantId, inv.linkedDealRoomId);
+  const billTo = { name: dealRoom?.customerName || "Customer" };
+  // 1. PDF stored BEFORE any outbound claim (2.2 discipline).
+  const docId = persistPdf(dataDir, tenantId, inv, actor, billTo);
+  // 2. Public slug (minted once; reused on retry) + durable intent.
+  const shareSlug = inv.shareSlug ?? generateInvoiceShareSlug();
+  if (!inv.shareSlug) registerInvoiceSlug(dataDir, shareSlug, tenantId);
+  let record = applyInvoiceMutation(
+    dataDir,
+    tenantId,
+    inv.id,
+    { docId, shareSlug, status: "queued", ...(mutation.customerEmail ? { customerEmail: mutation.customerEmail } : {}) },
+    actor,
+  )!;
+  appendAudit(dataDir, { tenantId, actor, action: "native.invoice.queued", invoiceId: record.id, detail: `Queued invoice ${record.invoiceNumber} (${record.currency} ${(record.amountDueCents / 100).toFixed(2)}) for delivery to ${record.customerEmail} — PDF ${docId}` });
+  publishEvent(dataDir, tenantId, "native.invoice.queued", { invoiceId: record.id, invoiceNumber: record.invoiceNumber, linkedDealRoomId: record.linkedDealRoomId, currency: record.currency, amountDueCents: record.amountDueCents, to: record.customerEmail, docId });
+  // 3. The actual outbound attempt (never throws; returns an explicit outcome).
+  const result = await deliverInvoiceEmail({
+    invoice: record,
+    customerName: billTo.name,
+    // Customer-facing sender label — the workspace display name, never the
+    // tenant id (issuer.ts is the single authority for this string).
+    issuerName: resolveIssuerDisplayName(tenantId, dataDir),
+    shareUrl: invoiceShareUrl(shareSlug),
+  });
+  // 4. Terminal status from the lane's own answer.
+  const attempt: InvoiceDeliveryAttempt = {
+    at: new Date().toISOString(),
+    by: actor,
+    channel: result.channel,
+    outcome: result.outcome,
+    ...(result.messageId ? { messageId: result.messageId } : {}),
+    ...(result.error ? { error: result.error } : {}),
+  };
+  const finalStatus: InvoiceStatus = result.outcome === "sent" ? "sent" : "failed";
+  record = applyInvoiceMutation(dataDir, tenantId, record.id, { status: finalStatus, lastAttempt: attempt }, actor)!;
+  if (finalStatus === "sent") {
+    appendAudit(dataDir, { tenantId, actor, action: "native.invoice.sent", invoiceId: record.id, detail: `Sent invoice ${record.invoiceNumber} to ${record.customerEmail} via ${attempt.channel} (provider ack ${attempt.messageId ?? "?"}) — PDF ${record.docId ?? "?"}` });
+    publishEvent(dataDir, tenantId, "native.invoice.sent", { invoiceId: record.id, invoiceNumber: record.invoiceNumber, linkedDealRoomId: record.linkedDealRoomId, currency: record.currency, amountDueCents: record.amountDueCents, docId: record.docId ?? null, to: record.customerEmail, channel: attempt.channel, messageId: attempt.messageId ?? null });
   } else {
-    appendAudit(dataDir, { tenantId, actor, action: "native.invoice.generate", invoiceId: record.id, detail: `Generated invoice ${record.invoiceNumber} PDF (draft) — ${record.docId ?? "?"}` });
-    publishEvent(dataDir, tenantId, "native.invoice.generated", { invoiceId: record.id, invoiceNumber: record.invoiceNumber, docId: record.docId ?? null });
+    appendAudit(dataDir, { tenantId, actor, action: "native.invoice.failed", invoiceId: record.id, detail: `Invoice ${record.invoiceNumber} was NOT delivered (${attempt.outcome} via ${attempt.channel}): ${attempt.error ?? "unknown error"} — status failed, nothing is claimed as sent` });
+    publishEvent(dataDir, tenantId, "native.invoice.failed", { invoiceId: record.id, invoiceNumber: record.invoiceNumber, linkedDealRoomId: record.linkedDealRoomId, currency: record.currency, amountDueCents: record.amountDueCents, to: record.customerEmail, channel: attempt.channel, outcome: attempt.outcome, error: attempt.error ?? null });
   }
   return record;
+}
+
+/** Dispatch a validated op to its apply path (send is the async one). */
+async function applyValidated(
+  dataDir: string,
+  tenantId: string,
+  op: InvoiceOp,
+  req: InvoiceWriteRequest,
+  mutation: InvoiceMutation,
+  actor: string,
+  snapshot?: { proposalId: string; currency: string; lineItems: InvoiceRecord["lineItems"]; customerEmail: string },
+): Promise<InvoiceRecord> {
+  if (op === "send") return applySend(dataDir, tenantId, req, mutation, actor);
+  return applyMutation(dataDir, tenantId, op, req, mutation, actor, snapshot);
 }
 
 /**
@@ -211,13 +348,13 @@ function applyMutation(
  * reach the queue. Then the gate: allow-listed autonomy applies immediately;
  * otherwise a durable pending-write mirror + approval card are created.
  */
-export function submitInvoiceWrite(
+export async function submitInvoiceWrite(
   dataDir: string,
   tenantId: string,
   op: InvoiceOp,
   req: InvoiceWriteRequest,
   actor: string,
-): InvoiceWriteResult {
+): Promise<InvoiceWriteResult> {
   if (!tenantId?.trim() || !actor?.trim()) return { applied: false, pending: false, error: "tenantId and actor are required" };
   let validated: ReturnType<typeof validateWrite>;
   try {
@@ -235,7 +372,7 @@ export function submitInvoiceWrite(
   const gate = approvalGate(tenantId, action, "native-invoices", params, { dataDir, workflowId: "native-invoices" });
   if (gate.allowed) {
     try {
-      const invoice = applyMutation(dataDir, tenantId, op, req, validated.mutation, actor, validated.snapshot);
+      const invoice = await applyValidated(dataDir, tenantId, op, req, validated.mutation, actor, validated.snapshot);
       if (gate.autonomy && !op.startsWith("delete")) {
         try {
           recordAutonomyOutcome(tenantId, gate.workflowId || "native-invoices", action, "native-invoices", true, { dataDir, allowListId: gate.allowListId });
@@ -273,12 +410,12 @@ export function submitInvoiceWrite(
 }
 
 /** Approve-path executor: applies the pending write the approval card authorized. */
-export function executePendingInvoiceWrite(
+export async function executePendingInvoiceWrite(
   dataDir: string,
   tenantId: string,
   approvalActionId: string,
   actor: string,
-): { ok: true; record: InvoiceRecord; ptwId: string; op: InvoiceOp; alreadyApplied?: boolean } | { ok: false; reason: string } {
+): Promise<{ ok: true; record: InvoiceRecord; ptwId: string; op: InvoiceOp; alreadyApplied?: boolean } | { ok: false; reason: string }> {
   if (!tenantId?.trim() || !approvalActionId?.trim()) return { ok: false, reason: "tenantId and approvalActionId are required" };
   const stateWrites = listPendingWrites(dataDir, tenantId);
   const ptw = stateWrites.find((w) => w.approvalActionId === approvalActionId);
@@ -298,7 +435,7 @@ export function executePendingInvoiceWrite(
     return { ok: false, reason: msg };
   }
   try {
-    const record = applyMutation(dataDir, tenantId, ptw.op, { invoiceId: ptw.invoiceId ?? undefined, data: ptw.payload.data, via: ptw.payload.via }, validated.mutation, actor, validated.snapshot);
+    const record = await applyValidated(dataDir, tenantId, ptw.op, { invoiceId: ptw.invoiceId ?? undefined, data: ptw.payload.data, via: ptw.payload.via }, validated.mutation, actor, validated.snapshot);
     markPendingWrite(dataDir, tenantId, ptw.id, "applied", actor, { status: record.status, invoiceId: record.id });
     return { ok: true, record, ptwId: ptw.id, op: ptw.op };
   } catch (e) {
@@ -309,17 +446,17 @@ export function executePendingInvoiceWrite(
 }
 
 /** Record the owner decision + transition the shared approval card too. */
-export function noteOwnerDecision(
+export async function noteOwnerDecision(
   dataDir: string,
   tenantId: string,
   approvalActionId: string,
   decision: "approved" | "rejected",
   owner: string,
-): void {
+): Promise<void> {
   const ptw = listPendingWrites(dataDir, tenantId).find((w) => w.approvalActionId === approvalActionId);
   if (!ptw || ptw.status !== "pending") return; // idempotent
   if (decision === "approved") {
-    const res = executePendingInvoiceWrite(dataDir, tenantId, approvalActionId, owner);
+    const res = await executePendingInvoiceWrite(dataDir, tenantId, approvalActionId, owner);
     markApproved(tenantId, approvalActionId, owner, { result: res.ok ? { status: res.record.status, invoiceId: res.record.id } : undefined, ...(res.ok ? {} : { resultError: res.reason }) }, dataDir);
   } else {
     markPendingWrite(dataDir, tenantId, ptw.id, "rejected", owner);

@@ -25,6 +25,10 @@ export const VALID_WORKSPACE_PREFERENCES: readonly WorkspacePreference[] = [
 ] as const;
 
 export interface TenantSettings {
+  /** Human display name of the workspace (Brand & Profile → "Company name").
+   *  The ONLY source of the customer-facing issuer name on invoices — an id
+   *  is never a substitute (see native/invoice/issuer.ts). */
+  companyName?: string;
   workspacePreference?: WorkspacePreference;
   /** Approval Queue mode: "on" (default — writes await human approval) or
    *  "auto" (explicit per-tenant opt-out: writes execute immediately). */

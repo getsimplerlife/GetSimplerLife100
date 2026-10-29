@@ -9,13 +9,17 @@
  */
 import {
   handleNativeInvoicesAuthed,
+  handleNativeInvoiceShare,
   registerBuiltinNativeInvoiceEventTypes,
   type NativeInvoicesCtx,
+  type NativeInvoicePublicCtx,
 } from "./router";
 import { submitInvoiceWrite, executePendingInvoiceWrite, noteOwnerDecision } from "./gate";
 import { renderInvoicePdf, invoiceHtml, invoiceTotalCents, formatCurrency } from "./generate";
+import { resolveIssuerDisplayName, NEUTRAL_ISSUER_LABEL } from "./issuer";
 export {
   handleNativeInvoicesAuthed,
+  handleNativeInvoiceShare,
   registerBuiltinNativeInvoiceEventTypes,
   submitInvoiceWrite,
   executePendingInvoiceWrite,
@@ -24,5 +28,7 @@ export {
   invoiceHtml,
   invoiceTotalCents,
   formatCurrency,
+  resolveIssuerDisplayName,
+  NEUTRAL_ISSUER_LABEL,
 };
-export type { NativeInvoicesCtx };
+export type { NativeInvoicesCtx, NativeInvoicePublicCtx };
