@@ -148,6 +148,8 @@ export function applyInvoiceMutation(
     shareSlug?: string;
     customerEmail?: string;
     lastAttempt?: InvoiceDeliveryAttempt;
+    /** Truthful "a payment was STARTED" stamp — never a "paid" claim. */
+    paymentStartedAt?: string;
   },
   actor: string,
 ): InvoiceRecord | null {
@@ -166,6 +168,7 @@ export function applyInvoiceMutation(
     ...(mutation.shareSlug !== undefined ? { shareSlug: mutation.shareSlug } : {}),
     ...(mutation.customerEmail !== undefined ? { customerEmail: mutation.customerEmail } : {}),
     ...(mutation.lastAttempt !== undefined ? { lastAttempt: mutation.lastAttempt } : {}),
+    ...(mutation.paymentStartedAt !== undefined ? { paymentStartedAt: mutation.paymentStartedAt } : {}),
     version: inv.version + 1,
     updatedAt: now,
     updatedBy: actor,

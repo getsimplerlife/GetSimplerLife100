@@ -38,6 +38,17 @@ interface InvoiceItem {
   date?: string | null;
   status?: string | null;
 }
+/**
+ * The workspace's own Stripe connection, as the API reports it. The key itself
+ * is never part of this shape — only `connected`, a masked hint (last 4), the
+ * mode and when it was added.
+ */
+interface StripeStatus {
+  connected: boolean;
+  hint: string | null;
+  keyMode: "live" | "test" | null;
+  addedAt: string | null;
+}
 
 const verticalIndustries = [
   "Aerospace & Defense",
@@ -66,7 +77,7 @@ const verticalIndustries = [
 ];
 
 function UnifiedSettingsHub() {
-  const [activeTab, setActiveTab] = useState<"profile" | "connections" | "billing">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "connections" | "payments" | "billing">("profile");
 
   // 1. Business Profile states
   const [companyName, setCompanyName] = useState("");
@@ -92,6 +103,13 @@ function UnifiedSettingsHub() {
   const [, setProviders] = useState<ProviderItem[]>([]);
   const [connections, setConnections] = useState<ConnectionItem[]>([]);
   const [loadingConns, setLoadingConns] = useState(false);
+
+  // 2b. Payments — the workspace's OWN Stripe account (invoices are paid
+  // directly into it; we never hold or move a customer's money).
+  const [stripeStatus, setStripeStatus] = useState<StripeStatus | null>(null);
+  const [stripeKeyInput, setStripeKeyInput] = useState("");
+  const [stripeBusy, setStripeBusy] = useState(false);
+  const [stripeError, setStripeError] = useState("");
 
   // 3. Plan & Billing states
   const [activePlan, setActivePlan] = useState("");
@@ -189,10 +207,67 @@ function UnifiedSettingsHub() {
   };
 
   // Handle Tab switches and load corresponding data
-  const handleTabSwitch = (tab: "profile" | "connections" | "billing") => {
+  const handleTabSwitch = (tab: "profile" | "connections" | "payments" | "billing") => {
     setActiveTab(tab);
     if (tab === "connections") fetchConnectionsData();
+    if (tab === "payments") fetchStripeStatus();
     if (tab === "billing") fetchBillingData();
+  };
+
+  // ── Payments: the workspace's own Stripe account ──────────────────────────
+  const fetchStripeStatus = async () => {
+    try {
+      const res = await fetch("/api/native/invoice/stripe", { credentials: "include" });
+      if (!res.ok) return;
+      const json = await res.json();
+      setStripeStatus(json.data as StripeStatus);
+    } catch {
+      /* a status read failure is not an error the user can act on */
+    }
+  };
+  const handleConnectStripe = async () => {
+    const secretKey = stripeKeyInput.trim();
+    setStripeError("");
+    if (!secretKey) {
+      setStripeError("Paste your Stripe secret key first.");
+      return;
+    }
+    setStripeBusy(true);
+    try {
+      const res = await fetch("/api/native/invoice/stripe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ secretKey }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setStripeError(json.error || "Could not save that key.");
+        return;
+      }
+      setStripeStatus(json.data as StripeStatus);
+      // Never keep the pasted key in memory longer than the request.
+      setStripeKeyInput("");
+      setFeedback("Stripe connected — your invoices can now be paid online, straight into your own Stripe account.");
+    } finally {
+      setStripeBusy(false);
+    }
+  };
+  const handleDisconnectStripe = async () => {
+    setStripeError("");
+    setStripeBusy(true);
+    try {
+      const res = await fetch("/api/native/invoice/stripe", { method: "DELETE", credentials: "include" });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setStripeError(json.error || "Could not disconnect Stripe.");
+        return;
+      }
+      setStripeStatus(json.data as StripeStatus);
+      setFeedback("Stripe disconnected — invoices go back to “payment arranged with the issuer”.");
+    } finally {
+      setStripeBusy(false);
+    }
   };
 
   // Handle Profile Update Save
@@ -291,6 +366,7 @@ function UnifiedSettingsHub() {
         {[
           { id: "profile", label: "🏢 Business Profile", desc: "Corporate profile & brand values" },
           { id: "connections", label: "📥 Import History", desc: "One-shot imports of your tool data" },
+          { id: "payments", label: "💸 Payments", desc: "Your own Stripe account for invoice payments" },
           { id: "billing", label: "💳 Plan & Billing", desc: "Subscriptions & invoice history" }
         ].map((tab) => (
           <button
@@ -719,6 +795,92 @@ function UnifiedSettingsHub() {
           </div>
         )}
 
+        {/* TAB 2b: PAYMENTS — the workspace's own Stripe account */}
+        {activeTab === "payments" && (
+          <div className="bg-stone-950 border border-stone-900 rounded-[2rem] p-6 md:p-8 space-y-6 animate-fadeIn">
+            <div className="border-b border-stone-900 pb-4">
+              <h3 className="text-xl font-black text-white">Get paid on your invoices</h3>
+              <p className="text-xs text-stone-500 mt-1 max-w-3xl">
+                Connect your own Stripe account and your clients get a real <strong>Pay</strong> button on the invoice
+                page you send them. The payment goes straight into your Stripe account — we never hold, collect or
+                forward your customers&apos; money.
+              </p>
+            </div>
+
+            {stripeStatus?.connected ? (
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4">
+                  <span className="text-emerald-400 text-lg">✓</span>
+                  <div className="min-w-0">
+                    <div className="text-sm font-bold text-white">
+                      Connected — key ending {stripeStatus.hint}
+                    </div>
+                    <p className="text-xs text-stone-400">
+                      {stripeStatus.keyMode === "live" ? "Live mode" : "Test mode"}
+                      {stripeStatus.addedAt ? ` · added ${new Date(stripeStatus.addedAt).toLocaleDateString()}` : ""}
+                      {" · "}payments settle in your own Stripe account
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Link
+                    to="/portal/invoices"
+                    className="bg-stone-900 hover:bg-stone-800 text-emerald-400 font-bold text-xs px-5 py-3 rounded-2xl border border-stone-800"
+                  >
+                    Go to invoices
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={handleDisconnectStripe}
+                    disabled={stripeBusy}
+                    className="bg-stone-900 hover:bg-red-950 text-red-400 font-bold text-xs px-5 py-3 rounded-2xl border border-stone-800 disabled:opacity-50"
+                  >
+                    {stripeBusy ? "Disconnecting…" : "Disconnect Stripe"}
+                  </button>
+                </div>
+                <p className="text-xs text-stone-500">
+                  Disconnecting revokes the stored key immediately. Invoices already sent keep working, but their page
+                  stops offering online payment and says payment is arranged with you.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4 text-xs text-amber-200">
+                  No Stripe account connected. Your invoice pages currently say payment is arranged directly with you —
+                  there is no Pay button and no card is charged anywhere.
+                </div>
+                <div className="space-y-2 max-w-xl">
+                  <label className="block font-bold uppercase tracking-wider text-stone-500 text-xs">
+                    Your Stripe secret key
+                  </label>
+                  <input
+                    type="password"
+                    autoComplete="off"
+                    spellCheck={false}
+                    value={stripeKeyInput}
+                    onChange={(e) => setStripeKeyInput(e.target.value)}
+                    placeholder="sk_… or rk_… (secret or restricted key)"
+                    className="w-full bg-stone-900 border border-stone-800/80 rounded-xl px-4 py-3 outline-none text-white focus:ring-2 focus:ring-emerald-500/50 transition-all font-mono text-sm"
+                  />
+                  <p className="text-xs text-stone-500">
+                    In your Stripe dashboard, open Developers and copy your secret key (a restricted key with write
+                    access to Checkout Sessions is enough). The key is encrypted before it is stored, is never shown
+                    again after you save it, and can be revoked here at any time.
+                  </p>
+                  {stripeError && <p className="text-xs text-red-400">{stripeError}</p>}
+                  <button
+                    type="button"
+                    onClick={handleConnectStripe}
+                    disabled={stripeBusy}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-5 py-3 rounded-xl shadow-lg transition-all disabled:opacity-50"
+                  >
+                    {stripeBusy ? "Saving…" : "Connect Stripe"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
         {/* TAB 3: PLAN & BILLING */}
         {activeTab === "billing" && (
           <div className="space-y-8 animate-fadeIn">

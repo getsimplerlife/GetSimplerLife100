@@ -3,9 +3,18 @@ import { Card, Badge } from "~/components/ui";
 
 /**
  * Public invoice page — what the CUSTOMER sees from the emailed link.
- * Read-only by design: no editing, no payment button, no tenant data beyond
- * this one invoice. The server refuses (404) any slug that is unknown, stale,
- * or belongs to an invoice that was not genuinely sent.
+ * Read-only except for the ONE action a customer needs: paying it. When the
+ * issuing firm has connected its own Stripe account, a real "Pay {amount}"
+ * button hands off to a Stripe Checkout Session created on THAT FIRM'S account
+ * (the money goes to them, never to us). When they have not connected one, the
+ * page says plainly that payment is arranged with the issuer and shows no
+ * button at all.
+ *
+ * The page never claims the invoice is paid: without a webhook from the firm's
+ * own Stripe account we cannot know that, so after a checkout return it says the
+ * payment was submitted and that the issuer confirms it.
+ * The server refuses (404) any slug that is unknown, stale, or belongs to an
+ * invoice that was not genuinely sent.
  */
 interface ShareLineItem {
   description: string;
@@ -25,6 +34,10 @@ interface InvoiceView {
   status: string;
   hasPdf: boolean;
   pdfPath: string;
+  /** TRUE only when the issuing firm connected its own Stripe account. */
+  canPay: boolean;
+  /** Truthful "a payment was started" stamp — never a "paid" claim. */
+  paymentStartedAt: string | null;
 }
 
 function money(cents: number, currency: string): string {
@@ -33,9 +46,12 @@ function money(cents: number, currency: string): string {
 
 export default function InvoiceSharePage() {
   const slug = (window.location.pathname.match(/\/invoices\/share\/([^/]+)/) || [])[1] || "";
+  const checkoutState = new URLSearchParams(window.location.search).get("checkout");
   const [view, setView] = useState<InvoiceView | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [payError, setPayError] = useState("");
+  const [paying, setPaying] = useState(false);
 
   useEffect(() => {
     if (!slug) {
@@ -49,6 +65,25 @@ export default function InvoiceSharePage() {
       .catch(() => setError("Invoice not found — this link may have expired or the invoice was never sent."))
       .finally(() => setLoading(false));
   }, [slug]);
+
+  async function pay() {
+    setPayError("");
+    setPaying(true);
+    try {
+      const res = await fetch(`/api/native/invoice/share/${encodeURIComponent(slug)}/pay`, { method: "POST" });
+      const json = await res.json().catch(() => ({}));
+      const url = json?.data?.checkoutUrl as string | undefined;
+      if (!res.ok || !url) {
+        setPayError(json?.error || "We could not start the payment. Please try again or contact the issuer.");
+        return;
+      }
+      window.location.href = url;
+    } catch {
+      setPayError("We could not reach the payment provider. Please try again or contact the issuer.");
+    } finally {
+      setPaying(false);
+    }
+  }
 
   if (loading) return <div className="p-8 text-stone-500">Loading invoice…</div>;
   if (!view) {
@@ -114,10 +149,56 @@ export default function InvoiceSharePage() {
             Download PDF
           </a>
         )}
-        <p className="mt-3 text-xs text-stone-500">
-          Payment is arranged directly with {view.issuerName}. This page is a read-only copy of the invoice and does not
-          take payment.
-        </p>
+      </Card>
+
+      {/* PAY — only when the issuing firm connected its own Stripe account. */}
+      <Card className="mt-4">
+        {checkoutState === "return" ? (
+          <div>
+            <p className="text-sm font-medium text-emerald-700">
+              Thank you — your payment was submitted to {view.issuerName}.
+            </p>
+            <p className="mt-1 text-xs text-stone-600">
+              Stripe handled the card payment on {view.issuerName}&apos;s own account and sent you a receipt. They will
+              confirm it on their side — this page cannot mark the invoice as paid by itself.
+            </p>
+          </div>
+        ) : view.canPay ? (
+          <div>
+            <button
+              type="button"
+              onClick={pay}
+              disabled={paying}
+              className="w-full rounded bg-emerald-600 px-4 py-3 text-base font-semibold text-white hover:bg-emerald-700 disabled:opacity-60 sm:w-auto"
+            >
+              {paying ? "Starting secure checkout…" : `Pay ${money(view.amountDueCents, view.currency)}`}
+            </button>
+            <p className="mt-2 text-xs text-stone-500">
+              You will be taken to a secure Stripe checkout. The payment goes directly to {view.issuerName}.
+            </p>
+            {view.paymentStartedAt && (
+              <p className="mt-1 text-xs text-stone-500">
+                A payment was started on {new Date(view.paymentStartedAt).toLocaleString()} — if you did not finish it,
+                you can start again above.
+              </p>
+            )}
+            {checkoutState === "cancelled" && (
+              <p className="mt-2 text-xs text-amber-600">No payment was taken — you cancelled the checkout.</p>
+            )}
+            {payError && <p className="mt-2 text-xs text-red-600">{payError}</p>}
+          </div>
+        ) : (
+          <div>
+            <p className="text-sm text-stone-700">
+              Payment is arranged directly with {view.issuerName} — this page does not take payment.
+            </p>
+            {view.paymentStartedAt && (
+              <p className="mt-1 text-xs text-stone-500">
+                A payment was started on {new Date(view.paymentStartedAt).toLocaleString()}.
+              </p>
+            )}
+          </div>
+        )}
       </Card>
     </div>
   );

@@ -15,12 +15,22 @@
  *     never public),
  *   - the view carries ONLY that one invoice (number, amounts, line items,
  *     due date, issuer, bill-to) — no ids, no listing, no other records.
- * There is deliberately NO payment endpoint here (payment is out of scope).
+ *
+ * PAYMENT (slice 134): `POST /api/native/invoice/share/:slug/pay` creates a
+ * Stripe Checkout Session on the ISSUING TENANT'S OWN Stripe account (their
+ * key, their account — we never hold or move the money) and returns the hosted
+ * checkout URL. It is the ONE write on the public lane, and it writes only
+ * `paymentStartedAt` — never "paid": confirming a payment needs a webhook from
+ * the tenant's own Stripe account, which is out of scope, so claiming "paid"
+ * would be the same class of lie as the old "sent" bug.
+ * A tenant with no Stripe connection gets an honest 409 and NO outbound call.
  *
  * Route parsing uses EXPLICIT SEGMENTS, not a two-capture regex — avoids the
  * Phase 1.4 rowMatch/idMatch shadowing bug class entirely (2.1–2.4 discipline).
  */
 import { registerNativeEventType } from "../webhooks/registry";
+import { publishWebhookEvent, flushTenantDeliveries } from "../webhooks/outbound";
+import { randomBytes } from "node:crypto";
 import {
   listInvoices,
   getInvoice,
@@ -29,10 +39,15 @@ import {
   listPendingWrites,
   getPendingWriteById,
   listAudit,
+  applyInvoiceMutation,
+  appendAudit,
 } from "./store";
 import { submitInvoiceWrite, executePendingInvoiceWrite, noteOwnerDecision, createInvoiceMutationFromInput } from "./gate";
 import { resolveIssuerDisplayName } from "./issuer";
 import { isInvoiceId } from "./validate";
+import { publicOrigin } from "./delivery";
+import { connectTenantStripe, disconnectTenantStripe, getTenantStripeStatus } from "./stripe-connect";
+import { createTenantCheckoutSession } from "./stripe-checkout";
 import { getDealRoom } from "../dealroom/store";
 import { readDocumentBytes, getDoc } from "../documents/store";
 import type { InvoiceRecord } from "./types";
@@ -88,8 +103,21 @@ function summary(i: {
  * No record ids, no docId, no deal-room id, no audit, no other records.
  * `issuerName` is a human DISPLAY NAME resolved by issuer.ts — never the
  * tenant id (the workspace account identifier) and never an entity id.
+ *
+ * `canPay` is TRUE only when the ISSUING TENANT has connected its own Stripe
+ * account; the page then renders a real "Pay {amount}" button. It carries no
+ * hint, no mode and no key material — the customer learns nothing about the
+ * tenant's credentials, only that this invoice can be paid online.
+ * `paymentStartedAt` is the truthful "a payment was started" stamp — never a
+ * "paid" claim (confirming a payment would need a webhook, which is out of
+ * scope).
  */
-export function publicInvoiceView(inv: InvoiceRecord, billToName: string, issuerName: string): Record<string, unknown> {
+export function publicInvoiceView(
+  inv: InvoiceRecord,
+  billToName: string,
+  issuerName: string,
+  canPay = false,
+): Record<string, unknown> {
   return {
     invoiceNumber: inv.invoiceNumber,
     issuerName,
@@ -107,6 +135,8 @@ export function publicInvoiceView(inv: InvoiceRecord, billToName: string, issuer
     status: inv.status,
     hasPdf: inv.docId !== null,
     pdfPath: `/api/native/invoice/share/${inv.shareSlug}/pdf`,
+    canPay,
+    paymentStartedAt: inv.paymentStartedAt ?? null,
   };
 }
 
@@ -178,6 +208,33 @@ async function handleAuthedAsync(req: Request, ctx: NativeInvoicesCtx): Promise<
     return Response.json({ data: listAudit(dataDir, tenantId) });
   }
 
+  // ── /api/native/invoice/stripe — the TENANT'S OWN Stripe connection ──
+  // GET    → { connected, hint (last 4), keyMode, addedAt } — never the key.
+  // POST   → { secretKey } validated BEFORE anything is stored/audited.
+  // DELETE → revoke (subsequent pay attempts fail closed immediately).
+  // Credential management, not a business-data write: same class as the
+  // import/OAuth connect lanes, so it does not ride the Approval Queue — but
+  // every change is audited immutably with the MASK only.
+  if (seg[0] === "stripe" && seg.length === 1) {
+    if (req.method === "GET") {
+      return Response.json({ data: getTenantStripeStatus(dataDir, tenantId) });
+    }
+    if (req.method === "POST") {
+      const raw = await req.text();
+      const b = parseJsonObject(raw);
+      if (typeof b.secretKey !== "string") return json400("Paste your Stripe secret key.");
+      const res = connectTenantStripe(dataDir, tenantId, tenantId, b.secretKey);
+      if (!res.ok) return json400(res.error);
+      // The response carries the masked status only — never the submitted key.
+      return Response.json({ data: res.status });
+    }
+    if (req.method === "DELETE") {
+      const removed = disconnectTenantStripe(dataDir, tenantId, tenantId);
+      return Response.json({ data: { ...getTenantStripeStatus(dataDir, tenantId), removed } });
+    }
+    return Response.json({ error: "Method not allowed" }, { status: 405 });
+  }
+
   // ── /api/native/invoice/:id[/verb] ──
   if (!isInvoiceId(seg[0])) return json404("Unknown native invoice endpoint");
   const invoiceId = seg[0];
@@ -239,7 +296,28 @@ export function handleNativeInvoicesAuthed(req: Request, ctx: NativeInvoicesCtx)
   });
 }
 
-// ── PUBLIC share (customer read-only view + PDF download) ───────────────────
+// ── PUBLIC share (customer read-only view + PDF download + pay handoff) ─────
+const NO_STORE = { "cache-control": "no-store", "x-robots-tag": "noindex, nofollow" } as const;
+
+/**
+ * Fixed-window rate limit for the public pay lane (slug → bucket). A customer
+ * legitimately needs a handful of attempts; an abuser must not be able to spin
+ * up thousands of Checkout Sessions on the tenant's own Stripe account.
+ */
+const PAY_RATE_LIMIT = 10;
+const PAY_RATE_WINDOW_MS = 10 * 60_000;
+const payBuckets = new Map<string, { count: number; resetAt: number }>();
+function payRateLimited(slug: string): boolean {
+  const now = Date.now();
+  const b = payBuckets.get(slug);
+  if (!b || b.resetAt <= now) {
+    payBuckets.set(slug, { count: 1, resetAt: now + PAY_RATE_WINDOW_MS });
+    return false;
+  }
+  b.count += 1;
+  return b.count > PAY_RATE_LIMIT;
+}
+
 async function handleShareAsync(req: Request, ctx: NativeInvoicePublicCtx): Promise<Response> {
   const url = new URL(req.url);
   const seg = url.pathname.replace(/^\/api\/native\/invoice\/share\/?/, "").split("/").filter(Boolean);
@@ -253,6 +331,56 @@ async function handleShareAsync(req: Request, ctx: NativeInvoicePublicCtx): Prom
   // FAIL-CLOSED: only a genuinely SENT invoice is public. A draft, an in-flight
   // dispatch (queued) or a failed delivery never resolves on the public lane.
   if (invoice.status !== "sent") return json404("Unknown invoice share link");
+
+  // ── PAY (the only write on the public lane) ──
+  // Creates a Checkout Session on the ISSUING TENANT'S OWN Stripe account.
+  // The amount/currency come from the invoice RECORD — this handler reads no
+  // request body at all, so a payer can never influence what is charged.
+  if (seg.length === 2 && seg[1] === "pay") {
+    if (req.method !== "POST") return Response.json({ error: "Method not allowed" }, { status: 405 });
+    if (payRateLimited(slug)) {
+      return Response.json(
+        { error: "Too many payment attempts on this invoice. Please wait a few minutes and try again." },
+        { status: 429, headers: NO_STORE },
+      );
+    }
+    const base = `${publicOrigin()}/invoices/share/${slug}`;
+    const res = await createTenantCheckoutSession({
+      dataDir: ctx.dataDir,
+      tenantId,
+      invoice,
+      successUrl: `${base}?checkout=return`,
+      cancelUrl: `${base}?checkout=cancelled`,
+    });
+    if (!res.ok) {
+      // not_connected / invalid_amount → 409 (nothing to pay online, honestly);
+      // provider_error → 502 (the provider failed; no payment was started).
+      const status = res.reason === "provider_error" ? 502 : 409;
+      return Response.json({ error: res.message }, { status, headers: NO_STORE });
+    }
+    // TRUTHFUL STATE: a payment was STARTED. Never "paid" — we cannot know
+    // that without a webhook from the tenant's own Stripe account.
+    const now = new Date().toISOString();
+    const updated = applyInvoiceMutation(ctx.dataDir, tenantId, invoice.id, { paymentStartedAt: now }, "customer");
+    appendAudit(ctx.dataDir, {
+      tenantId,
+      actor: "customer",
+      action: "native.invoice.payment.started",
+      invoiceId: invoice.id,
+      detail: `Customer started a payment for invoice ${invoice.invoiceNumber} (${invoice.currency} ${(invoice.amountDueCents / 100).toFixed(2)}) on the workspace's own Stripe account — session ${res.sessionId}. The invoice is NOT marked paid: confirming a payment needs a webhook from the workspace's Stripe account, which is not enabled.`,
+    });
+    publishPublicEvent(ctx.dataDir, tenantId, "native.invoice.payment.started", {
+      invoiceId: invoice.id,
+      invoiceNumber: invoice.invoiceNumber,
+      currency: invoice.currency,
+      amountDueCents: invoice.amountDueCents,
+      sessionId: res.sessionId,
+    });
+    return Response.json(
+      { data: { checkoutUrl: res.url, paymentStartedAt: updated?.paymentStartedAt ?? now } },
+      { headers: NO_STORE },
+    );
+  }
 
   if (seg.length === 2) {
     if (seg[1] !== "pdf") return json404("Unknown invoice share link");
@@ -273,21 +401,50 @@ async function handleShareAsync(req: Request, ctx: NativeInvoicePublicCtx): Prom
   }
   if (req.method !== "GET") return Response.json({ error: "Method not allowed" }, { status: 405 });
   const dealRoom = getDealRoom(ctx.dataDir, tenantId, invoice.linkedDealRoomId);
+  // The customer learns ONLY whether this invoice can be paid online — never
+  // the tenant's connection hint, mode or key material.
+  const canPay = getTenantStripeStatus(ctx.dataDir, tenantId).connected;
   return Response.json(
     {
       data: publicInvoiceView(
         invoice,
         dealRoom?.customerName || "Customer",
         resolveIssuerDisplayName(tenantId, ctx.dataDir),
+        canPay,
       ),
     },
-    { headers: { "cache-control": "no-store", "x-robots-tag": "noindex, nofollow" } },
+    { headers: NO_STORE },
   );
 }
 
 /** Public lane entry point — never leaks internals, never throws past the 404. */
 export function handleNativeInvoiceShare(req: Request, ctx: NativeInvoicePublicCtx): Promise<Response> {
   return handleShareAsync(req, ctx).catch(() => json404("Unknown invoice share link"));
+}
+
+/**
+ * Typed event emitted AFTER the durable record (Phase 1.1 outbound, 2.1–2.4
+ * discipline). Best-effort: a webhook that cannot be queued never undoes a
+ * payment handoff that already happened at the provider.
+ */
+function publishPublicEvent(
+  dataDir: string,
+  tenantId: string,
+  eventType: string,
+  payload: Record<string, unknown>,
+): void {
+  try {
+    const n = publishWebhookEvent(
+      dataDir,
+      tenantId,
+      eventType,
+      { ...payload, eventId: `evt_${randomBytes(8).toString("hex")}` },
+      "native-invoices",
+    );
+    if (n > 0) void flushTenantDeliveries(dataDir, tenantId).catch(() => undefined);
+  } catch {
+    /* event publish is best-effort after the durable record */
+  }
 }
 
 // ── Built-in typed events (Phase 1.1 registry pattern, 2.1–2.4) ─────────────
@@ -309,6 +466,7 @@ export function registerBuiltinNativeInvoiceEventTypes(): void {
     "native.invoice.sent",
     "native.invoice.failed",
     "native.invoice.deleted",
+    "native.invoice.payment.started",
   ]) {
     registerNativeEventType(t, base);
   }

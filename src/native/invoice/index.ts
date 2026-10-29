@@ -17,6 +17,8 @@ import {
 import { submitInvoiceWrite, executePendingInvoiceWrite, noteOwnerDecision } from "./gate";
 import { renderInvoicePdf, invoiceHtml, invoiceTotalCents, formatCurrency } from "./generate";
 import { resolveIssuerDisplayName, NEUTRAL_ISSUER_LABEL } from "./issuer";
+import { getTenantStripeStatus, connectTenantStripe, disconnectTenantStripe, validateStripeSecretKey } from "./stripe-connect";
+import { createTenantCheckoutSession } from "./stripe-checkout";
 export {
   handleNativeInvoicesAuthed,
   handleNativeInvoiceShare,
@@ -30,5 +32,13 @@ export {
   formatCurrency,
   resolveIssuerDisplayName,
   NEUTRAL_ISSUER_LABEL,
+  // Slice 134 — the tenant's OWN Stripe account (pay link on the public
+  // invoice). `loadTenantStripeSecret` is deliberately NOT exported here: the
+  // decrypted key never leaves the server-side checkout module.
+  getTenantStripeStatus,
+  connectTenantStripe,
+  disconnectTenantStripe,
+  validateStripeSecretKey,
+  createTenantCheckoutSession,
 };
 export type { NativeInvoicesCtx, NativeInvoicePublicCtx };
