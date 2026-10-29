@@ -26,7 +26,7 @@
  *     old per-agent Stripe links, stale offers in the new portal page.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { createElement } from "react";
 import { renderToString } from "react-dom/server";
 import PortalImportIndexPage, { IMPORT_LANE_COPY } from "../lazy/portal.import.index.page";
@@ -90,28 +90,44 @@ describe("6.6 copy sweep — honest, client-side import framing", () => {
       ["src/lazy/you-stay-in-control.page.tsx", ["reconnected automatically", "one-click reconnect"]],
       ["src/lazy/security.page.tsx", ["a reconnect path", "reconnect-required"]],
       ["src/routes/index.tsx", ["reconnected in one click"]],
-      ["src/lazy/portal.customers.index.page.tsx", ["data routes automatically", "data flows automatically", "Universal Connector"]],
       ["src/lazy/portal.index.page.tsx", ["Connected Integrations", "Connect Tools", "Connect your first integration"]],
-      ["src/lazy/portal.crm.index.page.tsx", ["universal connector", "We integrate with"]],
-      ["src/lazy/portal.erp.index.page.tsx", ["universal connector", "We integrate with"]],
       ["src/lazy/integrations.index.page.tsx", ["synced with audit trail"]],
     ];
     for (const [file, phrases] of sweepTargets) {
+      // Skip pages retired by later cleanups — absence is pinned separately.
+      if (!existsSync(file)) continue;
       const content = readFileSync(file, "utf8").toLowerCase();
       for (const p of phrases) expect(content, `${file} must not contain "${p}"`).not.toContain(p);
+    }
+    // The crm/erp/customers pages were retired by cleanup (a) — absence pins.
+    for (const file of [
+      "src/lazy/portal.customers.index.page.tsx",
+      "src/lazy/portal.crm.index.page.tsx",
+      "src/lazy/portal.erp.index.page.tsx",
+    ]) {
+      expect(existsSync(file), `${file} must stay retired`).toBe(false);
     }
     // The replaced phrases now carry the client-side import framing.
     expect(readFileSync("src/lazy/you-stay-in-control.page.tsx", "utf8")).toContain("Bring your data in");
     expect(readFileSync("src/lazy/security.page.tsx", "utf8")).toContain("Client-side, one-shot transfers");
     expect(readFileSync("src/routes/index.tsx", "utf8")).toContain("Nothing imports on");
     expect(readFileSync("src/routes/index.tsx", "utf8")).toContain("nothing is written until you approve");
-    expect(readFileSync("src/lazy/portal.customers.index.page.tsx", "utf8")).toContain("nothing writes back");
-    expect(readFileSync("src/lazy/portal.customers.index.page.tsx", "utf8")).toContain("CRM &amp; ERP import");
+    expect(readFileSync("src/lazy/portal.import.index.page.tsx", "utf8")).toContain("nothing writes back");
     expect(readFileSync("src/lazy/portal.index.page.tsx", "utf8")).toContain("Your tool connections");
     expect(readFileSync("src/lazy/portal.index.page.tsx", "utf8")).toContain("Bring your data in — connect your first tool");
-    expect(readFileSync("src/lazy/portal.crm.index.page.tsx", "utf8")).toContain("Import lanes cover 180+");
-    expect(readFileSync("src/lazy/portal.erp.index.page.tsx", "utf8")).toContain("Import lanes cover 180+");
     expect(readFileSync("src/lazy/integrations.index.page.tsx", "utf8")).toContain("appended to the audit trail");
+    // Retired crm/erp/customers-era framing must not reappear on surviving pages.
+    const survived = sweepTargets.map(([f]) => readFileSync(f, "utf8").toLowerCase()).join("\n");
+    for (const p of [
+      "crm &amp; erp import",
+      "universal connector",
+      "we integrate with",
+      "data routes automatically",
+      "data flows automatically",
+      "import lanes cover 180+",
+    ]) {
+      expect(survived, `retired framing "${p}" must not reappear on surviving pages`).not.toContain(p);
+    }
   });
 });
 

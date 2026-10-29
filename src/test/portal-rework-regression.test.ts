@@ -47,9 +47,15 @@ describe("P0 portal rework guardrails (owner 10-22)", () => {
       "name: \"Boards\"",
       "name: \"Tasks\"",
       "name: \"Surveys\"",
-      "name: \"Inbox\"",
     ]) {
       expect(shell).toContain(p);
+    }
+    // Consolidated storage entry: Documents & Vault carries the storage
+    // triad (former Inbox / Documents / File Library entries are retired).
+    expect(shell).toContain('name: "Documents & Vault"');
+    expect(shell).toContain('path: "/portal/vault"');
+    for (const retired of ['name: "Inbox",', 'name: "Documents",', 'name: "File Library",']) {
+      expect(shell, `retired nav literal ${retired} must be absent`).not.toContain(retired);
     }
     // One-shot import entry (P0-2) with import-framing label.
     expect(shell).toContain('name: "Bring your data in"');

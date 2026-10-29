@@ -87,7 +87,12 @@ describe("C1 — ONE Connections surface: /portal/import (lanes + ledger)", () =
   });
   it("the surviving import surface still shows the honest ledger framing (history needs no second page)", () => {
     expect(IMPORT).toContain("nothing is imported until you approve");
-    expect(IMPORT).toContain('fetch("/api/native/import');
+    expect(IMPORT).toContain("approval-gated");
+    // The page reaches the ledger through its local api() wrapper — pin the
+    // real path literal plus the wrapper's ledger verbs (not a raw fetch).
+    expect(IMPORT).toContain('"/api/native/import');
+    expect(IMPORT).toContain("api(`/api/native/import/${id}/runs`);");
+    expect(IMPORT).toContain("api(`/api/native/import/${importId}/${verb}`");
   });
 });
 

@@ -6,6 +6,14 @@
  * connect-era product UI are GONE from server + product surfaces.
  * PRESENCE pins: every surface now points at the REAL import ledger +
  * real OAuth access, with honest import-lane copy and zero reconnect asks.
+ *
+ * Post-(a) adaptation (documented in the R93 PR body): consolidation folded
+ * the connected-accounts PAGE and the crm/erp pages into the single
+ * Connections surface (/portal/import) and the integrations catalog/detail
+ * pages. The pins below were adapted old→new: subjects that are physically
+ * gone are pinned as ABSENT; survivors keep presence pins on their real
+ * strings. The retained connected-accounts ENDPOINT + OAuth lib are NOT
+ * swept (they are owner/OAuth layers, out of scope for product surfaces).
  */
 import { describe, expect, it } from "vitest";
 import { readFileSync, existsSync, mkdtempSync, writeFileSync, rmSync, readdirSync, statSync } from "fs";
@@ -111,17 +119,31 @@ describe("cleanup-a2 — persistent-connect RETIRED (absence)", () => {
 
 describe("cleanup-a2 — import-history reframe (presence)", () => {
   const dirSrc = productFiles().map(cat).join("\n");
-  const connPage = cat(join(REPO, "src", "lazy", "portal.connected-accounts.index.page.tsx"));
-
-  it("connected-accounts page IS the import-history surface backed by the real ledger", () => {
-    expect(connPage.includes("Import History")).toBe(true);
-    expect(connPage.includes("/api/native/import?limit=100")).toBe(true);
-    expect(connPage.includes("Bring your data in")).toBe(true);
-    // honest no-persistence framing
-    expect(connPage.includes("Nothing stays connected.")).toBe(true);
+  it("the single Connections surface (import page) IS the ledger surface — the connected-accounts page is retired", () => {
+    // (a) folded the connected-accounts page into the import page: gone.
+    expect(existsSync(join(REPO, "src", "lazy", "portal.connected-accounts.index.page.tsx"))).toBe(false);
+    expect(existsSync(join(REPO, "src", "routes", "portal.connected-accounts.index.tsx"))).toBe(false);
+    // The survivor carries the honest ledger framing (real /api/native/import
+    // path + approval-gated, nothing-imported-until-approve copy).
+    const imp = cat(join(REPO, "src", "lazy", "portal.import.index.page.tsx"));
+    expect(imp.includes('"/api/native/import')).toBe(true);
+    expect(imp.includes("nothing is imported until you approve")).toBe(true);
+    expect(imp.includes("approval-gated")).toBe(true);
   });
-
-  it("import-lane framing is present on crm/erp/catalog/detail surfaces", () => {
+  it("import-lane framing survives on the integrations catalog + detail; crm/erp pages are retired", () => {
+    // (a) folded crm/erp away — the pages are physically gone (absence pins).
+    expect(existsSync(join(REPO, "src", "lazy", "portal.crm.index.page.tsx"))).toBe(false);
+    expect(existsSync(join(REPO, "src", "lazy", "portal.erp.index.page.tsx"))).toBe(false);
+    // Catalog arm — the surviving integrations index carries the lane framing.
+    const catalog = cat(join(REPO, "src", "lazy", "portal.integrations.index.page.tsx"));
+    expect(catalog.includes("Nothing stays connected")).toBe(true);
+    expect(catalog.includes("Import from ")).toBe(true);
+    expect(catalog.includes("View import history")).toBe(true);
+    // Detail arm — the provider detail page too.
+    const detail = cat(join(REPO, "src", "lazy", "portal.integrations.$id.page.tsx"));
+    expect(detail.includes("Nothing stays connected")).toBe(true);
+    expect(detail.includes("Import from ")).toBe(true);
+    // Aggregate net unchanged: the framed phrases exist across the product surface.
     expect(dirSrc.includes("Nothing stays connected.")).toBe(true);
     expect(dirSrc.includes("Import from ")).toBe(true);
     expect(dirSrc.includes("View import history")).toBe(true);

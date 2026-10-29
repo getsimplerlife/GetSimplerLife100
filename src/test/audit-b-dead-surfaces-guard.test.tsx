@@ -105,10 +105,11 @@ describe("AUDIT-B — dead surfaces retired + vocab coverage extended", () => {
       expect(audit).toMatch(/log\.timestamp/);
       expect(audit).not.toMatch(/recentErrors|bySeverity/);
     });
-    it("File library view-audit uses the real POST /api/portal/files handler", () => {
-      const files = lazSrc.find(([n]) => n.includes("portal.files.index.page"))?.[1] ?? "";
-      expect(files).not.toContain("files/view");
-      expect(files).toMatch(/await fetch\("\/api\/portal\/files", \{/);
+    it("File Library page is retired; the /api/portal/files server section keeps no files/view residue", () => {
+      // (a) folded File Library into the vault surface — the lazy page is gone.
+      const filesLazy = lazSrc.filter(([n]) => n.includes("portal.files.index.page"));
+      expect(filesLazy.map(([n]) => n)).toEqual([]);
+      // Server arm unchanged: the real handler section keeps no files/view residue.
       const hal = serverSrc.slice(serverSrc.indexOf("// ── /api/portal/files"));
       expect(hal).not.toMatch(/files\/view/);
     });
