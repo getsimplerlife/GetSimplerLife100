@@ -794,56 +794,6 @@ async function handleFetch(req: Request): Promise<Response> {
       return Response.json({ data: userData });
     }
 
-    // ── /api/data/inbox (GET + POST) ───────────────────────────────
-    if (pathname === "/api/data/inbox") {
-      const user = await getUserFromSession(req);
-      if (user === null || user === undefined) return Response.json({ error: "Not authenticated" }, { status: 401 });
-      const INBOX_FILE = join(DATA_DIR, "tenant_inbox.json");
-      if (req.method === "POST") {
-        try {
-          const body = await req.json();
-          const { action, resource } = body;
-          if (action && resource) {
-            const all = readJSON(INBOX_FILE);
-            const userMessages = all[user.email] || [];
-            if (action === "mark_read") {
-              const msg = userMessages.find((m: any) => m.id === resource);
-              if (msg) msg.read = true;
-            } else if (action === "archive" || action === "delete") {
-              all[user.email] = userMessages.filter((m: any) => m.id !== resource);
-            }
-            writeJSON(INBOX_FILE, all);
-          }
-          console.log(`[inbox] POST by ${user.email}:`, body);
-          return Response.json({ success: true });
-        } catch (e: any) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
-          return Response.json({ error: "Invalid request" }, { status: 400 });
-        }
-      }
-      const data = readJSON(INBOX_FILE);
-      const userData = Array.isArray(data) ? data : (data[user.email] || []);
-      return Response.json({ data: userData });
-    }
-
-    // ── /api/data/notifications (GET + POST) ───────────────────────
-    if (pathname === "/api/data/notifications") {
-      const user = await getUserFromSession(req);
-      if (user === null || user === undefined) return Response.json({ error: "Not authenticated" }, { status: 401 });
-      const NOTIFS_FILE = join(DATA_DIR, "tenant_notifications.json");
-      if (req.method === "POST") {
-        try {
-          const body = await req.json();
-          console.log(`[notifications] POST by ${user.email}:`, body);
-          return Response.json({ success: true });
-        } catch (e: any) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
-          return Response.json({ error: "Invalid request" }, { status: 400 });
-        }
-      }
-      const data = readJSON(NOTIFS_FILE);
-      const userData = Array.isArray(data) ? data : (data[user.email] || []);
-      return Response.json({ data: userData });
-    }
-
     // ── /api/data/customers (GET) ──────────────────────────────────
     if (pathname === "/api/data/customers") {
       const user = await getUserFromSession(req);
@@ -2781,6 +2731,17 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
       // 10-23) — the /portal/api page and the settings Developer-Keys tab
       // are retired. The retired path answers fail-closed 404 JSON; an
       // authenticated caller can never read, mint, or revoke a key here.
+      // Cleanup (a) 10-29: the folded-away messaging inbox store and the
+      // unwired notifications store never served the bell (it reads the live
+      // workspace feed), and the purchases subPath has no anonymous store
+      // file — real purchase records live behind /api/purchases. All three
+      // retired subPaths answer fail-closed 404 JSON; an authenticated
+      // caller can never read a pretend store here.
+      if (subPath === "inbox" || subPath === "inbox/" ||
+          subPath === "notifications" || subPath === "notifications/" ||
+          subPath === "purchases" || subPath === "purchases/") {
+        return Response.json({ error: "not found" }, { status: 404 });
+      }
       if (subPath === "api" || subPath === "api/") {
         return Response.json({ error: "not found" }, { status: 404 });
       }

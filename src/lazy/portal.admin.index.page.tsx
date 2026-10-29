@@ -14,7 +14,9 @@ function AdminIndex() {
       try {
         const [usersRes, auditsRes, logsRes] = await Promise.all([
           fetch("/api/admin/users", { credentials: "include" }),
-          fetch("/api/data/purchases", { credentials: "include" }),
+          // R4 (cleanup a): the anonymous purchases subPath never existed
+          // (always an empty array). Read the REAL per-tenant purchase records instead.
+          fetch("/api/purchases", { credentials: "include" }),
           fetch("/api/audit-logs", { credentials: "include" }),
         ]);
         const usersJson = usersRes.ok ? await usersRes.json() : { data: [] };

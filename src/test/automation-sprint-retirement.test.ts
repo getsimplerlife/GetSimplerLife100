@@ -12,7 +12,9 @@ import { describe, expect, it } from "vitest";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-const USER_DIRS = ["src/routes", "src/lazy", "src/components"];
+// Cleanup (a) 10-29: scan roots extended to src/api so a retired
+// SKU/phrase can never return inside the unmounted api-router files either.
+const USER_DIRS = ["src/routes", "src/lazy", "src/components", "src/api"];
 // Case-insensitive product/phrase surface (lowercased here).
 const BANNED = [
   "automation sprint",

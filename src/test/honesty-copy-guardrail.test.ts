@@ -17,7 +17,7 @@
  * every touched file is snapshot/restored in afterAll.
  */
 import { describe, expect, it, beforeAll, afterAll } from "vitest";
-import { existsSync, readFileSync, writeFileSync } from "fs";
+import { existsSync, readFileSync, writeFileSync, readdirSync } from "fs";
 import { join } from "path";
 import { ensureTestServer, testBaseUrl, testDataDir } from "./test-env";
 
@@ -163,11 +163,17 @@ describe("P1-2: honest-outcome copy guardrails", () => {
     expect(t).not.toContain("download execution transcripts, and override holds");
   });
 
-  it("inbox page stops claiming replies were sent or state persisted", () => {
-    const i = readFileSync(P("src/lazy/portal.inbox.index.page.tsx"), "utf8");
-    expect(i).not.toContain("Response sent successfully!");
-    expect(i).not.toContain("RAG Context Matrix");
-    expect(i).not.toMatch(/Item is now marked as/);
+  it("the theater inbox page is retired; its reply/state claims are ZERO across surviving lazy pages", () => {
+    expect(existsSync(P("src/routes/portal.inbox.index.tsx"))).toBe(false);
+    expect(existsSync(P("src/lazy/portal.inbox.index.page.tsx"))).toBe(false);
+    const lazyDir = P("src/lazy");
+    const surviving = readdirSync(lazyDir)
+      .filter((f) => f.endsWith(".tsx") || f.endsWith(".ts"))
+      .map((f) => readFileSync(join(lazyDir, f), "utf8"))
+      .join("\n");
+    for (const needle of ["Response sent successfully!", "RAG Context Matrix", "Item is now marked as"]) {
+      expect(surviving, `"${needle}" must be ZERO across surviving lazy pages`).not.toContain(needle);
+    }
   });
 
   it("portal header no longer claims a security layer", () => {
