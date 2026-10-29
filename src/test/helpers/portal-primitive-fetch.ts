@@ -27,8 +27,12 @@ export function mockFetch(routes: MockRoute[]) {
   const fn = vi.fn(async (input: RequestInfo | URL) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : String(input);
     const route = routes.find((r) => r.match(url));
-    const status = route?.status ?? 404;
-    const body = route?.body ?? { error: "not mocked" };
+    // A MATCHED route without an explicit status is a 200; only an UNMATCHED
+    // url is a 404. Getting this backwards made every "real payload" test
+    // render the empty state (the page saw 404 and kept its initial []), while
+    // the empty-payload tests passed for the wrong reason.
+    const status = route ? (route.status ?? 200) : 404;
+    const body = route ? route.body : { error: "not mocked" };
     return {
       status,
       ok: status >= 200 && status < 300,
