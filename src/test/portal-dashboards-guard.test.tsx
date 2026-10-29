@@ -8,6 +8,7 @@
  * Plus the no-fake-chart rule: a widget whose report has never run says so and
  * draws nothing. Widget data comes only from a durable run's rows.
  */
+import type { ReactNode } from "react";
 import { describe, expect, it, vi, afterEach } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { existsSync, readFileSync } from "node:fs";
@@ -18,7 +19,7 @@ import { mockFetch, mockSignedOut, hasText, urlIs } from "./helpers/portal-primi
 // router, so Link renders as a plain anchor (portal-empty-state.test.tsx
 // precedent).
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({ to, children, className }: { to: string; children: unknown; className?: string }) => (
+  Link: ({ to, children, className }: { to: string; children?: ReactNode; className?: string }) => (
     <a href={to} className={className}>
       {children}
     </a>
