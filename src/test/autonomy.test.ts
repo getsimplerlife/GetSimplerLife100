@@ -12,7 +12,7 @@
  *    and per-tenant isolation (tenant A's autonomy cannot touch tenant B).
  */
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
-import { mkdtempSync, rmSync, readFileSync } from "fs";
+import { existsSync, mkdtempSync, rmSync, readFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { isAutonomyEnabled, setAutonomyWorkflow, setTenantAutonomyKillSwitch, setOwnerAutonomyKillSwitch, appendAutonomyAudit, autonomyAudit, recordAutonomyOutcome, autonomyStatus, allowListMatches, AUTONOMY_MAX_CONSECUTIVE_FAILURES, AUTONOMY_AUDIT_KEY } from "../lib/autonomy";
@@ -305,16 +305,13 @@ describe("AUTONOMY MODE — fail-closed edge cases", () => {
 });
 
 // ── Platform-wide capability (every AI employee, by construction) ─────
-// The 18 employee types all flow through the SHARED orchestrator →
-// executeAction → approvalGate path, with the per-workflow autonomy key
-// defaulting to the agentId (input.agentId || "ai-employee"). Every
-// employee therefore supports the SAME autonomy capability set (per-
+// The autonomy machinery chains through the SHARED orchestrator →
+// executeAction → approvalGate path, gating per-workflow keys (workflowId).
+// Every workflow key therefore supports the SAME autonomy capability set (per-
 // workflow opt-in, explicit allow-list, durable audit, kill switch,
-// error-budget fallback) without any per-employee wiring. This test
-// iterates every type and proves each can carry a allow-list + audit +
-// kill-switch config and auto-executes ONLY allow-listed writes.
-import { readdirSync } from "fs";
-import { join as pathJoin } from "path";
+// error-budget fallback) without any per-agent wiring. These legacy
+// employee-derived keys are kept to prove that ARBITRARY workflow keys gate
+// identically — no roster directory or per-employee file is required.
 
 const EMPLOYEE_TYPES = [
   "auditLogger", "contractManagement", "customerSuccess", "dispatchLogistics",
@@ -324,13 +321,21 @@ const EMPLOYEE_TYPES = [
   "supportAgent", "voiceReceptionist",
 ];
 
-describe("AUTONOMY MODE — platform-wide (every AI employee, by construction)", () => {
-  it("all 18 employee files exist (roster integrity)", () => {
-    const files = readdirSync(pathJoin(process.cwd(), "src/agents/employees"))
-      .filter((f) => f.endsWith(".ts") && !f.includes(".test."))
-      .map((f) => f.replace(/\.ts$/, ""));
-    for (const t of EMPLOYEE_TYPES) expect(files).toContain(t);
-    expect(files).toHaveLength(EMPLOYEE_TYPES.length);
+describe("AUTONOMY MODE — platform-wide (per-workflow keys, by construction)", () => {
+  it("autonomy is workflow-key driven — the retired employees roster tree is GONE", () => {
+    // Cleanup (a): the src/agents/employees roster tree is retired with the
+    // agent-employee layer (cleanup c). The autonomy machinery gates on
+    // workflow keys alone — arbitrary keys gate exactly like the legacy
+    // employee-derived ones, and NO roster directory may exist that could
+    // re-introduce per-employee wiring.
+    for (const key of ["wf-salesOutreach", "wf-supportAgent", "wf-finance", "wf-custom"]) {
+      setAutonomyWorkflow("tenant-a@test", key, { enabled: true, allowList: [{ id: `al-${key}`, action: "createXeroInvoice" }] }, dir);
+      expect(isAutonomyEnabled("tenant-a@test", key, dir)).toBe(true);
+      const out = approvalGate("tenant-a@test", "createXeroInvoice", "xero", {}, { dataDir: dir, workflowId: key });
+      expect(out.allowed).toBe(true);
+      expect(out.autonomy).toBe(true);
+    }
+    expect(existsSync(join(process.cwd(), "src/agents/employees"))).toBe(false);
   });
 
   it("each employee type supports opt-in + allow-list + audit + kill switch + error budget", () => {

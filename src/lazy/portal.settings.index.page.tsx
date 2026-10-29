@@ -234,13 +234,6 @@ function UnifiedSettingsHub() {
         });
       }
 
-      // Hit specialized settings endpoint
-      await fetch("/api/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ section: sectionName, settings: payload }),
-      });
 
       setFeedback(`Success: ${sectionName} updated successfully`);
       setTimeout(() => setFeedback(""), 3000);
@@ -410,7 +403,7 @@ function UnifiedSettingsHub() {
               <div className="bg-stone-950 border border-stone-900 rounded-3xl p-6 shadow-xl space-y-6">
                 <div className="border-b border-stone-900 pb-3">
                   <h3 className="text-base font-black text-white">Regional & Operational Standards</h3>
-                  <p className="text-xs text-stone-500">Specify language values and default time coordinates for scheduled AI task triggers.</p>
+                  <p className="text-xs text-stone-500">Specify language values and default time coordinates for scheduled automation triggers.</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs font-semibold text-stone-400">
@@ -547,7 +540,7 @@ function UnifiedSettingsHub() {
                         mfaEnabled ? "bg-emerald-600" : "bg-stone-800"
                       }`}
                     >
-                      <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-stone-200 shadow ring-0 transition duration-200 ease-in-out ${
                         mfaEnabled ? "translate-x-5" : "translate-x-0"
                       }`} />
                     </button>
@@ -596,7 +589,7 @@ function UnifiedSettingsHub() {
                         notifyEmail ? "bg-emerald-600" : "bg-stone-800"
                       }`}
                     >
-                      <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-stone-200 shadow ring-0 transition duration-200 ease-in-out ${
                         notifyEmail ? "translate-x-5" : "translate-x-0"
                       }`} />
                     </button>
@@ -613,7 +606,7 @@ function UnifiedSettingsHub() {
                         notifySMS ? "bg-emerald-600" : "bg-stone-800"
                       }`}
                     >
-                      <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-stone-200 shadow ring-0 transition duration-200 ease-in-out ${
                         notifySMS ? "translate-x-5" : "translate-x-0"
                       }`} />
                     </button>
@@ -630,7 +623,7 @@ function UnifiedSettingsHub() {
                         notifySlack ? "bg-emerald-600" : "bg-stone-800"
                       }`}
                     >
-                      <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-stone-200 shadow ring-0 transition duration-200 ease-in-out ${
                         notifySlack ? "translate-x-5" : "translate-x-0"
                       }`} />
                     </button>

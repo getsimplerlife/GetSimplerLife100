@@ -141,12 +141,12 @@ type NavLink = {
     { name: "Boards", subtitle: "Kanban views", path: "/portal/boards", icon: "boards", section: "Workspace" },
     { name: "Tasks", subtitle: "Queue · Assignments", path: "/portal/tasks", icon: "tasks", section: "Workspace" },
     { name: "Surveys", subtitle: "NPS · CSAT · Scorecards", path: "/portal/surveys", icon: "surveys", section: "Workspace" },
-    { name: "Inbox", subtitle: "Messages in one place", path: "/portal/inbox", icon: "inbox", section: "Workspace" },
     { name: "Workflows", subtitle: "Builder · Management", path: "/portal/workflows", icon: "workflows", section: "Operations" },
     { name: "Bring your data in", subtitle: "One-time import · Migration", path: "/portal/import", icon: "import", section: "Operations" },
-    { name: "Documents", subtitle: "Upload · Process · Export", path: "/portal/documents", icon: "documents", section: "Operations" },
-    { name: "Document Vault", subtitle: "Native capture · Filing · Rules", path: "/portal/vault", icon: "vault", section: "Operations" },
-    { name: "File Library", subtitle: "View · Edit · Print · Download", path: "/portal/files", icon: "files", section: "Operations" },
+    // Cleanup (a): storage triad consolidated to ONE surface — vault keeps
+    // the native filing store; the documents + files routes are retired and
+    // their real data remains reachable through this single entry point.
+    { name: "Documents & Vault", subtitle: "Upload · File · Filing · Rules", path: "/portal/vault", icon: "vault", section: "Operations" },
     { name: "Approvals", subtitle: "Review · Authorize", path: "/portal/approvals", icon: "approvals", section: "Operations" },
     { name: "Assistant", subtitle: "Ask · Draft answers · Audit", path: "/portal/assistant", icon: "assistant", section: "Communications" },
     { name: "Communications", subtitle: "Messages · Log", path: "/portal/communications", icon: "communications", section: "Communications" },

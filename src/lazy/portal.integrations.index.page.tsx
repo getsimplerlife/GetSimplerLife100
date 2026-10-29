@@ -518,7 +518,7 @@ function ConnectedServices() {
               <span className="text-emerald-400 font-bold text-sm">
                 ✅ {(connections||[]).filter(c => c && c.status === "Connected").length} tool{(connections||[]).filter(c => c && c.status === "Connected").length !== 1 ? "s" : ""} with access from your account
               </span>
-              <a href="/portal/connected-accounts" className="text-emerald-400 font-bold text-sm hover:text-emerald-300">
+              <a href="/portal/import" className="text-emerald-400 font-bold text-sm hover:text-emerald-300">
                 View import history →
               </a>
             </div>
@@ -568,7 +568,7 @@ function ConnectedServices() {
                 <p className="text-[11px] text-stone-500 leading-relaxed">
                   Each tool in this view is ready to import from whenever you want its data.
                 </p>
-                <a href="/portal/connected-accounts" className="text-emerald-400 font-bold text-sm hover:text-emerald-300">
+                <a href="/portal/import" className="text-emerald-400 font-bold text-sm hover:text-emerald-300">
                                 View import history →
                               </a>
               </div>

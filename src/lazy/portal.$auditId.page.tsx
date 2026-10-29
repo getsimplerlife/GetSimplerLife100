@@ -28,7 +28,7 @@ function AuditDetail() {
   };
 
   return (
-    <div className="min-h-screen bg-stone-50">
+    <div className="min-h-screen bg-black">
       <style>{`
         @media print {
           no-print { display: none !important; }
@@ -51,7 +51,7 @@ function AuditDetail() {
 
       <main className="max-w-4xl mx-auto px-6 py-12">
         <div className="bg-stone-900 rounded-2xl border border-stone-800 shadow-lg shadow-black/20 overflow-hidden">
-          <div className="p-8 border-b bg-stone-50/50">
+          <div className="p-8 border-b bg-stone-950/60">
             <div className="flex justify-between items-start mb-4">
               <div>
                 <h1 className="text-3xl font-bold text-stone-100">{audit.type}</h1>
@@ -116,7 +116,7 @@ function AuditDetail() {
                 Need to add more detail or adjust your audit focus? Let us know and we'll update your report.
               </p>
               {feedbackSent ? (
-                <div className="bg-green-50 border border-green-200 text-green-700 p-4 rounded-xl">
+                <div className="bg-green-950/30 border border-green-500/30 text-green-300 p-4 rounded-xl">
                   Your adjustment request has been received. Our team will review it within 24 hours.
                 </div>
               ) : (
