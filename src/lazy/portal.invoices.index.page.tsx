@@ -2,6 +2,14 @@ import { useCallback, useEffect, useState } from "react";
 import { Card, Badge, Button } from "~/components/ui";
 import { PortalEmptyState, scrollToId } from "~/components/PortalEmptyState";
 
+interface DeliveryAttempt {
+  at: string;
+  by: string;
+  channel: "sendgrid" | "smtp" | "none";
+  outcome: "sent" | "failed" | "unconfigured";
+  messageId?: string;
+  error?: string;
+}
 interface InvoiceSummary {
   id: string;
   invoiceNumber: string;
@@ -10,6 +18,10 @@ interface InvoiceSummary {
   amountDueCents: number;
   status: string;
   docId: string | null;
+  customerEmail: string;
+  dueDate: string;
+  shareSlug: string | null;
+  lastAttempt: DeliveryAttempt | null;
   version: number;
   createdAt: string;
   updatedAt: string;
@@ -31,13 +43,28 @@ interface PendingWrite {
   requestedAt: string;
 }
 
+/**
+ * Status labels mirror the server's honest state machine exactly:
+ *   draft   — nothing sent yet
+ *   queued  — approved, dispatch in flight
+ *   sent    — the email provider ACKNOWLEDGED the message
+ *   failed  — the attempt did not deliver (reason shown), or no email lane
+ */
 const STATUS_LABEL: Record<string, string> = {
-  draft: "Draft",
-  sent: "Sent",
+  draft: "Draft — not sent",
+  queued: "Queued — sending",
+  sent: "Sent — delivered",
+  failed: "Not delivered",
 };
 
 function money(cents: number, currency: string): string {
   return `${currency} ${(cents / 100).toFixed(2)}`;
+}
+function attemptSummary(a: DeliveryAttempt): string {
+  const when = new Date(a.at).toLocaleString();
+  if (a.outcome === "sent") return `Emailed ${when} via ${a.channel} — provider acknowledged${a.messageId ? ` (${a.messageId})` : ""}`;
+  if (a.outcome === "unconfigured") return `No email was sent — the email lane is not configured (checked ${when})`;
+  return `Attempted ${when} via ${a.channel} — not delivered`;
 }
 
 export default function InvoicesPage() {
@@ -49,6 +76,8 @@ export default function InvoicesPage() {
   const [feedback, setFeedback] = useState("");
   const [creating, setCreating] = useState(false);
   const [dealRoomId, setDealRoomId] = useState("");
+  const [composerEmail, setComposerEmail] = useState("");
+  const [rowEmail, setRowEmail] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState("");
 
   const load = useCallback(async () => {
@@ -85,7 +114,10 @@ export default function InvoicesPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ linkedDealRoomId: dealRoomId }),
+        body: JSON.stringify({
+          linkedDealRoomId: dealRoomId,
+          ...(composerEmail.trim() ? { customerEmail: composerEmail.trim() } : {}),
+        }),
       });
       if (res.status === 202) setFeedback("Invoice queued — approve it in the queue below.");
       else if (res.ok) setFeedback("Invoice created as draft.");
@@ -94,6 +126,7 @@ export default function InvoicesPage() {
         setError(j.error || "Failed to create invoice");
       }
       setDealRoomId("");
+      setComposerEmail("");
       await load();
     } finally {
       setCreating(false);
@@ -103,33 +136,72 @@ export default function InvoicesPage() {
   async function verb(id: string, action: "generate" | "send" | "delete") {
     setFeedback("");
     setError("");
+    const recipient = (rowEmail[id] || "").trim();
     const res = await fetch(`/api/native/invoice/${id}${action === "delete" ? "" : `/${action}`}`, {
       method: action === "delete" ? "DELETE" : "POST",
       credentials: "include",
+      ...(action === "send" && recipient
+        ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify({ customerEmail: recipient }) }
+        : {}),
     });
-    if (res.status === 202) setFeedback(`${action} queued — approve it in the queue below.`);
-    else if (res.ok) setFeedback(`${action} applied.`);
-    else {
-      const j = await res.json().catch(() => ({}));
+    const j = await res.json().catch(() => ({}));
+    if (res.status === 202) {
+      setFeedback(`${action} queued — approve it in the queue below. Nothing is sent until it is approved.`);
+    } else if (res.ok) {
+      if (action === "send") {
+        const status = j?.data?.invoiceStatus as string | undefined;
+        const attempt = j?.data?.lastAttempt as DeliveryAttempt | null | undefined;
+        if (status === "sent") setFeedback(`Invoice emailed — the provider acknowledged it${attempt?.messageId ? ` (${attempt.messageId})` : ""}.`);
+        else if (status === "failed") setFeedback(`Invoice NOT delivered: ${attempt?.error || "the email provider did not accept it"}. The record says "Not delivered" — retry after fixing the cause.`);
+        else setFeedback(`Send processed — invoice status is now "${status ?? "unknown"}".`);
+      } else {
+        setFeedback(`${action} applied.`);
+      }
+      if (recipient) setRowEmail((prev) => ({ ...prev, [id]: "" }));
+    } else {
       if (j.error) setError(j.error);
+      else setError(`Could not ${action} this invoice.`);
     }
     await load();
   }
+
   async function applyWrite(id: string) {
     const res = await fetch(`/api/native/invoice/writes/${id}/apply`, { method: "POST", credentials: "include" });
-    setFeedback(res.ok ? "Write applied." : "Write apply failed.");
+    const j = await res.json().catch(() => ({}));
+    const status = j?.data?.invoiceStatus as string | undefined;
+    if (res.ok && status === "failed") setFeedback("Write applied — the invoice was NOT delivered (see the reason on the invoice).");
+    else if (res.ok && status === "sent") setFeedback("Write applied — the invoice was emailed and the provider acknowledged it.");
+    else setFeedback(res.ok ? "Write applied." : "Write apply failed.");
     await load();
+  }
+
+  function publicLink(i: InvoiceSummary): string {
+    return i.shareSlug ? `${window.location.origin}/invoices/share/${i.shareSlug}` : "";
+  }
+  async function copyLink(i: InvoiceSummary) {
+    const url = publicLink(i);
+    if (!url) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      setFeedback("Customer link copied to the clipboard.");
+    } catch {
+      setFeedback(`Customer link: ${url}`);
+    }
   }
 
   const visible = filter ? items.filter((i) => i.linkedDealRoomId === filter) : items;
   const dealName = (id: string) => dealRooms.find((d) => d.id === id)?.name ?? id;
+  const sendable = (s: string) => s === "draft" || s === "failed";
 
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Invoices</h1>
-          <p className="text-sm text-stone-500">Native invoices built from approved deal rooms. Posting to the customer's books stays with the connected accounting adapter (Xero/QuickBooks).</p>
+          <p className="text-sm text-stone-500">
+            Native invoices built from approved deal rooms. Sending emails the invoice and its PDF link to the customer;
+            posting to the customer's books stays with the connected accounting adapter (Xero/QuickBooks).
+          </p>
         </div>
       </div>
       {error && <div className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
@@ -144,11 +216,21 @@ export default function InvoicesPage() {
               <option key={d.id} value={d.id}>{d.name}</option>
             ))}
           </select>
+          <input
+            className="min-w-64 rounded border p-2"
+            type="email"
+            placeholder="Customer email (optional — defaults to the deal room's)"
+            value={composerEmail}
+            onChange={(e) => setComposerEmail(e.target.value)}
+          />
           <Button onClick={createInvoice} disabled={creating || !dealRoomId}>
             {creating ? "Creating…" : "Create invoice"}
           </Button>
         </div>
-        <p className="mt-2 text-xs text-stone-500">Line items are snapshotted from the deal room's linked proposal (integer cents); the amount can only change through a new proposal revision.</p>
+        <p className="mt-2 text-xs text-stone-500">
+          Line items are snapshotted from the deal room's linked proposal (integer cents); the amount can only change
+          through a new proposal revision. Payment is due net 30 from creation.
+        </p>
       </Card>
 
       <Card>
@@ -192,17 +274,50 @@ export default function InvoicesPage() {
                       <Badge>{STATUS_LABEL[i.status] || i.status}</Badge>
                     </div>
                     <p className="text-sm text-stone-500">
-                      {dealName(i.linkedDealRoomId)} · {money(i.amountDueCents, i.currency)} · v{i.version}
+                      {dealName(i.linkedDealRoomId)} · {money(i.amountDueCents, i.currency)} · due {i.dueDate} · v{i.version}
                     </p>
                     <p className="text-xs text-stone-400">
                       {i.docId ? "PDF on file" : "No PDF yet"} · issued {new Date(i.createdAt).toLocaleDateString()}
                       {i.sentAt ? ` · sent ${new Date(i.sentAt).toLocaleDateString()}` : ""}
                     </p>
+                    <p className="text-xs text-stone-400">
+                      Recipient: {i.customerEmail || <span className="text-amber-500">none on file — add one to send</span>}
+                    </p>
+                    {i.lastAttempt && <p className="text-xs text-stone-400">{attemptSummary(i.lastAttempt)}</p>}
+                    {i.lastAttempt?.outcome === "unconfigured" && (
+                      <p className="mt-1 text-xs text-amber-500">
+                        Email not configured — the invoice PDF was generated only. Nothing was emailed.
+                      </p>
+                    )}
+                    {i.lastAttempt?.outcome === "failed" && i.lastAttempt.error && (
+                      <p className="mt-1 text-xs text-red-500">Failure reason: {i.lastAttempt.error}</p>
+                    )}
+                    {i.status === "sent" && i.shareSlug && (
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <code className="max-w-full truncate rounded bg-stone-100 px-2 py-1 text-xs text-stone-700">
+                          {publicLink(i)}
+                        </code>
+                        <button type="button" className="text-xs text-sky-600 underline" onClick={() => copyLink(i)}>
+                          Copy customer link
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    {i.status === "draft" && <Button onClick={() => verb(i.id, "generate")}>Generate PDF</Button>}
-                    {i.status === "draft" && <Button onClick={() => verb(i.id, "send")}>Mark sent</Button>}
-                    {i.status === "draft" && <Button onClick={() => verb(i.id, "delete")}>Delete</Button>}
+                  <div className="flex flex-wrap items-center gap-2">
+                    {!i.customerEmail && sendable(i.status) && (
+                      <input
+                        className="rounded border p-1 text-xs"
+                        type="email"
+                        placeholder="customer@example.com"
+                        value={rowEmail[i.id] || ""}
+                        onChange={(e) => setRowEmail((prev) => ({ ...prev, [i.id]: e.target.value }))}
+                      />
+                    )}
+                    {sendable(i.status) && <Button onClick={() => verb(i.id, "generate")}>Generate PDF</Button>}
+                    {sendable(i.status) && (
+                      <Button onClick={() => verb(i.id, "send")}>{i.status === "failed" ? "Retry send" : "Send invoice"}</Button>
+                    )}
+                    {sendable(i.status) && <Button onClick={() => verb(i.id, "delete")}>Delete</Button>}
                   </div>
                 </div>
               </div>

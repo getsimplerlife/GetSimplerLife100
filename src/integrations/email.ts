@@ -25,6 +25,21 @@ export interface EmailResult {
 }
 
 /**
+ * Which lane would `sendEmail` use right now, and is it a REAL one?
+ * Callers that must never claim delivery (e.g. customer invoice sends) use
+ * this to avoid the mock fallback entirely: `configured: false` means no
+ * message can leave the building, so nothing may be reported as sent.
+ */
+export interface EmailLaneStatus {
+  configured: boolean;
+  channel: "sendgrid" | "smtp" | "none";
+}
+export function emailLaneStatus(): EmailLaneStatus {
+  if ((process.env.SENDGRID_API_KEY || "").trim()) return { configured: true, channel: "sendgrid" };
+  if (SMTP_HOST && SMTP_USER && SMTP_PASS) return { configured: true, channel: "smtp" };
+  return { configured: false, channel: "none" };
+}
+/**
  * Sends an email. Precedence (#233):
  *   1. SendGrid (HTTP POST /v3/mail/send) when SENDGRID_API_KEY is set —
  *      this is the LIVE path today (SENDGRID_API_KEY + SMTP_FROM configured,

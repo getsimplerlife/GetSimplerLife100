@@ -1145,6 +1145,15 @@ async function handleFetch(req: Request): Promise<Response> {
         const slug = pathname.split("/").pop() || "";
         return handleNativeSurveyShare(req, { dataDir: DATA_DIR }, slug);
       }
+      // Phase 2.5 — PUBLIC invoice share (the customer's read-only invoice).
+      // Slug-gated (si_..., unguessable), READ-ONLY, and it only ever resolves
+      // an invoice whose status is genuinely "sent" — unknown/foreign/stale
+      // slugs and never-sent invoices are 404 inside the handler. No session:
+      // the customer has no account. MUST stay BEFORE the session check.
+      if (pathname.startsWith("/api/native/invoice/share/")) {
+        const { handleNativeInvoiceShare } = await import("./src/native/invoice");
+        return handleNativeInvoiceShare(req, { dataDir: DATA_DIR });
+      }
       const user = await getUserFromSession(req);
       if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
       // Phase 1.3 — native forms builder (authed CRUD + submissions)

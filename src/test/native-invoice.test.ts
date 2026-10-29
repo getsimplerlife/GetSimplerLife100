@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -123,6 +123,7 @@ beforeEach(() => {
   registerBuiltinNativeInvoiceEventTypes();
 });
 afterEach(() => {
+  vi.unstubAllEnvs();
   if (dir) rmSync(dir, { recursive: true, force: true });
 });
 
@@ -175,7 +176,9 @@ describe("invoice lifecycle + gated writes (HTTP)", () => {
     expect(listAudit(dir, T1).length).toBe(0);
   });
 
-  it("generate (gated) stores an add-only PDF doc; send (gated) flips draft→sent and is terminal", async () => {
+  it("generate (gated) stores an add-only PDF doc; send (gated) NEVER claims delivery without a provider ack", async () => {
+    // No email lane configured in this test → nothing may be reported as sent.
+    vi.stubEnv("SENDGRID_API_KEY", "");
     const dealRoomId = await createDealRoom();
     const id = await createAndApply(dealRoomId);
     // generate → PDF in the doc store, still draft
@@ -187,21 +190,22 @@ describe("invoice lifecycle + gated writes (HTTP)", () => {
     expect(drafted.docId).toMatch(/^doc_/);
     expect(listDocs(dir, T1).some((d) => d.id === drafted.docId && d.kind === "invoice")).toBe(true);
     expect(listAudit(dir, T1).some((a) => a.action === "native.invoice.generate")).toBe(true);
-    // send → status flips, PDF stored BEFORE the flip (2.2 discipline)
+    // send → PDF stored BEFORE the outbound attempt, then an HONEST terminal state
     const send = await route("POST", `/api/native/invoice/${id}/send`);
     expect(send.status).toBe(202);
     await route("POST", `/api/native/invoice/writes/${pendingFirst("send")!.id}/apply`);
-    const sent = getInvoice(dir, T1, id)!;
-    expect(sent.status).toBe("sent");
-    expect(sent.sentAt).toBeTruthy();
-    expect(sent.docId).toMatch(/^doc_/);
-    expect(listDocs(dir, T1).some((d) => d.id === sent.docId && d.checksum)).toBe(true);
-    expect(listAudit(dir, T1).some((a) => a.action === "native.invoice.send")).toBe(true);
+    const after = getInvoice(dir, T1, id)!;
+    expect(after.status).toBe("failed"); // NOT "sent" — no provider acknowledged anything
+    expect(after.sentAt).toBeUndefined();
+    expect(after.lastAttempt?.outcome).toBe("unconfigured");
+    expect(after.docId).toMatch(/^doc_/);
+    expect(listDocs(dir, T1).some((d) => d.id === after.docId && d.checksum)).toBe(true);
+    expect(listAudit(dir, T1).some((a) => a.action === "native.invoice.queued")).toBe(true);
+    expect(listAudit(dir, T1).some((a) => a.action === "native.invoice.failed")).toBe(true);
+    expect(listAudit(dir, T1).some((a) => a.action === "native.invoice.sent")).toBe(false);
     expect(listTenantActions(T1, dir).some((a) => a.actionType === "sendInvoice")).toBe(true);
-    // sent is terminal: no regenerate, no re-send, no delete (legal record)
-    expect((await route("POST", `/api/native/invoice/${id}/generate`)).status).toBe(400);
-    expect((await route("POST", `/api/native/invoice/${id}/send`)).status).toBe(400);
-    expect((await route("DELETE", `/api/native/invoice/${id}`)).status).toBe(400);
+    // A failed (never delivered) invoice is NOT a legal record: retry stays open.
+    expect((await route("POST", `/api/native/invoice/${id}/send`)).status).toBe(202);
   });
 
   it("delete (gated exact-id) removes a DRAFT invoice only; audit appended; unknown → 404", async () => {
@@ -270,7 +274,7 @@ describe("cross-tenant isolation + autonomy", () => {
   it("autonomy allow-list auto-applies create; globs NEVER auto-delete", async () => {
     const dealRoomId = await createDealRoom();
     setAutonomyWorkflow(T1, "native-invoices", { enabled: true, allowList: [{ id: "al-inv-1", action: "createInvoice" }] }, dir);
-    const res = submitInvoiceWrite(dir, T1, "create", { data: { linkedDealRoomId: dealRoomId }, via: "portal" }, T1);
+    const res = await submitInvoiceWrite(dir, T1, "create", { data: { linkedDealRoomId: dealRoomId }, via: "portal" }, T1);
     expect(res.applied).toBe(true);
     expect((res as { autonomy: boolean }).autonomy).toBe(true);
     const rec = (res as { invoice: { id: string } }).invoice;
@@ -280,7 +284,7 @@ describe("cross-tenant isolation + autonomy", () => {
     expect((autoAudit?.[T1] ?? []).some((e: { action: string }) => e.action === "createInvoice")).toBe(true);
     // Glob allow-list entry for delete does NOT auto-delete (exact-id required).
     setAutonomyWorkflow(T1, "native-invoices", { enabled: true, allowList: [{ id: "al-del-1", action: "deleteInvoice" }, { id: "al-del-2", action: "*.Invoice" }] }, dir);
-    const del = submitInvoiceWrite(dir, T1, "delete", { invoiceId: rec.id, via: "portal" }, T1);
+    const del = await submitInvoiceWrite(dir, T1, "delete", { invoiceId: rec.id, via: "portal" }, T1);
     expect(del.applied).toBe(false);
     expect((del as { pending: boolean }).pending).toBe(true); // still gated
     expect(getInvoice(dir, T1, rec.id)).not.toBeNull();

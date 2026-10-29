@@ -6,9 +6,33 @@
  * Fail-closed: unknown keys are dropped, ids are pattern-checked, and nothing
  * here ever trusts a client-supplied record id.
  */
-import { MAX_LINE_DESCRIPTION, type InvoiceMutation } from "./types";
+import { MAX_CUSTOMER_EMAIL, MAX_LINE_DESCRIPTION, type InvoiceMutation } from "./types";
 
 export type ValidateResult = { ok: true } | { ok: false; error: string };
+
+/** Same shape rule as proposals' clientEmail (fail-closed, no MX check). */
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+/** True when the value is a single, syntactically valid email address. */
+export function isValidEmail(v: unknown): v is string {
+  return typeof v === "string" && v.trim().length <= MAX_CUSTOMER_EMAIL && EMAIL_RE.test(v.trim());
+}
+
+/**
+ * Validate the CUSTOMER RECIPIENT before it reaches the gate or the record.
+ * A malformed value is a hard 400 — never coerced, never defaulted to a
+ * real-looking address (an invoice must not be mailed to a guess).
+ */
+export function validateCustomerEmail(v: unknown): ValidateResult {
+  if (typeof v !== "string") return { ok: false, error: "customerEmail must be a valid email address" };
+  const trimmed = v.trim();
+  if (trimmed.length === 0) return { ok: false, error: "customerEmail must be a valid email address" };
+  if (trimmed.length > MAX_CUSTOMER_EMAIL) {
+    return { ok: false, error: `customerEmail must be ≤ ${MAX_CUSTOMER_EMAIL} chars` };
+  }
+  if (!EMAIL_RE.test(trimmed)) return { ok: false, error: "customerEmail must be a valid email address" };
+  return { ok: true };
+}
 
 /** Server-assigned invoice id pattern (inv_<random>). */
 export function isInvoiceId(v: unknown): v is string {
@@ -37,6 +61,11 @@ export function validateInvoiceMutation(m: InvoiceMutation, { requireDealRoom = 
   } else if (requireDealRoom) {
     return { ok: false, error: "linkedDealRoomId is required (invoices belong to a deal room)" };
   }
+  if (m.customerEmail !== undefined) {
+    const v = validateCustomerEmail(m.customerEmail);
+    if (!v.ok) return v;
+    out.customerEmail = m.customerEmail.trim();
+  }
   return { ok: true, data: out };
 }
 
@@ -44,6 +73,7 @@ export function validateInvoiceMutation(m: InvoiceMutation, { requireDealRoom = 
 export function createInvoiceMutationFromInput(body: Record<string, unknown>): InvoiceMutation {
   const m: InvoiceMutation = {};
   if (typeof body.linkedDealRoomId === "string") m.linkedDealRoomId = body.linkedDealRoomId;
+  if (typeof body.customerEmail === "string") m.customerEmail = body.customerEmail;
   return m;
 }
 
