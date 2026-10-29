@@ -136,15 +136,15 @@ describe("cleanup-a2 — import-history reframe (presence)", () => {
     expect(existsSync(join(REPO, "src", "lazy", "portal.erp.index.page.tsx"))).toBe(false);
     // Catalog arm — the surviving integrations index carries the lane framing.
     const catalog = cat(join(REPO, "src", "lazy", "portal.integrations.index.page.tsx"));
-    expect(catalog.includes("Nothing stays connected")).toBe(true);
+    expect(catalog.includes("nothing stays connected")).toBe(true);
     expect(catalog.includes("Import from ")).toBe(true);
     expect(catalog.includes("View import history")).toBe(true);
-    // Detail arm — the provider detail page too.
+    // Detail arm — the provider detail page too (capital-N phrasing).
     const detail = cat(join(REPO, "src", "lazy", "portal.integrations.$id.page.tsx"));
     expect(detail.includes("Nothing stays connected")).toBe(true);
     expect(detail.includes("Import from ")).toBe(true);
     // Aggregate net unchanged: the framed phrases exist across the product surface.
-    expect(dirSrc.includes("Nothing stays connected.")).toBe(true);
+    expect(dirSrc.includes("nothing stays connected")).toBe(true);
     expect(dirSrc.includes("Import from ")).toBe(true);
     expect(dirSrc.includes("View import history")).toBe(true);
   });
