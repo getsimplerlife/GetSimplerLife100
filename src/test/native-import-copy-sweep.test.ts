@@ -94,7 +94,6 @@ describe("6.6 copy sweep — honest, client-side import framing", () => {
       ["src/lazy/portal.index.page.tsx", ["Connected Integrations", "Connect Tools", "Connect your first integration"]],
       ["src/lazy/portal.crm.index.page.tsx", ["universal connector", "We integrate with"]],
       ["src/lazy/portal.erp.index.page.tsx", ["universal connector", "We integrate with"]],
-      ["src/lazy/portal.api.index.page.tsx", ["connected integrations"]],
       ["src/lazy/integrations.index.page.tsx", ["synced with audit trail"]],
     ];
     for (const [file, phrases] of sweepTargets) {

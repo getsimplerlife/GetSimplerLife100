@@ -155,7 +155,7 @@ type NavLink = {
     { name: "Dedupe & MDM", subtitle: "Match rules · Merge · Data quality", path: "/portal/dedupe", icon: "dedupe", section: "Data & Connect" },
     { name: "Access Reviews", subtitle: "Certification campaigns · Attestations", path: "/portal/accessreview", icon: "access", section: "Data & Connect" },
     { name: "Knowledge Base", subtitle: "Articles · Help center", path: "/portal/knowledgebase", icon: "knowledge", section: "Data & Connect" },
-    { name: "Settings", subtitle: "Account · Billing · API Keys", path: "/portal/settings", icon: "settings", section: "Settings" },
+    { name: "Settings", subtitle: "Profile · Billing · Import History", path: "/portal/settings", icon: "settings", section: "Settings" },
     { name: "Admin", subtitle: "Users · Health · Audit", path: "/portal/admin", icon: "admin", section: "Settings", adminOnly: true },
   ];
   const mobileLinks: NavLink[] = [
