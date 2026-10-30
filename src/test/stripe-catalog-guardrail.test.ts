@@ -38,15 +38,21 @@ const BAD_LINKS = [
 
 // Canonical links (correct price) that the live site depends on — must keep resolving.
 const CANONICAL = {
-  starter: "3cI8wR88Tasfc1B9XW2Fa2K",
-  growth: "5kQ6oJbl5dErc1B1rq2Fa2L",
-  scale: "aFa7sN60LdErc1B5HG2Fa2M",
   blueprint: "14AbJ3cp91VJc1Bfig2Fa2N",
   crmPack: "5kQaEZ60LcAn8Ppgmk2Fa2I",
   erpPack: "dRmeVf88TfMzghRda82Fa2J",
   supportEssential: "8x24gB3SD2ZNd5Fc642Fa1I",
   supportProfessional: "aFaaEZexhasf3v50nm2Fa1J",
 };
+
+// The RETIRED per-employee tier links (discontinued owner 09-27). They do not
+// exist in the live Stripe account, so they are neither sold on a page nor
+// mapped by the webhook any more (the live tiers map instead).
+const RETIRED_PER_EMPLOYEE_LINKS = [
+  "3cI8wR88Tasfc1B9XW2Fa2K",
+  "5kQ6oJbl5dErc1B1rq2Fa2L",
+  "aFa7sN60LdErc1B5HG2Fa2M",
+];
 
 function customerFiles(): string[] {
   const out: string[] = [];
@@ -89,14 +95,16 @@ describe("stripe catalog guardrail (customer-facing checkout links)", () => {
     // The old per-employee build packages were DISCONTINUED (owner 09-27) — their
     // Stripe links must not be bound to any CTA on the pricing page anymore.
     const pRaw = readFileSync("src/routes/pricing.tsx", "utf8");
-    expect(pRaw).not.toContain(CANONICAL.starter);
-    expect(pRaw).not.toContain(CANONICAL.growth);
-    expect(pRaw).not.toContain(CANONICAL.scale);
-    // But the runtime (stripe-webhook) still maps legacy purchases via those links.
+    for (const retired of RETIRED_PER_EMPLOYEE_LINKS) {
+      expect(pRaw).not.toContain(retired);
+    }
+    // And the runtime no longer maps them either: the webhook maps the three
+    // LIVE tier links (10-30), so a retired link falls through to the generic
+    // branch instead of being recorded as a plan that was never sold.
     const w = readFileSync("src/lib/stripe-webhook.ts", "utf8");
-    expect(w).toContain(CANONICAL.starter);
-    expect(w).toContain(CANONICAL.growth);
-    expect(w).toContain(CANONICAL.scale);
+    for (const retired of RETIRED_PER_EMPLOYEE_LINKS) {
+      expect(w, `stripe-webhook.ts still maps the retired link ${retired}`).not.toContain(retired);
+    }
   });
   it("pricing.tsx tier cards link to the three live locked-tier Stripe payment links and open checkout in a new tab (owner 09-27 platform pricing)", () => {
     const p = readFileSync("src/routes/pricing.tsx", "utf8");
@@ -119,10 +127,28 @@ describe("stripe catalog guardrail (customer-facing checkout links)", () => {
     expect(p).toContain('rel="noopener noreferrer"');
   });
 
-  it("the canonical Connection-Pack links survive in stripe-webhook.ts", () => {
+  it("the retired Connection-Pack links are GONE from stripe-webhook.ts (retired 10-21, code removed 10-30)", () => {
+    // Neither pack payment link exists in the live Stripe account (verified
+    // 10-30: exactly three payment links, the platform tiers), so the pack
+    // detection helpers and their link constants were deleted rather than
+    // kept as a mapping that could never fire truthfully.
     const w = readFileSync("src/lib/stripe-webhook.ts", "utf8");
-    expect(w).toContain(CANONICAL.crmPack);
-    expect(w).toContain(CANONICAL.erpPack);
+    expect(w).not.toContain(CANONICAL.crmPack);
+    expect(w).not.toContain(CANONICAL.erpPack);
+    // Pin the DECLARATIONS, not the bare words: the module header still
+    // explains what was retired, so a plain substring pin would self-fail.
+    for (const decl of [
+      "export const CRM_PACK_LINK",
+      "export const ERP_PACK_LINK",
+      "export const PACKS_BY_LINK",
+      "export const PACK_SLOTS",
+      "export function detectPackType",
+      "export function buildPackPurchase",
+      "export interface PackSpec",
+      "export type PackType",
+    ]) {
+      expect(w, `stripe-webhook.ts still declares: ${decl}`).not.toContain(decl);
+    }
   });
 
   it("support.tsx no longer sells the discontinued per-employee support SKUs (owner 09-27 locked platform tiers)", () => {

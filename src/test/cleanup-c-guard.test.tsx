@@ -21,9 +21,10 @@
  *
  * KEPT by design (guardrail-pinned legacy runtime): the tier LINK mapping in
  * src/lib/stripe-webhook.ts (stripe-catalog-guardrail asserts the retired
- * tier constants still resolve there) and the plan purchase branch (the
- * legacy checkout mapping + packSlot redemption stay functional; it writes
- * an EMPTY grant list and never touches an employees store).
+ * tier constants still resolve there) and the plan purchase branch (legacy
+ * checkout mapping only). Since the 10-30 retired-product cleanup the plan
+ * record carries NO per-agent field at all — the grant helper is deleted
+ * rather than called with an empty list, and no employees store is read.
  *
  * Assertions:
  *   1. ZERO retired literals in product source (src/lazy|routes|api|native),
@@ -129,9 +130,10 @@ describe("CLEANUP (c) — AI-employee layer retired", () => {
     it("the server never reads an employees store and grants NO plan agents", () => {
       expect(serverSrc).not.toMatch(/AI_EMPLOYEES_FILE/);
       expect(serverSrc).not.toMatch(/readJSON\(join\(DATA_DIR, "ai_employees/);
-      // The kept plan branch must not materialize agent grants — the call is
-      // always planAgentIds([], …) so the grant list stays empty.
-      expect(serverSrc).toContain("planAgentIds([], planSpec)");
+      // The kept plan branch materializes NO agent grants: the per-plan grant
+      // helper is DELETED (cleanup 10-30), not called with an empty list.
+      expect(serverSrc).not.toContain("planAgentIds");
+      expect(serverSrc).toContain("buildPlanPurchase(planSpec, amountTotal, session.id)");
       expect(serverSrc).not.toMatch(/const employees = readJSON\(AI_EMPLOYEES_FILE\)/);
     });
   });

@@ -26,7 +26,7 @@ export interface OwnerSaleEvent {
   productName: string;
   amountCents: number;
   customerEmail: string;
-  opportunityType: string; // "plan" | "crm-pack" | "erp-pack" | "agent" | "other"
+  opportunityType: string; // "plan" | "other" (pack/agent types retired)
   provisioned: "created" | "upgraded" | "none"; // account outcome
   at: string;
 }

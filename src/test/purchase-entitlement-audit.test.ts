@@ -4,7 +4,6 @@ import { join } from "path";
 import { createHmac } from "crypto";
 import { ensureTestServer, testBaseUrl, testDataDir } from "./test-env";
 import { newPasswordResetRecord } from "../lib/password-reset";
-import { CRM_PACK_LINK } from "../lib/stripe-webhook";
 
 /**
  * purchase-entitlement-audit.test.ts — post-deploy purchase-flow integrity
@@ -13,8 +12,8 @@ import { CRM_PACK_LINK } from "../lib/stripe-webhook";
  * branches, the plan-grant (agentIds) machinery and the AI-employee catalog
  * are RETIRED, so the audit now covers the surviving purchase types and the
  * fail-closed behavior of the retired surfaces:
- *   A. pack purchase → crm-pack record (CLEANUP (c): no employees involvement)
- *      + the CRM slot APIs entitle exactly the pack's 5 slots;
+ *   A. the RETIRED pack link → generic record, NO pack type and NO slot grant
+ *      (cleanup 10-30: the pack SKUs and their link mapping are gone);
  *   B. generic purchase → amount-only record, no grants;
  *   C. no-free-stuff: unsigned/forged events → 400 + NO record + NO tenant
  *      gate; non-purchased emails stay fully gated;
@@ -193,45 +192,41 @@ describe("Purchase-flow integrity audit (owner directive: no free stuff)", () =>
     expect(res.status).toBe(200);
   });
 
-  describe("PACK purchase → records a crm-pack and grants exactly its 5 slots", () => {
-    it("provisions a CRM pack record (type/slots/agentType) and grants 5 slots", async () => {
+  describe("RETIRED pack link → no pack record, no slot grant (cleanup 10-30)", () => {
+    // The CRM/ERP Connection Pack SKUs are retired (owner 10-21) and their
+    // payment links do not exist in the live Stripe account, so the webhook no
+    // longer maps them. A checkout that used to look like a pack now records
+    // through the generic branch: amount-only, no type, no slots, no agentType.
+    const RETIRED_PACK_LINK = "https://buy.stripe.com/5kQaEZ60LcAn8Ppgmk2Fa2I";
+    it("records a generic purchase (no pack type, no slots) and grants 0 slots", async () => {
       const sessionId = "cs_audit_pack_" + TS;
       const { status, json } = await postWebhook(checkoutEvent(
-        PACK_EMAIL, sessionId, CRM_PACK_LINK, 200000,
+        PACK_EMAIL, sessionId, RETIRED_PACK_LINK, 200000,
       ));
       expect(status).toBe(200);
       expect(json.received).toBe(true);
-
       const purchases = readJSONFile(PURCHASES_FILE);
       const recs = purchases[PACK_EMAIL] || [];
       expect(recs.length).toBe(1);
-      expect(recs[0].type).toBe("crm-pack");
-      expect(recs[0].slots).toBe(5);
-      expect(recs[0].agentType).toBe("crm-pack");
+      expect(recs[0].type).toBeUndefined();
+      expect(recs[0].slots).toBeUndefined();
+      expect(recs[0].agentType).toBeUndefined();
       expect(recs[0].amount).toBe(200000);
-
       const cookie = await registerAndGetCookie(PACK_EMAIL);
       expect(cookie).toBeTruthy();
       const { status: slotStatus, json: slotJson } = await authedGet("/api/data/crm-slots", cookie!);
       expect(slotStatus).toBe(200);
-      expect(slotJson.totalSlots).toBe(5);
-      expect(slotJson.remainingSlots).toBe(5);
+      expect(slotJson.totalSlots).toBe(0);
+      expect(slotJson.remainingSlots).toBe(0);
     });
-
-    it("a re-delivered pack event does NOT double the slot grant (5, not 10)", async () => {
+    it("a re-delivered event still does NOT double-provision (idempotency guard holds)", async () => {
       const sessionId = "cs_audit_pack_" + TS;
-      await postWebhook(checkoutEvent(PACK_EMAIL, sessionId, CRM_PACK_LINK, 200000));
+      await postWebhook(checkoutEvent(PACK_EMAIL, sessionId, RETIRED_PACK_LINK, 200000));
       const purchases = readJSONFile(PURCHASES_FILE);
-      const recs = (purchases[PACK_EMAIL] || []).filter((p: any) => p.type === "crm-pack");
+      const recs = purchases[PACK_EMAIL] || [];
       expect(recs.length).toBe(1); // idempotency guard: duplicate session skipped
-
-      // Re-read slots through the API to prove the grant is still 5.
-      const cookie = await registerAndGetCookie(PACK_EMAIL);
-      const { json } = await authedGet("/api/data/crm-slots", cookie!);
-      expect(json.totalSlots).toBe(5);
     });
   });
-
   describe("GENERIC purchase — minimal record, no grants", () => {
     it("records amount-only and grants nothing (and the retired surfaces 404)", async () => {
       const sessionId = "cs_audit_generic_" + TS;

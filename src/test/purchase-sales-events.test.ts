@@ -37,14 +37,14 @@ describe("purchase-sales-events — shared on-purchase-completed handler", () =>
 
     it("email body contains product, amount, and buyer", () => {
       const evt = buildOwnerSaleEvent({
-        productName: "ERP Connection Pack",
-        opportunityType: "erp-pack",
+        productName: "Growth Plan",
+        opportunityType: "plan",
         amountCents: 350000,
         customerEmail: "buyer@example.com",
         provisioned: "upgraded",
       })!;
       const body = ownerSaleEmailBody(evt);
-      expect(body).toContain("ERP Connection Pack");
+      expect(body).toContain("Growth Plan");
       expect(body).toContain("$3500.00");
       expect(body).toContain("buyer@example.com");
       expect(body).toContain("upgraded (existing)");

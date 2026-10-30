@@ -748,7 +748,7 @@ async function createZendeskTicket(creds: Record<string, string>, payload: Recor
 async function sendSlackMessage(creds: Record<string, string>, payload: Record<string, any>): Promise<ProviderActionResult> {
   const accessToken = creds.accessToken || creds.apiKey || "";
   const channel = payload.channel || payload.channelId || "general";
-  const text = payload.text || payload.detail || "Automated message from AI agent";
+  const text = payload.text || payload.detail || "Automated notification";
   try {
     const res = await fetchWithTimeout("https://slack.com/api/chat.postMessage", {
       method: "POST",

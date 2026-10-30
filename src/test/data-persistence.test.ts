@@ -273,12 +273,14 @@ describe("boot repair of parses-to-primitive runtime files (file-backed path)", 
     seedDataFiles(dir); // next boot's seed runs over the broken value
     const v = readJSON(file);
     expect(v).toEqual({});
-    // And a webhook-style write works on the repaired value.
-    v["buyer@example.com"] = [{ type: "crm-pack", slots: 5, agentType: "crm-pack", status: "active" }];
+    // And a webhook-style write works on the repaired value. (Plan-shaped
+    // record: the retired Connection Pack SKU no longer exists, so the fixture
+    // uses the live plan record shape.)
+    v["buyer@example.com"] = [{ type: "plan", tier: "growth", productName: "Growth Plan", status: "active" }];
     writeFileSync(file, JSON.stringify(v, null, 2));
     const after = readJSON(file);
-    expect(after["buyer@example.com"][0].slots).toBe(5);
-    expect(after["buyer@example.com"][0].agentType).toBe("crm-pack");
+    expect(after["buyer@example.com"][0].tier).toBe("growth");
+    expect(after["buyer@example.com"][0].productName).toBe("Growth Plan");
   });
 
   it("seedDataFiles repairs users.json that parses to a primitive (admin seed would otherwise throw)", () => {
