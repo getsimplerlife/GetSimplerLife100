@@ -33,7 +33,8 @@
 import { createHash } from "node:crypto";
 import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
 import { hostname } from "node:os";
-import { dirname, join, posix } from "node:path";
+import { dirname, join, posix, resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 import { atomicWriteSync } from "../../src/lib/atomic-write";
 import { DURABLE_BINARY_STORES, DURABLE_STORES } from "../../src/lib/durable-stores";
 
@@ -650,6 +651,51 @@ export function deriveDeclaredStores(rootDir: string): string[] {
 
 // ── SLICE 144 — one in-process run of the whole pipeline ────────────────────
 
+/**
+ * The publish tree this code lives in (SLICE 146).
+ *
+ * The guard below used to be a literal `/site/` match, so it only fired when the
+ * repository happened to be checked out at a path containing the segment
+ * "site" — `/home/team/shared/site` yes, a detached worktree at
+ * `/tmp/wt-abc/GetSimplerLife100` no. In a detached worktree the CLI happily
+ * created `backups-should-not-exist/` inside the tree it was supposed to
+ * protect, and the test that pins the guard failed there (expected non-zero,
+ * got 0) — the guard was keyed to a path instead of to the tree.
+ *
+ * The root is derived from THIS FILE's location (`scripts/lib` → repo root) and
+ * is only trusted when it really looks like our repo (`prod-server.ts` next to
+ * it). A wrong guess therefore returns null and the caller falls back to the
+ * literal heuristics — a mis-derived root must never start refusing legitimate
+ * backup directories on the live host.
+ */
+export function publishTreeRoot(): string | null {
+  try {
+    const here = dirname(fileURLToPath(import.meta.url)); // …/scripts/lib
+    const root = resolve(here, "..", "..");
+    if (existsSync(join(root, "prod-server.ts"))) return root;
+  } catch {
+    /* fall through to the literal backstops */
+  }
+  return null;
+}
+
+/**
+ * Would writing an archive to `outDir` put runtime data inside the tree that
+ * `publish_site` builds and swaps? True = refuse.
+ *
+ * Two independent checks, so neither a moved checkout nor an unusual path can
+ * slip past: (1) inside the repo this module was loaded from, (2) the literal
+ * `/site/` segments the platform has always used for its publish tree.
+ */
+export function isInsidePublishTree(outDir: string, root: string | null = publishTreeRoot()): boolean {
+  const abs = resolve(outDir);
+  if (root) {
+    const r = resolve(root);
+    if (abs === r || abs.startsWith(r + sep)) return true;
+  }
+  return /\/shared\/site\//.test(abs) || abs.endsWith("/site") || abs.includes("/site/");
+}
+
 export interface RunBackupOptions {
   dataDir: string;
   outDir: string;
@@ -724,7 +770,9 @@ export function runBackup(opts: RunBackupOptions): RunBackupResult {
     dataDirIsDir = false;
   }
   if (!dataDirIsDir) return fail(`DATA_DIR does not exist: ${opts.dataDir}`);
-  if (/\/shared\/site\//.test(outDir) || outDir.endsWith("/site") || outDir.includes("/site/")) {
+  // SLICE 146: the guard is keyed to the tree the code lives in, not to the
+  // literal string "site" — a detached worktree has to be protected too.
+  if (isInsidePublishTree(outDir)) {
     return fail(`refusing to write a backup inside the publish tree: ${outDir}`);
   }
   if (outDir === opts.dataDir || outDir.startsWith(opts.dataDir + "/")) {
