@@ -25,6 +25,7 @@
  */
 import { approvalGate, markApproved, markRejected, type ApprovalGateOutcome } from "../../lib/approval-queue";
 import { recordAutonomyOutcome } from "../../lib/autonomy";
+import { checkImportAllowed } from "../../lib/entitlement-store";
 import { getTable, generateTableEntityId, insertRow, listRows } from "../tables/store";
 import { generateKnowledgeBaseEntityId, listArticles, saveArticle } from "../knowledgebase/store";
 import { getJob, getPendingWriteByAction, listJobs, listPendingWrites, saveJob, savePendingWrite, markPendingWrite, saveRows, getRows, appendAudit } from "./store";
@@ -286,6 +287,21 @@ export function executeCommit(
       error: `Nothing to write: all ${validation.skipped} row(s) are already in the target (duplicates are skipped, never updated).`,
     };
   }
+  // SLICE 142 — the tier's monthly import volume, enforced at the ONE funnel
+  // that writes rows (so a queued approval can never bypass it). Refused
+  // BEFORE the first write: nothing is stored, the job stays uncommitted and
+  // the message names the tier and the limit.
+  const quota = checkImportAllowed(tenantId, validation.records.length, dataDir).quota;
+  if (!quota.allowed) {
+    appendAudit(dataDir, {
+      tenantId,
+      actor,
+      action: "native.fileimport.quota-refused",
+      entityId: job.id,
+      detail: `Refused by the ${quota.limit} rows/month plan limit (${quota.used} used, ${quota.requested} requested) — nothing written`,
+    });
+    return { ok: false, error: quota.message };
+  }
   let written: { committed: number; ids: string[] };
   try {
     written = writeRecords(dataDir, tenantId, job, validation.records, actor);
@@ -352,6 +368,20 @@ export async function submitFileImportWrite(
       }
       if (preview.records.length === 0) {
         return { applied: false, pending: false, op, error: `Nothing to write: all ${preview.skipped} row(s) are already in the target (duplicates are skipped, never updated).` };
+      }
+      // SLICE 142 — refuse over-quota imports HERE too, so an honest message
+      // reaches the tenant immediately instead of an approval card that would
+      // fail at apply time. The apply path re-checks (executeCommit).
+      const quota = checkImportAllowed(tenantId, preview.records.length, dataDir).quota;
+      if (!quota.allowed) {
+        appendAudit(dataDir, {
+          tenantId,
+          actor,
+          action: "native.fileimport.quota-refused",
+          entityId: job.id,
+          detail: `Refused by the ${quota.limit} rows/month plan limit (${quota.used} used, ${quota.requested} requested) — nothing queued, nothing written`,
+        });
+        return { applied: false, pending: false, op, error: quota.message };
       }
     } catch (e) {
       return { applied: false, pending: false, op, error: e instanceof Error ? e.message : String(e) };

@@ -26,6 +26,7 @@
 import { randomBytes } from "node:crypto";
 import { approvalGate, markApproved, markRejected, type ApprovalGateOutcome } from "../../lib/approval-queue";
 import { recordAutonomyOutcome } from "../../lib/autonomy";
+import { checkImportAllowed } from "../../lib/entitlement-store";
 import { publishWebhookEvent, flushTenantDeliveries } from "../webhooks/outbound";
 import { getTable } from "../tables/store";
 import { validateRowData } from "../tables/validate";
@@ -482,6 +483,15 @@ export async function submitImportWrite(
     const importRows = (prepared._importRows as Record<string, unknown>[]) ?? [];
     const job = getJob(dataDir, tenantId, importId);
     if (!job) return { applied: false, pending: false, error: "Import not found", op };
+    // SLICE 142 — the tier's monthly import volume. Provider pulls write into
+    // the same tables as the universal file import, so they count against the
+    // same monthly quota; the check runs BEFORE the tables gate so an
+    // over-quota commit is never even queued.
+    const quota = checkImportAllowed(tenantId, importRows.length, dataDir).quota;
+    if (!quota.allowed) {
+      appendRun(dataDir, { id: generateImportEntityId("imr"), tenantId, importId, op: "commitImport", at: new Date().toISOString(), by: actor, pulled: 0, mapped: 0, skipped: 0, committed: 0, failed: 1, note: `Refused by the plan import limit: ${quota.message}` });
+      return { applied: false, pending: false, error: quota.message, op };
+    }
     try {
       const res = submitTableWrite(dataDir, tenantId, tableId, "import", { rowData: {}, importRows }, actor);
       if (res.applied) {
@@ -581,6 +591,14 @@ export async function executePendingImportWrite(
   if (imw.op === "commitImport") {
     const tableId = typeof imw.payload._tableId === "string" ? imw.payload._tableId : "";
     if (!tableId) return { ok: false, reason: "commit payload missing target table", imwId: imw.id };
+    // SLICE 142 — re-check the monthly import volume at APPLY time too: a card
+    // queued earlier can go over the limit once other imports have landed.
+    const applyRows = Array.isArray((imw.payload as any)?._importRows) ? ((imw.payload as any)._importRows as unknown[]).length : 0;
+    const quota = checkImportAllowed(tenantId, applyRows, dataDir).quota;
+    if (!quota.allowed) {
+      markPendingWrite(dataDir, tenantId, imw.id, "rejected", { error: quota.message });
+      return { ok: false, reason: quota.message, imwId: imw.id };
+    }
     const res = executePendingTableWrite(dataDir, tenantId, approvalActionId, actorT);
     if (!res.ok) {
       markPendingWrite(dataDir, tenantId, imw.id, "rejected", { error: res.reason });

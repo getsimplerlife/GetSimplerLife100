@@ -1404,6 +1404,43 @@ async function handleFetch(req: Request): Promise<Response> {
         const billingNative = await import("./src/native/billing");
         return billingNative.handleNativeBillingAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
       }
+      // SLICE 142 — native ENTITLEMENTS read (/api/native/entitlements).
+      // The SAME helper the gates use (src/lib/entitlements.ts via
+      // entitlement-store.ts), so the portal billing page and the automation
+      // control-plane panel can never promise more than the gate allows.
+      // READ-ONLY, session-gated (anonymous -> 401), strictly the caller's own
+      // tenant — no query parameter can name another email.
+      if (pathname === "/api/native/entitlements") {
+        if (req.method !== "GET") return Response.json({ error: "Method not allowed" }, { status: 405 });
+        const { loadEntitlement, importRowsUsedThisMonth, currentMonthKey } = await import("./src/lib/entitlement-store");
+        const { describeEntitlement } = await import("./src/lib/entitlements");
+        const entitlement = loadEntitlement(user.email, DATA_DIR);
+        const view = describeEntitlement(entitlement);
+        const monthKey = currentMonthKey();
+        const used = importRowsUsedThisMonth(user.email, DATA_DIR, monthKey);
+        const limit = entitlement.limits.importRowsPerMonth;
+        return Response.json({
+          ok: true,
+          entitlement: {
+            tier: entitlement.tier,
+            label: entitlement.label,
+            tierSource: entitlement.tierSource,
+            uncertain: entitlement.uncertain,
+            access: entitlement.access,
+            planName: entitlement.planName,
+            note: entitlement.note,
+            limits: entitlement.limits,
+            features: entitlement.features,
+          },
+          view,
+          importUsage: {
+            monthKey,
+            used,
+            limit,
+            remaining: limit === null ? null : Math.max(0, limit - used),
+          },
+        });
+      }
       // P1-4 (owner 10-22) — native COMMUNICATIONS (/api/native/communications*).
       // AUTHED-ONLY (wired AFTER the session check → anonymous 401). Thread read
       // is tenant-scoped; Reply is a REAL gated write (createReply verb-first —
@@ -1986,6 +2023,17 @@ async function handleFetch(req: Request): Promise<Response> {
         const mode = body?.mode;
         if (mode !== "on" && mode !== "auto") {
           return Response.json({ error: "Invalid mode — expected \"on\" or \"auto\"" }, { status: 400 });
+        }
+        // SLICE 142 — turning approvals OFF tenant-wide is a CONTROL-PLANE
+        // decision (Growth+ per the approved tier contents). A Starter tenant
+        // keeps the human-approval default; every write stays approvable in
+        // the queue, so the core quote-to-cash chain is unaffected.
+        if (mode === "auto") {
+          const { requireFeature } = await import("./src/lib/entitlement-store");
+          const control = requireFeature(user.email, "controlPlane", DATA_DIR);
+          if (!control.allowed) {
+            return Response.json({ error: control.reason, upgradeTo: control.upgradeTo }, { status: 403 });
+          }
         }
         try {
           const settings = setApprovalMode(user.email, mode, DATA_DIR);

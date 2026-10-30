@@ -31,6 +31,7 @@
  */
 import { join } from "path";
 import { readJSON, writeJSON, resolveDataDir } from "./data-store";
+import { requireFeature } from "./entitlement-store";
 
 export const AUTONOMY_KEY = "tenant_autonomy.json";
 export const AUTONOMY_AUDIT_KEY = "tenant_autonomy_audit.json";
@@ -212,6 +213,15 @@ export function setAutonomyWorkflow(
 ): TenantAutonomyConfig {
   if (!tenantId?.trim()) throw new Error("setAutonomyWorkflow requires a tenant id");
   if (!workflowId?.trim()) throw new Error("setAutonomyWorkflow requires a workflow id");
+  // SLICE 142 — the CONTROL PLANE is a Growth+ feature (approved tier
+  // contents). Turning autonomy ON is the control-plane action: a Starter
+  // tenant keeps the default human-approval behaviour instead of a
+  // half-working control. Turning it OFF is always allowed, so nobody can be
+  // stuck in a mode they can no longer exit.
+  if (input.enabled) {
+    const control = requireFeature(tenantId, "controlPlane", dataDir);
+    if (!control.allowed) throw new Error(control.reason);
+  }
   const index = readIndex(dataDir);
   const current = index[tenantId] || { workflows: {} };
   void (current.workflows?.[workflowId] || emptyWorkflow());

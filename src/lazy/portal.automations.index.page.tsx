@@ -47,6 +47,10 @@ export default function AutomationsPage() {
   const [rules, setRules] = useState<RuleSummary[]>([]);
   const [runs, setRuns] = useState<RunSummary[]>([]);
   const [writes, setWrites] = useState<PendingWrite[]>([]);
+  // SLICE 142 — the CONTROL PLANE (autonomy allow-lists, kill switch, error
+  // budget) is Growth+. Resolved from the SAME helper the server gate uses, so
+  // this page can never offer a control the gate would refuse.
+  const [ent, setEnt] = useState<{ tier: string; label: string; controlPlane: boolean } | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
@@ -76,6 +80,22 @@ export default function AutomationsPage() {
     }
   }, []);
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    fetch("/api/native/entitlements", { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        const e = d?.entitlement;
+        if (!e) return;
+        setEnt({
+          tier: String(e.tier ?? "none"),
+          label: String(e.label ?? "your plan"),
+          // No plan on file = nothing to enforce (the server gate agrees).
+          controlPlane: e.tier === "none" ? true : e.features?.controlPlane === true,
+        });
+      })
+      .catch(() => setEnt(null));
+  }, []);
+  const controlPlane = ent?.controlPlane !== false;
 
   async function submit(path: string, body: unknown) {
     setBusy(true);
@@ -101,7 +121,7 @@ export default function AutomationsPage() {
       name, description: "Built in the automations workspace",
       trigger: triggerKind === "event" ? { kind: "event", eventType } : { kind: "schedule", cadence, timeUtc },
       conditions: amount ? [{ field: "amount", op: "gt", value: Number(amount) }] : [],
-      actions, autonomyAllowList: autonomy,
+      actions, autonomyAllowList: controlPlane ? autonomy : [],
     });
   }
   function lifecycle(ruleId: string, op: string) {
@@ -133,6 +153,31 @@ export default function AutomationsPage() {
       </div>
       {error && <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{error}</div>}
       {notice && <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-4 py-3 text-sm text-emerald-300">{notice}</div>}
+
+      {/* SLICE 142 — control-plane state. Growth+ owns the controls; Starter
+          sees exactly what it has (approvals, live) and what Growth adds.
+          Nothing here pretends a control exists that has not shipped. */}
+      {ent && (
+        <Card><CardBody>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <h2 className="font-semibold">Automation control plane</h2>
+            <Badge>{ent.label}</Badge>
+          </div>
+          {controlPlane ? (
+            <ul className="mt-3 space-y-1 text-sm text-stone-400">
+              <li>✓ Autonomy allow-lists — live: allow-listed actions auto-run, everything else waits for you.</li>
+              <li>✓ Kill switch and error budget — included in your plan; the dedicated controls are still being built, and until they ship every rule stays approval-gated unless you allow-list it.</li>
+              <li>✓ The approval queue — live on every plan.</li>
+            </ul>
+          ) : (
+            <ul className="mt-3 space-y-1 text-sm text-stone-400">
+              <li>✓ The approval queue — live on every plan, including yours.</li>
+              <li className="text-stone-500">◦ Autonomy allow-lists — included from Growth.</li>
+              <li className="text-stone-500">◦ Kill switch and error budget — included from Growth.</li>
+            </ul>
+          )}
+        </CardBody></Card>
+      )}
 
       <Card><CardBody>
         <h2 className="font-semibold mb-3">New rule</h2>
@@ -166,12 +211,22 @@ export default function AutomationsPage() {
         <div className="mt-3 flex flex-wrap gap-2 items-center">
           <span className="text-xs text-stone-500">Auto-run (allow-list):</span>
           {["notify", "webhook", "tableWrite", "runTransform"].map((k) => (
-            <button key={k} type="button" onClick={() => toggleAutonomy(k)}
-              className={`px-2 py-1 rounded-lg text-xs font-medium border ${autonomy.includes(k) ? "bg-emerald-500 text-black border-emerald-400" : "bg-stone-800 text-stone-300 border-stone-700"}`}>
+            <button key={k} type="button" disabled={!controlPlane} onClick={() => toggleAutonomy(k)}
+              className={`px-2 py-1 rounded-lg text-xs font-medium border ${
+                !controlPlane
+                  ? "bg-stone-900 text-stone-600 border-stone-800 cursor-not-allowed"
+                  : autonomy.includes(k) ? "bg-emerald-500 text-black border-emerald-400" : "bg-stone-800 text-stone-300 border-stone-700"
+              }`}>
               {k}
             </button>
           ))}
         </div>
+        {!controlPlane && (
+          <p className="mt-2 text-xs text-stone-400">
+            Auto-run allow-lists are part of the automation control plane, <span className="font-semibold text-stone-200">included from Growth</span>.
+            On your {ent?.label ?? "current"} plan every rule stays approval-gated — nothing is blocked, you approve each write yourself.
+          </p>
+        )}
         <div className="mt-4">
           <Button disabled={busy || !name.trim()} onClick={createRule}>Create rule (approval-gated)</Button>
         </div>

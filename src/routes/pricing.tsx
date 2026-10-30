@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Header } from "~/components/Header";
 import { Footer } from "~/components/Footer";
 import { pageHead } from "~/lib/site-meta";
+import { TIER_SPECS, type PaidTier } from "~/lib/entitlements";
 
 export const Route = createFileRoute("/pricing")({
   head: () => pageHead("/pricing"),
@@ -27,7 +28,7 @@ const PLATFORM_TIERS = [
     description: "The full platform for your first automated workflows.",
     features: [
       "100% of native capabilities \u2014 records, forms, docs/e-sign, webhooks, booking, boards, AI extraction, surveys/NPS, transforms/EDI, dashboards/BI, automations",
-      "Approval-queue control with per-workflow autonomy allow-lists",
+      "Approval-queue control — every write waits for your approval (autonomy allow-lists from Growth)",
       "Standard support (email)",
     ],
     cta: "Choose Starter",
@@ -66,6 +67,40 @@ const PLATFORM_TIERS = [
     ctaHref: "https://buy.stripe.com/fZu28qfXmaNEdQb2AR5os02",
   },
 ];
+
+/**
+ * SLICE 142 — the concrete limits, generated from src/lib/entitlements.ts:
+ * the SAME numbers the gates enforce. A limit can never be advertised here
+ * that the platform does not apply (and none is applied that is not here).
+ */
+const fmt = (n: number) => n.toLocaleString("en-US");
+function limitLines(tier: PaidTier): string[] {
+  const spec = TIER_SPECS[tier];
+  const out: string[] = [];
+  out.push(spec.limits.seats === null ? "Unlimited seats" : `${spec.limits.seats} seats`);
+  out.push(
+    spec.limits.importRowsPerMonth === null
+      ? "Custom import volume"
+      : `${fmt(spec.limits.importRowsPerMonth)} imported rows/month (enforced)`,
+  );
+  out.push(
+    spec.limits.auditRetentionDays === null
+      ? "Configurable audit retention + full audit export"
+      : `${spec.limits.auditRetentionDays}-day audit retention${spec.limits.auditExport ? " + CSV export" : ", no export"}`,
+  );
+  out.push(spec.features.controlPlane ? "Automation control plane (allow-lists, kill switch, error budget)" : "Automation control plane: from Growth");
+  out.push(
+    !spec.features.apiAdapters
+      ? "Provider API adapters: from Growth"
+      : spec.limits.apiAdapters === null
+        ? "All provider API adapters (when built)"
+        : `${spec.limits.apiAdapters} provider API adapters (when built)`,
+  );
+  out.push(spec.features.dpa ? "Data-processing agreement included" : "DPA: from Growth");
+  if (spec.features.sso) out.push("SSO/SAML included");
+  out.push(spec.support);
+  return out;
+}
 
 function PricingPage() {
   return (
@@ -113,13 +148,21 @@ function PricingPage() {
               </div>
               <div className="text-xs text-stone-500 mb-4">{tier.onboardingLabel}</div>
               <p className="text-stone-400 text-sm mb-4">{tier.description}</p>
-              <ul className="space-y-2 mb-6 flex-1">
+              <ul className="space-y-2 mb-4 flex-1">
                 {tier.features.map((f) => (
                   <li key={f} className="flex items-start gap-2 text-sm text-stone-300">
                     <span className="text-emerald-400 mt-0.5 shrink-0">✓</span> {f}
                   </li>
                 ))}
               </ul>
+              <div className="mb-6 rounded-xl bg-stone-950/60 border border-stone-800 p-3">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-stone-500 mb-2">What the plan allows</div>
+                <ul className="space-y-1">
+                  {limitLines(tier.name.toLowerCase() as PaidTier).map((l) => (
+                    <li key={l} className="text-[11px] text-stone-400 leading-relaxed">· {l}</li>
+                  ))}
+                </ul>
+              </div>
               <a
                 href={tier.ctaHref}
                 target="_blank"
