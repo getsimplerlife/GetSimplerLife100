@@ -47,6 +47,7 @@ import {
   readBackupFreshness,
   readBackupStatus,
   staleEventLine,
+  type BackupStatusSummary,
 } from "../lib/backup-status";
 import {
   DEFAULT_R2_PREFIX,
@@ -495,7 +496,7 @@ describe("slice 147 — one namespace per instance", () => {
 describe("slice 147 — staleness, honestly", () => {
   const HOUR = 60 * 60 * 1000;
 
-  function summary(patch: Partial<ReturnType<typeof readBackupStatus>> = {}) {
+  function summary(patch: Partial<BackupStatusSummary> = {}): BackupStatusSummary {
     return {
       lastBackupAt: null,
       lastBackupOk: null,
@@ -507,6 +508,7 @@ describe("slice 147 — staleness, honestly", () => {
       lastBackupEncryption: null,
       lastBackupOkAt: null,
       consecutiveFailures: null,
+      consecutiveUploadFailures: null,
       lastBackupR2: null,
       ...patch,
     };
@@ -608,7 +610,7 @@ describe("slice 147 — staleness, honestly", () => {
     expect(JSON.parse(line.slice("[backup][upload-failed] ".length))).toEqual({ error: "HTTP 403", consecutiveFailures: 2 });
 
     const healthy = backupFreshness(
-      { ...summary(), lastBackupOk: true, lastBackupOkAt: "2026-10-30T22:55:00Z" } as any,
+      summary({ lastBackupOk: true, lastBackupOkAt: "2026-10-30T22:55:00Z" }),
       { now: new Date("2026-10-30T23:00:00Z"), intervalMs: HOUR },
     );
     expect(staleEventLine(healthy)).toBeNull();
