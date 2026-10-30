@@ -27,6 +27,7 @@ import { startHealthHeartbeat, probeProvider } from "./src/lib/connection-health
 import { sweepExpiredOAuthStates, OAUTH_STATE_TTL_MS } from "./src/lib/oauth-state-sweeper";
 import { acquireSingleInstanceOwnership, portAlreadyBound } from "./src/lib/single-instance";
 import { isOwnerUser, LEGACY_OWNER_EMAIL } from "./src/lib/user-roles";
+import { readBackupStatus, countStoreEntries } from "./src/lib/backup-status";
 
 // ── Lazy module accessors — loaded on first use to keep server startup under 1s ──
 let _bcryptjs: any;
@@ -3098,6 +3099,12 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
         return Response.json({
           dataDir: DATA_DIR,
           insidePublishTree: isInsidePublishTree(DATA_DIR),
+          // Slice 143 - the same-host archive. `scripts/backup.mjs` writes
+          // backup_status.json into DATA_DIR; this is the only place the app
+          // reports it. Read-only, owner-gated, and honest about a missing or
+          // failed run (nulls, never a made-up success).
+          ...readBackupStatus(DATA_DIR),
+          stores: countStoreEntries(DATA_DIR),
           legacyDirExists: !!legacyDir,
           legacyDir: legacyDir,
           durableStore: durableEnabled() ? "postgres" : "file",
