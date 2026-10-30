@@ -570,6 +570,8 @@ export function deriveDeclaredStores(rootDir: string): string[] {
     }
   };
   const add = (name: string): void => {
+    // Skip doc-comment placeholders such as "<name>.json" — only real names.
+    if (name.includes("<") || name.includes(">")) return;
     if (name.endsWith(".json") && name !== BACKUP_STATUS_FILE) found.add(name);
   };
   const scan = (text: string): void => {
