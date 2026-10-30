@@ -224,8 +224,10 @@ describe("Source-level: prod-server wires the shared handler in the checkout blo
     expect(src).toContain("import { buildOwnerSaleEvent, provisionAccountForPurchase, ownerSaleEmailBody } from \"./src/lib/purchase-sales-events\"");
     expect(src.includes("handlePurchaseCompleted")).toBe(true);
     expect(src.includes("SALES_EVENTS_FILE")).toBe(true);
-    // Every provisioning branch must invoke the handler (pack, plan, agent/generic).
-    expect((src.match(/await handlePurchaseCompleted\(/g) || []).length).toBeGreaterThanOrEqual(3);
+    // Every SURVIVING provisioning branch must invoke the handler: the plan
+    // branch and the generic branch. (The Connection Pack branch was deleted
+    // with the retired SKU in slice 136, so the old ">= 3" pin was stale.)
+    expect((src.match(/await handlePurchaseCompleted\(/g) || []).length).toBeGreaterThanOrEqual(2);
     // The handler reuses the existing SendGrid/lead mail path, not a new one.
     expect(src).toContain("async function sendEmailSMTP");
     expect(src).toContain("LEAD_NOTIFICATION_EMAIL");
