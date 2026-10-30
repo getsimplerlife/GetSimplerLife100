@@ -148,41 +148,11 @@ describe("End-to-end purchase provisioning", () => {
     expect(userPurchases.length).toBeGreaterThanOrEqual(1);
     expect(userPurchases[0].status).toBe("active");
     expect(userPurchases[0].amount).toBe(95000);
-  });
-
-  it("provisions a CRM Connection Pack from the canonical Stripe link with type/slots/agentType", async () => {
-    // Regression for the Neon JSONB-string bug (2026-08-13): when
-    // tenant_purchases.json parses to a string primitive, the pack branch
-    // threw "Attempted to assign to readonly property" and nothing was
-    // recorded. The boot repair must make this e2e path write a real object.
-    const webhookBody = {
-      type: "checkout.session.completed",
-      data: {
-        object: {
-          id: "cs_test_pack_" + Date.now(),
-          object: "checkout.session",
-          customer_details: { email: TEST_EMAIL },
-          customer_email: TEST_EMAIL,
-          payment_link: "https://buy.stripe.com/5kQaEZ60LcAn8Ppgmk2Fa2I",
-          amount_total: 200000,
-          metadata: {},
-        },
-      },
-    };
-
-    const { status, json } = await post("/api/stripe/webhook", webhookBody);
-    expect(status).toBe(200);
-    expect(json.received).toBe(true);
-
-    const purchases = readPurchases();
-    const userPurchases = purchases[TEST_EMAIL] || [];
-    const pack = userPurchases.find((p: any) => p.type === "crm-pack");
-    expect(pack).toBeDefined();
-    expect(pack.slots).toBe(5);
-    expect(pack.agentType).toBe("crm-pack");
-    expect(pack.productName).toBe("CRM Connection Pack");
-    expect(pack.status).toBe("active");
-    expect(pack.amount).toBe(200000);
+    // An UNKNOWN link stays fail-closed: a generic record, no invented tier,
+    // no pack fields (the pack SKU is retired and its branch is gone).
+    expect(userPurchases[0].type).toBeUndefined();
+    expect(userPurchases[0].tier).toBeUndefined();
+    expect(userPurchases[0].slots).toBeUndefined();
   });
 
   it("provisions a purchase via the hyphenated /api/stripe-webhook path (Stripe dashboard spelling)", async () => {
@@ -190,7 +160,11 @@ describe("End-to-end purchase provisioning", () => {
     // /api/stripe-webhook (hyphen), but prod-server only matched the slash
     // form — events fell through to the SPA HTML fallback (200), so Stripe
     // marked them delivered while NO purchase was recorded. The fix accepts
-    // BOTH spellings; this test proves the hyphen path provisions a pack.
+    // BOTH spellings; this test proves the hyphen path records a real plan.
+    //
+    // It uses the LIVE Growth tier payment link (re-verified 10-30), so it
+    // also covers the first-sale path: a customer buying today must be
+    // recorded as a tiered plan, not as a generic untiered purchase.
     const webhookBody = {
       type: "checkout.session.completed",
       data: {
@@ -199,8 +173,8 @@ describe("End-to-end purchase provisioning", () => {
           object: "checkout.session",
           customer_details: { email: TEST_EMAIL_HYPHEN },
           customer_email: TEST_EMAIL_HYPHEN,
-          payment_link: "https://buy.stripe.com/5kQaEZ60LcAn8Ppgmk2Fa2I",
-          amount_total: 200000,
+          payment_link: "https://buy.stripe.com/fZubJ0h1qbRI5jFcbr5os01",
+          amount_total: 59900,
           metadata: {},
         },
       },
@@ -211,12 +185,14 @@ describe("End-to-end purchase provisioning", () => {
     expect(json.received).toBe(true);
 
     const purchases = readPurchases();
-    const pack = (purchases[TEST_EMAIL_HYPHEN] || []).find((p: any) => p.type === "crm-pack");
-    expect(pack).toBeDefined();
-    expect(pack.slots).toBe(5);
-    expect(pack.agentType).toBe("crm-pack");
-    expect(pack.status).toBe("active");
-    expect(pack.amount).toBe(200000);
+    const recs = purchases[TEST_EMAIL_HYPHEN] || [];
+    expect(recs.length).toBeGreaterThanOrEqual(1);
+    const plan = recs.find((p: any) => p.type === "plan");
+    expect(plan).toBeDefined();
+    expect(plan.tier).toBe("growth");
+    expect(plan.productName).toBe("Growth Plan");
+    expect(plan.status).toBe("active");
+    expect(plan.amount).toBe(59900);
   });
 
   it("GET on both webhook paths never returns the SPA HTML fallback", async () => {

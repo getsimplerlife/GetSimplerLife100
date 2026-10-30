@@ -22,28 +22,43 @@ import { createHmac, timingSafeEqual } from "crypto";
  */
 
 /**
- * Plan purchases (owner decision 2026-08-13, task F3). These are the LEGACY
- * per-employee tier links, kept only so historical checkout sessions still map
- * to a plan record (no such link exists in the live Stripe account any more —
- * the live tiers are the three platform links on the pricing page).
+ * Plan purchases (owner 09-27 locked platform pricing; remapped 10-30).
+ *
+ * These are the THREE LIVE tier payment links — the only buy links on the
+ * standard Stripe account (re-verified live 2026-10-30: exactly three payment
+ * links, Starter / Growth / Enterprise). A customer who buys today therefore
+ * resolves to a real plan record carrying its tier and product name, instead
+ * of falling through to the generic branch with no tier.
+ *
+ * The retired per-employee links (3cI8wR88 / 5kQ6oJbl / aFa7sN60) do NOT exist
+ * in the live account; they no longer map to anything (fail-closed) so nothing
+ * can be recorded as a plan that was never sold.
+ *
  * Detection is fail-closed: unknown links are NOT plans.
  */
-export const STARTER_PLAN_LINK = "https://buy.stripe.com/3cI8wR88Tasfc1B9XW2Fa2K";
-export const PROFESSIONAL_PLAN_LINK = "https://buy.stripe.com/5kQ6oJbl5dErc1B1rq2Fa2L";
-export const ENTERPRISE_PLAN_LINK = "https://buy.stripe.com/aFa7sN60LdErc1B5HG2Fa2M";
+export const STARTER_PLAN_LINK = "https://buy.stripe.com/eVq5kC7qQ0909zV0sJ5os00";
+export const GROWTH_PLAN_LINK = "https://buy.stripe.com/fZubJ0h1qbRI5jFcbr5os01";
+export const ENTERPRISE_PLAN_LINK = "https://buy.stripe.com/fZu28qfXmaNEdQb2AR5os02";
 
-export type PlanTier = "starter" | "professional" | "enterprise";
+export type PlanTier = "starter" | "growth" | "enterprise";
 
 export interface PlanSpec {
   tier: PlanTier;
   productName: string;
 }
 
+/** Canonical spec per tier (the product name recorded on the purchase). */
+export const PLAN_SPECS: Record<PlanTier, PlanSpec> = {
+  starter: { tier: "starter", productName: "Starter Plan" },
+  growth: { tier: "growth", productName: "Growth Plan" },
+  enterprise: { tier: "enterprise", productName: "Enterprise Plan" },
+};
+
 /** Constant map: canonical plan link → plan spec (tier + product name). */
 export const PLANS_BY_LINK: Record<string, PlanSpec> = {
-  [STARTER_PLAN_LINK]: { tier: "starter", productName: "Starter Plan" },
-  [PROFESSIONAL_PLAN_LINK]: { tier: "professional", productName: "Professional Plan" },
-  [ENTERPRISE_PLAN_LINK]: { tier: "enterprise", productName: "Enterprise Plan" },
+  [STARTER_PLAN_LINK]: PLAN_SPECS.starter,
+  [GROWTH_PLAN_LINK]: PLAN_SPECS.growth,
+  [ENTERPRISE_PLAN_LINK]: PLAN_SPECS.enterprise,
 };
 
 /**
@@ -59,6 +74,28 @@ export function detectPlanType(paymentLink: string | undefined | null): PlanSpec
     if (link === canonical || link.includes(canonical)) return spec;
   }
   return null;
+}
+
+/**
+ * Secondary signal: each live payment link carries `metadata.tier`
+ * (starter / growth / enterprise), which Stripe copies onto the checkout
+ * session. Fail-closed — an unrecognised or missing tier resolves to null, so
+ * this can never invent a plan the customer did not buy. It is used only as a
+ * fallback behind the link mapping, never instead of it.
+ */
+export function detectPlanTierFromMetadata(tier: string | undefined | null): PlanSpec | null {
+  const key = String(tier || "").trim().toLowerCase();
+  if (!key) return null;
+  const spec = (PLAN_SPECS as Record<string, PlanSpec | undefined>)[key];
+  return spec || null;
+}
+
+/** Link first (authoritative), then `metadata.tier`. Null when neither matches. */
+export function resolvePlanSpec(
+  paymentLink: string | undefined | null,
+  metadataTier?: string | undefined | null,
+): PlanSpec | null {
+  return detectPlanType(paymentLink) || detectPlanTierFromMetadata(metadataTier);
 }
 
 /**

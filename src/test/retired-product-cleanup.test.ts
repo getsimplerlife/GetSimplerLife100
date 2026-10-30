@@ -19,12 +19,12 @@
  *      source file outside src/test;
  *   6. the customer-facing surfaces carry EXACTLY the three live tier links.
  *
- * Note on the legacy plan-link constants: STARTER/PROFESSIONAL/ENTERPRISE
- * _PLAN_LINK in src/lib/stripe-webhook.ts are the OLD per-employee tier links
- * (3cI8wR88 / 5kQ6oJbl / aFa7sN60). They are server-side detection constants
- * for historical sessions only — never a CTA, never in a client bundle. The
- * brief for this slice kept detectPlanType/buildPlanPurchase working, so they
- * stay and are pinned as "src/lib only" below.
+ * Note on the plan-link constants (updated 10-30, follow-up to this slice):
+ * STARTER/GROWTH/ENTERPRISE_PLAN_LINK in src/lib/stripe-webhook.ts are now the
+ * three LIVE tier links (eVq5kC7q / fZubJ0h1 / fZu28qfX — re-verified live
+ * 10-30). The old per-employee links (3cI8wR88 / 5kQ6oJbl / aFa7sN60) do not
+ * exist in the live account and no longer map at all, so a purchase today is
+ * recorded with its real tier instead of as an untiered generic purchase.
  */
 import { describe, expect, it } from "vitest";
 import { existsSync, readFileSync, readdirSync, statSync } from "fs";
@@ -169,21 +169,26 @@ describe("buy links — the customer-facing surfaces carry EXACTLY the three liv
     for (const link of LIVE_TIER_LINKS) expect(pricing).toContain(link);
   });
 
-  it("the legacy plan-link constants live ONLY in stripe-webhook.ts (server-side detection, never a CTA)", () => {
+  it("the retired per-employee tier links appear in NO source file, and the live tiers are what maps", () => {
     const legacy = ["3cI8wR88Tasfc1B9XW2Fa2K", "5kQ6oJbl5dErc1B1rq2Fa2L", "aFa7sN60LdErc1B5HG2Fa2M"];
     const files = [...srcOutsideTests(), join(REPO, "prod-server.ts")];
+    const hits: string[] = [];
     for (const f of files) {
       const rel = f.replace(REPO + "/", "");
       const text = readFileSync(f, "utf8");
-      for (const id of legacy) {
-        if (rel === "src/lib/stripe-webhook.ts") continue;
-        expect(text.includes(id), `${rel} must not carry the legacy tier link ${id}`).toBe(false);
-      }
+      for (const id of legacy) if (text.includes(id)) hits.push(`${rel} → ${id}`);
     }
-    // And they are not on any customer-facing surface.
+    expect(hits, `retired per-employee tier links still in source: ${hits.join(", ")}`).toEqual([]);
+    // And they are not on any customer-facing surface either.
     for (const f of productFiles()) {
       const text = readFileSync(f, "utf8");
       for (const id of legacy) expect(text.includes(id), `${f} carries ${id}`).toBe(false);
     }
+    // The live tier links ARE what the webhook maps, so a purchase today is
+    // recorded as a real tier rather than an untiered generic purchase.
+    const w = read("src/lib/stripe-webhook.ts");
+    for (const link of LIVE_TIER_LINKS) expect(w, `stripe-webhook.ts does not map ${link}`).toContain(link);
+    const server = read("prod-server.ts");
+    expect(server).toContain("detectPlanTierFromMetadata(session.metadata?.tier)");
   });
 });

@@ -3,7 +3,7 @@ import { join } from "path";
 import { readFileSync, existsSync, readdirSync } from "fs";
 import { createHash, randomBytes } from "crypto";
 import { resolveDataDir, isInsidePublishTree, readJSON, readJSONLive, writeJSON, seedDataFiles, bucketConnectionsByCategory, migrateLegacyData, findLegacyDataDir, mergeDurableCredential } from "./src/lib/data-store";
-import { verifyStripeSignature, detectPlanType, buildPlanPurchase } from "./src/lib/stripe-webhook";
+import { verifyStripeSignature, detectPlanType, detectPlanTierFromMetadata, buildPlanPurchase } from "./src/lib/stripe-webhook";
 import { buildOwnerSaleEvent, provisionAccountForPurchase, ownerSaleEmailBody } from "./src/lib/purchase-sales-events";
 import {
   generateResetCode,
@@ -3041,12 +3041,15 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
           }
 
 
-          // Legacy tier mapping (guardrail-pinned runtime): detectPlanType
-          // still resolves the retired tier links so historical sessions keep
-          // mapping. No per-agent grant is recorded (the per-agent model is
-          // banned) and no employees store is read — the record carries no
-          // agent fields at all.
-          const planSpec = detectPlanType(paymentLink);
+          // Plan mapping — the three LIVE tier links (Starter / Growth /
+          // Enterprise, re-verified live 10-30) resolve here, so a purchase
+          // today records its real tier + product name instead of landing in
+          // the generic branch with no tier. `metadata.tier` (carried by each
+          // payment link) is the secondary, equally fail-closed signal. No
+          // per-agent grant is recorded (the per-agent model is banned) and no
+          // employees store is read — the record carries no agent fields.
+          const planSpec =
+            detectPlanType(paymentLink) || detectPlanTierFromMetadata(session.metadata?.tier);
           if (planSpec && customerEmail) {
             const purchases = readJSON(TENANT_PURCHASES_FILE);
             const userPurchases = purchases[customerEmail] || [];
@@ -3064,9 +3067,9 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
             return Response.json({ received: true });
           }
 
-          // Cleanup (c): every other checkout (current tier links, legacy
-          // links) records as a generic platform purchase — no per-agent
-          // matcher, no employees store read anywhere.
+          // Every other checkout (an unknown or foreign link) records as a
+          // generic platform purchase — no per-agent matcher, no employees
+          // store read anywhere.
           if (customerEmail) {
             // Generic purchase — record it
             const purchases = readJSON(TENANT_PURCHASES_FILE);

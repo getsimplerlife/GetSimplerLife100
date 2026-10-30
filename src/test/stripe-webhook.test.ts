@@ -3,6 +3,8 @@ import { createHmac } from "crypto";
 import {
   verifyStripeSignature,
   detectPlanType,
+  detectPlanTierFromMetadata,
+  resolvePlanSpec,
   buildPlanPurchase,
   STRIPE_SIGNATURE_TOLERANCE_MS,
 } from "../lib/stripe-webhook";
@@ -23,20 +25,64 @@ function sign(rawBody: string, secret: string, timestampSec?: number): string {
   return `t=${ts},v1=${sig}`;
 }
 
-describe("detectPlanType — legacy tier links still map, unknown links fail closed", () => {
-  it("maps each of the three legacy tier links to its tier", () => {
-    expect(detectPlanType("https://buy.stripe.com/3cI8wR88Tasfc1B9XW2Fa2K")?.tier).toBe("starter");
-    expect(detectPlanType("https://buy.stripe.com/5kQ6oJbl5dErc1B1rq2Fa2L")?.tier).toBe("professional");
-    expect(detectPlanType("https://buy.stripe.com/aFa7sN60LdErc1B5HG2Fa2M")?.tier).toBe("enterprise");
+describe("detectPlanType — the three LIVE tier links map, everything else fails closed", () => {
+  it("maps each live tier link to its tier AND product name", () => {
+    expect(detectPlanType("https://buy.stripe.com/eVq5kC7qQ0909zV0sJ5os00")).toEqual({
+      tier: "starter",
+      productName: "Starter Plan",
+    });
+    expect(detectPlanType("https://buy.stripe.com/fZubJ0h1qbRI5jFcbr5os01")).toEqual({
+      tier: "growth",
+      productName: "Growth Plan",
+    });
+    expect(detectPlanType("https://buy.stripe.com/fZu28qfXmaNEdQb2AR5os02")).toEqual({
+      tier: "enterprise",
+      productName: "Enterprise Plan",
+    });
   });
+
   it("matches with Stripe query params and rejects anything else", () => {
-    expect(detectPlanType("https://buy.stripe.com/3cI8wR88Tasfc1B9XW2Fa2K?session_id=cs_1")?.tier).toBe("starter");
-    // The retired pack links are NOT plans and never were.
+    expect(detectPlanType("https://buy.stripe.com/fZubJ0h1qbRI5jFcbr5os01?session_id=cs_1")?.tier).toBe("growth");
+    // The retired per-employee tier links do not exist in the live Stripe
+    // account, so they are NOT plans any more (fail closed).
+    expect(detectPlanType("https://buy.stripe.com/3cI8wR88Tasfc1B9XW2Fa2K")).toBeNull();
+    expect(detectPlanType("https://buy.stripe.com/5kQ6oJbl5dErc1B1rq2Fa2L")).toBeNull();
+    expect(detectPlanType("https://buy.stripe.com/aFa7sN60LdErc1B5HG2Fa2M")).toBeNull();
+    // The retired pack link is not a plan either.
     expect(detectPlanType("https://buy.stripe.com/5kQaEZ60LcAn8Ppgmk2Fa2I")).toBeNull();
-    expect(detectPlanType("https://buy.stripe.com/eVq5kC7qQ0909zV0sJ5os00")).toBeNull();
     expect(detectPlanType("")).toBeNull();
     expect(detectPlanType(undefined)).toBeNull();
     expect(detectPlanType(null)).toBeNull();
+  });
+});
+
+describe("metadata.tier fallback — fail closed, never invents a plan", () => {
+  it("maps starter / growth / enterprise metadata onto the same specs as the links", () => {
+    expect(detectPlanTierFromMetadata("starter")).toEqual({ tier: "starter", productName: "Starter Plan" });
+    expect(detectPlanTierFromMetadata("growth")).toEqual({ tier: "growth", productName: "Growth Plan" });
+    expect(detectPlanTierFromMetadata(" Enterprise ")).toEqual({ tier: "enterprise", productName: "Enterprise Plan" });
+  });
+
+  it("rejects the retired per-employee label and unknown/missing values", () => {
+    // "professional" was the per-employee Growth predecessor — never a tier now.
+    expect(detectPlanTierFromMetadata("professional")).toBeNull();
+    expect(detectPlanTierFromMetadata("scale")).toBeNull();
+    expect(detectPlanTierFromMetadata("")).toBeNull();
+    expect(detectPlanTierFromMetadata(undefined)).toBeNull();
+    expect(detectPlanTierFromMetadata(null)).toBeNull();
+  });
+
+  it("resolvePlanSpec prefers the link and still resolves from metadata alone", () => {
+    // Link wins: a Growth link with a stale starter metadata tag stays Growth.
+    expect(
+      resolvePlanSpec("https://buy.stripe.com/fZubJ0h1qbRI5jFcbr5os01", "starter")?.tier,
+    ).toBe("growth");
+    // Metadata alone resolves (e.g. a checkout session whose link field is absent).
+    expect(resolvePlanSpec("", "enterprise")?.tier).toBe("enterprise");
+    expect(resolvePlanSpec(undefined, "growth")?.productName).toBe("Growth Plan");
+    // Neither → null, so the caller falls through to the generic branch.
+    expect(resolvePlanSpec("https://buy.stripe.com/unknown", "professional")).toBeNull();
+    expect(resolvePlanSpec(undefined, undefined)).toBeNull();
   });
 });
 

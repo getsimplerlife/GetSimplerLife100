@@ -225,10 +225,10 @@ describe("durable store — boot repair of parses-to-primitive rows (Neon JSONB-
     // Boot repair normalized the cached value to a plain object.
     const purchases = durableGet("tenant_purchases.json");
     expect(isPlainObject(purchases)).toBe(true);
-    // The webhook pack branch — read, mutate, write — the exact operations
+    // The webhook plan branch — read, mutate, write — the exact operations
     // that threw before the repair.
     const userPurchases = purchases["buyer@example.com"] || [];
-    userPurchases.push({ id: "purchase-1", type: "crm-pack", slots: 5, agentType: "crm-pack", status: "active" });
+    userPurchases.push({ id: "purchase-1", type: "plan", tier: "growth", productName: "Growth Plan", status: "active" });
     purchases["buyer@example.com"] = userPurchases;
     durableSet("tenant_purchases.json", purchases);
     await durableFlush();
@@ -236,9 +236,9 @@ describe("durable store — boot repair of parses-to-primitive rows (Neon JSONB-
     const healed = driver.dump()["tenant_purchases.json"];
     expect(isPlainObject(healed)).toBe(true);
     const record = healed["buyer@example.com"][0];
-    expect(record.type).toBe("crm-pack");
-    expect(record.slots).toBe(5);
-    expect(record.agentType).toBe("crm-pack");
+    expect(record.type).toBe("plan");
+    expect(record.tier).toBe("growth");
+    expect(record.productName).toBe("Growth Plan");
     expect(record.status).toBe("active");
     // The generic branch (`purchases[customerEmail] = userPurchases`) also
     // works on the healed value.
