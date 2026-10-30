@@ -12,13 +12,10 @@ import { ensureTestServer, testBaseUrl, testDataDir } from "./test-env";
  *   F5 — the orphaned serve.ts /api/billing/portal stub is removed; the
  *        payment webhook paths (/api/stripe-webhook, /api/stripe/webhook)
  *        are untouched.
- *   PACK-SLOT — RETIRED (owner 10-21). Connection Pack language must be
- *        absent from the user-facing pricing surface (see guardrail below).
- *
- * The endpoint e2e section is probe-based: it fully asserts when the target
- * server has the new endpoint (post-deploy / branch instance) and skips with
- * a clear message when the endpoint is not deployed yet (live server running
- * older code), so the canonical suite stays green both ways.
+ *   PACK-SLOT — RETIRED (owner 10-21) and the /api/portal/pack-slot route was
+ *        DELETED from the server in the 10-30 retired-product cleanup. The
+ *        e2e section below now pins the retirement: the route serves no
+ *        entitlement and a retired pack link provisions no pack record.
  */
 
 // ── Source-level checks (F5 + pricing copy) — always run ─────────────
@@ -182,7 +179,7 @@ function removeTestRecords() {
   }
 }
 
-describe("Pack-slot redemption endpoint (plan-included Connection Pack)", () => {
+describe("Connection Pack slot is RETIRED — route deleted, no entitlement served", () => {
   let cookie: string | null = null;
   beforeAll(async () => {
     await ensureTestServer();
@@ -196,80 +193,62 @@ describe("Pack-slot redemption endpoint (plan-included Connection Pack)", () => 
   });
   afterAll(() => { removeTestRecords(); });
 
-  it("endpoint exists on the target server (probe) — otherwise skip", async () => {
-    // Old servers return the SPA HTML fallback (200 text/html) for unknown
-    // /api/portal/* routes; the new endpoint answers JSON 401 without a session.
-    const res = await fetch(`${BASE_URL}/api/portal/pack-slot`, { method: "GET" });
+  it("GET /api/portal/pack-slot serves NO entitlement payload (route deleted)", async () => {
+    // The handler is gone from prod-server.ts, so this path falls through to
+    // the documented unmatched-/api fallback. What must NEVER happen is a JSON
+    // entitlement body — that was the retired product's surface.
+    const res = await fetch(`${BASE_URL}/api/portal/pack-slot`, {
+      method: "GET",
+      headers: { Cookie: `session=${cookie}` },
+    });
     const ct = res.headers.get("content-type") || "";
-    if (ct.includes("text/html") || res.status === 404) {
-      // Endpoint not deployed on the target server — the rest of this suite
-      // is a no-op until the feature ships there.
-      return;
-    }
-    expect(res.status).toBe(401);
+    let json: any = null;
+    try { json = await res.json(); } catch { json = null; }
+    expect(json?.data?.included).toBeUndefined();
+    expect(json?.data?.chosen).toBeUndefined();
+    expect(ct.includes("text/html") || res.status === 404 || res.status === 401).toBe(true);
   });
 
-  it("plan purchase grants the included pack slot + redemption unlocks CRM connectors", async (ctx) => {
-    // Pre-flight: if the endpoint isn't deployed, skip (the probe test above
-    // already reported it). Every assertion here needs the new server code.
-    const probe = await fetch(`${BASE_URL}/api/portal/pack-slot`, { method: "GET" });
-    const probeCt = probe.headers.get("content-type") || "";
-    if (probeCt.includes("text/html") || probe.status === 404) { ctx.skip(); return; }
+  it("POST /api/portal/pack-slot redeems nothing", async () => {
+    const res = await fetch(`${BASE_URL}/api/portal/pack-slot`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: `session=${cookie}` },
+      body: JSON.stringify({ choice: "crm" }),
+    });
+    const ct = res.headers.get("content-type") || "";
+    let json: any = null;
+    try { json = await res.json(); } catch { json = null; }
+    expect(json?.data?.chosen).toBeUndefined();
+    expect(ct.includes("text/html") || res.status === 404 || res.status === 401 || res.status === 405).toBe(true);
+  });
 
-    // 1. Buy a Starter plan via the canonical link (grants the pack slot).
-    const sessionId = "cs_packslot_" + TS;
+  it("a retired pack link no longer provisions a pack record or slot grant", async () => {
+    // Neither pack payment link exists in the live Stripe account (verified
+    // 10-30), and the webhook no longer maps them. The checkout records
+    // through the generic branch: amount-only, no type, no slots.
+    const sessionId = "cs_packslot_retired_" + TS;
     const { status } = await postWebhook({
       type: "checkout.session.completed",
-      data: { object: { id: sessionId, object: "checkout.session", customer_details: { email: PACK_SLOT_EMAIL }, customer_email: PACK_SLOT_EMAIL, payment_link: "https://buy.stripe.com/3cI8wR88Tasfc1B9XW2Fa2K", amount_total: 750000, metadata: {} } },
+      data: {
+        object: {
+          id: sessionId,
+          object: "checkout.session",
+          customer_details: { email: PACK_SLOT_EMAIL },
+          customer_email: PACK_SLOT_EMAIL,
+          payment_link: "https://buy.stripe.com/5kQaEZ60LcAn8Ppgmk2Fa2I",
+          amount_total: 200000,
+          metadata: {},
+        },
+      },
     });
     expect(status).toBe(200);
-
-    // 2. Portal shows included:true, chosen:null.
-    const { json: before } = await authedGet("/api/portal/pack-slot", cookie!);
-    expect(before.data).toEqual({ included: true, chosen: null });
-
-    // 3. Session-gated: no cookie → 401.
-    const unauth = await fetch(`${BASE_URL}/api/portal/pack-slot`, { method: "GET" });
-    expect(unauth.status).toBe(401);
-
-    // 4. Redeem CRM.
-    const redeem = await fetch(`${BASE_URL}/api/portal/pack-slot`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Cookie: `session=${cookie}` },
-      body: JSON.stringify({ choice: "crm" }),
-    });
-    const redeemJson = await redeem.json().catch(() => ({}));
-    expect(redeem.status).toBe(200);
-    expect(redeemJson.data).toEqual({ included: true, chosen: "crm" });
-
-    // 5. Fail-closed: invalid choice → 400; re-choose ERP → 409.
-    const bad = await fetch(`${BASE_URL}/api/portal/pack-slot`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Cookie: `session=${cookie}` },
-      body: JSON.stringify({ choice: "hubspot" }),
-    });
-    expect(bad.status).toBe(400);
-    const other = await fetch(`${BASE_URL}/api/portal/pack-slot`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Cookie: `session=${cookie}` },
-      body: JSON.stringify({ choice: "erp" }),
-    });
-    expect(other.status).toBe(409);
-
-    // 6. The CRM slot is now available through the existing slot API.
+    const purchases = readJSONFile(PURCHASES_FILE);
+    const recs = purchases[PACK_SLOT_EMAIL] || [];
+    expect(recs.length).toBe(1);
+    expect(recs[0].type).toBeUndefined();
+    expect(recs[0].slots).toBeUndefined();
     const slots = await authedGet("/api/data/crm-slots", cookie!);
-    expect(slots.json.totalSlots).toBeGreaterThanOrEqual(1);
-    expect(slots.json.remainingSlots).toBeGreaterThanOrEqual(1);
-    // ERP remains unpurchased/unredeemed.
-    const erpSlots = await authedGet("/api/data/erp-slots", cookie!);
-    expect(erpSlots.json.totalSlots).toBe(0);
-
-    // 7. Idempotent re-choose of the SAME pack stays 200.
-    const again = await fetch(`${BASE_URL}/api/portal/pack-slot`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Cookie: `session=${cookie}` },
-      body: JSON.stringify({ choice: "crm" }),
-    });
-    expect(again.status).toBe(200);
+    expect(slots.status).toBe(200);
+    expect(slots.json.totalSlots).toBe(0);
   });
 });

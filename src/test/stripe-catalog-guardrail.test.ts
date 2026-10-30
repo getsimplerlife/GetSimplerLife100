@@ -119,10 +119,28 @@ describe("stripe catalog guardrail (customer-facing checkout links)", () => {
     expect(p).toContain('rel="noopener noreferrer"');
   });
 
-  it("the canonical Connection-Pack links survive in stripe-webhook.ts", () => {
+  it("the retired Connection-Pack links are GONE from stripe-webhook.ts (retired 10-21, code removed 10-30)", () => {
+    // Neither pack payment link exists in the live Stripe account (verified
+    // 10-30: exactly three payment links, the platform tiers), so the pack
+    // detection helpers and their link constants were deleted rather than
+    // kept as a mapping that could never fire truthfully.
     const w = readFileSync("src/lib/stripe-webhook.ts", "utf8");
-    expect(w).toContain(CANONICAL.crmPack);
-    expect(w).toContain(CANONICAL.erpPack);
+    expect(w).not.toContain(CANONICAL.crmPack);
+    expect(w).not.toContain(CANONICAL.erpPack);
+    // Pin the DECLARATIONS, not the bare words: the module header still
+    // explains what was retired, so a plain substring pin would self-fail.
+    for (const decl of [
+      "export const CRM_PACK_LINK",
+      "export const ERP_PACK_LINK",
+      "export const PACKS_BY_LINK",
+      "export const PACK_SLOTS",
+      "export function detectPackType",
+      "export function buildPackPurchase",
+      "export interface PackSpec",
+      "export type PackType",
+    ]) {
+      expect(w, `stripe-webhook.ts still declares: ${decl}`).not.toContain(decl);
+    }
   });
 
   it("support.tsx no longer sells the discontinued per-employee support SKUs (owner 09-27 locked platform tiers)", () => {

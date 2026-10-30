@@ -1,14 +1,21 @@
 import { describe, expect, it } from "vitest";
 import { createHmac } from "crypto";
 import {
-  CRM_PACK_LINK,
-  ERP_PACK_LINK,
-  PACK_SLOTS,
-  detectPackType,
-  buildPackPurchase,
   verifyStripeSignature,
+  detectPlanType,
+  buildPlanPurchase,
   STRIPE_SIGNATURE_TOLERANCE_MS,
 } from "../lib/stripe-webhook";
+
+/**
+ * Unit tests for the Stripe webhook helpers (signature + plan mapping).
+ *
+ * The CRM/ERP Connection Pack helpers (detectPackType / buildPackPurchase and
+ * their link constants) were REMOVED in the 10-30 retired-product cleanup:
+ * neither pack payment link exists in the live Stripe account, so the mapping
+ * could never fire truthfully. `src/test/retired-product-cleanup.test.ts` pins
+ * their absence.
+ */
 
 function sign(rawBody: string, secret: string, timestampSec?: number): string {
   const ts = timestampSec ?? Math.floor(Date.now() / 1000);
@@ -16,78 +23,46 @@ function sign(rawBody: string, secret: string, timestampSec?: number): string {
   return `t=${ts},v1=${sig}`;
 }
 
-describe("detectPackType — canonical CRM/ERP Connection Pack links", () => {
-  it("maps the canonical CRM pack link to crm-pack with 5 slots", () => {
-    const spec = detectPackType(CRM_PACK_LINK, {});
-    expect(spec?.type).toBe("crm-pack");
-    expect(spec?.slots).toBe(PACK_SLOTS);
-    expect(spec?.slots).toBe(5);
-    expect(spec?.productName).toBe("CRM Connection Pack");
+describe("detectPlanType — legacy tier links still map, unknown links fail closed", () => {
+  it("maps each of the three legacy tier links to its tier", () => {
+    expect(detectPlanType("https://buy.stripe.com/3cI8wR88Tasfc1B9XW2Fa2K")?.tier).toBe("starter");
+    expect(detectPlanType("https://buy.stripe.com/5kQ6oJbl5dErc1B1rq2Fa2L")?.tier).toBe("professional");
+    expect(detectPlanType("https://buy.stripe.com/aFa7sN60LdErc1B5HG2Fa2M")?.tier).toBe("enterprise");
   });
-
-  it("maps the canonical ERP pack link to erp-pack with 5 slots", () => {
-    const spec = detectPackType(ERP_PACK_LINK, {});
-    expect(spec?.type).toBe("erp-pack");
-    expect(spec?.slots).toBe(5);
-    expect(spec?.productName).toBe("ERP Connection Pack");
-  });
-
-  it("matches the canonical links even with surrounding characters (includes)", () => {
-    expect(detectPackType(CRM_PACK_LINK + "?session_id=abc", {})?.type).toBe("crm-pack");
-    expect(detectPackType("https://buy.stripe.com/dRmeVf88TfMzghRda82Fa2J?x=1", {})?.type).toBe("erp-pack");
-  });
-
-  it("keeps the legacy substring fallbacks (crm_pack / crm-pack)", () => {
-    expect(detectPackType("https://buy.stripe.com/test_crm_pack_5slots", {})?.type).toBe("crm-pack");
-    expect(detectPackType("https://buy.stripe.com/test_crm-pack_5slots", {})?.type).toBe("crm-pack");
-  });
-
-  it("keeps the legacy substring fallbacks (erp_pack / erp-pack / crm_erp_pack)", () => {
-    expect(detectPackType("https://buy.stripe.com/test_erp_pack_5slots", {})?.type).toBe("erp-pack");
-    expect(detectPackType("https://buy.stripe.com/test_erp-pack_5slots", {})?.type).toBe("erp-pack");
-    expect(detectPackType("https://buy.stripe.com/test_crm_erp_pack", {})?.type).toBe("erp-pack");
-  });
-
-  it("keeps the metadata.productType fallback", () => {
-    expect(detectPackType("", { productType: "crm-pack" })?.type).toBe("crm-pack");
-    expect(detectPackType("", { productType: "erp-pack" })?.type).toBe("erp-pack");
-  });
-
-  it("returns null for non-pack links", () => {
-    expect(detectPackType("https://buy.stripe.com/not_a_pack_link", {})).toBeNull();
-    expect(detectPackType("", {})).toBeNull();
-    expect(detectPackType(undefined, undefined)).toBeNull();
-    expect(detectPackType(null, null)).toBeNull();
+  it("matches with Stripe query params and rejects anything else", () => {
+    expect(detectPlanType("https://buy.stripe.com/3cI8wR88Tasfc1B9XW2Fa2K?session_id=cs_1")?.tier).toBe("starter");
+    // The retired pack links are NOT plans and never were.
+    expect(detectPlanType("https://buy.stripe.com/5kQaEZ60LcAn8Ppgmk2Fa2I")).toBeNull();
+    expect(detectPlanType("https://buy.stripe.com/eVq5kC7qQ0909zV0sJ5os00")).toBeNull();
+    expect(detectPlanType("")).toBeNull();
+    expect(detectPlanType(undefined)).toBeNull();
+    expect(detectPlanType(null)).toBeNull();
   });
 });
 
-describe("buildPackPurchase — pack record shape (type + slots + agentType)", () => {
-  it("records a CRM pack with type, slots and agentType for the marketplace", () => {
-    const rec = buildPackPurchase(
-      { type: "crm-pack", slots: 5, productName: "CRM Connection Pack" },
-      200000,
-      "cs_test_123",
+describe("buildPlanPurchase — plan record shape (no per-agent fields)", () => {
+  it("records the plan tier and product with NO agent grant fields", () => {
+    const rec = buildPlanPurchase(
+      { tier: "starter", productName: "Starter Plan" },
+      750000,
+      "cs_plan_1",
     ) as any;
-    expect(rec.type).toBe("crm-pack");
-    expect(rec.slots).toBe(5);
-    expect(rec.agentType).toBe("crm-pack"); // marketplace matches employees by agentType
-    expect(rec.productName).toBe("CRM Connection Pack");
+    expect(rec.type).toBe("plan");
+    expect(rec.tier).toBe("starter");
+    expect(rec.productName).toBe("Starter Plan");
+    expect(rec.amount).toBe(750000);
+    expect(rec.stripeSessionId).toBe("cs_plan_1");
     expect(rec.status).toBe("active");
-    expect(rec.amount).toBe(200000);
-    expect(rec.stripeSessionId).toBe("cs_test_123");
-    expect(rec.usedSlots).toBe(0);
     expect(rec.purchasedAt).toBeTruthy();
+    // Cleanup 10-30: per-agent gating is banned — the fields are DROPPED.
+    expect(rec.agentIds).toBeUndefined();
+    expect(rec.agentCount).toBeUndefined();
+    // The retired Connection Pack slot is not granted either.
+    expect(rec.packSlot).toBeUndefined();
   });
 
-  it("records an ERP pack with type, slots and agentType", () => {
-    const rec = buildPackPurchase(
-      { type: "erp-pack", slots: 5, productName: "ERP Connection Pack" },
-      350000,
-      null,
-    ) as any;
-    expect(rec.type).toBe("erp-pack");
-    expect(rec.slots).toBe(5);
-    expect(rec.agentType).toBe("erp-pack");
+  it("defaults a missing session id to 'unknown'", () => {
+    const rec = buildPlanPurchase({ tier: "enterprise", productName: "Enterprise Plan" }, 149900, null) as any;
     expect(rec.stripeSessionId).toBe("unknown");
   });
 });

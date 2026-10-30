@@ -5,98 +5,28 @@ import { createHmac, timingSafeEqual } from "crypto";
  * prod-server.ts (kept dependency-free so they can be unit-tested).
  *
  * Two responsibilities:
- *  1. Pack detection — recognize CRM/ERP Connection Pack purchases from the
- *     canonical Stripe payment links the marketplace buy buttons point at.
- *     Those links are opaque IDs with no metadata, so the previous
- *     substring/metadata-only detection never fired and pack purchases fell
- *     through to the generic purchase branch (no type, no slots, no
- *     agentType → the portal marketplace never showed the pack as owned and
- *     the 5-slot entitlement was never recorded).
+ *  1. Plan detection — resolve a legacy tier purchase from its canonical
+ *     Stripe payment link (see PLANS_BY_LINK).
  *  2. Signature verification — optional Stripe webhook signature checking
  *     (t=<ts>,v1=<sig> HMAC-SHA256 over `${ts}.${rawBody}`). Enabled only
  *     when STRIPE_WEBHOOK_SECRET is set; fail-closed (reject 400) on missing
  *     or invalid signatures.
+ *
+ * RETIRED (owner 10-21, removed 10-30): the CRM/ERP "Connection Pack" SKUs
+ * and their link-detection helpers (CRM_PACK_LINK / ERP_PACK_LINK /
+ * PACKS_BY_LINK / detectPackType / buildPackPurchase). Neither pack payment
+ * link exists in the live Stripe account (verified 10-30: exactly three
+ * payment links, the platform tiers), so the mapping could never fire
+ * truthfully. A checkout that used to look like a pack now records through
+ * the generic purchase branch like any other unknown product.
  */
 
-/** Canonical Stripe payment links for the Connection Packs (marketplace buy buttons). */
-export const CRM_PACK_LINK = "https://buy.stripe.com/5kQaEZ60LcAn8Ppgmk2Fa2I";
-export const ERP_PACK_LINK = "https://buy.stripe.com/dRmeVf88TfMzghRda82Fa2J";
-
-/** Slots granted per pack purchase (also drives the /api/data/{crm,erp}-slots API). */
-export const PACK_SLOTS = 5;
-
-export type PackType = "crm-pack" | "erp-pack";
-
-export interface PackSpec {
-  type: PackType;
-  slots: number;
-  productName: string;
-}
-
-/** Constant map: canonical pack link → pack spec (type + slots + productName). */
-export const PACKS_BY_LINK: Record<string, PackSpec> = {
-  [CRM_PACK_LINK]: { type: "crm-pack", slots: PACK_SLOTS, productName: "CRM Connection Pack" },
-  [ERP_PACK_LINK]: { type: "erp-pack", slots: PACK_SLOTS, productName: "ERP Connection Pack" },
-};
-
 /**
- * Detect whether a Stripe checkout session is a CRM/ERP Connection Pack.
- * Checks the canonical pack links first (exact or prefix), then falls back
- * to the legacy substring forms and metadata.productType so existing test
- * and metadata-based flows keep working.
- */
-export function detectPackType(
-  paymentLink: string | undefined | null,
-  metadata?: Record<string, unknown> | undefined | null,
-): PackSpec | null {
-  const link = paymentLink || "";
-  for (const [canonical, spec] of Object.entries(PACKS_BY_LINK)) {
-    if (link === canonical || link.includes(canonical)) return spec;
-  }
-  // Legacy fallbacks (kept from the original handler).
-  if (link.includes("crm_pack") || link.includes("crm-pack") || metadata?.productType === "crm-pack") {
-    return { type: "crm-pack", slots: PACK_SLOTS, productName: "CRM Connection Pack" };
-  }
-  if (
-    link.includes("erp_pack") || link.includes("erp-pack") || link.includes("crm_erp_pack") ||
-    metadata?.productType === "erp-pack"
-  ) {
-    return { type: "erp-pack", slots: PACK_SLOTS, productName: "ERP Connection Pack" };
-  }
-  return null;
-}
-
-/**
- * Build the persisted pack purchase record. `agentType` mirrors `type` so the
- * CRM/ERP slot entitlements (consumeCrmErpSlot / the slots APIs) recognize
- * the pack after the webhook provisions it.
- */
-export function buildPackPurchase(
-  spec: PackSpec,
-  amount: number,
-  stripeSessionId: string | undefined | null,
-): Record<string, unknown> {
-  return {
-    id: "purchase-" + Math.random().toString(36).substr(2, 9),
-    type: spec.type,
-    productName: spec.productName,
-    slots: spec.slots,
-    usedSlots: 0,
-    agentType: spec.type,
-    amount,
-    stripeSessionId: stripeSessionId || "unknown",
-    status: "active",
-    purchasedAt: new Date().toISOString(),
-  };
-}
-
-/**
- * Plan purchases (owner decision 2026-08-13, task F3): Starter ($7,500)
- * grants 3 agents, Growth/Professional ($15,000) grants 8, Scale/Enterprise
- * ($30,000) grants all 17. The pricing page names them Starter / Professional
- * / Enterprise; the owner's brief calls them Starter / Growth / Scale — same
- * three links. Plan detection mirrors the pack detection: canonical link
- * exact/prefix match, fail closed (unknown links are NOT plans).
+ * Plan purchases (owner decision 2026-08-13, task F3). These are the LEGACY
+ * per-employee tier links, kept only so historical checkout sessions still map
+ * to a plan record (no such link exists in the live Stripe account any more —
+ * the live tiers are the three platform links on the pricing page).
+ * Detection is fail-closed: unknown links are NOT plans.
  */
 export const STARTER_PLAN_LINK = "https://buy.stripe.com/3cI8wR88Tasfc1B9XW2Fa2K";
 export const PROFESSIONAL_PLAN_LINK = "https://buy.stripe.com/5kQ6oJbl5dErc1B1rq2Fa2L";
@@ -107,22 +37,20 @@ export type PlanTier = "starter" | "professional" | "enterprise";
 export interface PlanSpec {
   tier: PlanTier;
   productName: string;
-  /** Number of roster agents a legacy tier granted (owner decision: 3 / 8 / all 17). */
-  agentCount: number;
 }
 
-/** Constant map: canonical plan link → plan spec (tier + name + agent count). */
+/** Constant map: canonical plan link → plan spec (tier + product name). */
 export const PLANS_BY_LINK: Record<string, PlanSpec> = {
-  [STARTER_PLAN_LINK]: { tier: "starter", productName: "Starter Plan", agentCount: 3 },
-  [PROFESSIONAL_PLAN_LINK]: { tier: "professional", productName: "Professional Plan", agentCount: 8 },
-  [ENTERPRISE_PLAN_LINK]: { tier: "enterprise", productName: "Enterprise Plan", agentCount: 17 },
+  [STARTER_PLAN_LINK]: { tier: "starter", productName: "Starter Plan" },
+  [PROFESSIONAL_PLAN_LINK]: { tier: "professional", productName: "Professional Plan" },
+  [ENTERPRISE_PLAN_LINK]: { tier: "enterprise", productName: "Enterprise Plan" },
 };
 
 /**
  * Detect a plan purchase from the canonical Stripe payment links. Fail closed:
  * only the three canonical plan links (exact or with Stripe query params)
  * resolve to a plan — any other link returns null and falls through to the
- * agent/generic branches.
+ * generic branch.
  */
 export function detectPlanType(paymentLink: string | undefined | null): PlanSpec | null {
   const link = paymentLink || "";
@@ -134,47 +62,25 @@ export function detectPlanType(paymentLink: string | undefined | null): PlanSpec
 }
 
 /**
- * Resolve which catalog agents a plan grants. Uses catalog order — the first
- * `agentCount` employees (Starter 3, Professional 8, Enterprise all). If the
- * catalog ever has fewer employees than the tier grants, every available agent
- * is included (an Enterprise buyer still gets the whole team).
- */
-export function planAgentIds(
-  employees: any[] | undefined | null,
-  spec: PlanSpec | undefined | null,
-): string[] {
-  if (!Array.isArray(employees) || !spec) return [];
-  return employees.slice(0, spec.agentCount).map((e: any) => e?.id).filter((id: any) => typeof id === "string");
-}
-
-/**
- * Build the persisted plan purchase record. One record per plan purchase with
- * an `agentIds` array (the granted agents). Consumers treat `agentId` and
- * `agentIds` the same way: the portal employee list, /api/agents/run gate and
- * the billing list all read from this record shape.
+ * Build the persisted plan purchase record.
  *
- * Owner decision (2026-08-14): every plan purchase now ALSO includes 1
- * Connection Pack slot (CRM or ERP — the customer's choice). The entitlement
- * is recorded on the plan record as `packSlot: { included: true, chosen: null }`.
- * `chosen` becomes "crm" or "erp" when the tenant redeems the slot through
- * POST /api/portal/pack-slot (see src/lib/plan-pack-slot.ts); redeeming also
- * materializes a pack-type record so the existing CRM/ERP slot logic
- * (connect gate, /api/data/{crm,erp}-slots, consumeCrmErpSlot) works unchanged.
+ * Cleanup (10-30): the record carries NO per-agent fields. The per-plan agent
+ * grant list (`agentIds`, produced by the retired `planAgentIds()`) and its
+ * `agentCount` input are gone with the per-agent model (owner ban on
+ * per-agent gating); the field is DROPPED, not written empty. The
+ * plan-included Connection Pack slot (`packSlot`) is gone too — that SKU is
+ * retired (owner 10-21) and nothing can redeem it.
  */
 export function buildPlanPurchase(
   spec: PlanSpec,
   amount: number,
   stripeSessionId: string | undefined | null,
-  agentIds: string[],
 ): Record<string, unknown> {
   return {
     id: "purchase-" + Math.random().toString(36).substr(2, 9),
     type: "plan",
     tier: spec.tier,
     productName: spec.productName,
-    agentCount: spec.agentCount,
-    agentIds,
-    packSlot: { included: true, chosen: null },
     amount,
     stripeSessionId: stripeSessionId || "unknown",
     status: "active",
