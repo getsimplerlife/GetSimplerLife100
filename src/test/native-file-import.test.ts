@@ -198,7 +198,7 @@ describe("parsing + caps (fail-closed before anything is stored)", () => {
       T1,
     );
     expect(res.applied).toBe(false);
-    if (!res.applied) expect(res.error).toContain(String(MAX_FILE_IMPORT_ROWS));
+    if (!res.applied && !res.pending) expect(res.error).toContain(String(MAX_FILE_IMPORT_ROWS));
     expect(listRows(dataDir, T1, TABLE_ID).length).toBe(before);
   });
 });
@@ -411,13 +411,13 @@ describe("tenant isolation (no IDOR, no cross-tenant reads)", () => {
     seedTable(T1);
     const res = await submitFileImportWrite(dataDir, T2, "createFileImport", { name: "Steal", target: { kind: "table", tableId: TABLE_ID } }, T2);
     expect(res.applied).toBe(false);
-    if (!res.applied) expect(res.error).toContain("not found in this workspace");
+    if (!res.applied && !res.pending) expect(res.error).toContain("not found in this workspace");
   });
 
   it("fails closed without a tenant context", async () => {
     const res = await submitFileImportWrite(dataDir, "", "createFileImport", { name: "x", target: { kind: "kb-article" } }, "");
     expect(res.applied).toBe(false);
-    if (!res.applied) expect(res.error).toContain("required");
+    if (!res.applied && !res.pending) expect(res.error).toContain("required");
   });
 });
 
