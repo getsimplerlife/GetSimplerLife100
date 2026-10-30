@@ -1,0 +1,429 @@
+/**
+ * r2-upload.ts — SLICE 145. The off-box copy: S3-compatible uploads to
+ * Cloudflare R2, signed with AWS SigV4 using node:crypto ONLY.
+ *
+ * WHY THIS FILE EXISTS (owner 2026-10-30: "I don't want any data loss. All
+ * clients need their data secured."): slices 143/144 built a correct, verified,
+ * coverage-checked archive — on the SAME DISK as the data it protects. Losing
+ * the host lost everything. This module is the part that leaves the machine.
+ *
+ * WHAT IT IS NOT: disaster recovery, an uptime promise, or a customer-facing
+ * feature. Nothing in public copy may claim "backups" or "disaster recovery".
+ *
+ * HARD RULES THIS FILE DEFENDS AGAINST
+ *   1. NO NEW DEPENDENCY. SigV4 is ~60 lines of HMAC; pulling aws-sdk into a
+ *      single-Bun-server app to make one PUT is not a trade worth making. The
+ *      signer is a PURE function so a refactor cannot silently break auth — a
+ *      broken signer is an upload that fails with 403 at 3am, not a test.
+ *   2. NO SECRET EVER LEAVES THIS MODULE. `describeR2Config()` returns booleans
+ *      and lengths-of-nothing: never a key, never a bucket credential, never a
+ *      signed Authorization header. Errors are scrubbed before they are stored
+ *      (`redactSecrets`) because a fetch error body can echo a request.
+ *   3. NOTHING IS UPLOADED UNENCRYPTED. This module will happily PUT whatever
+ *      bytes it is handed; the *caller* (scripts/lib/r2-backup.ts) is what
+ *      guarantees the bytes are the encrypted archive. There is exactly one
+ *      caller and its gate is tested.
+ */
+import { createHash, createHmac } from "node:crypto";
+
+/** The five values the owner saves. Every one may be absent. */
+export interface R2Config {
+  accountId: string;
+  accessKeyId: string;
+  secretAccessKey: string;
+  bucket: string;
+  /** Key prefix inside the bucket. Defaults to `simplerlife100/backups/`. */
+  prefix: string;
+  /** SigV4 region. R2 uses `auto`. */
+  region: string;
+  /** Override for tests/proxies; defaults to the R2 host for `accountId`. */
+  endpoint: string;
+}
+
+export const DEFAULT_R2_PREFIX = "simplerlife100/backups/";
+export const R2_REGION = "auto";
+export const R2_PREFIX_ENV = "R2_PREFIX";
+
+export interface R2ConfigReport {
+  configured: boolean;
+  /** Which required variables are missing (names only, never values). */
+  missing: string[];
+  bucket: string | null;
+  prefix: string;
+  endpointHost: string | null;
+}
+
+/**
+ * Read the R2 configuration out of an environment object.
+ *
+ * Returns `null` when any required value is missing — the product then behaves
+ * exactly as it did before this slice: same-host archive, no off-box copy, and
+ * `r2.configured: false` in the status so the gap is visible rather than
+ * assumed covered. Never throws, never logs a value.
+ */
+export function r2ConfigFromEnv(env: Record<string, string | undefined>): R2Config | null {
+  const accountId = (env.R2_ACCOUNT_ID || "").trim();
+  const accessKeyId = (env.R2_ACCESS_KEY_ID || "").trim();
+  const secretAccessKey = (env.R2_SECRET_ACCESS_KEY || "").trim();
+  const bucket = (env.R2_BUCKET || "").trim();
+  if (!accountId || !accessKeyId || !secretAccessKey || !bucket) return null;
+  const prefixRaw = (env[R2_PREFIX_ENV] || "").trim();
+  const prefix = prefixRaw ? (prefixRaw.endsWith("/") ? prefixRaw : prefixRaw + "/") : DEFAULT_R2_PREFIX;
+  return {
+    accountId,
+    accessKeyId,
+    secretAccessKey,
+    bucket,
+    prefix,
+    region: R2_REGION,
+    endpoint: r2Endpoint(accountId),
+  };
+}
+
+export function r2Endpoint(accountId: string): string {
+  return `https://${accountId}.r2.cloudflarestorage.com`;
+}
+
+/** Honest report for the status file: names of missing variables, no values. */
+export function describeR2Config(env: Record<string, string | undefined>): R2ConfigReport {
+  const required = ["R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET"] as const;
+  const missing = required.filter((name) => !(env[name] || "").trim());
+  const cfg = r2ConfigFromEnv(env);
+  return {
+    configured: !!cfg,
+    missing,
+    bucket: cfg ? cfg.bucket : null,
+    prefix: cfg ? cfg.prefix : (env[R2_PREFIX_ENV] || DEFAULT_R2_PREFIX).trim(),
+    endpointHost: cfg ? new URL(cfg.endpoint).host : null,
+  };
+}
+
+/**
+ * Remove anything that looks like a credential from a message we are about to
+ * persist. A 403 body or a thrown fetch error can quote the request; the status
+ * file is read by `/api/admin/datadir` and must never carry a secret.
+ */
+export function redactSecrets(message: string, secrets: readonly string[] = []): string {
+  let out = String(message ?? "");
+  for (const secret of secrets) {
+    if (secret && secret.length >= 6) out = out.split(secret).join("[redacted]");
+  }
+  // Authorization / signature shapes, even if the value is not in `secrets`.
+  out = out.replace(/AWS4-HMAC-SHA256[^"',\s]*/g, "[redacted]");
+  out = out.replace(/Signature=[0-9a-f]{16,}/gi, "Signature=[redacted]");
+  out = out.replace(/Credential=[^,\s"']+/gi, "Credential=[redacted]");
+  return out.length > 600 ? out.slice(0, 600) + "…" : out;
+}
+
+// ── SigV4 ───────────────────────────────────────────────────────────────────
+
+export interface SignInput {
+  method: string;
+  /** Path only, e.g. `/my-bucket/simplerlife100/backups/run.tar.gz.enc`. */
+  path: string;
+  /** Query pairs (unencoded). */
+  query?: Record<string, string>;
+  /** Must include `host`. All entries are signed. */
+  headers: Record<string, string>;
+  /** Hex sha256 of the request body (or of the empty string for GET/DELETE). */
+  payloadHash: string;
+  accessKeyId: string;
+  secretAccessKey: string;
+  region: string;
+  service?: string;
+  /** `YYYYMMDDTHHMMSSZ` */
+  amzDate: string;
+}
+
+export interface SignOutput {
+  /** The `Authorization` header value. */
+  authorization: string;
+  canonicalRequest: string;
+  stringToSign: string;
+  signature: string;
+  signedHeaders: string;
+}
+
+/** RFC 3986 encode, the way SigV4 requires (everything except A-Za-z0-9-_.~). */
+export function uriEncode(value: string, encodeSlash = true): string {
+  let out = "";
+  for (const ch of Buffer.from(value, "utf8")) {
+    const c = String.fromCharCode(ch);
+    if (/[A-Za-z0-9\-_.~]/.test(c)) out += c;
+    else if (c === "/" && !encodeSlash) out += "/";
+    else out += "%" + ch.toString(16).toUpperCase().padStart(2, "0");
+  }
+  return out;
+}
+
+export function sha256Hex(data: string | Buffer): string {
+  return createHash("sha256").update(data).digest("hex");
+}
+
+export const EMPTY_PAYLOAD_SHA256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+
+function hmac(key: Buffer | string, data: string): Buffer {
+  return createHmac("sha256", key).update(data, "utf8").digest();
+}
+
+/**
+ * THE SIGNER. Pure: same input ⇒ same signature, no clock, no env, no I/O.
+ *
+ * A unit test pins it against AWS's own published SigV4 example so that a
+ * refactor which "looks right" cannot quietly produce a 403 in production.
+ */
+export function signAwsV4(input: SignInput): SignOutput {
+  const service = input.service ?? "s3";
+  const amzDate = input.amzDate;
+  const dateStamp = amzDate.slice(0, 8);
+
+  const query = input.query ?? {};
+  const canonicalQuery = Object.keys(query)
+    .sort()
+    .map((k) => `${uriEncode(k)}=${uriEncode(query[k])}`)
+    .join("&");
+
+  const headerNames = Object.keys(input.headers).map((h) => h.toLowerCase());
+  const canonicalHeaderEntries = Object.keys(input.headers)
+    .map((name) => [name.toLowerCase(), String(input.headers[name]).trim().replace(/\s+/g, " ")] as const)
+    .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+  const canonicalHeaders = canonicalHeaderEntries.map(([n, v]) => `${n}:${v}\n`).join("");
+  const signedHeaders = headerNames.sort().join(";");
+
+  // The path is encoded per segment; an already-encoded `%2F` stays intact.
+  const canonicalUri = input.path
+    .split("/")
+    .map((seg) => uriEncode(decodeURIComponent(seg)))
+    .join("/") || "/";
+
+  const canonicalRequest = [
+    input.method.toUpperCase(),
+    canonicalUri,
+    canonicalQuery,
+    canonicalHeaders,
+    signedHeaders,
+    input.payloadHash,
+  ].join("\n");
+
+  const scope = `${dateStamp}/${input.region}/${service}/aws4_request`;
+  const stringToSign = ["AWS4-HMAC-SHA256", amzDate, scope, sha256Hex(canonicalRequest)].join("\n");
+
+  const kDate = hmac("AWS4" + input.secretAccessKey, dateStamp);
+  const kRegion = hmac(kDate, input.region);
+  const kService = hmac(kRegion, service);
+  const kSigning = hmac(kService, "aws4_request");
+  const signature = createHmac("sha256", kSigning).update(stringToSign, "utf8").digest("hex");
+
+  return {
+    authorization: `AWS4-HMAC-SHA256 Credential=${input.accessKeyId}/${scope}, SignedHeaders=${signedHeaders}, Signature=${signature}`,
+    canonicalRequest,
+    stringToSign,
+    signature,
+    signedHeaders,
+  };
+}
+
+/** `YYYYMMDDTHHMMSSZ` from a Date (UTC). */
+export function amzDateOf(date: Date): string {
+  return date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+}
+
+// ── Object keys ─────────────────────────────────────────────────────────────
+
+/** `simplerlife100/backups/2026-10-30T20-11-58Z.tar.gz.enc` */
+export function objectKeyForRun(prefix: string, runId: string, archiveName = `${runId}.tar.gz.enc`): string {
+  return `${prefix}${archiveName}`;
+}
+
+/** The run id inside a key, or null when the key is not one of ours. */
+export function runIdFromKey(key: string, prefix: string): string | null {
+  if (!key.startsWith(prefix)) return null;
+  const rest = key.slice(prefix.length);
+  const m = /^(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}Z)\./.exec(rest);
+  return m ? m[1] : null;
+}
+
+/**
+ * Remote retention. The keep-set is computed by the SAME function the local
+ * archive uses (`planRetention` in scripts/lib/backup-core.ts) so the two
+ * policies cannot drift: 7 daily runs + 4 weekly runs, newest first.
+ *
+ * Objects that do not parse as one of our run ids are PRUNED — an unrecognised
+ * object in our prefix is not something we promised to keep.
+ */
+export function planRemoteRetention(
+  keys: string[],
+  opts: { prefix: string; daily?: number; weekly?: number },
+): { keep: string[]; prune: string[] } {
+  const byRun = new Map<string, string>();
+  const unknown: string[] = [];
+  for (const key of keys) {
+    const runId = runIdFromKey(key, opts.prefix);
+    if (runId) byRun.set(runId, key);
+    else unknown.push(key);
+  }
+  const plan = planRetention([...byRun.keys()], { daily: opts.daily, weekly: opts.weekly });
+  return {
+    keep: plan.keep.map((runId) => byRun.get(runId)!).filter(Boolean),
+    prune: [...plan.prune.map((runId) => byRun.get(runId)!).filter(Boolean), ...unknown],
+  };
+}
+
+// ── The HTTP client (fetch-injectable so tests never touch the network) ─────
+
+export interface R2FetchResponse {
+  ok: boolean;
+  status: number;
+  headers: { get(name: string): string | null };
+  text(): Promise<string>;
+  /**
+   * Binary-safe read. `text()` decodes as UTF-8 and would CORRUPT a ciphertext
+   * body on the way back down; every download path must use this.
+   */
+  arrayBuffer(): Promise<ArrayBuffer>;
+}
+
+export type R2Fetch = (
+  url: string,
+  init: { method: string; headers: Record<string, string>; body?: Uint8Array },
+) => Promise<R2FetchResponse>;
+
+export interface R2ClientOptions {
+  config: R2Config;
+  fetchImpl?: R2Fetch;
+  now?: () => Date;
+  log?: (msg: string) => void;
+}
+
+export interface R2ObjectSummary {
+  key: string;
+  size: number;
+  etag: string | null;
+  lastModified: string | null;
+}
+
+function objectPath(config: R2Config, key: string): string {
+  return `/${config.bucket}/${key}`;
+}
+
+export function createR2Client(opts: R2ClientOptions) {
+  const { config } = opts;
+  const doFetch: R2Fetch = opts.fetchImpl ?? ((url, init) => fetch(url, init as any) as any);
+  const now = opts.now ?? (() => new Date());
+
+  function signedRequest(method: string, path: string, query: Record<string, string>, body?: Uint8Array, contentType?: string) {
+    const date = now();
+    const amzDate = amzDateOf(date);
+    const payloadHash = body ? sha256Hex(Buffer.from(body)) : EMPTY_PAYLOAD_SHA256;
+    const host = new URL(config.endpoint).host;
+    const headers: Record<string, string> = {
+      host,
+      "x-amz-content-sha256": payloadHash,
+      "x-amz-date": amzDate,
+    };
+    if (contentType) headers["content-type"] = contentType;
+    const signed = signAwsV4({
+      method,
+      path,
+      query,
+      headers,
+      payloadHash,
+      accessKeyId: config.accessKeyId,
+      secretAccessKey: config.secretAccessKey,
+      region: config.region,
+      amzDate,
+    });
+    const queryString = Object.keys(query)
+      .sort()
+      .map((k) => `${uriEncode(k)}=${uriEncode(query[k])}`)
+      .join("&");
+    const url = `${config.endpoint}${path}${queryString ? "?" + queryString : ""}`;
+    const outHeaders: Record<string, string> = {
+      ...headers,
+      Authorization: signed.authorization,
+    };
+    // `host` is set by fetch itself; sending it again is legal but pointless.
+    delete outHeaders.host;
+    return { url, headers: outHeaders, payloadHash };
+  }
+
+  async function putObject(key: string, body: Uint8Array): Promise<{ etag: string | null; bytes: number }> {
+    const { url, headers } = signedRequest("PUT", objectPath(config, key), {}, body, "application/octet-stream");
+    const res = await doFetch(url, { method: "PUT", headers, body });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      throw new Error(`R2 PUT ${key} failed: HTTP ${res.status} ${redactSecrets(detail, [config.accessKeyId, config.secretAccessKey])}`);
+    }
+    const etagRaw = res.headers.get("etag");
+    return { etag: etagRaw ? etagRaw.replace(/"/g, "") : null, bytes: body.length };
+  }
+
+  async function listObjects(prefix: string): Promise<R2ObjectSummary[]> {
+    const out: R2ObjectSummary[] = [];
+    let token: string | null = null;
+    for (let page = 0; page < 20; page++) {
+      const query: Record<string, string> = { "list-type": "2", prefix };
+      if (token) query["continuation-token"] = token;
+      const { url, headers } = signedRequest("GET", `/${config.bucket}`, query);
+      const res = await doFetch(url, { method: "GET", headers });
+      if (!res.ok) {
+        const detail = await res.text().catch(() => "");
+        throw new Error(`R2 LIST failed: HTTP ${res.status} ${redactSecrets(detail, [config.accessKeyId, config.secretAccessKey])}`);
+      }
+      const xml = await res.text();
+      for (const block of xml.match(/<Contents>[\s\S]*?<\/Contents>/g) || []) {
+        const key = xmlText(block, "Key");
+        if (!key) continue;
+        out.push({
+          key,
+          size: Number(xmlText(block, "Size") || 0),
+          etag: xmlText(block, "ETag")?.replace(/&quot;|"/g, "") || null,
+          lastModified: xmlText(block, "LastModified"),
+        });
+      }
+      const truncated = /<IsTruncated>true<\/IsTruncated>/.test(xml);
+      const next = xmlText(xml, "NextContinuationToken");
+      if (!truncated || !next) break;
+      token = next;
+    }
+    return out;
+  }
+
+  async function deleteObject(key: string): Promise<void> {
+    const { url, headers } = signedRequest("DELETE", objectPath(config, key), {});
+    const res = await doFetch(url, { method: "DELETE", headers });
+    // S3 semantics: deleting a missing object is a success. R2 matches.
+    if (!res.ok && res.status !== 404) {
+      const detail = await res.text().catch(() => "");
+      throw new Error(`R2 DELETE ${key} failed: HTTP ${res.status} ${redactSecrets(detail, [config.accessKeyId, config.secretAccessKey])}`);
+    }
+  }
+
+  async function getObject(key: string): Promise<{ bytes: Uint8Array; etag: string | null }> {
+    const { url, headers } = signedRequest("GET", objectPath(config, key), {});
+    const res = await doFetch(url, { method: "GET", headers });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      throw new Error(`R2 GET ${key} failed: HTTP ${res.status} ${redactSecrets(detail, [config.accessKeyId, config.secretAccessKey])}`);
+    }
+    const buf = await res.arrayBuffer();
+    const etagRaw = res.headers.get("etag");
+    return { bytes: new Uint8Array(buf), etag: etagRaw ? etagRaw.replace(/"/g, "") : null };
+  }
+
+  return { putObject, listObjects, deleteObject, getObject, config };
+}
+
+function xmlText(xml: string, tag: string): string | null {
+  const m = new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`).exec(xml);
+  if (!m) return null;
+  return m[1]
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&")
+    .replace(/&#39;/g, "'")
+    .replace(/&quot;/g, '"');
+}
+
+// Imported last on purpose: this module is the leaf, backup-core is the tree.
+import { planRetention } from "../../scripts/lib/backup-core";

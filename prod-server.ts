@@ -29,6 +29,8 @@ import { acquireSingleInstanceOwnership, portAlreadyBound } from "./src/lib/sing
 import { isOwnerUser, LEGACY_OWNER_EMAIL } from "./src/lib/user-roles";
 import { readBackupStatus, countStoreEntries } from "./src/lib/backup-status";
 import { runBackup } from "./scripts/lib/backup-core";
+import { makeEncryptHook } from "./scripts/lib/backup-crypto";
+import { uploadVerifiedRun } from "./scripts/lib/r2-backup";
 import {
   backupFailureRecorder,
   backupSchedulerDisabled,
@@ -364,6 +366,11 @@ const ARCHIVE_BACKUP_FIRST_DELAY_MS = (() => {
   return Number.isFinite(n) && n > 0 ? n : 60_000;
 })();
 const archiveSchedulerOff = backupSchedulerDisabled(process.env);
+// SLICE 145: the server's hourly archive is now the SAME encrypted object the
+// CLI produces, and (when the owner's R2 variables are present) it is copied
+// off this machine. Both are no-ops without BACKUP_PASSPHRASE - the gate lives
+// in scripts/lib/r2-backup.ts and refuses to upload anything unencrypted.
+const ARCHIVE_BACKUP_PASSPHRASE = (process.env.BACKUP_PASSPHRASE || "").trim();
 const archiveScheduler = startBackupScheduler({
   run: async () => {
     try {
@@ -371,8 +378,18 @@ const archiveScheduler = startBackupScheduler({
         dataDir: DATA_DIR,
         outDir: ARCHIVE_BACKUP_DIR,
         log: (m) => console.log(`[backup] ${m}`),
+        encrypt: makeEncryptHook(ARCHIVE_BACKUP_PASSPHRASE, (m) => console.log(`[backup] ${m}`)),
       });
-      return { ok: true, runId: r.runId, files: r.files, bytes: r.bytes };
+      // Only reached when runBackup returned: digests, coverage and (if
+      // encrypting) the decrypt-and-re-verify round trip all passed.
+      const r2 = await uploadVerifiedRun({
+        dataDir: DATA_DIR,
+        runDir: r.target,
+        manifest: r.manifest,
+        passphrase: ARCHIVE_BACKUP_PASSPHRASE,
+        log: (m) => console.log(m),
+      });
+      return { ok: true, runId: r.runId, files: r.files, bytes: r.bytes, r2 };
     } catch (e: any) {
       // runBackup already wrote a failed status; the scheduler records it too.
       return { ok: false, error: e?.message || String(e) };

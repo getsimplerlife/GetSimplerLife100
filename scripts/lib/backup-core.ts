@@ -71,6 +71,33 @@ export interface ManifestSource {
   durableEnabled: boolean;
 }
 
+/**
+ * SLICE 145 — the off-box leg of the run.
+ *
+ * Every field is what actually happened. `uploaded: false` with `error: null`
+ * and `uploadSkipped` set means we deliberately did not try (no passphrase, no
+ * credentials) — a different fact from "we tried and R2 said no", which is
+ * `uploaded: false` with `error` set. Neither is a silent success.
+ */
+export interface R2Record {
+  /** Were all five R2 variables present when the run finished? */
+  configured: boolean;
+  uploaded: boolean;
+  /** Object key inside the bucket (null when nothing was uploaded). */
+  key: string | null;
+  bytes: number | null;
+  etag: string | null;
+  uploadedAt: string | null;
+  /** Upload failure, redacted. Loud, but never fatal to the run or the server. */
+  error: string | null;
+  /** Why no upload was attempted. Null when an upload was attempted. */
+  uploadSkipped: string | null;
+  /** Objects removed by the remote retention policy (7 daily / 4 weekly). */
+  pruned: string[];
+  /** A failed prune must not fail the run — it is recorded here instead. */
+  pruneError: string | null;
+}
+
 export interface Manifest {
   runId: string;
   takenAt: string;
@@ -84,6 +111,8 @@ export interface Manifest {
   encryption: Encryption;
   /** Archive file name inside the run directory, or null for a plain tree. */
   archive: string | null;
+  /** SLICE 145: the off-box upload result, written back after the upload. */
+  r2?: R2Record | null;
   tool: string;
 }
 
@@ -96,6 +125,8 @@ export interface BackupStatus {
   runId?: string | null;
   files?: number | null;
   encryption?: Encryption | null;
+  /** SLICE 145: surfaced verbatim on /api/admin/datadir. */
+  r2?: R2Record | null;
 }
 
 export class TornReadError extends Error {
@@ -415,6 +446,7 @@ export function statusFor(
   manifest: Manifest,
   target: string,
   error: string | null = null,
+  r2: R2Record | null = manifest.r2 ?? null,
 ): BackupStatus {
   return {
     lastBackupAt: manifest.takenAt,
@@ -425,6 +457,7 @@ export function statusFor(
     runId: manifest.runId,
     files: manifest.totals.files,
     encryption: manifest.encryption,
+    r2,
   };
 }
 

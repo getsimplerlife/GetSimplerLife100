@@ -18,10 +18,10 @@
  *   5. every installed file is re-hashed after the copy, so a short write is a
  *      failure, not a success message.
  */
-import { execFileSync } from "node:child_process";
-import { chmodSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { isManifest, sha256Of, verifyManifestFiles } from "./lib/backup-core.ts";
+import { decryptArchiveToDir } from "./lib/backup-crypto.ts";
 
 const DEFAULT_OUT = process.env.BACKUP_ROOT?.trim() || "/home/team/shared/backups";
 
@@ -91,14 +91,14 @@ if (manifest.archive) {
   tempStage = join("/tmp", `restore-stage-${runId}-${process.pid}`);
   mkdirSync(tempStage, { recursive: true, mode: 0o700 });
   try {
-    const dec = execFileSync(
-      "openssl",
-      ["enc", "-d", "-aes-256-cbc", "-pbkdf2", "-pass", "env:BACKUP_PASSPHRASE", "-in", join(RUN_DIR, manifest.archive)],
-      { maxBuffer: 1024 * 1024 * 1024, env: { ...process.env, BACKUP_PASSPHRASE: PASSPHRASE } },
-    );
-    const tarPath = join(tempStage, "payload.tar.gz");
-    writeFileSync(tarPath, dec);
-    execFileSync("tar", ["-xzf", tarPath, "-C", tempStage]);
+    // SLICE 145: the decrypt lives in scripts/lib/backup-crypto.ts so the CLI,
+    // the server and restore-from-r2 all open an archive the same way.
+    decryptArchiveToDir({
+      archivePath: join(RUN_DIR, manifest.archive),
+      outDir: tempStage,
+      passphrase: PASSPHRASE,
+      log,
+    });
     stageDir = join(tempStage, "data");
   } catch (e) {
     rmSync(tempStage, { recursive: true, force: true });

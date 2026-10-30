@@ -19,6 +19,7 @@
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 import { readJSON } from "./data-store";
+import type { R2Record } from "../../scripts/lib/backup-core";
 
 export const BACKUP_STATUS_FILE = "backup_status.json";
 
@@ -31,6 +32,13 @@ export interface BackupStatusSummary {
   lastBackupRunId: string | null;
   lastBackupFiles: number | null;
   lastBackupEncryption: string | null;
+  /**
+   * SLICE 145 — the off-box leg, exactly as the run recorded it. `null` means
+   * this status file predates slice 145 or the run never got that far; it never
+   * means "uploaded". A missing object key, a redacted error and a skip reason
+   * are all reported verbatim so the operator can tell the three apart.
+   */
+  lastBackupR2: R2Record | null;
 }
 
 const EMPTY: BackupStatusSummary = {
@@ -42,6 +50,7 @@ const EMPTY: BackupStatusSummary = {
   lastBackupRunId: null,
   lastBackupFiles: null,
   lastBackupEncryption: null,
+  lastBackupR2: null,
 };
 
 function str(v: any): string | null {
@@ -50,6 +59,27 @@ function str(v: any): string | null {
 
 function num(v: any): number | null {
   return typeof v === "number" && Number.isFinite(v) ? v : null;
+}
+
+/**
+ * The r2 record, re-built field by field. A hand-edited or half-written status
+ * file yields nulls rather than a made-up success — the same rule the rest of
+ * this module follows.
+ */
+function r2Record(v: any): R2Record | null {
+  if (!v || typeof v !== "object") return null;
+  return {
+    configured: v.configured === true,
+    uploaded: v.uploaded === true,
+    key: str(v.key),
+    bytes: num(v.bytes),
+    etag: str(v.etag),
+    uploadedAt: str(v.uploadedAt),
+    error: str(v.error),
+    uploadSkipped: str(v.uploadSkipped),
+    pruned: Array.isArray(v.pruned) ? v.pruned.filter((k: any) => typeof k === "string") : [],
+    pruneError: str(v.pruneError),
+  };
 }
 
 /** Read the last backup status for a data dir. Never throws, never guesses. */
@@ -68,6 +98,7 @@ export function readBackupStatus(dataDir: string): BackupStatusSummary {
       lastBackupRunId: str(raw.runId),
       lastBackupFiles: num(raw.files),
       lastBackupEncryption: str(raw.encryption),
+      lastBackupR2: r2Record(raw.r2),
     };
   } catch {
     return { ...EMPTY };

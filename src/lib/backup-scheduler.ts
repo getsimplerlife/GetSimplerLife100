@@ -32,6 +32,8 @@ export interface BackupRunOutcome {
   runId?: string;
   files?: number;
   bytes?: number;
+  /** SLICE 145: the off-box leg of this run, so the log line tells the truth. */
+  r2?: { uploaded: boolean; key: string | null; error: string | null; uploadSkipped: string | null } | null;
 }
 
 export interface BackupSchedulerTimers {
@@ -146,8 +148,15 @@ export function startBackupScheduler(opts: BackupSchedulerOptions): BackupSchedu
       if (outcome?.ok) {
         status.runs += 1;
         status.lastOkAt = iso();
+        const off = outcome.r2
+          ? outcome.r2.uploaded
+            ? `, off-box ${outcome.r2.key}`
+            : outcome.r2.error
+              ? `, OFF-BOX FAILED: ${outcome.r2.error}`
+              : `, off-box skipped: ${outcome.r2.uploadSkipped}`
+          : "";
         log(
-          `[backup] ok (${reason}): run ${outcome.runId ?? "?"} ${outcome.files ?? 0} files, ${outcome.bytes ?? 0} bytes`,
+          `[backup] ok (${reason}): run ${outcome.runId ?? "?"} ${outcome.files ?? 0} files, ${outcome.bytes ?? 0} bytes${off}`,
         );
       } else {
         status.failures += 1;
