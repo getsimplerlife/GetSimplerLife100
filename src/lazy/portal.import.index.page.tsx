@@ -53,6 +53,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Card, CardBody, Badge, Button } from "~/components/ui";
 import { PortalEmptyState, scrollToId } from "~/components/PortalEmptyState";
+import FileImportPanel from "~/components/FileImportPanel";
 
 /** Per-lane HONEST trust copy — the single source of truth for what each
  *  lane reads and does NOT read. Keyed by canonical provider id (the ids the
@@ -403,6 +404,9 @@ export default function PortalImportIndexPage() {
           the background, nothing writes back, and nothing is imported until you approve.
         </p>
       </div>
+      {/* Slice 137 — the credential-free lane: import a FILE into a real store. */}
+      <FileImportPanel />
+
       {note && <div className="rounded-md bg-amber-950/50 border border-amber-700/40 px-3 py-2 text-sm">{note}</div>}
 
       {/* Pending approvals — verdict-first Approval Queue mirror */}
