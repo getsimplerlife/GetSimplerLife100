@@ -29,7 +29,9 @@ import {
   collectBackupFiles,
   collectVerifiedFiles,
   isManifest,
+  isInsidePublishTree,
   planRetention,
+  publishTreeRoot,
   runIdFor,
   sha256Of,
   stableRead,
@@ -185,16 +187,39 @@ describe("slice 143 — restore CLI", () => {
   });
 });
 
-describe("slice 143 — the backup CLI refuses to write inside the publish tree", () => {
-  it("exits non-zero for an out dir under /site/", () => {
+describe("slice 143/146 — the backup CLI refuses to write inside the publish tree", () => {
+  // SLICE 146: this used to assert against `join(REPO, "backups-should-not-exist")`
+  // and passed only because REPO happened to be `/home/team/shared/site` — the
+  // guard itself was a literal `/site/` regex, so in a detached worktree
+  // (/tmp/wt-abc/GetSimplerLife100) the guard did not fire and the test failed
+  // (expected non-zero, got 0). Both halves are fixed: the guard now resolves
+  // the tree the code lives in, and this test builds the "inside" path from
+  // THAT root, so it means the same thing wherever it runs.
+  it("exits non-zero for an out dir inside the tree the code lives in", () => {
+    const root = publishTreeRoot();
+    expect(root).toBeTruthy(); // our repo really is identifiable from this module
+    expect(isInsidePublishTree(root!)).toBe(true);
+    const inside = join(root!, "backups-should-not-exist");
+    expect(isInsidePublishTree(inside)).toBe(true);
+
     const data = makeDataDir({ "users.json": "{}" });
-    const res = spawnSync("bun", ["scripts/backup.mjs", "--data-dir", data, "--out", join(REPO, "backups-should-not-exist")], {
+    const res = spawnSync("bun", ["scripts/backup.mjs", "--data-dir", data, "--out", inside], {
       cwd: REPO,
       encoding: "utf8",
     });
     expect(res.status).not.toBe(0);
     expect(res.stderr).toMatch(/refusing to write a backup inside the publish tree/);
-    expect(existsSync(join(REPO, "backups-should-not-exist"))).toBe(false);
+    expect(existsSync(inside)).toBe(false);
+  });
+
+  it("keeps the literal /site/ backstop and allows a normal directory", () => {
+    // the platform's publish tree names, refused even if the code lives elsewhere
+    expect(isInsidePublishTree("/home/team/shared/site/.data/backups")).toBe(true);
+    expect(isInsidePublishTree("/var/www/site")).toBe(true);
+    // a directory outside the tree is allowed — the guard must not over-refuse
+    const outside = mkdtempSync(join(tmpdir(), "bk-outside-"));
+    tmpDirs.push(outside);
+    expect(isInsidePublishTree(join(outside, "backups"))).toBe(false);
   });
 });
 
