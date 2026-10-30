@@ -632,7 +632,6 @@ export default function DashboardsPage() {
             <PortalEmptyState
               title="No reports yet"
               body="A report is one reduction over one table. Create one above — it becomes a widget once a dashboard groups it."
-              action={{ label: "Open the report builder", onClick: () => scrollToId("report-composer") }}
               compact
             />
           ) : (
