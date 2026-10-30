@@ -1223,6 +1223,17 @@ async function handleFetch(req: Request): Promise<Response> {
         const knowledgeBase = await import("./src/native/knowledgebase");
         return knowledgeBase.handleNativeKnowledgeBaseAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
       }
+      // Slice 137 — UNIVERSAL FILE IMPORT (/api/native/import/file*).
+      // The credential-free lane: CSV/JSON upload -> column mapping -> per-row
+      // validation -> write into a REAL store (tables rows, knowledge-base
+      // articles). Mounted BEFORE the provider-import router (which owns
+      // /api/native/import*) so the two surfaces never shadow each other.
+      // Authed-only; draft scaffolding is audited; the ONE store-writing
+      // action (commitFileImport) rides the Approval Queue verb-first.
+      if (pathname.startsWith("/api/native/import/file")) {
+        const fileImport = await import("./src/native/fileimport");
+        return fileImport.handleNativeFileImportAuthed(req, { userEmail: user.email, dataDir: DATA_DIR });
+      }
       // Phase 5.1 (6.1) — native import/migration lanes (/api/native/import*).
       // Client-optional import lanes (owner 10-20): a client connects their
       // OWN tools to bring data in — pull → map → stage → commit. Authed-only;
