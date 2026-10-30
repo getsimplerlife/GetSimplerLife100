@@ -32,6 +32,12 @@ export interface BackupStatusSummary {
   lastBackupRunId: string | null;
   lastBackupFiles: number | null;
   lastBackupEncryption: string | null;
+  /** SLICE 147 — when a run last SUCCEEDED (null = never observed). */
+  lastBackupOkAt: string | null;
+  /** SLICE 147 — consecutive failed runs; 0 after a success. */
+  consecutiveFailures: number | null;
+  /** SLICE 147 — consecutive failed off-box uploads; 0 after a successful one. */
+  consecutiveUploadFailures: number | null;
   /**
    * SLICE 145 — the off-box leg, exactly as the run recorded it. `null` means
    * this status file predates slice 145 or the run never got that far; it never
@@ -50,6 +56,9 @@ const EMPTY: BackupStatusSummary = {
   lastBackupRunId: null,
   lastBackupFiles: null,
   lastBackupEncryption: null,
+  lastBackupOkAt: null,
+  consecutiveFailures: null,
+  consecutiveUploadFailures: null,
   lastBackupR2: null,
 };
 
@@ -98,11 +107,162 @@ export function readBackupStatus(dataDir: string): BackupStatusSummary {
       lastBackupRunId: str(raw.runId),
       lastBackupFiles: num(raw.files),
       lastBackupEncryption: str(raw.encryption),
+      lastBackupOkAt: str(raw.lastBackupOkAt),
+      consecutiveFailures: num(raw.consecutiveFailures),
+      consecutiveUploadFailures: num(raw.consecutiveUploadFailures),
       lastBackupR2: r2Record(raw.r2),
     };
   } catch {
     return { ...EMPTY };
   }
+}
+
+/**
+ * SLICE 147 — IS THE BACKUP ACTUALLY RUNNING?
+ *
+ * Before this, a scheduler that silently stopped looked identical to a healthy
+ * one: `lastBackupAt` simply got older and nothing complained. The owner's
+ * directive is "I don't want any data loss", and a backup system whose failure
+ * mode is silence does not meet it.
+ *
+ * THE RULE, in one line: freshness is measured from the last run that actually
+ * SUCCEEDED, and a deployment that has never had one is never called healthy.
+ *
+ * The threshold is a small multiple of the schedule, not a magic number: with an
+ * hourly schedule and a factor of 2.5, one missed run is tolerated (a slow run, a
+ * restart) and two consecutive misses are loud. `BACKUP_STALE_FACTOR` can change
+ * it; nothing else about it is arbitrary.
+ *
+ * Computed on READ (the admin endpoint), so it is still correct when the thing
+ * that died is the scheduler itself — the surface does not depend on the process
+ * that stopped.
+ */
+export const DEFAULT_BACKUP_INTERVAL_MS = 60 * 60 * 1000;
+export const DEFAULT_STALE_FACTOR = 2.5;
+export const BACKUP_STALE_FACTOR_ENV = "BACKUP_STALE_FACTOR";
+
+export type BackupFreshnessReason = "ok" | "never-ran" | "overdue" | "last-run-failed" | "scheduler-disabled";
+
+export interface BackupFreshness {
+  /** True whenever we cannot show a recent successful run. */
+  stale: boolean;
+  /** True ONLY for a real, observed, recent success. Never inferred. */
+  healthy: boolean;
+  reason: BackupFreshnessReason;
+  /** Age of the last SUCCESSFUL run in ms, or null when there has never been one. */
+  ageMs: number | null;
+  ageSeconds: number | null;
+  lastSuccessAt: string | null;
+  lastAttemptAt: string | null;
+  lastAttemptOk: boolean | null;
+  intervalMs: number;
+  staleFactor: number;
+  thresholdMs: number;
+  consecutiveFailures: number | null;
+  consecutiveUploadFailures: number | null;
+  lastError: string | null;
+  schedulerDisabled: boolean;
+  schedulerDisabledReason: string;
+  /** The off-box leg of the last attempt, verbatim. */
+  offBox: { uploaded: boolean; at: string | null; key: string | null; error: string | null; skipped: string | null } | null;
+  checkedAt: string;
+}
+
+export interface FreshnessOptions {
+  now?: Date;
+  intervalMs?: number;
+  staleFactor?: number;
+  schedulerDisabled?: boolean;
+  schedulerDisabledReason?: string;
+}
+
+/** `BACKUP_STALE_FACTOR`, or the default. A nonsense value falls back, never throws. */
+export function resolveStaleFactor(env: Record<string, string | undefined> = process.env): number {
+  const n = Number(env[BACKUP_STALE_FACTOR_ENV]);
+  return Number.isFinite(n) && n >= 1 ? n : DEFAULT_STALE_FACTOR;
+}
+
+/**
+ * The one place staleness is decided. Pure: same status + same clock ⇒ same
+ * answer, which is what makes it testable and what stops the endpoint from
+ * inventing a success.
+ */
+export function backupFreshness(status: BackupStatusSummary, opts: FreshnessOptions = {}): BackupFreshness {
+  const now = opts.now ?? new Date();
+  const intervalMs = opts.intervalMs && opts.intervalMs > 0 ? opts.intervalMs : DEFAULT_BACKUP_INTERVAL_MS;
+  const staleFactor = opts.staleFactor && opts.staleFactor >= 1 ? opts.staleFactor : DEFAULT_STALE_FACTOR;
+  const thresholdMs = Math.round(intervalMs * staleFactor);
+
+  // A status file written before slice 147 has no `lastBackupOkAt`; if it says
+  // the last run was OK, that run WAS the last success. Anything else is unknown.
+  const lastSuccessAt = status.lastBackupOkAt ?? (status.lastBackupOk === true ? status.lastBackupAt : null);
+  const successMs = lastSuccessAt ? Date.parse(lastSuccessAt) : NaN;
+  const ageMs = Number.isFinite(successMs) ? Math.max(0, now.getTime() - successMs) : null;
+  const healthy = ageMs !== null && ageMs <= thresholdMs;
+
+  let reason: BackupFreshnessReason;
+  if (healthy) reason = opts.schedulerDisabled ? "scheduler-disabled" : "ok";
+  else if (opts.schedulerDisabled) reason = "scheduler-disabled";
+  else if (ageMs === null) reason = "never-ran";
+  else if (status.lastBackupOk === false) reason = "last-run-failed";
+  else reason = "overdue";
+
+  const r2 = status.lastBackupR2;
+  return {
+    stale: !healthy,
+    healthy,
+    reason,
+    ageMs,
+    ageSeconds: ageMs === null ? null : Math.round(ageMs / 1000),
+    lastSuccessAt,
+    lastAttemptAt: status.lastBackupAt,
+    lastAttemptOk: status.lastBackupOk,
+    intervalMs,
+    staleFactor,
+    thresholdMs,
+    consecutiveFailures: status.consecutiveFailures,
+    consecutiveUploadFailures: status.consecutiveUploadFailures,
+    lastError: status.lastBackupError,
+    schedulerDisabled: !!opts.schedulerDisabled,
+    schedulerDisabledReason: opts.schedulerDisabledReason ?? "",
+    offBox: r2
+      ? { uploaded: r2.uploaded, at: r2.uploadedAt, key: r2.key, error: r2.error, skipped: r2.uploadSkipped }
+      : null,
+    checkedAt: now.toISOString(),
+  };
+}
+
+/** Convenience: read the status file and decide freshness in one step. */
+export function readBackupFreshness(dataDir: string, opts: FreshnessOptions = {}): BackupFreshness {
+  return backupFreshness(readBackupStatus(dataDir), opts);
+}
+
+/**
+ * One greppable, structured line per backup event. `grep '\[backup\]\['` finds
+ * every failure the system has ever reported, and each line is valid JSON after
+ * the prefix so a log pipeline can read it without a regex.
+ */
+export function backupEventLine(event: string, fields: Record<string, unknown>): string {
+  const safe: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(fields)) safe[k] = v === undefined ? null : v;
+  return `[backup][${event}] ${JSON.stringify(safe)}`;
+}
+
+/** The staleness line, or null when there is nothing to complain about. */
+export function staleEventLine(freshness: BackupFreshness): string | null {
+  if (!freshness.stale) return null;
+  return backupEventLine(freshness.reason === "overdue" ? "overdue" : "stale", {
+    reason: freshness.reason,
+    lastSuccessAt: freshness.lastSuccessAt,
+    ageSeconds: freshness.ageSeconds,
+    intervalMs: freshness.intervalMs,
+    thresholdMs: freshness.thresholdMs,
+    consecutiveFailures: freshness.consecutiveFailures,
+    consecutiveUploadFailures: freshness.consecutiveUploadFailures,
+    lastError: freshness.lastError,
+    offBox: freshness.offBox,
+    checkedAt: freshness.checkedAt,
+  });
 }
 
 /**

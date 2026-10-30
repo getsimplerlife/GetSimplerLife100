@@ -24,6 +24,7 @@
  *     is reported rather than silently ignored.
  */
 import { failedStatus, writeBackupStatus } from "../../scripts/lib/backup-core";
+import { backupEventLine, staleEventLine, type BackupFreshness } from "./backup-status";
 
 export interface BackupRunOutcome {
   ok: boolean;
@@ -52,6 +53,13 @@ export interface BackupSchedulerOptions {
   disabledReason?: string;
   /** Called with the message of any failure so the caller can persist it. */
   recordFailure?: (message: string) => void;
+  /**
+   * SLICE 147 — read the CURRENT freshness from the durable status file. Called
+   * after every attempt so a stale or failing deployment produces a structured,
+   * greppable line instead of a quietly ageing timestamp. Optional: without it
+   * the scheduler behaves exactly as it did in slice 144.
+   */
+  freshness?: () => BackupFreshness;
   log?: (message: string) => void;
   timers?: BackupSchedulerTimers;
   now?: () => number;
@@ -135,6 +143,24 @@ export function startBackupScheduler(opts: BackupSchedulerOptions): BackupSchedu
 
   const iso = () => new Date(now()).toISOString();
 
+  /**
+   * SLICE 147 — after every attempt, ask the durable status how things actually
+   * stand and emit ONE structured line when it is bad. Never throws: a broken
+   * status read must not break the scheduler it is reporting on.
+   */
+  function reportFreshness(reason: string): void {
+    if (!opts.freshness) return;
+    let fresh: BackupFreshness;
+    try {
+      fresh = opts.freshness();
+    } catch (e: any) {
+      log(backupEventLine("freshness-unreadable", { trigger: reason, error: e?.message || String(e) }));
+      return;
+    }
+    const stale = staleEventLine(fresh);
+    if (stale) log(stale);
+  }
+
   async function trigger(reason = "manual"): Promise<BackupRunOutcome> {
     if (status.running) {
       status.refused += 1;
@@ -158,11 +184,25 @@ export function startBackupScheduler(opts: BackupSchedulerOptions): BackupSchedu
         log(
           `[backup] ok (${reason}): run ${outcome.runId ?? "?"} ${outcome.files ?? 0} files, ${outcome.bytes ?? 0} bytes${off}`,
         );
+        // An upload failure is NOT a failed local run (the archive is intact and
+        // the server keeps serving). It is already reported with its own
+        // structured `[backup][upload-failed]` line by scripts/lib/r2-backup.ts
+        // (which knows the object key and the durable counter), so this only
+        // carries it into the human-readable summary — no duplicate event line.
       } else {
         status.failures += 1;
         status.lastError = outcome?.error || "backup run reported ok=false";
         log(`[backup] FAILED (${reason}): ${status.lastError}`);
+        log(
+          backupEventLine("run-failed", {
+            trigger: reason,
+            error: status.lastError,
+            consecutiveFailures: readConsecutiveFailures(),
+            failuresSinceBoot: status.failures,
+          }),
+        );
       }
+      reportFreshness(reason);
       return outcome ?? { ok: false, error: "backup run returned nothing" };
     } catch (e: any) {
       // A scheduler that crashes the server is worse than no scheduler.
@@ -170,15 +210,40 @@ export function startBackupScheduler(opts: BackupSchedulerOptions): BackupSchedu
       status.failures += 1;
       status.lastError = message;
       log(`[backup] FAILED (${reason}): ${message}`);
+      log(
+        backupEventLine("run-failed", {
+          trigger: reason,
+          error: message,
+          consecutiveFailures: readConsecutiveFailures(),
+          failuresSinceBoot: status.failures,
+        }),
+      );
       try {
         opts.recordFailure?.(message);
       } catch (recordErr: any) {
         log(`[backup] could not record the failure: ${recordErr?.message || recordErr}`);
       }
+      reportFreshness(reason);
       return { ok: false, error: message };
     } finally {
       status.running = false;
     }
+  }
+
+  /** The durable counters, read through the injected reader. Never throws. */
+  function readFreshnessCounters(): { runFailures: number | null; uploadFailures: number | null } {
+    if (!opts.freshness) return { runFailures: null, uploadFailures: null };
+    try {
+      const f = opts.freshness();
+      return { runFailures: f.consecutiveFailures, uploadFailures: f.consecutiveUploadFailures };
+    } catch {
+      return { runFailures: null, uploadFailures: null };
+    }
+  }
+
+  /** Convenience for the run-failure lines. */
+  function readConsecutiveFailures(): number | null {
+    return readFreshnessCounters().runFailures;
   }
 
   function scheduleNext(delayMs: number): void {

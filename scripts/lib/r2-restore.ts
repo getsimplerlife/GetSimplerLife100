@@ -18,6 +18,7 @@
  */
 import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { instanceOfKey, runIdFromObjectKey } from "../../src/lib/r2-upload";
 import { isManifest, verifyManifestFiles, type Manifest } from "./backup-core";
 
 export interface RemoteObject {
@@ -26,19 +27,43 @@ export interface RemoteObject {
   etag: string | null;
 }
 
-/** Newest run object in the bucket, or the one asked for. Throws when absent. */
+/**
+ * Newest run object in the bucket, or the one asked for. Throws when absent.
+ *
+ * SLICE 147: objects are matched by the RUN ID inside the key at any depth, not
+ * by a flat `prefix + runId` shape. That is what keeps the pre-namespacing object
+ * (`simplerlife100/backups/2026-10-30T22-00-12Z.tar.gz.enc`) and the per-instance
+ * ones (`simplerlife100/backups/<instance>/2026-…Z.tar.gz.enc`) equally
+ * restorable from ONE list call at the base prefix — no migration, no orphaning.
+ */
 export function selectRemoteObject(objects: RemoteObject[], opts: { run?: string | null; prefix: string }): RemoteObject {
-  const runObjects = objects.filter((o) => o.key.endsWith(".enc"));
+  const runObjects = objects
+    .filter((o) => o.key.startsWith(opts.prefix))
+    .map((o) => ({ object: o, runId: runIdFromObjectKey(o.key) }))
+    .filter((entry): entry is { object: RemoteObject; runId: string } => !!entry.runId);
   if (runObjects.length === 0) throw new Error(`no encrypted run objects under ${opts.prefix} in the bucket`);
   if (opts.run) {
-    const wanted = runObjects.find((o) => o.key.slice(opts.prefix.length).startsWith(opts.run + "."));
+    const wanted = runObjects.find((entry) => entry.runId === opts.run);
     if (!wanted) {
-      const available = runObjects.map((o) => o.key).sort().slice(-5);
+      const available = runObjects
+        .map((e) => e.object.key)
+        .sort()
+        .slice(-5);
       throw new Error(`no object for run ${opts.run}; newest objects: ${available.join(", ")}`);
     }
-    return wanted;
+    return wanted.object;
   }
-  return [...runObjects].sort((a, b) => (a.key < b.key ? 1 : a.key > b.key ? -1 : 0))[0];
+  return [...runObjects].sort((a, b) => (a.runId < b.runId ? 1 : a.runId > b.runId ? -1 : 0))[0].object;
+}
+
+/** The run id inside a remote key (`…/<runId>.tar.gz.enc`), or null. */
+export function remoteRunId(key: string): string | null {
+  return runIdFromObjectKey(key);
+}
+
+/** Which instance namespace an object sits in (`""` = the flat, pre-147 layout). */
+export function remoteInstance(key: string, basePrefix: string): string | null {
+  return instanceOfKey(key, basePrefix);
 }
 
 export interface VerifyExtractedResult {

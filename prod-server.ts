@@ -27,10 +27,11 @@ import { startHealthHeartbeat, probeProvider } from "./src/lib/connection-health
 import { sweepExpiredOAuthStates, OAUTH_STATE_TTL_MS } from "./src/lib/oauth-state-sweeper";
 import { acquireSingleInstanceOwnership, portAlreadyBound } from "./src/lib/single-instance";
 import { isOwnerUser, LEGACY_OWNER_EMAIL } from "./src/lib/user-roles";
-import { readBackupStatus, countStoreEntries } from "./src/lib/backup-status";
+import { readBackupStatus, countStoreEntries, readBackupFreshness, resolveStaleFactor } from "./src/lib/backup-status";
 import { runBackup } from "./scripts/lib/backup-core";
 import { makeEncryptHook } from "./scripts/lib/backup-crypto";
 import { uploadVerifiedRun } from "./scripts/lib/r2-backup";
+import { peekUploadPrefix } from "./src/lib/r2-upload";
 import {
   backupFailureRecorder,
   backupSchedulerDisabled,
@@ -371,6 +372,12 @@ const archiveSchedulerOff = backupSchedulerDisabled(process.env);
 // off this machine. Both are no-ops without BACKUP_PASSPHRASE - the gate lives
 // in scripts/lib/r2-backup.ts and refuses to upload anything unencrypted.
 const ARCHIVE_BACKUP_PASSPHRASE = (process.env.BACKUP_PASSPHRASE || "").trim();
+// SLICE 147: which namespace this deployment writes into. Read-only here (the id
+// is created by the first upload) so a boot never mutates DATA_DIR.
+const ARCHIVE_BACKUP_INSTANCE = peekUploadPrefix(process.env, DATA_DIR);
+// SLICE 147: staleness is measured against the schedule, not against a magic
+// number: 2.5 x the interval tolerates one missed run and shouts at two.
+const ARCHIVE_STALE_FACTOR = resolveStaleFactor(process.env);
 const archiveScheduler = startBackupScheduler({
   run: async () => {
     try {
@@ -383,7 +390,7 @@ const archiveScheduler = startBackupScheduler({
       // Only reached when runBackup returned: digests, coverage and (if
       // encrypting) the decrypt-and-re-verify round trip all passed.
       const r2 = await uploadVerifiedRun({
-        dataDir: DATA_DIR,
+        dataDir: DATA_DIR, // SLICE 147: resolves this deployment's own R2 namespace
         runDir: r.target,
         manifest: r.manifest,
         passphrase: ARCHIVE_BACKUP_PASSPHRASE,
@@ -400,6 +407,15 @@ const archiveScheduler = startBackupScheduler({
   disabled: archiveSchedulerOff.disabled,
   disabledReason: archiveSchedulerOff.reason,
   recordFailure: backupFailureRecorder(DATA_DIR, ARCHIVE_BACKUP_DIR),
+  // SLICE 147 — a stopped or failing backup must complain in the logs, not just
+  // leave a quietly ageing timestamp.
+  freshness: () =>
+    readBackupFreshness(DATA_DIR, {
+      intervalMs: ARCHIVE_BACKUP_INTERVAL_MS,
+      staleFactor: ARCHIVE_STALE_FACTOR,
+      schedulerDisabled: archiveSchedulerOff.disabled,
+      schedulerDisabledReason: archiveSchedulerOff.reason,
+    }),
 });
 process.on("exit", () => archiveScheduler.stop());
 // ── OAuth-state TTL sweeper (owner-approved I3: purge stale CSRF states) ──
@@ -3162,6 +3178,23 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
           // reports it. Read-only, owner-gated, and honest about a missing or
           // failed run (nulls, never a made-up success).
           ...readBackupStatus(DATA_DIR),
+          // SLICE 147 — IS THE BACKUP STILL RUNNING? Computed on READ, from the
+          // last run that actually succeeded, so this stays correct even when the
+          // scheduler itself is what died. `stale: true` with reason
+          // "never-ran" is the honest answer for a deployment that has never had
+          // a successful run — there is no "healthy" default here.
+          backupFreshness: readBackupFreshness(DATA_DIR, {
+            intervalMs: ARCHIVE_BACKUP_INTERVAL_MS,
+            staleFactor: ARCHIVE_STALE_FACTOR,
+            schedulerDisabled: archiveSchedulerOff.disabled,
+            schedulerDisabledReason: archiveSchedulerOff.reason,
+          }),
+          // SLICE 147 — the namespace this deployment writes into, so two
+          // instances can be told apart from one screen.
+          backupInstance: ARCHIVE_BACKUP_INSTANCE.instance,
+          backupPrefix: ARCHIVE_BACKUP_INSTANCE.prefix,
+          backupUploadAllowed: ARCHIVE_BACKUP_INSTANCE.uploadAllowed,
+          backupUploadSkipReason: ARCHIVE_BACKUP_INSTANCE.skipReason,
           // Slice 144: a file that EXISTS but does not parse is data loss in
           // progress. readJSON keeps its {} fallback, but the count and the last
           // failure are reported here so it can never be silent again.

@@ -39,6 +39,7 @@ import {
   planRemoteRetention,
   r2ConfigFromEnv,
   redactSecrets,
+  resolveUploadPrefix,
   signAwsV4,
   type R2Fetch,
   type R2FetchResponse,
@@ -311,7 +312,12 @@ describe("uploadVerifiedRun", () => {
     });
 
     expect(record.uploaded).toBe(true);
-    expect(record.key).toBe("simplerlife100/backups/2026-10-30T20-12-00Z.tar.gz.enc");
+    // SLICE 147: the key shape changed on purpose — every object now lives under
+    // this deployment's own namespace. The assertion is still an exact key
+    // equality; only the prefix it is built from moved (base → base + instance).
+    const instancePrefix = resolveUploadPrefix({ env: ENV, dataDir, create: true }).prefix;
+    expect(instancePrefix.startsWith("simplerlife100/backups/")).toBe(true);
+    expect(record.key).toBe(`${instancePrefix}2026-10-30T20-12-00Z.tar.gz.enc`);
     expect(record.etag).toBe("abc123etag");
     expect(record.bytes).toBeGreaterThan(0);
     expect(record.uploadedAt).toBeTruthy();
@@ -395,7 +401,9 @@ describe("uploadVerifiedRun", () => {
       "2026-10-20T20-00-00Z",
       "2026-10-10T20-00-00Z",
       "2026-09-01T20-00-00Z",
-    ].map((id) => `simplerlife100/backups/${id}.tar.gz.enc`);
+      // SLICE 147: retention only ever sees this instance's own namespace, so
+      // the fixture's stale objects have to live there to be pruned at all.
+    ].map((id) => `${resolveUploadPrefix({ env: ENV, dataDir, create: true }).prefix}${id}.tar.gz.enc`);
     const record = await uploadVerifiedRun({
       dataDir,
       runDir: run.target,

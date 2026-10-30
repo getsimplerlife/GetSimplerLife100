@@ -34,9 +34,11 @@ import {
   planRemoteRetention,
   r2ConfigFromEnv,
   redactSecrets,
+  resolveUploadPrefix,
   type R2Fetch,
 } from "../../src/lib/r2-upload";
 import { atomicWriteSync } from "../../src/lib/atomic-write";
+import { backupEventLine } from "../../src/lib/backup-status";
 import { sha256Of, statusFor, writeBackupStatus, type Manifest, type R2Record } from "./backup-core";
 
 /** A record for a run where nothing was attempted, with the honest reason. */
@@ -83,26 +85,39 @@ export async function uploadVerifiedRun(opts: UploadVerifiedRunOptions): Promise
   const env = opts.env ?? process.env;
   const persist = opts.persist !== false;
   const passphrase = (opts.passphrase ?? env.BACKUP_PASSPHRASE ?? "").trim();
-  const report = describeR2Config(env);
+  // SLICE 147: this run's own namespace. Resolving it CREATES the instance id on
+  // first use, so the id is stable from the first upload onwards.
+  const resolved = resolveUploadPrefix({ env, dataDir: opts.dataDir, create: true, now: opts.now });
+  const report = describeR2Config(env, { dataDir: opts.dataDir });
 
   const record = (r: R2Record): R2Record => {
     if (persist) persistRecord(opts, r, log);
     return r;
   };
 
-  const cfg = r2ConfigFromEnv(env);
+  const cfg = r2ConfigFromEnv(env, { dataDir: opts.dataDir });
   if (!cfg) {
     log(`[backup] r2: NOT CONFIGURED (missing ${report.missing.join(", ")}) — no off-box copy of this run`);
     return record(skippedRecord({ configured: false, reason: `not configured (missing ${report.missing.join(", ")})` }));
   }
+  if (!resolved.uploadAllowed) {
+    // SLICE 147: a dev/test runtime must never place an object where it can be
+    // mistaken for (or prune) production data.
+    log(`[backup] r2: SKIPPED — ${resolved.skipReason}`);
+    return record({
+      ...skippedRecord({ configured: true, reason: resolved.skipReason || "non-production runtime" }),
+      prefix: resolved.prefix,
+      instance: resolved.instance,
+    });
+  }
   if (!passphrase) {
     // The plaintext gate. This is the whole point: no passphrase ⇒ no upload.
     log("[backup] r2: SKIPPED — BACKUP_PASSPHRASE is not set, so this run is unencrypted; plaintext data never leaves this box");
-    return record(skippedRecord({ configured: true, reason: "no passphrase" }));
+    return record({ ...skippedRecord({ configured: true, reason: "no passphrase" }), prefix: resolved.prefix, instance: resolved.instance });
   }
   if (!opts.manifest.archive || opts.manifest.encryption === "off") {
     log("[backup] r2: SKIPPED — the run produced no encrypted archive, so there is nothing safe to upload");
-    return record(skippedRecord({ configured: true, reason: "run is not encrypted" }));
+    return record({ ...skippedRecord({ configured: true, reason: "run is not encrypted" }), prefix: resolved.prefix, instance: resolved.instance });
   }
 
   const archivePath = join(opts.runDir, opts.manifest.archive);
@@ -111,6 +126,8 @@ export async function uploadVerifiedRun(opts: UploadVerifiedRunOptions): Promise
       ...skippedRecord({ configured: true, reason: "archive missing on disk" }),
       error: `archive ${opts.manifest.archive} is not present in ${opts.runDir}`,
       uploadSkipped: null,
+      prefix: resolved.prefix,
+      instance: resolved.instance,
     });
   }
 
@@ -134,7 +151,7 @@ export async function uploadVerifiedRun(opts: UploadVerifiedRunOptions): Promise
   } catch (e: any) {
     const error = redactSecrets(e?.message || String(e), [cfg.accessKeyId, cfg.secretAccessKey, passphrase]);
     log(`[backup] r2: UPLOAD FAILED for ${key} — ${error} (the local archive is intact; the run is NOT off-box)`);
-    return record({
+    const failed: R2Record = {
       configured: true,
       uploaded: false,
       key: null,
@@ -145,7 +162,20 @@ export async function uploadVerifiedRun(opts: UploadVerifiedRunOptions): Promise
       uploadSkipped: null,
       pruned: [],
       pruneError: null,
-    });
+      prefix: resolved.prefix,
+      instance: resolved.instance,
+    };
+    const written = record(failed);
+    log(
+      backupEventLine("upload-failed", {
+        key,
+        instance: resolved.instance,
+        prefix: resolved.prefix,
+        error,
+        consecutiveUploadFailures: opts.persist === false ? null : readDurableCounters(opts.dataDir).uploadFailures,
+      }),
+    );
+    return written;
   }
 
   const rec: R2Record = {
@@ -159,9 +189,14 @@ export async function uploadVerifiedRun(opts: UploadVerifiedRunOptions): Promise
     uploadSkipped: null,
     pruned: [],
     pruneError: null,
+    prefix: resolved.prefix,
+    instance: resolved.instance,
   };
 
   // ── Remote retention: same policy, same function, never fatal ─────────────
+  // SLICE 147: this lists THIS INSTANCE'S prefix only, so the plan can only ever
+  // name objects this instance wrote. Anything deeper (another instance's
+  // namespace) is reported as foreign and never deleted.
   try {
     const objects = await client.listObjects(cfg.prefix);
     const plan = planRemoteRetention(
@@ -173,13 +208,39 @@ export async function uploadVerifiedRun(opts: UploadVerifiedRunOptions): Promise
       await client.deleteObject(oldKey);
       rec.pruned.push(oldKey);
     }
-    log(`[backup] r2: retention kept ${plan.keep.length} object(s), pruned ${rec.pruned.length}`);
+    if (plan.foreign.length > 0) {
+      rec.foreign = plan.foreign;
+      log(
+        backupEventLine("retention-foreign", {
+          prefix: cfg.prefix,
+          instance: resolved.instance,
+          count: plan.foreign.length,
+          // Never delete what we cannot attribute. This is the cross-instance rule.
+          action: "kept",
+        }),
+      );
+    }
+    log(`[backup] r2: retention kept ${plan.keep.length} object(s), pruned ${rec.pruned.length} in ${cfg.prefix}`);
   } catch (e: any) {
     rec.pruneError = redactSecrets(e?.message || String(e), [cfg.accessKeyId, cfg.secretAccessKey, passphrase]);
     log(`[backup] r2: WARNING — retention prune failed: ${rec.pruneError} (the upload itself succeeded)`);
   }
 
   return record(rec);
+}
+
+/**
+ * The durable counters, read AFTER the status write so the number in the log is
+ * the number an operator will see on /api/admin/datadir. Never throws.
+ */
+function readDurableCounters(dataDir: string): { runFailures: number | null; uploadFailures: number | null } {
+  try {
+    const raw = JSON.parse(readFileSync(join(dataDir, "backup_status.json"), "utf8"));
+    const asNum = (v: any) => (Number.isFinite(Number(v)) ? Number(v) : null);
+    return { runFailures: asNum(raw?.consecutiveFailures), uploadFailures: asNum(raw?.consecutiveUploadFailures) };
+  } catch {
+    return { runFailures: null, uploadFailures: null };
+  }
 }
 
 /** Write the outcome into manifest.json and backup_status.json. Never throws. */
