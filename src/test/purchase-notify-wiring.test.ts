@@ -161,6 +161,31 @@ describe("Purchase → owner notification + account creation (full wired path)",
       expect(hit).toBe(true);
     }
   });
+  it("also emails the BUYER: right plan, a set-password link, queued when SMTP is down", async () => {
+    const evt = readJSONFile(SALES_FILE)[SESSION_ID];
+    // The buyer attempt is recorded on the same durable sale event.
+    expect(evt.buyer).toBeTruthy();
+    expect(evt.buyer.to).toBe(BUYER_EMAIL.toLowerCase());
+    const pending = readJSONFile(PENDING_FILE);
+    const buyerMails = (Array.isArray(pending) ? pending : []).filter(
+      (p: any) => p.kind === "purchase-buyer" && p.sessionId === SESSION_ID,
+    );
+    if (evt.buyer.sent === true) {
+      // Delivered for real — nothing should be waiting in the retry lane.
+      expect(buyerMails.length).toBe(0);
+    } else {
+      // SMTP unavailable in the canonical run: fail closed, never drop.
+      expect(buyerMails.length).toBe(1);
+      const mail = buyerMails[0];
+      expect(mail.to).toBe(BUYER_EMAIL.toLowerCase());
+      expect(mail.sent).toBe(false);
+      expect(String(mail.subject)).toContain("AI Automation Package");
+      expect(String(mail.body)).toContain("Plan: AI Automation Package");
+      expect(String(mail.body)).toContain("Amount paid: $50.00");
+      expect(String(mail.body)).toContain("/set-password?email=");
+      expect(String(mail.body)).toContain(encodeURIComponent(BUYER_EMAIL.toLowerCase()));
+    }
+  });
 
   it("a duplicate Stripe delivery (same session.id) does NOT double-provision or double-notify", async () => {
     // Re-post the exact same session — Stripe at-least-once.
@@ -181,6 +206,42 @@ describe("Purchase → owner notification + account creation (full wired path)",
     const acct = readJSONFile(USERS_FILE)[BUYER_EMAIL.toLowerCase()];
     expect(acct).toBeTruthy();
     expect(acct.source).toBe("purchase");
+    // Exactly ONE buyer confirmation for this session id — a re-delivered
+    // checkout.session.completed must not email the buyer twice.
+    const evt = readJSONFile(SALES_FILE)[SESSION_ID];
+    const pending = readJSONFile(PENDING_FILE);
+    const buyerMails = (Array.isArray(pending) ? pending : []).filter(
+      (p: any) => p.kind === "purchase-buyer" && p.sessionId === SESSION_ID,
+    );
+    expect(buyerMails.length).toBe(evt.buyer.sent === true ? 0 : 1);
+  });
+});
+
+describe("GET /api/purchase/status — the honest source for /after-purchase", () => {
+  it("returns the recorded plan + amount for a session the webhook recorded", async () => {
+    const res = await fetch(`${BASE_URL}/api/purchase/status?session_id=${SESSION_ID}`);
+    expect(res.status).toBe(200);
+    const data: any = await res.json();
+    expect(data.found).toBe(true);
+    expect(data.productName).toBe("AI Automation Package");
+    expect(data.amountCents).toBe(5000);
+    // Never leak the buyer's address to whoever holds the session id.
+    expect(JSON.stringify(data)).not.toContain(BUYER_EMAIL.toLowerCase());
+  });
+
+  it("an unknown session id is not-found — never an invented success", async () => {
+    const res = await fetch(`${BASE_URL}/api/purchase/status?session_id=cs_test_${Date.now()}_unknown`);
+    expect(res.status).toBe(200);
+    const data: any = await res.json();
+    expect(data.found).toBe(false);
+    expect(data.productName).toBeUndefined();
+  });
+
+  it("a malformed session id is rejected fail-closed", async () => {
+    const res = await fetch(`${BASE_URL}/api/purchase/status?session_id=${encodeURIComponent("../../etc/passwd")}`);
+    expect(res.status).toBe(400);
+    const data: any = await res.json();
+    expect(data.found).toBe(false);
   });
 });
 
@@ -221,7 +282,14 @@ describe("Existing account upgrade (non-destructive)", () => {
 describe("Source-level: prod-server wires the shared handler in the checkout block", () => {
   it("imports + calls buildOwnerSaleEvent / provisionAccountForPurchase / ownerSaleEmailBody", () => {
     const src = readFileSync(join(process.cwd(), "prod-server.ts"), "utf-8");
-    expect(src).toContain("import { buildOwnerSaleEvent, provisionAccountForPurchase, ownerSaleEmailBody } from \"./src/lib/purchase-sales-events\"");
+    expect(src).toContain(
+      "import { buildOwnerSaleEvent, provisionAccountForPurchase, ownerSaleEmailBody, buyerConfirmationEmailBody, buyerConfirmationSubject, setPasswordLink, signInLink, normalizeSiteOrigin, DEFAULT_SITE_ORIGIN } from \"./src/lib/purchase-sales-events\"",
+    );
+    // Slice 138: the buyer email rides the SAME awaited path (never fire-and-forget)
+    // and is queued to pending_emails.json when the send fails.
+    expect(src).toContain("buyerConfirmationEmailBody({");
+    expect(src).toContain('kind: "purchase-buyer"');
+    expect((src.match(/baseUrl: url\.origin/g) || []).length).toBeGreaterThanOrEqual(2);
     expect(src.includes("handlePurchaseCompleted")).toBe(true);
     expect(src.includes("SALES_EVENTS_FILE")).toBe(true);
     // Every SURVIVING provisioning branch must invoke the handler: the plan

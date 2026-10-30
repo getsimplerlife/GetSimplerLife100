@@ -4,7 +4,7 @@ import { readFileSync, existsSync, readdirSync } from "fs";
 import { createHash, randomBytes } from "crypto";
 import { resolveDataDir, isInsidePublishTree, readJSON, readJSONLive, writeJSON, seedDataFiles, bucketConnectionsByCategory, migrateLegacyData, findLegacyDataDir, mergeDurableCredential } from "./src/lib/data-store";
 import { verifyStripeSignature, detectPlanType, detectPlanTierFromMetadata, buildPlanPurchase } from "./src/lib/stripe-webhook";
-import { buildOwnerSaleEvent, provisionAccountForPurchase, ownerSaleEmailBody } from "./src/lib/purchase-sales-events";
+import { buildOwnerSaleEvent, provisionAccountForPurchase, ownerSaleEmailBody, buyerConfirmationEmailBody, buyerConfirmationSubject, setPasswordLink, signInLink, normalizeSiteOrigin, DEFAULT_SITE_ORIGIN } from "./src/lib/purchase-sales-events";
 import {
   generateResetCode,
   newPasswordResetRecord,
@@ -560,6 +560,72 @@ async function handleFetch(req: Request): Promise<Response> {
       return Response.json({ user: { email: user.email, role: user.role || "user" } });
     }
 
+    // ── Purchase status — public, read-only (slice 138) ──────────────────────
+    // Powers /after-purchase. Given the Stripe Checkout session id the buyer
+    // comes back with, answer exactly one question honestly: do we have a real
+    // purchase recorded for this session? Sources, in order:
+    //   1. our own durable sales ledger (sales_events.json), written ONLY by the
+    //      signature-verified Stripe webhook — needs no secret;
+    //   2. a live Stripe lookup when STRIPE_SECRET_KEY is present, because the
+    //      checkout redirect can beat the webhook by a second or two.
+    // Fail-closed: an unknown session id returns found:false and the page says
+    // so — it never renders "payment succeeded" on a guess. The response
+    // carries no buyer email, no card data, and no secret.
+    if (pathname === "/api/purchase/status" && req.method === "GET") {
+      if (rateLimited(req, "purchase-status", 120)) return rateLimitedResponse();
+      const sessionId = String(url.searchParams.get("session_id") || "").trim();
+      if (!/^cs_[A-Za-z0-9_]{6,255}$/.test(sessionId)) {
+        return Response.json({ found: false, verified: false, reason: "invalid_session_id" }, { status: 400 });
+      }
+      try {
+        const salesRaw = readJSON(SALES_EVENTS_FILE);
+        const sales = salesRaw && typeof salesRaw === "object" && !Array.isArray(salesRaw) ? salesRaw : {};
+        const rec = sales[sessionId];
+        if (rec && rec.event) {
+          return Response.json({
+            found: true,
+            verified: true,
+            source: "ledger",
+            productName: rec.event.productName,
+            amountCents: rec.event.amountCents,
+            at: rec.at || rec.event.at,
+            // Honest detail for the page copy: did the buyer's confirmation
+            // email actually go out, or is it still queued for retry?
+            emailSent: rec.buyer?.sent === true,
+          });
+        }
+        const stripeKey = process.env.STRIPE_SECRET_KEY;
+        if (!stripeKey) {
+          return Response.json({ found: false, verified: false, source: "ledger", reason: "not_recorded" });
+        }
+        const lookup = await fetch(
+          "https://api.stripe.com/v1/checkout/sessions/" + encodeURIComponent(sessionId),
+          { headers: { Authorization: "Bearer " + stripeKey }, signal: AbortSignal.timeout(5000) },
+        );
+        if (!lookup.ok) {
+          return Response.json({ found: false, verified: false, source: "stripe", reason: "lookup_failed" });
+        }
+        const session: any = await lookup.json().catch(() => ({}));
+        const paid = session?.payment_status === "paid" || session?.status === "complete";
+        if (!paid) {
+          return Response.json({ found: false, verified: true, source: "stripe", reason: "not_paid" });
+        }
+        const spec =
+          detectPlanType(session?.payment_link) || detectPlanTierFromMetadata(session?.metadata?.tier);
+        return Response.json({
+          found: true,
+          verified: true,
+          source: "stripe",
+          productName: spec?.productName || null,
+          amountCents: Number(session?.amount_total) || 0,
+          at: new Date().toISOString(),
+        });
+      } catch (e: any) {
+        // Never 500 a buyer's success page: report "not confirmed yet".
+        console.log("[purchase-status] lookup failed (non-fatal): " + (e?.message || String(e)));
+        return Response.json({ found: false, verified: false, reason: "lookup_error" });
+      }
+    }
     if (pathname === "/api/check-user-exists" && req.method === "POST") {
       if (rateLimited(req, "check-user")) return rateLimitedResponse();
       try {
@@ -2129,6 +2195,8 @@ async function handlePurchaseCompleted(args: {
   opportunityType: string;
   amountTotal: number;
   sessionId: string;
+  /** Public origin the buyer's set-password / sign-in links are built from. */
+  baseUrl?: string;
 }): Promise<void> {
   try {
     const { customerEmail, productName, opportunityType, amountTotal, sessionId } = args;
@@ -2168,39 +2236,103 @@ async function handlePurchaseCompleted(args: {
 
     // 3. Send the owner sale email via the SAME SendGrid/SMTP path as leads.
     const recipient = process.env.LEAD_NOTIFICATION_EMAIL || "electric.vortexz@gmail.com";
+    const ownerSubject = "New Purchase — " + productName;
+    const ownerBody = ownerSaleEmailBody(event);
     const smtpResult = await sendEmailSMTP({
       to: recipient,
-      subject: "New Purchase — " + productName,
-      body: ownerSaleEmailBody(event),
+      subject: ownerSubject,
+      body: ownerBody,
     });
 
-    // 4. Persist the sale event durably with attempt tracking (idempotent on session.id).
+    // 4. Send the BUYER their own confirmation (slice 138). Until this slice a
+    //    buyer paid and heard nothing but Stripe's receipt. It rides the SAME
+    //    awaited SMTP path as the owner email on purpose: a slow or failing send
+    //    must be visible here and land in pending_emails.json, never vanish into
+    //    a fire-and-forget void. EXACTLY ONE buyer email per Stripe session id —
+    //    the `if (salesEvents[sessionId]) return;` dedupe above is the guard, so
+    //    a re-delivered checkout.session.completed sends nothing.
+    const origin =
+      normalizeSiteOrigin(args.baseUrl) ||
+      normalizeSiteOrigin(process.env.PUBLIC_SITE_URL) ||
+      DEFAULT_SITE_ORIGIN;
+    const buyerSetPasswordUrl = setPasswordLink(email, origin);
+    const buyerSubject = buyerConfirmationSubject(productName);
+    const buyerBody = buyerConfirmationEmailBody({
+      productName,
+      amountCents: amountTotal,
+      customerEmail: email,
+      setPasswordUrl: buyerSetPasswordUrl,
+      signInUrl: signInLink(origin),
+    });
+    let buyerSent = false;
+    let buyerError = "no_buyer_email_body";
+    if (buyerBody) {
+      buyerError = "not_attempted";
+      try {
+        const buyerResult = await sendEmailSMTP({ to: email, subject: buyerSubject, body: buyerBody });
+        buyerSent = !!buyerResult.sent;
+        if (!buyerSent) buyerError = buyerResult.error || "unknown";
+      } catch (e: any) {
+        // A thrown send must never abort the durable record — it is queued below.
+        buyerSent = false;
+        buyerError = e?.message || String(e);
+      }
+    }
+
+    // 5. Persist the sale event durably with attempt tracking (idempotent on session.id).
     salesEvents[sessionId] = {
       event,
       at: new Date().toISOString(),
       notified: smtpResult.sent,
       sentAt: smtpResult.sent ? new Date().toISOString() : undefined,
       error: smtpResult.sent ? undefined : (smtpResult.error || "unknown"),
+      buyer: {
+        to: email,
+        sent: buyerSent,
+        at: new Date().toISOString(),
+        error: buyerSent ? undefined : buyerError,
+      },
     };
     writeJSON(SALES_EVENTS_FILE, salesEvents);
 
+    // 6. Anything that did not send goes into the existing pending_emails.json
+    //    retry lane — owner email (as before) and now the buyer email too.
+    const pendingAdds: any[] = [];
     if (smtpResult.sent) {
       console.log("[webhook] Owner sale email sent for " + productName + " (" + email + ")");
     } else {
       // SMTP failed/unavailable — queue for retry (never silently drop).
       console.log("[webhook] Owner sale email FAILED (" + (smtpResult.error || "unknown") + ") — queued to pending_emails.json");
-      const pending = readJSON(PENDING_EMAILS_FILE);
-      const pendingArr = Array.isArray(pending) ? pending : [];
-      pendingArr.push({
+      pendingAdds.push({
         id: "sale-" + Math.random().toString(36).substr(2, 9),
         sessionId,
         to: recipient,
-        subject: "New Purchase — " + productName,
-        body: ownerSaleEmailBody(event),
+        subject: ownerSubject,
+        body: ownerBody,
         timestamp: new Date().toISOString(),
         sent: false,
         kind: "purchase",
       });
+    }
+    if (buyerBody && buyerSent) {
+      console.log("[webhook] Buyer confirmation email sent for " + productName + " (" + email + ")");
+    } else if (buyerBody) {
+      console.log("[webhook] Buyer confirmation email FAILED (" + buyerError + ") — queued to pending_emails.json");
+      pendingAdds.push({
+        id: "buyer-" + Math.random().toString(36).substr(2, 9),
+        sessionId,
+        to: email,
+        subject: buyerSubject,
+        body: buyerBody,
+        timestamp: new Date().toISOString(),
+        sent: false,
+        kind: "purchase-buyer",
+      });
+    }
+    if (pendingAdds.length) {
+      const pending = readJSON(PENDING_EMAILS_FILE);
+      const pendingArr = Array.isArray(pending) ? pending : [];
+      pendingArr.push(...pendingAdds);
       writeJSON(PENDING_EMAILS_FILE, pendingArr);
     }
   } catch (e: any) {
@@ -3074,6 +3206,7 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
               opportunityType: "plan",
               amountTotal,
               sessionId: session.id,
+              baseUrl: url.origin,
             });
             return Response.json({ received: true });
           }
@@ -3108,6 +3241,7 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
               opportunityType: saleInfo.opportunityType,
               amountTotal,
               sessionId: session.id,
+              baseUrl: url.origin,
             });
           }
         }

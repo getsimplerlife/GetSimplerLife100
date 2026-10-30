@@ -134,9 +134,9 @@ export const PAGE_TITLES: Record<string, PageMeta> = {
       "AI doesn't get to make the final decision — your team does. Human approval queue, audit trail, fail-closed behavior, and connections that self-heal.",
   },
   "/after-purchase": {
-    title: "What Happens After You Buy | Simpler Life 100",
+    title: "After You Buy — Sign In | Simpler Life 100",
     description:
-      "The concrete journey from purchase to deployed: Day 1 discovery, workflow design, build, testing with human approval, then ongoing monitoring and support.",
+      "Just finished checkout? Check your email for your sign-in link, set your password, and sign in to your Simpler Life 100 portal.",
   },
   "/roi-assessment": {
     title: "ROI Assessment | Simpler Life 100",

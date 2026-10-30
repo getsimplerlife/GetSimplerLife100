@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { pageHead } from "~/lib/site-meta";
 import { PortalIcon } from "~/components/PortalIcons";
 
@@ -30,6 +30,17 @@ function SetPassword() {
   // step machine: "email" (request code) → "code" (enter code + new pw) → "done"
   const [step, setStep] = useState<"email" | "code" | "done">("email");
   const [notice, setNotice] = useState<string | null>(null);
+  // Deep link from the buyer confirmation email (/set-password?email=…): prefill
+  // the address the buyer just paid with so they do not retype it. This is NOT a
+  // credential — the page still emails a one-time code before any password changes.
+  useEffect(() => {
+    try {
+      const prefill = new URLSearchParams(window.location.search).get("email") || "";
+      if (prefill) setEmail(prefill.trim().toLowerCase());
+    } catch {
+      /* no window / malformed query — leave the field empty */
+    }
+  }, []);
 
   // Step 1 — request a one-time code (proof of ownership). The server emails a
   // short-lived, single-use code to the account address. A generic success is

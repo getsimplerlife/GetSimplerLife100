@@ -1,104 +1,137 @@
-import { Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { Header } from "~/components/Header";
 import { Footer } from "~/components/Footer";
-;
+import {
+  afterPurchaseView,
+  type AfterPurchaseStatus,
+  type AfterPurchaseViewModel,
+} from "~/lib/after-purchase";
 
 const businessName = "Simpler Life 100";
 
-/** "What happens after you buy" — concrete customer journey (P2.3). */
+/**
+ * The presentational doorway. Kept as a plain component (and exported) so the
+ * page test can render BOTH the purchased and not-purchased states without
+ * standing up a router.
+ *
+ * Actions are real anchors on purpose: a buyer's landing page after checkout
+ * must work even if client hydration is slow or fails, and a hard navigation to
+ * /login or /set-password is exactly what we want here anyway.
+ */
+export function AfterPurchaseView({ view }: { view: AfterPurchaseViewModel }) {
+  return (
+    <div className="max-w-3xl mx-auto space-y-10">
+      <div className="text-center space-y-5">
+        <span className="inline-block px-3 py-1 text-xs font-mono font-bold tracking-wider rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase">
+          {view.badge}
+        </span>
+        <h1 className="text-4xl lg:text-5xl font-black text-white tracking-tight">{view.heading}</h1>
+        <p className="text-lg text-stone-400 max-w-2xl mx-auto leading-relaxed">{view.lead}</p>
+      </div>
+
+      {view.receipt.length > 0 && (
+        <section
+          aria-label="Your purchase"
+          className="rounded-3xl border border-stone-800 bg-stone-900/40 divide-y divide-stone-800"
+        >
+          {view.receipt.map((row) => (
+            <div key={row.label} className="flex items-baseline justify-between gap-4 px-6 py-4">
+              <span className="text-xs font-mono uppercase tracking-widest text-stone-500">{row.label}</span>
+              <span className="text-base font-bold text-white">{row.value}</span>
+            </div>
+          ))}
+        </section>
+      )}
+
+      <section className="rounded-3xl border border-emerald-500/25 bg-gradient-to-br from-emerald-900/25 to-stone-900 p-8 space-y-5 text-center">
+        <h2 className="text-xl font-black text-white">{view.actionTitle}</h2>
+        <p className="text-sm text-stone-400 leading-relaxed max-w-xl mx-auto">
+          We send it to the address you used at checkout. The link opens our set-password page, which emails a
+          one-time code so you can choose your password — then you sign in here.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          {view.actions.map((action) => (
+            <a
+              key={action.href + action.label}
+              href={action.href}
+              className={
+                action.primary
+                  ? "inline-flex min-h-[48px] items-center justify-center rounded-2xl bg-emerald-600 px-6 py-3 text-sm font-bold text-white hover:bg-emerald-500 transition-all"
+                  : "inline-flex min-h-[48px] items-center justify-center rounded-2xl border border-stone-700 px-6 py-3 text-sm font-bold text-stone-200 hover:border-emerald-500/40 transition-colors"
+              }
+            >
+              {action.label}
+            </a>
+          ))}
+        </div>
+      </section>
+
+      {view.notes.length > 0 && (
+        <ul className="space-y-2 text-sm text-stone-500 leading-relaxed">
+          {view.notes.map((note) => (
+            <li key={note} className="flex gap-2">
+              <span className="text-emerald-500/70">•</span>
+              <span>{note}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/**
+ * /after-purchase — where Stripe sends a buyer the moment checkout completes
+ * (all three live payment links carry this return URL), and the footer's
+ * "After You Buy" link. Slice 138 turned it from a static timeline into the
+ * doorway: read the session id, ask the server whether we really have that
+ * purchase, and render the honest state. No session id → no payment claim.
+ */
 export default function AfterPurchasePage() {
+  const [probe, setProbe] = useState<{ ready: boolean; sessionId: string }>({ ready: false, sessionId: "" });
+  const [status, setStatus] = useState<AfterPurchaseStatus | null>(null);
+  const [checking, setChecking] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const id = (params.get("session_id") || "").trim();
+    if (!id) {
+      setProbe({ ready: true, sessionId: "" });
+      return;
+    }
+    setProbe({ ready: true, sessionId: id });
+    setChecking(true);
+    let cancelled = false;
+    fetch(`/api/purchase/status?session_id=${encodeURIComponent(id)}`)
+      .then((res) => res.json().catch(() => null))
+      .then((data) => {
+        if (cancelled) return;
+        setStatus(data && typeof data === "object" ? (data as AfterPurchaseStatus) : { found: false });
+      })
+      .catch(() => {
+        if (!cancelled) setStatus({ found: false });
+      })
+      .finally(() => {
+        if (!cancelled) setChecking(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const view = afterPurchaseView({
+    // Before the effect runs we are genuinely still checking — never render the
+    // "you bought nothing" state for one frame on a real buyer's page.
+    sessionId: probe.ready ? probe.sessionId : "pending",
+    status,
+    checking: !probe.ready || checking,
+  });
+
   return (
     <div className="flex flex-col min-h-screen selection:bg-emerald-500/30 selection:text-emerald-200 bg-stone-950">
       <Header businessName={businessName} />
       <main className="flex-1 px-6 py-16 lg:py-24">
-        <div className="max-w-5xl mx-auto space-y-16">
-          {/* Hero */}
-          <div className="text-center space-y-6">
-            <span className="inline-block px-3 py-1 text-xs font-mono font-bold tracking-wider rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase">
-              What happens after you buy
-            </span>
-            <h1 className="text-4xl lg:text-5xl font-black text-white tracking-tight">
-              Day 1 to deployed — here's the journey.
-            </h1>
-            <p className="text-lg text-stone-400 max-w-2xl mx-auto leading-relaxed">
-              No mystery, no open-ended timeline. Here's the concrete sequence from purchase to your first AI automation
-              working — with a human approving.
-            </p>
-          </div>
-
-          {/* Timeline */}
-          <section className="space-y-5">
-            {[
-              {
-                when: "Day 1",
-                icon: "🧭",
-                title: "Discovery",
-                d: "We meet with your team, map the process you want to automate, and identify the systems it touches. You get a clear plan of exactly what will be automated and where your team still approves.",
-              },
-              {
-                when: "Days 2–3",
-                icon: "📐",
-                title: "Workflow design",
-                d: "We design the workflow end to end: triggers, steps, connections, and every approval point. You review and sign off on the design before any build starts.",
-              },
-              {
-                when: "Week 1",
-                icon: "🔧",
-                title: "Build + integrations",
-                d: "We build the workflow and wire the integrations across your stack — CRM, accounting, e-signature, messaging, document storage. Every connection is verified against your real systems.",
-              },
-              {
-                when: "Week 2",
-                icon: "🧪",
-                title: "Testing + deploy + human approval",
-                d: "We test the workflow end to end, confirm every write pauses for human approval by default (full-auto is opt-in per workflow), deploy it, and show your team how to use the approval queue and audit log.",
-              },
-              {
-                when: "Ongoing",
-                icon: "📡",
-                title: "Monitoring + support",
-                d: "We monitor connections 24/7, self-heal what we can, alert you loudly when something needs you, and support the workflow as your business changes.",
-              },
-            ].map((s) => (
-              <div key={s.when} className="premium-card-soft flex gap-5 p-6 rounded-2xl">
-                <div className="text-3xl shrink-0">{s.icon}</div>
-                <div>
-                  <div className="flex items-baseline gap-3">
-                    <span className="text-[10px] font-mono text-emerald-400 uppercase tracking-widest">{s.when}</span>
-                    <h3 className="text-lg font-black text-white">{s.title}</h3>
-                  </div>
-                  <p className="mt-1.5 text-sm text-stone-400 leading-relaxed max-w-2xl">{s.d}</p>
-                </div>
-              </div>
-            ))}
-          </section>
-
-          {/* Reassurance */}
-          <section className="p-8 bg-stone-900/40 border border-emerald-500/30 rounded-3xl space-y-4">
-            <h2 className="text-2xl font-black text-white">What you don't have to worry about</h2>
-            <ul className="space-y-3 text-stone-400 leading-relaxed">
-              <li className="flex gap-3"><span className="text-emerald-400">✓</span> You don't learn automation or configure workflows — we build them.</li>
-              <li className="flex gap-3"><span className="text-emerald-400">✓</span> You don't manage automations or monitor connections — we do.</li>
-              <li className="flex gap-3"><span className="text-emerald-400">✓</span> You stay in control — approval by default; full auto only for what you explicitly allow, audit-logged, with a kill switch.</li>
-              <li className="flex gap-3"><span className="text-emerald-400">✓</span> You see everything — approval queue, audit log, and live connection health in one portal.</li>
-            </ul>
-          </section>
-
-          {/* CTA */}
-          <section className="p-8 bg-gradient-to-br from-emerald-900/30 to-stone-900 border border-emerald-500/20 rounded-3xl text-center space-y-4">
-            <h2 className="text-2xl lg:text-3xl font-black text-white">Start with the first step — it's free.</h2>
-            <p className="text-stone-400 max-w-xl mx-auto">
-              30-second assessment. No credit card. We'll show you the workflow worth automating first and how we'd
-              build it.
-            </p>
-            <Link
-              to="/assessment"
-              className="inline-flex min-h-[52px] items-center justify-center rounded-2xl bg-emerald-600 px-8 py-3.5 font-bold text-white hover:bg-emerald-500 transition-all shadow-lg"
-            >
-              Find the first process worth automating ➜
-            </Link>
-          </section>
-        </div>
+        <AfterPurchaseView view={view} />
       </main>
       <Footer />
     </div>

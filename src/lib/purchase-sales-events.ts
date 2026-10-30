@@ -76,6 +76,103 @@ export function ownerSaleEmailBody(event: OwnerSaleEvent): string {
   );
 }
 
+/* ─────────────────────────── BUYER CONFIRMATION (slice 138) ──────────────
+ * Until this slice the purchase path notified ONLY the owner: a buyer paid,
+ * got Stripe's own receipt, and heard nothing from us. These helpers build the
+ * buyer's confirmation email and the link into the EXISTING set-password flow.
+ *
+ * The set-password link deliberately carries NO token. The established flow
+ * (src/lib/password-reset.ts + /api/request-password-reset + /api/set-password)
+ * proves ownership by emailing a single-use 6-digit code with a 10-minute TTL,
+ * then accepting the new password only after that code verifies. A second
+ * token scheme would be a second thing to get wrong, so the link only opens
+ * that page with the buyer's billing address prefilled. It grants nothing by
+ * itself: anyone who has the URL still needs the emailed code.
+ */
+
+/**
+ * Canonical public origin used for links we email when neither a deployment
+ * override (PUBLIC_SITE_URL) nor the request origin is available.
+ */
+export const DEFAULT_SITE_ORIGIN = "https://simplerlife100.cto.site";
+
+/**
+ * Normalize a base URL to a bare origin. Returns null (fail-closed) for
+ * anything that is not a usable http(s) origin — a bad base must never be
+ * pasted into an email as a link.
+ */
+export function normalizeSiteOrigin(raw?: string | null): string | null {
+  const value = String(raw || "").trim();
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    return url.origin;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The buyer's way in: the existing /set-password page with the billing email
+ * prefilled. Not a credential (see the note above) — the page still emails a
+ * one-time code before it will change a password.
+ */
+export function setPasswordLink(email: string, origin?: string | null): string {
+  const base = normalizeSiteOrigin(origin) || DEFAULT_SITE_ORIGIN;
+  const addr = String(email || "").trim().toLowerCase();
+  return `${base}/set-password?email=${encodeURIComponent(addr)}`;
+}
+
+/** Where a buyer signs in once their password is set. */
+export function signInLink(origin?: string | null): string {
+  const base = normalizeSiteOrigin(origin) || DEFAULT_SITE_ORIGIN;
+  return `${base}/login`;
+}
+
+/** Subject line for the buyer's own confirmation email. */
+export function buyerConfirmationSubject(productName: string): string {
+  const name = String(productName || "").trim() || "your purchase";
+  return `Your ${name} — set your password and sign in`;
+}
+
+/**
+ * Compose the buyer-facing confirmation email body.
+ *
+ * Truthful copy only: what they bought, what was paid, and how to get in.
+ * Nothing here promises onboarding calls, timelines, or capabilities — those
+ * are not ours to claim in an automated email.
+ *
+ * Returns null (fail-closed) when the purchase cannot be described honestly:
+ * no product name, no usable set-password link, or no recipient.
+ */
+export function buyerConfirmationEmailBody(input: {
+  productName: string;
+  amountCents: number;
+  customerEmail: string;
+  setPasswordUrl: string;
+  signInUrl?: string;
+}): string | null {
+  const email = String(input.customerEmail || "").trim().toLowerCase();
+  const productName = String(input.productName || "").trim();
+  const setPasswordUrl = String(input.setPasswordUrl || "").trim();
+  if (!email || !productName || !setPasswordUrl) return null;
+  const signIn = String(input.signInUrl || "").trim();
+  return (
+    `Hi,\n\n` +
+    `We received your payment — thank you. Here is what you bought.\n\n` +
+    `Plan: ${productName}\n` +
+    `Amount paid: ${"$" + formatAmountCents(input.amountCents)}\n` +
+    `Billing email: ${email}\n\n` +
+    `Getting in: your account is tied to the email address above. Set your password here:\n` +
+    `${setPasswordUrl}\n\n` +
+    `That page emails you a one-time 6-digit code (it expires in 10 minutes) and then lets you choose a password.\n` +
+    (signIn ? `Once your password is set, sign in at: ${signIn}\n\n` : `\n`) +
+    `If you were not expecting this, reply to this email and we will look into it.\n\n` +
+    `— Simpler Life 100\n`
+  );
+}
+
 export interface ProvisionResult {
   users: Record<string, any>; // users.json keyed by email (unchanged object unless modified)
   outcome: "created" | "upgraded" | "none";
