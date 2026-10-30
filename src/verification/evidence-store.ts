@@ -6,8 +6,9 @@
  * persists VerificationResult records to a JSON file so evidence survives
  * restarts and can be audited later. No credential values are ever stored.
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { atomicWriteSync } from "../lib/atomic-write";
 import type { VerificationResult } from "./types";
 
 export const DEFAULT_EVIDENCE_TTL_MS = 24 * 60 * 60 * 1000;
@@ -29,7 +30,10 @@ export class EvidenceStore {
 
   save(records: Record<string, VerificationResult>): void {
     mkdirSync(dirname(this.file), { recursive: true });
-    writeFileSync(this.file, JSON.stringify(records, null, 2), "utf8");
+    // SLICE 144: whole-document write → atomic. A torn evidence file used to
+    // read back as `{}` (load() swallows a parse error), i.e. the audit trail of
+    // every verification run would silently vanish.
+    atomicWriteSync(this.file, JSON.stringify(records, null, 2));
   }
 
   get(capabilityId: string): VerificationResult | undefined {

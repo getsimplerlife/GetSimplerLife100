@@ -23,7 +23,8 @@
  */
 import { createHash, randomBytes } from "crypto";
 import { join } from "path";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, rmSync } from "fs";
+import { atomicWriteSync } from "./atomic-write";
 import { readJSON, writeJSON, resolveDataDir } from "./data-store";
 import type {
   VaultDoc,
@@ -127,7 +128,9 @@ export function writeBlob(
 ): void {
   const dir = join(tenantBlobDir(dataDir, tenantEmail), documentId);
   mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, `v${version}.bin`), bytes);
+  // SLICE 144: blob bytes are written atomically (temp → fsync → rename) so a
+  // torn blob can never be served as a customer document version.
+  atomicWriteSync(join(dir, `v${version}.bin`), bytes);
 }
 
 export interface CreateVaultDocInput {

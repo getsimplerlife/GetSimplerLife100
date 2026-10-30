@@ -13,21 +13,29 @@
  * every safety rule below is unit-tested instead of only hoped for.
  *
  * HARD TRUTH THIS CODE DEFENDS AGAINST:
- *   - `writeJSON` (src/lib/data-store.ts) is a plain whole-document
- *     `writeFileSync` — there is no temp+rename anywhere in src/ — and
- *     `readJSON` returns `{}` on a parse error. So a file copied mid-write can
- *     be TORN, and a torn file reads back as an EMPTY STORE. A backup taken over
- *     a live server must therefore prove each file was stable and re-parses,
- *     or fail loudly rather than produce a silent empty store.
+ *   - Every durable write used to be a plain whole-document `writeFileSync`
+ *     with no temp+rename anywhere in src/ (SLICE 144 replaced that with
+ *     src/lib/atomic-write.ts: temp file → fsync → rename → dir fsync), and
+ *     `readJSON` answers an unparseable file with `{}`. A file copied mid-write
+ *     can therefore still be TORN by an older process or a non-atomic writer,
+ *     and a torn file reads back as an EMPTY STORE. A backup taken over a live
+ *     server must prove each file was stable and re-parses, or fail loudly
+ *     rather than produce a silent empty store.
  *   - Restoring `prod-server.lock` / `liveness-watchdog.lock` makes a fresh
  *     instance refuse to boot (src/lib/single-instance.ts), so locks are never
  *     archived and never restored.
+ *   - A run that silently misses a store is worse than no run at all, so every
+ *     run asserts COVERAGE against `DURABLE_STORES` (src/lib/durable-stores.ts)
+ *     and fails when a declared store holds data that did not enter the archive.
  *   - The archive is SAME-HOST. It is not off-box and must never be described
  *     as off-box, DR-grade, or "backups" in public copy.
  */
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
-import { join, posix } from "node:path";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
+import { hostname } from "node:os";
+import { dirname, join, posix } from "node:path";
+import { atomicWriteSync } from "../../src/lib/atomic-write";
+import { DURABLE_BINARY_STORES, DURABLE_STORES } from "../../src/lib/durable-stores";
 
 /** Lock files that must never enter an archive (they are runtime ownership). */
 export const LOCK_FILES: readonly string[] = ["prod-server.lock", "liveness-watchdog.lock"];
@@ -71,6 +79,8 @@ export interface Manifest {
   totals: ManifestTotals;
   /** Paths deliberately left out of the archive, with the reason. */
   excluded: string[];
+  /** SLICE 144: one row per declared durable store — proof of COVERAGE. */
+  coverage: CoverageRow[];
   encryption: Encryption;
   /** Archive file name inside the run directory, or null for a plain tree. */
   archive: string | null;
@@ -274,6 +284,7 @@ export function buildManifest(input: {
   excluded: string[];
   encryption: Encryption;
   archive: string | null;
+  coverage?: CoverageRow[];
 }): Manifest {
   return {
     runId: input.runId,
@@ -282,6 +293,7 @@ export function buildManifest(input: {
     files: input.files,
     totals: input.totals,
     excluded: input.excluded,
+    coverage: input.coverage ?? [],
     encryption: input.encryption,
     archive: input.archive,
     tool: "scripts/backup.mjs",
@@ -426,5 +438,397 @@ export function failedStatus(at: string, target: string, error: string): BackupS
     runId: null,
     files: null,
     encryption: null,
+  };
+}
+
+/** Persist the run status atomically (mode 600) so a torn status reads as nulls. */
+export function writeBackupStatus(dataDir: string, status: BackupStatus): void {
+  const file = join(dataDir, BACKUP_STATUS_FILE);
+  atomicWriteSync(file, JSON.stringify(status, null, 2));
+  try {
+    chmodSync(file, 0o600);
+  } catch {
+    /* atomicWriteSync already used 600 for a new file / kept the old mode */
+  }
+}
+
+// ── SLICE 144 — COVERAGE: prove the archive contains every store we hold ─────
+
+/** One row of the coverage table reported in the manifest. */
+export interface CoverageRow {
+  /** Store path relative to DATA_DIR (a file, or a directory tree). */
+  store: string;
+  presentOnDisk: boolean;
+  includedInArchive: boolean;
+  /** Bytes on disk for this store right now (0 when absent). */
+  bytes: number;
+}
+
+function bytesUnder(absDir: string): number {
+  let total = 0;
+  let entries: string[];
+  try {
+    entries = readdirSync(absDir);
+  } catch {
+    return 0;
+  }
+  for (const name of entries) {
+    const abs = join(absDir, name);
+    let st;
+    try {
+      st = statSync(abs);
+    } catch {
+      continue;
+    }
+    if (st.isDirectory()) total += bytesUnder(abs);
+    else if (st.isFile()) total += st.size;
+  }
+  return total;
+}
+
+/**
+ * Coverage row for ONE declared store.
+ *
+ * `presentOnDisk` and `bytes` are measured on the live data dir; `included` is
+ * measured against the paths the archive actually selected, so the row is a
+ * comparison of two real things rather than a restatement of intent.
+ */
+export function coverageRowFor(
+  dataDir: string,
+  store: string,
+  includedPaths: readonly string[],
+): CoverageRow {
+  const abs = join(dataDir, store);
+  let presentOnDisk = false;
+  let bytes = 0;
+  try {
+    const st = statSync(abs);
+    presentOnDisk = true;
+    bytes = st.isDirectory() ? bytesUnder(abs) : st.size;
+  } catch {
+    presentOnDisk = false;
+    bytes = 0;
+  }
+  const isDir = DURABLE_BINARY_STORES.includes(store);
+  const includedInArchive = isDir
+    ? includedPaths.some((p) => p === store || p.startsWith(store + "/"))
+    : includedPaths.includes(store);
+  return { store, presentOnDisk, includedInArchive, bytes };
+}
+
+export interface CoverageReport {
+  rows: CoverageRow[];
+  /** Declared stores that HOLD DATA but did not enter the archive. */
+  uncovered: CoverageRow[];
+  ok: boolean;
+}
+
+/**
+ * THE COVERAGE ASSERTION.
+ *
+ * A store that is absent from disk has nothing to lose, so it is not a failure.
+ * A store that is present but EMPTY has nothing to lose either. A store that
+ * holds bytes and is NOT in the archive is silent data loss dressed up as
+ * protection — that fails the run.
+ */
+export function checkCoverage(
+  dataDir: string,
+  includedPaths: readonly string[],
+  declared: readonly string[] = DURABLE_STORES,
+): CoverageReport {
+  const rows = declared.map((store) => coverageRowFor(dataDir, store, includedPaths));
+  const uncovered = rows.filter((r) => r.presentOnDisk && r.bytes > 0 && !r.includedInArchive);
+  return { rows, uncovered, ok: uncovered.length === 0 };
+}
+
+export function coverageFailureMessage(report: CoverageReport): string {
+  const list = report.uncovered.map((r) => `${r.store} (${r.bytes} bytes)`).join(", ");
+  return `coverage assertion failed: ${report.uncovered.length} declared store(s) hold data but are not in the archive: ${list}`;
+}
+
+// ── SLICE 144 — mechanical derivation of the declared-store list ────────────
+
+/**
+ * Re-derive the store list from a SOURCE TREE (not from DURABLE_STORES), so a
+ * test can prove the single list in src/lib/durable-stores.ts is complete.
+ *
+ * Sources: `_KEY` constants in `src/native/<app>/types.ts`, store-path constants
+ * and `join(<dataDir>, "<name>.json")` in `src/lib` + `src/verification`, and
+ * `join(DATA_DIR, "<name>.json")` in prod-server.ts. The three binary trees are
+ * derived from the modules that write them.
+ *
+ * Deliberately excluded: `backup_status.json` (operational status, never
+ * archived) and the runtime ownership locks (restoring one blocks boot).
+ */
+export function deriveDeclaredStores(rootDir: string): string[] {
+  const found = new Set<string>();
+  const read = (p: string): string => {
+    try {
+      return readFileSync(p, "utf8");
+    } catch {
+      return "";
+    }
+  };
+  const add = (name: string): void => {
+    if (name.endsWith(".json") && name !== BACKUP_STATUS_FILE) found.add(name);
+  };
+  const scan = (text: string): void => {
+    for (const m of text.matchAll(/export const\s+\w*_KEY\w*\s*=\s*"([^"]+\.json)"/g)) add(m[1]);
+    for (const m of text.matchAll(/export const\s+\w*(?:_FILE|_STORE)\w*\s*=\s*"([^"]+\.json)"/g)) add(m[1]);
+    for (const m of text.matchAll(/join\(\s*(?:dataDir|DATA_DIR|this\.dataDir)\s*,\s*"([^"]+\.json)"/g)) add(m[1]);
+    for (const m of text.matchAll(/"?\.data"?\s*,\s*"([^"]+\.json)"/g)) add(m[1]);
+  };
+
+  let apps: string[] = [];
+  try {
+    apps = readdirSync(join(rootDir, "src", "native"));
+  } catch {
+    apps = [];
+  }
+  for (const app of apps) {
+    const typesFile = join(rootDir, "src", "native", app, "types.ts");
+    if (existsSync(typesFile)) scan(read(typesFile));
+  }
+  for (const sub of ["src/lib", "src/verification"]) {
+    let files: string[] = [];
+    try {
+      files = readdirSync(join(rootDir, sub));
+    } catch {
+      continue;
+    }
+    for (const f of files) {
+      if (f.endsWith(".ts")) scan(read(join(rootDir, sub, f)));
+    }
+  }
+  scan(read(join(rootDir, "prod-server.ts")));
+
+  // Binary trees, derived from the writers themselves.
+  const docStore = read(join(rootDir, "src/native/documents/store.ts"));
+  if (/"native_docs"/.test(docStore)) found.add("native_docs");
+  const formStore = read(join(rootDir, "src/native/forms/store.ts"));
+  if (/"native_forms"/.test(formStore)) found.add("native_forms");
+  const vaultStore = read(join(rootDir, "src/lib/vault-store.ts"));
+  if (/"blobs"/.test(vaultStore)) found.add("vault/blobs");
+
+  return [...found].sort();
+}
+
+// ── SLICE 144 — one in-process run of the whole pipeline ────────────────────
+
+export interface RunBackupOptions {
+  dataDir: string;
+  outDir: string;
+  keepDaily?: number;
+  keepWeekly?: number;
+  noPrune?: boolean;
+  noStatus?: boolean;
+  /** Override the declared-store list (tests prove an uncovered store fails). */
+  declaredStores?: readonly string[];
+  now?: Date;
+  host?: string;
+  gitSha?: string;
+  durableEnabled?: boolean;
+  log?: (msg: string) => void;
+  /** CLI-only hook: encrypt the staged run dir and drop the plaintext copy. */
+  encrypt?: (runDir: string, manifest: Manifest) => void;
+}
+
+export interface RunBackupResult {
+  runId: string;
+  target: string;
+  files: number;
+  bytes: number;
+  pruned: Array<{ runId: string; bytes: number }>;
+  coverage: CoverageRow[];
+  manifest: Manifest;
+}
+
+/**
+ * The whole backup pipeline, in process: pre-flight guards → verified collect →
+ * coverage assertion → staged copy with digest re-check → manifest → optional
+ * encryption → retention → status file.
+ *
+ * Used by `scripts/backup.mjs` AND by the in-server scheduler
+ * (src/lib/backup-scheduler.ts), so there is exactly one implementation of the
+ * rules above. THROWS on any failure after recording a failed status; a caller
+ * that catches the error must never report success.
+ */
+export function runBackup(opts: RunBackupOptions): RunBackupResult {
+  const log = opts.log ?? (() => {});
+  const started = opts.now ?? new Date();
+  const runId = runIdFor(started);
+  const outDir = opts.outDir;
+  const runDir = join(outDir, runId);
+  let createdRunDir = false;
+
+  const fail = (reason: string): never => {
+    if (!opts.noStatus) {
+      try {
+        writeBackupStatus(opts.dataDir, failedStatus(started.toISOString(), runDir, reason));
+      } catch {
+        /* never mask the original failure with a status-write failure */
+      }
+    }
+    if (createdRunDir) {
+      // A failed run leaves no half-archive behind: a partial tree looks like a
+      // restorable backup and is not one.
+      try {
+        rmSync(runDir, { recursive: true, force: true });
+      } catch {
+        /* best effort */
+      }
+    }
+    throw new Error(reason);
+  };
+
+  // ── Pre-flight: refuse anything that could destroy or mislead ─────────────
+  let dataDirIsDir = false;
+  try {
+    dataDirIsDir = statSync(opts.dataDir).isDirectory();
+  } catch {
+    dataDirIsDir = false;
+  }
+  if (!dataDirIsDir) return fail(`DATA_DIR does not exist: ${opts.dataDir}`);
+  if (/\/shared\/site\//.test(outDir) || outDir.endsWith("/site") || outDir.includes("/site/")) {
+    return fail(`refusing to write a backup inside the publish tree: ${outDir}`);
+  }
+  if (outDir === opts.dataDir || outDir.startsWith(opts.dataDir + "/")) {
+    return fail(`refusing to write a backup inside the data dir it is archiving: ${outDir}`);
+  }
+  if (existsSync(runDir)) return fail(`run dir already exists (two runs in the same second?): ${runDir}`);
+
+  mkdirSync(outDir, { recursive: true, mode: 0o700 });
+  mkdirSync(runDir, { recursive: true, mode: 0o700 });
+  createdRunDir = true;
+  chmodSync(runDir, 0o700);
+
+  // ── Collect + verify (torn-write defence, JSON re-parse) ──────────────────
+  let collected: CollectResult;
+  try {
+    collected = collectVerifiedFiles(opts.dataDir);
+  } catch (e: any) {
+    return fail(e?.message || String(e));
+  }
+
+  // ── COVERAGE ASSERTION: every declared store that holds data is archived ──
+  const coverage = checkCoverage(
+    opts.dataDir,
+    collected.files.map((f) => f.path),
+    opts.declaredStores ?? DURABLE_STORES,
+  );
+  if (!coverage.ok) return fail(coverageFailureMessage(coverage));
+
+  log(
+    `files ${collected.totals.files} (${collected.totals.jsonFiles} json, ${collected.totals.vaultBlobs} vault blobs, ` +
+      `${collected.totals.nativeDocs} native docs, ${collected.totals.otherFiles} other), ${collected.totals.bytes} bytes; ` +
+      `coverage ${coverage.rows.length} declared stores, ${coverage.uncovered.length} uncovered`,
+  );
+
+  // ── Copy the bytes we already verified, then prove the copy is identical ──
+  const stage = join(runDir, "data");
+  mkdirSync(stage, { recursive: true, mode: 0o700 });
+  for (const f of collected.files) {
+    const src = join(opts.dataDir, f.path);
+    const dst = join(stage, f.path);
+    mkdirSync(dirname(dst), { recursive: true, mode: 0o700 });
+    try {
+      copyFileSync(src, dst);
+      chmodSync(dst, 0o600);
+    } catch (e: any) {
+      return fail(`could not copy ${f.path}: ${e?.message || e}`);
+    }
+    const copied = sha256Of(readFileSync(dst));
+    if (copied !== f.sha256) {
+      return fail(`copy of ${f.path} does not match the verified source digest (source changed mid-run?)`);
+    }
+  }
+
+  const manifest = buildManifest({
+    runId,
+    takenAt: started.toISOString(),
+    source: {
+      host: opts.host ?? hostname(),
+      dataDir: opts.dataDir,
+      gitSha: opts.gitSha ?? "unknown",
+      durableEnabled: !!opts.durableEnabled,
+    },
+    files: collected.files,
+    totals: collected.totals,
+    excluded: collected.excluded,
+    coverage: coverage.rows,
+    encryption: opts.encrypt ? "openssl-aes-256-cbc" : "off",
+    archive: opts.encrypt ? `${runId}.tar.gz.enc` : null,
+  });
+  atomicWriteSync(join(runDir, "manifest.json"), JSON.stringify(manifest, null, 2));
+  try {
+    chmodSync(join(runDir, "manifest.json"), 0o600);
+  } catch {
+    /* mode already 600 from atomicWriteSync for a new file */
+  }
+
+  if (opts.encrypt) {
+    try {
+      opts.encrypt(runDir, manifest);
+    } catch (e: any) {
+      return fail(`encryption failed: ${e?.message || e}`);
+    }
+  }
+
+  // ── Retention: never the run we just wrote ────────────────────────────────
+  const pruned: Array<{ runId: string; bytes: number }> = [];
+  if (!opts.noPrune) {
+    let runs: string[] = [];
+    try {
+      runs = readdirSync(outDir)
+        .filter((name) => {
+          try {
+            return statSync(join(outDir, name)).isDirectory() && existsSync(join(outDir, name, "manifest.json"));
+          } catch {
+            return false;
+          }
+        })
+        .sort();
+    } catch {
+      runs = [];
+    }
+    const plan = planRetention(runs, { daily: opts.keepDaily ?? 7, weekly: opts.keepWeekly ?? 4 });
+    for (const oldRun of plan.prune) {
+      if (oldRun === runId) continue;
+      const dir = join(outDir, oldRun);
+      let bytes = 0;
+      try {
+        for (const f of readdirSync(dir)) {
+          try {
+            bytes += statSync(join(dir, f)).size;
+          } catch {
+            /* unreadable entry — not counted */
+          }
+        }
+        rmSync(dir, { recursive: true, force: true });
+        pruned.push({ runId: oldRun, bytes });
+        log(`pruned ${oldRun} (${bytes} bytes)`);
+      } catch (e: any) {
+        log(`WARNING: could not prune ${oldRun}: ${e?.message || e}`);
+      }
+    }
+    log(`retention: keep ${plan.keep.length} run(s), pruned ${pruned.length}`);
+  }
+
+  if (!opts.noStatus) {
+    try {
+      writeBackupStatus(opts.dataDir, statusFor(manifest, runDir));
+    } catch (e: any) {
+      log(`WARNING: could not write ${BACKUP_STATUS_FILE}: ${e?.message || e}`);
+    }
+  }
+
+  return {
+    runId,
+    target: runDir,
+    files: collected.totals.files,
+    bytes: collected.totals.bytes,
+    pruned,
+    coverage: coverage.rows,
+    manifest,
   };
 }

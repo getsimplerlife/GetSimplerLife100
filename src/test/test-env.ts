@@ -393,6 +393,9 @@ async function spawnServerOnce(): Promise<void> {
     SLACK_BOT_TOKEN: "",
     OAUTH_STATE_SWEEP_INTERVAL_MS: String(60 * 60 * 1000),
     BACKUP_SNAPSHOT_INTERVAL_MS: String(60 * 60 * 1000),
+    // Slice 144: the same-host archive scheduler must never fire inside a test
+    // run — every spawned server would write an archive into /home/team/shared.
+    BACKUP_DISABLED: "1",
     TOKEN_SWEEP_INTERVAL_MS: String(60 * 60 * 1000),
   };
   childLog = [];

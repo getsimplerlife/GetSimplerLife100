@@ -15,7 +15,8 @@
  * - Every mutation appends an IMMUTABLE native-documents audit entry.
  */
 import { createHash, randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, rmSync, readFileSync, writeFileSync, readdirSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync, readFileSync, readdirSync } from "node:fs";
+import { atomicWriteSync } from "../../lib/atomic-write";
 import { join } from "node:path";
 import { readJSON, writeJSON, resolveDataDir } from "../../lib/data-store";
 import {
@@ -140,7 +141,8 @@ export function createDocument(dataDir: string, record: NativeDocRecord, bytes: 
   // Bytes AFTER metadata so a failed write never leaves an orphan record.
   const dir = tenantBinDir(dataDir, record.tenantId);
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-  writeFileSync(documentBytesPath(dataDir, record.tenantId, record.id), bytes);
+  // SLICE 144: atomic bytes write — a torn PDF is data loss, not a bad page.
+  atomicWriteSync(documentBytesPath(dataDir, record.tenantId, record.id), bytes);
   appendDocAudit(dataDir, record.tenantId, record.updatedBy, "native.docs.create", `Document ${record.id} v1 (${record.pages}p)`);
 }
 /** Add-only update: pushes the current record onto history, then mutates. */
@@ -197,7 +199,7 @@ export function updateDocument(
   const path = documentBytesPath(dataDir, tenantId, docId);
   const dir = tenantBinDir(dataDir, tenantId);
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-  writeFileSync(path, bytes);
+  atomicWriteSync(path, bytes);
   appendDocAudit(dataDir, tenantId, actor, "native.docs.update", `Document ${docId} -> v${record.version}`);
   return record;
 }
