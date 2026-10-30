@@ -1,5 +1,6 @@
 import { join } from "path";
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync, copyFileSync } from "fs";
+import { readFileSync, existsSync, mkdirSync, readdirSync, statSync, copyFileSync } from "fs";
+import { atomicWriteSync } from "./atomic-write";
 import { durableEnabled, durableGet, durableHas, durableKeyFor, durableSet, durableGetLive, durableFlush, isPlainObject } from "./durable-store";
 import { isOwnerRole, LEGACY_OWNER_EMAIL } from "./user-roles";
 
@@ -123,7 +124,57 @@ export function countConnections(data: any): number {
   return 0;
 }
 
-/** Read a JSON file; missing/corrupt files read as {} (never throw). */
+/**
+ * Structured record of the last unparseable store read (SLICE 144).
+ *
+ * `readJSON` keeps its `{}` fallback so a single corrupt file cannot take the
+ * server down, but it must never be SILENT again: a torn write used to turn a
+ * customer's store into an empty one with no crash, no log an operator would
+ * notice and no counter. Every parse failure of an EXISTING file now bumps a
+ * counter, remembers the last failure and emits one structured log line; the
+ * owner-only admin surface (`/api/admin/datadir`) reports both.
+ */
+export interface StoreReadError {
+  file: string;
+  error: string;
+  at: string;
+}
+
+let storeReadErrorCount = 0;
+let lastStoreReadError: StoreReadError | null = null;
+
+/** Last/aggregate parse failure across every store read in this process. */
+export function storeReadErrorStats(): { count: number; last: StoreReadError | null } {
+  return { count: storeReadErrorCount, last: lastStoreReadError };
+}
+
+/** Reset the counters (tests only — never called by the server). */
+export function resetStoreReadErrorStats(): void {
+  storeReadErrorCount = 0;
+  lastStoreReadError = null;
+}
+
+function recordStoreReadError(file: string, err: unknown): StoreReadError {
+  const message = (err as any)?.message || String(err);
+  storeReadErrorCount += 1;
+  const record: StoreReadError = { file, error: message, at: new Date().toISOString() };
+  lastStoreReadError = record;
+  // Structured, one line, attributable: the file, the parse error and the
+  // running count. A grep for "store_parse_error" finds every occurrence.
+  console.error(
+    JSON.stringify({
+      event: "store_parse_error",
+      severity: "error",
+      file,
+      error: message,
+      at: record.at,
+      totalParseErrors: storeReadErrorCount,
+    }),
+  );
+  return record;
+}
+
+/** Read a JSON file; a MISSING file reads as {} (never throws). */
 export function readJSON(path: string): any {
   const key = durableKeyFor(path);
   const dv = durableGet(key);
@@ -132,10 +183,15 @@ export function readJSON(path: string): any {
   try {
     return JSON.parse(readFileSync(path, "utf-8"));
   } catch (e: any) {
+    // The file EXISTS but does not parse: that is data loss in progress, not a
+    // normal empty store. Log it loudly and count it, then keep the historical
+    // {} fallback so one bad file cannot break every reader of this store.
+    recordStoreReadError(path, e);
     console.log("[data-store] FAILED read path=" + path + " err=" + (e?.message || String(e)));
     return {};
   }
 }
+
 
 /**
  * LIVE cross-instance read: query the durable store (Neon) directly before
@@ -153,10 +209,22 @@ export async function readJSONLive(path: string): Promise<any> {
   return readJSON(path);
 }
 
-/** Write a JSON file (pretty-printed). Mirrors to the durable store too. */
+/**
+ * Write a JSON file (pretty-printed). Mirrors to the durable store too.
+ *
+ * SLICE 144: this used to be a bare `writeFileSync` of the whole document, which
+ * truncates the target before streaming the new bytes in. A crash or a full disk
+ * mid-write left a torn document that `readJSON` answers with `{}` — silent,
+ * total loss of that store. It is now all-or-nothing (temp file → fsync →
+ * rename → directory fsync; see atomic-write.ts). Signature, return value and
+ * the durable-store mirror are unchanged, so no caller changes.
+ *
+ * A failed write THROWS. It never reports success and never leaves the original
+ * document damaged.
+ */
 export function writeJSON(path: string, data: any): void {
   durableSet(durableKeyFor(path), data);
-  writeFileSync(path, JSON.stringify(data, null, 2));
+  atomicWriteSync(path, JSON.stringify(data, null, 2));
 }
 
 /**

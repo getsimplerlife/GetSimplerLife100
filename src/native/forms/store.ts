@@ -12,7 +12,8 @@
  * - Every mutation appends an IMMUTABLE native-forms audit entry.
  */
 import { createHash, randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, rmSync, writeFileSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync, readFileSync, readdirSync } from "node:fs";
+import { atomicWriteSync } from "../../lib/atomic-write";
 import { join } from "node:path";
 import { readJSON, writeJSON, resolveDataDir } from "../../lib/data-store";
 import {
@@ -194,7 +195,8 @@ export function saveSubmission(
   const dir = submissionFileDir(dataDir, submission.tenantId, submission.id);
   if (files.length > 0 && !existsSync(dir)) mkdirSync(dir, { recursive: true });
   for (const f of files) {
-    writeFileSync(submissionFilePath(dataDir, submission.tenantId, submission.id, f.key), f.bytes);
+    // SLICE 144: atomic upload write — a torn submission file is silent loss.
+    atomicWriteSync(submissionFilePath(dataDir, submission.tenantId, submission.id, f.key), f.bytes);
   }
   appendFormAudit(
     dataDir,

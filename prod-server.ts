@@ -2,7 +2,7 @@ import { serve } from "bun";
 import { join } from "path";
 import { readFileSync, existsSync, readdirSync } from "fs";
 import { createHash, randomBytes } from "crypto";
-import { resolveDataDir, isInsidePublishTree, readJSON, readJSONLive, writeJSON, seedDataFiles, bucketConnectionsByCategory, migrateLegacyData, findLegacyDataDir, mergeDurableCredential } from "./src/lib/data-store";
+import { resolveDataDir, isInsidePublishTree, readJSON, readJSONLive, writeJSON, seedDataFiles, bucketConnectionsByCategory, migrateLegacyData, findLegacyDataDir, mergeDurableCredential, storeReadErrorStats } from "./src/lib/data-store";
 import { verifyStripeSignature, detectPlanType, detectPlanTierFromMetadata, buildPlanPurchase } from "./src/lib/stripe-webhook";
 import { buildOwnerSaleEvent, provisionAccountForPurchase, ownerSaleEmailBody, buyerConfirmationEmailBody, buyerConfirmationSubject, setPasswordLink, signInLink, normalizeSiteOrigin, DEFAULT_SITE_ORIGIN } from "./src/lib/purchase-sales-events";
 import {
@@ -28,6 +28,13 @@ import { sweepExpiredOAuthStates, OAUTH_STATE_TTL_MS } from "./src/lib/oauth-sta
 import { acquireSingleInstanceOwnership, portAlreadyBound } from "./src/lib/single-instance";
 import { isOwnerUser, LEGACY_OWNER_EMAIL } from "./src/lib/user-roles";
 import { readBackupStatus, countStoreEntries } from "./src/lib/backup-status";
+import { runBackup } from "./scripts/lib/backup-core";
+import {
+  backupFailureRecorder,
+  backupSchedulerDisabled,
+  resolveBackupInterval,
+  startBackupScheduler,
+} from "./src/lib/backup-scheduler";
 
 // ── Lazy module accessors — loaded on first use to keep server startup under 1s ──
 let _bcryptjs: any;
@@ -344,6 +351,40 @@ function startBackupSweeper(): void {
   console.log(`[durable-store] backup sweeper started: every ${BACKUP_SNAPSHOT_INTERVAL_MS}ms (first snapshot in 60s)`);
 }
 startBackupSweeper();
+// ── Same-host archive scheduler (SLICE 144: backups without a human) ──
+// `scripts/backup.mjs` produced a correct, verified, coverage-checked archive —
+// and nothing ever ran it. This runs the SAME pipeline (runBackup from
+// scripts/lib/backup-core.ts — one implementation, not a copy) shortly after
+// boot and then hourly. It never throws into the server, never overlaps itself
+// and is DISABLED under test so the suite cannot write archives.
+const ARCHIVE_BACKUP_DIR = process.env.BACKUP_DIR?.trim() || "/home/team/shared/backups";
+const ARCHIVE_BACKUP_INTERVAL_MS = resolveBackupInterval(process.env);
+const ARCHIVE_BACKUP_FIRST_DELAY_MS = (() => {
+  const n = Number(process.env.BACKUP_FIRST_DELAY_MS);
+  return Number.isFinite(n) && n > 0 ? n : 60_000;
+})();
+const archiveSchedulerOff = backupSchedulerDisabled(process.env);
+const archiveScheduler = startBackupScheduler({
+  run: async () => {
+    try {
+      const r = runBackup({
+        dataDir: DATA_DIR,
+        outDir: ARCHIVE_BACKUP_DIR,
+        log: (m) => console.log(`[backup] ${m}`),
+      });
+      return { ok: true, runId: r.runId, files: r.files, bytes: r.bytes };
+    } catch (e: any) {
+      // runBackup already wrote a failed status; the scheduler records it too.
+      return { ok: false, error: e?.message || String(e) };
+    }
+  },
+  intervalMs: ARCHIVE_BACKUP_INTERVAL_MS,
+  firstDelayMs: ARCHIVE_BACKUP_FIRST_DELAY_MS,
+  disabled: archiveSchedulerOff.disabled,
+  disabledReason: archiveSchedulerOff.reason,
+  recordFailure: backupFailureRecorder(DATA_DIR, ARCHIVE_BACKUP_DIR),
+});
+process.on("exit", () => archiveScheduler.stop());
 // ── OAuth-state TTL sweeper (owner-approved I3: purge stale CSRF states) ──
 const OAUTH_STATE_SWEEP_INTERVAL_MS = (() => {
   const n = Number(process.env.OAUTH_STATE_SWEEP_INTERVAL_MS);
@@ -3104,6 +3145,10 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
           // reports it. Read-only, owner-gated, and honest about a missing or
           // failed run (nulls, never a made-up success).
           ...readBackupStatus(DATA_DIR),
+          // Slice 144: a file that EXISTS but does not parse is data loss in
+          // progress. readJSON keeps its {} fallback, but the count and the last
+          // failure are reported here so it can never be silent again.
+          storeReadErrors: storeReadErrorStats(),
           stores: countStoreEntries(DATA_DIR),
           legacyDirExists: !!legacyDir,
           legacyDir: legacyDir,
