@@ -1945,7 +1945,7 @@ export const integrations: Integration[] = [
       "Deal stage progression with automated email notifications and task creation",
       "Email engagement tracking with automated follow-up triggers",
       "Custom module creation and field updates from document extraction data",
-      "Blueprint workflow automation for standardized sales processes"],
+      "Workflow automation for standardized sales processes"],
     industries: ["financial-services", "real-estate", "insurance", "legal", "technology"],
     relatedWorkflows: ["lead-response", "lead-scoring", "client-intake", "email-management", "customer-segmentation"],
   },

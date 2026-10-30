@@ -27,9 +27,9 @@ const steps: TimelineStep[] = [
   },
   {
     week: "Week 2",
-    title: "Workflow Design & Blueprinting",
+    title: "Workflow Design & Mapping",
     benefit: "Technical Architecture",
-    description: "We map out the exact integration pathways, design human-in-the-loop check gates, and compile a custom Blueprint roadmap.",
+    description: "We map out the exact integration pathways, design human-in-the-loop check gates, and compile a custom workflow roadmap.",
     details: [
       "Custom flowchart of agent execution steps",
       "API payload schemas and field mappings",

@@ -97,7 +97,7 @@ export function IndustryResourceCenter({ industryId }: IndustryResourceCenterPro
           Operational Intelligence Hub
         </h2>
         <p className="text-stone-400 text-sm lg:text-base max-w-2xl mx-auto leading-relaxed">
-          Blueprint audits, ROI configurations, and implementation frameworks customized for your industry.
+          Workflow audits, ROI configurations, and implementation frameworks customized for your industry.
         </p>
       </div>
 
@@ -107,7 +107,7 @@ export function IndustryResourceCenter({ industryId }: IndustryResourceCenterPro
           <div className="space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <h3 className="text-lg font-black text-white flex items-center gap-2">
-                <span>📊</span> Top {data.topAutomations.length} Deployable Blueprints
+                <span>📊</span> Top {data.topAutomations.length} Deployable Workflows
               </h3>
               <input
                 type="text"

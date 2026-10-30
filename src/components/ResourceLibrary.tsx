@@ -63,7 +63,7 @@ export default function ResourceLibrary({ resources }: { resources: ResourceItem
               Resource Library
             </h1>
             <p className="text-stone-400 text-sm lg:text-base leading-relaxed">
-              Explore our templates, blueprints, calculators, and detailed operational playbooks to jumpstart your company's automation journey.
+              Explore our templates, guides, calculators, and detailed operational playbooks to jumpstart your company's automation journey.
             </p>
           </div>
 

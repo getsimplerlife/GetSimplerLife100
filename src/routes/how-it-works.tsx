@@ -144,7 +144,7 @@ function HowItWorksPage() {
               <div className="premium-card-soft p-6 rounded-2xl">
                 <div className="text-2xl mb-2">📡</div>
                 <div className="text-white font-black">We monitor & support</div>
-                <p className="text-xs text-stone-400 mt-1">connections self-heal and failures escalate loudly — never silently lost.</p>
+                <p className="text-xs text-stone-400 mt-1">connection problems show in your portal as a real status — never silently lost.</p>
               </div>
             </div>
             <div className="flex flex-wrap justify-center gap-3 pt-4">
@@ -238,7 +238,7 @@ function HowItWorksPage() {
             </p>
             <div className="flex justify-center">
               <Link to="/contact" className="bg-stone-950 text-emerald-400 px-10 py-4 rounded-xl font-black text-lg hover:bg-emerald-500/10 transition-all shadow-xl">
-                Get Your Free Blueprint ➜
+                Get Your Free Automation Plan ➜
               </Link>
             </div>
           </div>

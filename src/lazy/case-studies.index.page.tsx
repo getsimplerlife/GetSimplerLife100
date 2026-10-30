@@ -42,7 +42,7 @@ function CaseStudiesIndexPage() {
               >
                 <div className="flex items-center gap-3 mb-3">
                   <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-stone-800 text-emerald-400 uppercase tracking-wider">
-                    Verified Blueprint
+                    Verified Workflow
                   </span>
                   {cs.illustrativeEstimate?.[0] && (
                     <span className="text-xs font-bold text-stone-400">
@@ -54,7 +54,7 @@ function CaseStudiesIndexPage() {
                   {cs.title}
                 </h3>
                 <p className="text-sm text-stone-400 leading-relaxed line-clamp-3 mb-3">
-                  {cs.blueprint}
+                  {cs.pattern}
                 </p>
                 <div className="mt-3 flex items-center gap-3 flex-wrap">
                   <span className="text-xs font-bold text-emerald-500 group-hover:underline">

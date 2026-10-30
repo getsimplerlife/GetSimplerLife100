@@ -41,7 +41,7 @@ function TermsPage() {
         </Section>
 
         <Section title="Integrations and connection health">
-          <p>Our service connects to third-party applications you authorize (such as Xero, HubSpot, Slack, Google, Microsoft, and DocuSign). We work to keep connections reliable and self-healing, and we notify you if a connection fails or needs your attention. We are not responsible for the availability, policies, or actions of third-party services you connect.</p>
+          <p>Our service connects to third-party applications you authorize (such as Xero, HubSpot, Slack, Google, Microsoft, and DocuSign). We notify you if a connection fails or needs your attention. We are not responsible for the availability, policies, or actions of third-party services you connect.</p>
         </Section>
 
         <Section title="Acceptable use">

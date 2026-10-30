@@ -103,8 +103,8 @@ export const resources: Resource[] = [
     format: "PDF",
   },
   {
-    id: "erp-integration-blueprint",
-    title: "ERP Integration Blueprint",
+    id: "erp-integration-guide",
+    title: "ERP Integration Guide",
     type: "guide",
     description:
       "Technical guide for integrating AI automations with SAP, Oracle NetSuite, Microsoft Dynamics 365, and other major ERP systems. Covers API patterns, data mapping strategies, error handling, and security considerations.",

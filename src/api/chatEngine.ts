@@ -497,7 +497,7 @@ function handleGeneralQuery(message: string, context: QueryContext): ChatRespons
   }
 
   return {
-    reply: `I'm your AI Operations Assistant. I can help you manage your automations. Here's what I can do:\n\n• Monitor workflow status and failures\n• Check automation activity and tasks\n• Analyze cost savings and ROI\n• Generate new workflow blueprints\n• Review pending human approvals\n\nTry asking me something specific about your operations!`,
+    reply: `I'm your AI Operations Assistant. I can help you manage your automations. Here's what I can do:\n\n• Monitor workflow status and failures\n• Check automation activity and tasks\n• Analyze cost savings and ROI\n• Generate new workflow outlines\n• Review pending human approvals\n\nTry asking me something specific about your operations!`,
     actions: [
       { type: "suggest", label: "What can you do?", payload: { followUp: "What can you help me with?" } },
     ],

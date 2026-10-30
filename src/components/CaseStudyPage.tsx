@@ -27,13 +27,13 @@ export default function CaseStudyPage({ data }: { data: CaseStudyType }) {
           <div className="max-w-4xl mx-auto relative z-10 space-y-5">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-md border border-emerald-500/20">
-                VERIFIED BLUEPRINT
+                VERIFIED WORKFLOW
               </span>
             </div>
             <h1 className="text-3xl lg:text-5xl font-black tracking-tight text-white leading-tight">
               {cs.title}
             </h1>
-            <p className="text-lg text-stone-300 font-medium leading-relaxed">{cs.blueprint}</p>
+            <p className="text-lg text-stone-300 font-medium leading-relaxed">{cs.pattern}</p>
             <div className="flex flex-wrap gap-2 pt-2">
               {cs.integrations.map((it) => (
                 <span key={it} className="text-[11px] font-mono text-stone-300 bg-stone-900 px-2.5 py-1 rounded-md border border-stone-800 uppercase">
@@ -90,7 +90,7 @@ export default function CaseStudyPage({ data }: { data: CaseStudyType }) {
           </section>
         )}
 
-        {/* Related blueprints */}
+        {/* Related demonstrations */}
         {related.length > 0 && (
           <section className="px-6 py-16 bg-stone-900/20 border-t border-stone-900">
             <div className="max-w-4xl mx-auto space-y-6">

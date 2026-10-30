@@ -5,7 +5,7 @@
  * names + precise stats + named executive quotes) presented as "Real Results.
  * Real Impact." with no disclaimer. That is gone.
  *
- * This file now describes REAL, VERIFIED INTEGRATION CAPABILITY BLUEPRINTS:
+ * This file now describes REAL, VERIFIED INTEGRATION CAPABILITY PATTERNS:
  * automated workflow patterns that run on integrations we have live-verified
  * (Xero, HubSpot, DocuSign, Slack, Google Calendar, Microsoft 365, Google
  * productivity). These are demonstrations of what the platform CAN do with a
@@ -18,8 +18,8 @@
 export interface CaseStudy {
   id: string;
   title: string;
-  /** The verified workflow pattern this blueprint demonstrates. */
-  blueprint: string;
+  /** The verified workflow pattern this demonstration walks through. */
+  pattern: string;
   /** Live-verified integrations involved in this pattern. */
   integrations: string[];
   /** What the automated pattern actually does end-to-end. */
@@ -34,7 +34,7 @@ export const caseStudies: CaseStudy[] = [
   {
     id: "quote-to-cash",
     title: "Quote-to-Cash: from proposal to filed invoice",
-    blueprint:
+    pattern:
       "An end-to-end automation that moves a deal from proposal to a filed invoice across the connected CRM, e-signature, accounting, and messaging stack.",
     integrations: ["hubspot", "docusign", "xero", "slack", "google-drive", "microsoft-onedrive"],
     walkthrough: [
@@ -49,12 +49,12 @@ export const caseStudies: CaseStudy[] = [
       { metric: "Illustrative: manual steps removed (est.)", value: "every step above" },
     ],
     verificationNote:
-      "Builds on integrations the team has live-verified: Xero (self-healing refresh + reconnect), DocuSign, HubSpot, Slack, Google productivity and Microsoft 365. QuickBooks invoice-draft code is shipped, pending live Intuit credentials.",
+      "Builds on integrations the team has live-verified: Xero, DocuSign, HubSpot, Slack, Google productivity and Microsoft 365. QuickBooks invoice-draft code is shipped, pending live Intuit credentials.",
   },
   {
     id: "slack-orchestration",
     title: "Automation orchestration from Slack",
-    blueprint:
+    pattern:
       "Operational AI automations that a team can task and monitor from Slack, with human-in-the-loop approval gates before any write.",
     integrations: ["slack", "xero", "hubspot"],
     walkthrough: [
@@ -71,24 +71,9 @@ export const caseStudies: CaseStudy[] = [
       "Relies on the Slack provider webhook (verified) and the approval-queue gate (26-test suite).",
   },
   {
-    id: "xero-resilience",
-    title: "Accounting connection resilience",
-    blueprint:
-      "Automated refresher and health monitoring that keeps accounting integrations connected and escalates loudly if a reconnect is ever needed.",
-    integrations: ["xero", "google-workspace"],
-    walkthrough: [
-      "OAuth tokens are proactively refreshed before expiry; connections self-heal on transient failures.",
-      "Per-tenant health heartbeats run real reads against authorized systems.",
-      "If a connection is ever unrenewable, it is marked reconnect-required with a one-click re-consent and an owner alert — never silently lost.",
-    ],
-    illustrativeEstimate: [],
-    verificationNote:
-      "Directly reflects live-verified reliability tooling: keep-alive refresh, self-healing Xero, external liveness watchdog, and loud escalation on failure.",
-  },
-  {
     id: "calendar-to-workflow",
     title: "Calendar-driven operations",
-    blueprint:
+    pattern:
       "Automation triggered off a team's calendar events (available integrations live-verified), feeding downstream tracking and comms.",
     integrations: ["google-calendar", "microsoft", "slack"],
     walkthrough: [
@@ -105,7 +90,7 @@ export const caseStudies: CaseStudy[] = [
   {
     id: "document-filing",
     title: "Document generation and filing",
-    blueprint:
+    pattern:
       "Automated document output routed into the tenant's own file storage, ready for records and reference.",
     integrations: ["google-drive", "microsoft-onedrive", "docusign"],
     walkthrough: [

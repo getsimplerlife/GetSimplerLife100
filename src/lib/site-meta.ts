@@ -126,12 +126,12 @@ export const PAGE_TITLES: Record<string, PageMeta> = {
   "/security": {
     title: "Security | Simpler Life 100",
     description:
-      "Your data stays under your control: scoped permissions, human approval on every write, audit trails, fail-closed behavior, and self-healing connections.",
+      "Your data stays under your control: scoped permissions, human approval on every write, audit trails, and fail-closed behavior.",
   },
   "/you-stay-in-control": {
     title: "You Stay in Control | Simpler Life 100",
     description:
-      "AI doesn't get to make the final decision — your team does. Human approval queue, audit trail, fail-closed behavior, and connections that self-heal.",
+      "AI doesn't get to make the final decision — your team does. Human approval queue, audit trail, and fail-closed behavior.",
   },
   "/after-purchase": {
     title: "After You Buy — Sign In | Simpler Life 100",
