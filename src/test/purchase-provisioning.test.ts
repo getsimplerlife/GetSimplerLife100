@@ -173,7 +173,7 @@ describe("End-to-end purchase provisioning", () => {
           object: "checkout.session",
           customer_details: { email: TEST_EMAIL_HYPHEN },
           customer_email: TEST_EMAIL_HYPHEN,
-          payment_link: "https://buy.stripe.com/fZubJ0h1qbRI5jFcbr5os01",
+          payment_link: "https://buy.stripe.com/bJe3cubH6f3U3bxdfv5os04",
           amount_total: 59900,
           metadata: {},
         },

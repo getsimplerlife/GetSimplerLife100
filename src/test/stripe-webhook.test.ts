@@ -7,6 +7,11 @@ import {
   resolvePlanSpec,
   buildPlanPurchase,
   STRIPE_SIGNATURE_TOLERANCE_MS,
+  STARTER_PLAN_LINK,
+  GROWTH_PLAN_LINK,
+  ENTERPRISE_PLAN_LINK,
+  STARTER_LEGACY_PLAN_LINK,
+  GROWTH_LEGACY_PLAN_LINK,
 } from "../lib/stripe-webhook";
 
 /**
@@ -27,11 +32,11 @@ function sign(rawBody: string, secret: string, timestampSec?: number): string {
 
 describe("detectPlanType — the three LIVE tier links map, everything else fails closed", () => {
   it("maps each live tier link to its tier AND product name", () => {
-    expect(detectPlanType("https://buy.stripe.com/eVq5kC7qQ0909zV0sJ5os00")).toEqual({
+    expect(detectPlanType("https://buy.stripe.com/eVqbJ0aD29JA3bx6R75os03")).toEqual({
       tier: "starter",
       productName: "Starter Plan",
     });
-    expect(detectPlanType("https://buy.stripe.com/fZubJ0h1qbRI5jFcbr5os01")).toEqual({
+    expect(detectPlanType("https://buy.stripe.com/bJe3cubH6f3U3bxdfv5os04")).toEqual({
       tier: "growth",
       productName: "Growth Plan",
     });
@@ -41,8 +46,30 @@ describe("detectPlanType — the three LIVE tier links map, everything else fail
     });
   });
 
+  it("still recognises the PRE-SETUP-FEE links (owner 10-30) so an old purchase never provisions nothing", () => {
+    // The pre-10-30 Starter/Growth links carried a one-time setup price and were
+    // replaced by monthly-only links. They can still sit in a buyer's inbox or
+    // bookmark, so a checkout through one must resolve to its tier — taking
+    // money and provisioning nothing is the one outcome we never allow.
+    expect(STARTER_LEGACY_PLAN_LINK).toBe("https://buy.stripe.com/eVq5kC7qQ0909zV0sJ5os00");
+    expect(GROWTH_LEGACY_PLAN_LINK).toBe("https://buy.stripe.com/fZubJ0h1qbRI5jFcbr5os01");
+    expect(detectPlanType(STARTER_LEGACY_PLAN_LINK)).toEqual({
+      tier: "starter",
+      productName: "Starter Plan",
+    });
+    expect(detectPlanType(GROWTH_LEGACY_PLAN_LINK)).toEqual({
+      tier: "growth",
+      productName: "Growth Plan",
+    });
+    // Query params on a legacy link resolve too.
+    expect(detectPlanType(STARTER_LEGACY_PLAN_LINK + "?session_id=cs_old")?.tier).toBe("starter");
+    // And the current links are the ones the site serves.
+    expect(STARTER_PLAN_LINK).toBe("https://buy.stripe.com/eVqbJ0aD29JA3bx6R75os03");
+    expect(GROWTH_PLAN_LINK).toBe("https://buy.stripe.com/bJe3cubH6f3U3bxdfv5os04");
+    expect(ENTERPRISE_PLAN_LINK).toBe("https://buy.stripe.com/fZu28qfXmaNEdQb2AR5os02");
+  });
   it("matches with Stripe query params and rejects anything else", () => {
-    expect(detectPlanType("https://buy.stripe.com/fZubJ0h1qbRI5jFcbr5os01?session_id=cs_1")?.tier).toBe("growth");
+    expect(detectPlanType("https://buy.stripe.com/bJe3cubH6f3U3bxdfv5os04?session_id=cs_1")?.tier).toBe("growth");
     // The retired per-employee tier links do not exist in the live Stripe
     // account, so they are NOT plans any more (fail closed).
     expect(detectPlanType("https://buy.stripe.com/3cI8wR88Tasfc1B9XW2Fa2K")).toBeNull();
@@ -75,7 +102,7 @@ describe("metadata.tier fallback — fail closed, never invents a plan", () => {
   it("resolvePlanSpec prefers the link and still resolves from metadata alone", () => {
     // Link wins: a Growth link with a stale starter metadata tag stays Growth.
     expect(
-      resolvePlanSpec("https://buy.stripe.com/fZubJ0h1qbRI5jFcbr5os01", "starter")?.tier,
+      resolvePlanSpec("https://buy.stripe.com/bJe3cubH6f3U3bxdfv5os04", "starter")?.tier,
     ).toBe("growth");
     // Metadata alone resolves (e.g. a checkout session whose link field is absent).
     expect(resolvePlanSpec("", "enterprise")?.tier).toBe("enterprise");

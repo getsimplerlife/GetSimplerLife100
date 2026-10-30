@@ -19,12 +19,17 @@
  *      source file outside src/test;
  *   6. the customer-facing surfaces carry EXACTLY the three live tier links.
  *
- * Note on the plan-link constants (updated 10-30, follow-up to this slice):
- * STARTER/GROWTH/ENTERPRISE_PLAN_LINK in src/lib/stripe-webhook.ts are now the
- * three LIVE tier links (eVq5kC7q / fZubJ0h1 / fZu28qfX — re-verified live
- * 10-30). The old per-employee links (3cI8wR88 / 5kQ6oJbl / aFa7sN60) do not
- * exist in the live account and no longer map at all, so a purchase today is
- * recorded with its real tier instead of as an untiered generic purchase.
+ * Note on the plan-link constants (updated 10-30, then again for the setup-fee
+ * removal, slice 140): STARTER/GROWTH/ENTERPRISE_PLAN_LINK in
+ * src/lib/stripe-webhook.ts are the three LIVE tier links the site serves —
+ * eVqbJ0aD (Starter) / bJe3cubH (Growth) / fZu28qfX (Enterprise). The owner
+ * dropped the setup fees on 10-30, and Stripe will not edit `line_items` on an
+ * existing payment link, so the monthly-only links replaced the old ones. The
+ * pre-10-30 links (eVq5kC7q / fZubJ0h1) remain RECOGNISED ALIASES in that module
+ * so an old link in a buyer's inbox still provisions its tier. The old
+ * per-employee links (3cI8wR88 / 5kQ6oJbl / aFa7sN60) do not exist in the live
+ * account and no longer map at all, so a purchase today is recorded with its
+ * real tier instead of as an untiered generic purchase.
  */
 import { describe, expect, it } from "vitest";
 import { existsSync, readFileSync, readdirSync, statSync } from "fs";
@@ -69,8 +74,8 @@ const productFiles = (): string[] => {
 };
 
 const LIVE_TIER_LINKS = [
-  "https://buy.stripe.com/eVq5kC7qQ0909zV0sJ5os00", // Starter  $199/mo + $500 setup
-  "https://buy.stripe.com/fZubJ0h1qbRI5jFcbr5os01", // Growth   $599/mo + $1,500 setup
+  "https://buy.stripe.com/eVqbJ0aD29JA3bx6R75os03", // Starter  $199/mo (no setup fee, owner 10-30)
+  "https://buy.stripe.com/bJe3cubH6f3U3bxdfv5os04", // Growth   $599/mo (no setup fee, owner 10-30)
   "https://buy.stripe.com/fZu28qfXmaNEdQb2AR5os02", // Enterprise $1,499/mo
 ];
 

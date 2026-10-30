@@ -112,8 +112,8 @@ describe("stripe catalog guardrail (customer-facing checkout links)", () => {
     // matching live Stripe Payment Link (the ONLY products/prices/links on the
     // standard account after the 09-27 full-standard switch).
     const platform = {
-      starter: "https://buy.stripe.com/eVq5kC7qQ0909zV0sJ5os00",
-      growth: "https://buy.stripe.com/fZubJ0h1qbRI5jFcbr5os01",
+      starter: "https://buy.stripe.com/eVqbJ0aD29JA3bx6R75os03",
+      growth: "https://buy.stripe.com/bJe3cubH6f3U3bxdfv5os04",
       enterprise: "https://buy.stripe.com/fZu28qfXmaNEdQb2AR5os02",
     };
     expect(p).toContain('cta: "Choose Starter"');

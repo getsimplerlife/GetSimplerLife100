@@ -22,10 +22,8 @@ const PLATFORM_TIERS = [
   {
     name: "Starter",
     monthly: 199,
-    setup: 500,
-    setupLabel: "$500 one-time onboarding",
+    onboardingLabel: "Self-serve onboarding included",
     forLabel: "Professional-services firms ~10\u201330 people",
-    priceNote: "$199/mo + $500 one-time onboarding",
     description: "The full platform for your first automated workflows.",
     features: [
       "100% of native capabilities \u2014 records, forms, docs/e-sign, webhooks, booking, boards, AI extraction, surveys/NPS, transforms/EDI, dashboards/BI, automations",
@@ -33,15 +31,13 @@ const PLATFORM_TIERS = [
       "Standard support (email)",
     ],
     cta: "Choose Starter",
-    ctaHref: "https://buy.stripe.com/eVq5kC7qQ0909zV0sJ5os00",
+    ctaHref: "https://buy.stripe.com/eVqbJ0aD29JA3bx6R75os03",
   },
   {
     name: "Growth",
     monthly: 599,
-    setup: 1500,
-    setupLabel: "$1,500 one-time onboarding",
+    onboardingLabel: "Guided onboarding included",
     forLabel: "Professional-services firms ~30\u2013100 people",
-    priceNote: "$599/mo + $1,500 one-time onboarding",
     description: "Scale limits and governance for a growing operations team.",
     features: [
       "100% of native capabilities \u2014 the full live platform (as Starter)",
@@ -51,15 +47,13 @@ const PLATFORM_TIERS = [
     ],
     highlight: true,
     cta: "Choose Growth",
-    ctaHref: "https://buy.stripe.com/fZubJ0h1qbRI5jFcbr5os01",
+    ctaHref: "https://buy.stripe.com/bJe3cubH6f3U3bxdfv5os04",
   },
   {
     name: "Enterprise",
     monthly: 1499,
-    setup: 0,
-    setupLabel: "setup included",
+    onboardingLabel: "Named onboarding included",
     forLabel: "Larger or regulated operations",
-    priceNote: "$1,499/mo \u2014 setup included",
     description: "Larger teams, stricter governance, and custom builds on demand.",
     features: [
       "100% of native capabilities \u2014 the full live platform (as Growth)",
@@ -117,7 +111,7 @@ function PricingPage() {
                 <span className="text-3xl font-black text-white">${tier.monthly}</span>
                 <span className="text-stone-500 text-sm">/mo</span>
               </div>
-              <div className="text-xs text-stone-500 mb-4">{tier.setupLabel}</div>
+              <div className="text-xs text-stone-500 mb-4">{tier.onboardingLabel}</div>
               <p className="text-stone-400 text-sm mb-4">{tier.description}</p>
               <ul className="space-y-2 mb-6 flex-1">
                 {tier.features.map((f) => (
@@ -142,8 +136,8 @@ function PricingPage() {
           ))}
         </div>
         <p className="text-xs text-stone-500 mt-6 text-center max-w-2xl mx-auto">
-          Checkout is handled securely by Stripe — subscriptions bill monthly, with
-          one-time onboarding on your first invoice. Prefer a low-risk start? The
+          Checkout is handled securely by Stripe — subscriptions bill monthly and
+          onboarding is included in every tier, with no setup fee. Prefer a low-risk start? The
           free assessment costs nothing — no card required.
         </p>
       </section>

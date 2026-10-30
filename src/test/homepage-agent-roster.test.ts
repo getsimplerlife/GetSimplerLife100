@@ -23,11 +23,14 @@ describe("homepage platform-tier pricing band", () => {
     expect(existsSync(join(REPO, "src/data/agents.ts"))).toBe(false);
   });
 
-  it("homepage shows the LOCKED platform tiers (monthly + onboarding), not per-employee cards", () => {
+  it("homepage shows the LOCKED platform tiers (monthly, no setup fee), not per-employee cards", () => {
     expect(homeSource).toContain("$199/mo");
     expect(homeSource).toContain("$599/mo");
     expect(homeSource).toContain("$1,499/mo");
-    expect(homeSource).toContain("setup included");
+    // Setup fees were removed by owner decision 10-30: the band states the
+    // onboarding that IS included, and never a one-time fee.
+    expect(homeSource).toContain("onboarding included");
+    expect(homeSource).not.toContain("setup included");
   });
 
   it("homepage no longer sells per-employee (no roster, no AGENTS.map, no old package prices)", () => {

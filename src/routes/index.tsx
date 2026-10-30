@@ -384,7 +384,7 @@ function Home() {
               {[
                 ["CURRENT ANNUAL LABOR COST", "The hours your team spends re-keying, × their loaded cost."],
                 ["POTENTIAL ANNUAL SAVINGS", "The labor (and error) hours automation can eliminate."],
-                ["ESTIMATED IMPLEMENTATION", "One-time onboarding — you pay for working, deployed workflows."],
+                ["ESTIMATED SUBSCRIPTION", "Your monthly platform subscription — you pay for working, deployed workflows."],
                 ["ESTIMATED PAYBACK", "Implementation ÷ annual savings, in months — typically inside year one."],
               ].map(([t, d], i) => (
                 <Reveal key={t} delay={i * 60}>
@@ -585,7 +585,7 @@ function Home() {
                 {
                   name: "Starter",
                   price: "$199/mo",
-                  setup: "+ $500 one-time onboarding",
+                  onboarding: "Self-serve onboarding included",
                   forLabel: "Firms ~10\u201330 people",
                   desc: "The full platform for your first automated workflows.",
                   features: [
@@ -595,12 +595,12 @@ function Home() {
                     "Standard support",
                   ],
                   highlight: false,
-                  ctaHref: "https://buy.stripe.com/eVq5kC7qQ0909zV0sJ5os00",
+                  ctaHref: "https://buy.stripe.com/eVqbJ0aD29JA3bx6R75os03",
                 },
                 {
                   name: "Growth",
                   price: "$599/mo",
-                  setup: "+ $1,500 one-time onboarding",
+                  onboarding: "Guided onboarding included",
                   forLabel: "Firms ~30\u2013100 people",
                   desc: "Higher scale limits and governance for a growing ops team.",
                   features: [
@@ -610,12 +610,12 @@ function Home() {
                     "Priority support",
                   ],
                   highlight: true,
-                  ctaHref: "https://buy.stripe.com/fZubJ0h1qbRI5jFcbr5os01",
+                  ctaHref: "https://buy.stripe.com/bJe3cubH6f3U3bxdfv5os04",
                 },
                 {
                   name: "Enterprise",
                   price: "$1,499/mo",
-                  setup: "setup included",
+                  onboarding: "Named onboarding included",
                   forLabel: "Larger or regulated ops",
                   desc: "Largest scale, advanced governance, custom builds on demand.",
                   features: [
@@ -640,7 +640,7 @@ function Home() {
                   <div className="text-xl font-black">{t.name}</div>
                   <div className="text-[11px] mt-0.5 opacity-70">{t.forLabel}</div>
                   <div className="mt-4 text-3xl font-black">{t.price}</div>
-                  <div className="text-xs mt-1 opacity-80">{t.setup}</div>
+                  <div className="text-xs mt-1 opacity-80">{t.onboarding}</div>
                   <p className="text-sm mt-4 opacity-90">{t.desc}</p>
                   <ul className="mt-5 space-y-2 text-sm">
                     {t.features.map((f) => (

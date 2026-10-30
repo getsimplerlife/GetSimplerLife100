@@ -26,13 +26,13 @@ export const TIER_META: Record<
   starter: {
     name: "Starter",
     price: "$199/mo",
-    stripeLink: "https://buy.stripe.com/eVq5kC7qQ0909zV0sJ5os00",
+    stripeLink: "https://buy.stripe.com/eVqbJ0aD29JA3bx6R75os03",
     badgeClass: "bg-emerald-500/10 text-emerald-400 border-emerald-500/10",
   },
   growth: {
     name: "Growth",
     price: "$599/mo",
-    stripeLink: "https://buy.stripe.com/fZubJ0h1qbRI5jFcbr5os01",
+    stripeLink: "https://buy.stripe.com/bJe3cubH6f3U3bxdfv5os04",
     badgeClass: "bg-amber-500/10 text-amber-400 border-amber-500/10",
   },
   scale: {

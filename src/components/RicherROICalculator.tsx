@@ -19,12 +19,14 @@ const INDUSTRY_PRESETS: Record<string, { employees: number; hourlyCost: number; 
 /**
  * LOCKED PLATFORM TIERS (owner 09-27): one platform, every capability in every
  * tier. Tiers differ by scale limits, governance and support; Enterprise adds
- * custom on-demand vendor-API builds. Setup is a one-time onboarding fee.
+ * custom on-demand vendor-API builds. There is no setup fee: the only cost is
+ * the monthly platform subscription, so the model below costs the subscription
+ * (annualised) instead of a one-off implementation charge.
  */
 const PLATFORM_TIERS = [
-  { name: "Starter", monthly: 199, setup: 500, employees: "10-30", paymentLink: "/pricing" },
-  { name: "Growth", monthly: 599, setup: 1500, employees: "30-100", paymentLink: "/pricing" },
-  { name: "Enterprise", monthly: 1499, setup: 0, employees: "100+", paymentLink: "/pricing" },
+  { name: "Starter", monthly: 199, employees: "10-30", paymentLink: "/pricing" },
+  { name: "Growth", monthly: 599, employees: "30-100", paymentLink: "/pricing" },
+  { name: "Enterprise", monthly: 1499, employees: "100+", paymentLink: "/pricing" },
 ];
 
 function getRecommendedTier(emps: number) {
@@ -51,7 +53,9 @@ export function RicherROICalculator({ embed = false }: RicherROICalculatorProps)
   const [threeYearNetImpact, setThreeYearNetImpact] = useState(0);
 
   const recommendedTier = getRecommendedTier(employees);
-  const implementationCost = recommendedTier.setup;
+  // No setup fee: the buyer's only cost is the monthly subscription.
+  const monthlyCost = recommendedTier.monthly;
+  const annualPlatformCost = monthlyCost * 12;
 
   useEffect(() => {
     const workingDays = 250;
@@ -64,14 +68,14 @@ export function RicherROICalculator({ embed = false }: RicherROICalculatorProps)
     const hoursSpentOnErrors = errorsPerYear * (timePerTask / 60) * 3;
     const errorSavings = hoursSpentOnErrors * hourlyCost;
     const annualSavings = laborSavings + errorSavings;
-    // Payback vs the one-time onboarding fee (subscription billed monthly after).
-    const payback = annualSavings > 0 ? (implementationCost / annualSavings) * 12 : 0;
-    const netImpact = (annualSavings * 3) - implementationCost;
+    // Payback vs one year of platform subscription (there is no setup fee).
+    const payback = annualSavings > 0 ? (annualPlatformCost / annualSavings) * 12 : 0;
+    const netImpact = (annualSavings * 3) - (annualPlatformCost * 3);
     setAnnualHoursSaved(hoursSaved);
     setTotalAnnualSavings(annualSavings);
     setPaybackMonths(payback);
     setThreeYearNetImpact(netImpact);
-  }, [employees, hourlyCost, tasksPerDay, timePerTask, errorRate, implementationCost]);
+  }, [employees, hourlyCost, tasksPerDay, timePerTask, errorRate, annualPlatformCost]);
 
   const timelineMonths = [1, 3, 6, 12, 24];
 
@@ -148,7 +152,7 @@ export function RicherROICalculator({ embed = false }: RicherROICalculatorProps)
     y += 7;
     pdf.text(`3-Year Net Impact: $${Math.round(threeYearNetImpact).toLocaleString()}`, 20, y);
     y += 7;
-    pdf.text(`Recommended Tier: ${recommendedTier.name} ($${recommendedTier.monthly}/mo + $${recommendedTier.setup} setup)`, 20, y);
+    pdf.text(`Recommended Tier: ${recommendedTier.name} ($${recommendedTier.monthly}/mo, no setup fee)`, 20, y);
     pdf.save("simpler-life-100-roi-report.pdf");
   };
 
@@ -230,7 +234,7 @@ export function RicherROICalculator({ embed = false }: RicherROICalculatorProps)
             <div className="bg-stone-950/60 border border-stone-800 rounded-xl p-4 text-center">
               <div className="text-xs font-mono text-stone-400 mb-1">RECOMMENDED TIER</div>
               <div className="text-lg font-black text-emerald-400">{recommendedTier.name}</div>
-              <div className="text-sm text-stone-400">${recommendedTier.monthly}/mo + ${recommendedTier.setup} setup — {recommendedTier.employees} employees</div>
+              <div className="text-sm text-stone-400">${recommendedTier.monthly}/mo, no setup fee — {recommendedTier.employees} employees</div>
             </div>
 
             {/* See My ROI Button */}
@@ -257,8 +261,8 @@ export function RicherROICalculator({ embed = false }: RicherROICalculatorProps)
                 <span className="text-sm font-black text-emerald-400">${Math.round(totalAnnualSavings).toLocaleString()}</span>
               </div>
               <div className="flex items-center justify-between rounded-xl bg-stone-950/60 border border-stone-800/50 px-4 py-3">
-                <span className="text-xs font-mono text-stone-400">ONE-TIME ONBOARDING</span>
-                <span className="text-sm font-black text-white">${implementationCost.toLocaleString()}</span>
+                <span className="text-xs font-mono text-stone-400">ANNUAL SUBSCRIPTION</span>
+                <span className="text-sm font-black text-white">${annualPlatformCost.toLocaleString()}</span>
               </div>
               <div className="flex items-center justify-between rounded-xl bg-stone-950/60 border border-stone-800/50 px-4 py-3">
                 <span className="text-xs font-mono text-stone-400">ESTIMATED PAYBACK</span>
@@ -278,7 +282,7 @@ export function RicherROICalculator({ embed = false }: RicherROICalculatorProps)
               <div className="text-xs font-mono text-stone-400 mb-2">CUMULATIVE NET RETURN</div>
               {timelineMonths.map((m) => {
                 const savingsAtMonth = (totalAnnualSavings / 12) * m;
-                const netValue = savingsAtMonth - implementationCost;
+                const netValue = savingsAtMonth - monthlyCost * m;
                 const profitable = netValue > 0;
                 return (
                   <div key={m} className="flex items-center justify-between text-xs p-2.5 rounded-xl bg-stone-950/40 border border-stone-800/50">
@@ -315,7 +319,7 @@ export function RicherROICalculator({ embed = false }: RicherROICalculatorProps)
                     <span className="text-xl font-black text-white">${Math.round(threeYearNetImpact).toLocaleString()}</span>
                   </div>
                   <span className="text-[10px] font-black uppercase tracking-widest bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1.5 rounded-full">
-                    {(threeYearNetImpact / implementationCost).toFixed(1)}x ROI
+                    {(threeYearNetImpact / (annualPlatformCost * 3)).toFixed(1)}x ROI
                   </span>
                 </div>
 
@@ -337,7 +341,7 @@ export function RicherROICalculator({ embed = false }: RicherROICalculatorProps)
                             <span className="text-sm font-black text-white">${tier.monthly}/mo</span>
                           </div>
                           <div className="text-[10px] text-stone-500 mt-0.5">
-                            {tier.employees} employees · {tier.setup === 0 ? "setup included" : `$${tier.setup} onboarding`}
+                            {tier.employees} employees · ${tier.monthly}/mo
                           </div>
                         </Link>
                       );

@@ -26,8 +26,8 @@ const BANNED = [
 ];
 const RETIRED_PRICES = ["$2,500", "$99+/mo"];
 const TIER_LINKS = [
-  "buy.stripe.com/evq5kc7qq0909zv0sj5os00",
-  "buy.stripe.com/fzubj0h1qbri5jfcbr5os01",
+  "buy.stripe.com/evqbj0ad29ja3bx6r75os03",
+  "buy.stripe.com/bje3cubh6f3u3bxdfv5os04",
   "buy.stripe.com/fzu28qfxmanedqb2ar5os02",
 ];
 

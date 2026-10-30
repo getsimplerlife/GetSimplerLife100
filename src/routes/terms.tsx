@@ -29,7 +29,7 @@ function TermsPage() {
         <p className="text-stone-500 text-sm mb-8">Last updated: present day. Questions: <a className="text-emerald-400 underline" href="mailto:electric.vortexz@gmail.com">electric.vortexz@gmail.com</a>.</p>
 
         <Section title="The service">
-          <p>Simpler Life 100 provides one platform for AI-automated client operations. The platform's AI automations are configured to automate tasks within your business and are provided as part of a setup/build package and ongoing monthly service. Use of the service is subject to these terms.</p>
+          <p>Simpler Life 100 provides one platform for AI-automated client operations. The platform's AI automations are configured to automate tasks within your business and are provided as part of the ongoing monthly platform subscription. Use of the service is subject to these terms.</p>
         </Section>
 
         <Section title="Your account and responsibilities">
@@ -37,7 +37,7 @@ function TermsPage() {
         </Section>
 
         <Section title="Fees and payment">
-          <p>Purchases are one-time onboarding fees and recurring monthly platform subscription fees, as described at the time of purchase and processed through our payment provider. By purchasing, you agree to pay the amounts shown for the services you select. Recurring fees continue until cancelled in accordance with the applicable plan.</p>
+          <p>Purchases are recurring monthly platform subscription fees, with no setup fee, as described at the time of purchase and processed through our payment provider. By purchasing, you agree to pay the amounts shown for the services you select. Recurring fees continue until cancelled in accordance with the applicable plan.</p>
         </Section>
 
         <Section title="Integrations and connection health">

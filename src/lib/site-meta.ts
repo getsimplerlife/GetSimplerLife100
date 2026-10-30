@@ -101,7 +101,7 @@ export const PAGE_TITLES: Record<string, PageMeta> = {
   "/pricing": {
     title: "Pricing | Simpler Life 100",
     description:
-      "One platform, every capability in every tier. Starter $199/mo (+ $500 onboarding), Growth $599/mo (+ $1,500), Enterprise $1,499/mo (onboarding included). Native records, forms, docs & e-sign, booking, boards, AI extraction, surveys, transforms/EDI, dashboards, and automations.",
+      "One platform, every capability in every tier. Starter $199/mo, Growth $599/mo, Enterprise $1,499/mo — no setup fee, onboarding included. Native records, forms, docs & e-sign, booking, boards, AI extraction, surveys, transforms/EDI, dashboards, and automations.",
   },
   "/privacy": {
     title: "Privacy Policy | Simpler Life 100",

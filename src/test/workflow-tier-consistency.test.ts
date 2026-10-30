@@ -45,8 +45,8 @@ describe("workflow tier consistency — library vs detail surfaces", () => {
 
 describe("locked platform tiers — one pricing, three cards, three links", () => {
   it("TIER_META carries the three owner-locked Stripe links", () => {
-    expect(TIER_META.starter.stripeLink).toBe("https://buy.stripe.com/eVq5kC7qQ0909zV0sJ5os00");
-    expect(TIER_META.growth.stripeLink).toBe("https://buy.stripe.com/fZubJ0h1qbRI5jFcbr5os01");
+    expect(TIER_META.starter.stripeLink).toBe("https://buy.stripe.com/eVqbJ0aD29JA3bx6R75os03");
+    expect(TIER_META.growth.stripeLink).toBe("https://buy.stripe.com/bJe3cubH6f3U3bxdfv5os04");
     expect(TIER_META.scale.stripeLink).toBe("https://buy.stripe.com/fZu28qfXmaNEdQb2AR5os02");
   });
 

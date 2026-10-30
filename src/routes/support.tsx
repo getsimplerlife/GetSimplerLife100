@@ -13,7 +13,7 @@ const supportTiers = [
     name: 'Starter',
     monthly: '$199',
     period: '/mo',
-    setup: '+ $500 onboarding',
+    onboarding: 'Self-serve onboarding included',
     description: 'Built-in support for firms up to ~30 people getting started on the platform.',
     features: [
       'All native capabilities included',
@@ -22,14 +22,14 @@ const supportTiers = [
       'Self-serve help + documentation',
     ],
     cta: 'Buy Starter',
-    link: 'https://buy.stripe.com/eVq5kC7qQ0909zV0sJ5os00',
+    link: 'https://buy.stripe.com/eVqbJ0aD29JA3bx6R75os03',
     popular: false,
   },
   {
     name: 'Growth',
     monthly: '$599',
     period: '/mo',
-    setup: '+ $1,500 onboarding',
+    onboarding: 'Guided onboarding included',
     description: 'For firms scaling from ~30 to 100 people with more automations in flight.',
     features: [
       'All native capabilities included',
@@ -39,14 +39,14 @@ const supportTiers = [
       'Onboarding to your first workflows',
     ],
     cta: 'Buy Growth',
-    link: 'https://buy.stripe.com/fZubJ0h1qbRI5jFcbr5os01',
+    link: 'https://buy.stripe.com/bJe3cubH6f3U3bxdfv5os04',
     popular: true,
   },
   {
     name: 'Enterprise',
     monthly: '$1,499',
     period: '/mo',
-    setup: 'onboarding included',
+    onboarding: 'Named onboarding included',
     description: 'For larger or regulated operations that need dedicated support and custom builds.',
     features: [
       'All native capabilities included',
@@ -110,7 +110,7 @@ function SupportPage() {
                     <span className="text-5xl font-black text-stone-900">{tier.monthly}</span>
                     <span className="text-xl text-stone-400 font-bold">{tier.period}</span>
                   </div>
-                  <p className="text-emerald-600 font-black mt-1">{tier.setup}</p>
+                  <p className="text-emerald-600 font-black mt-1">{tier.onboarding}</p>
                 </div>
                 <ul className="space-y-4 mb-10">
                   {tier.features.map((feature) => (

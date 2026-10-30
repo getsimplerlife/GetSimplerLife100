@@ -22,7 +22,8 @@ import { createHmac, timingSafeEqual } from "crypto";
  */
 
 /**
- * Plan purchases (owner 09-27 locked platform pricing; remapped 10-30).
+ * Plan purchases (owner 09-27 locked platform pricing; setup fees removed and
+ * links remapped 10-30).
  *
  * These are the THREE LIVE tier payment links — the only buy links on the
  * standard Stripe account (re-verified live 2026-10-30: exactly three payment
@@ -30,15 +31,31 @@ import { createHmac, timingSafeEqual } from "crypto";
  * resolves to a real plan record carrying its tier and product name, instead
  * of falling through to the generic branch with no tier.
  *
+ * SETUP FEE REMOVAL (owner 10-30): Stripe will not let you edit `line_items` on
+ * an existing payment link, so the pre-10-30 Starter/Growth links (which also
+ * carried a one-time setup price) were replaced by new monthly-only links. The
+ * old URLs stay in the map below as RECOGNISED ALIASES: an old link can still
+ * sit in a buyer's inbox or bookmark, and a purchase through it must still
+ * provision the right tier rather than resolving to nothing.
+ *
  * The retired per-employee links (3cI8wR88 / 5kQ6oJbl / aFa7sN60) do NOT exist
  * in the live account; they no longer map to anything (fail-closed) so nothing
  * can be recorded as a plan that was never sold.
  *
  * Detection is fail-closed: unknown links are NOT plans.
  */
-export const STARTER_PLAN_LINK = "https://buy.stripe.com/eVq5kC7qQ0909zV0sJ5os00";
-export const GROWTH_PLAN_LINK = "https://buy.stripe.com/fZubJ0h1qbRI5jFcbr5os01";
+export const STARTER_PLAN_LINK = "https://buy.stripe.com/eVqbJ0aD29JA3bx6R75os03";
+export const GROWTH_PLAN_LINK = "https://buy.stripe.com/bJe3cubH6f3U3bxdfv5os04";
 export const ENTERPRISE_PLAN_LINK = "https://buy.stripe.com/fZu28qfXmaNEdQb2AR5os02";
+
+/**
+ * Retired-but-recognised aliases: the pre-10-30 Starter/Growth links, which
+ * billed the monthly price PLUS a one-time setup fee. The site no longer serves
+ * them (lead deactivates them in Stripe after publish), but a checkout session
+ * created through one of them must still resolve to its tier.
+ */
+export const STARTER_LEGACY_PLAN_LINK = "https://buy.stripe.com/eVq5kC7qQ0909zV0sJ5os00";
+export const GROWTH_LEGACY_PLAN_LINK = "https://buy.stripe.com/fZubJ0h1qbRI5jFcbr5os01";
 
 export type PlanTier = "starter" | "growth" | "enterprise";
 
@@ -54,18 +71,24 @@ export const PLAN_SPECS: Record<PlanTier, PlanSpec> = {
   enterprise: { tier: "enterprise", productName: "Enterprise Plan" },
 };
 
-/** Constant map: canonical plan link → plan spec (tier + product name). */
+/**
+ * Constant map: plan link → plan spec (tier + product name). The current links
+ * are what the site serves; the legacy aliases are recognised so a purchase
+ * through an old link still provisions its tier instead of nothing.
+ */
 export const PLANS_BY_LINK: Record<string, PlanSpec> = {
   [STARTER_PLAN_LINK]: PLAN_SPECS.starter,
   [GROWTH_PLAN_LINK]: PLAN_SPECS.growth,
   [ENTERPRISE_PLAN_LINK]: PLAN_SPECS.enterprise,
+  [STARTER_LEGACY_PLAN_LINK]: PLAN_SPECS.starter,
+  [GROWTH_LEGACY_PLAN_LINK]: PLAN_SPECS.growth,
 };
 
 /**
- * Detect a plan purchase from the canonical Stripe payment links. Fail closed:
- * only the three canonical plan links (exact or with Stripe query params)
- * resolve to a plan — any other link returns null and falls through to the
- * generic branch.
+ * Detect a plan purchase from the tier payment links. Fail closed: only the
+ * mapped tier links (current links plus the recognised legacy aliases, exact or
+ * with Stripe query params) resolve to a plan — any other link returns null and
+ * falls through to the generic branch.
  */
 export function detectPlanType(paymentLink: string | undefined | null): PlanSpec | null {
   const link = paymentLink || "";
