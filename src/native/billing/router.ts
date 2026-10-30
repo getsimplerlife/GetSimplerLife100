@@ -48,6 +48,15 @@ export interface BillingSubscription {
   status: string | null;
   purchasedAt: string | null; // durable only
   currentPeriodEnd: string | null; // stripe only
+  /**
+   * Slice 139 — what the subscription state actually means for access:
+   * "active" | "at_risk" (a payment is failing but Stripe is still retrying —
+   * access is retained) | "revoked" (cancelled / unpaid). Null when unknown.
+   */
+  access: "active" | "at_risk" | "revoked" | null;
+  /** Set while a card is failing; cleared automatically by a later invoice.paid. */
+  dunning: { active: boolean; since: string | null; attemptCount: number } | null;
+  canceledAt: string | null;
 }
 
 export interface BillingInvoice {
@@ -137,9 +146,28 @@ function durableView(rows: any[]): NativeBillingView {
       tier: typeof last.tier === "string" ? last.tier : null,
       amount: centsToDollars(last.amount),
       interval: null,
-      status: typeof last.status === "string" ? last.status : "active",
+      // The row's own `status` is the ENTITLEMENT flag (it stays "active"
+      // during grace); `subscriptionStatus` is what the subscription is
+      // actually doing. Show the latter when the webhook has recorded it.
+      status: typeof last.subscriptionStatus === "string"
+        ? last.subscriptionStatus
+        : typeof last.status === "string" ? last.status : "active",
       purchasedAt: typeof last.purchasedAt === "string" ? last.purchasedAt : null,
       currentPeriodEnd: null,
+      // Slice 139 — the row now carries the real subscription state written by
+      // the Stripe lifecycle webhook (cancel / past_due / invoice.paid). Shown
+      // as-is: a cancelled tenant must never read "active" here.
+      access: last.subscriptionAccess === "active" || last.subscriptionAccess === "at_risk" || last.subscriptionAccess === "revoked"
+        ? last.subscriptionAccess
+        : null,
+      dunning: last.dunning && typeof last.dunning === "object"
+        ? {
+            active: last.dunning.active === true,
+            since: typeof last.dunning.since === "string" ? last.dunning.since : null,
+            attemptCount: Number.isFinite(Number(last.dunning.attemptCount)) ? Number(last.dunning.attemptCount) : 0,
+          }
+        : null,
+      canceledAt: typeof last.canceledAt === "string" ? last.canceledAt : null,
     };
   }
   const invoices = rows
@@ -194,6 +222,19 @@ async function stripeView(
       status: typeof sub.status === "string" ? sub.status : "unknown",
       purchasedAt: null,
       currentPeriodEnd: epochToIso(sub.current_period_end),
+      // Slice 139: the live Stripe status is authoritative here, so access is
+      // derived from it directly (past_due keeps access — Stripe is retrying).
+      access: (() => {
+        const s = String(sub.status || "").toLowerCase();
+        if (s === "active" || s === "trialing") return "active" as const;
+        if (s === "past_due") return "at_risk" as const;
+        if (s === "canceled" || s === "unpaid") return "revoked" as const;
+        return null;
+      })(),
+      dunning: String(sub.status || "").toLowerCase() === "past_due"
+        ? { active: true, since: null, attemptCount: 0 }
+        : null,
+      canceledAt: String(sub.status || "").toLowerCase() === "canceled" ? epochToIso(sub.canceled_at) : null,
     };
   }
 

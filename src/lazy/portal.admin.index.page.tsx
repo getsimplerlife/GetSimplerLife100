@@ -4,7 +4,7 @@ import { PortalEmptyState } from "~/components/PortalEmptyState";
 
 
 function AdminIndex() {
-  const [data, setData] = useState<{ users: any[]; audits: any[]; auditLogs: any[] } | null>(null);
+  const [data, setData] = useState<{ users: any[]; audits: any[]; auditLogs: any[]; subscriptions: any[] } | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
@@ -12,20 +12,26 @@ function AdminIndex() {
   useEffect(() => {
     (async () => {
       try {
-        const [usersRes, auditsRes, logsRes] = await Promise.all([
+        const [usersRes, auditsRes, logsRes, subsRes] = await Promise.all([
           fetch("/api/admin/users", { credentials: "include" }),
           // R4 (cleanup a): the anonymous purchases subPath never existed
           // (always an empty array). Read the REAL per-tenant purchase records instead.
           fetch("/api/purchases", { credentials: "include" }),
           fetch("/api/audit-logs", { credentials: "include" }),
+          // Slice 139: real per-tenant subscription state (cancelled / past_due
+          // / dunning) so the operator can see who has stopped paying instead of
+          // reading a permanent "Active".
+          fetch("/api/admin/subscriptions", { credentials: "include" }),
         ]);
         const usersJson = usersRes.ok ? await usersRes.json() : { data: [] };
         const auditsJson = auditsRes.ok ? await auditsRes.json() : { data: [] };
         const logsJson = logsRes.ok ? await logsRes.json() : { data: [] };
+        const subsJson = subsRes.ok ? await subsRes.json() : { data: [] };
         setData({
           users: usersJson.data || [],
           audits: auditsJson.data || [],
           auditLogs: logsJson.data || [],
+          subscriptions: subsJson.data || [],
         });
       } catch (e) {
         console.error("Failed to load admin data:", e);
@@ -55,6 +61,8 @@ function AdminIndex() {
   }
 
   const { users, audits, auditLogs } = data;
+  const subscriptions: any[] = data.subscriptions || [];
+  const attention = subscriptions.filter((s) => s && (s.access === "revoked" || s.access === "at_risk"));
 
   // Build a map of user_id -> purchases
   const purchasesByUser: Record<string, any[]> = {};
@@ -125,6 +133,50 @@ function AdminIndex() {
           <div className="text-3xl font-black text-amber-400">{totalRegistrations}</div>
           <div className="text-xs text-stone-400 font-bold mt-1 uppercase tracking-wider">Registrations</div>
         </div>
+      </div>
+
+      {/* Subscription state (slice 139) — real Stripe lifecycle state, not a
+          permanent "Active". Only tenants that need attention are listed. */}
+      <div className="bg-stone-900 rounded-2xl border border-stone-800 overflow-hidden">
+        <div className="p-5 border-b border-stone-800 flex items-center justify-between">
+          <h2 className="text-sm font-bold text-stone-400 uppercase tracking-wider">Subscription State</h2>
+          <span className="text-[10px] font-black text-stone-500 uppercase tracking-wider">
+            {subscriptions.length} on file
+          </span>
+        </div>
+        {attention.length === 0 ? (
+          <div className="p-5 text-stone-500 text-xs">
+            No cancelled subscriptions and no failing cards on file.
+          </div>
+        ) : (
+          <div className="divide-y divide-stone-800/60">
+            {attention.map((s: any) => (
+              <div key={s.tenantEmail} className="p-4 flex items-center justify-between gap-3 flex-wrap">
+                <div className="min-w-0">
+                  <div className="font-bold text-white text-sm truncate">{s.tenantEmail}</div>
+                  <div className="text-[11px] text-stone-500 font-semibold">
+                    {s.planName || "Platform subscription"}
+                    {s.canceledAt ? ` · cancelled ${new Date(s.canceledAt).toLocaleDateString()}` : ""}
+                    {s.dunning?.active
+                      ? ` · payment failed${s.dunning.since ? ` ${new Date(s.dunning.since).toLocaleDateString()}` : ""}${
+                          s.dunning.attemptCount > 1 ? ` (attempt ${s.dunning.attemptCount})` : ""
+                        }`
+                      : ""}
+                  </div>
+                </div>
+                <span
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                    s.access === "revoked"
+                      ? "bg-rose-950/40 text-rose-400 border border-rose-900/60"
+                      : "bg-amber-950/40 text-amber-400 border border-amber-900/60"
+                  }`}
+                >
+                  {s.access === "revoked" ? "access ended" : "at risk"}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Search */}

@@ -6,6 +6,15 @@ import { resolveDataDir, isInsidePublishTree, readJSON, readJSONLive, writeJSON,
 import { verifyStripeSignature, detectPlanType, detectPlanTierFromMetadata, buildPlanPurchase } from "./src/lib/stripe-webhook";
 import { buildOwnerSaleEvent, provisionAccountForPurchase, ownerSaleEmailBody, buyerConfirmationEmailBody, buyerConfirmationSubject, setPasswordLink, signInLink, normalizeSiteOrigin, DEFAULT_SITE_ORIGIN } from "./src/lib/purchase-sales-events";
 import {
+  applySubscriptionEvent,
+  isSubscriptionEventType,
+  lifecycleEventKey,
+  objectId as stripeObjectId,
+  stateSignature,
+  summarizeSubscriptions,
+  type LifecycleStore,
+} from "./src/lib/subscription-lifecycle";
+import {
   generateResetCode,
   newPasswordResetRecord,
   verifyPasswordReset,
@@ -48,6 +57,12 @@ const CHAT_SESSIONS_FILE = join(DATA_DIR, "chat_sessions.json");
 const OAUTH_STATES_FILE = join(DATA_DIR, "oauth_states.json");
 const TENANT_PURCHASES_FILE = join(DATA_DIR, "tenant_purchases.json");
 const SALES_EVENTS_FILE = join(DATA_DIR, "sales_events.json");
+// Slice 139 — subscription lifecycle. `tenant_subscriptions.json` is the
+// durable per-tenant subscription state (status / access / dunning);
+// `subscription_events.json` is the append-only audit trail that also carries
+// the idempotency keys, including events we could NOT attribute to a tenant.
+const TENANT_SUBSCRIPTIONS_FILE = join(DATA_DIR, "tenant_subscriptions.json");
+const SUBSCRIPTION_EVENTS_FILE = join(DATA_DIR, "subscription_events.json");
 
 const AUDIT_LOG_FILE = join(DATA_DIR, "tenant_audit_logs.json");
 
@@ -2340,6 +2355,119 @@ async function handlePurchaseCompleted(args: {
   }
 }
 
+/* ───────────────── SUBSCRIPTION LIFECYCLE (slice 139) ────────────────────
+ * Until this slice the webhook handled exactly ONE event
+ * (checkout.session.completed): a customer who cancelled kept reading
+ * `status: "Active"` forever, and a dead card changed nothing at all.
+ *
+ * These handlers apply the state machine in src/lib/subscription-lifecycle.ts
+ * (pure + unit-tested) to the real stores:
+ *   - tenant_subscriptions.json — per-tenant status / access / dunning state
+ *   - tenant_purchases.json     — the same status mirrored onto the purchase
+ *                                 rows the portal billing view already reads
+ *   - subscription_events.json  — append-only audit trail keyed by the
+ *                                 idempotency key (re-delivery applies once);
+ *                                 UNRESOLVED events land here too, so an event
+ *                                 we could not attribute is visible rather
+ *                                 than silently dropped
+ *   - the in-memory tenant gate — revoked → "Inactive", otherwise "Active"
+ *
+ * A tenant is NEVER guessed and NEVER created here: an event that cannot be
+ * attributed to exactly one existing tenant changes nothing and is audited.
+ */
+function readLifecycleStore(): LifecycleStore {
+  const purchasesRaw = readJSON(TENANT_PURCHASES_FILE);
+  const purchases = (purchasesRaw && typeof purchasesRaw === "object" && !Array.isArray(purchasesRaw))
+    ? purchasesRaw as Record<string, any[]>
+    : {};
+  const subsRaw = readJSON(TENANT_SUBSCRIPTIONS_FILE);
+  const subscriptions = (subsRaw && typeof subsRaw === "object" && !Array.isArray(subsRaw))
+    ? subsRaw
+    : {};
+  return { purchases, subscriptions };
+}
+
+/** Keep the audit trail bounded without losing recent history. */
+const MAX_SUBSCRIPTION_AUDIT_ENTRIES = 5000;
+function pruneSubscriptionAudit(audit: Record<string, any>): Record<string, any> {
+  const keys = Object.keys(audit);
+  if (keys.length <= MAX_SUBSCRIPTION_AUDIT_ENTRIES) return audit;
+  const ordered = keys
+    .map((k) => ({ k, at: String(audit[k]?.at || "") }))
+    .sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
+  const drop = ordered.slice(0, keys.length - MAX_SUBSCRIPTION_AUDIT_ENTRIES);
+  for (const d of drop) delete audit[d.k];
+  return audit;
+}
+
+interface SubscriptionApplyResult {
+  outcome: "applied" | "duplicate" | "unresolved" | "ignored";
+  reason?: string;
+  tenantEmail: string | null;
+}
+
+/**
+ * Apply ONE subscription-lifecycle event and persist the result.
+ *
+ * Ordering matters: the STATE writes happen first and the audit entry (which
+ * is also the idempotency marker) last. If any write throws, the caller's 500
+ * makes Stripe retry and the pure state machine is idempotent, so a retry can
+ * never double-apply — whereas writing the marker first could swallow a
+ * change that never actually landed.
+ */
+function applyStripeLifecycleEvent(input: {
+  type: string;
+  eventId?: string | null;
+  object: any;
+}): SubscriptionApplyResult {
+  const type = String(input.type || "");
+  const object = input.object || {};
+  const store = readLifecycleStore();
+
+  const auditRaw = readJSON(SUBSCRIPTION_EVENTS_FILE);
+  const audit = (auditRaw && typeof auditRaw === "object" && !Array.isArray(auditRaw))
+    ? auditRaw as Record<string, any>
+    : {};
+
+  // Idempotency: Stripe event ids are stable across redelivery. Without one we
+  // fall back to a key that includes the resulting-state signature, so an
+  // identical replay still applies exactly once.
+  const key = lifecycleEventKey({
+    type,
+    eventId: input.eventId,
+    objectId: stripeObjectId(object?.id),
+    signature: stateSignature(object, type),
+  });
+  if (audit[key]) {
+    console.log("[webhook] Duplicate " + type + " event (" + key + ") — already applied");
+    return { outcome: "duplicate", tenantEmail: audit[key]?.tenantEmail ?? null };
+  }
+
+  const result = applySubscriptionEvent({ store, type, eventId: input.eventId, object, auditKey: key });
+
+  if (result.applied && result.tenantEmail) {
+    writeJSON(TENANT_SUBSCRIPTIONS_FILE, result.store.subscriptions);
+    writeJSON(TENANT_PURCHASES_FILE, result.store.purchases);
+    // The in-memory gate follows the durable state: a revoked subscription
+    // loses monitoring/automation access; grace (at_risk) keeps it.
+    try {
+      const gateStatus = result.state?.access === "revoked" ? "Inactive" : "Active";
+      configureTenant?.(result.tenantEmail, { purchased: true, status: gateStatus });
+    } catch (e: any) {
+      console.log("[webhook] tenant gate update failed (non-fatal): " + (e?.message || String(e)));
+    }
+  }
+
+  audit[key] = result.audit;
+  writeJSON(SUBSCRIPTION_EVENTS_FILE, pruneSubscriptionAudit(audit));
+
+  return {
+    outcome: result.outcome,
+    reason: result.reason,
+    tenantEmail: result.tenantEmail,
+  };
+}
+
 function buildLeadEmail(email: string, toolName: string, result: any): { subject: string; body: string; matchedAgents: { name: string }[]; bestPlan: string; planLink: string } {
   // Cleanup (c): the AI-employee roster is retired — "matched" are now the
   // automation/workflow names the tool itself returned (no per-agent pricing,
@@ -2884,6 +3012,15 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
         }));
         return Response.json({ data: userList, total: userList.length });
       }
+      if (subPath === "subscriptions") {
+        // Slice 139 — the operator's honest view of subscription state. Reads
+        // the durable subscription store + purchase ledger ONLY; nothing is
+        // inferred or dressed up. A tenant whose card is failing shows
+        // `past_due` + dunning (access retained while Stripe retries); a
+        // cancelled tenant shows `canceled` + revoked access instead of the
+        // permanent "Active" this slice was built to end.
+        return Response.json({ data: summarizeSubscriptions(readLifecycleStore()) });
+      }
       if (subPath === "analytics") {
         // B1 (audit 10-23): same honest derivation as /api/data/analytics.
         return Response.json({ data: computePortalAnalyticsSnapshot() });
@@ -3161,6 +3298,29 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
         }
         const body = JSON.parse(rawBody);
         const eventType = body.type || "unknown";
+
+        // ── Slice 139: subscription lifecycle ──────────────────────────
+        // These four events are about OUR tier subscriptions (our Stripe
+        // account). Tenant-invoice events come from the TENANT'S own Stripe
+        // key on a different route — never mixed.
+        //
+        // Always a 200 here: an event we cannot attribute to exactly one
+        // tenant is recorded in the audit trail, and retrying it would never
+        // resolve it. A THROWN error still reaches the outer catch and 500s,
+        // so a genuine failure is retried by Stripe.
+        if (isSubscriptionEventType(eventType)) {
+          const applied = applyStripeLifecycleEvent({
+            type: eventType,
+            eventId: body.id || null,
+            object: body.data?.object || {},
+          });
+          console.log(
+            "[webhook] " + eventType + " -> " + applied.outcome +
+            (applied.tenantEmail ? " for " + applied.tenantEmail : " (no tenant)") +
+            (applied.reason ? " [" + applied.reason + "]" : ""),
+          );
+          return Response.json({ received: true, outcome: applied.outcome });
+        }
         // Handle checkout.session.completed
         if (eventType === "checkout.session.completed" || body.data?.object?.object === "checkout.session") {
           const session = body.data?.object || body;
@@ -3196,7 +3356,16 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
           if (planSpec && customerEmail) {
             const purchases = readJSON(TENANT_PURCHASES_FILE);
             const userPurchases = purchases[customerEmail] || [];
-            userPurchases.push(buildPlanPurchase(planSpec, amountTotal, session.id));
+            // Slice 139: stamp the Stripe customer + subscription ids onto the
+            // purchase row. Subscription lifecycle events carry ONLY those ids
+            // (no email), so this is what lets a later cancellation resolve to
+            // the right tenant with certainty instead of guessing.
+            const planPurchase: any = buildPlanPurchase(planSpec, amountTotal, session.id);
+            const sessionCustomerId = stripeObjectId(session.customer);
+            const sessionSubscriptionId = stripeObjectId(session.subscription);
+            if (sessionCustomerId) planPurchase.stripeCustomerId = sessionCustomerId;
+            if (sessionSubscriptionId) planPurchase.stripeSubscriptionId = sessionSubscriptionId;
+            userPurchases.push(planPurchase);
             purchases[customerEmail] = userPurchases;
             writeJSON(TENANT_PURCHASES_FILE, purchases);
             configureTenant!(customerEmail, { purchased: true, status: "Active" });
@@ -3222,6 +3391,10 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
               id: "purchase-" + Math.random().toString(36).substr(2, 9),
               amount: amountTotal,
               stripeSessionId: session.id || "unknown",
+              // Slice 139: same id stamping as the plan branch, so subscription
+              // lifecycle events can resolve this tenant too.
+              ...(stripeObjectId(session.customer) ? { stripeCustomerId: stripeObjectId(session.customer) } : {}),
+              ...(stripeObjectId(session.subscription) ? { stripeSubscriptionId: stripeObjectId(session.subscription) } : {}),
               status: "active",
               purchasedAt: new Date().toISOString(),
             });

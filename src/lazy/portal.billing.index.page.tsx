@@ -17,6 +17,11 @@ interface BillingSubscription {
   status: string | null;
   purchasedAt: string | null;
   currentPeriodEnd: string | null;
+  // Slice 139 — real subscription lifecycle state written by the Stripe
+  // webhook (cancel / failed card / recovery). Null when we do not know.
+  access?: "active" | "at_risk" | "revoked" | null;
+  dunning?: { active: boolean; since: string | null; attemptCount: number } | null;
+  canceledAt?: string | null;
 }
 interface NativeBillingView {
   source: "stripe" | "durable" | "none";
@@ -81,9 +86,23 @@ function BillingPage() {
                 {sub.currentPeriodEnd ? ` · renews ${fmtDate(sub.currentPeriodEnd)}` : ""}
                 {sub.purchasedAt ? ` · on file since ${fmtDate(sub.purchasedAt)}` : ""}
               </p>
+              {/* Slice 139 — say what the state actually IS. A cancelled plan
+                  or a failing card must never read "active" here. */}
+              {sub.access === "revoked" && (
+                <p className="text-rose-400 text-xs font-bold mt-2">
+                  Subscription {sub.status === "unpaid" ? "unpaid" : "cancelled"}
+                  {sub.canceledAt ? ` on ${fmtDate(sub.canceledAt)}` : ""} — access has ended.
+                </p>
+              )}
+              {sub.access === "at_risk" && sub.dunning?.active && (
+                <p className="text-amber-400 text-xs font-bold mt-2">
+                  Payment failed{sub.dunning.since ? ` on ${fmtDate(sub.dunning.since)}` : ""}
+                  {sub.dunning.attemptCount > 1 ? ` (attempt ${sub.dunning.attemptCount})` : ""} — access continues while the card is retried.
+                </p>
+              )}
               {billing?.source === "durable" && (
                 <p className="text-stone-600 text-[11px] mt-2">
-                  Recorded from your Stripe checkout. Live renewal status appears here once secure Stripe billing access is enabled.
+                  Recorded from your Stripe checkout and the Stripe billing events on your account.
                 </p>
               )}
             </div>

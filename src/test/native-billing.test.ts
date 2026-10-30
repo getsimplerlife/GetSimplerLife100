@@ -79,6 +79,11 @@ describe("native billing (P1-1) — GET-only honest read", () => {
       status: "active",
       purchasedAt: "2026-09-01T00:00:00.000Z",
       currentPeriodEnd: null,
+      // Slice 139: the row carries no lifecycle state yet, so the view reports
+      // nulls rather than inventing an access/dunning claim.
+      access: null,
+      dunning: null,
+      canceledAt: null,
     });
     expect(billing.invoices).toHaveLength(2);
     const first = billing.invoices[0]; // newest first
