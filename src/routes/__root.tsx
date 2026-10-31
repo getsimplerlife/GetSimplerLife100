@@ -10,6 +10,7 @@ import type { ReactNode } from "react";
 
 import "~/styles/app.css";
 import { resolvePageMeta } from "~/lib/site-meta";
+import { NotFoundPage } from "~/components/NotFoundPage";
 
 function ErrorComponent({ error, info }: { error: Error; info?: { componentStack: string } }) {
   // Log to window.__errors so the debugger in index.html captures it
@@ -56,7 +57,9 @@ function ErrorComponent({ error, info }: { error: Error; info?: { componentStack
 }
 
 export const Route = createRootRoute({
-  notFoundComponent: () => <div>Page not found</div>,
+  // SLICE 156 — a real page for a URL that matches no route, in the site's own
+  // visual language (the server answers 404 for the same path).
+  notFoundComponent: NotFoundPage,
   errorComponent: ErrorComponent,
   component: RootComponent,
 });

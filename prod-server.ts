@@ -34,6 +34,9 @@ import { makeEncryptHook } from "./scripts/lib/backup-crypto";
 import { uploadVerifiedRun } from "./scripts/lib/r2-backup";
 import { acquireLock, daemonStatus, runLockPath } from "./scripts/lib/backup-daemon";
 import { peekUploadPrefix } from "./src/lib/r2-upload";
+// SLICE 156 — the page-side 404 is decided from the router's own route table.
+import { matchesDeclaredRoute, looksLikeStaticFile, normalizeRoutePath } from "./src/lib/route-match";
+import { loadDeclaredRoutePatterns } from "./src/lib/route-table";
 import {
   backupFailureRecorder,
   backupSchedulerDisabled,
@@ -631,6 +634,106 @@ serve({
 });
 
 type ServerPeerSource = Parameters<typeof peerAddressFrom>[0];
+
+
+/**
+ * SLICE 156 — is this pathname a page that no route declares?
+ *
+ * THE ANSWER COMES FROM THE ROUTER, NOT FROM THE FILESYSTEM. `route-table.ts`
+ * reads `router.routesByPath` out of the generated tree, so a route that is
+ * rendered client-side and has no file of its own still counts as real, and a
+ * file that happens to sit in the repo root can never invent a page.
+ *
+ * FAIL OPEN when the table is unavailable (empty): a tree whose generator never
+ * ran must keep the old SPA behaviour rather than 404 the whole site. That
+ * condition is logged by route-table.ts, because it means the build is broken.
+ */
+async function isUnknownPagePath(pathname: string): Promise<boolean> {
+  const patterns = await loadDeclaredRoutePatterns();
+  if (patterns.length === 0) return false;
+  return !matchesDeclaredRoute(pathname, patterns);
+}
+
+/**
+ * SLICE 156 — the SPA shell, built in ONE place.
+ *
+ * The 404 must serve the same shell a real page gets: nonce-tagged inline
+ * scripts (nonce-based CSP), the service-worker kill switch, and cache-busted
+ * asset URLs. Returns null when the build has not produced dist/index.html.
+ */
+function buildShellHtml(nonce: string): string | null {
+  const indexPath = join(DIST_CLIENT, "index.html");
+  if (!existsSync(indexPath)) return null;
+  let html = readFileSync(indexPath, "utf-8");
+  // Nonce-based CSP (owner hard-bar follow-up): every inline script below
+  // carries a per-response nonce so script-src can drop 'unsafe-inline'
+  // for HTML. Tag the template's inline scripts (they have no `src=`).
+  html = html.replace(/<script(?![^>]*\bsrc=)[^>]*>/g, '<script nonce="' + nonce + '">');
+  // Kill all service workers immediately on every page load.
+  // This breaks the stale-SW trap where old SWs intercept requests and
+  // serve cached JS/CSS from previous deploys, preventing the new SW
+  // from ever loading. Runs before any other script on the page.
+  html = html.replace("</head>", `<script nonce="${nonce}">if("serviceWorker" in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(s=>s.unregister()));caches.keys().then(ks=>Promise.all(ks.map(k=>caches.delete(k))))}</script></head>`);
+  // Cache-bust asset URLs to force CDN revalidation on new deploys
+  html = html.replace(
+    /(src|href)="(\/assets\/[^"]+)"/g,
+    `$1="$2?_v=${BUILD_ID}"`
+  );
+  return html;
+}
+
+/**
+ * SLICE 156 — the honest answer for a URL that matches no route: status 404
+ * with a real page behind it.
+ *
+ * The body is the SPA shell (so the client router renders the not-found page
+ * and client-side navigation still works from there). When SSR is ready the
+ * not-found page is rendered into the shell, so the visitor sees it on first
+ * paint and a plain HTTP probe can read it too.
+ *
+ * `X-Robots-Tag: noindex` keeps junk URLs out of search results — the other
+ * half of the reason this slice exists.
+ */
+async function notFoundResponse(pathname: string): Promise<Response> {
+  const noIndex = { "X-Robots-Tag": "noindex", "Cache-Control": "no-store, must-revalidate" };
+  // A missing FILE is still a 404, but it is not a page: never hand a browser
+  // that asked for a script or an image an HTML document.
+  if (looksLikeStaticFile(pathname)) {
+    return new Response("Not found\n", {
+      status: 404,
+      headers: { ...noIndex, "Content-Type": "text/plain; charset=utf-8" },
+    });
+  }
+  const nonce = crypto.randomUUID();
+  let html = buildShellHtml(nonce);
+  if (html === null) {
+    return new Response("Not found\n", {
+      status: 404,
+      headers: { ...noIndex, "Content-Type": "text/plain; charset=utf-8" },
+    });
+  }
+  if (ssrReady) {
+    try {
+      const { renderPage } = await import("./src/entry-server");
+      const result = await renderPage(normalizeRoutePath(pathname));
+      if (result.html && !result.html.includes("SSR fallback")) {
+        html = html.replace('<div id="root"></div>', `<div id="root">${result.html}</div>`);
+      }
+    } catch (e: any) {
+      // The shell alone is still a correct 404 — the client renders the page.
+      console.log("[404] SSR of the not-found page skipped:", e?.message || String(e));
+    }
+  }
+  return new Response(html, {
+    status: 404,
+    headers: {
+      ...noIndex,
+      "Content-Type": "text/html; charset=utf-8",
+      "Content-Security-Policy": cspWithNonce(nonce),
+    },
+  });
+}
+
 
 async function handleFetch(req: Request, server?: ServerPeerSource): Promise<Response> {
     const url = new URL(req.url);
@@ -3995,6 +4098,21 @@ OAUTH_${provUpper}_CLIENT_SECRET=your_client_secret</pre><p style="font-size:0.8
     // portal.crm.index.tsx and portal.erp.index.tsx render upgrade states when
     // no slots are available. The server must serve the SPA, not a 402 JSON block.
 
+    // ── SLICE 156 — a real 404 for a page path no route declares ─────────────
+    // Until this slice the fallback below answered 200 for ANY path it had no
+    // handler for: a mistyped link looked like a working page, search engines
+    // could index junk URLs, and a broken link never reported a problem to us.
+    // The decision is a ROUTE-TABLE match (src/lib/route-match.ts +
+    // src/lib/route-table.ts), never a filesystem check — several routes are
+    // client-rendered and have no file of their own, and a route file name is
+    // not its URL. Every handler above (the unauthenticated public lanes
+    // /api/*, the invoice/survey/booking share links, the webhooks, and every
+    // declared page route, portal routes included) returns before this line, so
+    // nothing that works today can be turned into a 404 here.
+    if (await isUnknownPagePath(pathname)) {
+      return notFoundResponse(pathname);
+    }
+
       // SSR mode: try server-side rendering first, fall back to SPA
       try {
         const indexPath = join(DIST_CLIENT, "index.html");
@@ -4002,22 +4120,14 @@ OAUTH_${provUpper}_CLIENT_SECRET=your_client_secret</pre><p style="font-size:0.8
           return new Response("SPA not built — run `bun run build` first", { status: 503 });
         }
 
-        let html = readFileSync(indexPath, "utf-8");
         // Nonce-based CSP (owner hard-bar follow-up): every inline script below
         // carries a per-response nonce so script-src can drop 'unsafe-inline'
         // for HTML. Tag the template's inline scripts (they have no `src=`).
         const nonce = crypto.randomUUID();
-        html = html.replace(/<script(?![^>]*\bsrc=)[^>]*>/g, '<script nonce="' + nonce + '">');
-        // Kill all service workers immediately on every page load.
-        // This breaks the stale-SW trap where old SWs intercept requests and
-        // serve cached JS/CSS from previous deploys, preventing the new SW
-        // from ever loading. Runs before any other script on the page.
-        html = html.replace("</head>", `<script nonce="${nonce}">if("serviceWorker" in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(s=>s.unregister()));caches.keys().then(ks=>Promise.all(ks.map(k=>caches.delete(k))))}</script></head>`);
-        // Cache-bust asset URLs to force CDN revalidation on new deploys
-        html = html.replace(
-          /(src|href)="(\/assets\/[^"]+)"/g,
-          `$1="$2?_v=${BUILD_ID}"`
-        );
+        // SLICE 156 — the shell (nonce-tagged inline scripts, the service-worker
+        // kill switch and the asset cache-bust) is built in ONE place now, because
+        // the 404 response below must serve exactly the same shell.
+        let html = buildShellHtml(nonce)!;
 
         // Try SSR rendering (skip if module not yet preloaded — serve static HTML for fast first response)
         if (!ssrReady) {
