@@ -13,6 +13,16 @@
  * `x-forwarded-for` is only consulted when the socket peer is a trusted proxy —
  * see `resolveClientKey`.
  *
+ * SLICE 151b — what this middleware deliberately does NOT do: the per-account
+ * budget. That dimension needs the submitted address, which lives in the request
+ * BODY, and a connect middleware cannot read a body without consuming the stream
+ * a downstream handler still needs. It is enforced in `prod-server.ts` at the
+ * three handlers that parse an address (`/api/login`, the no-JS `/login` POST and
+ * `/api/request-password-reset`), which is also the only place it can be checked
+ * BEFORE a password is verified or a reset code is minted. The client dimension
+ * below still applies on this listener, and the debug line (RATE_LIMIT_DEBUG=1)
+ * is emitted here exactly as it is there.
+ *
  * Deliberately inert in tests (the middleware is unit-tested directly) and
  * unable to break the dev server: any unexpected error calls `next()`.
  */

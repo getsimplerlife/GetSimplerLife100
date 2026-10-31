@@ -27,7 +27,7 @@ import { startHealthHeartbeat, probeProvider } from "./src/lib/connection-health
 import { sweepExpiredOAuthStates, OAUTH_STATE_TTL_MS } from "./src/lib/oauth-state-sweeper";
 import { acquireSingleInstanceOwnership, portAlreadyBound } from "./src/lib/single-instance";
 import { isOwnerUser, LEGACY_OWNER_EMAIL } from "./src/lib/user-roles";
-import { guardRequest, peerAddressFrom, describeTrustedProxies } from "./src/lib/rate-limit";
+import { guardRequest, guardAccount, clearAccountBudget, peerAddressFrom, describeTrustedProxies } from "./src/lib/rate-limit";
 import { readBackupStatus, countStoreEntries, readBackupFreshness, resolveStaleFactor } from "./src/lib/backup-status";
 import { runBackup } from "./scripts/lib/backup-core";
 import { makeEncryptHook } from "./scripts/lib/backup-crypto";
@@ -153,6 +153,9 @@ async function handleLogin(body: any): Promise<Response> {
   if (!valid) {
     return Response.json({ error: "Invalid email or password" }, { status: 401 });
   }
+  // Slice 151b: proving the password clears this account's failure budget, so a
+  // user who mistyped their way to the edge of the limit is not held there.
+  clearAccountBudget("login", email);
   const token = generateSessionToken();
   const sessions = readJSON(SESSIONS_FILE);
   sessions[token] = { email, createdAt: Date.now() };
@@ -648,11 +651,17 @@ async function handleFetch(req: Request, server?: ServerPeerSource): Promise<Res
         if (!email || !password) {
           return new Response(null, { status: 302, headers: { Location: "/login?error=Email+and+password+required" } });
         }
+        // Slice 151b — the per-account dimension. This no-JS fallback verifies a
+        // password exactly like /api/login, so it carries the same account
+        // budget; otherwise it would be the cheaper door to guess through.
+        const accountBlocked = guardAccount({ lane: "login", email, method: req.method, pathname });
+        if (accountBlocked) return accountBlocked;
         const users = readJSON(USERS_FILE);
         const user = users[email];
         if (!user || !(await compare(password, user.password))) {
           return new Response(null, { status: 302, headers: { Location: "/login?error=Invalid+credentials" } });
         }
+        clearAccountBudget("login", email);
         const token = generateSessionToken();
         const sessions = readJSON(SESSIONS_FILE);
         sessions[token] = { email, createdAt: Date.now() };
@@ -670,8 +679,14 @@ async function handleFetch(req: Request, server?: ServerPeerSource): Promise<Res
     }
 
     if (pathname === "/api/login" && req.method === "POST") {
-      try { const body = await req.json(); return await handleLogin(body); }
-      catch { return Response.json({ error: "Invalid request" }, { status: 400 }); }
+      try {
+        const body = await req.json();
+        // Slice 151b — second dimension: the ACCOUNT, not the address. Ten bad
+        // attempts per account per 15 minutes, whatever address they come from.
+        const accountBlocked = guardAccount({ lane: "login", email: body?.email, method: req.method, pathname });
+        if (accountBlocked) return accountBlocked;
+        return await handleLogin(body);
+      } catch { return Response.json({ error: "Invalid request" }, { status: 400 }); }
     }
     if (pathname === "/api/register" && req.method === "POST") {
       try { const body = await req.json(); return await handleRegister(body); }
@@ -769,6 +784,11 @@ async function handleFetch(req: Request, server?: ServerPeerSource): Promise<Res
         const body = await req.json();
         const email = String(body?.email || "").toLowerCase().trim();
         if (!email) return Response.json({ error: "Email required" }, { status: 400 });
+        // Slice 151b — second dimension: five reset mails per account per hour,
+        // no matter how many source addresses ask. Checked BEFORE the store is
+        // read or any code is minted, so a distributed flood mints nothing.
+        const accountBlocked = guardAccount({ lane: "reset", email, method: req.method, pathname });
+        if (accountBlocked) return accountBlocked;
         const users = readJSON(USERS_FILE);
         const resets = readJSON(PASSWORD_RESETS_FILE);
         const now = Date.now();
