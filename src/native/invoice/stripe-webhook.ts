@@ -443,6 +443,16 @@ async function handleVerified(req: Request, ctx: InvoiceWebhookCtx): Promise<Res
     return jsonResponse(400, { error: "This workspace's payment webhook is not configured." });
   }
 
+  // Refuse an oversized body BEFORE buffering it. `req.text()` materialises the
+  // whole payload, so a post-read length check alone lets an unauthenticated
+  // caller make this process hold an arbitrarily large body first — and this
+  // lane is reachable by anyone who guesses a URL, not just by Stripe. The
+  // header is only advisory, so the post-read check below remains the real
+  // limit rather than being replaced by this one.
+  const declaredLength = Number(req.headers.get("content-length") ?? "");
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_WEBHOOK_BODY_BYTES) {
+    return jsonResponse(413, { error: "Payload too large" });
+  }
   const raw = await req.text();
   if (raw.length > MAX_WEBHOOK_BODY_BYTES) return jsonResponse(413, { error: "Payload too large" });
 

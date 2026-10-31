@@ -696,3 +696,38 @@ describe("wiring", () => {
     }
   });
 });
+
+// ── (m) an oversized body is refused BEFORE it is buffered ──────────────────
+// This lane is reachable by anyone who guesses a URL, not only by Stripe.
+// `req.text()` materialises the entire payload, so the length check must not be
+// the only guard — otherwise an anonymous caller can make the process hold an
+// arbitrarily large body before we ever look at its size.
+describe("(m) an oversized body is refused before it is buffered", () => {
+  it("answers 413 from the declared content-length and never reads the body", async () => {
+    await connect(T1, KEY_A, WHSEC_A);
+    const path = await webhookPath(T1);
+    let bodyRead = false;
+    const fake = {
+      method: "POST",
+      url: `http://native.test${path}`,
+      headers: new Headers({ "content-length": String(256 * 1024 + 1) }),
+      text: async () => {
+        bodyRead = true;
+        return "{}";
+      },
+    } as unknown as Request;
+    const res = await handleTenantInvoiceStripeWebhook(fake, { dataDir: dir });
+    expect(res.status).toBe(413);
+    expect(bodyRead).toBe(false);
+    expect(paymentAudit(T1)).toHaveLength(0);
+  });
+
+  it("still refuses an oversized body when the header understates it", async () => {
+    await connect(T1, KEY_A, WHSEC_A);
+    const path = await webhookPath(T1);
+    const big = "x".repeat(256 * 1024 + 10);
+    const res = await postWebhook(path, big, sign(big, WHSEC_A));
+    expect(res.status).toBe(413);
+    expect(paymentAudit(T1)).toHaveLength(0);
+  });
+});
