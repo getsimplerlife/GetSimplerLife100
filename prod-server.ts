@@ -4040,7 +4040,11 @@ OAUTH_${provUpper}_CLIENT_SECRET=your_client_secret</pre><p style="font-size:0.8
     }
     if (pathname.startsWith("/assets/") || pathname.startsWith("/_build/") ||
         pathname === "/manifest.json" || pathname === "/sw.js" || pathname.startsWith("/icon-") ||
-        pathname === "/robots.txt" || pathname === "/sitemap.xml" || pathname.startsWith("/videos/")) {
+        pathname === "/robots.txt" || pathname === "/sitemap.xml" || pathname.startsWith("/videos/") ||
+        // Slice 157: the homepage hero shows a real screenshot of our own portal.
+        // The file builds into dist/product/, but without this prefix the server
+        // answered 404 and the page rendered the alt text instead of the panel.
+        pathname.startsWith("/product/")) {
       const f = Bun.file(join(DIST_CLIENT, pathname));
       if (await f.exists()) {
         // Hashed assets (fingerprinted JS/CSS): cache long-term

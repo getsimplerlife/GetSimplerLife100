@@ -145,7 +145,7 @@ function pidIsAlive(pid: number): boolean {
  *  while the marker is recent AND the spawner is still alive. */
 export function writeBootMarker(dir: string): void {
   try {
-    writeFileSync(join(dir, BOOT_MARKER_FILE), JSON.stringify({ pid: process.pid, bootTime: Date.now() }));
+    writeFileSync(join(dir, BOOT_MARKER_FILE), JSON.stringify({ pid: process.pid, runnerPid: process.ppid, bootTime: Date.now() }));
   } catch { /* best effort — a missing marker only disables reuse, never breaks a run */ }
 }
 
@@ -156,9 +156,18 @@ export function isBootMarkerFresh(dir: string, now = Date.now()): boolean {
   try {
     const p = join(dir, BOOT_MARKER_FILE);
     if (!existsSync(p)) return false;
-    const { pid, bootTime } = JSON.parse(readFileSync(p, "utf-8")) as { pid?: number; bootTime?: number };
+    const { pid, bootTime, runnerPid } = JSON.parse(readFileSync(p, "utf-8")) as {
+      pid?: number;
+      runnerPid?: number;
+      bootTime?: number;
+    };
     if (typeof bootTime !== "number" || !Number.isFinite(bootTime)) return false;
     if (now - bootTime > REUSE_GRACE_MS) return false;
+    // Same run: the server was booted by a sibling worker under the SAME vitest
+    // runner this process is running under. That spawning worker may already be
+    // gone (it finished its files), which is normal — the server is still ours
+    // and killing it mid-run is what produced the :3999 cascade.
+    if (typeof runnerPid === "number" && runnerPid === process.ppid) return true;
     if (!pidIsAlive(pid as number)) return false;
     return true;
   } catch { return false; }
@@ -417,7 +426,14 @@ async function spawnServerOnce(): Promise<void> {
   };
   childLog = [];
   child = spawnTestServerWithWatchdog({
-    supervisorPid: process.pid,
+    // The RUNNER, not this worker (slice 157). One worker spawns the server and
+    // may finish its last file while a peer worker is still mid-file. When the
+    // watchdog was tied to the spawning WORKER, that worker's teardown SIGKILLed
+    // the shared server under the peer's feet: "connect ECONNREFUSED :3999" and
+    // "other side closed" across every file that talks to it, in two consecutive
+    // full runs. Tying the watchdog to the vitest runner keeps the server alive
+    // for the whole run and still reaps it when the run ends.
+    supervisorPid: process.ppid || process.pid,
     env,
     cwd: process.cwd(),
   });
