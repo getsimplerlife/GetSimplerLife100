@@ -68,10 +68,15 @@ export interface ApprovalGateOutcome {
 // state (create/update/delete/send/upload/copy/move/write/post/set/mark/
 // complete/void/trash/ingest/trigger/submit/approve/reject/cancel/add/edit/
 // archive/restore/rename/invite/assign/schedule/execute/import/export/start/
-// stop/pause/resume/open/close/accept/decline) is a WRITE and needs approval.
+// stop/pause/resume/open/close/accept/decline/revoke/rotate) is a WRITE and
+// needs approval. `revoke`/`rotate` were ADDED by slice 152: an invoice share
+// link is a bearer credential, so killing or reissuing it is a state mutation —
+// without these verbs revokeInvoiceShare/rotateInvoiceShare would classify as
+// READS and BYPASS the Approval Queue (the same fail-open class as pull/map/
+// commit in 5.1).
 // Everything else (get/list/search/query/read/fetch/check/probe/health/
 // analyze/test/describe/show/download/view/status...) is a READ and passes.
-const WRITE_VERB = /^(create|update|delete|remove|send|upload|copy|move|write|post|set|mark|merge|complete|void|trash|ingest|trigger|submit|approve|reject|cancel|add|edit|archive|restore|rename|invite|assign|schedule|execute|generate|import|export|extract|start|stop|pause|resume|open|close|accept|decline|reopen|publish|confirm|request|run|activate|ask|attest|pull|map|commit)/i;
+const WRITE_VERB = /^(create|update|delete|remove|send|upload|copy|move|write|post|set|mark|merge|complete|void|trash|ingest|trigger|submit|approve|reject|cancel|add|edit|archive|restore|rename|invite|assign|schedule|execute|generate|import|export|extract|start|stop|pause|resume|open|close|accept|decline|reopen|publish|confirm|request|run|activate|ask|attest|pull|map|commit|revoke|rotate)/i;
 const READ_VERB = /^(get|list|search|query|read|fetch|check|probe|health|analyze|test|describe|show|download|view|status|find|count|exists|verify|validate|preview)/i;
 
 /** True when an action name mutates provider state and must be gated. */

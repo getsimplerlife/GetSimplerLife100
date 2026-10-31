@@ -87,6 +87,13 @@ export interface InvoiceRecord {
    * public route serves ONLY invoices whose status is "sent".
    */
   shareSlug: string | null;
+  /**
+   * Set when the tenant REVOKED the public share link (slice 152). The link is
+   * dead from that moment (the slug is unregistered, so the public route 404s)
+   * and `shareSlug` returns to null. This is NOT a delete and NOT a status
+   * change — `sent` stays terminal and the invoice record is otherwise intact.
+   */
+  shareRevokedAt?: string;
   /** Latest delivery attempt (null until the first send). */
   lastAttempt: InvoiceDeliveryAttempt | null;
   /**
@@ -117,10 +124,16 @@ export interface InvoiceMutation {
 
 /**
  * Gated-write ops. ACTION NAMES are verb-first (createInvoice/generateInvoice/
- * sendInvoice/deleteInvoice) so the Approval Queue isWriteAction classifies
- * them as writes — same rule as 2.1/2.3/2.4 (never a verb-last name).
+ * sendInvoice/deleteInvoice/revokeInvoiceShare/rotateInvoiceShare) so the
+ * Approval Queue isWriteAction classifies them as writes — same rule as
+ * 2.1/2.3/2.4 (never a verb-last name).
+ *
+ * `revokeShare` / `rotateShare` (slice 152) are the share-link lifecycle: the
+ * public slug is a BEARER credential, so killing it (revoke) or replacing it
+ * (rotate) is a write that must ride the Approval Queue. Neither touches the
+ * invoice STATUS — `sent` stays terminal; revoke is not a delete.
  */
-export type InvoiceOp = "create" | "generate" | "send" | "delete";
+export type InvoiceOp = "create" | "generate" | "send" | "delete" | "revokeShare" | "rotateShare";
 
 export interface PendingInvoiceWrite {
   id: string; // ipw_<random>

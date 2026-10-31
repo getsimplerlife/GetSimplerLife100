@@ -145,7 +145,11 @@ export function applyInvoiceMutation(
   mutation: {
     status?: InvoiceStatus;
     docId?: string;
-    shareSlug?: string;
+    /** `null` RETIRES the public link (slice 152 revoke) — the record then
+     *  carries no slug at all, exactly as before it was minted. */
+    shareSlug?: string | null;
+    /** Stamped when a tenant revokes the public link (slice 152). */
+    shareRevokedAt?: string;
     customerEmail?: string;
     lastAttempt?: InvoiceDeliveryAttempt;
     /** Truthful "a payment was STARTED" stamp — never a "paid" claim. */
@@ -166,6 +170,7 @@ export function applyInvoiceMutation(
       : {}),
     ...(mutation.docId !== undefined && mutation.docId !== null ? { docId: mutation.docId } : {}),
     ...(mutation.shareSlug !== undefined ? { shareSlug: mutation.shareSlug } : {}),
+    ...(mutation.shareRevokedAt !== undefined ? { shareRevokedAt: mutation.shareRevokedAt } : {}),
     ...(mutation.customerEmail !== undefined ? { customerEmail: mutation.customerEmail } : {}),
     ...(mutation.lastAttempt !== undefined ? { lastAttempt: mutation.lastAttempt } : {}),
     ...(mutation.paymentStartedAt !== undefined ? { paymentStartedAt: mutation.paymentStartedAt } : {}),
