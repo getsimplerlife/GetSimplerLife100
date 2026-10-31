@@ -434,10 +434,12 @@ async function spawnServerOnce(): Promise<void> {
     // full runs. Tying the watchdog to the vitest runner keeps the server alive
     // for the whole run and still reaps it when the run ends.
     supervisorPid: process.ppid || process.pid,
+    // (see runnerSupervisedServer below — this worker no longer kills it)
     env,
     cwd: process.cwd(),
   });
   child.on("exit", (code, sig) => { childLog.push(`[test-server] exited code=${code} sig=${sig}`); });
+  runnerSupervisedServer = true;
   try {
     await waitForHealth();
   } catch (e: any) {
@@ -560,7 +562,15 @@ export function stopTestServer(): void {
   killTestServerGroup(child);
   child = null;
 }
-process.on("exit", () => killTestServerGroup(child));
+// Slice 157: the default spawned server is supervised by the RUNNER, not by
+// this worker. Killing it here — when the worker that happened to spawn it
+// finishes its last file — was still taking the shared :3999 server down under
+// a peer worker mid-file. The detached watchdog reaps it when the run ends.
+// Explicit stopTestServer() and the hardening fixtures' own kills are untouched.
+let runnerSupervisedServer = false;
+process.on("exit", () => {
+  if (!runnerSupervisedServer) killTestServerGroup(child);
+});
 
 // Workers are often terminated by SIGNAL (vitest pool teardown sends SIGTERM
 // after the run; Ctrl+C sends SIGINT). Exit handlers never run on signal
@@ -575,7 +585,7 @@ process.on("exit", () => killTestServerGroup(child));
 const TERMINATION_SIGNALS = ["SIGTERM", "SIGINT", "SIGHUP"] as const;
 for (const sig of TERMINATION_SIGNALS) {
   const handler = () => {
-    killTestServerGroup(child);
+    if (!runnerSupervisedServer) killTestServerGroup(child);
     process.removeListener(sig, handler);
     process.kill(process.pid, sig);
   };
