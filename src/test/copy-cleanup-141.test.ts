@@ -1,12 +1,21 @@
 /**
- * copy-cleanup-141.test.ts — SLICE 141 copy guard (2026-10-30).
+ * copy-cleanup-141.test.ts — SLICE 141 copy guard (2026-10-30), widened by SLICE 148.
  *
  * WHY THIS FILE EXISTS: an earlier "copy clean" verdict passed while the LIVE
  * site still said "Blueprint" on /case-studies, /industries/* and /resources/*,
  * and still sold the provider-reconnect program the owner retired on 10-20.
  * The old greps only ever scanned `src/lib` — a directory that holds almost no
- * customer copy. So this guard scans the directories a buyer actually reads:
- * `src/components`, `src/content`, `src/routes`.
+ * customer copy. So this guard scans the directories a buyer actually reads.
+ *
+ * SLICE 148 added the four roots the slice-141 version never looked at —
+ * `src/lazy`, `src/tools`, `src/api`, `src/native` — because that gap is
+ * exactly why /integrations kept shipping "[ REAL-TIME BLUEPRINT CONSOLE ]",
+ * "simulate the S1 Agent executing live workloads" and an "Automation
+ * Feasibility Blueprint … $5,000.00" line item while this test was green.
+ * Seven roots now; if a copy directory is ever added under `src/`, add it here.
+ *
+ * Manual probe list after a publish (a 200 is not proof — read the body text):
+ * see `docs/copy-guard-probe-list.md`.
  *
  * What it pins:
  *   1. ZERO retired vocabulary in customer-facing copy:
@@ -14,6 +23,11 @@
  *        "reconnect"      — the retired provider-reconnect program (owner 10-20)
  *        "re-consent"     — the retired one-click re-consent flow
  *        "self-healing"   — an unverifiable reliability claim
+ *        "S1 Agent" / "autonomous operations" — the retired agent runtime
+ *        "AI agent/employee/coworker/workforce/operations team" — same
+ *        "Connection Pack" / "Sprint" — retired SKUs
+ *        "14AbJ" / "4gMfZ" — retired Stripe price ids
+ *        "Deploy Live" — retired deploy control
  *   2. The only place that vocabulary may survive is REAL CODE, and only the
  *      documented files: import-lane credential-health state names (a client
  *      reconnecting their OWN provider credential is a real runtime state, not
@@ -61,14 +75,70 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-/** The directories a customer actually reads copy from. */
-const COPY_DIRS = ["src/components", "src/content", "src/routes"];
+/** The directories a customer actually reads copy from. SLICE 148 widened this
+ *  from three roots to seven: `src/lazy` (every code-split page — this is where
+ *  /integrations, /demos/workflows, /tools, /assessment and the portal pages
+ *  actually live), `src/tools` (the analyzer that generates report text),
+ *  `src/api` and `src/native` (server modules that hold user-visible strings). */
+const COPY_DIRS = [
+  "src/components",
+  "src/content",
+  "src/routes",
+  "src/lazy",
+  "src/tools",
+  "src/api",
+  "src/native",
+];
 
-const RETIRED_COPY: Array<[RegExp, string]> = [
+/** Vocabulary that must not appear in SERVER CODE either — the four terms that
+ *  have no legitimate code meaning anywhere. The agent-runtime terms below are
+ *  deliberately NOT in this set: `src/agents/*`, `src/lib/agent-processor.ts`
+ *  and the retirement records still name what was retired until the control
+ *  plane slice removes the runtime. That is tracked separately, not silently
+ *  ignored here. */
+const CODE_RETIRED: Array<[RegExp, string]> = [
   [/blueprint/i, "retired product vocabulary"],
   [/\breconnect/i, "retired provider-reconnect program"],
   [/re-?consent/i, "retired one-click re-consent flow"],
   [/self[-\s]?heal/i, "unverifiable self-healing claim"],
+];
+
+/** The full retired-term list, enforced across all seven copy roots. */
+const RETIRED_COPY: Array<[RegExp, string]> = [
+  ...CODE_RETIRED,
+  [/\bS1 Agent\b/i, "claims an agent executes customer work"],
+  [/autonomous operations/i, "retired agent-era console naming"],
+  [/\bAI[-\s]?agents?\b/i, "implies an AI agent runtime we do not run"],
+  [/\bAI[-\s]?employees?\b/i, "implies an AI employee product"],
+  [/\bAI Operations Team\b/i, "implies an AI staff we do not sell"],
+  [/\bAI[-\s]?coworkers?\b/i, "implies AI coworkers"],
+  [/\bAI workforce\b/i, "implies an AI workforce"],
+  [/\bConnection Packs?\b/i, "retired Connection Pack SKU"],
+  [/\bSprints?\b/i, "retired Sprint SKU"],
+  [/14AbJ/, "retired Stripe price id"],
+  [/4gMfZ/, "retired Stripe price id"],
+  [/\bDeploy Live\b/i, "retired deploy control"],
+];
+
+/** Genuine false positives — a match on this exact line of this exact file is
+ *  not customer copy. Keep this list tiny and justified; it is the only way a
+ *  retired word survives the sweep below. */
+const LINE_WHITELIST: Array<{ file: string; line: RegExp; why: string }> = [
+  {
+    file: "src/tools/automation-analyzer.ts",
+    // The analyzer matches the word against the text the CUSTOMER pastes in, to
+    // guess their industry. It is an input keyword, never rendered as our copy.
+    line: /words:\s*\[/,
+    why: "industry keyword matcher — matches the customer's own words, not our copy",
+  },
+  {
+    file: "src/lazy/portal.tasks.index.page.tsx",
+    // `aiEmployee` is the field name in the /api/data/tasks payload; the column
+    // the tenant reads is headed "Automation" and shows the automation's label.
+    // Renaming it is an API-contract change, not a copy change.
+    line: /aiEmployee/,
+    why: "server payload field name for the automation label; the rendered column is 'Automation'",
+  },
 ];
 
 /** Files where the words are CODE, not copy — import-lane credential health
@@ -102,22 +172,48 @@ const CODE_ALLOW_LIST = [
 ];
 
 describe("slice 141 — retired vocabulary is out of the copy a buyer reads", () => {
-  it("no blueprint / reconnect / re-consent / self-healing in src/components, src/content, src/routes", () => {
+  it("no retired term anywhere in the seven copy roots", () => {
     const hits: string[] = [];
+    const whitelisted: string[] = [];
     for (const dir of COPY_DIRS) {
       for (const file of walk(join(REPO, dir))) {
+        const rel = file.replace(REPO + "/", "");
+        // Code files whose words are deliberate and already governed by the
+        // allow-list test below: the import lanes carry a real credential-health
+        // state named "reconnect" (a client reconnecting their OWN credential),
+        // and integrationRoutes.ts is named in CODE_ALLOW_LIST. They are not
+        // copy, so the copy sweep does not re-litigate them here.
+        if (rel.startsWith("src/native/import/") || CODE_ALLOW_LIST.includes(rel)) continue;
         const text = readFileSync(file, "utf8");
         const lines = text.split("\n");
         for (let i = 0; i < lines.length; i++) {
           for (const [re, why] of RETIRED_COPY) {
-            if (re.test(lines[i])) {
-              hits.push(`${file.replace(REPO + "/", "")}:${i + 1} → ${why} (${re})`);
+            if (!re.test(lines[i])) continue;
+            const allowed = LINE_WHITELIST.find((w) => w.file === rel && w.line.test(lines[i]));
+            if (allowed) {
+              whitelisted.push(`${rel}:${i + 1} → ${allowed.why}`);
+              continue;
             }
+            hits.push(`${rel}:${i + 1} → ${why} (${re})`);
           }
         }
       }
     }
-    expect(hits, `retired copy is live on the site:\n${hits.join("\n")}`).toEqual([]);
+    expect(
+      hits,
+      `retired copy is live on the site:\n${hits.join("\n")}`,
+    ).toEqual([]);
+    // The whitelist is not allowed to grow into a hiding place: only the
+    // documented customer-input keyword line and the one API field name may
+    // land here, and every documented entry must still be doing work.
+    const whitelistedFiles = new Set(whitelisted.map((w) => w.slice(0, w.indexOf(":"))));
+    expect(
+      whitelistedFiles.size,
+      `unexpected whitelisted copy:\n${whitelisted.join("\n")}`,
+    ).toBeLessThanOrEqual(LINE_WHITELIST.length);
+    for (const w of LINE_WHITELIST) {
+      expect(whitelistedFiles.has(w.file), `stale whitelist entry for ${w.file} (${w.why})`).toBe(true);
+    }
   });
 
   it("the words survive only as code in the documented allow-list", () => {
@@ -134,7 +230,7 @@ describe("slice 141 — retired vocabulary is out of the copy a buyer reads", ()
       if (rel.startsWith("src/native/import/")) continue;
       if (rel.includes("/test/")) continue;
       const text = readFileSync(file, "utf8");
-      for (const [re] of RETIRED_COPY) {
+      for (const [re] of CODE_RETIRED) {
         if (re.test(text)) hits.push(`${rel} → ${re}`);
       }
     }
@@ -142,6 +238,38 @@ describe("slice 141 — retired vocabulary is out of the copy a buyer reads", ()
       hits,
       `a new file carries retired vocabulary outside the allow-list:\n${hits.join("\n")}`,
     ).toEqual([]);
+  });
+});
+
+describe("slice 148 — the retired demo console and the $5,000 product stay gone", () => {
+  const INTEGRATIONS = read("src/lazy/integrations.index.page.tsx");
+  const DEMOS = read("src/lazy/demos.workflows.page.tsx");
+  const BUILDER = read("src/lazy/portal.admin.workflow-builder.page.tsx");
+
+  it("the integration console describes a simulation, never an agent executing work", () => {
+    expect(INTEGRATIONS).not.toBe("");
+    expect(/executing live workloads/i.test(INTEGRATIONS)).toBe(false);
+    expect(/S1 Agent/i.test(INTEGRATIONS)).toBe(false);
+    // The honest replacement is present, so the section still reads as a demo.
+    expect(INTEGRATIONS).toContain("simulated run");
+    expect(INTEGRATIONS).toContain("S1 Workflow Simulator");
+  });
+
+  it("the retired $5,000 line item is gone from the workflow demo bundle", () => {
+    expect(DEMOS).not.toBe("");
+    expect(DEMOS.includes("$5,000"), "the retired $5,000 product is back in the bundle").toBe(false);
+    expect(/Automation Feasibility/i.test(DEMOS)).toBe(false);
+    // The invoice demo still needs two line items to show multi-line extraction.
+    expect(DEMOS).toContain("Operational Assessment (40 hrs)");
+    expect(DEMOS).toContain("Documentation hand-off package");
+  });
+
+  it("the workflow-builder export is named for what it is: workflow JSON", () => {
+    expect(BUILDER).not.toBe("");
+    expect(BUILDER).toContain(".workflow.json");
+    expect(BUILDER).toContain("Export Workflow (JSON)");
+    // No action may claim an LLM reasoning engine executes (LLM is OFF by default).
+    expect(/LLM reasoning engine/i.test(BUILDER)).toBe(false);
   });
 });
 

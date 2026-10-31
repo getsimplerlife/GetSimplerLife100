@@ -186,7 +186,7 @@ function AssessmentPage() {
     y += 8;
     pdf.setFontSize(11);
     pdf.setTextColor(107, 114, 128);
-    pdf.text("Schedule your Blueprint Consultation at simplerlife100.ctonew.app/contact", pageWidth / 2, y, { align: "center" });
+    pdf.text("Schedule an operations review from the Contact page on our site.", pageWidth / 2, y, { align: "center" });
 
     pdf.save(`SimplerLife100_AI_Assessment_${report.industry.replace(/\s+/g, "_")}.pdf`);
   };
@@ -411,7 +411,7 @@ function AssessmentPage() {
                 Operational Diagnostic Complete
               </h2>
               <p className="text-stone-400 text-sm max-w-xl mx-auto mb-8">
-                We mapped your business bottlenecks against our custom operations neural frameworks. Below is your tailored deployment blueprint.
+                We mapped your business bottlenecks against the automation patterns we build most often. Below is your tailored automation plan.
               </p>
 
               <div className="flex flex-col md:flex-row items-center justify-center gap-6 max-w-xl mx-auto bg-stone-950/60 border border-stone-800 p-6 rounded-2xl">
@@ -434,7 +434,7 @@ function AssessmentPage() {
             <div className="bg-stone-900/20 border border-stone-800/80 rounded-2xl p-6 md:p-8">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xs font-mono font-bold text-indigo-400 tracking-widest uppercase">
-                  📋 TOP 5 RECOMMENDED WORKFLOW BLUEPRINTS
+                  📋 TOP 5 RECOMMENDED WORKFLOW PATTERNS
                 </h3>
                 <span className="text-xs text-stone-500 font-mono">
                   {report.topWorkflows.length} OPPORTUNITIES MAPPED
@@ -590,7 +590,7 @@ function AssessmentPage() {
               <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_var(--tw-gradient-stops))] from-indigo-500/5 to-transparent pointer-events-none" />
               <h3 className="text-2xl font-black text-white mb-3">Begin Operations Transition</h3>
               <p className="text-sm text-stone-400 mb-8 max-w-md mx-auto leading-relaxed">
-                Connect your business endpoints to automated workflows and reclaim hours. All blueprints include dedicated implementation audits.
+                Connect your business endpoints to automated workflows and reclaim hours. Every tier includes onboarding — self-serve on Starter, guided on Growth and Enterprise.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
                 <Link
@@ -603,13 +603,13 @@ function AssessmentPage() {
                   to="/contact"
                   className="w-full sm:w-auto px-7 py-3.5 bg-stone-900 border border-stone-800 hover:bg-stone-800 text-stone-200 text-sm font-bold rounded-xl transition-all"
                 >
-                  📞 SCHEDULE blueprint AUDIT
+                  📞 SCHEDULE AN OPERATIONS REVIEW
                 </Link>
                 <button
                   onClick={downloadPDF}
                   className="w-full sm:w-auto px-7 py-3.5 bg-stone-950 border border-stone-800 hover:border-stone-700 text-stone-300 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2"
                 >
-                  📄 DOWNLOAD PDF BLUEPRINT
+                  📄 DOWNLOAD PDF REPORT
                 </button>
               </div>
             </div>

@@ -363,7 +363,7 @@ function formatWorkflowResponse(workflows: any[], filters?: Record<string, strin
 }
 
 function formatEmployeeResponse(_employees: any[], _message: string): ChatResponse {
-  // AI-employee-era surface pruned (phase b): automations now live in
+  // Legacy employee-roster surface pruned (phase b): automations now live in
   // Workflows and run through the approval queue. Answer truthfully with
   // the platform surfaces instead of the removed Employees pages.
   return {

@@ -81,12 +81,12 @@ function ToolsHub() {
               <h2 className="text-2xl font-black">Automation Assessment</h2>
               <p className="text-stone-400 text-sm leading-relaxed">
                 Take our 10-question expert operational assessment. Receive a dynamic annual savings audit, 
-                a customized list of high-priority workflows, and download your printable PDF report blueprint.
+                a customized list of high-priority workflows, and a printable PDF report of both.
               </p>
               <div className="grid grid-cols-3 gap-3 text-center text-xs">
                 <div className="bg-stone-900/50 rounded-lg p-3">
                   <div className="font-bold text-indigo-400">PDF Report</div>
-                  <div className="text-stone-400 mt-0.5">Download blueprint</div>
+                  <div className="text-stone-400 mt-0.5">Download report</div>
                 </div>
                 <div className="bg-stone-900/50 rounded-lg p-3">
                   <div className="font-bold text-indigo-400">10 Questions</div>

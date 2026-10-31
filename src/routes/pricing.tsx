@@ -12,12 +12,12 @@ export const Route = createFileRoute("/pricing")({
 /**
  * LOCKED PLATFORM PRICING (owner decision 09-27):
  * ONE platform — every tier includes 100% of the native capability layer.
- * No per-AI-employee selling, no per-feature upsell. Tiers differ by
+ * No per-capability selling, no per-feature upsell. Tiers differ by
  * scale limits, governance (multi-step approvals + autonomy allow-lists)
  * and support; Enterprise adds custom on-demand vendor-API builds.
  * Live native layer (all live-verified, Phases 1-3.7). The three locked
  * tiers are the ONLY SKUs; the free assessment is the sole low-risk entry
- * (owner 10-21: the one-time sprint SKU is retired).
+ * (owner 10-21: the one-time project SKU is retired).
  */
 const PLATFORM_TIERS = [
   {
