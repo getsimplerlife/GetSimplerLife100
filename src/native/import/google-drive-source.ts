@@ -139,7 +139,7 @@ export function makeGoogleDriveImportSourceReader(deps: GoogleDriveImportSourceD
       }
       if (!refreshToken) {
         throw new GoogleDriveImportSourceError(
-          "Google Drive access token expired and this connection has no refresh token — reconnect the client's Google Drive account (0 rows pulled).",
+          "Google Drive access token expired and this connection has no refresh token — the client must re-authorise their own Google Drive account (0 rows pulled; nothing fabricated).",
         );
       }
       try {
@@ -205,7 +205,7 @@ export function makeGoogleDriveImportSourceReader(deps: GoogleDriveImportSourceD
 
 /** Register the Google Drive lane in the import source registry (idempotent).
  *  Called by prod-server at boot and by tests. One-shot/client-initiated
- *  re-runs only — no webhooks, no write-back, no reconnect program
+ *  re-runs only — no webhooks, no write-back, no re-authorisation program
  *  (owner 10-20). */
 export function registerGoogleDriveImportSource(deps: GoogleDriveImportSourceDeps = {}): void {
   registerImportSource("google-drive", makeGoogleDriveImportSourceReader(deps));

@@ -98,7 +98,7 @@ const keywordPatterns: KeywordPattern[] = [
 const industryKeywords: { words: string[]; industry: string }[] = [
   { words: ["manufactur", "factory", "plant", "production line", "assembly"], industry: "Manufacturing" },
   { words: ["logistics", "trucking", "warehouse", "freight", "shipping", "delivery"], industry: "Logistics" },
-  { words: ["construction", "builder", "contractor", "job site", "blueprint"], industry: "Construction" },
+  { words: ["construction", "builder", "contractor", "job site", "site plan"], industry: "Construction" },
   { words: ["retail", "store", "ecommerce", "shop", "merchant", "inventory"], industry: "Retail" },
   { words: ["energy", "oil", "gas", "utility", "power plant", "renewable"], industry: "Energy" },
   { words: ["healthcare", "hospital", "clinic", "patient", "doctor", "medical"], industry: "Healthcare" },

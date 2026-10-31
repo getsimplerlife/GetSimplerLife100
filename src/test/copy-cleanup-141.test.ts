@@ -124,13 +124,9 @@ const RETIRED_COPY: Array<[RegExp, string]> = [
  *  not customer copy. Keep this list tiny and justified; it is the only way a
  *  retired word survives the sweep below. */
 const LINE_WHITELIST: Array<{ file: string; line: RegExp; why: string }> = [
-  {
-    file: "src/tools/automation-analyzer.ts",
-    // The analyzer matches the word against the text the CUSTOMER pastes in, to
-    // guess their industry. It is an input keyword, never rendered as our copy.
-    line: /words:\s*\[/,
-    why: "industry keyword matcher — matches the customer's own words, not our copy",
-  },
+  // The automation-analyzer entry was retired by slice 153: its industry keyword
+  // list said "blueprint", which slice 153 renamed to "site plan", so the term is
+  // genuinely gone rather than whitelisted. A stale entry here now fails the test.
   {
     file: "src/lazy/portal.tasks.index.page.tsx",
     // `aiEmployee` is the field name in the /api/data/tasks payload; the column

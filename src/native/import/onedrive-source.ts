@@ -133,7 +133,7 @@ export function makeOneDriveImportSourceReader(deps: OneDriveImportSourceDeps = 
       }
       if (!refreshToken) {
         throw new OneDriveImportSourceError(
-          "OneDrive access token expired and this connection has no refresh token — reconnect the client's OneDrive account (0 rows pulled).",
+          "OneDrive access token expired and this connection has no refresh token — the client must re-authorise their own OneDrive account (0 rows pulled; nothing fabricated).",
         );
       }
       try {
@@ -205,7 +205,7 @@ export function makeOneDriveImportSourceReader(deps: OneDriveImportSourceDeps = 
 
 /** Register the OneDrive lane in the import source registry (idempotent).
  *  Called by prod-server at boot and by tests. One-shot/client-initiated
- *  re-runs only — no webhooks, no write-back, no reconnect program
+ *  re-runs only — no webhooks, no write-back, no re-authorisation program
  *  (owner 10-20). */
 export function registerOneDriveImportSource(deps: OneDriveImportSourceDeps = {}): void {
   registerImportSource("onedrive", makeOneDriveImportSourceReader(deps));

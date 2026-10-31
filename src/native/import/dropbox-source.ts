@@ -139,7 +139,7 @@ export function makeDropboxImportSourceReader(deps: DropboxImportSourceDeps = {}
       }
       if (!refreshToken) {
         throw new DropboxImportSourceError(
-          "Dropbox access token expired and this connection has no refresh token — reconnect the client's Dropbox account (0 rows pulled).",
+          "Dropbox access token expired and this connection has no refresh token — the client must re-authorise their own Dropbox account (0 rows pulled; nothing fabricated).",
         );
       }
       try {
@@ -207,7 +207,7 @@ export function makeDropboxImportSourceReader(deps: DropboxImportSourceDeps = {}
 
 /** Register the Dropbox lane in the import source registry (idempotent).
  *  Called by prod-server at boot and by tests. One-shot/client-initiated
- *  re-runs only — no webhooks, no write-back, no reconnect program
+ *  re-runs only — no webhooks, no write-back, no re-authorisation program
  *  (owner 10-20). */
 export function registerDropboxImportSource(deps: DropboxImportSourceDeps = {}): void {
   registerImportSource("dropbox", makeDropboxImportSourceReader(deps));

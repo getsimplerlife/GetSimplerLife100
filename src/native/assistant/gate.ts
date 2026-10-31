@@ -14,7 +14,9 @@
  *        DRAFT answer — the model never sees raw row content and never
  *        writes tenant data; a disabled/not-configured/failed draft becomes
  *        an honest note, never a fabricated answer;
- *     4. approvalGate(tenantId, "assistantAsk", "native-assistant", ...)
+ *     4. approvalGate(tenantId, "askAssistant", "native-assistant", ...)
+ *        (the action name is exactly "askAssistant" — it must stay a WRITE so
+ *        the ask is gated; see src/test/approval-gate-classification.test.ts)
  *        - allow-listed autonomy (#236)  -> transcript applied now + audit +
  *                                          recordAutonomyOutcome;
  *        - otherwise                    -> durable pending-write mirror

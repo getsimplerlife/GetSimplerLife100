@@ -156,7 +156,7 @@ export function makeGoogleCalendarImportSourceReader(deps: GoogleCalendarImportS
       }
       if (!refreshToken) {
         throw new GoogleCalendarImportSourceError(
-          "Google Calendar access token expired and this connection has no refresh token — reconnect the client's Google Calendar account (0 rows pulled).",
+          "Google Calendar access token expired and this connection has no refresh token — the client must re-authorise their own Google Calendar account (0 rows pulled; nothing fabricated).",
         );
       }
       try {
@@ -225,7 +225,7 @@ export function makeGoogleCalendarImportSourceReader(deps: GoogleCalendarImportS
 
 /** Register the Google Calendar lane in the import source registry
  *  (idempotent). Called by prod-server at boot and by tests. One-shot /
- *  client-initiated re-runs only — no webhooks, no write-back, no reconnect
+ *  client-initiated re-runs only — no webhooks, no write-back, no re-authorisation
  *  program (owner 10-20). */
 export function registerGoogleCalendarImportSource(deps: GoogleCalendarImportSourceDeps = {}): void {
   registerImportSource("google-calendar", makeGoogleCalendarImportSourceReader(deps));

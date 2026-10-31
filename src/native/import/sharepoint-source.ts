@@ -151,7 +151,7 @@ export function makeSharePointImportSourceReader(deps: SharePointImportSourceDep
       }
       if (!refreshToken) {
         throw new SharePointImportSourceError(
-          "SharePoint access token expired and this connection has no refresh token — reconnect the client's SharePoint account (0 rows pulled).",
+          "SharePoint access token expired and this connection has no refresh token — the client must re-authorise their own SharePoint account (0 rows pulled; nothing fabricated).",
         );
       }
       try {
@@ -244,7 +244,7 @@ export function makeSharePointImportSourceReader(deps: SharePointImportSourceDep
 
 /** Register the SharePoint lane in the import source registry (idempotent).
  *  Called by prod-server at boot and by tests. One-shot/client-initiated
- *  re-runs only — no webhooks, no write-back, no reconnect program
+ *  re-runs only — no webhooks, no write-back, no re-authorisation program
  *  (owner 10-20). */
 export function registerSharePointImportSource(deps: SharePointImportSourceDeps = {}): void {
   registerImportSource("sharepoint", makeSharePointImportSourceReader(deps));

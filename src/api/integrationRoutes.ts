@@ -366,9 +366,9 @@ export async function handleOAuthCallback(req: Request): Promise<Response> {
     // BEFORE "Connected!" is returned — that is the store Connected Accounts
     // (connected-accounts.ts), health (connection-health.ts), and the
     // verification CLI (credential-source.ts) all read. Writing ONLY to the
-    // legacy LibSQL `integrations` table (as before) meant every reconnect
+    // legacy LibSQL `integrations` table (as before) meant every re-authorisation
     // reported success while its token vanished from the authoritative store
-    // (owner's three Xero reconnects on 08-19 all dropped theirs).
+    // (owner's three Xero re-authorisations on 08-19 all dropped theirs).
     // writeJSON() mirrors to the durable store; durableFlush() pushes queued
     // upserts to Neon before the response (#232 rule: state that must survive
     // the round-trip is written durable BEFORE the response).
