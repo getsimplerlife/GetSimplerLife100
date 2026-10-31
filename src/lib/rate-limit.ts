@@ -32,8 +32,44 @@
  *    `createDevRateLimitMiddleware()`. A route cannot be reached on either
  *    entry point without passing through this module.
  *
+ * SLICE 151b — WHAT THE PROXY ACTUALLY DOES, MEASURED (2026-10-31)
+ * The lead could not reconcile two live probes: no `x-forwarded-for` blocked,
+ * a spoofed one never did. So the gate now logs its own decision behind
+ * `RATE_LIMIT_DEBUG=1` (see `rateLimitDebugLine`), and a request sent through
+ * the public dev host with a KNOWN spoofed header settled it:
+ *
+ *   curl -H 'x-forwarded-for: 198.51.100.77' -X POST https://<dev-host>/api/request-password-reset
+ *   [rate-limit-debug] {"lane":"reset","method":"POST","pathname":"/api/request-password-reset",
+ *                       "xff":"44.244.130.109","xffHops":1,"peer":"::ffff:172.16.11.186",
+ *                       "key":"44.244.130.109","source":"forwarded-last-hop",...}
+ *
+ * The client asked to be 198.51.100.77 and the gate saw 44.244.130.109: ONE hop,
+ * the address the proxy observed. So the platform proxy REPLACES
+ * `x-forwarded-for` with what it saw; it does not append to the client's value,
+ * and the client's value never reaches this module. Consequences, all of them
+ * load-bearing:
+ *   - the last hop is written by the proxy, so it cannot be forged by a client;
+ *     the "last hop, and only from a trusted proxy" rule below is therefore the
+ *     correct key selection and is kept;
+ *   - the address the proxy reports is the client's EGRESS address, and a
+ *     single client can egress from more than one address (measured: one
+ *     sandbox, 20 requests, alternating 52.12.147.227 / 44.244.130.109 exactly
+ *     10/10). One client's flood therefore splits across buckets and an
+ *     IP-keyed budget is only a speed bump. That is why this slice adds the
+ *     per-ACCOUNT dimension below: it is keyed on what the attacker is trying
+ *     to guess, not on an address they can change.
+ *   - a probe that does not fix the window state is not a measurement: the
+ *     "0 of 16 blocked" reading is exactly 8+8 hits against two buckets with a
+ *     budget of 10.
+ *
  * HONEST LIMITS (stated, not hidden)
  *  - Buckets are per process. Two processes do not share a budget.
+ *  - Every budget in this module is IN MEMORY: a restart forgets all of them.
+ *    That is accepted deliberately — persisting them would put an attacker-
+ *    controlled key space on disk, and the alternative (a durable store on the
+ *    auth path) adds a failure mode to login. A restart therefore buys an
+ *    attacker one fresh budget, and nothing more; it cannot be triggered from
+ *    outside (no route restarts the process).
  *  - A trusted-proxy deployment where the proxy is NOT loopback/private needs
  *    `TRUSTED_PROXY_ADDRESSES` set to that proxy address; otherwise every
  *    client collapses into the proxy's single bucket and the lane behaves as a
@@ -42,6 +78,8 @@
  *  - Eviction can forget a legitimate client's window early. That direction is
  *    deliberate: failing open is the only failure mode a limiter may have.
  */
+
+import { createHash } from "crypto";
 
 export type RateLimitLane =
   | "login"
@@ -315,6 +353,10 @@ export interface RateLimitDecision {
   remaining: number;
   /** How long until the oldest hit falls out of the window. */
   retryAfterMs: number;
+  /** Hits already counted in this bucket when the request arrived. */
+  usedBefore: number;
+  /** Hits counted in this bucket after the request (unchanged when refused). */
+  usedAfter: number;
 }
 
 export class RateLimiter {
@@ -363,16 +405,32 @@ export class RateLimiter {
       // client that keeps hammering stays resident rather than being evicted
       // into a fresh bucket.
       this.touch(key, hits);
-      return { allowed: false, remaining: 0, retryAfterMs: Math.max(1, this.windowMs - (now - hits[0])) };
+      return {
+        allowed: false,
+        remaining: 0,
+        retryAfterMs: Math.max(1, this.windowMs - (now - hits[0])),
+        usedBefore: hits.length,
+        usedAfter: hits.length,
+      };
     }
 
+    const usedBefore = hits.length;
     hits.push(now);
     this.touch(key, hits);
     return {
       allowed: true,
       remaining: Math.max(0, this.max - hits.length),
       retryAfterMs: 0,
+      usedBefore,
+      usedAfter: hits.length,
     };
+  }
+
+  /** How many live hits a key has right now — diagnostics only, no side effect. */
+  peek(key: string, now = this.clock()): number {
+    const hits = this.buckets.get(key);
+    if (!hits) return 0;
+    return hits.filter((t) => now - t < this.windowMs).length;
   }
 
   /** Drop every bucket whose newest hit is older than the window. */
@@ -397,6 +455,11 @@ export class RateLimiter {
     this.lastSweepAt = this.clock();
     this.evictions = 0;
     this.sweeps = 0;
+  }
+
+  /** Forget ONE key — used when a verification succeeds (see clearAccountBudget). */
+  clear(key: string): void {
+    this.buckets.delete(key);
   }
 
   /** Amortised sweep: at most once per window, so a flood cannot force a full
@@ -449,6 +512,236 @@ export function __resetRateLimits(): void {
   for (const limiter of limiters.values()) limiter.reset();
 }
 
+// ── The per-ACCOUNT dimension (slice 151b) ──────────────────────────────────
+//
+// WHY: an IP-keyed budget is only as good as the address, and the address is
+// not something we control — the proxy reports a client's EGRESS address, and
+// one client was measured egressing from two of them, alternating per request
+// (see the module comment). A password-guessing attacker who can present N
+// addresses therefore gets N × the budget against one account. Keying on the
+// ACCOUNT closes that: the attacker's requests all land in one bucket no matter
+// what address they arrive from, because the bucket is named by what they are
+// trying to guess.
+//
+// A request must pass BOTH dimensions: `guardRequest` (client) and, at the
+// handler that knows the submitted address, `guardAccount`. Refusing on either
+// one is enough, and the order matters — the client gate runs first because it
+// is the cheaper one and it is the only one available before the body is read.
+
+/**
+ * Account budgets. Tighter than the client lanes on purpose: this bucket is
+ * shared by every source address, so it is the one that actually stops a
+ * distributed guess. Rationale for the numbers:
+ *  - login 10 / 15 min: a human who fumbles a password does not exceed ten in
+ *    fifteen minutes; a guesser gets ten tries per quarter hour per account.
+ *  - reset 5 / hour: a reset sends mail to the account owner. Five per hour is
+ *    more than any legitimate use and stops a mail-bomb / code-grind.
+ *
+ * THE TRADE-OFF, stated: an attacker who knows an address can spend that
+ * account's budget and lock the real owner out of login for up to 15 minutes.
+ * That is the price of an account budget that a distributed attacker cannot
+ * escape. It is time-boxed, it never changes the password, it never reveals
+ * whether the account exists, and a successful login CLEARS the bucket (see
+ * `clearAccountBudget`) so a locked-out owner recovers on their next successful
+ * attempt once the window drains.
+ */
+export const ACCOUNT_LANES: Partial<Record<RateLimitLane, LanePolicy>> = {
+  login: { max: 10, windowMs: 15 * MINUTE },
+  reset: { max: 5, windowMs: 60 * MINUTE },
+};
+
+/** Same ceiling as the client lanes, for the same reason: bounded memory. */
+export const ACCOUNT_MAX_KEYS = 5_000;
+
+const accountLimiters = new Map<RateLimitLane, RateLimiter>();
+
+export function accountLimiterFor(lane: RateLimitLane): RateLimiter | null {
+  const policy = ACCOUNT_LANES[lane];
+  if (!policy) return null;
+  let limiter = accountLimiters.get(lane);
+  if (!limiter) {
+    limiter = new RateLimiter({ max: policy.max, windowMs: policy.windowMs, maxKeys: ACCOUNT_MAX_KEYS });
+    accountLimiters.set(lane, limiter);
+  }
+  return limiter;
+}
+
+/**
+ * Normalise a submitted address the way the handlers do (trim + lower case), so
+ * `Owner@Example.com ` and `owner@example.com` share one bucket.
+ */
+export function normalizeAccountSubject(raw: unknown): string {
+  return String(raw ?? "").trim().toLowerCase();
+}
+
+/**
+ * The bucket key for an account. The submitted address is NEVER stored or
+ * logged raw — it is hashed with a domain-separated SHA-256 and only that hex
+ * digest is used as a Map key.
+ *
+ * This is a pseudonym, not encryption: an attacker holding the map could
+ * confirm a guessed address. What it buys is that the in-memory key space and
+ * every diagnostic line contain no email addresses, so a log file or a heap
+ * dump is not a customer list. Returns null when there is no address to key on
+ * (an empty submission gets the client dimension only).
+ */
+export function accountSubjectKey(raw: unknown): string | null {
+  const subject = normalizeAccountSubject(raw);
+  if (!subject) return null;
+  return createHash("sha256").update(`sl:rate-limit:account:v1:${subject}`).digest("hex");
+}
+
+export interface AccountGateInput {
+  lane: RateLimitLane;
+  /** The address as submitted (raw is fine — it is normalised and hashed here). */
+  email: unknown;
+  method?: string;
+  pathname?: string;
+}
+
+/**
+ * Second dimension: is THIS ACCOUNT over its budget? Returns the 429 to send
+ * when it is, or null to proceed. Lanes without an account budget always pass.
+ */
+export function guardAccount(input: AccountGateInput): Response | null {
+  const limiter = accountLimiterFor(input.lane);
+  if (!limiter) return null;
+  const key = accountSubjectKey(input.email);
+  if (!key) return null;
+  const decision = limiter.check(key);
+  logRateLimitDebug({
+    lane: input.lane,
+    dimension: "account",
+    method: input.method ?? "POST",
+    pathname: input.pathname ?? "",
+    xff: null,
+    xffHops: null,
+    peer: null,
+    key: maskKey(key),
+    source: "unknown",
+    usedBefore: decision.usedBefore,
+    usedAfter: decision.usedAfter,
+    max: limiter.max,
+    windowMs: limiter.windowMs,
+    decision: decision.allowed ? "allowed" : "blocked",
+    retryAfterMs: decision.retryAfterMs,
+  });
+  if (decision.allowed) return null;
+  console.log(`[rate-limit] 429 lane=${input.lane} dimension=account key=${maskKey(key)}`);
+  return rateLimitedResponse(decision.retryAfterMs);
+}
+
+/**
+ * A successful verification clears the account's failure budget. Without this,
+ * a legitimate owner who mistyped nine times would stay one attempt away from a
+ * lockout for the rest of the window even after proving who they are.
+ */
+export function clearAccountBudget(lane: RateLimitLane, email: unknown): void {
+  const limiter = accountLimiterFor(lane);
+  const key = accountSubjectKey(email);
+  if (!limiter || !key) return;
+  limiter.clear(key);
+}
+
+/** TEST HOOK — forget every account bucket. */
+export function __resetAccountLimits(): void {
+  for (const limiter of accountLimiters.values()) limiter.reset();
+}
+
+// ── Debug observability (slice 151b) ────────────────────────────────────────
+//
+// The limiter was un-inspectable from outside: a 429 told you a decision had
+// been made but not what it was made ON, which is how two honest probes ended
+// up disagreeing. With `RATE_LIMIT_DEBUG=1` every guarded request emits ONE
+// structured line carrying the raw `x-forwarded-for` as received, the peer, the
+// resolved key and the bucket counts, so the answer is in the log rather than in
+// an argument.
+//
+// SECURITY: the raw forwarding header is attacker-supplied text. It is logged
+// ONLY when the flag is on, it is capped in length, and control characters are
+// stripped so it cannot forge a second log line. Off by default, and the normal
+// (unflagged) log line never contains it — see `logRateLimitDebug` callers.
+
+export interface RateLimitDebugOptions {
+  enabled?: boolean;
+  sink?: (line: string) => void;
+}
+
+export interface RateLimitDebugEvent {
+  lane: RateLimitLane;
+  dimension: "client" | "account";
+  method: string;
+  pathname: string;
+  /** Raw `x-forwarded-for` exactly as received; null when absent. Debug only. */
+  xff: string | null;
+  /** How many comma-separated hops that header had (null when absent). */
+  xffHops: number | null;
+  peer: string | null;
+  /** The resolved bucket key — masked, never a full address list. */
+  key: string;
+  source: ClientKeySource;
+  usedBefore: number;
+  usedAfter: number;
+  max: number;
+  windowMs: number;
+  decision: "allowed" | "blocked";
+  retryAfterMs: number;
+}
+
+const DEBUG_MAX_HEADER_CHARS = 200;
+
+/** `RATE_LIMIT_DEBUG=1` (also accepts true/on). Off unless explicitly set. */
+export function rateLimitDebugEnabled(env: string | undefined = process.env.RATE_LIMIT_DEBUG): boolean {
+  const value = String(env ?? "").trim().toLowerCase();
+  return value === "1" || value === "true" || value === "on";
+}
+
+/** Keep attacker-supplied header text to one safe, bounded line. */
+function sanitizeForLog(raw: string | null, max = DEBUG_MAX_HEADER_CHARS): string | null {
+  if (raw == null) return null;
+  // eslint-disable-next-line no-control-regex
+  const cleaned = String(raw).replace(/[\u0000-\u001f\u007f]/g, " ");
+  return cleaned.length > max ? `${cleaned.slice(0, max)}…` : cleaned;
+}
+
+/** Build the one-line payload; exported so a test can assert its exact shape. */
+export function rateLimitDebugLine(evt: RateLimitDebugEvent): string {
+  return `[rate-limit-debug] ${JSON.stringify({
+    lane: evt.lane,
+    dimension: evt.dimension,
+    method: evt.method,
+    pathname: evt.pathname,
+    xff: sanitizeForLog(evt.xff),
+    xffHops: evt.xffHops,
+    peer: evt.peer,
+    key: evt.key,
+    source: evt.source,
+    usedBefore: evt.usedBefore,
+    usedAfter: evt.usedAfter,
+    max: evt.max,
+    windowMs: evt.windowMs,
+    decision: evt.decision,
+    retryAfterMs: evt.retryAfterMs,
+  })}`;
+}
+
+/** Emit the debug line when the flag is on. `sink` is injectable for tests. */
+export function logRateLimitDebug(
+  evt: RateLimitDebugEvent,
+  opts: { enabled?: boolean; sink?: (line: string) => void } = {},
+): boolean {
+  const enabled = opts.enabled ?? rateLimitDebugEnabled();
+  if (!enabled) return false;
+  const sink = opts.sink ?? ((line: string) => console.log(line));
+  try {
+    sink(rateLimitDebugLine(evt));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+
 // ── The gate every entry point calls ───────────────────────────────────────
 
 export interface RateLimitRequestInput {
@@ -459,6 +752,8 @@ export interface RateLimitRequestInput {
   /** Header getter — lower-case names, matching `Headers.get`. */
   header: (name: string) => string | null;
   trustedProxies?: string[];
+  /** Override the debug flag / sink — tests use this, production omits it. */
+  debug?: RateLimitDebugOptions;
 }
 
 export interface RateLimitGateResult {
@@ -487,12 +782,37 @@ export function rateLimitedResponse(retryAfterMs = 0): Response {
 export function guardRequest(input: RateLimitRequestInput): Response | null {
   const lane = laneForRequest(input.pathname, input.method);
   if (!lane) return null;
+  const rawXff = input.header("x-forwarded-for");
   const client = resolveClientKey({
     peerAddress: input.peerAddress,
-    forwardedFor: input.header("x-forwarded-for"),
+    forwardedFor: rawXff,
     trustedProxies: input.trustedProxies,
   });
-  const decision = limiterFor(lane).check(client.key);
+  const limiter = limiterFor(lane);
+  const decision = limiter.check(client.key);
+  // One line per GUARDED request (allowed or blocked) when the flag is on. The
+  // raw header appears here and nowhere else; with the flag off this call
+  // returns without touching a sink.
+  logRateLimitDebug(
+    {
+      lane,
+      dimension: "client",
+      method: (input.method || "GET").toUpperCase(),
+      pathname: input.pathname,
+      xff: rawXff,
+      xffHops: rawXff ? rawXff.split(",").filter((hop) => hop.trim()).length : null,
+      peer: client.peer,
+      key: maskKey(client.key),
+      source: client.source,
+      usedBefore: decision.usedBefore,
+      usedAfter: decision.usedAfter,
+      max: limiter.max,
+      windowMs: limiter.windowMs,
+      decision: decision.allowed ? "allowed" : "blocked",
+      retryAfterMs: decision.retryAfterMs,
+    },
+    input.debug,
+  );
   if (decision.allowed) return null;
   console.log(`[rate-limit] 429 lane=${lane} source=${client.source} key=${maskKey(client.key)}`);
   return rateLimitedResponse(decision.retryAfterMs);
