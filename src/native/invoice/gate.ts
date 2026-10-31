@@ -32,6 +32,13 @@
  *   - ACTION NAMES ARE VERB-FIRST (createInvoice/generateInvoice/sendInvoice/
  *     deleteInvoice) so isWriteAction classifies them as writes — a verb-last
  *     name would BYPASS the gate (fail-open).
+ *   - SHARE-LINK LIFECYCLE (slice 152): revokeInvoiceShare / rotateInvoiceShare
+ *     kill or replace the public slug. They ride this same gate, never change
+ *     the invoice STATUS (`sent` stays terminal, revoke is not a delete), kill
+ *     the public URL BEFORE the record is updated (fail-closed ordering), are
+ *     idempotent on replay, and audit WITHOUT the link value — the slug is a
+ *     bearer credential. Revoking our page does not cancel a Checkout Session a
+ *     customer already opened; see SHARE_LINK_PAY_NOTICE.
  */
 import { approvalGate, markApproved, markRejected } from "../../lib/approval-queue";
 import { recordAutonomyOutcome } from "../../lib/autonomy";
@@ -85,7 +92,23 @@ const ACTION_NAME: Record<InvoiceOp, string> = {
   generate: "generateInvoice",
   send: "sendInvoice",
   delete: "deleteInvoice",
+  revokeShare: "revokeInvoiceShare",
+  rotateShare: "rotateInvoiceShare",
 };
+
+/**
+ * The one honest sentence about the ALREADY-ISSUED pay link (slice 152).
+ *
+ * Revoking or rotating OUR public page does NOT cancel a Stripe Checkout
+ * Session a customer already opened: that session lives on the TENANT'S OWN
+ * Stripe account, its id is not stored on the invoice record, and the pay lane
+ * is deliberately unchanged by this slice — so we cannot expire it from here
+ * and will not pretend the money side is closed. The API response, the audit
+ * line and the tenant-facing copy all say exactly this. A precise "the page is
+ * dead, the session is not" beats a half-true "revoked".
+ */
+export const SHARE_LINK_PAY_NOTICE =
+  "The public invoice link is dead — it no longer opens for anyone. A payment page a customer already opened from the old link is NOT cancelled by this: that Checkout Session lives on your own Stripe account and may still be payable until it expires, so check that account if the invoice went to the wrong person.";
 
 /**
  * Status transition allowed from a given current status (fail-closed).
@@ -104,6 +127,11 @@ function statusFor(op: InvoiceOp, current: InvoiceStatus): InvoiceStatus | null 
       return current === "draft" || current === "failed" ? "queued" : null;
     case "delete":
       return null; // removal handled separately (not-sent only, exact-id)
+    case "revokeShare":
+    case "rotateShare":
+      // Neither touches the STATUS: `sent` stays terminal, and revoking a link
+      // is not a delete. Handled separately in validateWrite.
+      return current;
     default:
       return null;
   }
@@ -165,6 +193,24 @@ function validateWrite(
     if (!inv) throw new Error("invoice not found");
     if (inv.status === "sent") throw new Error("cannot delete a sent invoice (legal record)");
     return { mutation: {}, nextStatus: inv.status };
+  }
+  // ── Share-link lifecycle (slice 152) ──
+  // The public slug is a BEARER credential: killing it (revoke) or replacing it
+  // (rotate) is a write, so it rides the same gate as every other invoice write.
+  if (op === "revokeShare" || op === "rotateShare") {
+    if (!isInvoiceId(req.invoiceId)) throw new Error("invoice id is required");
+    const shareInv = getInvoice(dataDir, tenantId, req.invoiceId);
+    if (!shareInv) throw new Error("invoice not found"); // foreign/unknown → 404, no IDOR
+    // ROTATE needs a link that was actually ISSUED: a draft or a failed delivery
+    // has no public page, and minting one here would make an unsent invoice
+    // public the moment it was rotated. Fail closed instead.
+    if (op === "rotateShare" && shareInv.status !== "sent") {
+      throw new Error(`cannot rotate the public link of an invoice in status ${shareInv.status} (only a sent invoice has one)`);
+    }
+    // REVOKE is allowed on ANY in-tenant invoice and is a NO-OP when there is no
+    // live link — that is what keeps replay idempotent: applying the same
+    // approved write twice must succeed both times, never fail the second.
+    return { mutation: {}, nextStatus: shareInv.status };
   }
   // generate / send
   if (!isInvoiceId(req.invoiceId)) throw new Error("invoice id is required");
@@ -250,6 +296,46 @@ function applyMutation(
     if (inv.shareSlug) unregisterInvoiceSlug(dataDir, inv.shareSlug);
     publishEvent(dataDir, tenantId, "native.invoice.deleted", { invoiceId: inv.id, invoiceNumber: inv.invoiceNumber, linkedDealRoomId: inv.linkedDealRoomId });
     return { ...inv, status: "deleted" } as unknown as InvoiceRecord;
+  }
+  if (op === "revokeShare" || op === "rotateShare") {
+    const inv = getInvoice(dataDir, tenantId, req.invoiceId!)!;
+    const retired = inv.shareSlug;
+    // ORDER IS THE SAFETY PROPERTY, not an implementation detail: the public
+    // slug is unregistered FIRST and the record is only then updated. If the
+    // process dies between the two writes, the record still points at a slug
+    // that no longer resolves — the page 404s either way (fail-closed). The
+    // reverse order would leave a LIVE link on a record that says "revoked".
+    if (op === "revokeShare") {
+      if (retired) unregisterInvoiceSlug(dataDir, retired);
+      const record = retired
+        ? applyInvoiceMutation(dataDir, tenantId, inv.id, { shareSlug: null, shareRevokedAt: new Date().toISOString() }, actor)!
+        : inv;
+      appendAudit(dataDir, {
+        tenantId,
+        actor,
+        action: "native.invoice.shareRevoked",
+        invoiceId: inv.id,
+        // No slug value here (or anywhere): the link is a bearer credential.
+        detail: `Revoked the public share link for invoice ${inv.invoiceNumber}${retired ? " — the link no longer resolves" : " — there was no live link, nothing changed"}. ${SHARE_LINK_PAY_NOTICE}`,
+      });
+      publishEvent(dataDir, tenantId, "native.invoice.share.revoked", { invoiceId: inv.id, invoiceNumber: inv.invoiceNumber, hadLiveLink: !!retired });
+      return record;
+    }
+    // rotateShare: retire the old entry, then publish exactly one fresh slug.
+    const fresh = generateInvoiceShareSlug();
+    if (retired) unregisterInvoiceSlug(dataDir, retired);
+    registerInvoiceSlug(dataDir, fresh, tenantId);
+    const record = applyInvoiceMutation(dataDir, tenantId, inv.id, { shareSlug: fresh }, actor)!;
+    appendAudit(dataDir, {
+      tenantId,
+      actor,
+      action: "native.invoice.shareRotated",
+      invoiceId: inv.id,
+      // Deliberately records NO link value: the slug is a bearer credential.
+      detail: `Rotated the public share link for invoice ${inv.invoiceNumber} — the previous link no longer resolves and a fresh link was issued (link values are never recorded here: a share link is a bearer credential). ${SHARE_LINK_PAY_NOTICE}`,
+    });
+    publishEvent(dataDir, tenantId, "native.invoice.share.rotated", { invoiceId: inv.id, invoiceNumber: inv.invoiceNumber, previousLinkDead: true });
+    return record;
   }
   // generate — PDF first, THEN the durable docId write (2.2 discipline).
   const inv = getInvoice(dataDir, tenantId, req.invoiceId!)!;
@@ -389,7 +475,7 @@ export async function submitInvoiceWrite(
   if (pending.length >= MAX_PENDING_INVOICE_WRITES) {
     return { applied: false, pending: false, error: `Pending-write cap reached (${MAX_PENDING_INVOICE_WRITES}) — approve or reject before writing more` };
   }
-  if (op === "generate" || op === "send" || op === "delete") {
+  if (op === "generate" || op === "send" || op === "delete" || op === "revokeShare" || op === "rotateShare") {
     const existing = pending.find((w) => w.status === "pending" && w.op === op && w.invoiceId === (req.invoiceId ?? null));
     if (existing) return { applied: false, pending: true, approvalActionId: existing.approvalActionId, op };
   }

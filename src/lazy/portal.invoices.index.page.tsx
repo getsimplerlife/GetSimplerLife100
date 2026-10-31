@@ -22,6 +22,8 @@ interface InvoiceSummary {
   customerEmail: string;
   dueDate: string;
   shareSlug: string | null;
+  /** Set when the tenant revoked the public link (slice 152) — the link is dead. */
+  shareRevokedAt?: string;
   lastAttempt: DeliveryAttempt | null;
   /** Truthful "a payment was started" stamp — never a "paid" claim. */
   paymentStartedAt?: string;
@@ -180,7 +182,9 @@ export default function InvoicesPage() {
     const res = await fetch(`/api/native/invoice/writes/${id}/apply`, { method: "POST", credentials: "include" });
     const j = await res.json().catch(() => ({}));
     const status = j?.data?.invoiceStatus as string | undefined;
-    if (res.ok && status === "failed") setFeedback("Write applied — the invoice was NOT delivered (see the reason on the invoice).");
+    const notice = (j?.data?.notice as string | undefined) || "";
+    if (res.ok && notice) setFeedback(`Write applied. ${notice}`.trim());
+    else if (res.ok && status === "failed") setFeedback("Write applied — the invoice was NOT delivered (see the reason on the invoice).");
     else if (res.ok && status === "sent") setFeedback("Write applied — the invoice was emailed and the provider acknowledged it.");
     else setFeedback(res.ok ? "Write applied." : "Write apply failed.");
     await load();
@@ -198,6 +202,33 @@ export default function InvoicesPage() {
     } catch {
       setFeedback(`Customer link: ${url}`);
     }
+  }
+
+  /**
+   * Revoke or rotate the customer link (slice 152). Revoking kills the URL for
+   * good; rotating kills it and hands back a fresh one. Both are gated writes,
+   * so the response may be a queued approval — in which case the OLD link keeps
+   * working until it is approved, and we say that rather than implying it is
+   * already dead.
+   */
+  async function shareAction(id: string, action: "revoke" | "rotate") {
+    setFeedback("");
+    setError("");
+    const res = await fetch(`/api/native/invoice/${id}/share/${action}`, { method: "POST", credentials: "include" });
+    const j = await res.json().catch(() => ({}));
+    if (res.status === 202) {
+      setFeedback(
+        `${action === "revoke" ? "Revoke" : "Rotate"} queued — approve it in the queue below. The current link keeps working until it is approved.`,
+      );
+    } else if (res.ok) {
+      const url = (j?.data?.shareUrl as string | undefined) || "";
+      const notice = (j?.data?.notice as string | undefined) || "";
+      if (action === "rotate") setFeedback(`New customer link issued — the previous link no longer opens.${url ? ` ${url}` : ""} ${notice}`.trim());
+      else setFeedback(`Customer link revoked — the old URL no longer opens for anyone. ${notice}`.trim());
+    } else {
+      setError(j.error || `Could not ${action} the customer link.`);
+    }
+    await load();
   }
 
   const visible = filter ? items.filter((i) => i.linkedDealRoomId === filter) : items;
@@ -345,12 +376,35 @@ export default function InvoicesPage() {
                       <p className="mt-1 text-xs text-red-500">Failure reason: {i.lastAttempt.error}</p>
                     )}
                     {i.status === "sent" && i.shareSlug && (
-                      <div className="mt-2 flex flex-wrap items-center gap-2">
-                        <code className="max-w-full truncate rounded bg-stone-100 px-2 py-1 text-xs text-stone-700">
-                          {publicLink(i)}
-                        </code>
-                        <button type="button" className="text-xs text-sky-600 underline" onClick={() => copyLink(i)}>
-                          Copy customer link
+                      <div className="mt-2 space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <code className="max-w-full truncate rounded bg-stone-100 px-2 py-1 text-xs text-stone-700">
+                            {publicLink(i)}
+                          </code>
+                          <button type="button" className="text-xs text-sky-600 underline" onClick={() => copyLink(i)}>
+                            Copy customer link
+                          </button>
+                          <button type="button" className="text-xs text-stone-600 underline" onClick={() => shareAction(i.id, "rotate")}>
+                            Replace with a new link
+                          </button>
+                          <button type="button" className="text-xs text-red-600 underline" onClick={() => shareAction(i.id, "revoke")}>
+                            Revoke link
+                          </button>
+                        </div>
+                        <p className="text-xs text-stone-500">
+                          Revoking kills this URL for good. It does not cancel a payment page the customer already opened — that
+                          page lives on your own Stripe account and may still be payable until it expires.
+                        </p>
+                      </div>
+                    )}
+                    {i.status === "sent" && !i.shareSlug && (
+                      <div className="mt-2 space-y-1">
+                        <p className="text-xs text-amber-500">
+                          Public link revoked{i.shareRevokedAt ? ` ${new Date(i.shareRevokedAt).toLocaleString()}` : ""} — the old URL
+                          no longer opens for anyone. A payment page the customer already opened is not cancelled by this.
+                        </p>
+                        <button type="button" className="text-xs text-stone-600 underline" onClick={() => shareAction(i.id, "rotate")}>
+                          Issue a new link
                         </button>
                       </div>
                     )}

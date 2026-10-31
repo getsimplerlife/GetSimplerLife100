@@ -6,6 +6,14 @@
  * (ctx.userEmail); every mutation is a GATED write (gate.ts); 404 on any
  * foreign/unknown invoice id (fail-closed, no IDOR).
  *
+ * SHARE-LINK LIFECYCLE (slice 152): POST /api/native/invoice/:id/share/revoke
+ * and POST /api/native/invoice/:id/share/rotate kill, or kill-and-reissue, the
+ * public slug. A sent invoice's link could previously never be taken back (the
+ * only unregister path was delete, and `sent` is terminal); now the tenant can
+ * retire it at will. Both are gated writes and neither changes the status.
+ * Revoking OUR page does not cancel a Stripe Checkout Session already opened on
+ * the tenant's own account — every response says that in so many words.
+ *
  * PUBLIC (customer): /api/native/invoice/share/:slug[/pdf] — the read-only
  * invoice the customer received by email. Same signed-slug pattern as
  * proposals (2.1): the global index maps slug → tenantId ONLY, the slug is
@@ -42,10 +50,10 @@ import {
   applyInvoiceMutation,
   appendAudit,
 } from "./store";
-import { submitInvoiceWrite, executePendingInvoiceWrite, noteOwnerDecision, createInvoiceMutationFromInput } from "./gate";
+import { submitInvoiceWrite, executePendingInvoiceWrite, noteOwnerDecision, createInvoiceMutationFromInput, SHARE_LINK_PAY_NOTICE } from "./gate";
 import { resolveIssuerDisplayName } from "./issuer";
 import { isInvoiceId } from "./validate";
-import { publicOrigin } from "./delivery";
+import { publicOrigin, invoiceShareUrl } from "./delivery";
 import { connectTenantStripe, disconnectTenantStripe, getTenantStripeStatus } from "./stripe-connect";
 import { createTenantCheckoutSession } from "./stripe-checkout";
 import { getDealRoom } from "../dealroom/store";
@@ -197,7 +205,20 @@ async function handleAuthedAsync(req: Request, ctx: NativeInvoicesCtx): Promise<
       }
       const res = await executePendingInvoiceWrite(dataDir, tenantId, ptw.approvalActionId, tenantId);
       if (!res.ok) return gateErrorStatus(res.reason);
-      return Response.json({ data: { status: res.alreadyApplied ? "alreadyApplied" : "applied", invoiceId: res.record.id, invoiceStatus: res.record.status, alreadyApplied: !!res.alreadyApplied } });
+      // A share-link write carries the same honest payment caveat as the direct
+      // response: killing our page never cancelled a Checkout Session the
+      // customer already opened (see SHARE_LINK_PAY_NOTICE).
+      const shareOp = res.op === "revokeShare" || res.op === "rotateShare";
+      return Response.json({
+        data: {
+          status: res.alreadyApplied ? "alreadyApplied" : "applied",
+          invoiceId: res.record.id,
+          invoiceStatus: res.record.status,
+          alreadyApplied: !!res.alreadyApplied,
+          shareUrl: res.record.shareSlug ? invoiceShareUrl(res.record.shareSlug) : null,
+          ...(shareOp ? { publicLinkDead: res.op === "revokeShare", checkoutSessionMayStillBePayable: true, notice: SHARE_LINK_PAY_NOTICE } : {}),
+        },
+      });
     }
     return Response.json({ error: "Method not allowed" }, { status: 405 });
   }
@@ -279,6 +300,43 @@ async function handleAuthedAsync(req: Request, ctx: NativeInvoicesCtx): Promise<
           delivered: res.invoice.status === "sent",
           lastAttempt: res.invoice.lastAttempt,
           autonomy: res.autonomy,
+        },
+      });
+    }
+    if (res.pending) return Response.json({ data: { status: "pending", approvalActionId: res.approvalActionId } }, { status: 202 });
+    return gateErrorStatus(res.error);
+  }
+  // ── /api/native/invoice/:id/share/(revoke|rotate) — slice 152 ──
+  // The public slug is a BEARER credential: whoever holds it can read the
+  // invoice and reach the pay button. Revoking kills it for good; rotating
+  // kills it and issues a fresh one. Both are GATED writes (approvalGate, same
+  // as every other invoice write), both 404 on a foreign/unknown invoice, and
+  // neither changes the invoice status — `sent` stays terminal.
+  //
+  // HONESTY (non-negotiable): this kills OUR page. It does NOT cancel a Stripe
+  // Checkout Session the customer already opened — that lives on the tenant's
+  // own Stripe account and its id is not on the invoice record, so the money
+  // side is not closed by this call. Every response says so explicitly rather
+  // than implying "revoked" means "unpayable".
+  if (verb === "share" && (seg[2] === "revoke" || seg[2] === "rotate")) {
+    if (seg.length !== 3) return json404("Unknown native invoice endpoint");
+    if (req.method !== "POST") return Response.json({ error: "Method not allowed" }, { status: 405 });
+    const shareOp = seg[2] === "revoke" ? ("revokeShare" as const) : ("rotateShare" as const);
+    const res = await submitInvoiceWrite(dataDir, tenantId, shareOp, { invoiceId, via: "portal" }, tenantId);
+    if (res.applied) {
+      const shareUrl = res.invoice.shareSlug ? invoiceShareUrl(res.invoice.shareSlug) : null;
+      return Response.json({
+        data: {
+          status: "applied",
+          invoiceId: res.invoice.id,
+          invoiceStatus: res.invoice.status,
+          autonomy: res.autonomy,
+          ...(shareOp === "revokeShare"
+            ? { shareRevoked: true, publicLinkDead: true, shareUrl: null }
+            : { shareUrl, previousLinkDead: true }),
+          // Stated plainly, never implied away (see SHARE_LINK_PAY_NOTICE).
+          checkoutSessionMayStillBePayable: true,
+          notice: SHARE_LINK_PAY_NOTICE,
         },
       });
     }
@@ -467,6 +525,8 @@ export function registerBuiltinNativeInvoiceEventTypes(): void {
     "native.invoice.failed",
     "native.invoice.deleted",
     "native.invoice.payment.started",
+    "native.invoice.share.revoked",
+    "native.invoice.share.rotated",
   ]) {
     registerNativeEventType(t, base);
   }
