@@ -8,7 +8,7 @@
  * uses a temp dir, and the two end-to-end cases run the real CLIs against it.
  */
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -28,6 +28,7 @@ import {
   writeDaemonHeartbeat,
   type DaemonHeartbeat,
 } from "../../scripts/lib/backup-daemon";
+import { publishTreeRoot } from "../../scripts/lib/backup-core";
 import { resolveUploadPrefix } from "../../src/lib/r2-upload";
 
 // Same resolution the other backup tests use: cwd when we are at the repo root,
@@ -274,6 +275,58 @@ describe("slice 149 — the CLIs behave", () => {
     if (lock.ok) lock.release();
   }, 90_000);
 
+  it("refuses an out dir inside the publish tree BEFORE creating anything", () => {
+    // SLICE 149b: slice 149 put `mkdirSync(OUT_DIR)` + the run lock above the
+    // publish-tree guard, so a REFUSED run still created the directory it was
+    // refusing to write into. The full suite caught it in backup-restore.test.ts
+    // (`backups-should-not-exist` existed afterwards). Pinned here on the exit
+    // code and on the filesystem: a refusal leaves no trace at all.
+    const root = publishTreeRoot();
+    expect(root).toBeTruthy();
+    const inside = join(root!, "backups-should-not-exist-149b");
+    expect(existsSync(inside)).toBe(false);
+    const data = tmpDir("cli-refuse-data-");
+    writeFileSync(join(data, "users.json"), "{}");
+    const run = spawnSync("bun", [join(REPO_ROOT, "scripts/backup.mjs"), "--data-dir", data, "--out", inside], {
+      cwd: REPO_ROOT,
+      encoding: "utf8",
+      timeout: 60_000,
+    });
+    // exit 3 = refusal-to-run, and the GUARD's message — never a lock message
+    expect(run.status).toBe(EXIT_REFUSED);
+    expect(run.stderr).toMatch(/refusing to write a backup inside the publish tree/);
+    expect(run.stdout).toContain('"refused": true');
+    expect(existsSync(inside)).toBe(false);
+    // nothing was attempted, so nothing is recorded as a failed run either
+    expect(existsSync(join(data, "backup_status.json"))).toBe(false);
+  }, 90_000);
+
+  it("is not blocked by a run lock held for a DIFFERENT archive root", () => {
+    // The lock lives inside the archive root, so a temp-out run (a test, a drill)
+    // must never be refused by the live daemon's tick on the real root. Asserted
+    // against a REAL run rather than by reading the path construction.
+    const otherRoot = tmpDir("cli-lock-other-");
+    const myRoot = tmpDir("cli-lock-mine-");
+    const data = tmpDir("cli-lock-data-");
+    writeFileSync(join(data, "users.json"), '{"owner@example.com":{"role":"admin"}}');
+    const held = acquireLock({ path: runLockPath(otherRoot), reason: "a-tick-on-another-root" });
+    expect(held.ok).toBe(true);
+    try {
+      const run = spawnSync(
+        "bun",
+        [join(REPO_ROOT, "scripts/backup.mjs"), "--data-dir", data, "--out", myRoot, "--no-upload"],
+        { cwd: REPO_ROOT, encoding: "utf8", timeout: 120_000 },
+      );
+      expect(run.stdout + run.stderr).not.toMatch(/concurrent-run/);
+      expect(run.status).toBe(0);
+      // a real run directory appeared under OUR root
+      expect(readdirSync(myRoot).some((n) => /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}Z$/.test(n))).toBe(true);
+      // and the other root's lock was never touched
+      expect(existsSync(runLockPath(otherRoot))).toBe(true);
+    } finally {
+      if (held.ok) held.release();
+    }
+  }, 150_000);
   it("does not start a loop when disabled for the runtime", () => {
     const out = tmpDir("ensure-disabled-");
     const run = execFileSync("bun", [join(REPO_ROOT, "scripts/ensure-backup-daemon.mjs")], {

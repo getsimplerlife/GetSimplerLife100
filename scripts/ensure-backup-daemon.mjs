@@ -24,11 +24,15 @@ import { closeSync, mkdirSync, openSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { daemonStatus } from "./lib/backup-daemon.ts";
+import { isInsidePublishTree } from "./lib/backup-core.ts";
 import { resolveBackupInterval } from "../src/lib/backup-scheduler.ts";
 
 const REPO_ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
+const DATA_DIR = resolve(process.env.DATA_DIR?.trim() || join(REPO_ROOT, ".data"));
 const OUT_DIR = resolve(process.env.BACKUP_ROOT?.trim() || "/home/team/shared/backups");
 const INTERVAL_MS = resolveBackupInterval(process.env);
+/** 3 = refusal-to-run, the same code the CLI and the loop use for a refusal. */
+const EXIT_REFUSED = 3;
 const LOG_FILE = join(REPO_ROOT, ".run", "backup-daemon.log");
 
 function log(msg) {
@@ -38,6 +42,26 @@ function log(msg) {
 if (process.env.VITEST || process.env.BACKUP_DAEMON_DISABLE === "1") {
   log("skipped: disabled for this runtime");
   process.exit(0);
+}
+
+// ── SLICE 149b: same ordering rule as the CLI and the loop ──────────────────
+// This script creates `.run/` and spawns a process whose first act is to create
+// the archive root. Both are writes, so the publish-tree refusal has to happen
+// above them: a loop told to archive into the publish tree must be refused
+// before anything — a directory, a lock, a heartbeat — exists to be published.
+if (isInsidePublishTree(OUT_DIR)) {
+  log(`refusing to supervise a backup root inside the publish tree: ${OUT_DIR} (nothing started)`);
+  console.log(
+    JSON.stringify({ ok: false, started: false, reason: "publish-tree", outDir: OUT_DIR, wrote: "nothing" }, null, 2),
+  );
+  process.exit(EXIT_REFUSED);
+}
+if (OUT_DIR === DATA_DIR || OUT_DIR.startsWith(DATA_DIR + "/")) {
+  log(`refusing to supervise an archive root inside DATA_DIR: ${OUT_DIR} (nothing started)`);
+  console.log(
+    JSON.stringify({ ok: false, started: false, reason: "inside-data-dir", outDir: OUT_DIR, wrote: "nothing" }, null, 2),
+  );
+  process.exit(EXIT_REFUSED);
 }
 
 const before = daemonStatus({ outDir: OUT_DIR, intervalMs: INTERVAL_MS });

@@ -41,7 +41,7 @@
 import { execFileSync } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { runBackup } from "./lib/backup-core.ts";
+import { isInsidePublishTree, runBackup } from "./lib/backup-core.ts";
 import { makeEncryptHook } from "./lib/backup-crypto.ts";
 import { uploadVerifiedRun } from "./lib/r2-backup.ts";
 import { EXIT_REFUSED, acquireLock, runLockPath } from "./lib/backup-daemon.ts";
@@ -67,12 +67,46 @@ const NO_STATUS = !!arg("no-status", false);
 const NO_UPLOAD = !!arg("no-upload", false);
 const PASSPHRASE = process.env.BACKUP_PASSPHRASE?.trim() || "";
 
+// ── SLICE 149b: the pre-flight guards come FIRST, before any write at all ───
+// Slice 149 took the run lock above `runBackup()`'s guard, and taking a lock
+// means `mkdirSync(OUT_DIR)` first. So a run that the guard was going to refuse
+// still CREATED the archive directory inside the publish tree it was refusing to
+// write into — the exact harm slice 146's guard exists to prevent, reintroduced
+// by the ordering. Measured: the full suite failed
+// `backup-restore.test.ts:198` because `backups-should-not-exist/` existed.
+//
+// A refusal must leave the tree byte-identical: nothing created, no lock taken,
+// no status written. So the two refusals below run before the first filesystem
+// call of any kind, and `runBackup()` keeps its own copies as defence in depth
+// (it is reachable from the in-server scheduler, which never passes through
+// this file).
+if (isInsidePublishTree(OUT_DIR)) {
+  console.error(`[backup] refusing to write a backup inside the publish tree: ${OUT_DIR}`);
+  console.log(
+    JSON.stringify({ ok: false, refused: true, reason: "publish-tree", outDir: OUT_DIR, wrote: "nothing" }, null, 2),
+  );
+  process.exit(EXIT_REFUSED);
+}
+if (OUT_DIR === DATA_DIR || OUT_DIR.startsWith(DATA_DIR + "/")) {
+  // Same class of harm, one directory over: archiving a data dir into a
+  // subdirectory of itself makes the archive part of what it is archiving.
+  console.error(`[backup] refusing to write a backup inside the data dir it is archiving: ${OUT_DIR}`);
+  console.log(
+    JSON.stringify({ ok: false, refused: true, reason: "inside-data-dir", outDir: OUT_DIR, wrote: "nothing" }, null, 2),
+  );
+  process.exit(EXIT_REFUSED);
+}
+
 // ── SLICE 149: exactly one run at a time, across every entry point ──────────
 // The in-server scheduler refuses to overlap itself, but a loop, a server and a
 // human with a terminal are three processes. This lock is the only thing that
 // makes "no overlapping runs" true for all of them. A refusal is NOT a failure:
 // nothing was attempted, so nothing is written to backup_status.json — and the
 // exit code (3) says which of the two happened.
+//
+// The lock lives INSIDE the archive root, so it is per-root: a run against a
+// different `--out` (a temp dir in a test, a drill) is never blocked by the
+// daemon's tick on the real root. Verified by a test, not assumed.
 mkdirSync(OUT_DIR, { recursive: true, mode: 0o700 });
 const RUN_LOCK = acquireLock({ path: runLockPath(OUT_DIR), reason: "backup-cli" });
 if (!RUN_LOCK.ok) {

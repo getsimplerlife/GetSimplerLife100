@@ -42,6 +42,7 @@ import {
   releaseLock,
   writeDaemonHeartbeat,
 } from "./lib/backup-daemon.ts";
+import { isInsidePublishTree } from "./lib/backup-core.ts";
 import { backupEventLine } from "../src/lib/backup-status.ts";
 import { resolveBackupInterval } from "../src/lib/backup-scheduler.ts";
 import { describeR2Config, resolveUploadPrefix } from "../src/lib/r2-upload.ts";
@@ -100,7 +101,32 @@ function envReport() {
   }
 }
 
+// ── SLICE 149b: refuse an archive root inside the publish tree BEFORE writing ─
+// Same ordering rule as the CLI: the daemon lock and the heartbeat live inside
+// the archive root, so "take the lock" means "create the root first". A loop
+// pointed at a directory inside the publish tree must therefore say so and exit
+// without creating it — a publish would ship, then wipe, whatever it wrote.
+if (isInsidePublishTree(OUT_DIR)) {
+  log(`NOT STARTING — refusing to write backups inside the publish tree: ${OUT_DIR}`);
+  console.log(
+    JSON.stringify({ ok: false, started: false, reason: "publish-tree", outDir: OUT_DIR, wrote: "nothing" }, null, 2),
+  );
+  process.exit(EXIT_REFUSED);
+}
+if (OUT_DIR === DATA_DIR || OUT_DIR.startsWith(DATA_DIR + "/")) {
+  log(`NOT STARTING — refusing to archive ${DATA_DIR} into a directory inside itself: ${OUT_DIR}`);
+  console.log(
+    JSON.stringify({ ok: false, started: false, reason: "inside-data-dir", outDir: OUT_DIR, wrote: "nothing" }, null, 2),
+  );
+  process.exit(EXIT_REFUSED);
+}
+
 // ── One loop per archive root ───────────────────────────────────────────────
+// The root is created only after both refusals above, and only because the lock
+// and heartbeat have to live somewhere. `acquireLock` uses `open(…, "wx")`, which
+// cannot create a missing parent — so without this mkdir a first-ever run on a
+// fresh box would report "already supervised" and never back anything up.
+mkdirSync(OUT_DIR, { recursive: true, mode: 0o700 });
 const lockPath = daemonLockPath(OUT_DIR);
 const lock = acquireLock({ path: lockPath, reason: `backup-daemon interval=${INTERVAL_MS}ms` });
 if (!lock.ok) {
@@ -111,7 +137,6 @@ if (!lock.ok) {
   process.exit(0);
 }
 
-mkdirSync(OUT_DIR, { recursive: true });
 const startedAt = new Date();
 let ticks = 0;
 let lastRunStartedAt = null;
