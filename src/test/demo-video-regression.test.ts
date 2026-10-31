@@ -33,15 +33,29 @@ describe("demo truthfulness (homepage clean, /demo honest)", () => {
     expect(src).not.toMatch(/video\/mp4/);
   });
 
-  it("homepage hero CTA is clean: no demo mention; primary + secondary links intact", () => {
+  it("homepage hero CTA is clean: no demo mention; one primary action plus a quiet secondary link", () => {
     const src = readFileSync(join(REPO, "src", "routes", "index.tsx"), "utf8");
-    // No "demo" wording anywhere in homepage copy.
+    // No "demo" wording anywhere in homepage copy. This part is the reason the
+    // test exists and it does not move.
     expect(src).not.toMatch(/interactive demo/i);
     expect(src).not.toMatch(/[Ss]ee it working/);
-    // Primary CTA (assessment) and the replacement secondary CTA (approach).
-    expect(src).toMatch(/to="\/assessment"/);
-    expect(src).toMatch(/Find My First Automation/);
-    expect(src).toMatch(/to="\/how-it-works"/);
+    // SLICE 157 (owner picked Option B) replaced the assessment-first hero with a
+    // single primary action and a quiet in-page jump to pricing. What this guard
+    // protects is the SHAPE of the hero — one primary call to action, a secondary
+    // link, nothing competing with it — not the labels of the previous homepage.
+    // Pinning the old labels is what broke here; pinning the shape still fails
+    // loudly if a second, competing CTA is ever added back.
+    expect(src).toMatch(/const PRIMARY_CTA = \{ label: "Get started", to: "\/register" \}/);
+    expect(src).toMatch(/data-cta="primary"/);
+    expect(src).toMatch(/href="#pricing"/);
+  });
+  it("the assessment and the approach pages are still reachable from the site chrome", () => {
+    // The homepage no longer carries them in the hero, so they must stay one
+    // click away somewhere a visitor can actually find them.
+    const header = readFileSync(join(REPO, "src", "components", "Header.tsx"), "utf8");
+    const footer = readFileSync(join(REPO, "src", "components", "Footer.tsx"), "utf8");
+    expect(header).toMatch(/\/tools\/assessment/);
+    expect(footer).toMatch(/to="\/how-it-works"/);
   });
 
   it("assets kept: public/videos MP4 + poster still exist", () => {
