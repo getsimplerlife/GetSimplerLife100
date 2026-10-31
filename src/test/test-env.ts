@@ -299,10 +299,27 @@ export function resolveWebhookSecretFromEnv(): string {
 }
 
 /** Free the port from any stale leftover test server holding it (async-safe). */
-async function freeTestPort(): Promise<void> {
+export async function freeTestPort(port: number = TEST_PORT): Promise<void> {
   const { execSync } = await import("child_process");
-  try { execSync(`lsof -ti tcp:${TEST_PORT} | xargs -r kill -9 2>/dev/null || true`, { stdio: "ignore" }); } catch { /* no lsof */ }
-  try { execSync(`fuser -k ${TEST_PORT}/tcp 2>/dev/null || true`, { stdio: "ignore" }); } catch { /* fuser missing */ }
+  // SLICE 156 — `lsof -ti tcp:PORT` matches ESTABLISHED CLIENT sockets as well
+  // as the listener, so the old form SIGKILLed every vitest worker that was
+  // fetching from this server (and the watchdog then reaped the server, taking
+  // every remaining file that needed :3999 with it). Measured on this host with
+  // one listener and one client: `lsof -ti tcp:4599` → 2 pids,
+  // `lsof -ti tcp:4599 -sTCP:LISTEN` → 1 pid. Only a LISTENER is ever ours to
+  // kill, and never ourselves or our supervisor.
+  const neverKill = new Set([process.pid, process.ppid]);
+  try {
+    const out = execSync(`lsof -ti tcp:${port} -sTCP:LISTEN 2>/dev/null || true`, { encoding: "utf-8" });
+    for (const raw of out.split("\n")) {
+      const pid = Number(raw.trim());
+      if (!Number.isInteger(pid) || pid <= 0 || neverKill.has(pid)) continue;
+      try { process.kill(pid, "SIGKILL"); } catch { /* already gone */ }
+    }
+  } catch { /* no lsof on this host — nothing to free blindly */ }
+  // fuser resolves the LOCAL port binding (a client's local port is ephemeral),
+  // so it is listener-scoped too; it stays as the fallback for hosts without lsof.
+  try { execSync(`fuser -k ${port}/tcp 2>/dev/null || true`, { stdio: "ignore" }); } catch { /* fuser missing */ }
 }
 
 /**

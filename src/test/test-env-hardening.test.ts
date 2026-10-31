@@ -18,6 +18,7 @@ import {
   hardKillTestServer,
   spawnTestServerWithWatchdog,
   killTestServerGroup,
+  freeTestPort,
 } from "./test-env";
 
 /**
@@ -408,4 +409,58 @@ describe("test-env parent watchdog reaps the spawned server (no orphan on worker
     expect(() => killTestServerGroup(null)).not.toThrow();
     expect(() => killTestServerGroup({} as ChildProcess)).not.toThrow();
   });
+
+  /**
+   * SLICE 156 FOLLOW-UP REGRESSION — the full-suite-only failure class.
+   *
+   * `lsof -ti tcp:PORT` matches every socket that touches the port, CLIENT
+   * sockets included, so the old
+   *   `lsof -ti tcp:3999 | xargs -r kill -9`
+   * SIGKILLed the vitest workers that were fetching from the shared test
+   * server. Vitest then reported "Worker exited unexpectedly", the killed
+   * worker's watchdog reaped the server with it, and every later file that
+   * needed :3999 died with ECONNREFUSED — the measured signature of 4-7 tests
+   * red in the full suite while green solo.
+   *
+   * Freeing the port may only ever kill a LISTENER. This proves it on a
+   * scratch port: a fixture listener plus a separate process holding an
+   * ESTABLISHED connection (what a worker looks like), then freeTestPort.
+   */
+  it("freeTestPort frees the port without killing a connected CLIENT (the worker-SIGKILL bug)", async () => {
+    const port = 4601; // scratch — NEVER 3999, the shared suite server
+    const listener = spawn("bun", ["-e", fixtureServerScript(port)], { stdio: "ignore" });
+    let client: ChildProcess | null = null;
+    try {
+      await waitForServerUp(port);
+      client = spawn("bun", ["-e",
+        `await fetch("http://127.0.0.1:${port}/").then((r) => r.text()); await new Promise((r) => setTimeout(r, 30000));`,
+      ], { stdio: "ignore" });
+      const clientPid = client.pid;
+      // Wait for the exact condition that made the old query kill the wrong
+      // process: TWO pids on the port — the listener and its client.
+      const deadline = Date.now() + 10_000;
+      let pids: string[] = [];
+      while (Date.now() < deadline) {
+        pids = execSync(`lsof -ti tcp:${port} 2>/dev/null || true`, { encoding: "utf-8" })
+          .split("\n").map((s) => s.trim()).filter(Boolean);
+        if (pids.length >= 2) break;
+        await new Promise((r) => setTimeout(r, 200));
+      }
+      expect(pids.length, "fixture must present a listener AND a client socket on the port").toBeGreaterThanOrEqual(2);
+
+      await freeTestPort(port);
+
+      // The port is freed…
+      await withTimeout(waitForServerDown(port), 5000, "freeTestPort did not free the port");
+      // …and the process that was merely USING the port is untouched.
+      const alive = (pid?: number) => {
+        if (!pid) return false;
+        try { process.kill(pid, 0); return true; } catch { return false; }
+      };
+      expect(alive(clientPid), "freeTestPort killed a CLIENT — this is the vitest-worker SIGKILL bug").toBe(true);
+    } finally {
+      listener.kill("SIGKILL");
+      client?.kill("SIGKILL");
+    }
+  }, 60_000);
 });
