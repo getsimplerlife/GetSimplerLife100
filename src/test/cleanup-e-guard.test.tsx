@@ -75,11 +75,11 @@ describe("CLEANUP (e): zero Deploy-Live / fake-save theater in product source, s
 
 describe("CLEANUP (e): the admin canvas honest export flow is pinned", () => {
   it("the toolbar offers the honest export action, not a deploy", () => {
-    expect(page).toContain("Export Blueprint (JSON)");
+    expect(page).toContain("Export Workflow (JSON)");
     expect(page).toContain("Download JSON");
   });
 
-  it("export really downloads the blueprint JSON to the device", () => {
+  it("export really downloads the workflow JSON to the device", () => {
     expect(page).toMatch(/new Blob\(\[serializedWorkflow\], \{ type: "application\/json" \}\)/);
     expect(page).toMatch(/a\.download = /);
     expect(page).toContain("URL.createObjectURL(blob)");
