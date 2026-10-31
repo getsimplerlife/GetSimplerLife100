@@ -27,6 +27,7 @@ import { startHealthHeartbeat, probeProvider } from "./src/lib/connection-health
 import { sweepExpiredOAuthStates, OAUTH_STATE_TTL_MS } from "./src/lib/oauth-state-sweeper";
 import { acquireSingleInstanceOwnership, portAlreadyBound } from "./src/lib/single-instance";
 import { isOwnerUser, LEGACY_OWNER_EMAIL } from "./src/lib/user-roles";
+import { guardRequest, peerAddressFrom, describeTrustedProxies } from "./src/lib/rate-limit";
 import { readBackupStatus, countStoreEntries, readBackupFreshness, resolveStaleFactor } from "./src/lib/backup-status";
 import { runBackup } from "./scripts/lib/backup-core";
 import { makeEncryptHook } from "./scripts/lib/backup-crypto";
@@ -595,37 +596,40 @@ function applySecurityHeaders(req: Request, res: Response): Response {
   return res;
 }
 
-const rateLimitBuckets = new Map<string, number[]>();
-const RATE_LIMIT_WINDOW_MS = 60_000;
-const RATE_LIMIT_DEFAULT = 20; // requests per IP per minute
-function clientIp(req: Request): string {
-  const fwd = req.headers.get("x-forwarded-for") || "";
-  return fwd.split(",")[0]?.trim() || "local";
-}
-function rateLimited(req: Request, key: string, max = RATE_LIMIT_DEFAULT): boolean {
-  const bucket = clientIp(req) + ":" + key;
-  const now = Date.now();
-  const hits = (rateLimitBuckets.get(bucket) || []).filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
-  if (hits.length >= max) {
-    rateLimitBuckets.set(bucket, hits);
-    return true;
-  }
-  hits.push(now);
-  rateLimitBuckets.set(bucket, hits);
-  return false;
-}
-function rateLimitedResponse(): Response {
-  return Response.json({ error: "Too many requests. Please try again later." }, { status: 429 });
-}
+// ── SLICE 151 — rate limiting ───────────────────────────────────────────────
+// The limiter used to live right here: a Map keyed on the FIRST hop of
+// `x-forwarded-for` (a header the caller writes) that was never pruned. A random
+// header per request produced a fresh bucket every time, so the limit never
+// fired, and those attacker-chosen keys grew memory for the life of the process.
+// It now lives in `src/lib/rate-limit.ts`, shared with the dev listener; the key
+// comes from the SOCKET (`peerAddressFrom` below) and the store is bounded. There
+// is exactly ONE gate call, at the top of `handleFetch`, so no route can reach a
+// handler without passing through it.
 
 serve({
   port: serverPort, // canonical 3000; platform default PORT=80 ignored; explicit numeric overrides honored (see src/lib/server-port.ts)
-  async fetch(req) {
-    return applySecurityHeaders(req, await handleFetch(req));
+  async fetch(req, server) {
+    return applySecurityHeaders(req, await handleFetch(req, server));
   },
 });
 
-async function handleFetch(req: Request): Promise<Response> {
+type ServerPeerSource = Parameters<typeof peerAddressFrom>[0];
+
+async function handleFetch(req: Request, server?: ServerPeerSource): Promise<Response> {
+    const url = new URL(req.url);
+    const pathname = url.pathname;
+    // Single choke point for every guarded lane (login, register, check-user,
+    // password reset, set-password, purchase status, lead capture and the public
+    // invoice/survey/booking share lanes). Unguarded routes pass straight
+    // through: ordinary navigations are never rate limited.
+    const blockedByRateLimit = guardRequest({
+      method: req.method,
+      pathname,
+      peerAddress: peerAddressFrom(server, req),
+      header: (name) => req.headers.get(name),
+    });
+    if (blockedByRateLimit) return blockedByRateLimit;
+
     const url = new URL(req.url);
     const pathname = url.pathname;
     // Health check endpoint (I7: never cached — uptime monitors must see live state)
@@ -668,12 +672,10 @@ async function handleFetch(req: Request): Promise<Response> {
     }
 
     if (pathname === "/api/login" && req.method === "POST") {
-      if (rateLimited(req, "login", 60)) return rateLimitedResponse();
       try { const body = await req.json(); return await handleLogin(body); }
       catch { return Response.json({ error: "Invalid request" }, { status: 400 }); }
     }
     if (pathname === "/api/register" && req.method === "POST") {
-      if (rateLimited(req, "register", 60)) return rateLimitedResponse();
       try { const body = await req.json(); return await handleRegister(body); }
       catch { return Response.json({ error: "Invalid request" }, { status: 400 }); }
     }
@@ -696,7 +698,6 @@ async function handleFetch(req: Request): Promise<Response> {
     // so — it never renders "payment succeeded" on a guess. The response
     // carries no buyer email, no card data, and no secret.
     if (pathname === "/api/purchase/status" && req.method === "GET") {
-      if (rateLimited(req, "purchase-status", 120)) return rateLimitedResponse();
       const sessionId = String(url.searchParams.get("session_id") || "").trim();
       if (!/^cs_[A-Za-z0-9_]{6,255}$/.test(sessionId)) {
         return Response.json({ found: false, verified: false, reason: "invalid_session_id" }, { status: 400 });
@@ -751,7 +752,6 @@ async function handleFetch(req: Request): Promise<Response> {
       }
     }
     if (pathname === "/api/check-user-exists" && req.method === "POST") {
-      if (rateLimited(req, "check-user")) return rateLimitedResponse();
       try {
         const { email } = await req.json();
         if (!email) return Response.json({ error: "Email required" }, { status: 400 });
@@ -767,7 +767,6 @@ async function handleFetch(req: Request): Promise<Response> {
     // generic response is returned for unknown emails so this endpoint does not
     // become an account-enumeration oracle.
     if (pathname === "/api/request-password-reset" && req.method === "POST") {
-      if (rateLimited(req, "reset", 10)) return rateLimitedResponse();
       try {
         const body = await req.json();
         const email = String(body?.email || "").toLowerCase().trim();
@@ -2692,7 +2691,6 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
   return { subject, body, matchedAgents: matched, bestPlan, planLink };
 }
     if (pathname === "/api/tools/capture-lead" && req.method === "POST") {
-      if (rateLimited(req, "lead", 10)) return rateLimitedResponse();
       try {
         const body = await req.json();
         const leads = readJSON(LEADS_FILE) || {};
@@ -4040,6 +4038,8 @@ OAUTH_${provUpper}_CLIENT_SECRET=your_client_secret</pre><p style="font-size:0.8
       }
 }
 console.log(`[prod-server] Port ${serverPort} — SSR mode: server-side rendering + client hydration | API: /api/login, /api/register, /api/logout, /api/me`);
+// SLICE 151 — say out loud how the limiter attributes a request to a client.
+console.log(describeTrustedProxies());
 // Signal readiness — write a file the publish tool can detect
 try { require("fs").writeFileSync("/tmp/slr100-ready", String(Date.now())); } catch (_) {}
 process.on("exit", () => { if (backupTimer) clearInterval(backupTimer); });

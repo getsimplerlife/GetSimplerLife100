@@ -6,6 +6,7 @@ import tailwindcss from "@tailwindcss/vite";
 import { tanstackRouterGenerator } from "@tanstack/router-plugin/vite";
 import viteReact from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
+import { devRateLimitPlugin } from "./src/lib/rate-limit-dev";
 import tsConfigPaths from "vite-tsconfig-paths";
 
 // Resolve the vinxi/http + node:async_hooks stubs relative to THIS repo instead
@@ -138,6 +139,9 @@ export default defineConfig({
   },
   plugins: [
     backupDaemonSupervisor(),
+    // SLICE 151 — the dev listener gets the SAME limiter as prod-server.ts.
+    // Without this the working site had no rate limiting at all.
+    devRateLimitPlugin(),
     dataDirBootHook(),
     tailwindcss(),
     tsConfigPaths({
