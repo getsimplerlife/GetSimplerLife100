@@ -394,7 +394,7 @@
     ],
     "painPoints": [
       "Manual deployment processes cause 2+ hour release cycles",
-      "Unplanned work consumes 40% of sprint capacity",
+      "Unplanned work consumes 40% of delivery capacity",
       "Cloud costs growing 20% month-over-month"
     ],
     "recommendedWorkflows": [

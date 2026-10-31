@@ -145,7 +145,7 @@ export function makeBoxImportSourceReader(deps: BoxImportSourceDeps = {}): Impor
       }
       if (!refreshToken) {
         throw new BoxImportSourceError(
-          "Box access token expired and this connection has no refresh token — reconnect the client's Box account (0 rows pulled).",
+          "Box access token expired and this connection has no refresh token — the client must re-authorise their own Box account (0 rows pulled; nothing fabricated).",
         );
       }
       try {
@@ -213,7 +213,7 @@ export function makeBoxImportSourceReader(deps: BoxImportSourceDeps = {}): Impor
 
 /** Register the Box lane in the import source registry (idempotent).
  *  Called by prod-server at boot and by tests. One-shot/client-initiated
- *  re-runs only — no webhooks, no write-back, no reconnect program
+ *  re-runs only — no webhooks, no write-back, no re-authorisation program
  *  (owner 10-20). */
 export function registerBoxImportSource(deps: BoxImportSourceDeps = {}): void {
   registerImportSource("box", makeBoxImportSourceReader(deps));

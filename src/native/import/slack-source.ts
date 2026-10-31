@@ -140,7 +140,7 @@ export function makeSlackImportSourceReader(deps: SlackImportSourceDeps = {}): I
       }
       if (!refreshToken) {
         throw new SlackImportSourceError(
-          "Slack access token expired and this connection has no refresh token — reconnect the client's Slack workspace (0 rows pulled).",
+          "Slack access token expired and this connection has no refresh token — the client must re-authorise their own Slack workspace (0 rows pulled; nothing fabricated).",
         );
       }
       try {
@@ -207,7 +207,7 @@ export function makeSlackImportSourceReader(deps: SlackImportSourceDeps = {}): I
 
 /** Register the Slack lane in the import source registry (idempotent). Called
  *  by prod-server at boot and by tests. One-shot/client-initiated re-runs
- *  only — no webhooks, no write-back, no reconnect program (owner 10-20). */
+ *  only — no webhooks, no write-back, no re-authorisation program (owner 10-20). */
 export function registerSlackImportSource(deps: SlackImportSourceDeps = {}): void {
   registerImportSource("slack", makeSlackImportSourceReader(deps));
 }

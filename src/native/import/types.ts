@@ -5,7 +5,7 @@
  * Owner 10-20 direction (plan rev 366+): external tool connections are
  * CLIENT-OPTIONAL import/migration lanes — a client connects their OWN tools
  * to transfer their data into native services, then runs everything from our
- * site. There is NO reconnect program on our side and we never operate
+ * site. There is NO re-authorisation program on our side and we never operate
  * "through" the client's tools. This slice is the CORE backend for that flow:
  *
  *   - tenant-keyed stores + durable pending-write mirror + immutable

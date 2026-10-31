@@ -135,14 +135,14 @@ export function makeSftpImportSourceReader(): ImportSourceReader {
     for (const c of connections) {
       if (typeof c.secretEncrypted !== "string" || c.secretEncrypted.length === 0) {
         throw new SftpImportSourceError(
-          `SFTP connection "${c.name}" has no stored credential — reconnect it in Secure Transport (0 rows pulled; nothing fabricated).`,
+          `SFTP connection "${c.name}" has no stored credential — the client must enter that credential again in Secure Transport (0 rows pulled; nothing fabricated).`,
         );
       }
       try {
         decryptSecret(c.secretEncrypted);
       } catch {
         throw new SftpImportSourceError(
-          `SFTP connection "${c.name}" has unusable stored credentials (could not decrypt) — reconnect it in Secure Transport (0 rows pulled; nothing fabricated).`,
+          `SFTP connection "${c.name}" has unusable stored credentials (could not decrypt) — the client must enter that credential again in Secure Transport (0 rows pulled; nothing fabricated).`,
         );
       }
     }
@@ -170,7 +170,7 @@ export function makeSftpImportSourceReader(): ImportSourceReader {
 
 /** Register the SFTP lane in the import source registry (idempotent). Called
  *  by prod-server at boot and by tests. One-shot/client-initiated re-runs
- *  only — no webhooks, no write-back, no reconnect program (owner 10-20). */
+ *  only — no webhooks, no write-back, no re-authorisation program (owner 10-20). */
 export function registerSftpImportSource(): void {
   registerImportSource("sftp", makeSftpImportSourceReader());
 }

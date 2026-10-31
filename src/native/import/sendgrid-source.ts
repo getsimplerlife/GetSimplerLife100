@@ -106,7 +106,7 @@ export function makeSendgridImportSourceReader(): ImportSourceReader {
 
 /** Register the SendGrid lane in the import source registry (idempotent).
  *  Called by prod-server at boot and by tests. One-shot/client-initiated
- *  re-runs only — no webhooks, no write-back, no reconnect program
+ *  re-runs only — no webhooks, no write-back, no re-authorisation program
  *  (owner 10-20). */
 export function registerSendgridImportSource(): void {
   registerImportSource("sendgrid", makeSendgridImportSourceReader());
