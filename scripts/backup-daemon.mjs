@@ -43,12 +43,17 @@ import {
   writeDaemonHeartbeat,
 } from "./lib/backup-daemon.ts";
 import { isInsidePublishTree } from "./lib/backup-core.ts";
+import { resolveDataDir } from "../src/lib/data-dir-policy.ts";
 import { backupEventLine } from "../src/lib/backup-status.ts";
 import { resolveBackupInterval } from "../src/lib/backup-scheduler.ts";
 import { describeR2Config, resolveUploadPrefix } from "../src/lib/r2-upload.ts";
 
 const REPO_ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
-const DATA_DIR = resolve(process.env.DATA_DIR?.trim() || join(REPO_ROOT, ".data"));
+// SLICE 150: the SAME resolution rule the server uses. A loop that archived a
+// different directory than the one being written would report healthy backups of
+// stale data. `resolveDataDir` relocates a publish-tree path to the sibling of
+// the tree, so moving DATA_DIR needs no change here.
+const DATA_DIR = resolveDataDir(process.env.DATA_DIR, REPO_ROOT);
 const OUT_DIR = resolve(process.env.BACKUP_ROOT?.trim() || "/home/team/shared/backups");
 const INTERVAL_MS = resolveBackupInterval(process.env);
 const FIRST_DELAY_MS = (() => {
