@@ -145,7 +145,7 @@ function pidIsAlive(pid: number): boolean {
  *  while the marker is recent AND the spawner is still alive. */
 export function writeBootMarker(dir: string): void {
   try {
-    writeFileSync(join(dir, BOOT_MARKER_FILE), JSON.stringify({ pid: process.pid, runnerPid: process.ppid, bootTime: Date.now() }));
+    writeFileSync(join(dir, BOOT_MARKER_FILE), JSON.stringify({ pid: process.pid, bootTime: Date.now() }));
   } catch { /* best effort — a missing marker only disables reuse, never breaks a run */ }
 }
 
@@ -156,18 +156,9 @@ export function isBootMarkerFresh(dir: string, now = Date.now()): boolean {
   try {
     const p = join(dir, BOOT_MARKER_FILE);
     if (!existsSync(p)) return false;
-    const { pid, bootTime, runnerPid } = JSON.parse(readFileSync(p, "utf-8")) as {
-      pid?: number;
-      runnerPid?: number;
-      bootTime?: number;
-    };
+    const { pid, bootTime } = JSON.parse(readFileSync(p, "utf-8")) as { pid?: number; bootTime?: number };
     if (typeof bootTime !== "number" || !Number.isFinite(bootTime)) return false;
     if (now - bootTime > REUSE_GRACE_MS) return false;
-    // Same run: the server was booted by a sibling worker under the SAME vitest
-    // runner this process is running under. That spawning worker may already be
-    // gone (it finished its files), which is normal — the server is still ours
-    // and killing it mid-run is what produced the :3999 cascade.
-    if (typeof runnerPid === "number" && runnerPid === process.ppid) return true;
     if (!pidIsAlive(pid as number)) return false;
     return true;
   } catch { return false; }
@@ -426,20 +417,11 @@ async function spawnServerOnce(): Promise<void> {
   };
   childLog = [];
   child = spawnTestServerWithWatchdog({
-    // The RUNNER, not this worker (slice 157). One worker spawns the server and
-    // may finish its last file while a peer worker is still mid-file. When the
-    // watchdog was tied to the spawning WORKER, that worker's teardown SIGKILLed
-    // the shared server under the peer's feet: "connect ECONNREFUSED :3999" and
-    // "other side closed" across every file that talks to it, in two consecutive
-    // full runs. Tying the watchdog to the vitest runner keeps the server alive
-    // for the whole run and still reaps it when the run ends.
-    supervisorPid: process.ppid || process.pid,
-    // (see runnerSupervisedServer below — this worker no longer kills it)
+    supervisorPid: process.pid,
     env,
     cwd: process.cwd(),
   });
   child.on("exit", (code, sig) => { childLog.push(`[test-server] exited code=${code} sig=${sig}`); });
-  runnerSupervisedServer = true;
   try {
     await waitForHealth();
   } catch (e: any) {
@@ -562,15 +544,7 @@ export function stopTestServer(): void {
   killTestServerGroup(child);
   child = null;
 }
-// Slice 157: the default spawned server is supervised by the RUNNER, not by
-// this worker. Killing it here — when the worker that happened to spawn it
-// finishes its last file — was still taking the shared :3999 server down under
-// a peer worker mid-file. The detached watchdog reaps it when the run ends.
-// Explicit stopTestServer() and the hardening fixtures' own kills are untouched.
-let runnerSupervisedServer = false;
-process.on("exit", () => {
-  if (!runnerSupervisedServer) killTestServerGroup(child);
-});
+process.on("exit", () => killTestServerGroup(child));
 
 // Workers are often terminated by SIGNAL (vitest pool teardown sends SIGTERM
 // after the run; Ctrl+C sends SIGINT). Exit handlers never run on signal
@@ -585,7 +559,7 @@ process.on("exit", () => {
 const TERMINATION_SIGNALS = ["SIGTERM", "SIGINT", "SIGHUP"] as const;
 for (const sig of TERMINATION_SIGNALS) {
   const handler = () => {
-    if (!runnerSupervisedServer) killTestServerGroup(child);
+    killTestServerGroup(child);
     process.removeListener(sig, handler);
     process.kill(process.pid, sig);
   };
