@@ -130,19 +130,19 @@ function CanWeAutomateThis() {
         <section className="max-w-3xl mx-auto px-6 pb-20 space-y-6">
           <div className="bg-gradient-to-br from-emerald-950/40 to-stone-900/80 border border-emerald-900/50 rounded-2xl p-8 text-center">
             <div className="text-5xl mb-4">🎯</div>
-            <h2 className="text-2xl font-black mb-2">Automation Blueprint Ready</h2>
+            <h2 className="text-2xl font-black mb-2">Automation Plan Ready</h2>
             <p className="text-stone-400 mb-2">
               We matched your workflow to <span className="text-emerald-400 font-bold">{result.topMatch || result.suggestedAgentName}</span>
             </p>
             <p className="text-sm text-stone-500 mb-6">Estimated savings: {result.savingsSummary}</p>
             <div className="max-w-sm mx-auto space-y-3">
-              <label className="text-xs font-mono text-stone-400">Enter your email to see your full blueprint:</label>
+              <label className="text-xs font-mono text-stone-400">Enter your email to see your full automation plan:</label>
               <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@company.com"
                 className="w-full bg-stone-950 border border-stone-800 rounded-xl p-3 text-sm text-stone-200 placeholder-stone-600 outline-none focus:border-emerald-700 text-center" />
               <button onClick={handleCaptureLead} disabled={!email.trim()}
                 className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:bg-stone-700 disabled:text-stone-400 text-black font-bold text-sm py-3 rounded-xl transition-all">
-                View My Blueprint →
+                View My Plan →
               </button>
             </div>
           </div>

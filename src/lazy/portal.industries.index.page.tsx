@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 
 
 function IndustriesHub() {
-  const [blueprints, setBlueprints] = useState<any[]>([]);
+  const [templates, setTemplates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState("");
 
@@ -11,7 +11,7 @@ function IndustriesHub() {
     fetch("/api/data/industries", { credentials: "include" })
       .then(r => r.json())
       .then(d => {
-      setBlueprints(d.data || []);
+      setTemplates(d.data || []);
       setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -19,7 +19,7 @@ function IndustriesHub() {
 
   const handleAction = async (name: string, action: string) => {
     try {
-      setFeedback(`Processing blueprint action: ${action}...`);
+      setFeedback(`Processing template action: ${action}...`);
       const res = await fetch("/api/data/industries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -27,9 +27,9 @@ function IndustriesHub() {
         body: JSON.stringify({ action: "industry_" + action.toLowerCase(), resource: name }),
       });
       await res.json();
-      setFeedback(`Success: Blueprint ${action} processed for ${name}`);
+      setFeedback(`Success: template ${action} processed for ${name}`);
       // Toggle status locally
-      const target = blueprints.find(b => b.name === name);
+      const target = templates.find(b => b.name === name);
       if (target) {
         target.status = target.status === "Activated" ? "Deactivated" : "Activated";
         const { _id, ...cleanObj } = target;
@@ -40,7 +40,7 @@ function IndustriesHub() {
           body: JSON.stringify(cleanObj),
         });
       }
-      setBlueprints([...blueprints]);
+      setTemplates([...templates]);
       setTimeout(() => setFeedback(""), 3000);
     } catch (err) {
       console.error(err);
@@ -58,12 +58,12 @@ function IndustriesHub() {
   return (
     <div className="space-y-8 font-sans">
       <div className="border-b border-stone-800 pb-6">
-        <h1 className="text-3xl font-black text-stone-100 tracking-tight">🏢 Vertical Blueprints</h1>
-        <p className="text-stone-500 mt-1">Configure and manage industry-specific automation blueprints built for your business sector.</p>
+        <h1 className="text-3xl font-black text-stone-100 tracking-tight">🏢 Industry Templates</h1>
+        <p className="text-stone-500 mt-1">Configure and manage the industry templates your workspace starts from — each one turns on the native capabilities most used in that sector. Nothing here is billed as a separate product.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {blueprints.map((b, idx) => (
+        {templates.map((b, idx) => (
           <div key={idx} className="bg-stone-900 p-6 rounded-3xl border border-stone-800 shadow-sm flex flex-col justify-between gap-6">
             <div className="space-y-3">
               <div className="flex justify-between items-center text-xs">
@@ -81,7 +81,7 @@ function IndustriesHub() {
                 b.status === "Activated" ? "bg-stone-50 border-stone-800 text-stone-700 hover:bg-stone-100" : "bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-700 shadow-lg"
               }`}
             >
-              {b.status === "Activated" ? "Deactivate Blueprint" : "Activate Blueprint"}
+              {b.status === "Activated" ? "Deactivate Template" : "Activate Template"}
             </button>
           </div>
         ))}

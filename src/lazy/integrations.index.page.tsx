@@ -443,7 +443,7 @@ function IntegrationExplorerPage() {
               Interactive Integration <span className="text-indigo-400">Explorer</span>
             </h1>
             <p className="text-stone-400 text-sm md:text-base max-w-2xl mx-auto leading-relaxed">
-              Select your organization's tools to instantly identify proven automation blueprints. Watch automated operations compile across your existing SaaS platform stacks.
+              Select your organization's tools to see the workflow patterns we build across them, and how a run of each one plays out step by step.
             </p>
           </div>
         </section>
@@ -715,7 +715,7 @@ function IntegrationExplorerPage() {
                     to="/build"
                     className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-mono text-xs font-bold uppercase tracking-wider rounded-xl transition-all"
                   >
-                    Build Custom Agent Pipeline →
+                    Build a Custom Pipeline →
                   </Link>
                 </div>
               </div>
@@ -727,10 +727,10 @@ function IntegrationExplorerPage() {
         <section className="bg-stone-900/10 border-t border-stone-900 px-6 py-16">
           <div className="max-w-7xl mx-auto space-y-12">
             <div className="text-center max-w-xl mx-auto space-y-2">
-              <span className="text-xs font-mono font-bold text-emerald-400 uppercase tracking-widest">[ REAL-TIME BLUEPRINT CONSOLE ]</span>
+              <span className="text-xs font-mono font-bold text-emerald-400 uppercase tracking-widest">[ INTERACTIVE WORKFLOW SIMULATOR ]</span>
               <h2 className="text-2xl md:text-3xl font-black text-white">See It In Action</h2>
               <p className="text-stone-400 text-xs md:text-sm">
-                Watch 15+ interactive autonomous operations compile. Click any play blueprint card to simulate the S1 Agent executing live workloads.
+                Watch 15+ workflow walkthroughs play out step by step. Pick any card on the left to replay a simulated run of that workflow — an illustration of the steps and where the approvals land, not a live execution.
               </p>
             </div>
 
@@ -788,7 +788,7 @@ function IntegrationExplorerPage() {
                     <span className="h-2 w-2 rounded-full bg-rose-500" />
                     <span className="h-2 w-2 rounded-full bg-amber-500" />
                     <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                    <span className="pl-2">S1 Autonomous Operations Console v3.1</span>
+                    <span className="pl-2">S1 Workflow Simulator</span>
                   </div>
 
                   {/* Terminal Screen */}
@@ -796,7 +796,7 @@ function IntegrationExplorerPage() {
                     <div className="text-center py-20 space-y-3">
                       <div className="text-2xl">🖥️</div>
                       <p className="text-xs text-stone-400 max-w-xs mx-auto leading-relaxed">
-                        No active simulation console. Select any blueprint demo card from the left panel to execute an S1 operation flow.
+                        No workflow selected yet. Pick any demo card from the left panel to play a simulated run of that workflow.
                       </p>
                     </div>
                   ) : (
@@ -817,7 +817,7 @@ function IntegrationExplorerPage() {
                         );
                       })}
                       {demoState === "running" && (
-                        <div className="text-stone-400 animate-pulse">■ Executing operational tasks...</div>
+                        <div className="text-stone-400 animate-pulse">■ Running simulated steps…</div>
                       )}
                     </div>
                   )}
@@ -826,7 +826,7 @@ function IntegrationExplorerPage() {
                 {/* Console Footer Status */}
                 {selectedDemoId !== null && (
                   <div className="pt-4 border-t border-stone-900 mt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-[10px] text-stone-500">
-                    <span>OPERATOR: SIMULATED BLUEPRINT WORKLOAD</span>
+                    <span>MODE: SIMULATED WORKFLOW RUN</span>
                     {demoState === "done" && (
                       <div className="flex gap-3">
                         <button
@@ -839,7 +839,7 @@ function IntegrationExplorerPage() {
                           to="/build"
                           className="text-emerald-400 hover:text-emerald-300 font-bold underline"
                         >
-                          [ DEPLOY THIS BLUEPRINT → ]
+                          [ BUILD THIS WORKFLOW → ]
                         </Link>
                       </div>
                     )}
@@ -853,7 +853,7 @@ function IntegrationExplorerPage() {
 
       {/* Footer bar */}
       <footer className="border-t border-stone-900 bg-stone-950/60 py-6 text-center text-xs font-mono text-stone-600">
-        © 2026 Simpler Life 100 — Autonomous Operations Engineering.
+        © 2026 Simpler Life 100. All rights reserved.
       </footer>
     </div>
   );

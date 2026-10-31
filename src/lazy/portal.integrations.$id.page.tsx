@@ -95,7 +95,7 @@ function ProviderDetailPage() {
         <span className="font-bold text-stone-200">How {provider.name} works with your workspace.</span>{" "}
         External tools are import/migration lanes only: you bring {provider.name} data INTO your
         workspace as a one-time, client-initiated import using the access your own {provider.name} account
-        already grants. Nothing stays connected and there is nothing to reconnect.
+        already grants. Nothing stays connected once the import finishes — the data is yours.
       </div>
 
       {/* Capabilities */}

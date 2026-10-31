@@ -5,7 +5,7 @@ import { Footer } from "~/components/Footer";
 
 const businessName = "Simpler Life 100";
 
-/** "You stay in control" — human approval system, audit trail, fail-closed, self-healing connections. */
+/** "You stay in control" — human approval system, append-only audit trail, fail-closed writes. */
 export default function YouStayInControlPage() {
   return (
     <div className="flex flex-col min-h-screen selection:bg-emerald-500/30 selection:text-emerald-200 bg-stone-950">

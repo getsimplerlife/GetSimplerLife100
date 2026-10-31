@@ -29,7 +29,7 @@ const TRIGGER_TEMPLATES: IntegrationCategory[] = [
 ];
 
 const ACTION_TEMPLATES: IntegrationCategory[] = [
-  { id: "a_ai", name: "Run Automation", icon: "🤖", description: "Executes autonomous LLM reasoning engine with a selected prompt blueprint.", defaultConfig: { model: "gemini-3.5-flash", temperature: "0.2", prompt: "Energy carrier dispatch comparison" } },
+  { id: "a_ai", name: "Run Automation", icon: "🤖", description: "Adds an automation step to the exported workflow design. This canvas runs nothing — a workflow runs only once it is saved in Workflows → Builder.", defaultConfig: { model: "gemini-3.5-flash", temperature: "0.2", prompt: "Energy carrier dispatch comparison" } },
   { id: "a_ocr", name: "OCR Parser Fallback", icon: "📂", description: "Processes PDFs and images to extract digital table grids and metadata.", defaultConfig: { extractHandwriting: "true", layoutDetection: "true" } },
   { id: "a_email", name: "Compose & Send Email", icon: "📧", description: "Dynamically writes and delivers transactional email responses.", defaultConfig: { recipient: "{{customer.email}}", subject: "Reconciliation Complete" } },
   { id: "a_transform", name: "Transform Data Schema", icon: "🔄", description: "Formats extracted values into validated JSON or FHIR structures.", defaultConfig: { format: "JSON", enforceTypes: "true" } },
@@ -121,20 +121,20 @@ function AdminWorkflowBuilder() {
 
   // CLEANUP (e): this admin canvas has no deployment or registry backend —
   // the previous save prompt only pretended to store anything. The honest
-  // action here is a client-side download of the blueprint JSON; registry
+  // action here is a client-side download of the workflow design JSON; registry
   // saves happen on the Workflows builder page.
   const handleExport = () => {
     const blob = new Blob([serializedWorkflow], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${workflowName.trim() || "workflow"}.blueprint.json`;
+    a.download = `${workflowName.trim() || "workflow"}.workflow.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     setIsExportModalOpen(false);
-    setExportNotice("Blueprint downloaded to this device. The design canvas doesn't save to your portal — to store a workflow in your portal registry, use Workflows → Builder.");
+    setExportNotice("Workflow JSON downloaded to this device. The design canvas doesn't save to your portal — to store a workflow in your portal registry, use Workflows → Builder.");
   };
 
 
@@ -145,12 +145,12 @@ function AdminWorkflowBuilder() {
         <div>
           <h1 className="text-3xl font-black text-white">Visual Workflow Builder</h1>
           <p className="text-stone-400 text-sm mt-1">
-            Build and stitch automation triggers, AI reasoning engines, and data storage connectors in a unified canvas.
+            Build and stitch triggers, automation steps, and data storage connectors on one canvas, then export the design as JSON. The canvas itself does not run anything.
           </p>
         </div>
         <div className="flex items-center gap-3">
           <Button variant="outline" className="border-stone-800 text-stone-300" onClick={() => setIsExportModalOpen(true)}>
-            💾 Export Blueprint (JSON)
+            💾 Export Workflow (JSON)
           </Button>
         </div>
       </div>
@@ -408,10 +408,10 @@ function AdminWorkflowBuilder() {
 
 
       {/* Export Modal */}
-      <Modal isOpen={isExportModalOpen} onClose={() => setIsExportModalOpen(false)} title="Export Workflow Blueprint">
+      <Modal isOpen={isExportModalOpen} onClose={() => setIsExportModalOpen(false)} title="Export Workflow JSON">
         <div className="space-y-5">
           <p className="text-sm text-stone-300 font-semibold leading-relaxed">
-            This downloads your blueprint as a JSON file to this device. The design canvas doesn't save to your
+            This downloads your workflow design as a JSON file to this device. The design canvas doesn't save to your
             portal — to store a workflow in your portal registry, use Workflows → Builder, which saves it to your registry.
           </p>
           <div className="bg-stone-950 p-4 border border-stone-800 rounded-2xl">
