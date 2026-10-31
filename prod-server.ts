@@ -31,6 +31,7 @@ import { readBackupStatus, countStoreEntries, readBackupFreshness, resolveStaleF
 import { runBackup } from "./scripts/lib/backup-core";
 import { makeEncryptHook } from "./scripts/lib/backup-crypto";
 import { uploadVerifiedRun } from "./scripts/lib/r2-backup";
+import { acquireLock, daemonStatus, runLockPath } from "./scripts/lib/backup-daemon";
 import { peekUploadPrefix } from "./src/lib/r2-upload";
 import {
   backupFailureRecorder,
@@ -367,6 +368,19 @@ const ARCHIVE_BACKUP_FIRST_DELAY_MS = (() => {
   return Number.isFinite(n) && n > 0 ? n : 60_000;
 })();
 const archiveSchedulerOff = backupSchedulerDisabled(process.env);
+// SLICE 149 — a supervised loop BESIDE this process (scripts/backup-daemon.mjs)
+// is the scheduler on the machine that holds DATA_DIR. When that loop is alive
+// this in-process timer steps aside instead of doubling the cadence: two timers
+// over one data dir would mean two runs an hour. `alive` demands a live pid AND a
+// fresh heartbeat, so a dead loop never silently switches backups off — this
+// scheduler simply takes the work back.
+const ARCHIVE_DAEMON = daemonStatus({ outDir: ARCHIVE_BACKUP_DIR, intervalMs: ARCHIVE_BACKUP_INTERVAL_MS });
+const archiveSchedulerDisabled = archiveSchedulerOff.disabled || ARCHIVE_DAEMON.alive;
+const archiveSchedulerDisabledReason = archiveSchedulerOff.disabled
+  ? archiveSchedulerOff.reason
+  : ARCHIVE_DAEMON.alive
+    ? `supervised backup loop holds the schedule (pid ${ARCHIVE_DAEMON.pid}: ${ARCHIVE_DAEMON.reason})`
+    : "";
 // SLICE 145: the server's hourly archive is now the SAME encrypted object the
 // CLI produces, and (when the owner's R2 variables are present) it is copied
 // off this machine. Both are no-ops without BACKUP_PASSPHRASE - the gate lives
@@ -380,6 +394,14 @@ const ARCHIVE_BACKUP_INSTANCE = peekUploadPrefix(process.env, DATA_DIR);
 const ARCHIVE_STALE_FACTOR = resolveStaleFactor(process.env);
 const archiveScheduler = startBackupScheduler({
   run: async () => {
+    // SLICE 149: one run at a time ACROSS processes. The loop beside this server,
+    // a human running scripts/backup.mjs, and this scheduler share one lock; a
+    // refusal is reported and changes nothing (no status write — nothing failed).
+    const runLock = acquireLock({ path: runLockPath(ARCHIVE_BACKUP_DIR), reason: "prod-server-scheduler" });
+    if (!runLock.ok) {
+      console.log(`[backup] refused a concurrent run: ${runLock.reason}`);
+      return { ok: false, skipped: true, error: `another backup run holds ${runLock.path} — ${runLock.reason}` };
+    }
     try {
       const r = runBackup({
         dataDir: DATA_DIR,
@@ -400,12 +422,14 @@ const archiveScheduler = startBackupScheduler({
     } catch (e: any) {
       // runBackup already wrote a failed status; the scheduler records it too.
       return { ok: false, error: e?.message || String(e) };
+    } finally {
+      runLock.release();
     }
   },
   intervalMs: ARCHIVE_BACKUP_INTERVAL_MS,
   firstDelayMs: ARCHIVE_BACKUP_FIRST_DELAY_MS,
-  disabled: archiveSchedulerOff.disabled,
-  disabledReason: archiveSchedulerOff.reason,
+  disabled: archiveSchedulerDisabled,
+  disabledReason: archiveSchedulerDisabledReason,
   recordFailure: backupFailureRecorder(DATA_DIR, ARCHIVE_BACKUP_DIR),
   // SLICE 147 — a stopped or failing backup must complain in the logs, not just
   // leave a quietly ageing timestamp.
@@ -413,8 +437,8 @@ const archiveScheduler = startBackupScheduler({
     readBackupFreshness(DATA_DIR, {
       intervalMs: ARCHIVE_BACKUP_INTERVAL_MS,
       staleFactor: ARCHIVE_STALE_FACTOR,
-      schedulerDisabled: archiveSchedulerOff.disabled,
-      schedulerDisabledReason: archiveSchedulerOff.reason,
+      schedulerDisabled: archiveSchedulerDisabled,
+      schedulerDisabledReason: archiveSchedulerDisabledReason,
     }),
 });
 process.on("exit", () => archiveScheduler.stop());
@@ -3186,8 +3210,8 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
           backupFreshness: readBackupFreshness(DATA_DIR, {
             intervalMs: ARCHIVE_BACKUP_INTERVAL_MS,
             staleFactor: ARCHIVE_STALE_FACTOR,
-            schedulerDisabled: archiveSchedulerOff.disabled,
-            schedulerDisabledReason: archiveSchedulerOff.reason,
+            schedulerDisabled: archiveSchedulerDisabled,
+            schedulerDisabledReason: archiveSchedulerDisabledReason,
           }),
           // SLICE 147 — the namespace this deployment writes into, so two
           // instances can be told apart from one screen.
