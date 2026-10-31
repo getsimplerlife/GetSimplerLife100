@@ -7,6 +7,7 @@ import { tanstackRouterGenerator } from "@tanstack/router-plugin/vite";
 import viteReact from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { devRateLimitPlugin } from "./src/lib/rate-limit-dev";
+import { requireJwtKey } from "./src/lib/jwt-key";
 import tsConfigPaths from "vite-tsconfig-paths";
 
 // Resolve the vinxi/http + node:async_hooks stubs relative to THIS repo instead
@@ -15,6 +16,35 @@ import tsConfigPaths from "vite-tsconfig-paths";
 // rebuild, so builds failed with ENOENT on every clone. Relative resolution
 // works for any checkout location.
 const VINXI_STUB = fileURLToPath(new URL("./src/lib/vinxi-stub.ts", import.meta.url));
+
+/**
+ * SLICE 154 — the dev listener must not serve without a session signing key.
+ *
+ * `prod-server.ts` gates on the same check, but `vite dev` never boots it, so
+ * without this the working site would keep serving with whatever key it has —
+ * and before this slice, with a fallback key published in this repo. A missing
+ * or too-short `JWT_SECRET` is a startup error here too, with the same one-line
+ * message, so the two entry points cannot drift.
+ *
+ * `apply: "serve"` keeps this out of `vite build` entirely: the publish build
+ * must not depend on a runtime secret being present in the build environment.
+ * Skipped under test.
+ */
+function jwtKeyBootCheck() {
+  return {
+    name: "jwt-key-boot-check",
+    apply: "serve" as const,
+    configureServer() {
+      if (process.env.VITEST) return;
+      try {
+        requireJwtKey();
+      } catch (err) {
+        console.error(err instanceof Error ? err.message : String(err));
+        process.exit(1);
+      }
+    },
+  };
+}
 
 /**
  * SLICE 149 — make sure the hourly backup loop is running whenever this box is
@@ -138,6 +168,7 @@ export default defineConfig({
     },
   },
   plugins: [
+    jwtKeyBootCheck(),
     backupDaemonSupervisor(),
     // SLICE 151 — the dev listener gets the SAME limiter as prod-server.ts.
     // Without this the working site had no rate limiting at all.
