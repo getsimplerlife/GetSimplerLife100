@@ -26,6 +26,21 @@ describe("GET /api/health — freshness contract (I7)", () => {
     expect(res.headers.get("cache-control")).toMatch(/no-store/i);
   });
 
+  /**
+   * SLICE 154 — a running server implies a usable session signing key (the boot
+   * gate exits otherwise). This makes that checkable in one request instead of
+   * inferred, and pins that the key itself is never in the payload.
+   */
+  it("reports jwtKeyPresent: true and never exposes the key", async () => {
+    const res = await fetch(`${testBaseUrl()}/api/health`);
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(body.jwtKeyPresent).toBe(true);
+    const raw = JSON.stringify(body);
+    const key = process.env.JWT_SECRET;
+    if (key && key.length >= 32) expect(raw).not.toContain(key);
+    expect(raw).not.toMatch(/jwtSecret|JWT_SECRET/);
+  });
+
   it("payload timestamp advances between hits (not a cached snapshot)", async () => {
     const first = (await (await fetch(`${testBaseUrl()}/api/health`)).json()) as { timestamp: number };
     await new Promise((r) => setTimeout(r, 25));

@@ -134,6 +134,20 @@ function getOAuthRedirectUri(provider: string, req?: Request): string {
 // Provider name → canonical key for module lookup (handles hyphens, etc.)
 import { getCanonicalProvider } from "./src/lib/provider-canonical";
 import { resolveServerPort } from "./src/lib/server-port";
+import { requireJwtKey, jwtKeyPresent } from "./src/lib/jwt-key";
+
+// ── SLICE 154 — no session signing key, no server ──────────────────────────
+// Runs before anything else can serve a request. `src/db/auth.ts` throws on
+// import for the same reason, but this prints the reason as ONE readable line
+// with no stack noise, which is what someone reading a boot log needs. Exiting
+// is the point: a server that mints sessions with a known-weak key is worse
+// than a server that is down.
+try {
+  requireJwtKey();
+} catch (err) {
+  console.error(err instanceof Error ? err.message : String(err));
+  process.exit(1);
+}
 function generateSessionToken(): string {
   return createHash("sha256").update(randomBytes(64)).digest("hex");
 }
@@ -636,7 +650,16 @@ async function handleFetch(req: Request, server?: ServerPeerSource): Promise<Res
     // Health check endpoint (I7: never cached — uptime monitors must see live state)
     if (pathname === "/api/health" && req.method === "GET") {
       return Response.json(
-        { status: "ok", uptime: process.uptime(), timestamp: Date.now() },
+        {
+          status: "ok",
+          uptime: process.uptime(),
+          timestamp: Date.now(),
+          // SLICE 154 — non-secret state. A running server already implies a
+          // usable signing key (the boot gate above exits otherwise); this makes
+          // it checkable in one request instead of inferred. The key, its length
+          // and any digest of it are never exposed here.
+          jwtKeyPresent: jwtKeyPresent(),
+        },
         { headers: { "Cache-Control": "no-store" } },
       );
     }
