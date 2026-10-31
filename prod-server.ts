@@ -630,8 +630,6 @@ async function handleFetch(req: Request, server?: ServerPeerSource): Promise<Res
     });
     if (blockedByRateLimit) return blockedByRateLimit;
 
-    const url = new URL(req.url);
-    const pathname = url.pathname;
     // Health check endpoint (I7: never cached — uptime monitors must see live state)
     if (pathname === "/api/health" && req.method === "GET") {
       return Response.json(
