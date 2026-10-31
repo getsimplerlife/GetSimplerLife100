@@ -1,4 +1,6 @@
 import { spawn } from "node:child_process";
+import { mkdirSync, openSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackRouterGenerator } from "@tanstack/router-plugin/vite";
@@ -54,6 +56,42 @@ function backupDaemonSupervisor() {
     },
   };
 }
+/**
+ * SLICE 150b — run the DATA_DIR boot half whenever this box starts serving.
+ *
+ * `scripts/ensure-data-dir.mjs` (resolve -> migrate the pre-relocation store ->
+ * seed missing shape files) was written in slice 150 for exactly this runtime,
+ * because `vite dev` never boots `prod-server.ts`, and then had no caller — so
+ * the one machine that serves the working site still ran neither the migration
+ * nor the seed. This hooks it to dev-server start, the same way the backup
+ * supervisor is hooked: detached, output to `.run/data-dir.log`, fire-and-forget,
+ * and never able to break the server. Skipped under test and under
+ * DATA_DIR_ENSURE_DISABLE=1.
+ */
+function dataDirBootHook() {
+  return {
+    name: "data-dir-boot",
+    apply: "serve" as const,
+    configureServer() {
+      if (process.env.VITEST || process.env.DATA_DIR_ENSURE_DISABLE === "1") return;
+      try {
+        const root = fileURLToPath(new URL(".", import.meta.url));
+        mkdirSync(join(root, ".run"), { recursive: true });
+        const log = openSync(join(root, ".run", "data-dir.log"), "a");
+        const child = spawn("/bin/bash", ["-lc", `exec bun ${JSON.stringify(`${root}scripts/ensure-data-dir.mjs`)}`], {
+          cwd: root,
+          detached: true,
+          stdio: ["ignore", log, log],
+        });
+        child.on("error", () => {});
+        child.unref();
+      } catch {
+        /* never break the server over this */
+      }
+    },
+  };
+}
+
 export default defineConfig({
   server: {
     port: 3000,
@@ -100,6 +138,7 @@ export default defineConfig({
   },
   plugins: [
     backupDaemonSupervisor(),
+    dataDirBootHook(),
     tailwindcss(),
     tsConfigPaths({
       projects: ["./tsconfig.json"],

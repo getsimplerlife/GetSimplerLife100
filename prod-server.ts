@@ -2,7 +2,7 @@ import { serve } from "bun";
 import { join } from "path";
 import { readFileSync, existsSync, readdirSync } from "fs";
 import { createHash, randomBytes } from "crypto";
-import { resolveDataDir, isInsidePublishTree, readJSON, readJSONLive, writeJSON, seedDataFiles, bucketConnectionsByCategory, migrateLegacyData, findLegacyDataDir, mergeDurableCredential, storeReadErrorStats } from "./src/lib/data-store";
+import { resolveDataDir, rawDataDir, migrationSources, isInsidePublishTree, readJSON, readJSONLive, writeJSON, seedDataFiles, bucketConnectionsByCategory, migrateLegacyData, findLegacyDataDir, mergeDurableCredential, storeReadErrorStats } from "./src/lib/data-store";
 import { verifyStripeSignature, detectPlanType, detectPlanTierFromMetadata, buildPlanPurchase } from "./src/lib/stripe-webhook";
 import { buildOwnerSaleEvent, provisionAccountForPurchase, ownerSaleEmailBody, buyerConfirmationEmailBody, buyerConfirmationSubject, setPasswordLink, signInLink, normalizeSiteOrigin, DEFAULT_SITE_ORIGIN } from "./src/lib/purchase-sales-events";
 import {
@@ -55,8 +55,14 @@ async function consumeOAuthState(...args: any[]) { return (await _getOAuthSafety
 async function usableOAuthToken(...args: any[]) { return (await _getOAuthSafety()).usableOAuthToken(...args); }
 async function validateOAuthState(...args: any[]) { return (await _getOAuthSafety()).validateOAuthState(...args); }
 const BUILD_ID = Date.now().toString(36);
-const DIST_CLIENT = join(typeof import.meta?.dir !== "undefined" ? import.meta.dir : __dirname, "dist");
-const DATA_DIR = resolveDataDir(process.env.DATA_DIR, typeof import.meta?.dir !== "undefined" ? import.meta.dir : __dirname);
+const SERVER_BASE = typeof import.meta?.dir !== "undefined" ? import.meta.dir : __dirname;
+const DIST_CLIENT = join(SERVER_BASE, "dist");
+// SLICE 150b — keep BOTH paths. DATA_DIR_RAW is where a pre-fix deployment kept
+// its store (inside the publish tree); DATA_DIR is where the policy reads and
+// writes now. The migration below copies RAW -> DATA_DIR on first boot, so a
+// host that has never had the relocation run cannot come up empty.
+const DATA_DIR_RAW = rawDataDir(process.env.DATA_DIR, SERVER_BASE);
+const DATA_DIR = resolveDataDir(process.env.DATA_DIR, SERVER_BASE);
 // NATIVE webhook sweeper serialisation (Phase 1.1): one in-flight sweep max.
 let nativeSweepRunning = false;
 const USERS_FILE = join(DATA_DIR, "users.json");
@@ -254,8 +260,12 @@ void (async () => {
 // ── START SERVER — durable store hydration completes before the first request ──
 // (If DATABASE_URL is absent or unreachable, initDurableStore returns fast
 // with enabled:false and the file-based store is the only layer.)
-const legacyMig = migrateLegacyData(DATA_DIR);
-if (legacyMig.migrated > 0) console.log("[prod-server] legacy DATA_DIR migration: copied " + legacyMig.migrated + " file(s) from " + legacyMig.legacyDir);
+// SLICE 150b: the pre-relocation path goes FIRST. On a host where the policy has
+// just relocated an in-tree DATA_DIR, this is the only candidate that exists —
+// without it the new dir would be seeded empty and the server would serve nothing
+// while the real store sat in the directory the policy moved away from.
+const legacyMig = migrateLegacyData(DATA_DIR, migrationSources(DATA_DIR_RAW));
+if (legacyMig.migrated > 0) console.log("[prod-server] legacy DATA_DIR migration: copied " + legacyMig.migrated + " entry(ies) from " + legacyMig.legacyDir + " into " + DATA_DIR);
 const durableInit = await initDurableStore(DATA_DIR);
 seedDataFiles(DATA_DIR);
 console.log("[prod-server] DATA_DIR=" + DATA_DIR + (isInsidePublishTree(DATA_DIR) ? "  [WARNING: DATA_DIR is inside the publish tree — a publish can wipe runtime data]" : ""));

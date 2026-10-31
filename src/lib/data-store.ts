@@ -30,7 +30,7 @@ import { isOwnerRole, LEGACY_OWNER_EMAIL } from "./user-roles";
  * warning about it. Re-exported here because every store already imports it
  * from this module.
  */
-export { resolveDataDir, isInsidePublishTree, publishTreeEscapeDir, relocateOutOfPublishTree } from "./data-dir-policy";
+export { resolveDataDir, rawDataDir, isInsidePublishTree, publishTreeEscapeDir, relocateOutOfPublishTree } from "./data-dir-policy";
 
 /**
  * Known publish-tree data dirs from BEFORE the connection-persistence fix
@@ -53,6 +53,29 @@ export function findLegacyDataDir(candidates: string[] = legacyDataDirCandidates
     } catch (_) { /* unreadable candidate — skip */ }
   }
   return null;
+}
+
+/**
+ * SLICE 150b — the ordered list of directories the boot migration may copy from.
+ *
+ * `rawDir` is the path the DATA_DIR policy STARTED from, before it relocated an
+ * in-tree path to the sibling of the publish tree (`rawDataDir`). It goes FIRST,
+ * ahead of the legacy candidates, because on any host where the relocation has
+ * never run that is the only place the real store exists — and it is the one
+ * path the old candidate list could not know (it hardcodes this box's tree).
+ *
+ * Duplicates are dropped, blank entries skipped, and order is preserved so the
+ * first EXISTING directory wins (see `findLegacyDataDir`).
+ */
+export function migrationSources(rawDir?: string | null): string[] {
+  const out: string[] = [];
+  const push = (p?: string | null) => {
+    const v = p?.trim();
+    if (v && !out.includes(v)) out.push(v);
+  };
+  push(rawDir);
+  for (const c of legacyDataDirCandidates()) push(c);
+  return out;
 }
 
 /**

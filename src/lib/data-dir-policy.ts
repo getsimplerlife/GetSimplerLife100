@@ -89,16 +89,30 @@ export function relocateOutOfPublishTree(dir: string): string {
 }
 
 /**
+ * The path the policy STARTS from — before any relocation — from an env
+ * override (or the `<base>/.data` default). Never throws, never writes.
+ *
+ * SLICE 150b: the relocation moves the *reader* to the sibling of the tree, but
+ * the data a pre-fix deployment left behind is still sitting at THIS path. The
+ * boot migration therefore has to be told about it explicitly: the default
+ * candidates are a legacy env var and one hardcoded host path, so on any other
+ * machine the relocation would find nothing to copy, seed fresh empty stores and
+ * serve an empty dataset while the real store stayed in the directory the policy
+ * had just moved away from. Handing this path to `migrateLegacyData` as its
+ * FIRST candidate closes that hole on every host, not just this one.
+ */
+export function rawDataDir(envDir: string | undefined, baseDir: string): string {
+  if (envDir && envDir.trim()) {
+    const value = envDir.trim();
+    return value.startsWith("/") ? value : join(baseDir, value);
+  }
+  return join(baseDir, ".data");
+}
+
+/**
  * Resolve the runtime data directory from an env override (or default), never
  * returning a path inside a publish tree unless no alternative is writable.
  */
 export function resolveDataDir(envDir: string | undefined, baseDir: string): string {
-  let raw: string;
-  if (envDir && envDir.trim()) {
-    const value = envDir.trim();
-    raw = value.startsWith("/") ? value : join(baseDir, value);
-  } else {
-    raw = join(baseDir, ".data");
-  }
-  return relocateOutOfPublishTree(raw);
+  return relocateOutOfPublishTree(rawDataDir(envDir, baseDir));
 }
