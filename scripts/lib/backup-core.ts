@@ -47,7 +47,7 @@ export const BACKUP_STATUS_FILE = "backup_status.json";
 /** Directories whose non-JSON binary payloads are the ones we must not lose. */
 export const BINARY_TREES: readonly string[] = ["vault/blobs", "native_docs"];
 
-export type Encryption = "off" | "openssl-aes-256-cbc";
+export type Encryption = "off" | "aes-256-gcm" | "openssl-aes-256-cbc";
 
 export interface ManifestFile {
   /** Path relative to DATA_DIR, POSIX separators. */
@@ -97,6 +97,14 @@ export interface R2Record {
   pruned: string[];
   /** A failed prune must not fail the run — it is recorded here instead. */
   pruneError: string | null;
+  /**
+   * SLICE 147 — the namespace this run wrote into and the instance that owns it,
+   * so an operator reading the status file can tell two deployments apart.
+   */
+  prefix?: string | null;
+  instance?: string | null;
+  /** SLICE 147 — objects in a deeper namespace that were KEPT, never pruned. */
+  foreign?: string[];
 }
 
 export interface Manifest {
@@ -126,6 +134,22 @@ export interface BackupStatus {
   runId?: string | null;
   files?: number | null;
   encryption?: Encryption | null;
+  /**
+   * SLICE 147 — when a run last SUCCEEDED. `lastBackupAt` is the last ATTEMPT,
+   * so a run that has been failing for six hours still has a fresh
+   * `lastBackupAt`. Staleness must be measured against a real success, which is
+   * what this field is; `null` means "never observed a successful run".
+   */
+  lastBackupOkAt?: string | null;
+  /** SLICE 147 — consecutive failed runs, reset to 0 by a success. */
+  consecutiveFailures?: number | null;
+  /**
+   * SLICE 147 — consecutive failed UPLOADS, reset to 0 by a successful one. A
+   * separate counter on purpose: a failed upload is not a failed local run (the
+   * archive is intact), so folding the two together would make one hide the
+   * other.
+   */
+  consecutiveUploadFailures?: number | null;
   /** SLICE 145: surfaced verbatim on /api/admin/datadir. */
   r2?: R2Record | null;
 }
@@ -458,6 +482,10 @@ export function statusFor(
     runId: manifest.runId,
     files: manifest.totals.files,
     encryption: manifest.encryption,
+    // SLICE 147: a successful run is the only thing that moves this forward.
+    lastBackupOkAt: error === null ? manifest.takenAt : null,
+    consecutiveFailures: error === null ? 0 : 1,
+    consecutiveUploadFailures: null,
     r2,
   };
 }
@@ -472,17 +500,62 @@ export function failedStatus(at: string, target: string, error: string): BackupS
     runId: null,
     files: null,
     encryption: null,
+    // Written by writeBackupStatus(), which carries the previous success
+    // forward — a failure must not erase the fact that we once had a good run.
+    lastBackupOkAt: null,
+    consecutiveFailures: 1,
+    consecutiveUploadFailures: null,
   };
 }
 
-/** Persist the run status atomically (mode 600) so a torn status reads as nulls. */
+/**
+ * Persist the run status atomically (mode 600) so a torn status reads as nulls.
+ *
+ * SLICE 147: this is also where the two staleness counters are maintained, so
+ * the CLI and the in-server scheduler cannot disagree about them:
+ *   - a SUCCESS resets `consecutiveFailures` to 0 and stamps `lastBackupOkAt`;
+ *   - a FAILURE keeps the previous `lastBackupOkAt` (the last time we actually
+ *     had a good copy) and increments the counter.
+ * A missing/corrupt previous file is not an error — the counters simply start
+ * from what this write knows.
+ */
 export function writeBackupStatus(dataDir: string, status: BackupStatus): void {
   const file = join(dataDir, BACKUP_STATUS_FILE);
-  atomicWriteSync(file, JSON.stringify(status, null, 2));
+  const merged: BackupStatus = { ...status };
+  const previous = readPreviousStatus(file);
+  if (status.lastBackupOk === true) {
+    merged.consecutiveFailures = 0;
+    merged.lastBackupOkAt = status.lastBackupOkAt ?? status.lastBackupAt ?? null;
+  } else if (status.lastBackupOk === false) {
+    merged.consecutiveFailures = (Number(previous?.consecutiveFailures) || 0) + 1;
+    merged.lastBackupOkAt = status.lastBackupOkAt ?? previous?.lastBackupOkAt ?? null;
+  }
+  // The off-box leg has its own counter: an upload can fail while the local run
+  // succeeded, and the operator needs to know how long THAT has been true.
+  const r2 = status.r2;
+  if (r2 && r2.uploaded === true) {
+    merged.consecutiveUploadFailures = 0;
+  } else if (r2 && r2.uploaded === false && r2.error) {
+    merged.consecutiveUploadFailures = (Number(previous?.consecutiveUploadFailures) || 0) + 1;
+  } else if (previous?.consecutiveUploadFailures != null) {
+    merged.consecutiveUploadFailures = Number(previous.consecutiveUploadFailures) || 0;
+  }
+  atomicWriteSync(file, JSON.stringify(merged, null, 2));
   try {
     chmodSync(file, 0o600);
   } catch {
     /* atomicWriteSync already used 600 for a new file / kept the old mode */
+  }
+}
+
+/** The previous status file, or null when absent/unreadable. Never throws. */
+function readPreviousStatus(file: string): BackupStatus | null {
+  try {
+    if (!existsSync(file)) return null;
+    const raw = JSON.parse(readFileSync(file, "utf8"));
+    return raw && typeof raw === "object" ? (raw as BackupStatus) : null;
+  } catch {
+    return null;
   }
 }
 
@@ -839,7 +912,7 @@ export function runBackup(opts: RunBackupOptions): RunBackupResult {
     totals: collected.totals,
     excluded: collected.excluded,
     coverage: coverage.rows,
-    encryption: opts.encrypt ? "openssl-aes-256-cbc" : "off",
+    encryption: opts.encrypt ? "aes-256-gcm" : "off",
     archive: opts.encrypt ? `${runId}.tar.gz.enc` : null,
   });
   atomicWriteSync(join(runDir, "manifest.json"), JSON.stringify(manifest, null, 2));

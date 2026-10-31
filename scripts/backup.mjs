@@ -39,6 +39,8 @@ import { resolve } from "node:path";
 import { runBackup } from "./lib/backup-core.ts";
 import { makeEncryptHook } from "./lib/backup-crypto.ts";
 import { uploadVerifiedRun } from "./lib/r2-backup.ts";
+import { readBackupFreshness, resolveStaleFactor, staleEventLine } from "../src/lib/backup-status.ts";
+import { resolveBackupInterval } from "../src/lib/backup-scheduler.ts";
 
 const DEFAULT_DATA_DIR = process.env.DATA_DIR?.trim() || "/home/team/shared/site/.data";
 const DEFAULT_OUT = process.env.BACKUP_ROOT?.trim() || "/home/team/shared/backups";
@@ -115,6 +117,10 @@ if (NO_UPLOAD) {
   });
 }
 
+// SLICE 147 — a silent schedule is a failure mode; say it out loud when seen.
+const freshnessLine = NO_STATUS ? null : staleEventLine(readBackupFreshness(DATA_DIR, { intervalMs: resolveBackupInterval(process.env), staleFactor: resolveStaleFactor(process.env) }));
+if (freshnessLine) log(freshnessLine);
+
 const t = result.manifest.totals;
 console.log(
   JSON.stringify(
@@ -133,6 +139,14 @@ console.log(
       coverage: result.coverage,
       pruned: result.pruned,
       r2,
+      // SLICE 147: which namespace this run used, and how the deployment stands
+      // afterwards. A CLI run is also an observation: if the schedule has gone
+      // quiet, this prints the same structured staleness line the server logs.
+      instance: r2?.instance ?? null,
+      prefix: r2?.prefix ?? null,
+      freshness: NO_STATUS
+        ? null
+        : readBackupFreshness(DATA_DIR, { intervalMs: resolveBackupInterval(process.env), staleFactor: resolveStaleFactor(process.env) }),
     },
     null,
     2,

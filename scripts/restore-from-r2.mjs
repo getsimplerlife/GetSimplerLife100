@@ -29,9 +29,9 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
-import { createR2Client, describeR2Config, r2ConfigFromEnv } from "../src/lib/r2-upload.ts";
+import { createR2Client, describeR2Config, instanceOfKey, r2ConfigFromEnv } from "../src/lib/r2-upload.ts";
 import { decryptArchiveToDir } from "./lib/backup-crypto.ts";
-import { assertDownloadedSize, materialiseRunDir, selectRemoteObject, verifyExtractedRun } from "./lib/r2-restore.ts";
+import { assertDownloadedSize, materialiseRunDir, remoteRunId, selectRemoteObject, verifyExtractedRun } from "./lib/r2-restore.ts";
 
 const REPO = resolve(import.meta.dir, "..");
 
@@ -98,6 +98,22 @@ try {
 }
 log(`bucket prefix ${cfg.prefix}: ${objects.length} object(s)`);
 
+// SLICE 147: per-instance namespaces mean the base prefix can hold several
+// deployments' objects side by side. Restore lists them ALL by default (so the
+// pre-namespacing object stays reachable under its current key) and can narrow to
+// one instance with --instance. Nothing is ever moved or renamed by this script.
+const INSTANCE_ARG = arg("instance", null);
+if (INSTANCE_ARG && INSTANCE_ARG !== true) {
+  const wanted = String(INSTANCE_ARG);
+  const before = objects.length;
+  objects = objects.filter((o) => instanceOfKey(o.key, cfg.prefix) === wanted);
+  log(`--instance ${wanted}: ${objects.length} of ${before} object(s) belong to that instance`);
+}
+for (const o of objects) {
+  const instance = instanceOfKey(o.key, cfg.prefix);
+  log(`  ${o.key} — ${o.size} bytes, instance ${instance === "" ? "(flat / pre-147)" : instance}`);
+}
+
 let chosen;
 try {
   chosen = selectRemoteObject(objects, { run: RUN_ARG && RUN_ARG !== true ? String(RUN_ARG) : null, prefix: cfg.prefix });
@@ -105,8 +121,13 @@ try {
   console.error(`[r2-restore] FAILED: ${e?.message || e}`);
   cleanup(1);
 }
-const runId = chosen.key.slice(cfg.prefix.length).replace(/\..*$/, "");
-log(`selected ${chosen.key} (${chosen.size} bytes, etag ${chosen.etag || "unknown"})`);
+const runId = remoteRunId(chosen.key);
+if (!runId) {
+  console.error(`[r2-restore] FAILED: could not read a run id out of ${chosen.key}`);
+  cleanup(1);
+}
+const chosenInstance = instanceOfKey(chosen.key, cfg.prefix);
+log(`selected ${chosen.key} (${chosen.size} bytes, etag ${chosen.etag || "unknown"}, instance ${chosenInstance || "(flat)"})`);
 
 // ── 2. Download + size check ────────────────────────────────────────────────
 const archivePath = join(scratch, basename(chosen.key));
@@ -181,6 +202,7 @@ const summary = {
   bucketConfigured: true, // the bucket NAME is one of the owner's secrets — never printed
   prefix: cfg.prefix,
   objectKey: chosen.key,
+  instance: chosenInstance || null,
   runId,
   takenAt: manifest.takenAt,
   objectBytes: downloaded,
