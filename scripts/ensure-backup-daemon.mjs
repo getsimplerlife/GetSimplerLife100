@@ -25,10 +25,12 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { daemonStatus } from "./lib/backup-daemon.ts";
 import { isInsidePublishTree } from "./lib/backup-core.ts";
+import { resolveDataDir } from "../src/lib/data-dir-policy.ts";
 import { resolveBackupInterval } from "../src/lib/backup-scheduler.ts";
 
 const REPO_ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
-const DATA_DIR = resolve(process.env.DATA_DIR?.trim() || join(REPO_ROOT, ".data"));
+// SLICE 150: same rule as the server and the loop — see data-dir-policy.ts.
+const DATA_DIR = resolveDataDir(process.env.DATA_DIR, REPO_ROOT);
 const OUT_DIR = resolve(process.env.BACKUP_ROOT?.trim() || "/home/team/shared/backups");
 const INTERVAL_MS = resolveBackupInterval(process.env);
 /** 3 = refusal-to-run, the same code the CLI and the loop use for a refusal. */

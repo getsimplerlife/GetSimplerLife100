@@ -1,5 +1,5 @@
 import { join } from "path";
-import { readFileSync, existsSync, mkdirSync, readdirSync, statSync, copyFileSync } from "fs";
+import { readFileSync, existsSync, mkdirSync, readdirSync, statSync, copyFileSync, cpSync } from "fs";
 import { atomicWriteSync } from "./atomic-write";
 import { durableEnabled, durableGet, durableHas, durableKeyFor, durableSet, durableGetLive, durableFlush, isPlainObject } from "./durable-store";
 import { isOwnerRole, LEGACY_OWNER_EMAIL } from "./user-roles";
@@ -23,19 +23,14 @@ import { isOwnerRole, LEGACY_OWNER_EMAIL } from "./user-roles";
  * never wipe connections or OAuth tokens.
  */
 
-/** Resolve the runtime data directory from an env override (or default). */
-export function resolveDataDir(envDir: string | undefined, baseDir: string): string {
-  if (envDir && envDir.trim()) {
-    const value = envDir.trim();
-    return value.startsWith("/") ? value : join(baseDir, value);
-  }
-  return join(baseDir, ".data");
-}
-
-/** True when the resolved data dir sits inside a platform publish tree. */
-export function isInsidePublishTree(dataDir: string): boolean {
-  return /\/shared\/site\//.test(dataDir) || /\/site\/\.data$/.test(dataDir);
-}
+/**
+ * SLICE 150: resolution and the publish-tree predicate moved to
+ * `./data-dir-policy` so the backup scripts and the server share ONE rule, and
+ * so the rule can relocate a data dir out of a publish tree instead of merely
+ * warning about it. Re-exported here because every store already imports it
+ * from this module.
+ */
+export { resolveDataDir, isInsidePublishTree, publishTreeEscapeDir, relocateOutOfPublishTree } from "./data-dir-policy";
 
 /**
  * Known publish-tree data dirs from BEFORE the connection-persistence fix
@@ -102,8 +97,19 @@ export function migrateLegacyData(dataDir: string, candidates: string[] = legacy
       if (name.endsWith(".lock")) continue;
       const src = join(legacyDir, name);
       const dst = join(dataDir, name);
-      if (!statSync(src).isFile()) continue;
+      const st = statSync(src);
       if (existsSync(dst)) continue; // create-if-missing only
+      // SLICE 150: directory-shaped stores are DATA. `vault/blobs/**` holds every
+      // stored document byte, and the file-only copy below silently skipped it —
+      // a migration that reported "30 files copied" while leaving every document
+      // behind. Directories are copied recursively, still create-if-missing
+      // (`force: false` keeps an existing file).
+      if (st.isDirectory()) {
+        cpSync(src, dst, { recursive: true, force: false, errorOnExist: false });
+        migrated++;
+        continue;
+      }
+      if (!st.isFile()) continue;
       copyFileSync(src, dst);
       migrated++;
     }

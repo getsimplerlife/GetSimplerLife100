@@ -41,14 +41,20 @@
 import { execFileSync } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { isInsidePublishTree, runBackup } from "./lib/backup-core.ts";
+import { resolveDataDir } from "../src/lib/data-dir-policy.ts";
 import { makeEncryptHook } from "./lib/backup-crypto.ts";
 import { uploadVerifiedRun } from "./lib/r2-backup.ts";
 import { EXIT_REFUSED, acquireLock, runLockPath } from "./lib/backup-daemon.ts";
 import { readBackupFreshness, resolveStaleFactor, staleEventLine } from "../src/lib/backup-status.ts";
 import { resolveBackupInterval } from "../src/lib/backup-scheduler.ts";
 
-const DEFAULT_DATA_DIR = process.env.DATA_DIR?.trim() || "/home/team/shared/site/.data";
+// SLICE 150: the same resolution rule as the server and the loop. The old
+// hardcoded `/home/team/shared/site/.data` was the publish-tree path itself, so
+// the CLI archived whatever stale snapshot a publish had left there.
+const REPO_ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
+const DEFAULT_DATA_DIR = resolveDataDir(process.env.DATA_DIR, REPO_ROOT);
 const DEFAULT_OUT = process.env.BACKUP_ROOT?.trim() || "/home/team/shared/backups";
 
 function arg(name, fallback = undefined) {
