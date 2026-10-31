@@ -29,6 +29,14 @@
  * is rejected with a 400 and nothing is written, audited or sent anywhere).
  * Only a Stripe SECRET or RESTRICTED key can create a Checkout Session on the
  * tenant's account, so publishable (`pk_`) keys are refused explicitly.
+ *
+ * SLICE 155 — the endpoint signing secret. The same record also carries the
+ * tenant's own webhook ENDPOINT signing secret (`whsec_…`, pasted from their
+ * dashboard), encrypted with the same AES-256-GCM path. It is an AUTHENTICATOR,
+ * not an identifier, so the client-safe status exposes exactly one fact about
+ * it — `hasWebhookSecret: boolean` — with no value, no prefix, no hint and no
+ * length, and no audit line or log line ever contains it. Disconnecting removes
+ * both secrets at once.
  */
 import { readJSON, writeJSON, resolveDataDir } from "../../lib/data-store";
 import { encryptSecret, decryptSecret } from "../transport/store";
@@ -53,6 +61,15 @@ interface StripeConnectRecord {
   keyMode: "live" | "test";
   addedAt: string;
   addedBy: string;
+  /**
+   * SLICE 155 — the tenant's own webhook ENDPOINT signing secret (`whsec_…`),
+   * AES-256-GCM encrypted with the same key material as the API key. Optional:
+   * a tenant can connect their account before they create the endpoint in
+   * their dashboard. It is an AUTHENTICATOR, so it is never returned, never
+   * masked into a hint, never audited and never logged.
+   */
+  encryptedWebhookSecret?: string;
+  webhookSecretAddedAt?: string;
 }
 
 /** What ANY client is allowed to see about a tenant's Stripe connection. */
@@ -62,6 +79,12 @@ export interface StripeConnectStatus {
   hint: string | null;
   keyMode: "live" | "test" | null;
   addedAt: string | null;
+  /**
+   * Whether an endpoint signing secret is on file — a boolean, never the value,
+   * never a prefix, never a length. Without it the webhook endpoint cannot
+   * verify anything, so this is the one fact the tenant needs to act on.
+   */
+  hasWebhookSecret: boolean;
 }
 
 export const NOT_CONNECTED: StripeConnectStatus = {
@@ -69,6 +92,7 @@ export const NOT_CONNECTED: StripeConnectStatus = {
   hint: null,
   keyMode: null,
   addedAt: null,
+  hasWebhookSecret: false,
 };
 
 function dataPath(dataDir: string, key: string): string {
@@ -126,19 +150,54 @@ export function validateStripeSecretKey(raw: unknown): { ok: true; value: string
 }
 
 /**
+ * Validate a pasted webhook ENDPOINT signing secret BEFORE it is stored
+ * (slice 155). Stripe issues these per endpoint in the tenant's own dashboard;
+ * the shape is `whsec_` followed by base64-ish characters.
+ *
+ * The error text never echoes the submitted value and never says how far it
+ * got — a wrong secret is indistinguishable from a malformed one to the caller.
+ */
+export function validateStripeWebhookSecret(raw: unknown): { ok: true; value: string } | { ok: false; error: string } {
+  if (typeof raw !== "string") return { ok: false, error: "Paste the signing secret for your webhook endpoint." };
+  const value = raw.trim();
+  if (!value) return { ok: false, error: "Paste the signing secret for your webhook endpoint." };
+  if (value.length > MAX_KEY_LENGTH) {
+    return { ok: false, error: "That does not look like a webhook signing secret (too long)." };
+  }
+  if (!/^whsec_[A-Za-z0-9+/=_]{10,}$/.test(value)) {
+    return {
+      ok: false,
+      error: "That does not look like a webhook signing secret. It should start with whsec_.",
+    };
+  }
+  return { ok: true, value };
+}
+
+/**
  * Store the tenant's Stripe key (encrypted) and audit the connection.
  * Validation FIRST: an invalid key writes nothing and audits nothing.
  * The key itself never appears in the returned status or the audit detail.
+ *
+ * SLICE 155: an endpoint signing secret may be supplied in the same call (the
+ * tenant pastes both from their dashboard). It is validated before ANYTHING is
+ * written, so a bad secret cannot leave a half-connected account behind.
  */
 export function connectTenantStripe(
   dataDir: string,
   tenantId: string,
   actor: string,
   rawKey: unknown,
+  rawWebhookSecret?: unknown,
 ): { ok: true; status: StripeConnectStatus } | { ok: false; error: string } {
   if (!tenantId?.trim() || !actor?.trim()) return { ok: false, error: "tenantId and actor are required" };
   const v = validateStripeSecretKey(rawKey);
   if (!v.ok) return { ok: false, error: v.error };
+  let webhookSecret: string | undefined;
+  if (rawWebhookSecret !== undefined && rawWebhookSecret !== null && rawWebhookSecret !== "") {
+    const w = validateStripeWebhookSecret(rawWebhookSecret);
+    if (!w.ok) return { ok: false, error: w.error };
+    webhookSecret = w.value;
+  }
   const now = new Date().toISOString();
   const record: StripeConnectRecord = {
     tenantId,
@@ -147,6 +206,7 @@ export function connectTenantStripe(
     keyMode: v.mode,
     addedAt: now,
     addedBy: actor,
+    ...(webhookSecret ? { encryptedWebhookSecret: encryptSecret(webhookSecret), webhookSecretAddedAt: now } : {}),
   };
   const all = loadAll(dataDir);
   all[tenantId] = record;
@@ -159,13 +219,68 @@ export function connectTenantStripe(
     invoiceId: "",
     detail: `Connected a Stripe ${v.mode}-mode secret key (${record.hint}) — invoice payments from this workspace settle into the workspace's own Stripe account`,
   });
+  if (webhookSecret) {
+    // No hint, no prefix, no length — the fact of it, nothing else.
+    appendAudit(dataDir, {
+      tenantId,
+      actor,
+      action: "native.invoice.stripe.webhook.configured",
+      invoiceId: "",
+      detail:
+        "Stored the signing secret for this workspace's own payment webhook endpoint — a payment is marked received only when a signature from that endpoint matches the invoice's own amount and currency",
+    });
+  }
   return { ok: true, status: toStatus(record) };
+}
+
+/**
+ * Store (or replace) ONLY the webhook endpoint signing secret on an existing
+ * connection (slice 155). Requires the account to be connected first: a
+ * signing secret with no key behind it could never be matched to a session.
+ * Validation first — a rejected secret leaves the previous one untouched.
+ */
+export function setTenantWebhookSecret(
+  dataDir: string,
+  tenantId: string,
+  actor: string,
+  rawWebhookSecret: unknown,
+): { ok: true; status: StripeConnectStatus } | { ok: false; error: string } {
+  if (!tenantId?.trim() || !actor?.trim()) return { ok: false, error: "tenantId and actor are required" };
+  const all = loadAll(dataDir);
+  const existing = all[tenantId];
+  if (!existing) return { ok: false, error: "Connect your Stripe account first, then add the webhook signing secret." };
+  const w = validateStripeWebhookSecret(rawWebhookSecret);
+  if (!w.ok) return { ok: false, error: w.error };
+  const now = new Date().toISOString();
+  const updated: StripeConnectRecord = {
+    ...existing,
+    encryptedWebhookSecret: encryptSecret(w.value),
+    webhookSecretAddedAt: now,
+  };
+  all[tenantId] = updated;
+  saveAll(dataDir, all);
+  appendAudit(dataDir, {
+    tenantId,
+    actor,
+    action: "native.invoice.stripe.webhook.configured",
+    invoiceId: "",
+    detail:
+      "Stored the signing secret for this workspace's own payment webhook endpoint — a payment is marked received only when a signature from that endpoint matches the invoice's own amount and currency",
+  });
+  return { ok: true, status: toStatus(updated) };
 }
 
 /**
  * Revoke the tenant's Stripe connection (deletes exactly that tenant's record).
  * Returns false when nothing was connected (idempotent, still audited only on
  * a real change).
+ *
+ * SLICE 155: the record holds BOTH secrets, so disconnecting removes the API
+ * key AND the webhook signing secret in one step — there is no state in which a
+ * disconnected tenant's endpoint can still verify anything. The webhook PATH
+ * token is deliberately NOT deleted (it is a stable address, not a credential);
+ * with no signing secret on file the endpoint answers "not configured" and
+ * writes nothing.
  */
 export function disconnectTenantStripe(dataDir: string, tenantId: string, actor: string): boolean {
   const all = loadAll(dataDir);
@@ -178,13 +293,19 @@ export function disconnectTenantStripe(dataDir: string, tenantId: string, actor:
     actor,
     action: "native.invoice.stripe.disconnected",
     invoiceId: "",
-    detail: `Disconnected the Stripe key (${existing.hint}) — online payment on this workspace's invoices stops immediately; invoices fall back to "payment is arranged with the issuer"`,
+    detail: `Disconnected the Stripe key (${existing.hint})${existing.encryptedWebhookSecret ? " and the payment webhook signing secret" : ""} — online payment on this workspace's invoices stops immediately; invoices fall back to "payment is arranged with the issuer"`,
   });
   return true;
 }
 
 function toStatus(record: StripeConnectRecord): StripeConnectStatus {
-  return { connected: true, hint: record.hint, keyMode: record.keyMode, addedAt: record.addedAt };
+  return {
+    connected: true,
+    hint: record.hint,
+    keyMode: record.keyMode,
+    addedAt: record.addedAt,
+    hasWebhookSecret: !!record.encryptedWebhookSecret,
+  };
 }
 
 /** Client-safe status. Never contains the key or any part of it beyond the mask. */
@@ -209,6 +330,24 @@ export function loadTenantStripeSecret(dataDir: string, tenantId: string): { key
   } catch {
     // A record that cannot be decrypted (rotated env key) is NOT usable —
     // fail closed rather than sending a garbage bearer token to Stripe.
+    return null;
+  }
+}
+
+/**
+ * INTERNAL (slice 155): resolve the tenant's decrypted webhook ENDPOINT signing
+ * secret, for local signature verification only. Not exported from the module
+ * barrel and never reachable from an HTTP response. Returns null when the tenant
+ * has no secret on file or it cannot be decrypted — the webhook lane then
+ * refuses the request and writes nothing (fail-closed, no provider call).
+ */
+export function loadTenantWebhookSecret(dataDir: string, tenantId: string): string | null {
+  const record = loadAll(dataDir)[tenantId];
+  if (!record?.encryptedWebhookSecret) return null;
+  try {
+    const secret = decryptSecret(record.encryptedWebhookSecret);
+    return secret || null;
+  } catch {
     return null;
   }
 }

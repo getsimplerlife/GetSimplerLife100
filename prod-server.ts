@@ -1384,6 +1384,16 @@ async function handleFetch(req: Request, server?: ServerPeerSource): Promise<Res
         const { handleNativeInvoiceShare } = await import("./src/native/invoice");
         return handleNativeInvoiceShare(req, { dataDir: DATA_DIR });
       }
+      // Slice 155 - the ISSUING TENANT'S OWN Stripe account posts here, so this
+      // lane is UNAUTHENTICATED (no session exists on Stripe's side) and must
+      // stay BEFORE the session check. The path token says which tenant; the
+      // tenant's own endpoint signing secret, checked on the raw body in
+      // constant time, is what actually authenticates the request. Unknown
+      // tokens are a plain 404 inside the handler, and nothing is written.
+      if (pathname.startsWith("/api/native/invoice/webhook/stripe/")) {
+        const { handleTenantInvoiceStripeWebhook } = await import("./src/native/invoice");
+        return handleTenantInvoiceStripeWebhook(req, { dataDir: DATA_DIR });
+      }
       const user = await getUserFromSession(req);
       if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
       // Phase 1.3 — native forms builder (authed CRUD + submissions)

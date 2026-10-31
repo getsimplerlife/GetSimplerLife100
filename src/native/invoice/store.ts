@@ -19,6 +19,7 @@ import {
   NATIVE_INVOICE_SLUGS_KEY,
   MAX_INVOICES_PER_TENANT,
   type InvoiceDeliveryAttempt,
+  type InvoicePaymentConfirmation,
   type InvoiceRecord,
   type InvoiceStatus,
   type PendingInvoiceWrite,
@@ -108,6 +109,18 @@ export function listInvoices(dataDir: string, tenantId: string): InvoiceRecord[]
 export function getInvoice(dataDir: string, tenantId: string, invoiceId: string): InvoiceRecord | null {
   return listInvoices(dataDir, tenantId).find((i) => i.id === invoiceId) ?? null;
 }
+/**
+ * Resolve an invoice by its human number WITHIN one tenant (slice 155). The
+ * webhook carries an invoice NUMBER (what Stripe was given as
+ * `client_reference_id`), never one of our ids — so this is the only lookup the
+ * webhook lane may use, and it can never cross a tenant boundary because the
+ * tenant is already resolved from the path token.
+ */
+export function getInvoiceByNumber(dataDir: string, tenantId: string, invoiceNumber: string): InvoiceRecord | null {
+  const wanted = String(invoiceNumber || "").trim();
+  if (!wanted) return null;
+  return listInvoices(dataDir, tenantId).find((i) => i.invoiceNumber === wanted) ?? null;
+}
 export function countInvoices(dataDir: string, tenantId: string): number {
   return listInvoices(dataDir, tenantId).length;
 }
@@ -154,6 +167,10 @@ export function applyInvoiceMutation(
     lastAttempt?: InvoiceDeliveryAttempt;
     /** Truthful "a payment was STARTED" stamp — never a "paid" claim. */
     paymentStartedAt?: string;
+    /** The checkout session created for this invoice (slice 155). */
+    lastCheckoutSessionId?: string;
+    /** CONFIRMED payment (slice 155) — written only by the verified webhook. */
+    payment?: InvoicePaymentConfirmation;
   },
   actor: string,
 ): InvoiceRecord | null {
@@ -174,6 +191,8 @@ export function applyInvoiceMutation(
     ...(mutation.customerEmail !== undefined ? { customerEmail: mutation.customerEmail } : {}),
     ...(mutation.lastAttempt !== undefined ? { lastAttempt: mutation.lastAttempt } : {}),
     ...(mutation.paymentStartedAt !== undefined ? { paymentStartedAt: mutation.paymentStartedAt } : {}),
+    ...(mutation.lastCheckoutSessionId !== undefined ? { lastCheckoutSessionId: mutation.lastCheckoutSessionId } : {}),
+    ...(mutation.payment !== undefined ? { payment: mutation.payment } : {}),
     version: inv.version + 1,
     updatedAt: now,
     updatedBy: actor,

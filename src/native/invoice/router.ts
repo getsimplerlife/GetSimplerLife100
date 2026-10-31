@@ -27,11 +27,15 @@
  * PAYMENT (slice 134): `POST /api/native/invoice/share/:slug/pay` creates a
  * Stripe Checkout Session on the ISSUING TENANT'S OWN Stripe account (their
  * key, their account — we never hold or move the money) and returns the hosted
- * checkout URL. It is the ONE write on the public lane, and it writes only
- * `paymentStartedAt` — never "paid": confirming a payment needs a webhook from
- * the tenant's own Stripe account, which is out of scope, so claiming "paid"
- * would be the same class of lie as the old "sent" bug.
+ * checkout URL. It writes `paymentStartedAt` and the session id — never "paid":
+ * opening a checkout page is not money.
  * A tenant with no Stripe connection gets an honest 409 and NO outbound call.
+ *
+ * PAYMENT CONFIRMATION (slice 155): `POST /api/native/invoice/webhook/stripe/
+ * <token>` is the UNAUTHENTICATED lane the issuing tenant's own Stripe account
+ * posts to (see `stripe-webhook.ts`). It is the only writer of `payment`, and it
+ * writes it only for a verified event whose amount and currency match the
+ * invoice exactly. A mismatch is recorded and the invoice stays unpaid.
  *
  * Route parsing uses EXPLICIT SEGMENTS, not a two-capture regex — avoids the
  * Phase 1.4 rowMatch/idMatch shadowing bug class entirely (2.1–2.4 discipline).
@@ -54,8 +58,14 @@ import { submitInvoiceWrite, executePendingInvoiceWrite, noteOwnerDecision, crea
 import { resolveIssuerDisplayName } from "./issuer";
 import { isInvoiceId } from "./validate";
 import { publicOrigin, invoiceShareUrl } from "./delivery";
-import { connectTenantStripe, disconnectTenantStripe, getTenantStripeStatus } from "./stripe-connect";
+import {
+  connectTenantStripe,
+  disconnectTenantStripe,
+  getTenantStripeStatus,
+  setTenantWebhookSecret,
+} from "./stripe-connect";
 import { createTenantCheckoutSession } from "./stripe-checkout";
+import { getOrCreateTenantWebhookToken, rotateTenantWebhookToken, invoiceWebhookPath } from "./webhook-token";
 import { getDealRoom } from "../dealroom/store";
 import { readDocumentBytes, getDoc } from "../documents/store";
 import type { InvoiceRecord } from "./types";
@@ -145,6 +155,16 @@ export function publicInvoiceView(
     pdfPath: `/api/native/invoice/share/${inv.shareSlug}/pdf`,
     canPay,
     paymentStartedAt: inv.paymentStartedAt ?? null,
+    /**
+     * SLICE 155 — the payment truth, and the only place it is stated.
+     * `paid` is true ONLY after a verified webhook from the issuing tenant's own
+     * Stripe account whose amount and currency matched this record exactly.
+     * `paymentStartedAt` (someone opened a checkout page) is NOT evidence of
+     * money and never flips this flag.
+     */
+    paid: !!inv.payment,
+    paidAt: inv.payment?.paidAt ?? null,
+    amountPaidCents: inv.payment?.amountCents ?? null,
   };
 }
 
@@ -230,30 +250,65 @@ async function handleAuthedAsync(req: Request, ctx: NativeInvoicesCtx): Promise<
   }
 
   // ── /api/native/invoice/stripe — the TENANT'S OWN Stripe connection ──
-  // GET    → { connected, hint (last 4), keyMode, addedAt } — never the key.
-  // POST   → { secretKey } validated BEFORE anything is stored/audited.
+  // GET    → { connected, hint (last 4), keyMode, addedAt, hasWebhookSecret,
+  //            webhookUrl } — never the key, never the signing secret.
+  // POST   → { secretKey, webhookSecret? } validated BEFORE anything is
+  //          stored/audited (webhookSecret alone also works on PUT).
+  // PUT    → same as POST (an endpoint secret can be added later on its own).
   // DELETE → revoke (subsequent pay attempts fail closed immediately).
   // Credential management, not a business-data write: same class as the
   // import/OAuth connect lanes, so it does not ride the Approval Queue — but
   // every change is audited immutably with the MASK only.
+  //
+  // SLICE 155: `webhookUrl` is the address the tenant pastes into THEIR Stripe
+  // dashboard for the endpoint that confirms payments. It is stable, and it is
+  // minted on first read so the tenant can create the endpoint before or after
+  // connecting their key. The signing secret itself is write-only.
   if (seg[0] === "stripe" && seg.length === 1) {
     if (req.method === "GET") {
-      return Response.json({ data: getTenantStripeStatus(dataDir, tenantId) });
+      const status = getTenantStripeStatus(dataDir, tenantId);
+      const token = getOrCreateTenantWebhookToken(dataDir, tenantId);
+      return Response.json({
+        data: { ...status, webhookUrl: `${publicOrigin()}${invoiceWebhookPath(token)}` },
+      });
     }
-    if (req.method === "POST") {
+    if (req.method === "POST" || req.method === "PUT") {
       const raw = await req.text();
       const b = parseJsonObject(raw);
-      if (typeof b.secretKey !== "string") return json400("Paste your Stripe secret key.");
-      const res = connectTenantStripe(dataDir, tenantId, tenantId, b.secretKey);
+      const hasKey = b.secretKey !== undefined;
+      const hasWebhook = b.webhookSecret !== undefined;
+      if (!hasKey && !hasWebhook) return json400("Paste your Stripe secret key.");
+      // Both secrets are validated BEFORE the first write, so a bad signing
+      // secret can never leave a half-connected account behind.
+      const res = hasKey
+        ? connectTenantStripe(dataDir, tenantId, tenantId, b.secretKey, hasWebhook ? b.webhookSecret : undefined)
+        : setTenantWebhookSecret(dataDir, tenantId, tenantId, b.webhookSecret);
       if (!res.ok) return json400(res.error);
-      // The response carries the masked status only — never the submitted key.
-      return Response.json({ data: res.status });
+      const token = getOrCreateTenantWebhookToken(dataDir, tenantId);
+      // The response carries the masked status only — never a submitted secret.
+      return Response.json({ data: { ...res.status, webhookUrl: `${publicOrigin()}${invoiceWebhookPath(token)}` } });
     }
     if (req.method === "DELETE") {
       const removed = disconnectTenantStripe(dataDir, tenantId, tenantId);
       return Response.json({ data: { ...getTenantStripeStatus(dataDir, tenantId), removed } });
     }
     return Response.json({ error: "Method not allowed" }, { status: 405 });
+  }
+
+  // ── /api/native/invoice/stripe/webhook/rotate — replace the webhook address ──
+  // Explicit action only: the previous URL stops resolving the moment this
+  // returns, so the tenant must paste the new one into their dashboard.
+  if (seg[0] === "stripe" && seg[1] === "webhook" && seg[2] === "rotate" && seg.length === 3) {
+    if (req.method !== "POST") return Response.json({ error: "Method not allowed" }, { status: 405 });
+    const res = rotateTenantWebhookToken(dataDir, tenantId, tenantId);
+    if (!res.ok) return json400(res.error);
+    return Response.json({
+      data: {
+        webhookUrl: `${publicOrigin()}${invoiceWebhookPath(res.token)}`,
+        previousUrlDead: true,
+        hasWebhookSecret: getTenantStripeStatus(dataDir, tenantId).hasWebhookSecret,
+      },
+    });
   }
 
   // ── /api/native/invoice/:id[/verb] ──
@@ -416,16 +471,23 @@ async function handleShareAsync(req: Request, ctx: NativeInvoicePublicCtx): Prom
       const status = res.reason === "provider_error" ? 502 : 409;
       return Response.json({ error: res.message }, { status, headers: NO_STORE });
     }
-    // TRUTHFUL STATE: a payment was STARTED. Never "paid" — we cannot know
-    // that without a webhook from the tenant's own Stripe account.
+    // TRUTHFUL STATE: a payment was STARTED. Never "paid" — the confirmation
+    // arrives (if it arrives) through the workspace's own payment webhook, and
+    // only when its amount and currency match this invoice exactly.
     const now = new Date().toISOString();
-    const updated = applyInvoiceMutation(ctx.dataDir, tenantId, invoice.id, { paymentStartedAt: now }, "customer");
+    const updated = applyInvoiceMutation(
+      ctx.dataDir,
+      tenantId,
+      invoice.id,
+      { paymentStartedAt: now, lastCheckoutSessionId: res.sessionId },
+      "customer",
+    );
     appendAudit(ctx.dataDir, {
       tenantId,
       actor: "customer",
       action: "native.invoice.payment.started",
       invoiceId: invoice.id,
-      detail: `Customer started a payment for invoice ${invoice.invoiceNumber} (${invoice.currency} ${(invoice.amountDueCents / 100).toFixed(2)}) on the workspace's own Stripe account — session ${res.sessionId}. The invoice is NOT marked paid: confirming a payment needs a webhook from the workspace's Stripe account, which is not enabled.`,
+      detail: `Customer started a payment for invoice ${invoice.invoiceNumber} (${invoice.currency} ${(invoice.amountDueCents / 100).toFixed(2)}) on the workspace's own Stripe account — session ${res.sessionId}. The invoice is NOT marked paid yet: it reads paid only when the workspace's own payment webhook confirms a payment of exactly this amount and currency.`,
     });
     publishPublicEvent(ctx.dataDir, tenantId, "native.invoice.payment.started", {
       invoiceId: invoice.id,
@@ -525,6 +587,7 @@ export function registerBuiltinNativeInvoiceEventTypes(): void {
     "native.invoice.failed",
     "native.invoice.deleted",
     "native.invoice.payment.started",
+    "native.invoice.payment.confirmed",
     "native.invoice.share.revoked",
     "native.invoice.share.rotated",
   ]) {

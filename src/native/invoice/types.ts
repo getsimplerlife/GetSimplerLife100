@@ -49,6 +49,34 @@ export interface InvoiceDeliveryAttempt {
   error?: string;
 }
 
+/**
+ * CONFIRMED PAYMENT (slice 155) — the only thing in this module that may ever
+ * say money arrived.
+ *
+ * It is written in exactly one place: `stripe-webhook.ts`, after a signature
+ * verified against the ISSUING TENANT'S OWN endpoint secret, and only when the
+ * session's amount and currency match this invoice's record EXACTLY. A
+ * mismatch writes an audit line instead and leaves the invoice unpaid.
+ *
+ * Why not a new `status` value: `sent` is the terminal legal state of the
+ * invoice document (it was issued and delivered) and the public share lane
+ * keys off it. Payment is an ADDITIVE fact about money, not a stage of the
+ * document — keeping them apart means a paid invoice stays readable at the
+ * customer's link, and no code path can "un-send" a paid one.
+ */
+export interface InvoicePaymentConfirmation {
+  /** When the provider-confirmed payment was applied to this record. */
+  paidAt: string;
+  /** Amount actually paid, in integer minor units — copied from the event. */
+  amountCents: number;
+  /** ISO 4217 uppercase, copied from the event (compared before writing). */
+  currency: string;
+  /** The checkout session that was paid (cs_…). */
+  sessionId: string;
+  /** The verified event id that proved it (evt_…) — the audit anchor. */
+  eventId: string;
+}
+
 /** One billed line — a snapshot of the linked proposal line item in cents. */
 export interface InvoiceLineItem {
   /** Stable line id (li_… from the source proposal / server-assigned). */
@@ -100,11 +128,25 @@ export interface InvoiceRecord {
    * TRUTHFUL PAYMENT STATE (slice 134): set when the customer was handed off to
    * a Stripe Checkout Session created on the ISSUING TENANT's own Stripe
    * account. It records only that a payment was STARTED — never that money was
-   * received. Confirming a payment needs a webhook from the tenant's own Stripe
-   * account, which is deliberately out of scope, so this record never claims
-   * "paid".
+   * received. Since slice 155 the confirmation comes from the tenant's own
+   * webhook (`payment` below); this stamp on its own still claims nothing.
    */
   paymentStartedAt?: string;
+  /**
+   * The checkout session most recently created for this invoice (cs_…),
+   * persisted at creation (slice 155). Its only purpose today is to let the
+   * share-link revoke path expire an already-open session instead of leaving a
+   * payable link behind; nothing reads it as proof of payment.
+   */
+  lastCheckoutSessionId?: string;
+  /**
+   * CONFIRMED payment — present ONLY after a verified webhook from the issuing
+   * tenant's own Stripe account whose amount and currency matched this record
+   * exactly (slice 155). Absent means "no confirmation has arrived", which is
+   * not the same as "unpaid" for an invoice nobody tried to pay online; the
+   * views say "not confirmed" rather than inventing either.
+   */
+  payment?: InvoicePaymentConfirmation;
   version: number;
   createdAt: string;
   createdBy: string;
@@ -163,8 +205,21 @@ export const MAX_CUSTOMER_EMAIL = 200;
 /** Payment term applied at creation: net-30 (the invoice's own due date). */
 export const INVOICE_DUE_DAYS = 30;
 
+/**
+ * Bounded, pruned list of processed webhook event ids (slice 155). Stripe
+ * retries, so an event that arrives twice must be a no-op; keeping the ids is
+ * the whole mechanism. Oldest entries fall off past the cap — an event older
+ * than the cap can only replay against an invoice that already carries its
+ * payment, so the record's own paid state still refuses a second effect.
+ */
+export const MAX_PROCESSED_WEBHOOK_EVENTS = 2_000;
+
 // ── Store keys ──────────────────────────────────────────────────────────────
 export const NATIVE_INVOICES_KEY = "native_invoices.json";
 export const NATIVE_INVOICES_AUDIT_KEY = "native_invoices_audit.json";
 /** Global public-slug index — slug → tenantId ONLY (nothing else). */
 export const NATIVE_INVOICE_SLUGS_KEY = "native_invoice_slugs.json";
+/** Per-tenant webhook path token (an identifier, never an authenticator). */
+export const NATIVE_INVOICE_WEBHOOK_TOKENS_KEY = "native_invoice_webhook_tokens.json";
+/** Processed webhook event ids (idempotency; bounded + pruned). */
+export const NATIVE_INVOICE_WEBHOOK_EVENTS_KEY = "native_invoice_webhook_events.json";

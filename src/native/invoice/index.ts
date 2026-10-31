@@ -19,6 +19,7 @@ import { renderInvoicePdf, invoiceHtml, invoiceTotalCents, formatCurrency } from
 import { resolveIssuerDisplayName, NEUTRAL_ISSUER_LABEL } from "./issuer";
 import { getTenantStripeStatus, connectTenantStripe, disconnectTenantStripe, validateStripeSecretKey } from "./stripe-connect";
 import { createTenantCheckoutSession } from "./stripe-checkout";
+import { handleTenantInvoiceStripeWebhook, type InvoiceWebhookCtx } from "./stripe-webhook";
 export {
   handleNativeInvoicesAuthed,
   handleNativeInvoiceShare,
@@ -40,5 +41,9 @@ export {
   disconnectTenantStripe,
   validateStripeSecretKey,
   createTenantCheckoutSession,
+  // Slice 155 — the tenant's own Stripe webhook: the ONLY writer of a
+  // confirmed payment. Unauthenticated by design (the signature is the
+  // authenticator, resolved per tenant from the path token).
+  handleTenantInvoiceStripeWebhook,
 };
-export type { NativeInvoicesCtx, NativeInvoicePublicCtx };
+export type { NativeInvoicesCtx, NativeInvoicePublicCtx, InvoiceWebhookCtx };
