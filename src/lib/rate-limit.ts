@@ -90,6 +90,7 @@ export type RateLimitLane =
   | "purchase-status"
   | "lead"
   | "invoice-share"
+  | "invoice-webhook"
   | "survey-share"
   | "booking-share";
 
@@ -118,11 +119,21 @@ export const RATE_LIMIT_LANES: Record<RateLimitLane, LanePolicy> = {
   "purchase-status": { max: 120, windowMs: MINUTE },
   lead: { max: 10, windowMs: MINUTE },
   "invoice-share": { max: 120, windowMs: MINUTE },
+  /**
+   * SLICE 155 — the issuing tenant's own Stripe account posts here. Stripe
+   * retries a failed delivery with backoff and can burst several events for one
+   * payment, so this budget is deliberately wide: 600/min per source address is
+   * far above any real burst (Stripe's documented rate is ~100/s per account
+   * only for reads; webhook delivery is far slower) while still bounding a
+   * flood. Every request is a constant-time HMAC check on a small body — the
+   * lane costs us almost nothing per attempt.
+   */
+  "invoice-webhook": { max: 600, windowMs: MINUTE },
   "survey-share": { max: 120, windowMs: MINUTE },
   "booking-share": { max: 120, windowMs: MINUTE },
 };
 
-/** Default ceiling on live buckets PER LANE. 10 lanes × 5 000 keys is the worst
+/** Default ceiling on live buckets PER LANE. 11 lanes × 5 000 keys is the worst
  *  case the process can ever hold (~50 000 small entries), which is a bounded,
  *  named cost rather than "whatever the attacker sends". */
 export const RATE_LIMIT_MAX_KEYS = 5_000;
@@ -138,6 +149,15 @@ const SHARE_PREFIXES: Array<[string, RateLimitLane]> = [
   ["/api/native/invoice/share/", "invoice-share"],
   ["/api/native/survey/share/", "survey-share"],
   ["/api/native/booking/share/", "booking-share"],
+];
+/**
+ * Prefix lanes that belong to ONE verb only. The invoice payment webhook
+ * (slice 155) is POSTed by the tenant's own Stripe account and is otherwise
+ * unauthenticated, so it gets its own budget; every other method on that path
+ * is not a lane (the handler answers 405 and writes nothing).
+ */
+const POST_PREFIX_LANES: Array<[string, RateLimitLane]> = [
+  ["/api/native/invoice/webhook/stripe/", "invoice-webhook"],
 ];
 
 const EXACT_LANES: Array<[string, string, RateLimitLane]> = [
@@ -165,6 +185,9 @@ export function laneForRequest(pathname: string, method: string): RateLimitLane 
   }
   for (const [prefix, lane] of SHARE_PREFIXES) {
     if (pathname.startsWith(prefix) && (m === "GET" || m === "HEAD")) return lane;
+  }
+  for (const [prefix, lane] of POST_PREFIX_LANES) {
+    if (pathname.startsWith(prefix) && m === "POST") return lane;
   }
   return null;
 }

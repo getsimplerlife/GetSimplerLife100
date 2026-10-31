@@ -136,7 +136,9 @@ describe("(a) no Stripe connection → zero outbound calls, no pay button, hones
   it("GET status for an unconnected tenant is honest and keyless", async () => {
     const res = await authed("GET", "/api/native/invoice/stripe");
     expect(res.status).toBe(200);
-    expect((await res.json()).data).toEqual({ connected: false, hint: null, keyMode: null, addedAt: null });
+    // Slice 155 added `hasWebhookSecret` to the client-safe status (a boolean,
+    // never a value) — the connection facts themselves are unchanged.
+    expect((await res.json()).data).toMatchObject({ connected: false, hint: null, keyMode: null, addedAt: null, hasWebhookSecret: false });
   });
 });
 
@@ -193,11 +195,12 @@ describe("(b) connected tenant → session on their account, invoice amount, key
     const connectText = await connect.text();
     expect(connectText).not.toContain(KEY_A);
     const connectJson = JSON.parse(connectText);
-    expect(connectJson.data).toEqual({
+    expect(connectJson.data).toMatchObject({
       connected: true,
       hint: "•••• " + KEY_A.slice(-4),
       keyMode: "test",
       addedAt: expect.any(String),
+      hasWebhookSecret: false, // slice 155 field; no signing secret pasted here
     });
 
     fetchMock.mockResolvedValueOnce(sessionResponse());
@@ -346,7 +349,7 @@ describe("(e) cross-tenant key isolation", () => {
 
     // B's status is its own (unconnected) — A's connection does not leak.
     const statusB = (await (await authed("GET", "/api/native/invoice/stripe", undefined, T2)).json()).data;
-    expect(statusB).toEqual({ connected: false, hint: null, keyMode: null, addedAt: null });
+    expect(statusB).toMatchObject({ connected: false, hint: null, keyMode: null, addedAt: null, hasWebhookSecret: false });
 
     const res = await publicLane("POST", "/api/native/invoice/share/si_tenantb0001/pay");
     expect(res.status).toBe(409);
