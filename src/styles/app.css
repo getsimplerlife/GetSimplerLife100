@@ -42,6 +42,16 @@
   body {
     @apply bg-stone-950 text-stone-100 antialiased scroll-smooth;
   }
+  /* SLICE 157 — the sticky header used to sit on top of the heading it jumped
+     to (measured: a section h2 landed under the 56px bar). Scroll padding moves
+     the landing point below the bar; the per-id margin makes it hold for any
+     in-page anchor, not just the one link we happened to test. */
+  html {
+    scroll-padding-top: 5.5rem;
+  }
+  :where([id]) {
+    scroll-margin-top: 5.5rem;
+  }
 
   /* Custom scrollbar for dark theme */
   ::-webkit-scrollbar {

@@ -32,20 +32,8 @@ export function Header({ businessName, user }: HeaderProps) {
     { to: "/tools/assessment", label: "📋 Automation Assessment" },
     { to: "/roi-calculator", label: "📊 ROI Calculator" },
   ];
-  const learnLinks = [
-    { to: "/faq", label: "❓ FAQ" },
-    { to: "/case-studies", label: "📚 Case Studies" },
-    { to: "/resources", label: "🗂️ Resources" },
-    { to: "/demos", label: "🎬 Demos" },
-    { to: "/security", label: "🛡️ Security" },
-    { to: "/you-stay-in-control", label: "🧑‍⚖️ You Stay in Control" },
-    { to: "/support", label: "🛟 Support" },
-    { to: "/about", label: "ℹ️ About" },
-    { to: "/contact", label: "📬 Contact" },
-  ];
   const platformActive = groupActive(["/features", "/how-it-works", "/workflows", "/integrations"]);
   const toolsActive = groupActive(["/tools", "/roi-calculator"]);
-  const learnActive = groupActive(["/faq", "/case-studies", "/resources", "/demos", "/security", "/you-stay-in-control", "/support", "/about", "/contact"]);
   const dropdownTrigger = (active: boolean) =>
     `text-sm font-bold transition-colors flex items-center gap-1 cursor-pointer ${
       active ? "text-emerald-500" : "text-stone-400 hover:text-white"
@@ -83,6 +71,7 @@ export function Header({ businessName, user }: HeaderProps) {
             <button
               type="button"
               aria-haspopup="true"
+              data-nav-item="platform"
               className={dropdownTrigger(platformActive)}
             >
               Platform
@@ -104,7 +93,7 @@ export function Header({ businessName, user }: HeaderProps) {
             </div>
           </div>
           <div className="relative group">
-            <button type="button" aria-haspopup="true" className={dropdownTrigger(location.pathname.startsWith("/industries"))}>
+            <button type="button" aria-haspopup="true" data-nav-item="industries" className={dropdownTrigger(location.pathname.startsWith("/industries"))}>
               Industries
               <svg className="w-3 h-3 mt-0.5 transition-transform group-hover:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -129,6 +118,7 @@ export function Header({ businessName, user }: HeaderProps) {
             <button
               type="button"
               aria-haspopup="true"
+              data-nav-item="tools"
               className={dropdownTrigger(toolsActive)}
             >
               Tools
@@ -149,14 +139,20 @@ export function Header({ businessName, user }: HeaderProps) {
               </div>
             </div>
           </div>
-          <Link to="/resources" className={navLinkClass("/resources")}>Learn</Link>
-          <Link to="/pricing" className={navLinkClass("/pricing")}>Pricing</Link>
-          <Link to="/demo" className="text-sm font-bold text-stone-300 hover:text-white transition-colors">Schedule Demo</Link>
-          <Link to="/register" className="text-sm font-bold text-emerald-400 hover:text-emerald-300 transition-colors">Register</Link>
+          <Link to="/resources" className={navLinkClass("/resources")} data-nav-item="resources">Resources</Link>
+          <Link to="/pricing" className={navLinkClass("/pricing")} data-nav-item="pricing">Pricing</Link>
+          {/* SLICE 157 — the nav is six items: five destinations plus ONE primary CTA.
+              The old "Schedule Demo" / "Register" / "Get Started" trio competed with
+              each other; a single quiet sign-in link is not a CTA. */}
           {user ? (
-            <Link to="/portal" className="bg-emerald-500 hover:bg-emerald-400 text-black px-5 py-2 rounded-xl font-bold transition-all shadow-md text-sm">Dashboard</Link>
+            <Link to="/portal" data-nav-utility="portal" className="text-sm font-bold text-stone-400 hover:text-white transition-colors">Portal</Link>
           ) : (
-            <Link to="/login" className="text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-500 px-4 py-2 rounded-xl transition-all">Get Started</Link>
+            <Link to="/login" data-nav-utility="signin" className="text-sm font-bold text-stone-400 hover:text-white transition-colors">Sign in</Link>
+          )}
+          {user ? (
+            <Link to="/portal" data-cta="nav-primary" className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl font-bold transition-all text-sm">Dashboard</Link>
+          ) : (
+            <Link to="/register" data-cta="nav-primary" className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl font-bold transition-all text-sm">Get started</Link>
           )}
         </nav>
         <button type="button" onClick={() => setMenuOpen(!menuOpen)} aria-expanded={menuOpen} className="lg:hidden p-2 text-stone-400 hover:text-white transition-colors" aria-label="Toggle menu">
@@ -174,16 +170,17 @@ export function Header({ businessName, user }: HeaderProps) {
             [{ to: "/industries", label: "📂 All Industries" },
              ...industries.map((ind: any) => ({ to: `/industries/${ind.slug || ind.id}` as any, label: ind.name }))])}
           {renderMobileGroup("tools", "Tools", toolsActive, toolLinks)}
-          {renderMobileGroup("learn", "Learn", learnActive, learnLinks)}
+          <Link to="/resources" onClick={() => setMenuOpen(false)} className="block px-3 py-3 text-sm font-bold rounded-lg text-stone-400 hover:text-white hover:bg-stone-900 transition-colors">Resources</Link>
           <Link to="/pricing" onClick={() => setMenuOpen(false)} className="block px-3 py-3 text-sm font-bold rounded-lg text-stone-400 hover:text-white hover:bg-stone-900 transition-colors">Pricing</Link>
           <div className="pt-3 space-y-2 px-1">
-            <Link to="/demo" onClick={() => setMenuOpen(false)} className="block w-full text-center text-sm font-bold text-stone-300 hover:text-white py-2.5 rounded-xl transition-colors">Schedule Demo</Link>
-            <Link to="/register" onClick={() => setMenuOpen(false)} className="block w-full text-center text-sm font-bold text-emerald-400 hover:text-emerald-300 py-2.5 rounded-xl transition-colors">Register</Link>
             {user ? (
-              <Link to="/portal" onClick={() => setMenuOpen(false)} className="block w-full text-center bg-emerald-500 hover:bg-emerald-400 text-black px-5 py-3 rounded-xl font-bold transition-all shadow-md">Dashboard</Link>
+              <Link to="/portal" onClick={() => setMenuOpen(false)} className="block w-full text-center text-sm font-bold text-stone-300 hover:text-white py-2.5 rounded-xl transition-colors">Portal</Link>
             ) : (
-              <Link to="/login" onClick={() => setMenuOpen(false)} className="block w-full text-center bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-3 rounded-xl font-bold transition-all">Get Started</Link>
+              <Link to="/login" onClick={() => setMenuOpen(false)} className="block w-full text-center text-sm font-bold text-stone-300 hover:text-white py-2.5 rounded-xl transition-colors">Sign in</Link>
             )}
+            <Link to={user ? "/portal" : "/register"} onClick={() => setMenuOpen(false)} className="block w-full text-center bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-3 rounded-xl font-bold transition-all">
+              {user ? "Dashboard" : "Get started"}
+            </Link>
           </div>
         </div>
       )}
