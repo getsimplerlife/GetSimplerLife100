@@ -140,34 +140,12 @@ function pidIsAlive(pid: number): boolean {
   }
 }
 
-/**
- * The PID that supervises the SHARED test server — the vitest RUN, not the
- * individual worker that happened to boot it.
- *
- * SLICE 156 FOLLOW-UP: the server used to be supervised by (and its boot
- * marker keyed to) whichever worker won the spawn race. One worker dying — for
- * any reason — therefore invalidated the marker and let the watchdog reap the
- * server, and every other file that needed :3999 fell over with ECONNREFUSED.
- * One shared resource must not depend on one of two interchangeable workers.
- * Under the forks pool a worker's parent IS the run, so that is the supervisor:
- * the server outlives any single worker and is still reaped when the run ends
- * (the watchdog's supervisor-death path, covered by test-env-hardening).
- * Falls back to this process when there is no usable parent (direct spawn).
- */
-function runSupervisorPid(): number {
-  return process.ppid > 1 ? process.ppid : process.pid;
-}
-
-/** True when THIS process is the run itself (no separate supervising parent),
- *  i.e. nobody else will reap the server, so teardown is our job. */
-const THIS_PROCESS_IS_THE_RUN = runSupervisorPid() === process.pid;
-
 /** Write the boot marker into the data dir after a server becomes healthy.
- *  Records the RUN's supervisor pid + boot time; reuse of that server is only
- *  allowed while the marker is recent AND that supervisor is still alive. */
+ *  Records the SPAWNER pid + boot time; reuse of that server is only allowed
+ *  while the marker is recent AND the spawner is still alive. */
 export function writeBootMarker(dir: string): void {
   try {
-    writeFileSync(join(dir, BOOT_MARKER_FILE), JSON.stringify({ pid: runSupervisorPid(), bootTime: Date.now() }));
+    writeFileSync(join(dir, BOOT_MARKER_FILE), JSON.stringify({ pid: process.pid, bootTime: Date.now() }));
   } catch { /* best effort — a missing marker only disables reuse, never breaks a run */ }
 }
 
@@ -320,33 +298,16 @@ export function resolveWebhookSecretFromEnv(): string {
   return "whsec_test";
 }
 
-/** Free the port from any stale leftover test server holding it (async-safe).
- *
- * SLICE 156 FOLLOW-UP — THE BUG THIS FIXES (measured, not guessed).
- * The previous implementation was `lsof -ti tcp:PORT | xargs -r kill -9`.
- * `lsof -i tcp:PORT` matches EVERY socket that touches that port — including
- * ESTABLISHED **client** connections. Every vitest worker fetching from the
- * test server holds exactly such a connection, so freeing the port SIGKILLed
- * the test workers themselves. Vitest then reported "Worker exited
- * unexpectedly", and because the killed worker was also the spawned server's
- * supervisor, the detached watchdog reaped the shared server ~1s later: every
- * remaining file that needed :3999 failed with ECONNREFUSED. That is the whole
- * "7 tests green solo, red in the full suite" signature — one file lost the
- * server, not seven tests going wrong.
- *
- * Proof on this host (fixture listener + one client on a scratch port):
- *   lsof -ti tcp:4599                  → 24126 (listener) AND 24138 (client)
- *   lsof -ti tcp:4599 -sTCP:LISTEN     → 24126 only
- *
- * The port is only ever freed to make room for OUR OWN server, so the only
- * process this may kill is a LISTENER on it. A client is never ours to kill —
- * and never this process or its supervisor, which is asserted in code below
- * and covered by a regression test in test-env-hardening.test.ts.
- */
+/** Free the port from any stale leftover test server holding it (async-safe). */
 export async function freeTestPort(port: number = TEST_PORT): Promise<void> {
   const { execSync } = await import("child_process");
-  // Belt and braces: even if a future edit loosens the lsof query, we never
-  // signal ourselves or the process supervising this worker.
+  // SLICE 156 — `lsof -ti tcp:PORT` matches ESTABLISHED CLIENT sockets as well
+  // as the listener, so the old form SIGKILLed every vitest worker that was
+  // fetching from this server (and the watchdog then reaped the server, taking
+  // every remaining file that needed :3999 with it). Measured on this host with
+  // one listener and one client: `lsof -ti tcp:4599` → 2 pids,
+  // `lsof -ti tcp:4599 -sTCP:LISTEN` → 1 pid. Only a LISTENER is ever ours to
+  // kill, and never ourselves or our supervisor.
   const neverKill = new Set([process.pid, process.ppid]);
   try {
     const out = execSync(`lsof -ti tcp:${port} -sTCP:LISTEN 2>/dev/null || true`, { encoding: "utf-8" });
@@ -357,9 +318,7 @@ export async function freeTestPort(port: number = TEST_PORT): Promise<void> {
     }
   } catch { /* no lsof on this host — nothing to free blindly */ }
   // fuser resolves the LOCAL port binding (a client's local port is ephemeral),
-  // so it is listener-scoped too; it stays as the fallback for hosts without
-  // lsof. `-k` only when lsof was unavailable is not worth the branching — the
-  // second call is a no-op once the listener is gone.
+  // so it is listener-scoped too; it stays as the fallback for hosts without lsof.
   try { execSync(`fuser -k ${port}/tcp 2>/dev/null || true`, { stdio: "ignore" }); } catch { /* fuser missing */ }
 }
 
@@ -458,7 +417,7 @@ async function spawnServerOnce(): Promise<void> {
   };
   childLog = [];
   child = spawnTestServerWithWatchdog({
-    supervisorPid: runSupervisorPid(),
+    supervisorPid: process.pid,
     env,
     cwd: process.cwd(),
   });
@@ -585,13 +544,7 @@ export function stopTestServer(): void {
   killTestServerGroup(child);
   child = null;
 }
-// Teardown OWNERSHIP (slice 156 follow-up). The shared server is supervised by
-// the RUN, so an individual worker exiting must not reap it: the other worker
-// may still be using it, and killing it there is how one worker's death turned
-// into "every file that needs :3999 fails". When this process IS the run
-// (no supervising parent) nothing else will ever clean up, so that case keeps
-// the old unconditional behaviour.
-process.on("exit", () => { if (THIS_PROCESS_IS_THE_RUN) killTestServerGroup(child); });
+process.on("exit", () => killTestServerGroup(child));
 
 // Workers are often terminated by SIGNAL (vitest pool teardown sends SIGTERM
 // after the run; Ctrl+C sends SIGINT). Exit handlers never run on signal
@@ -606,9 +559,7 @@ process.on("exit", () => { if (THIS_PROCESS_IS_THE_RUN) killTestServerGroup(chil
 const TERMINATION_SIGNALS = ["SIGTERM", "SIGINT", "SIGHUP"] as const;
 for (const sig of TERMINATION_SIGNALS) {
   const handler = () => {
-    // Same ownership rule as the exit handler above: a worker that dies must
-    // leave the run's server alone; only the run itself reaps it.
-    if (THIS_PROCESS_IS_THE_RUN) killTestServerGroup(child);
+    killTestServerGroup(child);
     process.removeListener(sig, handler);
     process.kill(process.pid, sig);
   };
