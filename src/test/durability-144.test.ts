@@ -458,6 +458,28 @@ describe("slice 144 — coverage: a run that misses a store fails", () => {
     expect(row).toMatchObject({ presentOnDisk: true, includedInArchive: true, bytes: 12 });
   });
 
+  it("the page-view counter's store is declared AND covered by the archive", () => {
+    // SLICE 161 — slice 159 shipped `<DATA_DIR>/page_views.json` and never
+    // declared it here, so the backup could have skipped every page view while
+    // the coverage report still read "all declared stores covered". Declaring
+    // it is only half the claim: prove the archive really carries the bytes,
+    // and that leaving it out FAILS the run instead of passing quietly.
+    expect(DURABLE_STORES).toContain("page_views.json");
+    const dataDir = makeDataDir({
+      "page_views.json": JSON.stringify({ version: 1, days: { "2026-10-31": { "/": 3 } }, meta: {} }),
+    });
+    const covered = checkCoverage(dataDir, ["page_views.json"], DURABLE_STORES);
+    expect(covered.ok).toBe(true);
+    expect(covered.rows.find((r) => r.store === "page_views.json")).toMatchObject({
+      presentOnDisk: true,
+      includedInArchive: true,
+    });
+    // The exact regression this slice exists to prevent: the store holds data
+    // and the archive does not contain it.
+    const skipped = checkCoverage(dataDir, [], DURABLE_STORES);
+    expect(skipped.ok).toBe(false);
+    expect(skipped.uncovered.map((r) => r.store)).toEqual(["page_views.json"]);
+  });
   it("the ONE declared list covers every store the source tree declares", () => {
     const derived = deriveDeclaredStores(REPO);
     expect(derived.length).toBeGreaterThan(100);
