@@ -43,6 +43,10 @@ import {
   resolveBackupInterval,
   startBackupScheduler,
 } from "./src/lib/backup-scheduler";
+// SLICE 159 — the first-party page counter. Counting happens at ONE choke point
+// (the response of every request — see countPageViewAtTheDoor below), so no page
+// lane can be served without passing it, and it writes only into DATA_DIR.
+import { notePageView, readPageViewSummary } from "./src/lib/page-views";
 
 // ── Lazy module accessors — loaded on first use to keep server startup under 1s ──
 let _bcryptjs: any;
@@ -626,10 +630,45 @@ function applySecurityHeaders(req: Request, res: Response): Response {
 // is exactly ONE gate call, at the top of `handleFetch`, so no route can reach a
 // handler without passing through it.
 
+/**
+ * SLICE 159 — count the page view at the DOOR, on the way out.
+ *
+ * Why here and not inside the SPA fallback: this is the one line every response
+ * passes through, so a page served by ANY lane (the SSR fallback, a public
+ * invoice share page, a route added next month) is counted without anyone
+ * remembering to add a call. The decision itself lives in `src/lib/page-views`
+ * and is deliberately strict: GET only, 200 only (a 404 is a miss, not a page
+ * view, and scanner junk must not crowd out real pages), `text/html` only (so
+ * every asset, JSON body and redirect is out by construction), never `/api/*`,
+ * and bots are dropped at the door — their headers are never stored.
+ *
+ * It runs AFTER the response exists and can never change it: `notePageView`
+ * does not throw, and a failed write leaves the page served and the failure
+ * reported to the owner in `/api/admin/page-views`.
+ */
+function countPageViewAtTheDoor(req: Request, res: Response): void {
+  try {
+    if (req.method !== "GET") return;
+    let pathname = "";
+    try { pathname = new URL(req.url).pathname; } catch { return; }
+    notePageView(DATA_DIR, {
+      method: req.method,
+      pathname,
+      userAgent: req.headers.get("user-agent"),
+      contentType: res.headers.get("content-type"),
+      status: res.status,
+    });
+  } catch {
+    // Counting is never allowed to break a page.
+  }
+}
+
 serve({
   port: serverPort, // canonical 3000; platform default PORT=80 ignored; explicit numeric overrides honored (see src/lib/server-port.ts)
   async fetch(req, server) {
-    return applySecurityHeaders(req, await handleFetch(req, server));
+    const res = await handleFetch(req, server);
+    countPageViewAtTheDoor(req, res);
+    return applySecurityHeaders(req, res);
   },
 });
 
@@ -3333,6 +3372,16 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
       if (subPath === "analytics") {
         // B1 (audit 10-23): same honest derivation as /api/data/analytics.
         return Response.json({ data: computePortalAnalyticsSnapshot() });
+      }
+      if (subPath === "page-views") {
+        // SLICE 159 — the first-party page counter, owner-only (the gate above
+        // answers 401 unsigned and 403 for a non-owner). Real counts from
+        // <DATA_DIR>/page_views.json, last 30 UTC days, top 25 paths. When there
+        // is nothing recorded the summary says so (`hasAnyData: false`) instead
+        // of dressing up a zero, and when the counter cannot WRITE it reports
+        // `writeHealth` — "counting has been failing since …" — rather than
+        // quietly serving zeros.
+        return Response.json(readPageViewSummary(DATA_DIR));
       }
       if (subPath === "backup") {
         // Audit-B (10-26): wire the Health-page backup button to the REAL
