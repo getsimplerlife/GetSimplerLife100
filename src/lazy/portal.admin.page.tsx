@@ -22,7 +22,9 @@ function AdminLayout() {
         // Only the business owner (role claim admin/owner) can access the
         // admin panel — P1-5 role-based gating, no hardcoded email.
         if (userData.role !== "admin" && userData.role !== "owner") {
-          navigate({ to: "/portal" as any });
+          // D-10 (sweep A): the bounce must SAY SO. A silent redirect leaves a
+          // non-owner unable to tell a refusal from a mis-click.
+          navigate({ to: "/portal", search: { notice: "admin-required" } } as any);
           return;
         }
         setUser(userData);

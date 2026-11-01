@@ -3,12 +3,68 @@ import { Link } from "@tanstack/react-router";
 import { submitFeedback } from "~/db/queries";
 import { Route } from '~/routes/portal.$auditId';
 
+/**
+ * SLICE 168 — D-9. `/portal/$auditId` is a dynamic child of `/portal`, so any
+ * unknown path under the portal resolves here. Before this fix the page read
+ * whatever the loader produced and, with no record, rendered
+ * "⏳ Audit in Progress" + "ORDERED ON Invalid Date" + a "Request Adjustments"
+ * form — inventing an order for a customer who ordered nothing. A missing
+ * record now renders an explicit not-found state and nothing else.
+ */
+
+/**
+ * A missing or unparseable timestamp renders as an em dash. `new Date(x)
+ * .toLocaleDateString()` yields the literal string "Invalid Date" for
+ * undefined/null/garbage, and that token must never reach a customer's screen.
+ */
+export function formatAuditDate(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "—";
+  const d = value instanceof Date ? value : new Date(value as string | number);
+  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString();
+}
+
+/** The honest page for an id that resolves to no audit record. */
+export function AuditNotFound() {
+  return (
+    <div className="min-h-screen bg-black">
+      <header className="bg-stone-950 border-b border-stone-800 px-6 py-4">
+        <div className="max-w-7xl mx-auto flex justify-between items-center">
+          <Link to="/" className="text-2xl font-bold text-emerald-600">
+            Simpler Life 100
+          </Link>
+          <Link to="/portal" className="text-sm font-medium text-stone-400 hover:text-emerald-400">
+            ← Back to Dashboard
+          </Link>
+        </div>
+      </header>
+      <main className="max-w-4xl mx-auto px-6 py-24 text-center" role="alert">
+        <div className="text-4xl mb-4">🔍</div>
+        <h1 className="text-2xl font-bold text-stone-100 mb-3">We couldn't find that page</h1>
+        <p className="text-stone-400 max-w-md mx-auto mb-8">
+          There is no audit record at this address. The link may be mistyped or out of date —
+          nothing was ordered or lost.
+        </p>
+        <Link
+          to="/portal"
+          className="inline-block bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-emerald-700 transition-colors"
+        >
+          Go to your dashboard
+        </Link>
+      </main>
+    </div>
+  );
+}
 
 function AuditDetail() {
   const { audit } = Route.useLoaderData();
   const [feedbackText, setFeedbackText] = useState("");
   const [feedbackSent, setFeedbackSent] = useState(false);
   const [sending, setSending] = useState(false);
+
+  // D-9: no record → the not-found page. Never the in-progress copy.
+  if (!audit || !audit.id) {
+    return <AuditNotFound />;
+  }
 
   const handlePrint = () => {
     window.print();
@@ -68,11 +124,11 @@ function AuditDetail() {
             <div className="grid grid-cols-2 gap-8 mt-6">
               <div>
                 <div className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-1">Ordered On</div>
-                <div className="text-stone-100">{new Date(audit.createdAt).toLocaleDateString()}</div>
+                <div className="text-stone-100">{formatAuditDate(audit.createdAt)}</div>
               </div>
               <div>
                 <div className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-1">Last Updated</div>
-                <div className="text-stone-100">{new Date(audit.updatedAt).toLocaleDateString()}</div>
+                <div className="text-stone-100">{formatAuditDate(audit.updatedAt)}</div>
               </div>
             </div>
           </div>

@@ -292,6 +292,26 @@ function appendAudit(user: any, action: string, resource: string, detail: string
   } catch { /* audit is best-effort */ }
 }
 
+/**
+ * D-20 (sweep A): a READ-ONLY route must answer an unimplemented verb with
+ * 405 + an `Allow` header — never a 200 with a read body. Answering
+ * POST/PUT/PATCH/DELETE with a 200 makes "does this endpoint mutate?"
+ * unanswerable from outside and would hide a future write behind an
+ * already-200 status.
+ */
+function methodNotAllowed(allow: string): Response {
+  return Response.json(
+    { error: "Method not allowed", allow },
+    { status: 405, headers: { Allow: allow } },
+  );
+}
+
+/** True for the verbs a read-only GET route may legitimately answer. */
+function isReadVerb(method: string | undefined): boolean {
+  const m = (method || "GET").toUpperCase();
+  return m === "GET" || m === "HEAD";
+}
+
 // CRM/ERP/Accounting category detection — these categories require slot purchases
 // ── Background init: monitoring gates + SSR preload (non-blocking) ──
 let ssrReady = false;
@@ -1168,6 +1188,7 @@ async function handleFetch(req: Request, server?: ServerPeerSource): Promise<Res
 
     // ── Purchase Verification ─────────────────────────────────────
     if (pathname === "/api/purchases") {
+      if (!isReadVerb(req.method)) return methodNotAllowed("GET, HEAD");
       const user = await getUserFromSession(req);
       if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
       const purchases = readJSON(join(DATA_DIR, "tenant_purchases.json"));
@@ -2501,6 +2522,8 @@ async function handleFetch(req: Request, server?: ServerPeerSource): Promise<Res
     }
     // ── /api/audit-logs (GET) ──────────────────────────────────────
     if (pathname === "/api/audit-logs") {
+      // D-20: this is a read route — an unimplemented verb is a 405, not a 200.
+      if (!isReadVerb(req.method)) return methodNotAllowed("GET, HEAD");
       const user = await getUserFromSession(req);
       if (user === null || user === undefined) return Response.json({ error: "Not authenticated" }, { status: 401 });
       const AUDIT_FILE = join(DATA_DIR, "tenant_audit_logs.json");
@@ -2508,7 +2531,26 @@ async function handleFetch(req: Request, server?: ServerPeerSource): Promise<Res
       const limit = parseInt(url.searchParams.get("limit") || "20");
       const search = (url.searchParams.get("search") || "").toLowerCase();
       const data = readJSON(AUDIT_FILE);
-      let logs = Array.isArray(data) ? data : (data[user.email] || []);
+      // D-19 (sweep A): the store is normally a per-email map and the caller's
+      // own slice is returned. The legacy/corrupt FLAT-ARRAY shape carries no
+      // per-email key, so the old `Array.isArray(data) ? data : …` fallback
+      // handed EVERY signed-in user the owner's entries. A non-owner must never
+      // see another account's entry whatever the file's shape is: a flat array
+      // is filtered down to the entries that name the caller, and anything that
+      // is neither a map nor an array yields nothing.
+      let logs: any[];
+      if (Array.isArray(data)) {
+        logs = data.filter(
+          (l: any) =>
+            l && typeof l === "object" &&
+            (l.user === user.email || l.email === user.email || l.userEmail === user.email),
+        );
+      } else if (data && typeof data === "object") {
+        const slice = (data as any)[user.email];
+        logs = Array.isArray(slice) ? slice : [];
+      } else {
+        logs = [];
+      }
       if (search) {
         logs = logs.filter((l: any) =>
           (l.action || "").toLowerCase().includes(search) ||
@@ -2524,6 +2566,8 @@ async function handleFetch(req: Request, server?: ServerPeerSource): Promise<Res
 
     // ── Integration APIs ──────────────────────────────────────────
     if (pathname === "/api/integrations/providers") {
+      // D-20: read-only catalog — an unimplemented verb is a 405, not a 200.
+      if (!isReadVerb(req.method)) return methodNotAllowed("GET, HEAD");
       const page = parseInt(url.searchParams.get("page") || "0");
       const limit = parseInt(url.searchParams.get("limit") || "180");
       const search = url.searchParams.get("search") || "";

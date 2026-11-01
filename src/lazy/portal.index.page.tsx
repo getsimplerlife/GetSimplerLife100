@@ -1,6 +1,7 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useSearch } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { AnimatedNumber } from "~/components/ui";
+import { PortalBounceNotice } from "~/components/PortalBounceNotice";
 import { usePortalContext } from "~/routes/portal.context";
 import {
   DASHBOARD_WINDOW_MS,
@@ -23,6 +24,9 @@ type TimeFilter = DashboardTimeFilter;
 
 function ActivityHubDashboard() {
   const { userEmail } = usePortalContext();
+  // D-10: the admin panel's bounce carries its reason in the URL; say it here
+  // rather than silently teleporting a non-owner back to the dashboard.
+  const { notice } = useSearch({ strict: false }) as { notice?: string };
   const { inputs, signedOut, loading, error, updatedAt, refreshDashboard } = usePortalDashboard();
 
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("24h");
@@ -85,9 +89,12 @@ function ActivityHubDashboard() {
     <div className={`bg-stone-900/60 rounded-lg animate-pulse ${className}`} />
   );
 
+  const bounceNotice = <PortalBounceNotice notice={notice} />;
+
   if (loading) {
     return (
       <div className="space-y-8 text-stone-100 max-w-6xl mx-auto">
+        {bounceNotice}
         <div className="space-y-4">
           <SkeletonBox className="w-32 h-3 rounded" />
           <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
@@ -124,12 +131,15 @@ function ActivityHubDashboard() {
 
   if (signedOut) {
     return (
-      <div className="max-w-xl mx-auto mt-16 bg-stone-950 border border-stone-900 rounded-2xl p-8 text-center">
+      <div className="max-w-xl mx-auto mt-16 space-y-4">
+        {bounceNotice}
+      <div className="bg-stone-950 border border-stone-900 rounded-2xl p-8 text-center">
         <h1 className="text-lg font-bold text-white mb-2">Sign in to see your dashboard.</h1>
         <p className="text-sm text-stone-400 mb-6">Your workspace activity and approvals show here once you're signed in.</p>
         <Link to="/login" className="inline-flex items-center justify-center bg-emerald-500 hover:bg-emerald-400 text-stone-950 font-extrabold px-6 py-3 rounded-xl transition-all text-sm">
           Sign in
         </Link>
+      </div>
       </div>
     );
   }
@@ -139,6 +149,8 @@ function ActivityHubDashboard() {
 
   return (
     <div className="space-y-8 text-stone-100 max-w-6xl mx-auto">
+
+      {bounceNotice}
 
       {/* ── Hero Header ─────────────────────────────────────────── */}
       <div className="space-y-4">
