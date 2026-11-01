@@ -47,6 +47,16 @@ import {
 // (the response of every request — see countPageViewAtTheDoor below), so no page
 // lane can be served without passing it, and it writes only into DATA_DIR.
 import { logPageViewCounterLocation, notePageView, readPageViewSummary } from "./src/lib/page-views";
+// SLICE 162 — the deployment's own proof that its data survived a publish.
+// `recordDeploymentBoot` writes/increments <DATA_DIR>/deployment-generation.json
+// on boot; `buildDataHealthReport` answers the owner's question from the
+// filesystem, never from a config guess.
+import {
+  buildDataHealthReport,
+  logDeploymentGeneration,
+  recordDeploymentBoot,
+  runningBuildId,
+} from "./src/lib/data-health";
 
 // ── Lazy module accessors — loaded on first use to keep server startup under 1s ──
 let _bcryptjs: any;
@@ -63,6 +73,14 @@ async function consumeOAuthState(...args: any[]) { return (await _getOAuthSafety
 async function usableOAuthToken(...args: any[]) { return (await _getOAuthSafety()).usableOAuthToken(...args); }
 async function validateOAuthState(...args: any[]) { return (await _getOAuthSafety()).validateOAuthState(...args); }
 const BUILD_ID = Date.now().toString(36);
+// SLICE 162 — the facts `/api/admin/data-health` compares the marker against.
+// PROCESS_STARTED_AT is derived from process.uptime() rather than "now" so it is
+// the real start of this process, not the moment this module was evaluated.
+const PROCESS_STARTED_AT = new Date(Date.now() - Math.round(process.uptime() * 1000));
+// The running server entry file: its content hash is the build identity that
+// survives a publisher rewriting (or preserving) file mtimes.
+const SERVER_ENTRY_PATH: string =
+  typeof import.meta?.path === "string" ? import.meta.path : typeof __filename !== "undefined" ? __filename : "";
 const SERVER_BASE = typeof import.meta?.dir !== "undefined" ? import.meta.dir : __dirname;
 const DIST_CLIENT = join(SERVER_BASE, "dist");
 // SLICE 150b — keep BOTH paths. DATA_DIR_RAW is where a pre-fix deployment kept
@@ -295,6 +313,12 @@ const durableInit = await initDurableStore(DATA_DIR);
 seedDataFiles(DATA_DIR);
 console.log("[prod-server] DATA_DIR=" + DATA_DIR + (isInsidePublishTree(DATA_DIR, SERVER_BASE) ? "  [WARNING: DATA_DIR is inside the publish tree — a publish can wipe runtime data]" : ""));
 logPageViewCounterLocation(DATA_DIR, SERVER_BASE);
+// SLICE 162 — the durable generation marker. Written AFTER the legacy migration
+// and the seeding above, so it lands in the directory this process will really
+// use, and so a migration that copies a previous marker in is respected.
+logDeploymentGeneration(
+  recordDeploymentBoot(DATA_DIR, { buildId: runningBuildId(SERVER_ENTRY_PATH) }),
+);
 if (durableInit.enabled) {
   console.log("[prod-server] using durable Postgres store (loaded " + durableInit.loaded + " key(s), migrated " + durableInit.migrated + " file(s) from disk)");
 } else {
@@ -3383,6 +3407,30 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
         // `writeHealth` — "counting has been failing since …" — rather than
         // quietly serving zeros.
         return Response.json(readPageViewSummary(DATA_DIR, { serverBase: SERVER_BASE }));
+      }
+      if (subPath === "data-health") {
+        // SLICE 162 — "did my data survive the last publish?", answered from the
+        // FILESYSTEM by the running server (the gate above answers 401 unsigned
+        // and 403 for a non-owner). It reads <DATA_DIR>/deployment-generation.json,
+        // stats every declared durable store, and compares the marker's
+        // firstSeenAt against this process AND against the running build. Red when
+        // DATA_DIR is inside the publish tree or the marker is newer than the
+        // running build; green only when it provably predates both.
+        if (req.method !== "GET" && req.method !== "HEAD") {
+          return Response.json({ error: "method not allowed" }, { status: 405 });
+        }
+        return Response.json(
+          buildDataHealthReport({
+            dataDir: DATA_DIR,
+            rawDataDir: DATA_DIR_RAW,
+            serverBase: SERVER_BASE,
+            processStartedAt: PROCESS_STARTED_AT,
+            buildArtifacts: [SERVER_ENTRY_PATH, join(SERVER_BASE, "dist", "index.html")].filter(
+              (p) => typeof p === "string" && p.length > 0,
+            ),
+            runningBuildId: runningBuildId(SERVER_ENTRY_PATH),
+          }),
+        );
       }
       if (subPath === "backup") {
         // Audit-B (10-26): wire the Health-page backup button to the REAL

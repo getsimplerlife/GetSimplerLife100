@@ -47,6 +47,9 @@ function AdminLayout() {
     { name: "🔍 Audit Logs", path: "/portal/admin/audit" },
     // SLICE 159 — first-party page counter (owner-only, like every admin view).
     { name: "📈 Page Views", path: "/portal/admin/page-views" },
+    // SLICE 162 — "did our data survive the last publish?", answered from the
+    // filesystem by the running server (owner-only, like every admin view).
+    { name: "💾 Data Health", path: "/portal/admin/data-health" },
     { name: "🔑 OAuth Credentials", path: "/portal/admin/credentials" },
   ];
 

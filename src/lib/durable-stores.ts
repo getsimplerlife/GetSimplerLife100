@@ -45,6 +45,11 @@ export const DURABLE_STORES: readonly string[] = [
   "dedupe_quality_rules.json",
   "dedupe_runs.json",
   "dedupe_suggestions.json",
+  // SLICE 162 — the generation marker: when this DATA_DIR was first seen and
+  // which builds have booted against it. It is how a deployment proves its data
+  // survived a publish, so it must itself be in the archive; a restore carries
+  // the proof forward instead of restarting it.
+  "deployment-generation.json",
   "file_import_audit.json",
   "file_import_jobs.json",
   "file_import_pending.json",
