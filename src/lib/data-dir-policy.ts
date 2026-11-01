@@ -1,5 +1,5 @@
 import { accessSync, constants, mkdirSync } from "node:fs";
-import { join, resolve, sep } from "node:path";
+import { dirname, join, resolve, sep } from "node:path";
 
 /**
  * data-dir-policy.ts — SLICE 150. Where runtime data is allowed to live.
@@ -29,8 +29,30 @@ import { join, resolve, sep } from "node:path";
  * still wins, because an explicit value is honoured first.
  */
 
+/**
+ * True when `dir` sits at or under `serverBase` — the directory the running
+ * server's own code was published into.
+ *
+ * SLICE 160: the shape regexes below only recognise THIS host's layout
+ * (`…/shared/site/`). A deployment laid out any other way — `/app`, `/srv/www`,
+ * a sandbox that copies the tree somewhere else — gets no relocation at all, so
+ * an unset DATA_DIR resolves to `<tree>/.data`: inside the very directory the
+ * next publish replaces. Anchoring the test on the running server's own base
+ * directory makes the rule follow the code instead of a hardcoded path, which
+ * is the only way it can be true on a host we have never seen.
+ */
+export function isInsideServerBase(dir: string, serverBase: string): boolean {
+  const d = resolve(dir);
+  const b = resolve(serverBase);
+  // "/" would swallow the whole filesystem; never treat it as a publish tree.
+  if (b === sep || b.length === 0) return false;
+  if (d === b) return true;
+  return d.startsWith(b.endsWith(sep) ? b : b + sep);
+}
+
 /** True when the path sits inside a platform publish tree. */
-export function isInsidePublishTree(dataDir: string): boolean {
+export function isInsidePublishTree(dataDir: string, serverBase?: string): boolean {
+  if (serverBase && isInsideServerBase(dataDir, serverBase)) return true;
   return /\/shared\/site\//.test(dataDir) || /\/site\/\.data$/.test(dataDir);
 }
 
@@ -39,14 +61,24 @@ export function isInsidePublishTree(dataDir: string): boolean {
  * `/home/team/shared/site/.data` → `/home/team/shared/.data`.
  * Null when the path has no `site` segment to step out of.
  */
-export function publishTreeEscapeDir(dataDir: string): string | null {
+export function publishTreeEscapeDir(dataDir: string, serverBase?: string): string | null {
   const abs = resolve(dataDir);
   const parts = abs.split(sep).filter(Boolean);
   const i = parts.lastIndexOf("site");
-  if (i < 1) return null; // no `site` segment, or it is the filesystem root
-  const parent = sep + parts.slice(0, i).join(sep);
-  const candidate = join(parent, ".data");
-  return candidate === abs ? null : candidate;
+  let candidate: string | null = null;
+  if (i >= 1) {
+    // The recognised layout: `…/shared/site/.data` → `…/shared/.data`.
+    const parent = sep + parts.slice(0, i).join(sep);
+    candidate = join(parent, ".data");
+  } else if (serverBase) {
+    // SLICE 160: any other layout — step out of the directory the code lives in.
+    // `<root>/deploy/app/.data` (base `<root>/deploy/app`) → `<root>/deploy/.data`.
+    candidate = join(dirname(resolve(serverBase)), ".data");
+  }
+  if (!candidate || candidate === abs) return null;
+  // Never propose the filesystem root as a data dir (`/app` → `/.data`).
+  if (dirname(candidate) === sep) return null;
+  return candidate;
 }
 
 /** Can we actually create and write this directory? */
@@ -71,9 +103,9 @@ function warnOnce(key: string, message: string): void {
  * Return `dir` if it is safe to use, or the sibling-of-the-tree escape when it
  * is not. Never throws, never returns a path it has not checked.
  */
-export function relocateOutOfPublishTree(dir: string): string {
-  if (!isInsidePublishTree(dir)) return dir;
-  const escape = publishTreeEscapeDir(dir);
+export function relocateOutOfPublishTree(dir: string, serverBase?: string): string {
+  if (!isInsidePublishTree(dir, serverBase)) return dir;
+  const escape = publishTreeEscapeDir(dir, serverBase);
   if (!escape || !usable(escape)) {
     warnOnce(
       `keep:${dir}`,
@@ -113,6 +145,6 @@ export function rawDataDir(envDir: string | undefined, baseDir: string): string 
  * Resolve the runtime data directory from an env override (or default), never
  * returning a path inside a publish tree unless no alternative is writable.
  */
-export function resolveDataDir(envDir: string | undefined, baseDir: string): string {
-  return relocateOutOfPublishTree(rawDataDir(envDir, baseDir));
+export function resolveDataDir(envDir: string | undefined, baseDir: string, serverBase?: string): string {
+  return relocateOutOfPublishTree(rawDataDir(envDir, baseDir), serverBase);
 }

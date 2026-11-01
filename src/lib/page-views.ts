@@ -40,9 +40,10 @@
  * or one every 50 views) so a burst of traffic cannot turn into a burst of
  * fsyncs; the first view after boot is written immediately.
  */
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { accessSync, constants, existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { atomicWriteJSONSync } from "./atomic-write";
+import { isInsidePublishTree } from "./data-dir-policy";
 
 /** File name inside DATA_DIR. Never inside the publish tree. */
 export const PAGE_VIEW_FILE_NAME = "page_views.json";
@@ -126,6 +127,8 @@ export interface PageViewSummary {
   /** Set when the store could not be READ (the numbers below are then empty). */
   readError: string | null;
   writeHealth: PageViewWriteHealth;
+  /** SLICE 160 — where this server is actually writing, and whether it can. */
+  location: PageViewCounterLocation;
 }
 
 /** The facts about one request that decide whether it is a page view. */
@@ -277,7 +280,7 @@ export function addView(store: PageViewStore, dayKey: string, path: string): str
 export function summarizeStore(
   store: PageViewStore,
   opts: { todayKey: string; windowDays?: number; topPaths?: number },
-): Omit<PageViewSummary, "readError" | "writeHealth"> {
+): Omit<PageViewSummary, "readError" | "writeHealth" | "location"> {
   const windowDays = Math.max(1, opts.windowDays ?? SUMMARY_WINDOW_DAYS);
   const topPaths = Math.max(1, opts.topPaths ?? TOP_PATH_LIMIT);
   const windowStart = shiftDayKey(opts.todayKey, -(windowDays - 1));
@@ -319,6 +322,108 @@ export function summarizeStore(
 /** The store file for a data dir. */
 export function pageViewFilePath(dataDir: string): string {
   return join(dataDir, PAGE_VIEW_FILE_NAME);
+}
+
+/**
+ * SLICE 160 — WHERE THE COUNTS GO, AS A FACT THE RUNNING SERVER REPORTS.
+ *
+ * Slice 159 shipped a counter that was correct in every unit test and still
+ * looked empty on the live site, because "it writes into DATA_DIR" was an
+ * assumption nobody could check without reading the source and knowing which
+ * directory the deployed process resolved. This describes the actual location —
+ * path, whether that path is inside the publish tree a deploy replaces, whether
+ * the file is really there, how big it is, when it was last written, and
+ * whether the directory is writable — so the answer comes from the deployment
+ * instead of from a guess. Never throws: a missing file is data, not an error.
+ */
+export interface PageViewCounterLocation {
+  /** The resolved runtime data directory. */
+  dataDir: string;
+  /** `<dataDir>/page_views.json` — the one file the counter writes. */
+  counterFile: string;
+  /** True when that path sits inside the tree a publish replaces (not durable). */
+  insidePublishTree: boolean;
+  dirExists: boolean;
+  fileExists: boolean;
+  bytes: number | null;
+  /** File mtime (ISO), i.e. when a flush last actually landed. */
+  lastWriteAt: string | null;
+  /** Can this process create/write the data dir? */
+  writable: boolean;
+}
+
+/** Describe where the counter writes. Never throws. */
+export function describePageViewCounterLocation(
+  dataDir: string,
+  opts: { serverBase?: string } = {},
+): PageViewCounterLocation {
+  const counterFile = pageViewFilePath(dataDir);
+  let dirExists = false;
+  let fileExists = false;
+  let bytes: number | null = null;
+  let lastWriteAt: string | null = null;
+  let writable = false;
+  try {
+    dirExists = existsSync(dataDir);
+  } catch {
+    dirExists = false;
+  }
+  try {
+    fileExists = existsSync(counterFile);
+    if (fileExists) {
+      const st = statSync(counterFile);
+      bytes = st.size;
+      lastWriteAt = new Date(st.mtimeMs).toISOString();
+    }
+  } catch {
+    /* an unreadable stat is reported as "not there" rather than thrown */
+  }
+  try {
+    // Check the directory that has to hold the file (or its parent, if the dir
+    // does not exist yet — the counter creates it on first flush).
+    accessSync(dirExists ? dataDir : dirname(dataDir), constants.W_OK);
+    writable = true;
+  } catch {
+    writable = false;
+  }
+  return {
+    dataDir,
+    counterFile,
+    insidePublishTree: isInsidePublishTree(dataDir, opts.serverBase),
+    dirExists,
+    fileExists,
+    bytes,
+    lastWriteAt,
+    writable,
+  };
+}
+
+/**
+ * Say where counts go at boot, in one line, the way the data-dir policy already
+ * announces `dataDir=… relocated=… insidePublishTree=…`. A future reader — or a
+ * log from a deployment nobody can log into — answers "where did the counts go?"
+ * without opening the source.
+ */
+export function logPageViewCounterLocation(dataDir: string, serverBase?: string): PageViewCounterLocation {
+  const loc = describePageViewCounterLocation(dataDir, { serverBase });
+  console.log(
+    `[page-views] counter file=${loc.counterFile} dataDir=${loc.dataDir} ` +
+      `insidePublishTree=${loc.insidePublishTree} dirExists=${loc.dirExists} ` +
+      `fileExists=${loc.fileExists} writable=${loc.writable} bytes=${loc.bytes ?? 0}`,
+  );
+  if (loc.insidePublishTree) {
+    console.warn(
+      `[page-views] WARNING: the counter file is inside the publish tree (${loc.counterFile}) — ` +
+        `a publish can discard the history. Set DATA_DIR to a path outside the tree.`,
+    );
+  }
+  if (!loc.writable) {
+    console.warn(
+      `[page-views] WARNING: ${loc.dataDir} is not writable by this process — ` +
+        `page views will be counted in memory only and the owner's view will report the failure.`,
+    );
+  }
+  return loc;
 }
 
 /** Validate a parsed document; anything malformed degrades to an empty store
@@ -512,7 +617,7 @@ export function notePageView(
  */
 export function readPageViewSummary(
   dataDir: string,
-  opts: { now?: Date; windowDays?: number; topPaths?: number } = {},
+  opts: { now?: Date; windowDays?: number; topPaths?: number; serverBase?: string } = {},
 ): PageViewSummary {
   const now = opts.now ?? new Date();
   const todayKey = utcDayKey(now);
@@ -532,7 +637,12 @@ export function readPageViewSummary(
   const health: PageViewWriteHealth = { ...(s?.health ?? freshHealth()) };
   health.pendingInMemory = s?.pending ?? 0;
   health.lastFlushAt = s?.store.meta.lastFlushAt ?? null;
-  return { ...base, readError, writeHealth: health };
+  return {
+    ...base,
+    readError,
+    writeHealth: health,
+    location: describePageViewCounterLocation(dataDir, { serverBase: opts.serverBase }),
+  };
 }
 
 /** Force a flush (used by tests and by the admin view's "flush now" path). */
