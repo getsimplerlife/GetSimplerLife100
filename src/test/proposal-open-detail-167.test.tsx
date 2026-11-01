@@ -110,9 +110,11 @@ describe("D-16 — Open really opens the proposal", () => {
     );
     expect(screen.getByText("QA sweep line item")).toBeInTheDocument();
     expect(screen.getByText("Onboarding call")).toBeInTheDocument();
-    expect(screen.getByText("USD 150.00")).toBeInTheDocument(); // unit price
-    expect(screen.getByText("USD 300.00")).toBeInTheDocument(); // line total (2 × 150)
-    expect(screen.getByText("USD 75.50")).toBeInTheDocument(); // unit price + line total
+    // 2 × 150.00 = 300.00 (line total, which is also the proposal total) and
+    // 1 × 75.50 (unit price and line total) — each value must appear.
+    expect(screen.getAllByText("USD 150.00").length).toBeGreaterThanOrEqual(1); // unit price
+    expect(screen.getAllByText("USD 300.00").length).toBeGreaterThanOrEqual(1); // line total + total
+    expect(screen.getAllByText("USD 75.50").length).toBeGreaterThanOrEqual(1); // unit price + line total
     expect(screen.getByText("qa-client@acme.test")).toBeInTheDocument();
     expect(screen.getByText("Acme Testing")).toBeInTheDocument();
     expect(screen.getByText("Net 30")).toBeInTheDocument();
