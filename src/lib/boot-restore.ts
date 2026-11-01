@@ -292,6 +292,30 @@ export async function restoreNewestArchiveAtBoot(opts: BootRestoreOptions): Prom
     const prefix = resolved.prefix;
     report.namespacePrefix = prefix;
     report.instance = resolved.instance;
+    // SLICE 165 — NO NAMESPACE MEANS NO RESTORE.
+    //
+    // `resolveUploadPrefix` falls back to the flat base prefix
+    // (`simplerlife100/backups/`) when it can find neither an explicit override
+    // nor an instance file. Listing there returns EVERY deployment's archives,
+    // and `selectRemoteObject` takes the newest — so the live deployment, whose
+    // data directory is new on every publish and therefore has no instance file,
+    // restored this dev box's `host-primary` archive, reported `ok: true` and
+    // announced "the data survives anyway". It was another machine's production
+    // data. A QA run with a brand-new DATA_DIR reproduced it: 36 files of
+    // production data, then real tenant OAuth tokens refreshed and real sends
+    // attempted.
+    //
+    // Restoring nothing is correct here; restoring the wrong data is not. The
+    // caller passes the SAME derived environment the uploader uses (see
+    // prod-server.ts), so in practice the namespace resolves and this is a
+    // belt-and-braces refusal for the case where it does not.
+    if (!resolved.instance && !resolved.explicitOverride) {
+      const reason =
+        "cannot determine this deployment's own namespace — refusing to restore another deployment's archive " +
+        `(the listing would fall back to the shared base prefix ${resolved.basePrefix}, which holds every deployment's objects)`;
+      log(`[boot-restore] skipped: ${reason}`);
+      return finish({ attempted: false, skippedReason: reason });
+    }
     report.attempted = true;
 
     const client = createR2Client({ config: cfg, fetchImpl: opts.fetchImpl, now, log });

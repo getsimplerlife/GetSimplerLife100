@@ -100,6 +100,8 @@ interface BackupHealth {
     lastOkAt: string | null;
     lastError: string | null;
   } | null;
+  /** SLICE 165 — the last run this deployment REFUSED, and why. */
+  refusal: { at: string; reason: string; target: string | null } | null;
   checkedAt: string;
 }
 interface DataHealth {
@@ -549,6 +551,18 @@ function AdminDataHealthPage() {
                   <div className="flex justify-between gap-4 md:col-span-2">
                     <dt className="text-amber-400">upload skipped</dt>
                     <dd className="text-amber-300 text-right break-all">{data.backup.upload.skipped}</dd>
+                  </div>
+                )}
+                {/* SLICE 165 - A REFUSED RUN IS NOT A FAILURE, but it is the only
+                    explanation for a deployment whose backups never start. It is
+                    persisted now, so it survives a reload instead of living in a
+                    process's memory. */}
+                {data.backup.refusal && (
+                  <div className="flex justify-between gap-4 md:col-span-2">
+                    <dt className="text-amber-400">last refused run</dt>
+                    <dd className="text-amber-300 text-right break-all">
+                      {fmtUtc(data.backup.refusal.at)} — {data.backup.refusal.reason}
+                    </dd>
                   </div>
                 )}
                 {data.backup.scheduler?.lastError && (

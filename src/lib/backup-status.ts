@@ -19,6 +19,7 @@
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 import { readJSON } from "./data-store";
+import { atomicWriteSync } from "./atomic-write";
 import type { R2Record } from "../../scripts/lib/backup-core";
 
 export const BACKUP_STATUS_FILE = "backup_status.json";
@@ -124,6 +125,86 @@ export function readBackupStatus(dataDir: string): BackupStatusSummary {
   } catch {
     return { ...EMPTY };
   }
+}
+
+/**
+ * SLICE 165 — WHY THE LAST RUN WAS REFUSED, written down.
+ *
+ * THE BUG: on the live deployment the scheduler refused every run — the archive
+ * root did not exist, so the run lock could not be created — and because a
+ * refusal is (correctly) not a failure, NOTHING was written. No status file, no
+ * failure count, no reason. The owner's page said "0 run(s), 1 failure(s) since
+ * boot" with the reason living only in that process's memory, and a reload lost
+ * it. The one diagnostic that would have ended the investigation was the one
+ * thing the deployment forgot.
+ *
+ * SO: a refusal now leaves a durable record. It is written into the EXISTING
+ * `backup_status.json` (never a new store — this is operational status, exactly
+ * like the rest of that file, and it stays out of the archives) under three
+ * additive fields. It deliberately does NOT touch `consecutiveFailures` or
+ * `lastBackupOkAt`: a refusal is not a failed run and must not age the last good
+ * copy. And because every real run rewrites the status from a fresh object, the
+ * next attempt that actually runs clears it — a stale refusal cannot outlive the
+ * thing it complained about.
+ */
+export interface BackupRefusalRecord {
+  at: string;
+  reason: string;
+  target: string | null;
+}
+
+const REFUSAL_AT = "lastRefusalAt";
+const REFUSAL_REASON = "lastRefusalReason";
+const REFUSAL_TARGET = "lastRefusalTarget";
+
+/** Persist a refusal without touching any failure counter. Never throws. */
+export function writeBackupRefusal(
+  dataDir: string,
+  record: { at?: string; reason: string; target?: string | null },
+): void {
+  const file = join(dataDir, BACKUP_STATUS_FILE);
+  try {
+    const previous = readRawStatus(file);
+    atomicWriteSync(
+      file,
+      JSON.stringify(
+        {
+          ...previous,
+          [REFUSAL_AT]: record.at ?? new Date().toISOString(),
+          [REFUSAL_REASON]: String(record.reason ?? "").slice(0, 2000),
+          [REFUSAL_TARGET]: record.target ?? null,
+        },
+        null,
+        2,
+      ),
+    );
+  } catch {
+    /* a refusal we cannot write is still a refusal we logged; never crash */
+  }
+}
+
+/** The last refusal recorded in this data dir, or null. Never throws. */
+export function readBackupRefusal(dataDir: string): BackupRefusalRecord | null {
+  return refusalFromRaw(readRawStatus(join(dataDir, BACKUP_STATUS_FILE)));
+}
+
+function readRawStatus(file: string): Record<string, any> {
+  try {
+    if (!existsSync(file)) return {};
+    const raw = JSON.parse(readFileSync(file, "utf-8"));
+    return raw && typeof raw === "object" ? raw : {};
+  } catch {
+    return {};
+  }
+}
+
+/** The refusal fields of an already-parsed status object (used by backup-health). */
+export function refusalFromRaw(raw: any): BackupRefusalRecord | null {
+  if (!raw || typeof raw !== "object") return null;
+  const at = str(raw[REFUSAL_AT]);
+  const reason = str(raw[REFUSAL_REASON]);
+  if (!at || !reason) return null;
+  return { at, reason, target: str(raw[REFUSAL_TARGET]) };
 }
 
 /**
