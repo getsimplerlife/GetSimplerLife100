@@ -46,7 +46,7 @@ import {
 // SLICE 159 — the first-party page counter. Counting happens at ONE choke point
 // (the response of every request — see countPageViewAtTheDoor below), so no page
 // lane can be served without passing it, and it writes only into DATA_DIR.
-import { notePageView, readPageViewSummary } from "./src/lib/page-views";
+import { logPageViewCounterLocation, notePageView, readPageViewSummary } from "./src/lib/page-views";
 
 // ── Lazy module accessors — loaded on first use to keep server startup under 1s ──
 let _bcryptjs: any;
@@ -70,7 +70,7 @@ const DIST_CLIENT = join(SERVER_BASE, "dist");
 // writes now. The migration below copies RAW -> DATA_DIR on first boot, so a
 // host that has never had the relocation run cannot come up empty.
 const DATA_DIR_RAW = rawDataDir(process.env.DATA_DIR, SERVER_BASE);
-const DATA_DIR = resolveDataDir(process.env.DATA_DIR, SERVER_BASE);
+const DATA_DIR = resolveDataDir(process.env.DATA_DIR, SERVER_BASE, SERVER_BASE);
 // NATIVE webhook sweeper serialisation (Phase 1.1): one in-flight sweep max.
 let nativeSweepRunning = false;
 const USERS_FILE = join(DATA_DIR, "users.json");
@@ -293,7 +293,8 @@ const legacyMig = migrateLegacyData(DATA_DIR, migrationSources(DATA_DIR_RAW));
 if (legacyMig.migrated > 0) console.log("[prod-server] legacy DATA_DIR migration: copied " + legacyMig.migrated + " entry(ies) from " + legacyMig.legacyDir + " into " + DATA_DIR);
 const durableInit = await initDurableStore(DATA_DIR);
 seedDataFiles(DATA_DIR);
-console.log("[prod-server] DATA_DIR=" + DATA_DIR + (isInsidePublishTree(DATA_DIR) ? "  [WARNING: DATA_DIR is inside the publish tree — a publish can wipe runtime data]" : ""));
+console.log("[prod-server] DATA_DIR=" + DATA_DIR + (isInsidePublishTree(DATA_DIR, SERVER_BASE) ? "  [WARNING: DATA_DIR is inside the publish tree — a publish can wipe runtime data]" : ""));
+logPageViewCounterLocation(DATA_DIR, SERVER_BASE);
 if (durableInit.enabled) {
   console.log("[prod-server] using durable Postgres store (loaded " + durableInit.loaded + " key(s), migrated " + durableInit.migrated + " file(s) from disk)");
 } else {
@@ -3381,7 +3382,7 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
         // of dressing up a zero, and when the counter cannot WRITE it reports
         // `writeHealth` — "counting has been failing since …" — rather than
         // quietly serving zeros.
-        return Response.json(readPageViewSummary(DATA_DIR));
+        return Response.json(readPageViewSummary(DATA_DIR, { serverBase: SERVER_BASE }));
       }
       if (subPath === "backup") {
         // Audit-B (10-26): wire the Health-page backup button to the REAL

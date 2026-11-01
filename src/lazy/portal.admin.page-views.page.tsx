@@ -47,6 +47,19 @@ interface PageViewSummary {
   storedDays: number;
   readError: string | null;
   writeHealth: PageViewWriteHealth;
+  /** SLICE 160 — where this deployment actually writes (server-reported). */
+  location?: PageViewCounterLocation;
+}
+
+interface PageViewCounterLocation {
+  dataDir: string;
+  counterFile: string;
+  insidePublishTree: boolean;
+  dirExists: boolean;
+  fileExists: boolean;
+  bytes: number | null;
+  lastWriteAt: string | null;
+  writable: boolean;
 }
 
 /** "2026-10-31T09:12:04.123Z" → "2026-10-31 09:12 UTC" (never a local guess). */
@@ -147,6 +160,31 @@ function AdminPageViewsPage() {
       {health && health.ok && health.lastRecoveredAt && (
         <div className="bg-emerald-950/20 border border-emerald-500/30 rounded-xl px-5 py-3 text-xs font-mono text-emerald-300">
           Counting recovered at {fmtUtc(health.lastRecoveredAt)} after an earlier failure.
+        </div>
+      )}
+
+      {data?.location && (
+        <div
+          className={
+            data.location.insidePublishTree || !data.location.writable
+              ? "bg-red-950/30 border border-red-500/40 rounded-xl px-5 py-3 text-xs font-mono text-red-200"
+              : "bg-stone-900 border border-stone-800 rounded-xl px-5 py-3 text-xs font-mono text-stone-400"
+          }
+          data-testid="page-views-counter-location"
+        >
+          <div className="break-all">
+            Counting to <span className="text-stone-200">{data.location.counterFile}</span>
+          </div>
+          <div className="mt-1">
+            data dir {data.location.dataDir} ·{" "}
+            {data.location.insidePublishTree
+              ? "INSIDE THE PUBLISH TREE — a deploy can discard this history"
+              : "outside the publish tree"}{" "}
+            · {data.location.writable ? "writable" : "NOT WRITABLE by this process"} ·{" "}
+            {data.location.fileExists
+              ? `file present, ${data.location.bytes ?? 0} bytes, last write ${fmtUtc(data.location.lastWriteAt)}`
+              : "file not created yet"}
+          </div>
         </div>
       )}
 
