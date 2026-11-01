@@ -46,8 +46,17 @@ export interface BackupSchedulerOptions {
   /** The pipeline. In the server this is `() => runBackup({...})`. */
   run: () => Promise<BackupRunOutcome>;
   intervalMs: number;
-  /** First run this long after boot. */
+  /** First run this long after boot (unless the catch-up rule below shortens it). */
   firstDelayMs?: number;
+  /**
+   * SLICE 163 — the durable last-success stamp, read when the scheduler starts.
+   * With it the first delay follows `resolveFirstBackupDelay`: a deployment that
+   * has never backed up, or is overdue, runs shortly after boot instead of
+   * waiting out `firstDelayMs` on a process that may sleep before it elapses.
+   */
+  lastOkAt?: () => string | null;
+  /** SLICE 163 — how soon a never-ran/overdue deployment runs after boot. */
+  catchUpDelayMs?: number;
   /** Force-disable (tests / explicit opt-out). */
   disabled?: boolean;
   disabledReason?: string;
@@ -70,6 +79,8 @@ export interface BackupSchedulerStatus {
   disabledReason: string;
   intervalMs: number;
   firstDelayMs: number;
+  /** SLICE 163 — why the first delay is what it is. */
+  firstDelayReason: FirstBackupDelay["reason"] | null;
   started: boolean;
   running: boolean;
   /** Successful runs since boot. */
@@ -115,19 +126,90 @@ export function resolveBackupInterval(env: Record<string, string | undefined> = 
   const n = Number(env.BACKUP_INTERVAL_MS);
   return Number.isFinite(n) && n > 0 ? n : 60 * 60 * 1000;
 }
+/**
+ * SLICE 163 — CATCH UP ON WAKE, do not silently skip.
+ *
+ * WHY THIS EXISTS. The published deployment does not run for weeks at a time:
+ * its sandbox sleeps when nobody is looking and comes back when someone is. An
+ * in-process timer that waits a full `firstDelayMs` after every boot therefore
+ * has to be awake for that long before its first run — and a wake that lasts a
+ * couple of minutes produces no backup at all, while the previous one ages past
+ * every freshness bound. On 2026-11-01 the bucket held nothing from the live
+ * deployment newer than 2026-10-31T05:46 for exactly this shape of reason: the
+ * schedule was tied to process uptime, and the process has very little uptime.
+ *
+ * THE RULE: the first delay is decided by the DURABLE status, not by a constant.
+ *   - no successful run ever recorded → run after `catchUpDelayMs` (short);
+ *   - the last success is older than the interval → run after `catchUpDelayMs`;
+ *   - the last success is inside the interval → keep the ordinary first delay.
+ * `catchUpDelayMs` is short but never zero: a boot has to finish hydrating the
+ * durable store and binding the listener first, and a backup that runs during
+ * boot is a backup nobody can observe.
+ */
+export const DEFAULT_CATCH_UP_DELAY_MS = 15_000;
+
+export interface FirstBackupDelay {
+  delayMs: number;
+  reason: "never-ran" | "overdue" | "scheduled" | "invalid-last-ok";
+  /** How far past the interval the last success is, in ms (null when not overdue). */
+  overdueByMs: number | null;
+}
+
+export function resolveFirstBackupDelay(opts: {
+  now: number;
+  lastOkAt: string | null | undefined;
+  intervalMs: number;
+  firstDelayMs?: number;
+  catchUpDelayMs?: number;
+}): FirstBackupDelay {
+  const firstDelayMs = opts.firstDelayMs ?? 60_000;
+  const catchUpDelayMs = Math.max(0, opts.catchUpDelayMs ?? DEFAULT_CATCH_UP_DELAY_MS);
+  if (!opts.lastOkAt) {
+    return { delayMs: catchUpDelayMs, reason: "never-ran", overdueByMs: null };
+  }
+  const last = new Date(opts.lastOkAt).getTime();
+  if (!Number.isFinite(last)) {
+    return { delayMs: catchUpDelayMs, reason: "invalid-last-ok", overdueByMs: null };
+  }
+  const age = opts.now - last;
+  if (age > opts.intervalMs) {
+    return { delayMs: catchUpDelayMs, reason: "overdue", overdueByMs: age - opts.intervalMs };
+  }
+  return { delayMs: firstDelayMs, reason: "scheduled", overdueByMs: null };
+}
 
 export function startBackupScheduler(opts: BackupSchedulerOptions): BackupSchedulerHandle {
   const timers = opts.timers ?? DEFAULT_TIMERS;
   const now = opts.now ?? (() => Date.now());
   const log = opts.log ?? ((m: string) => console.log(m));
   const intervalMs = opts.intervalMs;
-  const firstDelayMs = opts.firstDelayMs ?? 60_000;
+  // SLICE 163: the first delay is decided by the DURABLE last success, not by a
+  // constant — see resolveFirstBackupDelay. A missing reader keeps slice 144's
+  // behaviour exactly (fixed first delay), so nothing changes for callers that
+  // do not opt in.
+  const firstDecision: FirstBackupDelay | null = opts.lastOkAt
+    ? resolveFirstBackupDelay({
+        now: now(),
+        lastOkAt: (() => {
+          try {
+            return opts.lastOkAt!();
+          } catch {
+            return null;
+          }
+        })(),
+        intervalMs,
+        firstDelayMs: opts.firstDelayMs,
+        catchUpDelayMs: opts.catchUpDelayMs,
+      })
+    : null;
+  const firstDelayMs = firstDecision ? firstDecision.delayMs : (opts.firstDelayMs ?? 60_000);
 
   const status: BackupSchedulerStatus = {
     disabled: !!opts.disabled,
     disabledReason: opts.disabledReason ?? "",
     intervalMs,
     firstDelayMs,
+    firstDelayReason: firstDecision ? firstDecision.reason : null,
     started: false,
     running: false,
     runs: 0,
@@ -260,7 +342,12 @@ export function startBackupScheduler(opts: BackupSchedulerOptions): BackupSchedu
   } else {
     status.started = true;
     scheduleNext(firstDelayMs);
-    log(`[backup] scheduler started: every ${intervalMs}ms, first run in ${firstDelayMs}ms`);
+    log(
+      `[backup] scheduler started: every ${intervalMs}ms, first run in ${firstDelayMs}ms` +
+        (firstDecision
+          ? ` (${firstDecision.reason}${firstDecision.overdueByMs !== null ? `, overdue by ${firstDecision.overdueByMs}ms` : ""})`
+          : ""),
+    );
   }
 
   return {

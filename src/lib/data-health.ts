@@ -44,6 +44,7 @@ import { dirname, join, resolve, sep } from "node:path";
 import { atomicWriteJSONSync } from "./atomic-write";
 import { DURABLE_STORES, isDirectoryStore } from "./durable-stores";
 import { isInsidePublishTree } from "./data-dir-policy";
+import type { BackupHealthReport } from "./backup-health";
 
 /** The durable generation marker, relative to DATA_DIR. */
 export const GENERATION_MARKER_FILE = "deployment-generation.json";
@@ -358,6 +359,15 @@ export interface DataHealthReport {
     missing: string[];
     rows: DurableStoreRow[];
   };
+  /**
+   * SLICE 163 — the OFF-BOX half of the same question. Slice 162 answered "did
+   * this data survive a publish?"; this answers "would it survive the disk?".
+   * Present only when the caller supplies it (the running server always does);
+   * when present and not green, the overall verdict cannot be green either — a
+   * deployment whose data exists in exactly one place is not healthy, whatever
+   * else is true of it.
+   */
+  backup: BackupHealthReport | null;
   checkedAt: string;
 }
 
@@ -375,6 +385,8 @@ export function buildDataHealthReport(opts: {
   processStartedAt: Date;
   buildArtifacts?: string[];
   runningBuildId?: string | null;
+  /** SLICE 163 — the off-box half. Omitted by callers that cannot measure it. */
+  backup?: BackupHealthReport | null;
   now?: Date;
 }): DataHealthReport {
   const now = opts.now ?? new Date();
@@ -467,6 +479,29 @@ export function buildDataHealthReport(opts: {
     }
   }
 
+  // ── SLICE 163 — the OFF-BOX half ─────────────────────────────────────────
+  // Surviving a publish is not surviving a disk. A deployment whose archive has
+  // never left this machine, or whose last off-box copy is stale, cannot be
+  // called healthy here — otherwise this page would say "green" about data that
+  // exists in exactly one place.
+  const backup = opts.backup ?? null;
+  if (backup) {
+    if (backup.verdict === "red") {
+      verdict = "red";
+      reasons.push(`The off-box copy is not current: ${backup.reasons.join(" ")}`);
+    } else if (backup.verdict === "never") {
+      verdict = "red";
+      reasons.push(`There is no off-box copy yet: ${backup.reasons.join(" ")}`);
+    } else if (backup.verdict === "unknown") {
+      if (verdict === "green") verdict = "unknown";
+      reasons.push(`The off-box copy could not be verified: ${backup.reasons.join(" ")}`);
+    } else {
+      reasons.push(
+        `The data also has a fresh off-box copy: last upload ${backup.upload.lastUploadOkAt ?? backup.status.lastOkAt} to ${backup.namespace.prefix}.`,
+      );
+    }
+  }
+
   const rows = describeDurableStores(dataDir);
   const missing = rows.filter((r) => !r.present).map((r) => r.store);
 
@@ -506,6 +541,7 @@ export function buildDataHealthReport(opts: {
       missing,
       rows,
     },
+    backup,
     checkedAt: now.toISOString(),
   };
 }

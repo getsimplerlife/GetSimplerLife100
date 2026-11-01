@@ -30,6 +30,78 @@ interface StoreRow {
   error: string | null;
 }
 
+interface BackupHealth {
+  ok: boolean;
+  verdict: "green" | "red" | "never" | "unknown";
+  reasons: string[];
+  destination: {
+    outDir: string;
+    insidePublishTree: boolean;
+    runCount: number;
+    newestRunId: string | null;
+    newestRunAt: string | null;
+  };
+  namespace: {
+    prefix: string;
+    instance: string | null;
+    role: string;
+    source: string;
+    reason: string;
+    configured: boolean;
+    missing: string[];
+    bucket: string | null;
+  };
+  status: {
+    path: string;
+    present: boolean;
+    lastRunAt: string | null;
+    lastOkAt: string | null;
+    ageSeconds: number | null;
+    staleAfterMs: number;
+    stale: boolean;
+    staleReason: "never-ran" | "overdue" | null;
+    consecutiveFailures: number;
+    consecutiveUploadFailures: number;
+    lastError: string | null;
+    runId: string | null;
+    files: number | null;
+    encryption: string | null;
+  };
+  upload: {
+    configured: boolean;
+    uploaded: boolean | null;
+    key: string | null;
+    uploadedAt: string | null;
+    bytes: number | null;
+    error: string | null;
+    skipped: string | null;
+    lastUploadOkAt: string | null;
+    ageSeconds: number | null;
+  };
+  coverage: {
+    declared: number;
+    presentOnDisk: number;
+    archivedInLastRun: number | null;
+    uncovered: string[];
+    declaredSinceManifest: number;
+    manifestPresent: boolean;
+    runId: string | null;
+    verdict: "green" | "red" | "unknown";
+    reason: string;
+  };
+  scheduler: {
+    disabled: boolean;
+    disabledReason: string;
+    intervalMs: number;
+    running: boolean;
+    runs: number;
+    failures: number;
+    lastAttemptAt: string | null;
+    lastOkAt: string | null;
+    lastError: string | null;
+  } | null;
+  checkedAt: string;
+}
 interface DataHealth {
   ok: boolean;
   verdict: "green" | "red" | "unknown";
@@ -61,6 +133,8 @@ interface DataHealth {
   survivedRunningBuild: boolean | null;
   distinctBuilds: number;
   durableStores: { declared: number; present: number; missing: string[]; rows: StoreRow[] };
+  // SLICE 163 - the OFF-BOX half: would this data survive the disk?
+  backup: BackupHealth | null;
   checkedAt: string;
 }
 
@@ -110,6 +184,8 @@ function AdminDataHealthPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [runningBackup, setRunningBackup] = useState(false);
+  const [backupNote, setBackupNote] = useState<string | null>(null);
 
   const load = useCallback(async (silent: boolean) => {
     if (silent) setRefreshing(true);
@@ -132,6 +208,34 @@ function AdminDataHealthPage() {
 
   useEffect(() => {
     void load(false);
+  }, [load]);
+  // SLICE 163 - "run it now". This deployment sleeps between visits, so waiting
+  // for the hourly timer is not a way to prove the copy works; this calls the
+  // same run the timer calls, then re-reads the report from the server.
+  const runBackupNow = useCallback(async () => {
+    setRunningBackup(true);
+    setBackupNote(null);
+    try {
+      const res = await fetch("/api/admin/data-health/backup", {
+        method: "POST",
+        credentials: "include",
+      });
+      const body = (await res.json().catch(() => null)) as any;
+      if (!res.ok) throw new Error(body?.error || `HTTP ${res.status}`);
+      const uploaded = body?.r2?.uploaded === true;
+      setBackupNote(
+        body?.ok
+          ? uploaded
+            ? `Run ${body.runId ?? ""} finished and the archive was uploaded${body.r2?.key ? ` as ${body.r2.key}` : ""}.`
+            : `Run ${body.runId ?? ""} finished, but the off-box upload did not succeed${body.r2?.error ? `: ${body.r2.error}` : body.r2?.uploadSkipped ? `: ${body.r2.uploadSkipped}` : "."}`
+          : `The run did not succeed${body?.error ? `: ${body.error}` : "."}`,
+      );
+      await load(true);
+    } catch (e) {
+      setBackupNote(e instanceof Error ? `Couldn't run a backup — ${e.message}` : "Couldn't run a backup.");
+    } finally {
+      setRunningBackup(false);
+    }
   }, [load]);
 
   if (loading) {
@@ -156,13 +260,22 @@ function AdminDataHealthPage() {
             filesystem by the running server — not from a config value.
           </p>
         </div>
-        <button
-          onClick={() => void load(true)}
-          disabled={refreshing}
-          className="shrink-0 px-4 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-sm font-bold text-white disabled:opacity-50"
-        >
-          {refreshing ? "Refreshing…" : "Refresh"}
-        </button>
+        <div className="shrink-0 flex items-center gap-2">
+          <button
+            onClick={() => void runBackupNow()}
+            disabled={runningBackup}
+            className="px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-sm font-bold text-white disabled:opacity-50"
+          >
+            {runningBackup ? "Running…" : "Run a backup now"}
+          </button>
+          <button
+            onClick={() => void load(true)}
+            disabled={refreshing}
+            className="px-4 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-sm font-bold text-white disabled:opacity-50"
+          >
+            {refreshing ? "Refreshing…" : "Refresh"}
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -189,6 +302,117 @@ function AdminDataHealthPage() {
               ))}
             </ul>
           </div>
+
+          {backupNote && (
+            <div className="bg-stone-900 border border-stone-700 rounded-xl px-5 py-3 text-xs font-mono text-stone-200">
+              {backupNote}
+            </div>
+          )}
+
+          {data.backup && (
+            <div
+              className={`border rounded-xl px-5 py-4 ${
+                data.backup.verdict === "green"
+                  ? "bg-emerald-950/20 border-emerald-500/30"
+                  : data.backup.verdict === "unknown"
+                    ? "bg-amber-950/20 border-amber-500/30"
+                    : "bg-rose-950/20 border-rose-500/30"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <span
+                  className={`inline-block w-3 h-3 rounded-full ${
+                    data.backup.verdict === "green"
+                      ? "bg-emerald-400"
+                      : data.backup.verdict === "unknown"
+                        ? "bg-amber-400"
+                        : "bg-rose-400"
+                  }`}
+                />
+                <p className="font-bold text-white">
+                  Off-box copy —{" "}
+                  {data.backup.verdict === "green"
+                    ? "fresh, encrypted and uploaded"
+                    : data.backup.verdict === "never"
+                      ? "never — this data has no copy off this disk"
+                      : data.backup.verdict === "red"
+                        ? "not current"
+                        : "could not be verified"}
+                </p>
+              </div>
+              <ul className="mt-3 space-y-1 text-sm text-stone-300">
+                {data.backup.reasons.map((r, i) => (
+                  <li key={i} className="leading-relaxed">
+                    · {r}
+                  </li>
+                ))}
+              </ul>
+              <dl className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-xs font-mono">
+                <div className="flex justify-between gap-4">
+                  <dt className="text-stone-500">namespace</dt>
+                  <dd className="text-stone-200 break-all text-right">{data.backup.namespace.prefix}</dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-stone-500">last success</dt>
+                  <dd className="text-stone-200">
+                    {fmtUtc(data.backup.status.lastOkAt)}
+                    {data.backup.status.ageSeconds !== null ? ` (${fmtUptime(data.backup.status.ageSeconds)} ago)` : ""}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-stone-500">last upload</dt>
+                  <dd className="text-stone-200 break-all text-right">{fmtUtc(data.backup.upload.lastUploadOkAt)}</dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-stone-500">object</dt>
+                  <dd className="text-stone-400 break-all text-right">{data.backup.upload.key ?? "—"}</dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-stone-500">local destination</dt>
+                  <dd className="text-stone-400 break-all text-right">{data.backup.destination.outDir}</dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-stone-500">runs kept</dt>
+                  <dd className="text-stone-200">{data.backup.destination.runCount}</dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-stone-500">consecutive failures</dt>
+                  <dd className={data.backup.status.consecutiveFailures > 0 ? "text-rose-300" : "text-stone-200"}>
+                    {data.backup.status.consecutiveFailures} run / {data.backup.status.consecutiveUploadFailures} upload
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-stone-500">coverage</dt>
+                  <dd
+                    className={
+                      data.backup.coverage.verdict === "green"
+                        ? "text-emerald-300"
+                        : data.backup.coverage.verdict === "red"
+                          ? "text-rose-300"
+                          : "text-amber-300"
+                    }
+                  >
+                    {data.backup.coverage.archivedInLastRun ?? "—"} archived / {data.backup.coverage.declared} declared
+                    ({data.backup.coverage.presentOnDisk} on disk)
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-4 md:col-span-2">
+                  <dt className="text-stone-500">why this namespace</dt>
+                  <dd className="text-stone-400 text-right">{data.backup.namespace.reason}</dd>
+                </div>
+                {data.backup.scheduler && (
+                  <div className="flex justify-between gap-4 md:col-span-2">
+                    <dt className="text-stone-500">hourly timer</dt>
+                    <dd className="text-stone-400 text-right">
+                      {data.backup.scheduler.disabled
+                        ? `not running here (${data.backup.scheduler.disabledReason || "disabled"})`
+                        : `running — ${data.backup.scheduler.runs} run(s), ${data.backup.scheduler.failures} failure(s) since boot`}
+                    </dd>
+                  </div>
+                )}
+              </dl>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div className="bg-stone-900 border border-stone-800 rounded-xl p-5">

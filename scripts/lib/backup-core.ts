@@ -152,6 +152,14 @@ export interface BackupStatus {
   consecutiveUploadFailures?: number | null;
   /** SLICE 145: surfaced verbatim on /api/admin/datadir. */
   r2?: R2Record | null;
+  /**
+   * SLICE 163 — when an upload last SUCCEEDED. `r2.uploadedAt` is the last
+   * upload attempt's timestamp, so a deployment whose uploads have been failing
+   * for a day still has a fresh attempt time; the age of the OFF-BOX copy has to
+   * be measured against a real success, which is what this field is. `null` means
+   * "no upload has ever been observed to succeed".
+   */
+  lastUploadOkAt?: string | null;
 }
 
 export class TornReadError extends Error {
@@ -535,11 +543,20 @@ export function writeBackupStatus(dataDir: string, status: BackupStatus): void {
   const r2 = status.r2;
   if (r2 && r2.uploaded === true) {
     merged.consecutiveUploadFailures = 0;
+    // SLICE 163: a successful upload is the only thing that moves the age of the
+    // OFF-BOX copy forward — and it carries the previous value forward when a
+    // later run fails, so "the last good off-box copy was at X" never disappears.
+    merged.lastUploadOkAt = status.lastUploadOkAt ?? r2.uploadedAt ?? status.lastBackupAt ?? new Date().toISOString();
   } else if (r2 && r2.uploaded === false && r2.error) {
     merged.consecutiveUploadFailures = (Number(previous?.consecutiveUploadFailures) || 0) + 1;
+    merged.lastUploadOkAt = previous?.lastUploadOkAt ?? status.lastUploadOkAt ?? null;
   } else if (previous?.consecutiveUploadFailures != null) {
     merged.consecutiveUploadFailures = Number(previous.consecutiveUploadFailures) || 0;
+    merged.lastUploadOkAt = previous?.lastUploadOkAt ?? status.lastUploadOkAt ?? null;
+  } else {
+    merged.lastUploadOkAt = previous?.lastUploadOkAt ?? status.lastUploadOkAt ?? null;
   }
+
   atomicWriteSync(file, JSON.stringify(merged, null, 2));
   try {
     chmodSync(file, 0o600);

@@ -39,6 +39,13 @@ export interface BackupStatusSummary {
   /** SLICE 147 — consecutive failed off-box uploads; 0 after a successful one. */
   consecutiveUploadFailures: number | null;
   /**
+   * SLICE 163 — when an off-box upload last SUCCEEDED (null = never observed).
+   * Distinct from `lastBackupR2.uploadedAt`, which is the last ATTEMPT: a
+   * deployment whose uploads have failed all day still has a fresh attempt time,
+   * and the age of the off-box copy must not be measured against it.
+   */
+  lastUploadOkAt: string | null;
+  /**
    * SLICE 145 — the off-box leg, exactly as the run recorded it. `null` means
    * this status file predates slice 145 or the run never got that far; it never
    * means "uploaded". A missing object key, a redacted error and a skip reason
@@ -59,6 +66,7 @@ const EMPTY: BackupStatusSummary = {
   lastBackupOkAt: null,
   consecutiveFailures: null,
   consecutiveUploadFailures: null,
+  lastUploadOkAt: null,
   lastBackupR2: null,
 };
 
@@ -110,6 +118,7 @@ export function readBackupStatus(dataDir: string): BackupStatusSummary {
       lastBackupOkAt: str(raw.lastBackupOkAt),
       consecutiveFailures: num(raw.consecutiveFailures),
       consecutiveUploadFailures: num(raw.consecutiveUploadFailures),
+      lastUploadOkAt: str(raw.lastUploadOkAt),
       lastBackupR2: r2Record(raw.r2),
     };
   } catch {

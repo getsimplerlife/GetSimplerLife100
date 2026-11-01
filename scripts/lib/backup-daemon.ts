@@ -39,6 +39,9 @@ import { closeSync, existsSync, openSync, readFileSync, unlinkSync, writeSync } 
 import { hostname } from "node:os";
 import { join } from "node:path";
 import { atomicWriteSync } from "../../src/lib/atomic-write";
+// SLICE 163 — the namespace id for THIS box lives in one place now, so the
+// supervised loop and the server's own scheduler cannot disagree about it.
+import { HOST_INSTANCE } from "../../src/lib/backup-namespace";
 
 /** Held for the duration of one run, by whichever process is running it. */
 export const RUN_LOCK_FILE = ".backup-run.lock";
@@ -55,7 +58,7 @@ export const DAEMON_HEARTBEAT_FILE = ".backup-daemon.json";
  * only listener is `vite dev`. So the daemon sets the identity EXPLICITLY rather
  * than inheriting an inference from whatever started it.
  */
-export const DEFAULT_DAEMON_INSTANCE = "host-primary";
+export const DEFAULT_DAEMON_INSTANCE = HOST_INSTANCE;
 
 /** The CLI's exit code when a run was refused because another one is in flight. */
 export const EXIT_REFUSED = 3;
