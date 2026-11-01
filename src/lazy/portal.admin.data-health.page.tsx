@@ -135,7 +135,28 @@ interface DataHealth {
   durableStores: { declared: number; present: number; missing: string[]; rows: StoreRow[] };
   // SLICE 163 - the OFF-BOX half: would this data survive the disk?
   backup: BackupHealth | null;
+  // SLICE 164 - what ACTUALLY protects this data on this deployment, in plain
+  // words: the disk, the archive restored at boot, or nothing.
+  durability: { mode: "disk" | "archive-restore" | "none"; plainWords: string };
+  // SLICE 164 - the last boot restore: which archive was recovered, or why not.
+  restore: BootRestore | null;
   checkedAt: string;
+}
+
+interface BootRestore {
+  at: string;
+  attempted: boolean;
+  ok: boolean | null;
+  skippedReason: string | null;
+  error: string | null;
+  namespacePrefix: string;
+  instance: string | null;
+  key: string | null;
+  runId: string | null;
+  files: number | null;
+  bytes: number | null;
+  excluded: string[];
+  durationMs: number | null;
 }
 
 /** "2026-10-31T09:12:04.123Z" → "2026-10-31 09:12 UTC" (never a local guess). */
@@ -223,11 +244,14 @@ function AdminDataHealthPage() {
       const body = (await res.json().catch(() => null)) as any;
       if (!res.ok) throw new Error(body?.error || `HTTP ${res.status}`);
       const uploaded = body?.r2?.uploaded === true;
+      // SLICE 164 - every outcome names its REASON. "1 failure since boot" with
+      // no reason is a diagnostic the owner cannot act on.
+      const why = body?.uploadError ?? body?.r2?.error ?? body?.r2?.uploadSkipped ?? body?.scheduler?.lastError ?? null;
       setBackupNote(
         body?.ok
           ? uploaded
             ? `Run ${body.runId ?? ""} finished and the archive was uploaded${body.r2?.key ? ` as ${body.r2.key}` : ""}.`
-            : `Run ${body.runId ?? ""} finished, but the off-box upload did not succeed${body.r2?.error ? `: ${body.r2.error}` : body.r2?.uploadSkipped ? `: ${body.r2.uploadSkipped}` : "."}`
+            : `Run ${body.runId ?? ""} finished locally, but the off-box upload did not succeed${why ? `: ${why}` : "."}`
           : `The run did not succeed${body?.error ? `: ${body.error}` : "."}`,
       );
       await load(true);
@@ -257,7 +281,9 @@ function AdminDataHealthPage() {
           <p className="text-stone-400 mt-1 max-w-3xl">
             Where this deployment writes, whether that location is inside the tree a publish
             replaces, and whether the data in it has already outlived a publish. Read from the
-            filesystem by the running server — not from a config value.
+            filesystem by the running server — not from a config value. A deployment whose whole
+            filesystem is replaced by every publish is reported as exactly that: outside the tree,
+            and still not durable unless an archive of its own was restored into it at boot.
           </p>
         </div>
         <div className="shrink-0 flex items-center gap-2">
@@ -302,6 +328,97 @@ function AdminDataHealthPage() {
               ))}
             </ul>
           </div>
+
+          {/* SLICE 164 - WHAT PROTECTS THIS DATA. The verdict above answers "did
+              the disk keep it?"; on a deployment whose filesystem is replaced by
+              every publish the answer is permanently no, and the honest thing to
+              show is the mechanism that does protect it - or that nothing does. */}
+          {data.durability && (
+            <div
+              className={`border rounded-xl px-5 py-4 ${
+                data.durability.mode === "none"
+                  ? "bg-rose-950/20 border-rose-500/30"
+                  : data.durability.mode === "archive-restore"
+                    ? "bg-sky-950/20 border-sky-500/30"
+                    : "bg-emerald-950/20 border-emerald-500/30"
+              }`}
+            >
+              <p className="font-bold text-white">
+                What protects this data —{" "}
+                {data.durability.mode === "none"
+                  ? "nothing yet"
+                  : data.durability.mode === "archive-restore"
+                    ? "the off-box archive, restored at boot"
+                    : "the disk, plus the archive"}
+              </p>
+              <p className="mt-2 text-sm text-stone-300 leading-relaxed">{data.durability.plainWords}</p>
+            </div>
+          )}
+
+          {data.restore && (
+            <div className="bg-stone-900 border border-stone-800 rounded-xl p-5">
+              <h2 className="text-sm font-bold text-white mb-3">Boot restore — did this deployment recover its data?</h2>
+              <dl className="space-y-2 text-xs font-mono">
+                <div className="flex justify-between gap-4">
+                  <dt className="text-stone-500">outcome</dt>
+                  <dd
+                    className={
+                      data.restore.ok
+                        ? "text-emerald-300 text-right"
+                        : data.restore.attempted
+                          ? "text-rose-300 text-right"
+                          : "text-amber-300 text-right"
+                    }
+                  >
+                    {data.restore.ok
+                      ? "restored"
+                      : data.restore.attempted
+                        ? "attempted, failed"
+                        : "not attempted"}
+                  </dd>
+                </div>
+                {data.restore.skippedReason && (
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-stone-500">why not</dt>
+                    <dd className="text-stone-300 text-right">{data.restore.skippedReason}</dd>
+                  </div>
+                )}
+                {data.restore.error && (
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-stone-500">error</dt>
+                    <dd className="text-rose-300 text-right break-all">{data.restore.error}</dd>
+                  </div>
+                )}
+                <div className="flex justify-between gap-4">
+                  <dt className="text-stone-500">namespace</dt>
+                  <dd className="text-stone-400 text-right break-all">{data.restore.namespacePrefix || "—"}</dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-stone-500">object</dt>
+                  <dd className="text-stone-400 text-right break-all">{data.restore.key ?? "—"}</dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-stone-500">files / bytes</dt>
+                  <dd className="text-stone-200 text-right">
+                    {data.restore.files ?? "—"} / {fmtBytes(data.restore.bytes)}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-stone-500">when</dt>
+                  <dd className="text-stone-400 text-right">
+                    {fmtUtc(data.restore.at)}
+                    {data.restore.durationMs !== null ? ` (${data.restore.durationMs} ms)` : ""}
+                  </dd>
+                </div>
+                {data.restore.excluded.length > 0 && (
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-stone-500">not restored</dt>
+                    <dd className="text-stone-400 text-right break-all">{data.restore.excluded.join(", ")}</dd>
+                  </div>
+                )}
+              </dl>
+            </div>
+          )}
 
           {backupNote && (
             <div className="bg-stone-900 border border-stone-700 rounded-xl px-5 py-3 text-xs font-mono text-stone-200">
@@ -407,7 +524,37 @@ function AdminDataHealthPage() {
                       {data.backup.scheduler.disabled
                         ? `not running here (${data.backup.scheduler.disabledReason || "disabled"})`
                         : `running — ${data.backup.scheduler.runs} run(s), ${data.backup.scheduler.failures} failure(s) since boot`}
+                      {data.backup.scheduler.lastAttemptAt
+                        ? ` · last attempt ${fmtUtc(data.backup.scheduler.lastAttemptAt)}`
+                        : ""}
                     </dd>
+                  </div>
+                )}
+                {/* SLICE 164 - THE REASON, not just the count. A failure the page
+                    can only count is one nobody can act on. Each of these is a
+                    different failure and each is shown verbatim. */}
+                {data.backup.status.lastError && (
+                  <div className="flex justify-between gap-4 md:col-span-2">
+                    <dt className="text-rose-400">last run error</dt>
+                    <dd className="text-rose-300 text-right break-all">{data.backup.status.lastError}</dd>
+                  </div>
+                )}
+                {data.backup.upload.error && (
+                  <div className="flex justify-between gap-4 md:col-span-2">
+                    <dt className="text-rose-400">last upload error</dt>
+                    <dd className="text-rose-300 text-right break-all">{data.backup.upload.error}</dd>
+                  </div>
+                )}
+                {data.backup.upload.skipped && (
+                  <div className="flex justify-between gap-4 md:col-span-2">
+                    <dt className="text-amber-400">upload skipped</dt>
+                    <dd className="text-amber-300 text-right break-all">{data.backup.upload.skipped}</dd>
+                  </div>
+                )}
+                {data.backup.scheduler?.lastError && (
+                  <div className="flex justify-between gap-4 md:col-span-2">
+                    <dt className="text-rose-400">timer error (this boot)</dt>
+                    <dd className="text-rose-300 text-right break-all">{data.backup.scheduler.lastError}</dd>
                   </div>
                 )}
               </dl>

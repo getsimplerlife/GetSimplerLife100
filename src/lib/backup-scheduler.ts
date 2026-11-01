@@ -275,6 +275,19 @@ export function startBackupScheduler(opts: BackupSchedulerOptions): BackupSchedu
         status.failures += 1;
         status.lastError = outcome?.error || "backup run reported ok=false";
         log(`[backup] FAILED (${reason}): ${status.lastError}`);
+        // SLICE 164 — PERSIST THE REASON, not just the count. Until now only a
+        // THROWING run wrote its reason to backup_status.json; a run that
+        // returned ok=false kept it in this process's memory, so the page showed
+        // "1 failure since boot" with no reason and the reason vanished on the
+        // next restart. A skipped run is a REFUSAL (another run held the lock),
+        // not a failure of this deployment's backups, so it writes nothing.
+        if (!outcome?.skipped) {
+          try {
+            opts.recordFailure?.(status.lastError);
+          } catch (recordErr: any) {
+            log(`[backup] could not record the failure: ${recordErr?.message || recordErr}`);
+          }
+        }
         log(
           backupEventLine("run-failed", {
             trigger: reason,

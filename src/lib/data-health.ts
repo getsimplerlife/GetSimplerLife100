@@ -45,6 +45,7 @@ import { atomicWriteJSONSync } from "./atomic-write";
 import { DURABLE_STORES, isDirectoryStore } from "./durable-stores";
 import { isInsidePublishTree } from "./data-dir-policy";
 import type { BackupHealthReport } from "./backup-health";
+import { describeDurability, type BootRestoreReport, type DurabilityStatement } from "./boot-restore";
 
 /** The durable generation marker, relative to DATA_DIR. */
 export const GENERATION_MARKER_FILE = "deployment-generation.json";
@@ -368,6 +369,16 @@ export interface DataHealthReport {
    * else is true of it.
    */
   backup: BackupHealthReport | null;
+  /**
+   * SLICE 164 — what actually protects this data. On a deployment whose disk is
+   * replaced by every publish, "the data is outside the publish tree" is true and
+   * still not enough: the directory is recreated at boot. This says, in plain
+   * words, whether the disk holds the data, whether the off-box archive restores
+   * it at boot, or whether nothing does.
+   */
+  durability: DurabilityStatement;
+  /** SLICE 164 — the last boot-restore attempt, read from `<DATA_DIR>/boot_restore.json`. */
+  restore: BootRestoreReport | null;
   checkedAt: string;
 }
 
@@ -387,6 +398,8 @@ export function buildDataHealthReport(opts: {
   runningBuildId?: string | null;
   /** SLICE 163 — the off-box half. Omitted by callers that cannot measure it. */
   backup?: BackupHealthReport | null;
+  /** SLICE 164 — the boot-restore record. Omitted when the caller cannot read it. */
+  restore?: BootRestoreReport | null;
   now?: Date;
 }): DataHealthReport {
   const now = opts.now ?? new Date();
@@ -505,6 +518,37 @@ export function buildDataHealthReport(opts: {
   const rows = describeDurableStores(dataDir);
   const missing = rows.filter((r) => !r.present).map((r) => r.store);
 
+  // ── SLICE 164 — what actually protects this data ─────────────────────────
+  // The two "survived" flags above answer "did the disk keep it?". On the live
+  // deployment the answer is no, permanently: the filesystem is replaced by every
+  // publish. The honest report therefore has to name the mechanism that does
+  // protect it — restore-from-archive at boot — or say plainly that nothing does.
+  const restore = opts.restore ?? null;
+  const durability = describeDurability({
+    survivedProcessStart,
+    survivedRunningBuild,
+    restore,
+    dataDir,
+  });
+  reasons.push(durability.plainWords);
+  if (durability.mode === "none" && !insidePublishTree) {
+    // Not inside the tree and still unprotected: the disk itself is disposable.
+    verdict = "red";
+  }
+  if (restore?.attempted && restore.ok === false) {
+    verdict = "red";
+    reasons.push(`The boot restore failed: ${restore.error ?? "unknown error"} — this deployment started with no recovered data.`);
+  } else if (restore?.ok) {
+    reasons.push(
+      `Restored at ${restore.at} from ${restore.key} (run ${restore.runId}): ${restore.files ?? 0} file(s), ${restore.bytes ?? 0} bytes.`,
+    );
+  }
+  if (restore && restore.excluded.length > 0) {
+    reasons.push(
+      `Not restored from the archive (they describe a machine, not data): ${restore.excluded.join(", ")}.`,
+    );
+  }
+
   return {
     ok: verdict === "green",
     verdict,
@@ -542,6 +586,8 @@ export function buildDataHealthReport(opts: {
       rows,
     },
     backup,
+    durability,
+    restore,
     checkedAt: now.toISOString(),
   };
 }

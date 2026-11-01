@@ -56,6 +56,22 @@ export function findLegacyDataDir(candidates: string[] = legacyDataDirCandidates
 }
 
 /**
+ * SLICE 164 — files that describe the MACHINE that wrote a data directory, never
+ * the data in it. `migrateLegacyData` copies a previous deployment's stores
+ * forward; these four must never travel, because each one would either make this
+ * deployment report a history it never had (backup_status, boot_restore,
+ * deployment-generation) or point its off-box uploads — and its retention — at
+ * another deployment's objects (backup_instance). See the copy loop for the live
+ * incident that made this concrete.
+ */
+export const MACHINE_IDENTITY_FILES: readonly string[] = [
+  "backup_status.json",
+  "backup_instance.json",
+  "deployment-generation.json",
+  "boot_restore.json",
+];
+
+/**
  * SLICE 150b — the ordered list of directories the boot migration may copy from.
  *
  * `rawDir` is the path the DATA_DIR policy STARTED from, before it relocated an
@@ -118,6 +134,25 @@ export function migrateLegacyData(dataDir: string, candidates: string[] = legacy
       // dir makes the single-instance guard refuse to boot the new instance —
       // a boot trap). Locks are re-created on start, never data.
       if (name.endsWith(".lock")) continue;
+      // SLICE 164 — MACHINE IDENTITY IS NOT DATA. This migration exists to
+      // recover a previous deployment's stores from a data directory that a
+      // publish was about to replace. Three files in such a directory describe
+      // the MACHINE that wrote them, and copying them onto a different machine
+      // produces a lie or a data-loss bug:
+      //   · backup_status.json      — the previous machine's backup state. On
+      //     2026-11-01 the live page reported "last success 26h ago" and named
+      //     THIS dev box's archive and THIS dev box's destination path, because
+      //     this file travelled with the publish. It never happened there.
+      //   · backup_instance.json    — the previous machine's off-box namespace
+      //     id. Restoring it makes this deployment upload into (and PRUNE)
+      //     another deployment's namespace: the one thing per-instance ids exist
+      //     to prevent.
+      //   · deployment-generation.json — the previous machine's survival proof.
+      //     Copying it forward would make a brand-new directory look like it had
+      //     outlived a publish.
+      //   · boot_restore.json       — same reasoning: a recovery this machine
+      //     never performed.
+      if (MACHINE_IDENTITY_FILES.includes(name)) continue;
       const src = join(legacyDir, name);
       const dst = join(dataDir, name);
       const st = statSync(src);

@@ -59,9 +59,19 @@ import { logPageViewCounterLocation, notePageView, readPageViewSummary } from ".
 import {
   buildDataHealthReport,
   logDeploymentGeneration,
+  readGenerationMarker,
   recordDeploymentBoot,
   runningBuildId,
 } from "./src/lib/data-health";
+// SLICE 164 — data that survives a publish its disk cannot survive: at boot,
+// when this data directory was created by this very process, restore the newest
+// encrypted archive of THIS deployment's own namespace into it before anything
+// is served. See src/lib/boot-restore.ts for the rules that keep it safe.
+import { readBootRestore, restoreNewestArchiveAtBoot } from "./src/lib/boot-restore";
+// SLICE 164 — the same-origin check that refused the owner's own "Run a backup
+// now" on the live host. One pure predicate, so the accepted and refused cases
+// are testable instead of living in a route.
+import { checkRequestSameOrigin } from "./src/lib/same-origin";
 
 // ── Lazy module accessors — loaded on first use to keep server startup under 1s ──
 let _bcryptjs: any;
@@ -318,9 +328,48 @@ const durableInit = await initDurableStore(DATA_DIR);
 seedDataFiles(DATA_DIR);
 console.log("[prod-server] DATA_DIR=" + DATA_DIR + (isInsidePublishTree(DATA_DIR, SERVER_BASE) ? "  [WARNING: DATA_DIR is inside the publish tree — a publish can wipe runtime data]" : ""));
 logPageViewCounterLocation(DATA_DIR, SERVER_BASE);
-// SLICE 162 — the durable generation marker. Written AFTER the legacy migration
-// and the seeding above, so it lands in the directory this process will really
-// use, and so a migration that copies a previous marker in is respected.
+// SLICE 164 — RECOVER THE DATA BEFORE ANYTHING ELSE TOUCHES IT.
+// On the live deployment the filesystem is replaced by every publish, so the
+// data directory this process just resolved is brand new and holds nothing. The
+// archive in the bucket is the durable copy; this pulls it back down, verifies
+// it (size, auth tag, every file digest) and unpacks it into the empty
+// directory. `bootRestoreNeeded` reads the generation marker read BEFORE this
+// boot records itself: a directory that predates this process is never touched.
+// Bounded by a timeout so a slow bucket can never hold the boot open, and it
+// never throws — the outcome is reported on the data-health page either way.
+const PRE_BOOT_MARKER = readGenerationMarker(DATA_DIR);
+{
+  const timeoutMs = (() => {
+    const n = Number(process.env.BOOT_RESTORE_TIMEOUT_MS);
+    return Number.isFinite(n) && n > 0 ? n : 45_000;
+  })();
+  const restoreRun = restoreNewestArchiveAtBoot({
+    dataDir: DATA_DIR,
+    processStartedAt: PROCESS_STARTED_AT,
+    markerFirstSeenAt: PRE_BOOT_MARKER.marker?.firstSeenAt ?? null,
+    log: (m) => console.log(m),
+  });
+  const timedOut = new Promise<{ ok: false; attempted: true; error: string }>((resolve) =>
+    setTimeout(() => resolve({ ok: false, attempted: true, error: `boot restore exceeded ${timeoutMs}ms — continuing without it` }), timeoutMs).unref?.(),
+  );
+  const outcome = await Promise.race([restoreRun, timedOut as any]).catch((e: any) => ({
+    ok: false,
+    attempted: true,
+    error: e?.message || String(e),
+  }));
+  if ((outcome as any)?.attempted) {
+    console.log(
+      `[prod-server] boot restore: ok=${(outcome as any).ok} key=${(outcome as any).key ?? "-"} ` +
+        `files=${(outcome as any).files ?? "-"}` +
+        ((outcome as any).error ? ` error=${(outcome as any).error}` : ""),
+    );
+  }
+}
+// SLICE 162 — the durable generation marker. Written AFTER the legacy migration,
+// the seeding and (slice 164) the boot restore above, so it lands in the
+// directory this process will really use and records the boot that ended up
+// serving. It is never restored from an archive (see NEVER_RESTORED): another
+// machine's marker would forge the survival proof this file exists to give.
 logDeploymentGeneration(
   recordDeploymentBoot(DATA_DIR, { buildId: runningBuildId(SERVER_ENTRY_PATH) }),
 );
@@ -3468,6 +3517,9 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
             // SLICE 163: does the data in this directory have a copy OFF this
             // disk? Same page, same gate - a deployment whose backup has never
             // run must read red here, not "fine".
+            // SLICE 164: what protects this data when the DISK cannot — the
+            // archive restored at boot, and the plain-words answer built from it.
+            restore: readBootRestore(DATA_DIR),
             backup: buildBackupHealthReport({
               dataDir: DATA_DIR,
               outDir: ARCHIVE_BACKUP_DIR,
@@ -3503,21 +3555,34 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
         if (req.method !== "POST") {
           return Response.json({ error: "method not allowed" }, { status: 405 });
         }
-        const origin = req.headers.get("origin");
-        if (origin) {
-          let sameOrigin = false;
-          try {
-            sameOrigin = new URL(origin).host === new URL(req.url).host;
-          } catch {
-            sameOrigin = false;
-          }
-          if (!sameOrigin) {
-            return Response.json({ error: "cross-origin request refused" }, { status: 403 });
-          }
+        // SLICE 164 — this check used to be `new URL(origin).host === new
+        // URL(req.url).host`, and behind the platform's TLS edge `req.url` is not
+        // the host the browser used, so the owner's own POST was refused with
+        // "cross-origin request refused" and the backup failure it was trying to
+        // diagnose stayed hidden. It now compares the Origin host against the
+        // Host header, the edge's X-Forwarded-Host and the URL host, and refuses
+        // anything else (see src/lib/same-origin.ts for why that is still safe).
+        const sameOrigin = checkRequestSameOrigin(req, req.url, process.env);
+        if (!sameOrigin.ok) {
+          console.log(
+            `[backup] refused a POST /api/admin/data-health/backup: ${sameOrigin.reason} (compared: ${sameOrigin.comparedHosts.join(", ") || "none"})`,
+          );
+          return Response.json({ error: `cross-origin request refused — ${sameOrigin.reason}` }, { status: 403 });
         }
         const outcome = await performArchiveBackup("owner-request");
+        const schedulerNow = archiveScheduler.status();
         return Response.json({
           ...outcome,
+          // SLICE 164 — the reason, not just the count. A failure the page can
+          // only count is a failure nobody can act on.
+          error: outcome.ok ? undefined : outcome.error || "the run reported ok=false",
+          uploadError: outcome.r2 && !outcome.r2.uploaded ? (outcome.r2.error || outcome.r2.uploadSkipped || "upload did not run") : null,
+          scheduler: {
+            runs: schedulerNow.runs,
+            failures: schedulerNow.failures,
+            lastAttemptAt: schedulerNow.lastAttemptAt,
+            lastError: schedulerNow.lastError,
+          },
           backup: buildBackupHealthReport({
             dataDir: DATA_DIR,
             outDir: ARCHIVE_BACKUP_DIR,
@@ -3525,6 +3590,17 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
             env: ARCHIVE_BACKUP_UPLOAD_ENV,
             intervalMs: ARCHIVE_BACKUP_INTERVAL_MS,
             staleFactor: ARCHIVE_STALE_FACTOR,
+            scheduler: {
+              disabled: schedulerNow.disabled,
+              disabledReason: schedulerNow.disabledReason,
+              intervalMs: schedulerNow.intervalMs,
+              running: schedulerNow.running,
+              runs: schedulerNow.runs,
+              failures: schedulerNow.failures,
+              lastAttemptAt: schedulerNow.lastAttemptAt,
+              lastOkAt: schedulerNow.lastOkAt,
+              lastError: schedulerNow.lastError,
+            },
           }),
         });
       }
