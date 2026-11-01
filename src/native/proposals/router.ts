@@ -182,7 +182,12 @@ async function handleAuthedAsync(req: Request, ctx: NativeProposalsCtx): Promise
 
   if (seg.length === 1) {
     if (req.method === "GET") {
-      return Response.json({ data: { ...publicSummary(proposal, url.origin), clientEmail: proposal.clientEmail, shareSlug: proposal.shareSlug, docId: proposal.docId, terms: proposal.terms, lineItems: proposal.lineItems } });
+      // SLICE 167 (D-16) — the read view the audit asked for. The detail
+      // response carries the whole record the portal needs to show a quote:
+      // line items, terms, client email, share slug and the e-signatures
+      // captured on acceptance. Nothing new is stored; this only stops the
+      // tenant from being unable to read a proposal it already owns.
+      return Response.json({ data: { ...publicSummary(proposal, url.origin), clientEmail: proposal.clientEmail, shareSlug: proposal.shareSlug, docId: proposal.docId, terms: proposal.terms, lineItems: proposal.lineItems, signatures: proposal.signatures ?? [] } });
     }
     if (req.method === "DELETE") {
       const res = submitProposalWrite(dataDir, tenantId, "delete", { proposalId, via: "portal" }, tenantId);

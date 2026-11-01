@@ -1,43 +1,73 @@
 import { useState, useEffect } from "react";
 import { PortalEmptyState } from "~/components/PortalEmptyState";
 
-
+/**
+ * SLICE 167 — /portal/users, made honest (audit D-13 + D-14).
+ *
+ * D-13: this page never checked `res.ok`, so a 403 rendered "No team members
+ * yet — Team members appear here after their first signup" while two members
+ * existed. An error must look like an error; the empty state is reserved for a
+ * genuine empty result.
+ *
+ * D-14: the page offered "➕ Invite Member" and a per-row "Edit" that POSTed to
+ * /api/data/users — a read-only, owner-gated route with no action dispatch. Both
+ * returned 200 and wrote nothing, while the subtitle promised "Configure role
+ * privileges, manage tenancy users, and audit active sessions". Role management
+ * does not exist and is NOT built here (owner gate: nothing new until the audit
+ * is complete). The controls are gone and the subtitle now describes exactly
+ * what the page does: it lists the accounts in this workspace.
+ *
+ * The same rule applies to the table itself: /api/data/users returns
+ * {id, email, role, createdAt} and NOTHING else, so the "Department" and "MFA"
+ * columns were empty or a fabricated "None" on every row. They are replaced by
+ * "Added" (createdAt), which the API really sends.
+ */
+interface WorkspaceUser {
+  name?: string;
+  email?: string;
+  role?: string;
+  createdAt?: string;
+}
 
 function UserManagement() {
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<WorkspaceUser[]>([]);
   const [loading, setLoading] = useState(true);
-  const [feedback, setFeedback] = useState("");
+  const [error, setError] = useState("");
 
   useEffect(() => {
+    let cancelled = false;
     fetch("/api/data/users", { credentials: "include" })
-      .then(r => r.json())
-      .then(d => {
-      setUsers(d.data || []);
-      setLoading(false);
+      .then(async (r) => {
+        // The status is the truth: a 403 is not "nobody has signed up yet".
+        if (!r.ok) {
+          const body = (await r.json().catch(() => ({}))) as { error?: string };
+          throw new Error(
+            body.error
+              ? `Could not load team members: ${body.error}`
+              : `Could not load team members (HTTP ${r.status}).`,
+          );
+        }
+        const d = (await r.json()) as { data?: WorkspaceUser[] };
+        if (!Array.isArray(d.data)) throw new Error("Could not load team members: the server returned no user list.");
+        return d.data;
       })
-      .catch(() => setLoading(false));
-  }, []);
-
-  const handleAction = async (email: string, action: string) => {
-    try {
-      const res = await fetch("/api/data/users", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ action: "user_" + action.toLowerCase(), resource: email }),
+      .then((list) => {
+        if (cancelled) return;
+        setUsers(list);
+        setError("");
+      })
+      .catch((e: unknown) => {
+        if (cancelled) return;
+        setUsers([]);
+        setError(e instanceof Error ? e.message : String(e));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
       });
-      setFeedback(
-        res.ok
-          ? `Request logged for ${email} — "${action}" is not executed from this workspace yet.`
-          : "Request failed — try again.",
-      );
-      setTimeout(() => setFeedback(""), 4000);
-    } catch (err) {
-      console.error(err);
-      setFeedback("Request failed — try again.");
-      setTimeout(() => setFeedback(""), 4000);
-    }
-  };
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   if (loading) {
     return (
@@ -46,62 +76,58 @@ function UserManagement() {
       </div>
     );
   }
-
   return (
     <div className="space-y-8 font-sans">
-      <div className="border-b border-stone-800 pb-6 flex justify-between items-center">
+      <div className="border-b border-stone-800 pb-6">
         <div>
           <h1 className="text-3xl font-black text-stone-100 tracking-tight">👥 Team Members</h1>
-          <p className="text-stone-400 mt-1">Configure role privileges, manage tenancy users, and audit active sessions.</p>
+          <p className="text-stone-400 mt-1">
+            Every account in this workspace, with its role and when it was created. This page reads the list — it does not add
+            members or change roles.
+          </p>
         </div>
-        <button onClick={() => handleAction("new@company.com", "invite")} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm px-6 py-3 rounded-2xl shadow-lg">➕ Invite Member</button>
       </div>
-
+      {error && (
+        <div className="rounded-2xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm font-bold text-rose-300" role="alert">
+          {error}
+        </div>
+      )}
       <div className="bg-stone-900 rounded-3xl border border-stone-800 overflow-hidden">
         {users.length === 0 ? (
           <div className="p-8">
-            <PortalEmptyState
-              title="No team members yet"
-              body="Team members appear here after their first signup. Use Invite Member above to add your first teammate."
-            />
+            {error ? (
+              <p className="text-sm text-stone-400">
+                The list could not be loaded, so there is nothing to show. This is an error, not an empty workspace.
+              </p>
+            ) : (
+              <PortalEmptyState title="No team members yet" body="Team members appear here after their first signup." />
+            )}
           </div>
         ) : (
-        <table className="w-full text-left text-xs font-semibold">
-          <thead>
-            <tr className="bg-stone-800 text-stone-400 border-b border-stone-800 uppercase tracking-wider">
-              <th className="p-4 font-bold">User</th>
-              <th className="p-4 font-bold">Department</th>
-              <th className="p-4 font-bold">Role</th>
-              <th className="p-4 font-bold">MFA</th>
-              <th className="p-4 text-right font-bold">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-stone-800 font-semibold text-stone-300">
-            {users.map((u, idx) => (
-              <tr key={idx} className="hover:bg-stone-800/40">
-                <td className="p-4 font-black text-stone-100">{u.name} <span className="block text-[10px] text-stone-400 font-bold">{u.email}</span></td>
-                <td className="p-4">{u.department}</td>
-                <td className="p-4">{u.role}</td>
-                <td className="p-4">{u.mfa ? "Active" : "None"}</td>
-                <td className="p-4 text-right">
-                  <button onClick={() => handleAction(u.email, "edit")} className="text-emerald-400">Edit</button>
-                </td>
+          <table className="w-full text-left text-xs font-semibold">
+            <thead>
+              <tr className="bg-stone-800 text-stone-400 border-b border-stone-800 uppercase tracking-wider">
+                <th className="p-4 font-bold">User</th>
+                <th className="p-4 font-bold">Role</th>
+                <th className="p-4 font-bold">Added</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-stone-800 font-semibold text-stone-300">
+              {users.map((u, idx) => (
+                <tr key={u.email ?? idx} className="hover:bg-stone-800/40">
+                  <td className="p-4 font-black text-stone-100">
+                    {u.name ? `${u.name} ` : ""}
+                    <span className="block text-[10px] text-stone-400 font-bold">{u.email}</span>
+                  </td>
+                  <td className="p-4">{u.role}</td>
+                  <td className="p-4">{u.createdAt ? new Date(u.createdAt).toLocaleDateString() : "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
-
-      {feedback && (
-        <div className="fixed bottom-6 right-6 bg-stone-900 border border-emerald-500 text-white px-5 py-3 rounded-2xl shadow-xl z-50 flex items-center gap-3 animate-slideUp">
-          <span className="text-emerald-500">✓</span>
-          <span className="text-xs font-bold">{feedback}</span>
-        </div>
-      )}
-
     </div>
   );
 }
-
 export default UserManagement;
