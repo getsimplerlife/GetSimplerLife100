@@ -84,7 +84,11 @@ function fakeBucket(objects: Array<{ key: string; bytes: Buffer }>) {
     calls.push(`${init.method} ${url}`);
     const u = new URL(url);
     if (init.method === "GET" && u.searchParams.get("list-type") === "2") {
+      // honour the prefix, like the real bucket does — otherwise a listing
+      // "inside live/" would hand back another deployment's keys
+      const prefix = u.searchParams.get("prefix") || "";
       const contents = objects
+        .filter((o) => o.key.startsWith(prefix))
         .map(
           (o) =>
             `<Contents><Key>${o.key}</Key><Size>${o.bytes.length}</Size>` +
@@ -198,8 +202,8 @@ describe("slice 165 — a restore may not pull another deployment's archive", ()
     });
 
     expect(report.namespacePrefix).toBe(LIVE_PREFIX);
-    // it DID try — but only inside its own namespace, which is empty
-    expect(report.attempted).toBe(true);
+    // it looked only inside its own namespace, found nothing, and restored nothing
+    expect(report.attempted).toBe(false);
     expect(report.ok).toBeNull();
     expect(report.skippedReason).toContain("nothing to restore");
     expect(bucket.calls.some((c) => c.includes("host-primary"))).toBe(false);
