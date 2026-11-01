@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useParams } from "@tanstack/react-router";
 import { Card, Badge } from "~/components/ui";
 interface ShareProposal {
   title: string;
@@ -34,7 +35,8 @@ const STATUS_LABEL: Record<string, string> = {
   archived: "Archived",
 };
 export default function DealRoomSharePage() {
-  const slug = (window.location.pathname.match(/\/deal-rooms\/share\/([^/]+)/) || [])[1] || "";
+  // SLICE 166 — see proposals.share: the router knows the slug during SSR.
+  const { slug } = useParams({ from: "/deal-rooms/share/$slug" });
   const [view, setView] = useState<ShareView | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");

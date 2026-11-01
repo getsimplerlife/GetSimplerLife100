@@ -8,10 +8,18 @@
  * read, write and delete provider API keys. The string is gone from the source.
  *
  * The rule is now: a missing or too-short key is a *startup* failure, not a
- * runtime surprise. `src/db/auth.ts` throws while its module is evaluated, so
- * every entry point that can sign or verify a session — `prod-server.ts` and
- * the dev server — refuses to come up without a real key instead of serving a
- * site whose logins are signed with a key an attacker already has.
+ * runtime surprise. `requireJwtKey()` is the boot gate — `prod-server.ts` runs
+ * it as its first statement and `vite.config.ts` runs it before the dev server
+ * serves anything — so a keyless process refuses to come up instead of serving
+ * a site whose logins are signed with a key an attacker already has.
+ *
+ * SLICE 166 — the check is deliberately NOT performed at module scope of
+ * `src/db/auth.ts` any more. That module is in the browser bundle's import
+ * graph, so throwing while it was evaluated turned a missing key into a blank
+ * page on every route in the dev/preview environment (see
+ * `src/test/client-graph-no-node-globals-166.test.ts`). Fail-closed is
+ * unchanged and is still enforced twice: at boot by `requireJwtKey()`, and at
+ * the first sign/verify, which reads the key lazily and throws if it is absent.
  *
  * What this module deliberately does NOT do:
  *   - it never logs the key, or any prefix/suffix/length-derived value;
@@ -47,11 +55,22 @@ export function jwtKeyProblem(secret: string | undefined | null): string | null 
  * The validated signing key, or a throw. Callers that want the bytes pass the
  * result through a TextEncoder; callers that want a boot-time gate call this
  * and let it propagate.
+ *
+ * SLICE 166 — the `process.env` read sits in the BODY, not in a default
+ * parameter. This module is reachable from the browser bundle (`entry-client`
+ * → route tree → `db/queries` → `db/auth` → here), and a `process` reference
+ * anywhere at module scope in that graph is one evaluation away from
+ * `ReferenceError: process is not defined` — which blanked every page of the
+ * dev site. Inside a function body the read only happens when a server calls
+ * it, which is the only place a key can exist. The default-parameter form
+ * behaved identically at runtime; this form keeps the whole module free of
+ * module-scope environment reads so the client graph stays evaluable.
  */
-export function readJwtSecret(secret: string | undefined = process.env.JWT_SECRET): string {
-  const problem = jwtKeyProblem(secret);
+export function readJwtSecret(secret?: string): string {
+  const value = secret ?? process.env.JWT_SECRET;
+  const problem = jwtKeyProblem(value);
   if (problem) throw new Error(problem);
-  return secret as string;
+  return value as string;
 }
 
 /**
