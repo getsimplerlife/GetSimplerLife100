@@ -183,7 +183,7 @@ describe("resolveFirstBackupDelay — catch up on wake, never silently skip", ()
       catchUpDelayMs: 1_234,
       log: () => {},
       timers: {
-        setTimeout: (fn, ms) => {
+        setTimeout: (_fn, ms) => {
           scheduled.push(ms);
           return 1;
         },
@@ -205,7 +205,7 @@ describe("resolveFirstBackupDelay — catch up on wake, never silently skip", ()
       firstDelayMs: 60_000,
       log: () => {},
       timers: {
-        setTimeout: (fn, ms) => {
+        setTimeout: (_fn, ms) => {
           scheduled.push(ms);
           return 1;
         },

@@ -507,6 +507,7 @@ describe("slice 147 — staleness, honestly", () => {
       lastBackupFiles: null,
       lastBackupEncryption: null,
       lastBackupOkAt: null,
+      lastUploadOkAt: null,
       consecutiveFailures: null,
       consecutiveUploadFailures: null,
       lastBackupR2: null,
