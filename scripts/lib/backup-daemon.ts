@@ -35,9 +35,9 @@
  * the runner logs it. A backup feature that can take down the thing it protects
  * is worse than no backup feature.
  */
-import { closeSync, existsSync, openSync, readFileSync, unlinkSync, writeSync } from "node:fs";
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, unlinkSync, writeSync } from "node:fs";
 import { hostname } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { atomicWriteSync } from "../../src/lib/atomic-write";
 // SLICE 163 — the namespace id for THIS box lives in one place now, so the
 // supervised loop and the server's own scheduler cannot disagree about it.
@@ -83,6 +83,13 @@ export interface RefusedLock {
   path: string;
   holder: LockHolder | null;
   reason: string;
+  /**
+   * SLICE 165 — the errno behind the refusal, when there was one. A refusal
+   * caused by a MISSING or UNWRITABLE archive root is not contention, and
+   * reporting it as "another run holds the lock" sends the operator looking for
+   * a process that does not exist. `null` means genuine contention (EEXIST).
+   */
+  code?: string | null;
 }
 
 export type LockResult = AcquiredLock | RefusedLock;
@@ -134,6 +141,62 @@ export function readLockHolder(path: string): LockHolder | null {
  * future run forever — a machine that reboots mid-run must not need a human to
  * delete a file before backups resume. The takeover is reported, never silent.
  */
+
+/**
+ * SLICE 165 — WHY a lock could not be created, in the operator's words.
+ *
+ * The bug this replaces: `create()` returned a boolean for EVERY failure, so a
+ * missing directory (ENOENT) and an unwritable one (EACCES/EROFS) both fell
+ * through to the stale-lock path, which tried to unlink, tried again, and then
+ * reported "could not acquire after clearing a stale lock". On the live
+ * deployment that sentence was printed for a directory that had never existed,
+ * and the owner spent the day looking for a competing process instead of at the
+ * real cause. Each errno now names its own cause.
+ */
+export function describeLockError(code: string | null | undefined, path: string): string {
+  const dir = dirname(path);
+  switch (code) {
+    case "ENOENT":
+      return `archive root does not exist: ${dir}`;
+    case "EACCES":
+    case "EPERM":
+    case "EROFS":
+      return `archive root is not writable: ${dir}`;
+    case "ENOTDIR":
+      return `archive root is not a directory: ${dir}`;
+    case "ENOSPC":
+      return `archive root has no space left: ${dir}`;
+    default:
+      return `could not create the run lock ${path}${code ? ` (${code})` : ""}`;
+  }
+}
+
+/**
+ * SLICE 165 — create the archive root BEFORE anything tries to lock inside it.
+ *
+ * The live deployment's run could never start: `performArchiveBackup` took the
+ * lock first, `openSync(..., "wx")` on a directory that did not exist answered
+ * ENOENT, and `runBackup`'s own `mkdirSync(outDir)` (the only place the root was
+ * ever created) was never reached because the run had already been refused. The
+ * root is now created here, owner-only, before the lock is attempted.
+ */
+export function ensureArchiveRoot(dir: string): { ok: boolean; path: string; reason: string | null } {
+  try {
+    mkdirSync(dir, { recursive: true, mode: 0o700 });
+    return { ok: true, path: dir, reason: null };
+  } catch (e: any) {
+    const code = typeof e?.code === "string" ? e.code : null;
+    const reason =
+      code === "ENOTDIR"
+        ? `archive root is not a directory: ${dir}`
+        : code === "EACCES" || code === "EPERM" || code === "EROFS"
+          ? `archive root is not writable: ${dir}`
+          : `could not create the archive root ${dir}${code ? ` (${code})` : ""}`;
+    return { ok: false, path: dir, reason };
+  }
+}
+
+/** Take the run lock (see the header). A refusal names its own cause. */
 export function acquireLock(opts: {
   path: string;
   reason?: string;
@@ -154,17 +217,19 @@ export function acquireLock(opts: {
     2,
   );
 
-  const create = (): boolean => {
+  // SLICE 165 — `exists` separates the ONLY case that means contention (EEXIST)
+  // from every other errno. A missing or unwritable archive root used to be
+  // reported as a held lock, which is how a directory that had never existed was
+  // announced to the owner as "another backup run holds the lock".
+  const create = (): { ok: true } | { ok: false; exists: boolean; code: string | null } => {
     let fd: number | null = null;
     try {
       fd = openSync(opts.path, "wx", 0o600);
       writeSync(fd, body);
-      return true;
+      return { ok: true };
     } catch (e: any) {
-      if (e?.code === "EEXIST") return false;
-      // An unwritable archive root is a real error the caller must see, but this
-      // module never throws: an unreadable path means "not acquired".
-      return false;
+      const code = typeof e?.code === "string" ? e.code : null;
+      return { ok: false, exists: code === "EEXIST", code };
     } finally {
       if (fd !== null) {
         try {
@@ -176,8 +241,20 @@ export function acquireLock(opts: {
     }
   };
 
-  if (create()) {
+  const first = create();
+  if (first.ok) {
     return { ok: true, path: opts.path, tookOver: null, release: () => releaseLock(opts.path, pid) };
+  }
+  if (!first.exists) {
+    // Not contention: the archive root itself is missing, unwritable or not a
+    // directory. Say that, and do not try to "clear a stale lock" that never was.
+    return {
+      ok: false,
+      path: opts.path,
+      holder: null,
+      code: first.code,
+      reason: describeLockError(first.code, opts.path),
+    };
   }
 
   const holder = readLockHolder(opts.path);
@@ -198,14 +275,27 @@ export function acquireLock(opts: {
   } catch {
     /* someone else may have removed it first — the create below decides */
   }
-  if (create()) {
+  const second = create();
+  if (second.ok) {
     return { ok: true, path: opts.path, tookOver, release: () => releaseLock(opts.path, pid) };
+  }
+  if (!second.exists) {
+    // The root vanished between the two attempts (a publish replacing the disk
+    // does exactly this). Still not contention — name the real cause.
+    return {
+      ok: false,
+      path: opts.path,
+      holder: null,
+      code: second.code,
+      reason: describeLockError(second.code, opts.path),
+    };
   }
   return {
     ok: false,
     path: opts.path,
     holder: readLockHolder(opts.path),
-    reason: "could not acquire after clearing a stale lock",
+    code: null,
+    reason: "another run took the lock while a stale one was being cleared",
   };
 }
 

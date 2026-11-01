@@ -24,7 +24,7 @@
  *     is reported rather than silently ignored.
  */
 import { failedStatus, writeBackupStatus } from "../../scripts/lib/backup-core";
-import { backupEventLine, staleEventLine, type BackupFreshness } from "./backup-status";
+import { backupEventLine, staleEventLine, writeBackupRefusal, type BackupFreshness } from "./backup-status";
 
 export interface BackupRunOutcome {
   ok: boolean;
@@ -62,6 +62,14 @@ export interface BackupSchedulerOptions {
   disabledReason?: string;
   /** Called with the message of any failure so the caller can persist it. */
   recordFailure?: (message: string) => void;
+  /**
+   * SLICE 165 — called with the reason a run was REFUSED (skipped). A refusal is
+   * not a failure and must not age the last good copy, but it is the only thing
+   * that explains a deployment whose backups never start, so it is persisted
+   * separately. Without this, a deployment that refuses every run leaves no
+   * trace on disk at all.
+   */
+  recordSkip?: (reason: string) => void;
   /**
    * SLICE 147 — read the CURRENT freshness from the durable status file. Called
    * after every attempt so a stale or failing deployment produces a structured,
@@ -279,13 +287,24 @@ export function startBackupScheduler(opts: BackupSchedulerOptions): BackupSchedu
         // THROWING run wrote its reason to backup_status.json; a run that
         // returned ok=false kept it in this process's memory, so the page showed
         // "1 failure since boot" with no reason and the reason vanished on the
-        // next restart. A skipped run is a REFUSAL (another run held the lock),
-        // not a failure of this deployment's backups, so it writes nothing.
+        // next restart. A skipped run is a REFUSAL (another run held the lock, or
+        // the archive root was unusable), not a failure of this deployment's
+        // backups, so it writes no failure — but slice 165 does record the
+        // REASON durably (recordSkip), because a refusal nobody wrote down is
+        // indistinguishable from a deployment that never tried.
         if (!outcome?.skipped) {
           try {
             opts.recordFailure?.(status.lastError);
           } catch (recordErr: any) {
             log(`[backup] could not record the failure: ${recordErr?.message || recordErr}`);
+          }
+        } else {
+          // SLICE 165 — a REFUSAL is not a failure, but it must not be a secret
+          // either: this is the line the live deployment was missing.
+          try {
+            opts.recordSkip?.(status.lastError);
+          } catch (recordErr: any) {
+            log(`[backup] could not record the refusal: ${recordErr?.message || recordErr}`);
           }
         }
         log(
@@ -387,5 +406,16 @@ export function backupFailureRecorder(dataDir: string, target: string): (message
     } catch {
       /* the admin surface will keep reporting the previous status — never crash */
     }
+  };
+}
+
+/**
+ * SLICE 165 — the refusal recorder. Writes the reason into the durable status
+ * without touching a single failure counter: nothing was attempted, so nothing
+ * failed, but the owner must still be able to read WHY on a page reload.
+ */
+export function backupRefusalRecorder(dataDir: string, target: string): (reason: string) => void {
+  return (reason: string) => {
+    writeBackupRefusal(dataDir, { at: new Date().toISOString(), reason, target });
   };
 }

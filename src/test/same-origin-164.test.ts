@@ -125,10 +125,17 @@ describe("slice 164 — a genuine cross-site POST is still refused", () => {
     expect(result.ok).toBe(false);
   });
 
-  it("refuses when the process knows no hosts at all", () => {
-    const result = checkSameOrigin({ origin: "https://simplerlife100.cto.site" });
+  // SLICE 165 SUPERSEDED THIS CASE. It used to assert that a request carrying
+  // no host information at all refused our own public hostname — which is
+  // exactly what the live deployment needed to accept (the edge rewrote `Host`
+  // to a preview name and sent no `X-Forwarded-Host`). Our own hostnames are now
+  // known to the check by name (see DEFAULT_ALLOWED_HOSTS and
+  // src/test/live-backup-165.test.ts), and a host that is NOT ours is still
+  // refused even when the request tells us nothing.
+  it("still refuses a host that is not ours when the request tells us nothing", () => {
+    const result = checkSameOrigin({ origin: "https://unknown.example" });
     expect(result.ok).toBe(false);
-    expect(result.reason).toContain("none known");
+    expect(result.reason).toContain("matches none of this request's hosts");
   });
 
   it("reads the headers off a real Request-shaped object", () => {

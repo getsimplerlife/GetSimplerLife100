@@ -32,17 +32,19 @@ import { readBackupStatus, countStoreEntries, readBackupFreshness, resolveStaleF
 import { runBackup } from "./scripts/lib/backup-core";
 import { makeEncryptHook } from "./scripts/lib/backup-crypto";
 import { uploadVerifiedRun } from "./scripts/lib/r2-backup";
-import { acquireLock, daemonStatus, runLockPath } from "./scripts/lib/backup-daemon";
+import { acquireLock, daemonStatus, ensureArchiveRoot, runLockPath } from "./scripts/lib/backup-daemon";
 import { peekUploadPrefix } from "./src/lib/r2-upload";
 // SLICE 163 - which off-box namespace this deployment owns, and whether the copy
 // in it is real. Both read facts this process already has; neither writes.
 import { resolveDeploymentNamespace } from "./src/lib/backup-namespace";
+import { resolveArchiveBackupDir } from "./src/lib/backup-dir";
 import { buildBackupHealthReport } from "./src/lib/backup-health";
 // SLICE 156 — the page-side 404 is decided from the router's own route table.
 import { matchesDeclaredRoute, looksLikeStaticFile, normalizeRoutePath } from "./src/lib/route-match";
 import { loadDeclaredRoutePatterns } from "./src/lib/route-table";
 import {
   backupFailureRecorder,
+  backupRefusalRecorder,
   backupSchedulerDisabled,
   resolveBackupInterval,
   startBackupScheduler,
@@ -338,6 +340,18 @@ logPageViewCounterLocation(DATA_DIR, SERVER_BASE);
 // Bounded by a timeout so a slow bucket can never hold the boot open, and it
 // never throws — the outcome is reported on the data-health page either way.
 const PRE_BOOT_MARKER = readGenerationMarker(DATA_DIR);
+// SLICE 165 — WHICH NAMESPACE, RESOLVED BEFORE THE RESTORE.
+// This used to be computed only for the UPLOADER, 170 lines below the boot
+// restore. The restore therefore ran with `process.env`, never saw the derived
+// instance id, found no `backup_instance.json` in a brand-new directory, fell
+// back to the flat base prefix and restored the newest object belonging to ANY
+// deployment — this dev box's `host-primary` archive, reported as this
+// deployment's recovery. One derivation, used by both legs.
+const ARCHIVE_BACKUP_NAMESPACE = resolveDeploymentNamespace({ env: process.env, dataDir: DATA_DIR });
+// The environment handed to the uploader AND the restore: an explicit override
+// passes through untouched, otherwise it carries the derived instance id. This
+// is also what stops the upload path from writing a random-id marker into DATA_DIR.
+const ARCHIVE_BACKUP_UPLOAD_ENV: Record<string, string | undefined> = ARCHIVE_BACKUP_NAMESPACE.env;
 {
   const timeoutMs = (() => {
     const n = Number(process.env.BOOT_RESTORE_TIMEOUT_MS);
@@ -347,6 +361,9 @@ const PRE_BOOT_MARKER = readGenerationMarker(DATA_DIR);
     dataDir: DATA_DIR,
     processStartedAt: PROCESS_STARTED_AT,
     markerFirstSeenAt: PRE_BOOT_MARKER.marker?.firstSeenAt ?? null,
+    // SLICE 165 — the SAME environment the uploader uses, so the restore lists
+    // this deployment's own namespace instead of the shared base prefix.
+    env: ARCHIVE_BACKUP_UPLOAD_ENV,
     log: (m) => console.log(m),
   });
   const timedOut = new Promise<{ ok: false; attempted: true; error: string }>((resolve) =>
@@ -475,7 +492,15 @@ startBackupSweeper();
 // scripts/lib/backup-core.ts — one implementation, not a copy) shortly after
 // boot and then hourly. It never throws into the server, never overlaps itself
 // and is DISABLED under test so the suite cannot write archives.
-const ARCHIVE_BACKUP_DIR = process.env.BACKUP_DIR?.trim() || "/home/team/shared/backups";
+// SLICE 165 — the archive root is DERIVED from DATA_DIR, not hardcoded to this
+// dev box. It used to be `... || "/home/team/shared/backups"`, a path that does
+// not exist on the published deployment, so every run there died creating a lock
+// inside a directory that was never there, and the failure was reported as a
+// contended lock. See src/lib/backup-dir.ts: an explicit BACKUP_DIR still wins;
+// otherwise the root is a sibling of DATA_DIR — which on this box is exactly the
+// old literal, so nothing about this machine's behaviour changes.
+const ARCHIVE_BACKUP_DIR_RESOLVED = resolveArchiveBackupDir({ env: process.env, dataDir: DATA_DIR });
+const ARCHIVE_BACKUP_DIR = ARCHIVE_BACKUP_DIR_RESOLVED.dir;
 const ARCHIVE_BACKUP_INTERVAL_MS = resolveBackupInterval(process.env);
 const ARCHIVE_BACKUP_FIRST_DELAY_MS = (() => {
   const n = Number(process.env.BACKUP_FIRST_DELAY_MS);
@@ -506,11 +531,6 @@ const ARCHIVE_BACKUP_PASSPHRASE = (process.env.BACKUP_PASSPHRASE || "").trim();
 // throwaway run's. The role is decided from facts this process has (see
 // src/lib/backup-namespace.ts): an explicit override wins, then the shared dev
 // box (host-primary), then a deployment on its own filesystem (live).
-const ARCHIVE_BACKUP_NAMESPACE = resolveDeploymentNamespace({ env: process.env, dataDir: DATA_DIR });
-// The environment handed to the uploader: an explicit override passes through
-// untouched, otherwise it carries the derived instance id. This is also what
-// stops the upload path from writing a random-id marker into DATA_DIR.
-const ARCHIVE_BACKUP_UPLOAD_ENV: Record<string, string | undefined> = ARCHIVE_BACKUP_NAMESPACE.env;
 const ARCHIVE_BACKUP_INSTANCE = peekUploadPrefix(ARCHIVE_BACKUP_UPLOAD_ENV, DATA_DIR);
 // SLICE 147: staleness is measured against the schedule, not against a magic
 // number: 2.5 x the interval tolerates one missed run and shouts at two.
@@ -530,10 +550,29 @@ async function performArchiveBackup(reason: string): Promise<BackupRunOutcome> {
   // SLICE 149: one run at a time ACROSS processes. The loop beside this server,
   // a human running scripts/backup.mjs, and this scheduler share one lock; a
   // refusal is reported and changes nothing (no status write - nothing failed).
+  // SLICE 165 — CREATE THE ROOT FIRST. The run lock is a file INSIDE the archive
+  // root, and until now the only code that ever created that root was
+  // `runBackup`, which this function had not reached yet. On a container whose
+  // disk is replaced by every publish the directory is never there, so
+  // `openSync(..., "wx")` answered ENOENT and the run could not start at all.
+  const root = ensureArchiveRoot(ARCHIVE_BACKUP_DIR);
+  if (!root.ok) {
+    const error = root.reason ?? `archive root is not usable: ${ARCHIVE_BACKUP_DIR}`;
+    console.log(`[backup] refused before the run: ${error}`);
+    return { ok: false, skipped: true, error };
+  }
   const runLock = acquireLock({ path: runLockPath(ARCHIVE_BACKUP_DIR), reason: `prod-server-${reason}` });
   if (!runLock.ok) {
-    console.log(`[backup] refused a concurrent run: ${runLock.reason}`);
-    return { ok: false, skipped: true, error: `another backup run holds ${runLock.path} - ${runLock.reason}` };
+    // SLICE 165 — say what actually happened. `runLock.code` is null ONLY for
+    // real contention (EEXIST); a missing or unwritable archive root is quoted
+    // verbatim instead of being announced as "another backup run holds the lock",
+    // which is the sentence that sent the owner hunting for a process that did
+    // not exist.
+    const error = runLock.code
+      ? runLock.reason
+      : `another backup run holds ${runLock.path} — ${runLock.reason}`;
+    console.log(`[backup] refused: ${error}`);
+    return { ok: false, skipped: true, error };
   }
   try {
     const r = runBackup({
@@ -576,6 +615,10 @@ const archiveScheduler = startBackupScheduler({
   disabled: archiveSchedulerDisabled,
   disabledReason: archiveSchedulerDisabledReason,
   recordFailure: backupFailureRecorder(DATA_DIR, ARCHIVE_BACKUP_DIR),
+  // SLICE 165 — and the reason a run was REFUSED. Not a failure, but not a
+  // secret either: a refusal nobody wrote down looks exactly like a deployment
+  // that never tried.
+  recordSkip: backupRefusalRecorder(DATA_DIR, ARCHIVE_BACKUP_DIR),
   // SLICE 147 — a stopped or failing backup must complain in the logs, not just
   // leave a quietly ageing timestamp.
   freshness: () =>
@@ -3569,7 +3612,12 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
           );
           return Response.json({ error: `cross-origin request refused — ${sameOrigin.reason}` }, { status: 403 });
         }
-        const outcome = await performArchiveBackup("owner-request");
+        // SLICE 165 — the button goes through the SCHEDULER, not straight at the
+        // pipeline. Pressed directly, its outcome never touched `failures`, never
+        // reached `recordFailure`/`recordSkip`, and disappeared on the next page
+        // load: the owner's own diagnostic was the one thing the page forgot. Now
+        // the button and the hourly timer write the same evidence.
+        const outcome = await archiveScheduler.trigger("owner-request");
         const schedulerNow = archiveScheduler.status();
         return Response.json({
           ...outcome,

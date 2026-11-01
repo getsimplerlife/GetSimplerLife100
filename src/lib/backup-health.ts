@@ -36,7 +36,8 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { DURABLE_STORES, isDirectoryStore } from "./durable-stores";
 import { isInsidePublishTree } from "./data-dir-policy";
-import { readBackupStatus } from "./backup-status";
+import { readBackupStatus, refusalFromRaw } from "./backup-status";
+import type { BackupRefusalRecord } from "./backup-status";
 import { describeR2Config } from "./r2-upload";
 import type { DeploymentNamespace } from "./backup-namespace";
 
@@ -130,6 +131,13 @@ export interface BackupHealthReport {
     lastOkAt: string | null;
     lastError: string | null;
   } | null;
+  /**
+   * SLICE 165 — the last run this deployment REFUSED, and why. A refusal is not
+   * a failure (nothing was attempted), so it has no counter — but it is the one
+   * thing that explains a deployment whose backups never start, and until this
+   * slice it was the one thing never written down. Null once a real run runs.
+   */
+  refusal: BackupRefusalRecord | null;
   checkedAt: string;
 }
 
@@ -418,6 +426,9 @@ export function buildBackupHealthReport(opts: {
       reason: coverageReason,
     },
     scheduler: opts.scheduler ?? null,
+    // SLICE 165 — read from the same raw status object as everything else, so a
+    // refusal the page shows is a refusal the run actually recorded.
+    refusal: refusalFromRaw(rawStatus),
     checkedAt: now.toISOString(),
   };
 }
