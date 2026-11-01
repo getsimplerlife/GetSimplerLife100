@@ -22,7 +22,15 @@ import { fileURLToPath } from "node:url";
  *
  * Nothing in this file statically imports `src/db/auth.ts` or anything that
  * pulls it in — every import of it is dynamic and behind `vi.resetModules()`,
- * because the whole point is what happens while that module is being evaluated.
+ * because each assertion needs a module registry whose key state is exactly
+ * what the test set.
+ *
+ * SLICE 166 changed WHERE the failure is observable. `src/db/auth.ts` used to
+ * read the key while its module was evaluated, which threw in a browser (where
+ * `process` is undefined) and blanked the dev site. It now reads the key lazily
+ * on first use, so importing it must SUCCEED with no key present and the throw
+ * must happen at the first `createSessionToken` / `verifySessionToken`. The
+ * fail-closed contract is unchanged; only the observation point moved.
  */
 
 const REAL_KEY = "unit-test-real-key-slice-154-abcdefghijklmnop";
@@ -48,22 +56,56 @@ async function importJwtKey() {
   return import("../lib/jwt-key");
 }
 
+/**
+ * SLICE 166 — the key is read lazily, so "the process has no usable key" is no
+ * longer observable as a failed *import*: importing `db/auth` is now safe in a
+ * browser graph (that is the whole point of the slice). The fail-closed
+ * contract moved to the two functions that actually use the key. These helpers
+ * are how every assertion below reaches that point.
+ */
+async function signError(secret: string | undefined): Promise<Error | null> {
+  try {
+    const auth = await importAuth(secret);
+    await auth.createSessionToken(USER_ID);
+    return null;
+  } catch (e) {
+    return e as Error;
+  }
+}
+
+async function verifyError(secret: string | undefined): Promise<Error | null> {
+  try {
+    const auth = await importAuth(secret);
+    await auth.verifySessionToken("any.token.value");
+    return null;
+  } catch (e) {
+    return e as Error;
+  }
+}
+
 afterEach(() => {
   if (ORIGINAL_SECRET === undefined) delete process.env.JWT_SECRET;
   else process.env.JWT_SECRET = ORIGINAL_SECRET;
   vi.resetModules();
 });
 
-describe("SLICE 154 — auth.ts refuses to load without a real signing key", () => {
-  it("throws while being imported when JWT_SECRET is absent", async () => {
-    await expect(importAuth(undefined)).rejects.toThrow(/FATAL: JWT_SECRET is missing/);
+describe("SLICE 154 — auth.ts refuses to sign or verify without a real signing key", () => {
+  it("importing the module is safe with no key, and the first sign throws", async () => {
+    // SLICE 166: this module is in the browser bundle's import graph, so it must
+    // be importable with no key at all — that is what made the dev site blank.
+    const auth = await importAuth(undefined);
+    expect(typeof auth.createSessionToken).toBe("function");
+    await expect(auth.createSessionToken(USER_ID)).rejects.toThrow(/FATAL: JWT_SECRET is missing/);
+  });
+
+  it("the first verify throws too — a keyless process does not answer 'invalid token'", async () => {
+    const err = await verifyError(undefined);
+    expect(err).toBeInstanceOf(Error);
+    expect(String(err?.message ?? "")).toMatch(/FATAL: JWT_SECRET is missing/);
   });
 
   it("the failure message is a single readable line that says what to set", async () => {
-    const err = await importAuth(undefined).then(
-      () => null,
-      (e: unknown) => e as Error,
-    );
+    const err = await signError(undefined);
     expect(err).toBeInstanceOf(Error);
     const message = String(err?.message ?? "");
     // One line, readable from a log with no other context.
@@ -75,19 +117,25 @@ describe("SLICE 154 — auth.ts refuses to load without a real signing key", () 
   });
 
   it("throws for a 31-character key and names the length", async () => {
-    await expect(importAuth(SHORT_KEY)).rejects.toThrow(
+    const err = await signError(SHORT_KEY);
+    expect(err).toBeInstanceOf(Error);
+    expect(String(err?.message ?? "")).toMatch(
       /JWT_SECRET is too short \(31 characters, 32 required\)/,
     );
   });
 
   it("throws for an empty-string key (not treated as absent-but-fine)", async () => {
-    await expect(importAuth("")).rejects.toThrow(/FATAL: JWT_SECRET is missing/);
+    const err = await signError("");
+    expect(err).toBeInstanceOf(Error);
+    expect(String(err?.message ?? "")).toMatch(/FATAL: JWT_SECRET is missing/);
   });
 
-  it("loads with exactly 32 characters", async () => {
+  it("loads and signs with exactly 32 characters", async () => {
     const auth = await importAuth(EXACT_KEY);
     expect(typeof auth.createSessionToken).toBe("function");
     expect(typeof auth.verifySessionToken).toBe("function");
+    const token = await auth.createSessionToken(USER_ID);
+    expect(await auth.verifySessionToken(token)).toBe(USER_ID);
   });
 
   it("loads with a real key and still signs/verifies the same payload", async () => {

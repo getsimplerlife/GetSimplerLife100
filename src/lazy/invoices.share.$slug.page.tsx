@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useParams, useSearch } from "@tanstack/react-router";
 import { Card, Badge } from "~/components/ui";
 
 /**
@@ -45,8 +46,11 @@ function money(cents: number, currency: string): string {
 }
 
 export default function InvoiceSharePage() {
-  const slug = (window.location.pathname.match(/\/invoices\/share\/([^/]+)/) || [])[1] || "";
-  const checkoutState = new URLSearchParams(window.location.search).get("checkout");
+  // SLICE 166 — route params and the ?checkout= flag come from the router, not
+  // `window`. Reading `window.location` while rendering threw during SSR, so the
+  // server fell back to client rendering for a customer-facing link.
+  const { slug } = useParams({ from: "/invoices/share/$slug" });
+  const { checkout: checkoutState } = useSearch({ from: "/invoices/share/$slug" });
   const [view, setView] = useState<InvoiceView | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");

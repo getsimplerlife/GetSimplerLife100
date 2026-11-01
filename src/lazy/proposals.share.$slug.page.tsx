@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useParams } from "@tanstack/react-router";
 import { Card, Badge, Button } from "~/components/ui";
 
 interface ShareLineItem {
@@ -25,7 +26,10 @@ const CANVAS_W = 280;
 const CANVAS_H = 90;
 
 export default function ProposalSharePage() {
-  const slug = (window.location.pathname.match(/\/proposals\/share\/([^/]+)/) || [])[1] || "";
+  // SLICE 166 — the slug comes from the router, not `window`. Reading
+  // `window.location` while rendering threw during SSR, so the server fell back
+  // to client rendering for a customer-facing link.
+  const { slug } = useParams({ from: "/proposals/share/$slug" });
   const [view, setView] = useState<ShareView | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
