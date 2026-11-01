@@ -123,6 +123,7 @@ export const DURABLE_STORES: readonly string[] = [
   "native_webhook_sinks.json",
   "native_webhook_subscriptions.json",
   "oauth_states.json",
+  "page_views.json",
   "password_resets.json",
   "pending_emails.json",
   "retrieval_index.json",
