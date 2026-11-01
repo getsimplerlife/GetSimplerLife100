@@ -34,6 +34,10 @@ import { makeEncryptHook } from "./scripts/lib/backup-crypto";
 import { uploadVerifiedRun } from "./scripts/lib/r2-backup";
 import { acquireLock, daemonStatus, runLockPath } from "./scripts/lib/backup-daemon";
 import { peekUploadPrefix } from "./src/lib/r2-upload";
+// SLICE 163 - which off-box namespace this deployment owns, and whether the copy
+// in it is real. Both read facts this process already has; neither writes.
+import { resolveDeploymentNamespace } from "./src/lib/backup-namespace";
+import { buildBackupHealthReport } from "./src/lib/backup-health";
 // SLICE 156 — the page-side 404 is decided from the router's own route table.
 import { matchesDeclaredRoute, looksLikeStaticFile, normalizeRoutePath } from "./src/lib/route-match";
 import { loadDeclaredRoutePatterns } from "./src/lib/route-table";
@@ -42,6 +46,7 @@ import {
   backupSchedulerDisabled,
   resolveBackupInterval,
   startBackupScheduler,
+  type BackupRunOutcome,
 } from "./src/lib/backup-scheduler";
 // SLICE 159 — the first-party page counter. Counting happens at ONE choke point
 // (the response of every request — see countPageViewAtTheDoor below), so no page
@@ -446,48 +451,79 @@ const archiveSchedulerDisabledReason = archiveSchedulerOff.disabled
 // off this machine. Both are no-ops without BACKUP_PASSPHRASE - the gate lives
 // in scripts/lib/r2-backup.ts and refuses to upload anything unencrypted.
 const ARCHIVE_BACKUP_PASSPHRASE = (process.env.BACKUP_PASSPHRASE || "").trim();
-// SLICE 147: which namespace this deployment writes into. Read-only here (the id
-// is created by the first upload) so a boot never mutates DATA_DIR.
-const ARCHIVE_BACKUP_INSTANCE = peekUploadPrefix(process.env, DATA_DIR);
+// SLICE 163 - WHICH off-box namespace this deployment owns. Until now a
+// deployment with no override derived a random id from its data directory, so
+// the published site's archives were indistinguishable in the bucket from a
+// throwaway run's. The role is decided from facts this process has (see
+// src/lib/backup-namespace.ts): an explicit override wins, then the shared dev
+// box (host-primary), then a deployment on its own filesystem (live).
+const ARCHIVE_BACKUP_NAMESPACE = resolveDeploymentNamespace({ env: process.env, dataDir: DATA_DIR });
+// The environment handed to the uploader: an explicit override passes through
+// untouched, otherwise it carries the derived instance id. This is also what
+// stops the upload path from writing a random-id marker into DATA_DIR.
+const ARCHIVE_BACKUP_UPLOAD_ENV: Record<string, string | undefined> = ARCHIVE_BACKUP_NAMESPACE.env;
+const ARCHIVE_BACKUP_INSTANCE = peekUploadPrefix(ARCHIVE_BACKUP_UPLOAD_ENV, DATA_DIR);
 // SLICE 147: staleness is measured against the schedule, not against a magic
 // number: 2.5 x the interval tolerates one missed run and shouts at two.
 const ARCHIVE_STALE_FACTOR = resolveStaleFactor(process.env);
+// SLICE 163 - how soon a never-backed-up or overdue deployment runs after boot.
+// The published deployment sleeps between visits, so a fixed 60s first delay can
+// outlive the whole wake-up; see resolveFirstBackupDelay.
+const ARCHIVE_CATCH_UP_DELAY_MS = (() => {
+  const n = Number(process.env.BACKUP_CATCH_UP_DELAY_MS);
+  return Number.isFinite(n) && n >= 0 ? n : 15_000;
+})();
+/**
+ * SLICE 163 - ONE named archive+upload run, so the hourly timer and the owner's
+ * "run it now" button cannot drift apart. Returns, never throws.
+ */
+async function performArchiveBackup(reason: string): Promise<BackupRunOutcome> {
+  // SLICE 149: one run at a time ACROSS processes. The loop beside this server,
+  // a human running scripts/backup.mjs, and this scheduler share one lock; a
+  // refusal is reported and changes nothing (no status write - nothing failed).
+  const runLock = acquireLock({ path: runLockPath(ARCHIVE_BACKUP_DIR), reason: `prod-server-${reason}` });
+  if (!runLock.ok) {
+    console.log(`[backup] refused a concurrent run: ${runLock.reason}`);
+    return { ok: false, skipped: true, error: `another backup run holds ${runLock.path} - ${runLock.reason}` };
+  }
+  try {
+    const r = runBackup({
+      dataDir: DATA_DIR,
+      outDir: ARCHIVE_BACKUP_DIR,
+      log: (m) => console.log(`[backup] ${m}`),
+      encrypt: makeEncryptHook(ARCHIVE_BACKUP_PASSPHRASE, (m) => console.log(`[backup] ${m}`)),
+    });
+    // Only reached when runBackup returned: digests, coverage and (if
+    // encrypting) the decrypt-and-re-verify round trip all passed.
+    const r2 = await uploadVerifiedRun({
+      dataDir: DATA_DIR,
+      // SLICE 163: the namespace resolved for THIS deployment (live vs
+      // host-primary vs an explicit override), not whatever the environment
+      // happens to imply.
+      env: ARCHIVE_BACKUP_UPLOAD_ENV,
+      runDir: r.target,
+      manifest: r.manifest,
+      passphrase: ARCHIVE_BACKUP_PASSPHRASE,
+      log: (m) => console.log(m),
+    });
+    return { ok: true, runId: r.runId, files: r.files, bytes: r.bytes, r2 };
+  } catch (e: any) {
+    // runBackup already wrote a failed status; the scheduler records it too.
+    return { ok: false, error: e?.message || String(e) };
+  } finally {
+    runLock.release();
+  }
+}
 const archiveScheduler = startBackupScheduler({
-  run: async () => {
-    // SLICE 149: one run at a time ACROSS processes. The loop beside this server,
-    // a human running scripts/backup.mjs, and this scheduler share one lock; a
-    // refusal is reported and changes nothing (no status write — nothing failed).
-    const runLock = acquireLock({ path: runLockPath(ARCHIVE_BACKUP_DIR), reason: "prod-server-scheduler" });
-    if (!runLock.ok) {
-      console.log(`[backup] refused a concurrent run: ${runLock.reason}`);
-      return { ok: false, skipped: true, error: `another backup run holds ${runLock.path} — ${runLock.reason}` };
-    }
-    try {
-      const r = runBackup({
-        dataDir: DATA_DIR,
-        outDir: ARCHIVE_BACKUP_DIR,
-        log: (m) => console.log(`[backup] ${m}`),
-        encrypt: makeEncryptHook(ARCHIVE_BACKUP_PASSPHRASE, (m) => console.log(`[backup] ${m}`)),
-      });
-      // Only reached when runBackup returned: digests, coverage and (if
-      // encrypting) the decrypt-and-re-verify round trip all passed.
-      const r2 = await uploadVerifiedRun({
-        dataDir: DATA_DIR, // SLICE 147: resolves this deployment's own R2 namespace
-        runDir: r.target,
-        manifest: r.manifest,
-        passphrase: ARCHIVE_BACKUP_PASSPHRASE,
-        log: (m) => console.log(m),
-      });
-      return { ok: true, runId: r.runId, files: r.files, bytes: r.bytes, r2 };
-    } catch (e: any) {
-      // runBackup already wrote a failed status; the scheduler records it too.
-      return { ok: false, error: e?.message || String(e) };
-    } finally {
-      runLock.release();
-    }
-  },
+  run: () => performArchiveBackup("scheduled"),
   intervalMs: ARCHIVE_BACKUP_INTERVAL_MS,
   firstDelayMs: ARCHIVE_BACKUP_FIRST_DELAY_MS,
+  // SLICE 163: catch up on wake. The durable last SUCCESS decides the first
+  // delay, so a deployment that has never backed up - or whose copy has aged
+  // past the interval while its sandbox slept - runs shortly after boot instead
+  // of waiting out a fixed delay it may never reach.
+  lastOkAt: () => readBackupStatus(DATA_DIR).lastBackupOkAt,
+  catchUpDelayMs: ARCHIVE_CATCH_UP_DELAY_MS,
   disabled: archiveSchedulerDisabled,
   disabledReason: archiveSchedulerDisabledReason,
   recordFailure: backupFailureRecorder(DATA_DIR, ARCHIVE_BACKUP_DIR),
@@ -3429,8 +3465,68 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
               (p) => typeof p === "string" && p.length > 0,
             ),
             runningBuildId: runningBuildId(SERVER_ENTRY_PATH),
+            // SLICE 163: does the data in this directory have a copy OFF this
+            // disk? Same page, same gate - a deployment whose backup has never
+            // run must read red here, not "fine".
+            backup: buildBackupHealthReport({
+              dataDir: DATA_DIR,
+              outDir: ARCHIVE_BACKUP_DIR,
+              namespace: ARCHIVE_BACKUP_NAMESPACE,
+              env: ARCHIVE_BACKUP_UPLOAD_ENV,
+              intervalMs: ARCHIVE_BACKUP_INTERVAL_MS,
+              staleFactor: ARCHIVE_STALE_FACTOR,
+              scheduler: (() => {
+                const st = archiveScheduler.status();
+                return {
+                  disabled: st.disabled,
+                  disabledReason: st.disabledReason,
+                  intervalMs: st.intervalMs,
+                  running: st.running,
+                  runs: st.runs,
+                  failures: st.failures,
+                  lastAttemptAt: st.lastAttemptAt,
+                  lastOkAt: st.lastOkAt,
+                  lastError: st.lastError,
+                };
+              })(),
+            }),
           }),
         );
+      }
+      if (subPath === "data-health/backup") {
+        // SLICE 163 - the owner's "run it now". A deployment that sleeps cannot
+        // wait for an hourly timer to prove itself, and an owner who has just
+        // been told the copy is stale needs a way to make it fresh. Owner-only
+        // (the gate above answers 401/403), POST-only, same-origin, and it runs
+        // the SAME function the timer runs - including the cross-process lock,
+        // so it can never overlap another run.
+        if (req.method !== "POST") {
+          return Response.json({ error: "method not allowed" }, { status: 405 });
+        }
+        const origin = req.headers.get("origin");
+        if (origin) {
+          let sameOrigin = false;
+          try {
+            sameOrigin = new URL(origin).host === new URL(req.url).host;
+          } catch {
+            sameOrigin = false;
+          }
+          if (!sameOrigin) {
+            return Response.json({ error: "cross-origin request refused" }, { status: 403 });
+          }
+        }
+        const outcome = await performArchiveBackup("owner-request");
+        return Response.json({
+          ...outcome,
+          backup: buildBackupHealthReport({
+            dataDir: DATA_DIR,
+            outDir: ARCHIVE_BACKUP_DIR,
+            namespace: ARCHIVE_BACKUP_NAMESPACE,
+            env: ARCHIVE_BACKUP_UPLOAD_ENV,
+            intervalMs: ARCHIVE_BACKUP_INTERVAL_MS,
+            staleFactor: ARCHIVE_STALE_FACTOR,
+          }),
+        });
       }
       if (subPath === "backup") {
         // Audit-B (10-26): wire the Health-page backup button to the REAL
