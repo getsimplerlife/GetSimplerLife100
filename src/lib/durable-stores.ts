@@ -36,6 +36,11 @@ export const DURABLE_STORES: readonly string[] = [
   "accessreview_pending.json",
   "assistant_audit.json",
   "assistant_messages.json",
+  // SLICE 164 — the boot-restore record: which archive this deployment recovered
+  // its data from, or why it could not. It is archived like everything else, and
+  // it is NEVER written back by a restore (see NEVER_RESTORED in boot-restore.ts):
+  // another machine's record would claim a recovery this deployment never had.
+  "boot_restore.json",
   "chat_sessions.json",
   "client_files.json",
   "dedupe_audit.json",
