@@ -45,6 +45,8 @@ function AdminLayout() {
     { name: "🩺 Infrastructure Health", path: "/portal/admin/health" },
     { name: "🛠️ Workflow Builder", path: "/portal/admin/workflow-builder" },
     { name: "🔍 Audit Logs", path: "/portal/admin/audit" },
+    // SLICE 159 — first-party page counter (owner-only, like every admin view).
+    { name: "📈 Page Views", path: "/portal/admin/page-views" },
     { name: "🔑 OAuth Credentials", path: "/portal/admin/credentials" },
   ];
 
