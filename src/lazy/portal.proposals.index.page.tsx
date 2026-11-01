@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { Card, Badge, Button } from "~/components/ui";
 import { PortalEmptyState, scrollToId } from "~/components/PortalEmptyState";
 
@@ -58,7 +59,9 @@ export default function ProposalsPage() {
     const json = await res.json();
     setItems(json.data || []);
     const wr = await fetch("/api/native/proposals/writes", { credentials: "include" });
-    if (wr.ok) setWrites((await wr.json()).data || []);
+    if (!wr.ok) throw new Error(`Failed to load the pending-writes queue (${wr.status})`);
+    const wjson = await wr.json();
+    setWrites(wjson.data || []);
   }, []);
 
   useEffect(() => {
@@ -127,8 +130,15 @@ export default function ProposalsPage() {
     await load();
   }
   async function applyWrite(id: string) {
-    const res = await api("POST", `/api/native/proposals/writes/${id}/apply`);
-    setFeedback(res.ok ? "Write applied." : "Write apply failed.");
+    // SLICE 167 (D-15) — report what the SERVER says, not what we hoped.
+    // A replay of an already-applied write answers 200 with alreadyApplied:
+    // true; saying "Write applied." there is a small lie that made the queue
+    // look like it had just changed something it had not.
+    const res = await fetch(`/api/native/proposals/writes/${id}/apply`, { method: "POST", credentials: "include" });
+    const j = (await res.json().catch(() => ({}))) as { error?: string; data?: { alreadyApplied?: boolean } };
+    if (!res.ok) setFeedback(j.error || `Write apply failed (${res.status}).`);
+    else if (j.data?.alreadyApplied) setFeedback("That write was already applied — nothing changed.");
+    else setFeedback("Write applied.");
     await load();
   }
   async function deleteProposal(id: string) {
@@ -145,6 +155,9 @@ export default function ProposalsPage() {
       setClip(url);
     }
   }
+
+  const pendingWrites = writes.filter((w) => w.status === "pending");
+  const appliedWrites = writes.filter((w) => w.status !== "pending").length;
 
   return (
     <div className="space-y-6 p-6">
@@ -210,7 +223,18 @@ export default function ProposalsPage() {
                   )}
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {p.status === "draft" && <Button onClick={() => action(p.id, "open")}>Open</Button>}
+                  {/* SLICE 167 (D-16) — "Open" OPENS the proposal. It used to
+                      queue an `open` write and leave the page where it was, so
+                      the quote could not be read anywhere, and once the status
+                      flipped to PENDING the row offered no way in at all. The
+                      lifecycle write now lives on the detail page. */}
+                  <Link
+                    to="/portal/proposals/$proposalId"
+                    params={{ proposalId: p.id }}
+                    className="inline-flex items-center rounded border p-2 text-sm"
+                  >
+                    Open
+                  </Link>
                   {p.status === "pending" && (
                     <>
                       <Button onClick={() => action(p.id, "approve")}>Approve</Button>
@@ -232,12 +256,20 @@ export default function ProposalsPage() {
       </Card>
 
       <Card>
-        <h2 className="mb-3 text-lg font-semibold">Pending writes ({writes.filter((w) => w.status === "pending").length})</h2>
-        {writes.filter((w) => w.status === "pending").length === 0 ? (
+        {/* SLICE 167 (D-15) — THE QUEUE MUST SHOW WHAT THE SERVER HOLDS AS
+            PENDING. It used to count `status === "pending"` in the heading but
+            render the WHOLE array, so a write that had already been applied
+            reappeared as if it were still waiting (and offered its own Apply
+            button). The server returns the full history — applied writes
+            included — which is the right thing for a durable record; the page
+            was the liar. Both the heading and the list now come from the same
+            filtered array, so they cannot disagree. */}
+        <h2 className="mb-3 text-lg font-semibold">Pending writes ({pendingWrites.length})</h2>
+        {pendingWrites.length === 0 ? (
           <p className="text-sm text-stone-500">Nothing waiting for approval.</p>
         ) : (
           <div className="space-y-2">
-            {writes.map((w) => (
+            {pendingWrites.map((w) => (
               <div key={w.id} className="flex items-center justify-between rounded border p-2 text-sm">
                 <span className="text-stone-400">
                   <code>{w.op}</code> · {w.via} · {new Date(w.requestedAt).toLocaleString()}
@@ -246,6 +278,11 @@ export default function ProposalsPage() {
               </div>
             ))}
           </div>
+        )}
+        {appliedWrites > 0 && (
+          <p className="mt-2 text-xs text-stone-500">
+            {appliedWrites} write{appliedWrites === 1 ? "" : "s"} already applied — not listed here.
+          </p>
         )}
       </Card>
     </div>

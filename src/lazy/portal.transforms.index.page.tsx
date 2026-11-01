@@ -42,15 +42,29 @@ interface PendingWrite {
   status: string;
   requestedAt: string;
 }
+/**
+ * SLICE 167 (D-8) — UNWRAP `data` AT THE CALL SITE, ONCE.
+ *
+ * Every native route answers `{ data: … }`. This page read `t.transforms` and
+ * `w.writes` off the ENVELOPE, so both were `undefined`, `setTransforms(undefined)`
+ * landed in state, and `transforms.map(...)` threw straight into the root error
+ * boundary — the page was dead for every user, owner included, and the boundary
+ * reported nothing.
+ *
+ * Fixing each call site is how this comes back: `loadRuns` had the same bug
+ * (`r.runs`). So the unwrap happens HERE, and a response with no `data` is an
+ * error rather than a silent `undefined` in state.
+ */
 async function api<T>(method: string, path: string, body?: unknown): Promise<T> {
   const res = await fetch(path, {
     method,
     headers: { "content-type": "application/json" },
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
-  const data = (await res.json().catch(() => ({}))) as T & { error?: string };
-  if (!res.ok) throw new Error((data as { error?: string }).error ?? `Request failed (${res.status})`);
-  return data as T;
+  const json = (await res.json().catch(() => ({}))) as { data?: T; error?: string };
+  if (!res.ok) throw new Error(json.error ?? `Request failed (${res.status})`);
+  if (json.data === undefined) throw new Error(`Malformed response from ${path} — no data envelope`);
+  return json.data;
 }
 const KIND_LABEL: Record<string, string> = { json: "JSON", xml: "XML", csv: "CSV", edi_x12: "EDI X12", edifact: "EDIFACT" };
 const EMPTY_FORM = {
@@ -96,7 +110,7 @@ export default function TransformsPage() {
     setBusy(true);
     setError("");
     try {
-      await api<{ data: unknown }>("POST", path, body);
+      await api<unknown>("POST", path, body);
       await refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -142,7 +156,7 @@ export default function TransformsPage() {
         }
         body.generation = gen;
       }
-      await api<{ data: unknown }>("POST", "/api/native/transform", body);
+      await api<unknown>("POST", "/api/native/transform", body);
       setForm({ ...EMPTY_FORM });
       await refresh();
     } catch (e) {
