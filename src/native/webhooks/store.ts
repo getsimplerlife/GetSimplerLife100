@@ -17,7 +17,10 @@
  *   native_webhook_audit.json           { [tenantId]: NativeAuditEntry[] }
  */
 import { readJSON, writeJSON, resolveDataDir } from "../../lib/data-store";
-import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
+import {
+  encryptIntegrationSecret,
+  decryptIntegrationSecret,
+} from "../../lib/integration-crypto";
 import {
   NATIVE_SINKS_KEY,
   NATIVE_RECEIPTS_KEY,
@@ -71,37 +74,17 @@ export function deleteSink(dataDir: string, sinkId: string): boolean {
   return true;
 }
 /**
- * Local AES-256-GCM cipher for webhook secrets at rest (same scheme the
- * platform uses for OAuth credentials; DB-free so the native layer stays
- * hermetic in tests). Key = INTEGRATION_ENCRYPTION_KEY when set (production
- * restart-stable), else a per-process random key (safe for this use: a secret
- * written by one process run is read back by the same run, and production
- * sets the env key).
+ * Secrets at rest: AES-256-GCM via `src/lib/integration-crypto.ts`.
+ *
+ * SLICE 173 (defect W6) — this used to fall back to a PER-PROCESS RANDOM key
+ * when `INTEGRATION_ENCRYPTION_KEY` was unset or short, which silently made
+ * every stored secret unreadable at the next restart. The key now comes from
+ * that one fail-closed module: absent/short key → refuse to write or read, with
+ * an error naming the variable. There is no fallback and no cached key.
  */
-const WEBHOOK_CIPHER = "aes-256-gcm";
-let cachedKey: Buffer | null = null;
-const secretKey = (): Buffer => {
-  if (cachedKey) return cachedKey;
-  const env = process.env.INTEGRATION_ENCRYPTION_KEY || "";
-  cachedKey = Buffer.from(env.length >= 32 ? env.slice(0, 32) : randomBytes(32).toString("hex").slice(0, 32));
-  return cachedKey;
-};
-export function encryptSecret(plain: string): string {
-  const iv = randomBytes(16);
-  const cipher = createCipheriv(WEBHOOK_CIPHER, secretKey(), iv);
-  let enc = cipher.update(plain, "utf8", "hex");
-  enc += cipher.final("hex");
-  return `${iv.toString("hex")}:${cipher.getAuthTag().toString("hex")}:${enc}`;
-}
-export function decryptSecret(encrypted: string): string {
-  const [ivHex, tagHex, body] = encrypted.split(":");
-  if (!ivHex || !tagHex || !body) throw new Error("Malformed encrypted secret");
-  const decipher = createDecipheriv(WEBHOOK_CIPHER, secretKey(), Buffer.from(ivHex, "hex"));
-  decipher.setAuthTag(Buffer.from(tagHex, "hex"));
-  let out = decipher.update(body, "hex", "utf8");
-  out += decipher.final("utf8");
-  return out;
-}
+export const encryptSecret = encryptIntegrationSecret;
+export const decryptSecret = decryptIntegrationSecret;
+export { integrationKeyProblem, integrationKeyUsable } from "../../lib/integration-crypto";
 
 // ── Receipts (tenant-keyed, bounded) ────────────────────────────────────────
 function tenantReceiptsPath(dataDir: string): string {

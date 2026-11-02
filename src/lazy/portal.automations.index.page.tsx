@@ -63,6 +63,17 @@ export default function AutomationsPage() {
   const [recipient, setRecipient] = useState("");
   const [actionKind, setActionKind] = useState<"notify" | "webhook" | "tableWrite" | "runTransform">("notify");
   const [autonomy, setAutonomy] = useState<string[]>([]);
+  // SLICE 173 (W1): a table write needs a table and a row, a transform run needs
+  // a transform. Without them the old code quietly created a WEBHOOK action —
+  // the UI said one thing and the record said another.
+  const [tables, setTables] = useState<{ id: string; name: string }[]>([]);
+  const [transforms, setTransforms] = useState<{ id: string; name: string; status: string }[]>([]);
+  const [tableId, setTableId] = useState("");
+  const [transformId, setTransformId] = useState("");
+  const [rowJson, setRowJson] = useState("");
+  const [transformSource, setTransformSource] = useState("");
+  // SLICE 173 (W2): a field-level validation error, shown on the field it is about.
+  const [fieldError, setFieldError] = useState<{ field: string; message: string } | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -80,6 +91,27 @@ export default function AutomationsPage() {
     }
   }, []);
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    // The action picker offers what this tenant actually owns — never a list we
+    // invented. A failed read leaves the list empty and the composer says so.
+    Promise.all([
+      fetch("/api/native/tables", { credentials: "include" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+      fetch("/api/native/transform", { credentials: "include" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+    ])
+      .then(([tablesRes, transformsRes]) => {
+        const tableList = Array.isArray(tablesRes?.data?.tables) ? tablesRes.data.tables : [];
+        setTables(tableList.map((t: { id: string; name?: string }) => ({ id: String(t.id), name: String(t.name ?? t.id) })));
+        const transformList = Array.isArray(transformsRes?.data?.transforms) ? transformsRes.data.transforms : [];
+        setTransforms(
+          transformList.map((t: { id: string; name?: string; status?: string }) => ({
+            id: String(t.id),
+            name: String(t.name ?? t.id),
+            status: String(t.status ?? ""),
+          })),
+        );
+      })
+      .catch(() => undefined);
+  }, []);
   useEffect(() => {
     fetch("/api/native/entitlements", { credentials: "include" })
       .then((r) => (r.ok ? r.json() : null))
@@ -113,15 +145,68 @@ export default function AutomationsPage() {
     }
   }
 
+  /**
+   * SLICE 173 (W1 + W2): build exactly the action the user chose, and refuse
+   * with a field-level error when the inputs for that action are missing. There
+   * is no default recipient, no substitute kind and no invented value anywhere
+   * in this function.
+   */
   function createRule() {
-    const actions = actionKind === "notify"
-      ? [{ kind: "notify", recipients: [recipient || "ops@example.com"], subject: "Automation fired", body: `Rule ${name} matched with amount > ${amount}.` }]
-      : [{ kind: "webhook", eventType, payload: { source: "automation" } }];
+    setFieldError(null);
+    setError("");
+    const ruleName = name.trim();
+    if (!ruleName) {
+      setFieldError({ field: "name", message: "Rule name is required." });
+      return;
+    }
+    let action: Record<string, unknown>;
+    if (actionKind === "notify") {
+      const to = recipient.trim();
+      if (!to) {
+        setFieldError({ field: "recipient", message: "Notify recipient email is required — enter the address this rule should email." });
+        return;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
+        setFieldError({ field: "recipient", message: `Notify recipient email "${to}" is not a valid email address.` });
+        return;
+      }
+      action = {
+        kind: "notify",
+        recipients: [to],
+        subject: "Automation fired",
+        body: `Rule ${ruleName} matched${amount ? ` with amount > ${amount}` : ""}.`,
+      };
+    } else if (actionKind === "webhook") {
+      action = { kind: "webhook", eventType, payload: { source: "automation" } };
+    } else if (actionKind === "tableWrite") {
+      if (!tableId) {
+        setFieldError({ field: "tableId", message: "Table write needs a table — choose one (none exist yet? create one in Tables first)." });
+        return;
+      }
+      let row: unknown;
+      try {
+        row = JSON.parse(rowJson);
+      } catch {
+        setFieldError({ field: "row", message: "Row to insert must be valid JSON, for example {\"name\":\"Acme\"}." });
+        return;
+      }
+      if (!row || typeof row !== "object" || Array.isArray(row)) {
+        setFieldError({ field: "row", message: "Row to insert must be a JSON object." });
+        return;
+      }
+      action = { kind: "tableWrite", tableId, row };
+    } else {
+      if (!transformId) {
+        setFieldError({ field: "transformId", message: "Run transform needs a transform — choose one (none exist yet? create one in Transforms first)." });
+        return;
+      }
+      action = { kind: "runTransform", transformId, ...(transformSource.trim() ? { source: transformSource } : {}) };
+    }
     void submit("/rules", {
-      name, description: "Built in the automations workspace",
+      name: ruleName, description: "Built in the automations workspace",
       trigger: triggerKind === "event" ? { kind: "event", eventType } : { kind: "schedule", cadence, timeUtc },
       conditions: amount ? [{ field: "amount", op: "gt", value: Number(amount) }] : [],
-      actions, autonomyAllowList: controlPlane ? autonomy : [],
+      actions: [action], autonomyAllowList: controlPlane ? autonomy : [],
     });
   }
   function lifecycle(ruleId: string, op: string) {
@@ -152,6 +237,11 @@ export default function AutomationsPage() {
         <p className="text-sm text-stone-500">Rules: event or schedule trigger → conditions → actions. Every write rides your Approval Queue; only allow-listed kinds auto-run.</p>
       </div>
       {error && <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{error}</div>}
+      {fieldError && (
+        <div role="alert" className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+          {fieldError.message}
+        </div>
+      )}
       {notice && <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-4 py-3 text-sm text-emerald-300">{notice}</div>}
 
       {/* SLICE 142 — control-plane state. Growth+ owns the controls; Starter
@@ -183,7 +273,7 @@ export default function AutomationsPage() {
         <h2 className="font-semibold mb-3">New rule</h2>
         <div className="grid gap-3 md:grid-cols-2">
           <input className="input w-full" placeholder="Rule name" value={name} onChange={(e) => setName(e.target.value)} />
-          <select className="input w-full" value={actionKind} onChange={(e) => setActionKind(e.target.value as typeof actionKind)}>
+          <select className="input w-full" aria-label="Action" value={actionKind} onChange={(e) => setActionKind(e.target.value as typeof actionKind)}>
             <option value="notify">Notify (email)</option>
             <option value="webhook">Webhook (publish event)</option>
             <option value="tableWrite">Table write</option>
@@ -206,8 +296,50 @@ export default function AutomationsPage() {
         </div>
         <div className="grid gap-3 md:grid-cols-2 mt-3">
           <input className="input w-full" placeholder="amount > ? (leave empty to always match)" value={amount} onChange={(e) => setAmount(e.target.value)} />
-          <input className="input w-full" placeholder="notify recipient email" value={recipient} onChange={(e) => setRecipient(e.target.value)} />
+          <input className="input w-full" aria-label="Notify recipient email" placeholder="notify recipient email" value={recipient} onChange={(e) => setRecipient(e.target.value)} />
         </div>
+        {actionKind === "tableWrite" && (
+          <div className="grid gap-3 md:grid-cols-2 mt-3">
+            <select className="input w-full" aria-label="Table" value={tableId} onChange={(e) => setTableId(e.target.value)}>
+              <option value="">Choose a table…</option>
+              {tables.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+            <input
+              className="input w-full"
+              aria-label="Row to insert (JSON)"
+              placeholder='Row to insert, JSON: {"name":"Acme"}'
+              value={rowJson}
+              onChange={(e) => setRowJson(e.target.value)}
+            />
+            {tables.length === 0 && (
+              <p className="md:col-span-2 text-xs text-stone-400">
+                You have no tables yet. Create one in Tables first — this rule will write a row into it.
+              </p>
+            )}
+          </div>
+        )}
+        {actionKind === "runTransform" && (
+          <div className="grid gap-3 md:grid-cols-2 mt-3">
+            <select className="input w-full" aria-label="Transform" value={transformId} onChange={(e) => setTransformId(e.target.value)}>
+              <option value="">Choose a transform…</option>
+              {transforms.map((t) => (
+                <option key={t.id} value={t.id}>{t.status === "active" ? t.name : `${t.name} (${t.status || "not active"})`}</option>
+              ))}
+            </select>
+            <input
+              className="input w-full"
+              aria-label="Transform source (optional)"
+              placeholder="Source text to run the transform on (optional)"
+              value={transformSource}
+              onChange={(e) => setTransformSource(e.target.value)}
+            />
+            {transforms.length === 0 && (
+              <p className="md:col-span-2 text-xs text-stone-400">
+                You have no transforms yet. Create one in Transforms first — this rule will run it.
+              </p>
+            )}
+          </div>
+        )}
         <div className="mt-3 flex flex-wrap gap-2 items-center">
           <span className="text-xs text-stone-500">Auto-run (allow-list):</span>
           {["notify", "webhook", "tableWrite", "runTransform"].map((k) => (

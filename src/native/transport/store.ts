@@ -6,12 +6,16 @@
  * to null → fail-closed 404 upstream).
  *
  * Secret hygiene: connection credentials and PGP key material are stored
- * ENCRYPTED AT REST (AES-256-GCM, key = INTEGRATION_ENCRYPTION_KEY when set,
- * else a per-process random key — hermetic in tests: a secret written by one
- * process run is read back by the same run, and production sets the env key).
- * No GET lane ever returns the plaintext.
+ * ENCRYPTED AT REST (AES-256-GCM, key = INTEGRATION_ENCRYPTION_KEY, fail-closed
+ * since slice 173 — no per-process fallback key exists, because such a key made
+ * every stored secret unreadable after a restart). No GET lane ever returns the
+ * plaintext.
  */
-import { createCipheriv, createDecipheriv, randomBytes, createHash } from "node:crypto";
+import { randomBytes, createHash } from "node:crypto";
+import {
+  encryptIntegrationSecret,
+  decryptIntegrationSecret,
+} from "../../lib/integration-crypto";
 import { readJSON, writeJSON, resolveDataDir } from "../../lib/data-store";
 import {
   NATIVE_TRANSPORT_CONNECTIONS_KEY,
@@ -28,31 +32,19 @@ import {
   type TransferRun,
 } from "./types";
 
-const CIPHER = "aes-256-gcm";
-let cachedKey: Buffer | null = null;
-function secretKey(): Buffer {
-  if (cachedKey) return cachedKey;
-  const env = process.env.INTEGRATION_ENCRYPTION_KEY || "";
-  cachedKey = Buffer.from(env.length >= 32 ? env.slice(0, 32) : randomBytes(32).toString("hex").slice(0, 32));
-  return cachedKey;
-}
-export function encryptSecret(plain: string): string {
-  const iv = randomBytes(16);
-  const cipher = createCipheriv(CIPHER, secretKey(), iv);
-  let enc = cipher.update(plain, "utf8", "hex");
-  enc += cipher.final("hex");
-  return `${iv.toString("hex")}:${cipher.getAuthTag().toString("hex")}:${enc}`;
-}
-export function decryptSecret(encrypted: string): string {
-  const [ivHex, tagHex, body] = encrypted.split(":");
-  if (!ivHex || !tagHex || !body) throw new Error("Malformed encrypted secret");
-  const decipher = createDecipheriv(CIPHER, secretKey(), Buffer.from(ivHex, "hex"));
-  decipher.setAuthTag(Buffer.from(tagHex, "hex"));
-  let out = decipher.update(body, "hex", "utf8");
-  out += decipher.final("utf8");
-  return out;
-}
-
+/**
+ * Secrets at rest: AES-256-GCM via `src/lib/integration-crypto.ts`.
+ *
+ * SLICE 173 (defect W6) — this used to fall back to a PER-PROCESS RANDOM key
+ * when `INTEGRATION_ENCRYPTION_KEY` was unset or short: connection passwords,
+ * private keys and tenant Stripe keys written today became unreadable at the
+ * next restart, silently. The key now comes from that one fail-closed module
+ * (absent/short → refuse to write or read, naming the variable). No fallback,
+ * no cached key.
+ */
+export const encryptSecret = encryptIntegrationSecret;
+export const decryptSecret = decryptIntegrationSecret;
+export { integrationKeyProblem, integrationKeyUsable } from "../../lib/integration-crypto";
 function dataPath(dataDir: string, key: string): string {
   return `${resolveDataDir(dataDir, process.cwd())}/${key}`;
 }
