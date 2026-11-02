@@ -1518,10 +1518,36 @@ async function handleFetch(req: Request, server?: ServerPeerSource): Promise<Res
       if (user === null || user === undefined) return Response.json({ error: "Not authenticated" }, { status: 401 });
       const REPORTS_FILE = join(DATA_DIR, "tenant_reports.json");
       if (req.method === "POST") {
+        // SLICE 184 — this used to log the body and answer {success:true}
+        // while writing NOTHING: a tenant created a report and it did not
+        // exist. The store (tenant_reports.json, a registered durable store)
+        // and its read path (the GET below + /portal/reports) were already
+        // real, so the write is made real instead of the answer being
+        // softened. Merge-on-write: read live, append to THIS tenant's rows,
+        // write back — another tenant's rows can never be clobbered.
         try {
           const body = await req.json();
-          console.log(`[reports] POST by ${user.email}:`, body);
-          return Response.json({ success: true });
+          const name = typeof body?.name === "string" ? body.name.trim() : "";
+          if (!name) return Response.json({ error: "A report name is required." }, { status: 400 });
+          const live = readJSON(REPORTS_FILE);
+          // Legacy shape is a bare array (deployment-wide). Refuse rather than
+          // rewrite it into a tenant map and silently drop those rows.
+          if (Array.isArray(live) && live.length > 0) {
+            return Response.json({ error: "This workspace's reports store is in a legacy shape — reports are not being saved yet." }, { status: 409 });
+          }
+          const store: Record<string, any> = (live && typeof live === "object" && !Array.isArray(live)) ? live : {};
+          const mine = Array.isArray(store[user.email]) ? store[user.email] : [];
+          const row = {
+            id: crypto.randomUUID(),
+            name,
+            type: typeof body?.type === "string" ? body.type : "",
+            frequency: typeof body?.frequency === "string" ? body.frequency : "",
+            format: typeof body?.format === "string" ? body.format : "",
+            createdAt: new Date().toISOString(),
+          };
+          store[user.email] = [...mine, row];
+          writeJSON(REPORTS_FILE, store);
+          return Response.json({ data: row }, { status: 201 });
         } catch (e: any) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
           return Response.json({ error: "Invalid request" }, { status: 400 });
         }
@@ -1537,13 +1563,14 @@ async function handleFetch(req: Request, server?: ServerPeerSource): Promise<Res
       if (user === null || user === undefined) return Response.json({ error: "Not authenticated" }, { status: 401 });
       const TRAINING_FILE = join(DATA_DIR, "tenant_training.json");
       if (req.method === "POST") {
-        try {
-          const body = await req.json();
-          console.log(`[training] POST by ${user.email}:`, body);
-          return Response.json({ success: true });
-        } catch (e: any) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
-          return Response.json({ error: "Invalid request" }, { status: 400 });
-        }
+        // SLICE 184 — this used to log the body and answer {success:true}
+        // while writing NOTHING. Unlike reports there is no training surface
+        // anywhere in the product: no page, no reader beyond this GET, nothing
+        // that would ever show a training record. Writing rows into a store no
+        // screen can display would be a new surface invented in a slice that
+        // is not about training — so it answers honestly instead. 501: the
+        // capability is not implemented, and nothing was stored.
+        return Response.json({ error: "Training records are not being saved yet." }, { status: 501 });
       }
       const data = readJSON(TRAINING_FILE);
       const userData = Array.isArray(data) ? data : (data[user.email] || []);
@@ -4193,42 +4220,18 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
           },
         });
       }
-      if (req.method === "POST") {
-        try {
-          // Generic provider path (hubspot/zendesk homegrown shape: {id?, employeeId, eventType, tenantId, payload})
-          const body = await req.json();
-          if (!body || !body.eventType || !body.employeeId) {
-            return Response.json({ error: "eventType and employeeId required" }, { status: 400 });
-          }
-          const { dispatch } = await import("./src/monitoring/dispatcher");
-          const event = {
-            id: body.id || crypto.randomUUID(),
-            employeeId: body.employeeId,
-            providerId,
-            eventType: body.eventType,
-            payload: body.payload || {},
-            receivedAt: new Date().toISOString(),
-            tenantId: body.tenantId,
-          };
-          const config = {
-            employeeId: body.employeeId,
-            providerId,
-            eventTypes: [body.eventType],
-          };
-          const outcome = await dispatch(event, config, {
-            holderId: `webhook-${providerId}`,
-            async execute(event) {
-              console.log(`[monitor] Processing event: ${event.eventType} for ${event.employeeId}`);
-            },
-          });
-          return Response.json(outcome, {
-            status: outcome.status === "processed" ? 200 : outcome.status === "skipped" ? 409 : 400,
-          });
-        } catch (err: any) {
-          console.error("[prod-server] Monitoring webhook error:", err);
-          return Response.json({ error: "Internal error" }, { status: 500 });
-        }
-      }
+      // SLICE 184 — this used to be a generic receiver: ANY provider id, no
+      // signature, no credential, a homegrown body shape
+      // {id?, employeeId, eventType, tenantId, payload} straight into
+      // dispatch(). The AI-employee / monitoring lane is retired, and the only
+      // receivers that exist are the two signed ones above (xero,
+      // slack/slack-events) — both fail closed without their signing key.
+      // Nothing real sits behind the homegrown shape, so there is no signature
+      // scheme to enforce: an invented shared secret would be unset in
+      // production and 401 forever. The branch is REMOVED, and every other
+      // provider id answers 404 JSON — never the SPA HTML fallback (a 200),
+      // never a dispatch outcome.
+      return Response.json({ error: "Unknown webhook provider" }, { status: 404 });
     }
 
     // The Stripe dashboard webhook is registered with a HYPHEN
