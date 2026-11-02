@@ -26,6 +26,22 @@ if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
   process.env.JWT_SECRET = "test-only-signing-key-slice-154-not-a-real-secret";
 }
 
+/**
+ * SLICE 173 (defect W6) — `INTEGRATION_ENCRYPTION_KEY` is now REQUIRED: the
+ * encrypted-secret stores (webhook sinks/subscriptions, transport credentials,
+ * tenant Stripe keys) refuse to write or read without it, because the old
+ * per-process fallback key silently made every stored secret unreadable after a
+ * restart. The suite supplies a deterministic, obviously-fake key so tests
+ * exercise exactly the code path production does. This is a TEST value, never a
+ * deployment one: the real key belongs in the platform secret store.
+ *
+ * A test that needs the absent-or-too-short path deletes this variable itself —
+ * the key is read from the environment on every call (no module-level cache) —
+ * see `src/test/integration-key-fail-closed-173.test.ts`.
+ */
+if (!process.env.INTEGRATION_ENCRYPTION_KEY || process.env.INTEGRATION_ENCRYPTION_KEY.length < 32) {
+  process.env.INTEGRATION_ENCRYPTION_KEY = "test-only-integration-key-slice-173-not-a-real-secret";
+}
 // Runs a cleanup after each test case (e.g. clearing jsdom)
 afterEach(() => {
   cleanup();

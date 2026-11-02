@@ -141,4 +141,10 @@ export const MAX_RECEIPTS_PER_TENANT = 500;
 export const MAX_DELIVERIES_PER_TENANT = 1000;
 export const MAX_SEEN_PER_TENANT = 1000;
 export const MAX_SUBSCRIPTIONS_PER_TENANT = 25;
+// SLICE 173 (defect W5) — every other native surface caps its text fields;
+// these two did not. A subscriber url and an event-type allow-list are both
+// carried on every publish/delivery path, so they get the same treatment.
+export const MAX_WEBHOOK_URL_LENGTH = 2048;
+export const MAX_EVENT_TYPE_LENGTH = 128;
+export const MAX_EVENT_TYPES_PER_WEBHOOK = 50;
 export const MAX_SINKS_PER_TENANT = 10;

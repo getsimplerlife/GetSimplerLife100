@@ -28,6 +28,7 @@ import {
   appendNativeAudit,
   listSubscriptions,
 } from "./store";
+import { integrationKeyProblem, INTEGRATION_KEY_ENV, INTEGRATION_KEY_MIN_LENGTH } from "../../lib/integration-crypto";
 import {
   createOutboundSubscription,
   removeOutboundSubscription,
@@ -35,6 +36,8 @@ import {
   flushTenantDeliveries,
   publicSubscription,
   sanitizeRetry,
+  validateWebhookUrlLength,
+  validateWebhookEventTypes,
 } from "./outbound";
 import type { HostResolver } from "./outbound";
 
@@ -45,6 +48,30 @@ export interface NativeAuthedCtx {
   resolver?: HostResolver;
   /** When true, publish also triggers a best-effort delivery flush (prod: true). */
   autoFlush?: boolean;
+}
+
+/**
+ * SLICE 173 (defect W6) — fail closed BEFORE any secret exists.
+ *
+ * Sink and subscription secrets are stored AES-256-GCM encrypted under
+ * `INTEGRATION_ENCRYPTION_KEY`. Without a usable key the old code encrypted
+ * under a per-process throwaway key, so the secret was unreadable after the
+ * next restart and nothing said so. Now the write is refused with an honest
+ * 503 that names the variable and states the operator action.
+ */
+function integrationKeyRefusal(): Response | null {
+  const problem = integrationKeyProblem();
+  if (!problem) return null;
+  return Response.json(
+    {
+      error:
+        `Cannot store an encrypted webhook secret: ${problem}. ` +
+        `Set ${INTEGRATION_KEY_ENV} to a random value of at least ${INTEGRATION_KEY_MIN_LENGTH} characters ` +
+        `in the deployment secret store, then retry. Nothing was saved.`,
+      code: "INTEGRATION_KEY_UNCONFIGURED",
+    },
+    { status: 503 },
+  );
 }
 
 function maskSecrets(sinks: NativeWebhookSink[]) {
@@ -76,15 +103,17 @@ export async function handleNativeAuthed(req: Request, ctx: NativeAuthedCtx): Pr
     } catch {
       return Response.json({ error: "Invalid JSON body" }, { status: 400 });
     }
+    const keyRefusal = integrationKeyRefusal();
+    if (keyRefusal) return keyRefusal;
     const existing = listSinksForTenant(ctx.dataDir, tenantId);
     if (existing.length >= MAX_SINKS_PER_TENANT) {
       return Response.json({ error: `Sink limit reached (${MAX_SINKS_PER_TENANT})` }, { status: 400 });
     }
+    const typesCheck = validateWebhookEventTypes(body.eventTypes);
+    if (!typesCheck.ok) return Response.json({ error: typesCheck.reason }, { status: 400 });
     const sinkId = generateEntityId("whs");
     const secret = generateWebhookSecret();
-    const eventTypes = Array.isArray(body.eventTypes)
-      ? body.eventTypes.filter((t): t is string => typeof t === "string" && t.length > 0)
-      : [];
+    const eventTypes = typesCheck.eventTypes;
     const sink: NativeWebhookSink = {
       sinkId,
       tenantId,
@@ -121,12 +150,18 @@ export async function handleNativeAuthed(req: Request, ctx: NativeAuthedCtx): Pr
     } catch {
       return Response.json({ error: "Invalid JSON body" }, { status: 400 });
     }
+    const keyRefusal = integrationKeyRefusal();
+    if (keyRefusal) return keyRefusal;
     const url = typeof body.url === "string" ? body.url : "";
     if (!url) return Response.json({ error: "url is required" }, { status: 400 });
+    const lengthCheck = validateWebhookUrlLength(url);
+    if (!lengthCheck.ok) return Response.json({ error: lengthCheck.reason }, { status: 400 });
+    const typesCheck = validateWebhookEventTypes(body.eventTypes);
+    if (!typesCheck.ok) return Response.json({ error: typesCheck.reason }, { status: 400 });
     const created = await createOutboundSubscription(ctx.dataDir, {
       tenantId,
       url,
-      eventTypes: Array.isArray(body.eventTypes) ? body.eventTypes.map(String) : undefined,
+      eventTypes: typesCheck.eventTypes,
       enabled: typeof body.enabled === "boolean" ? body.enabled : undefined,
       retry: body.retry && typeof body.retry === "object" ? sanitizeRetry({ maxAttempts: (body.retry as any).maxAttempts, initialBackoffMs: (body.retry as any).initialBackoffMs }) : undefined,
       actor: tenantId,

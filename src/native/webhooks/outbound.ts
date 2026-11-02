@@ -24,6 +24,9 @@ import {
   NATIVE_EVENT_ID_HEADER,
   NATIVE_SIGNATURE_HEADER,
   MAX_SUBSCRIPTIONS_PER_TENANT,
+  MAX_WEBHOOK_URL_LENGTH,
+  MAX_EVENT_TYPE_LENGTH,
+  MAX_EVENT_TYPES_PER_WEBHOOK,
   type NativeWebhookSubscription,
   type NativeWebhookDelivery,
   type NativeDeliveryAttempt,
@@ -54,17 +57,152 @@ export function sanitizeRetry(retry?: { maxAttempts?: number; initialBackoffMs?:
   };
 }
 
+/**
+ * SLICE 173 (defect W5) — server-side caps for the two webhook text fields that
+ * had none. Errors name the field so the caller knows what to fix.
+ */
+export function validateWebhookUrlLength(url: string): { ok: true } | { ok: false; reason: string } {
+  if (typeof url !== "string") return { ok: false, reason: "url must be a string" };
+  if (url.length > MAX_WEBHOOK_URL_LENGTH) {
+    return { ok: false, reason: `url exceeds ${MAX_WEBHOOK_URL_LENGTH} characters (got ${url.length})` };
+  }
+  return { ok: true };
+}
+
+export function validateWebhookEventTypes(
+  raw: unknown,
+): { ok: true; eventTypes: string[] } | { ok: false; reason: string } {
+  if (raw === undefined || raw === null) return { ok: true, eventTypes: [] };
+  if (!Array.isArray(raw)) return { ok: false, reason: "eventTypes must be an array of strings" };
+  if (raw.length > MAX_EVENT_TYPES_PER_WEBHOOK) {
+    return { ok: false, reason: `eventTypes exceeds ${MAX_EVENT_TYPES_PER_WEBHOOK} entries (got ${raw.length})` };
+  }
+  const out: string[] = [];
+  for (let i = 0; i < raw.length; i += 1) {
+    const value = raw[i];
+    if (typeof value !== "string") return { ok: false, reason: `eventTypes[${i}] must be a string` };
+    if (value.length > MAX_EVENT_TYPE_LENGTH) {
+      return { ok: false, reason: `eventTypes[${i}] exceeds ${MAX_EVENT_TYPE_LENGTH} characters` };
+    }
+    if (value.length > 0) out.push(value);
+  }
+  return { ok: true, eventTypes: out };
+}
+
 /** DNS resolver used by url validation (injectable for hermetic tests). */
 export type HostResolver = (hostname: string) => Promise<string[]>;
 
-const PRIVATE_IPV4_RE =
-  /^(127\.|10\.|192\.168\.|169\.254\.|0\.0\.0\.0$|172\.(1[6-9]|2\d|3[01])\.)/;
-const PRIVATE_IPV6_RE = /^::1$|^fc|^fd|^fe80/i;
+/**
+ * SLICE 173 (defect W4) — ONE normalising IP guard.
+ *
+ * The old code did `if (host.includes(":")) return false;` — so every IPv6
+ * form skipped the private-address check — and its IPv6 regex missed the
+ * IPv4-mapped form, which is how `https://[::ffff:127.0.0.1]/hook` dialled
+ * loopback. A WHATWG URL serialises that address as `[::ffff:7f00:1]`, so both
+ * the dotted and the hex-mapped spellings must be understood.
+ *
+ * Everything below normalises first (brackets, case, trailing dot, %zone) and
+ * then applies one range check to the resulting bytes.
+ */
+function parseIPv4(host: string): number[] | null {
+  const parts = host.split(".");
+  if (parts.length !== 4) return null;
+  const bytes: number[] = [];
+  for (const part of parts) {
+    if (!/^\d{1,3}$/.test(part)) return null;
+    const n = Number(part);
+    if (n > 255) return null;
+    bytes.push(n);
+  }
+  return bytes;
+}
+
+/** IPv6 literal (brackets/zone already stripped) → eight 16-bit groups, or null. */
+function parseIPv6(host: string): number[] | null {
+  let text = host.includes("%") ? host.slice(0, host.indexOf("%")) : host;
+  if (!text.includes(":")) return null;
+  // A dotted-quad tail (::ffff:127.0.0.1) becomes two hex groups first.
+  const lastColon = text.lastIndexOf(":");
+  const tail = text.slice(lastColon + 1);
+  if (tail.includes(".")) {
+    const v4 = parseIPv4(tail);
+    if (!v4) return null;
+    text = `${text.slice(0, lastColon + 1)}${(((v4[0]! << 8) | v4[1]!) >>> 0).toString(16)}:${(((v4[2]! << 8) | v4[3]!) >>> 0).toString(16)}`;
+  }
+  const halves = text.split("::");
+  if (halves.length > 2) return null;
+  const head = halves[0] ? halves[0].split(":") : [];
+  const rest = halves.length === 2 && halves[1] ? halves[1].split(":") : [];
+  const missing = 8 - head.length - rest.length;
+  if (missing < 0) return null;
+  if (halves.length === 1 && missing !== 0) return null;
+  const groups = [...head, ...Array<string>(halves.length === 2 ? missing : 0).fill("0"), ...rest];
+  if (groups.length !== 8) return null;
+  const out: number[] = [];
+  for (const group of groups) {
+    if (!/^[0-9a-fA-F]{1,4}$/.test(group)) return null;
+    out.push(parseInt(group, 16));
+  }
+  return out;
+}
+
+function isPrivateIPv4(b: number[]): boolean {
+  const a = b[0]!;
+  const second = b[1]!;
+  if (a === 0) return true; // 0.0.0.0/8 "this network"
+  if (a === 10) return true; // 10/8 private
+  if (a === 127) return true; // loopback
+  if (a === 169 && second === 254) return true; // link-local, incl. 169.254.169.254 metadata
+  if (a === 172 && second >= 16 && second <= 31) return true; // 172.16/12 private
+  if (a === 192 && second === 168) return true; // 192.168/16 private
+  if (a === 100 && second >= 64 && second <= 127) return true; // 100.64/10 carrier-grade NAT
+  if (a >= 224) return true; // multicast, reserved, broadcast
+  return false;
+}
+
+function ipv4FromGroups(hi: number, lo: number): number[] {
+  return [hi >> 8, hi & 0xff, lo >> 8, lo & 0xff];
+}
+
+function isPrivateIPv6(g: number[]): boolean {
+  if (g.every((x) => x === 0)) return true; // ::
+  if (g.slice(0, 7).every((x) => x === 0) && g[7] === 1) return true; // ::1 loopback
+  if ((g[0]! & 0xfe00) === 0xfc00) return true; // fc00::/7 unique-local
+  if ((g[0]! & 0xffc0) === 0xfe80) return true; // fe80::/10 link-local
+  if ((g[0]! & 0xffc0) === 0xfec0) return true; // fec0::/10 site-local (deprecated)
+  if ((g[0]! & 0xff00) === 0xff00) return true; // ff00::/8 multicast
+  const highZero = g[0] === 0 && g[1] === 0 && g[2] === 0 && g[3] === 0 && g[4] === 0;
+  // ::ffff:0:0/96 — IPv4-mapped: judge the embedded IPv4.
+  if (highZero && g[5] === 0xffff) return isPrivateIPv4(ipv4FromGroups(g[6]!, g[7]!));
+  // ::/96 — IPv4-compatible (deprecated) / unspecified / loopback.
+  if (highZero && g[5] === 0) return isPrivateIPv4(ipv4FromGroups(g[6]!, g[7]!)) || (g[6] === 0 && g[7] <= 1);
+  return false;
+}
+
+/** Normalise what `new URL(...).hostname` gives us: brackets, case, trailing dot, zone. */
+function normalizeHost(hostname: string): string {
+  return hostname
+    .trim()
+    .toLowerCase()
+    .replace(/^\[/, "")
+    .replace(/\]$/, "")
+    .replace(/%.*$/, "")
+    .replace(/\.$/, "");
+}
+
 function isPrivateIpLiteral(hostname: string): boolean {
-  const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
-  if (PRIVATE_IPV6_RE.test(host)) return true;
-  if (host.includes(":")) return false; // other IPv6 form — handled by resolver check
-  return PRIVATE_IPV4_RE.test(host);
+  const host = normalizeHost(hostname);
+  const v4 = parseIPv4(host);
+  if (v4) return isPrivateIPv4(v4);
+  const v6 = parseIPv6(host);
+  if (v6) return isPrivateIPv6(v6);
+  return false;
+}
+
+/** True when the host is an IP literal, so a DNS lookup adds nothing. */
+function isIpLiteral(hostname: string): boolean {
+  const host = normalizeHost(hostname);
+  return parseIPv4(host) !== null || parseIPv6(host) !== null;
 }
 
 /**
@@ -91,13 +229,12 @@ export async function validateWebhookUrl(
     return { ok: false, reason: "Local/reserved hosts are not allowed" };
   }
   if (isPrivateIpLiteral(hostname)) return { ok: false, reason: "Private/link-local IPs are not allowed" };
-  const isIpLiteral = hostname.includes(":") || /^\d+\.\d+\.\d+\.\d+$/.test(hostname);
-  if (!resolver || isIpLiteral) return { ok: true }; // literal public IP accepted; DNS check skipped w/o resolver
+  if (!resolver || isIpLiteral(hostname)) return { ok: true }; // literal public IP accepted; DNS check skipped w/o resolver
   try {
     const addresses = await resolver(hostname);
     if (addresses.length === 0) return { ok: false, reason: "Host did not resolve" };
     for (const addr of addresses) {
-      if (isPrivateIpLiteral(addr.split("%")[0])) return { ok: false, reason: "Host resolves to a private address" };
+      if (isPrivateIpLiteral(addr)) return { ok: false, reason: "Host resolves to a private address" };
     }
     return { ok: true };
   } catch {
@@ -125,6 +262,10 @@ export async function createOutboundSubscription(
   dataDir: string,
   input: CreateSubscriptionInput,
 ): Promise<{ ok: true; result: NewSubscription } | { ok: false; reason: string; status: number }> {
+  const lengthCheck = validateWebhookUrlLength(input.url);
+  if (!lengthCheck.ok) return { ok: false, reason: lengthCheck.reason, status: 400 };
+  const typesCheck = validateWebhookEventTypes(input.eventTypes);
+  if (!typesCheck.ok) return { ok: false, reason: typesCheck.reason, status: 400 };
   const urlCheck = await validateWebhookUrl(input.url, input.resolver);
   if (!urlCheck.ok) return { ok: false, reason: urlCheck.reason, status: 400 };
   const current = listSubscriptions(dataDir, input.tenantId);
@@ -138,7 +279,7 @@ export async function createOutboundSubscription(
     tenantId: input.tenantId,
     url: input.url,
     secretEncrypted: encryptSecret(secret),
-    eventTypes: Array.isArray(input.eventTypes) ? input.eventTypes.filter((t): t is string => typeof t === "string" && t.length > 0) : [],
+    eventTypes: typesCheck.eventTypes,
     enabled: input.enabled !== false,
     retry,
     createdBy: input.actor,
