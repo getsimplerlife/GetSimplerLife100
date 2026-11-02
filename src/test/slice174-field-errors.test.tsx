@@ -123,6 +123,16 @@ describe("slice 174 — a rejected submit keeps the user's work and blames the f
     expect(title).not.toHaveAttribute("aria-invalid");
   });
 
+  /** DOM-level helpers: these pages are big, so query what the user sees by
+   *  aria-label / button text instead of testing-library's role queries. */
+  const byLabel = (label: string) => document.querySelector(`[aria-label="${label}"]`) as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null;
+  const clickButton = (text: RegExp) => {
+    const btn = Array.from(document.querySelectorAll("button")).find((b) => text.test(b.textContent ?? ""));
+    if (!btn) throw new Error(`no button matching ${text}`);
+    fireEvent.click(btn);
+  };
+  const errorText = (id: string) => document.getElementById(id)?.textContent ?? null;
+
   it("checklists: keeps the typed values and puts the 400 on the name field", async () => {
     stubFetch([
       { match: (u) => u.endsWith("/api/native/checklists/writes"), body: { data: [] } },
@@ -130,19 +140,17 @@ describe("slice 174 — a rejected submit keeps the user's work and blames the f
       { match: (u, m) => u.endsWith("/api/native/checklists") && m === "POST", status: 400, body: { error: "name must be a 1..200-char string" } },
     ]);
     render(<ChecklistsPage />);
-    await waitFor(() => expect(screen.getByRole("heading", { level: 1, name: /Checklists/ })).toBeInTheDocument());
-
-    const name = screen.getByLabelText("Name") as HTMLInputElement;
-    const items = screen.getByLabelText("Items") as HTMLTextAreaElement;
+    await waitFor(() => expect(byLabel("Name")).toBeTruthy());
+    const name = byLabel("Name") as HTMLInputElement;
+    const items = byLabel("Items") as HTMLTextAreaElement;
     fireEvent.change(name, { target: { value: "x".repeat(10_000) } });
     fireEvent.change(items, { target: { value: "Scope confirmed" } });
-    fireEvent.click(screen.getByRole("button", { name: /Create checklist/ }));
-
-    await waitFor(() => expect(document.getElementById("checklist-name-error")).toBeTruthy());
-    expect(document.getElementById("checklist-name-error")!.textContent).toBe("name must be a 1..200-char string");
+    clickButton(/Create checklist/);
+    await waitFor(() => expect(errorText("checklist-name-error")).toBe("name must be a 1..200-char string"));
     expect(name.value).toHaveLength(10_000);
-    expect(items).toHaveValue("Scope confirmed");
-    expect(name).toHaveAttribute("aria-invalid", "true");
+    expect(items.value).toBe("Scope confirmed");
+    expect(name.getAttribute("aria-invalid")).toBe("true");
+    expect(name.getAttribute("aria-describedby")).toBe("checklist-name-error");
   });
 
   it("deal rooms: keeps the typed values and puts the 400 on the customer email field", async () => {
@@ -155,25 +163,22 @@ describe("slice 174 — a rejected submit keeps the user's work and blames the f
       { match: (u, m) => u.endsWith("/api/native/dealroom") && m === "POST", status: 400, body: { error: "customerEmail must be a valid email address" } },
     ]);
     render(<DealRoomsPage />);
-    await waitFor(() => expect(screen.getByRole("heading", { level: 1, name: /Deal rooms/ })).toBeInTheDocument());
-
-    const name = screen.getByLabelText("Deal room name") as HTMLInputElement;
-    const customer = screen.getByLabelText("Customer name") as HTMLInputElement;
-    const email = screen.getByLabelText("Customer email") as HTMLInputElement;
-    const select = screen.getByLabelText("Link a proposal (required)") as HTMLSelectElement;
+    await waitFor(() => expect(byLabel("Deal room name")).toBeTruthy());
+    const name = byLabel("Deal room name") as HTMLInputElement;
+    const customer = byLabel("Customer name") as HTMLInputElement;
+    const email = byLabel("Customer email") as HTMLInputElement;
+    const select = byLabel("Link a proposal (required)") as HTMLSelectElement;
+    await waitFor(() => expect(select.options.length).toBeGreaterThan(1));
     fireEvent.change(name, { target: { value: "Acme rollout" } });
     fireEvent.change(customer, { target: { value: "Acme" } });
     fireEvent.change(email, { target: { value: "not-an-email" } });
-    await waitFor(() => expect(select.options.length).toBeGreaterThan(1));
     fireEvent.change(select, { target: { value: "prop_1" } });
-    fireEvent.click(screen.getByRole("button", { name: /Create deal room/ }));
-
-    await waitFor(() => expect(document.getElementById("dealroom-customerEmail-error")).toBeTruthy());
-    expect(document.getElementById("dealroom-customerEmail-error")!.textContent).toBe("customerEmail must be a valid email address");
-    expect(name).toHaveValue("Acme rollout");
-    expect(customer).toHaveValue("Acme");
-    expect(email).toHaveValue("not-an-email");
-    expect(email).toHaveAttribute("aria-invalid", "true");
+    clickButton(/Create deal room/);
+    await waitFor(() => expect(errorText("dealroom-customerEmail-error")).toBe("customerEmail must be a valid email address"));
+    expect(name.value).toBe("Acme rollout");
+    expect(customer.value).toBe("Acme");
+    expect(email.value).toBe("not-an-email");
+    expect(email.getAttribute("aria-invalid")).toBe("true");
   });
 
   it("invoices: keeps the chosen deal room and puts the 400 on the customer email field", async () => {
@@ -185,19 +190,16 @@ describe("slice 174 — a rejected submit keeps the user's work and blames the f
       { match: (u, m) => u.endsWith("/api/native/invoice") && m === "POST", status: 400, body: { error: "customerEmail must be a valid email or empty" } },
     ]);
     render(<InvoicesPage />);
-    await waitFor(() => expect(screen.getByRole("heading", { level: 1, name: /Invoices/ })).toBeInTheDocument());
-
-    const select = screen.getByLabelText("Deal room to invoice") as HTMLSelectElement;
-    const email = screen.getByLabelText("Customer email (optional)") as HTMLInputElement;
+    await waitFor(() => expect(byLabel("Deal room to invoice")).toBeTruthy());
+    const select = byLabel("Deal room to invoice") as HTMLSelectElement;
+    const email = byLabel("Customer email (optional)") as HTMLInputElement;
     await waitFor(() => expect(select.options.length).toBeGreaterThan(1));
     fireEvent.change(select, { target: { value: "dr_1" } });
     fireEvent.change(email, { target: { value: "not-an-email" } });
-    fireEvent.click(screen.getByRole("button", { name: /Create invoice/ }));
-
-    await waitFor(() => expect(document.getElementById("invoice-customerEmail-error")).toBeTruthy());
-    expect(document.getElementById("invoice-customerEmail-error")!.textContent).toBe("customerEmail must be a valid email or empty");
-    expect(select).toHaveValue("dr_1");
-    expect(email).toHaveValue("not-an-email");
-    expect(email).toHaveAttribute("aria-invalid", "true");
+    clickButton(/Create invoice/);
+    await waitFor(() => expect(errorText("invoice-customerEmail-error")).toBe("customerEmail must be a valid email or empty"));
+    expect(select.value).toBe("dr_1");
+    expect(email.value).toBe("not-an-email");
+    expect(email.getAttribute("aria-invalid")).toBe("true");
   });
 });
