@@ -30,7 +30,7 @@ export function scrollToId(id: string) {
 
 function EmptyStateCTA({ action }: { action: PortalEmptyStateAction }) {
   const cls =
-    "inline-block mt-3 text-emerald-400 font-bold text-sm hover:text-emerald-300 cursor-pointer";
+    "tap-target mt-3 text-emerald-400 font-bold text-sm hover:text-emerald-300 cursor-pointer";
   if ("to" in action) {
     return (
       <Link to={action.to} className={cls}>

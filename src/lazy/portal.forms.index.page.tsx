@@ -287,7 +287,7 @@ export default function FormsPage() {
                     </option>
                   ))}
                 </select>
-                <label className="flex items-center gap-1 text-xs text-stone-500">
+                <label className="tap-target cursor-pointer gap-1 text-xs text-stone-500">
                   <input
                     type="checkbox"
                     checked={draft.required}
@@ -299,7 +299,7 @@ export default function FormsPage() {
                 </label>
                 <button
                   type="button"
-                  className="text-xs text-rose-500 underline"
+                  className="tap-target text-xs text-rose-500 underline"
                   onClick={() => setDrafts((prev) => (prev.length === 1 ? prev : prev.filter((_, idx) => idx !== i)))}
                 >
                   Remove

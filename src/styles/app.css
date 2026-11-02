@@ -267,3 +267,19 @@
   }
   html { scroll-behavior: auto; }
 }
+
+/* ── Slice 171 — minimum touch target (WCAG 2.5.5 / Apple HIG) ────────────────
+   Sweep B measured the mobile portal at a real 390 px viewport: the MENU
+   trigger — the only way to reach any other page on a phone — was 20 px tall,
+   and the back links, empty-state CTAs and Remove buttons were 16–20 px.
+
+   This grows the HIT AREA, not the glyph: the visible type size and icon size
+   are untouched, so the design does not get heavier, it only gets easier to
+   tap. One shared primitive so a new control cannot silently ship at 16 px. */
+@utility tap-target {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+}

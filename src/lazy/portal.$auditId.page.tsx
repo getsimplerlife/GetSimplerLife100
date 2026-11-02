@@ -32,7 +32,7 @@ export function AuditNotFound() {
           <Link to="/" className="text-2xl font-bold text-emerald-600">
             Simpler Life 100
           </Link>
-          <Link to="/portal" className="text-sm font-medium text-stone-400 hover:text-emerald-400">
+          <Link to="/portal" className="tap-target text-sm font-medium text-stone-400 hover:text-emerald-400">
             ← Back to Dashboard
           </Link>
         </div>
@@ -99,7 +99,7 @@ function AuditDetail() {
           <Link to="/" className="text-2xl font-bold text-emerald-600">
             Simpler Life 100
           </Link>
-          <Link to="/portal" className="text-sm font-medium text-stone-400 hover:text-emerald-400">
+          <Link to="/portal" className="tap-target text-sm font-medium text-stone-400 hover:text-emerald-400">
             ← Back to Dashboard
           </Link>
         </div>

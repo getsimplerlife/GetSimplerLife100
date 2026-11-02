@@ -357,7 +357,7 @@ function AdminWorkflowBuilder() {
                         </Badge>
                         <h3 className="text-base font-black text-white mt-1">{selectedNode.name}</h3>
                       </div>
-                      <button onClick={() => handleDeleteNode(selectedNode.id)} className="text-xs text-rose-500 hover:text-rose-400 font-black">
+                      <button onClick={() => handleDeleteNode(selectedNode.id)} className="tap-target text-xs text-rose-500 hover:text-rose-400 font-black">
                         Remove
                       </button>
                     </div>
