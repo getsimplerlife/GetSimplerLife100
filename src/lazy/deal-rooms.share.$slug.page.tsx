@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "@tanstack/react-router";
 import { Card, Badge } from "~/components/ui";
+import { invoiceStatusLabel, invoiceStatusTone } from "~/lib/invoice-status";
 interface ShareProposal {
   title: string;
   status: string;
@@ -92,7 +93,14 @@ export default function DealRoomSharePage() {
               <div key={inv.invoiceNumber} className="flex items-center justify-between rounded border p-2 text-sm">
                 <span className="font-medium">{inv.invoiceNumber}</span>
                 <span className="text-gray-600">
-                  {inv.currency} {(inv.amountDueCents / 100).toFixed(2)} · <Badge>{inv.status === "sent" ? "Sent" : "Draft"}</Badge>
+                  {inv.currency} {(inv.amountDueCents / 100).toFixed(2)} ·{" "}
+                  {/* SLICE 180 — this was `inv.status === "sent" ? "Sent" : "Draft"`,
+                      so a `failed` invoice (delivery refused, nothing reached the
+                      customer) and a `queued` one both read "Draft" — work in
+                      progress — on the page the customer opens. The label and the
+                      tone now come from the server's own status enum
+                      (src/lib/invoice-status.ts). */}
+                  <Badge variant={invoiceStatusTone(inv.status)}>{invoiceStatusLabel(inv.status)}</Badge>
                 </span>
               </div>
             ))}

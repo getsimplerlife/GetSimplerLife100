@@ -162,7 +162,15 @@ describe("C4 — ONE settings store + the P2-3 visual residuals are gone", () =>
     expect(AUDIT_DETAIL).toContain("min-h-screen bg-black");
   });
   it("the admin page reads the REAL /api/purchases, never the anonymous subPath", () => {
-    expect(ADMIN).toContain('fetch("/api/purchases"');
+    // SLICE 180 moved this read one path to the right, and the reason is the
+    // point of the assertion: `/api/purchases` answers only the CALLER'S OWN
+    // rows (`purchases[user.email]`), so the admin page bucketed the owner's
+    // purchases under every client. The real, owner-gated all-tenant read is
+    // `/api/admin/purchases` (same 401/403 gate as `/api/admin/users`). The
+    // rule this guard exists for is unchanged — the page must read a REAL
+    // purchase endpoint, never the retired anonymous subPath.
+    expect(ADMIN).toContain('fetch("/api/admin/purchases"');
+    expect(PROD).toContain('if (subPath === "purchases") {');
     expect(ADMIN).not.toContain('fetch("/api/data/purchases"');
   });
 });

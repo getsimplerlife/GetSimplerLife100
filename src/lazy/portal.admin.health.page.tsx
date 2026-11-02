@@ -1,17 +1,31 @@
 import { useState, useEffect } from "react";
 import { Card, Badge, Button } from "~/components/ui";
 
-
-
 /**
  * Real shape served by /api/admin/health (owner-gated diagnostics endpoint):
- *   { status: "healthy", uptime: <seconds>, memory: process.memoryUsage(),
- *     timestamp: <ISO string> }
- * Every field below is optional so the page can never crash on a partial or
- * unexpected payload — unknown keys render "N/A" instead of throwing.
+ *   { status: "ok" | "degraded" | "unknown",
+ *     measuredAt: <ISO string>,
+ *     checks: [{ id, label, status: "ok" | "degraded" | "unknown", detail }],
+ *     uptime: <seconds>, memory: process.memoryUsage(), timestamp: <ISO string> }
+ *
+ * SLICE 180 — `status` used to be the LITERAL "healthy" beside real uptime and
+ * memory numbers: no branch, no computation, no failure path, so this page's
+ * "SYSTEM STATUS: OPERATIONAL" banner was unconditional. It is now DERIVED from
+ * the same filesystem report `/api/admin/data-health` serves, and `checks`
+ * carries what was actually measured. Every field is optional so the page can
+ * never crash on a partial payload — an absent measurement renders "not
+ * measured", never "healthy".
  */
+interface HealthCheck {
+  id?: string;
+  label?: string;
+  status?: string;
+  detail?: string | null;
+}
 interface HealthReport {
   status?: string;
+  measuredAt?: string;
+  checks?: HealthCheck[];
   uptime?: number;
   timestamp?: string | number;
   memory?: {
@@ -22,8 +36,11 @@ interface HealthReport {
   };
 }
 
+type HealthNotice = { kind: "signedOut" | "error"; message: string } | null;
+
 function AdminHealthPage() {
   const [data, setData] = useState<HealthReport | null>(null);
+  const [notice, setNotice] = useState<HealthNotice>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [backupLoading, setBackupLoading] = useState(false);
@@ -32,16 +49,31 @@ function AdminHealthPage() {
   const fetchHealth = async () => {
     try {
       // /api/admin/health is the owner-gated diagnostics endpoint and returns
-      // { status, uptime, memory, timestamp } — the real shape. (The public
-      // /api/health only carries status/uptime/timestamp with no memory
-      // telemetry, so the admin page reads the richer owner-gated endpoint.)
+      // { status, measuredAt, checks, uptime, memory, timestamp } — the real
+      // shape. (The public /api/health only carries status/uptime/timestamp
+      // with no memory telemetry, so the admin page reads the richer
+      // owner-gated endpoint.)
       const res = await fetch("/api/admin/health");
-      if (res.ok) {
-        const json = await res.json();
-        setData(json);
+      // SLICE 180 — `!res.ok` had no `else`: a 401, a 403 and a 500 all fell
+      // through to `data === null`, and the banner below rendered "DEGRADED"
+      // with N/A telemetry — a permissions error and an outage were the same
+      // screen. Each class now says what it is.
+      if (!res.ok) {
+        setData(null);
+        setNotice(
+          res.status === 401 || res.status === 403
+            ? { kind: "signedOut", message: "You are not authorised to see infrastructure health. Sign in again with the owner account." }
+            : { kind: "error", message: `Couldn't read the health report (HTTP ${res.status}) — no status was measured, so none is shown.` },
+        );
+        return;
       }
+      const json = (await res.json()) as HealthReport;
+      setData(json);
+      setNotice(null);
     } catch (err) {
       console.error("Failed to fetch health report:", err);
+      setData(null);
+      setNotice({ kind: "error", message: `Couldn't reach the health endpoint (${err instanceof Error ? err.message : String(err)}) — no status was measured.` });
     } finally {
       setLoading(false);
     }
@@ -64,6 +96,8 @@ function AdminHealthPage() {
     setBackupMessage(null);
     try {
       // Audit-B (10-26): wired to the REAL durable-store backup snapshot.
+      // SLICE 180: the route is POST-only and same-origin now — a GET performs
+      // no write, so this call must keep sending POST.
       const res = await fetch("/api/admin/backup", { method: "POST" });
       const json = await res.json();
       if (res.ok && json.success) {
@@ -90,8 +124,26 @@ function AdminHealthPage() {
     );
   }
 
-  const isOperational =
-    data?.status === "healthy" || data?.status === "ok" || data?.status === "UP";
+  // The server's own verdict. "ok" is the ONLY value that may read
+  // OPERATIONAL, and it is only ever sent when every measured check was green.
+  const measured = data?.status;
+  const isOperational = measured === "ok";
+  const isDegraded = measured === "degraded";
+  const bannerLabel = notice
+    ? notice.kind === "signedOut"
+      ? "NOT AUTHORISED"
+      : "STATUS UNAVAILABLE"
+    : isOperational
+      ? "OPERATIONAL"
+      : isDegraded
+        ? "DEGRADED"
+        : "NOT MEASURED";
+  const bannerTone = isOperational
+    ? "bg-emerald-950/20 border-emerald-800/40"
+    : isDegraded
+      ? "bg-amber-950/20 border-amber-800/40"
+      : "bg-stone-900/60 border-stone-700";
+  const bannerIcon = isOperational ? "🟢" : isDegraded ? "🟡" : "⚪";
 
   const formatUptime = (sec?: number) => {
     if (typeof sec !== "number" || Number.isNaN(sec)) return "N/A";
@@ -108,6 +160,7 @@ function AdminHealthPage() {
   const heapUsed = typeof memory.heapUsed === "number" ? memory.heapUsed : 0;
   const heapTotal = typeof memory.heapTotal === "number" ? memory.heapTotal : 0;
   const heapUsagePct = heapTotal > 0 ? Math.min(100, Math.round((heapUsed / heapTotal) * 100)) : 0;
+  const checks = Array.isArray(data?.checks) ? data!.checks! : [];
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -145,23 +198,32 @@ function AdminHealthPage() {
         </div>
       )}
 
-      {/* Hero overall status banner */}
-      <div className={`p-6 rounded-3xl border flex flex-col md:flex-row justify-between items-start md:items-center gap-6 ${
-        isOperational
-          ? "bg-emerald-950/20 border-emerald-800/40"
-          : "bg-amber-950/20 border-amber-800/40"
-      }`}>
+      {notice && (
+        <div
+          role="alert"
+          className={`p-4 rounded-2xl border text-sm font-bold ${
+            notice.kind === "signedOut"
+              ? "bg-rose-950/30 border-rose-900/60 text-rose-300"
+              : "bg-amber-950/30 border-amber-900/60 text-amber-300"
+          }`}
+        >
+          {notice.message}
+        </div>
+      )}
+
+      {/* Hero overall status banner — a verdict only when one was measured. */}
+      <div className={`p-6 rounded-3xl border flex flex-col md:flex-row justify-between items-start md:items-center gap-6 ${bannerTone}`}>
         <div className="flex items-center gap-4">
           <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shadow-inner ${
-            isOperational ? "bg-emerald-500/20 text-emerald-400" : "bg-amber-500/20 text-amber-400"
+            isOperational ? "bg-emerald-500/20 text-emerald-400" : isDegraded ? "bg-amber-500/20 text-amber-400" : "bg-stone-800 text-stone-400"
           }`}>
-            {isOperational ? "🟢" : "🟡"}
+            {bannerIcon}
           </div>
           <div>
             <span className="text-[10px] font-black uppercase text-stone-400 tracking-wider block">Global Platform State</span>
             <div className="flex items-center gap-2 mt-0.5">
               <h2 className="text-2xl font-black text-white">
-                SYSTEM STATUS: {isOperational ? "OPERATIONAL" : "DEGRADED"}
+                SYSTEM STATUS: {bannerLabel}
               </h2>
             </div>
           </div>
@@ -175,13 +237,49 @@ function AdminHealthPage() {
             </span>
           </div>
           <div>
-            <span className="text-[10px] font-black uppercase text-stone-500 tracking-wider block">Telemetry Timestamp</span>
+            <span className="text-[10px] font-black uppercase text-stone-500 tracking-wider block">
+              {data?.measuredAt ? "Health Measured At" : "Telemetry Timestamp"}
+            </span>
             <span className="text-sm font-black text-white block mt-0.5">
-              {data?.timestamp ? new Date(data.timestamp).toLocaleTimeString() : "N/A"}
+              {data?.measuredAt || data?.timestamp ? new Date((data?.measuredAt || data?.timestamp) as string).toLocaleTimeString() : "N/A"}
             </span>
           </div>
         </div>
       </div>
+
+      {/* What the server actually measured — the evidence behind the banner. */}
+      <Card className="bg-stone-900/50 border-stone-800/80 p-6 rounded-3xl space-y-4">
+        <h4 className="text-md font-black text-white border-b border-stone-800/80 pb-3 flex items-center gap-2">
+          🧪 Measured Checks
+        </h4>
+        {checks.length === 0 ? (
+          <p className="text-stone-500 text-sm">
+            No check was measured, so no health verdict is claimed.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {checks.map((c, idx) => (
+              <div key={c.id || idx} className="flex items-start justify-between gap-3 bg-stone-950/40 p-3 rounded-xl border border-stone-800/60">
+                <div className="min-w-0">
+                  <div className="text-sm font-bold text-white">{c.label || c.id || "check"}</div>
+                  {c.detail ? <div className="text-[11px] text-stone-500 mt-1">{c.detail}</div> : null}
+                </div>
+                <Badge
+                  className={
+                    c.status === "ok"
+                      ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                      : c.status === "degraded"
+                        ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                        : "bg-stone-800 text-stone-400 border border-stone-700"
+                  }
+                >
+                  {c.status === "ok" ? "OK" : c.status === "degraded" ? "DEGRADED" : "NOT MEASURED"}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
 
       {/* Runtime telemetry (real values from the owner-gated health endpoint) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -230,8 +328,14 @@ function AdminHealthPage() {
           <div className="space-y-4">
             <div className="flex justify-between items-center text-xs">
               <span className="text-stone-400 font-bold">Health Status</span>
-              <Badge className={isOperational ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-amber-500/10 text-amber-400 border border-amber-500/20"}>
-                {isOperational ? "HEALTHY" : "DEGRADED"}
+              <Badge className={
+                isOperational
+                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                  : isDegraded
+                    ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                    : "bg-stone-800 text-stone-400 border border-stone-700"
+              }>
+                {isOperational ? "OK" : isDegraded ? "DEGRADED" : "NOT MEASURED"}
               </Badge>
             </div>
             <div className="flex justify-between items-center text-xs">

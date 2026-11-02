@@ -868,6 +868,56 @@ function countPageViewAtTheDoor(req: Request, res: Response): void {
   }
 }
 
+/**
+ * SLICE 180 — ONE derivation of "is this deployment's data actually safe?",
+ * shared by `/api/admin/data-health` and `/api/admin/health`.
+ *
+ * `/api/admin/health` used to answer `status: "healthy"` as a LITERAL beside
+ * real uptime/memory numbers: no branch, no computation, no failure path, so
+ * the health page's "SYSTEM STATUS: OPERATIONAL" banner was unconditional
+ * whatever the data or the backups were doing. The report below is the
+ * filesystem's own answer (generation marker vs this process vs the running
+ * build, plus the off-box backup), so a verdict built from it can only read
+ * "ok" when something was measured green.
+ */
+function deploymentDataHealthReport() {
+  return buildDataHealthReport({
+    dataDir: DATA_DIR,
+    rawDataDir: DATA_DIR_RAW,
+    serverBase: SERVER_BASE,
+    processStartedAt: PROCESS_STARTED_AT,
+    buildArtifacts: [SERVER_ENTRY_PATH, join(SERVER_BASE, "dist", "index.html")].filter(
+      (p) => typeof p === "string" && p.length > 0,
+    ),
+    runningBuildId: runningBuildId(SERVER_ENTRY_PATH),
+    // SLICE 163: does the data in this directory have a copy OFF this disk?
+    // SLICE 164: what protects it when the disk cannot — the boot-restore record.
+    restore: readBootRestore(DATA_DIR),
+    backup: buildBackupHealthReport({
+      dataDir: DATA_DIR,
+      outDir: ARCHIVE_BACKUP_DIR,
+      namespace: ARCHIVE_BACKUP_NAMESPACE,
+      env: ARCHIVE_BACKUP_UPLOAD_ENV,
+      intervalMs: ARCHIVE_BACKUP_INTERVAL_MS,
+      staleFactor: ARCHIVE_STALE_FACTOR,
+      scheduler: (() => {
+        const st = archiveScheduler.status();
+        return {
+          disabled: st.disabled,
+          disabledReason: st.disabledReason,
+          intervalMs: st.intervalMs,
+          running: st.running,
+          runs: st.runs,
+          failures: st.failures,
+          lastAttemptAt: st.lastAttemptAt,
+          lastOkAt: st.lastOkAt,
+          lastError: st.lastError,
+        };
+      })(),
+    }),
+  });
+}
+
 serve({
   port: serverPort, // canonical 3000; platform default PORT=80 ignored; explicit numeric overrides honored (see src/lib/server-port.ts)
   async fetch(req, server) {
@@ -3716,6 +3766,36 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
         }));
         return Response.json({ data: userList, total: userList.length });
       }
+      if (subPath === "purchases") {
+        // SLICE 180 — the per-client purchases panel was fed by `/api/purchases`,
+        // which answers ONLY the caller's own rows (`purchases[user.email]`) and
+        // keys them by map rather than by a field on the row. The admin page
+        // therefore bucketed the OWNER'S OWN purchases under every client. This
+        // is the owner-gated all-tenant read that panel needed: the 401/403 gate
+        // above is the same one `/api/admin/users` uses, each row keeps its own
+        // `purchasedAt` (never a `createdAt` it does not carry), and the owning
+        // tenant's email is attached as `tenantEmail` — the only field added.
+        if (!isReadVerb(req.method)) return methodNotAllowed("GET, HEAD");
+        const store = readJSON(join(DATA_DIR, "tenant_purchases.json"));
+        const rows: any[] = [];
+        if (store && typeof store === "object" && !Array.isArray(store)) {
+          for (const [tenantEmail, list] of Object.entries(store as Record<string, unknown>)) {
+            if (!Array.isArray(list)) continue;
+            for (const row of list) {
+              if (!row || typeof row !== "object") continue;
+              rows.push({ ...(row as Record<string, unknown>), tenantEmail });
+            }
+          }
+        }
+        // Newest first, by the record's own timestamp — an unparseable date
+        // sorts last instead of being read as "now".
+        const when = (r: any): number => {
+          const ms = Date.parse(String(r?.purchasedAt ?? ""));
+          return Number.isFinite(ms) ? ms : 0;
+        };
+        rows.sort((a, b) => when(b) - when(a));
+        return Response.json({ data: rows, total: rows.length });
+      }
       if (subPath === "subscriptions") {
         // Slice 139 — the operator's honest view of subscription state. Reads
         // the durable subscription store + purchase ledger ONLY; nothing is
@@ -3742,54 +3822,15 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
       if (subPath === "data-health") {
         // SLICE 162 — "did my data survive the last publish?", answered from the
         // FILESYSTEM by the running server (the gate above answers 401 unsigned
-        // and 403 for a non-owner). It reads <DATA_DIR>/deployment-generation.json,
-        // stats every declared durable store, and compares the marker's
-        // firstSeenAt against this process AND against the running build. Red when
-        // DATA_DIR is inside the publish tree or the marker is newer than the
-        // running build; green only when it provably predates both.
+        // and 403 for a non-owner). Red when DATA_DIR is inside the publish tree
+        // or the marker is newer than the running build; green only when it
+        // provably predates both. SLICE 180 moved the whole derivation into
+        // `deploymentDataHealthReport()` so `/api/admin/health` measures the
+        // SAME facts instead of asserting a literal.
         if (req.method !== "GET" && req.method !== "HEAD") {
           return Response.json({ error: "method not allowed" }, { status: 405 });
         }
-        return Response.json(
-          buildDataHealthReport({
-            dataDir: DATA_DIR,
-            rawDataDir: DATA_DIR_RAW,
-            serverBase: SERVER_BASE,
-            processStartedAt: PROCESS_STARTED_AT,
-            buildArtifacts: [SERVER_ENTRY_PATH, join(SERVER_BASE, "dist", "index.html")].filter(
-              (p) => typeof p === "string" && p.length > 0,
-            ),
-            runningBuildId: runningBuildId(SERVER_ENTRY_PATH),
-            // SLICE 163: does the data in this directory have a copy OFF this
-            // disk? Same page, same gate - a deployment whose backup has never
-            // run must read red here, not "fine".
-            // SLICE 164: what protects this data when the DISK cannot — the
-            // archive restored at boot, and the plain-words answer built from it.
-            restore: readBootRestore(DATA_DIR),
-            backup: buildBackupHealthReport({
-              dataDir: DATA_DIR,
-              outDir: ARCHIVE_BACKUP_DIR,
-              namespace: ARCHIVE_BACKUP_NAMESPACE,
-              env: ARCHIVE_BACKUP_UPLOAD_ENV,
-              intervalMs: ARCHIVE_BACKUP_INTERVAL_MS,
-              staleFactor: ARCHIVE_STALE_FACTOR,
-              scheduler: (() => {
-                const st = archiveScheduler.status();
-                return {
-                  disabled: st.disabled,
-                  disabledReason: st.disabledReason,
-                  intervalMs: st.intervalMs,
-                  running: st.running,
-                  runs: st.runs,
-                  failures: st.failures,
-                  lastAttemptAt: st.lastAttemptAt,
-                  lastOkAt: st.lastOkAt,
-                  lastError: st.lastError,
-                };
-              })(),
-            }),
-          }),
-        );
+        return Response.json(deploymentDataHealthReport());
       }
       if (subPath === "data-health/backup") {
         // SLICE 163 - the owner's "run it now". A deployment that sleeps cannot
@@ -3858,6 +3899,24 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
       if (subPath === "backup") {
         // Audit-B (10-26): wire the Health-page backup button to the REAL
         // durable-store snapshot flow — the same one the hourly sweeper runs.
+        //
+        // SLICE 180 — this used to run `runBackupSnapshot()` for ANY verb. A
+        // GET is a read: a top-level navigation, a link the owner clicks or a
+        // prefetch all carry the `SameSite=Lax` session cookie, so any of them
+        // could perform a durable-store write with no method guard and no
+        // same-origin check. It now carries the same two guards its sibling
+        // `data-health/backup` has had since slices 163/164: POST only, and the
+        // Origin host must match the host this request was addressed to.
+        if (req.method !== "POST") {
+          return methodNotAllowed("POST");
+        }
+        const sameOrigin = checkRequestSameOrigin(req, req.url, process.env);
+        if (!sameOrigin.ok) {
+          console.log(
+            `[backup] refused a POST /api/admin/backup: ${sameOrigin.reason} (compared: ${sameOrigin.comparedHosts.join(", ") || "none"})`,
+          );
+          return Response.json({ error: `cross-origin request refused — ${sameOrigin.reason}` }, { status: 403 });
+        }
         const r = await runBackupSnapshot();
         return Response.json({
           success: r.ok,
@@ -3867,8 +3926,37 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
         });
       }
       if (subPath === "health") {
+        // SLICE 180 — this answered `status: "healthy"` as a LITERAL: no
+        // branch, no computation, no failure path. Every number beside it
+        // (uptime, memory) was real, so the page printed "SYSTEM STATUS:
+        // OPERATIONAL" unconditionally — a status claiming a measurement
+        // nobody performed. It is now DERIVED from the same filesystem report
+        // `/api/admin/data-health` serves: `ok` only when every check came back
+        // green, `degraded` when any came back red, and `unknown` when a check
+        // could not be measured at all. Uptime and memory are untouched.
+        if (!isReadVerb(req.method)) return methodNotAllowed("GET, HEAD");
+        const report = deploymentDataHealthReport();
+        const toCheck = (id: string, label: string, verdict: string, reasons: string[]) => ({
+          id,
+          label,
+          status: verdict === "green" ? "ok" : verdict === "red" ? "degraded" : "unknown",
+          detail: reasons.length > 0 ? reasons.slice(0, 3).join(" ") : null,
+        });
+        const checks = [
+          toCheck("data", "Data on disk", report.verdict, report.reasons),
+          report.backup
+            ? toCheck("backup", "Off-box backup", report.backup.verdict, report.backup.reasons)
+            : { id: "backup", label: "Off-box backup", status: "unknown", detail: "the backup report could not be read" },
+        ];
+        const status = checks.some((c) => c.status === "degraded")
+          ? "degraded"
+          : checks.every((c) => c.status === "ok")
+            ? "ok"
+            : "unknown";
         return Response.json({
-          status: "healthy",
+          status,
+          measuredAt: new Date().toISOString(),
+          checks,
           uptime: process.uptime(),
           memory: process.memoryUsage(),
           timestamp: new Date().toISOString(),
