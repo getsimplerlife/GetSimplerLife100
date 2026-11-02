@@ -102,10 +102,17 @@ describe("import page pristine-state SSR honesty", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders the empty state and the pinned framing — and NO fabricated timeline", () => {
+  it("renders the pinned framing and NO invented state — a failed read is not an empty workspace", () => {
     const html = renderToString(createElement(PortalImportIndexPage));
     // Pinned honest framing (shared with the 6.6 copy-sweep).
-    expect(html).toContain("No imports yet");
+    //
+    // SLICE 182 — this assertion used to read `toContain("No imports yet")`,
+    // against the fetch stubbed to 404 just above. It was pinning the defect: a
+    // FAILED read rendered as an empty workspace. The empty state now requires a
+    // 2xx (`loaded`), so server-side — where no read has resolved — the honest
+    // output is "Loading your imports…", never a claim about the tenant's data.
+    expect(html).not.toContain("No imports yet");
+    expect(html).toContain("Loading your imports");
     expect(html).toContain("Import &amp; migration");
     expect(html).toContain("Connect your existing tools to bring your data in");
     expect(html).toContain("We never run through your tools");

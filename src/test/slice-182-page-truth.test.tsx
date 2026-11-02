@@ -177,6 +177,23 @@ describe("slice 182 — /portal/import renders the job's real target", () => {
     expect(screen.queryByText(/Import lanes \(/)).not.toBeInTheDocument();
     expect(screen.queryByText("No imports yet")).not.toBeInTheDocument();
   });
+
+  // The complement: gating the empty state on a 2xx must not DELETE it. A real
+  // empty workspace still says so — otherwise the fix would trade one lie for
+  // another. (portal-import-flow.test.tsx's SSR guard used to pin "No imports
+  // yet" against a 404 stub; it now pins "Loading your imports…" instead, so
+  // this is the test that holds the honest empty state.)
+  it("a 2xx read with zero imports DOES render the empty state", async () => {
+    stubFetch([
+      { path: "/api/native/import/lanes", body: { data: { lanes: [] } } },
+      { path: "/api/native/tables", body: { data: { tables: [] } } },
+      { path: "/api/native/import", body: { data: { imports: [] } } },
+      { path: "/api/native/import/writes", body: { data: { writes: [] } } },
+    ]);
+    render(<PortalImportIndexPage />);
+    expect(await screen.findByText("No imports yet")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
 });
 
 // ── 3. the bell never claims "Invoice sent" for a failed invoice ────────────
