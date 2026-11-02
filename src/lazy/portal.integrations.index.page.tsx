@@ -176,6 +176,11 @@ function ConnectedServices() {
   const [, setSelectedFile] = useState<File | null>(null);
   const [documentsHistory, setDocumentsHistory] = useState<DocumentItem[]>([]);
   const [loadingDocs, setLoadingDocs] = useState(false);
+  /** SLICE 183 — `/api/data/documents` is served by the generic `/api/data/*`
+   *  read, which used to answer `200 { data: [] }` when the store threw. The
+   *  page now carries the failure so "Document Ledger is Empty" can only be
+   *  said about a store that was actually read. */
+  const [docsReadError, setDocsReadError] = useState<string | null>(null);
   const [selectedDocDetails, setSelectedDocDetails] = useState<DocumentItem | null>(null);
 
   // Common Feedback State
@@ -226,11 +231,21 @@ function ConnectedServices() {
   const fetchDocumentsData = async () => {
     try {
       setLoadingDocs(true);
-      const res = await fetch("/api/data/documents");
-      const data = await res.json();
-      setDocumentsHistory(data.data || []);
+      const res = await fetch("/api/data/documents", { credentials: "include" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setDocsReadError(
+          typeof data?.error === "string" && data.error
+            ? data.error
+            : `Could not read your document ledger (${res.status}).`,
+        );
+        return;
+      }
+      setDocsReadError(null);
+      setDocumentsHistory(Array.isArray(data?.data) ? data.data : []);
     } catch (err) {
       console.error("Error fetching documents history:", err);
+      setDocsReadError(err instanceof Error ? err.message : "Could not read your document ledger.");
     } finally {
       setLoadingDocs(false);
     }
@@ -843,6 +858,14 @@ function ConnectedServices() {
                     <div className="flex flex-col items-center justify-center py-20">
                       <div className="w-8 h-8 border-2 border-stone-850 border-t-emerald-500 rounded-full animate-spin mb-3" />
                       <p className="text-stone-500 text-[10px] font-mono tracking-widest uppercase">Fetching audit history logs...</p>
+                    </div>
+                  ) : docsReadError ? (
+                    <div role="alert" className="text-center py-16 space-y-3">
+                      <span className="text-3xl block">⚠️</span>
+                      <h4 className="text-xs font-extrabold text-rose-300">Your document ledger could not be read</h4>
+                      <p className="text-[10px] text-rose-200/80 max-w-sm mx-auto leading-relaxed font-semibold">
+                        {docsReadError} This is not an empty ledger — nothing here reflects your documents.
+                      </p>
                     </div>
                   ) : documentsHistory.length === 0 ? (
                     <div className="text-center py-16 space-y-3">

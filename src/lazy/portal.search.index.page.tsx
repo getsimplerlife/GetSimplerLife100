@@ -31,7 +31,7 @@ function workspaceInitialQuery(): string {
 }
 
 function SearchPage() {
-  const { index, signedOut, loading, updatedAt } = usePortalGlobalSearch(30000);
+  const { index, signedOut, loading, loaded, readError, updatedAt } = usePortalGlobalSearch(30000);
   const [query, setQuery] = useState(workspaceInitialQuery);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -91,14 +91,38 @@ function SearchPage() {
         />
       </div>
 
+      {/* SLICE 183 — a failed READ is never "nothing to search yet". */}
+      {readError && (
+        <div
+          role="alert"
+          className="rounded-2xl border border-rose-700/50 bg-rose-950/50 px-5 py-3 text-sm text-rose-100"
+        >
+          {readError.signedOut
+            ? "Your session is not active — sign in again to search your workspace."
+            : `Could not read your workspace records${
+                readError.sources.length > 1 ? ` (${readError.sources.length} sources)` : ""
+              }: ${readError.error}`}
+        </div>
+      )}
+
       {/* Honest states */}
       {workspaceEmpty && !queryTrimmed ? (
-        <div className="max-w-xl mx-auto my-8">
-          <PortalEmptyState
-            title="Nothing to search yet"
-            body="Search results draw from records this workspace has stored — tasks, workflows, reports, proposals, invoices, deal rooms, approvals, integrations, and imports. Nothing has been recorded for this workspace yet."
-          />
-        </div>
+        loaded ? (
+          <div className="max-w-xl mx-auto my-8">
+            <PortalEmptyState
+              title="Nothing to search yet"
+              body="Search results draw from records this workspace has stored — tasks, workflows, reports, proposals, invoices, deal rooms, approvals, integrations, and imports. Nothing has been recorded for this workspace yet."
+            />
+          </div>
+        ) : (
+          <div className="max-w-xl mx-auto my-8">
+            <p className="text-sm text-stone-400 text-center">
+              {readError
+                ? "Your workspace records could not be read — see the notice above. Nothing here is an empty workspace."
+                : "Loading your workspace records…"}
+            </p>
+          </div>
+        )
       ) : results.noQuery ? (
         <div className="max-w-xl mx-auto my-8">
           <PortalEmptyState

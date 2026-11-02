@@ -25,10 +25,18 @@
  * browser; initial state is an honest empty dashboard).
  *
  * ZERO server/auth changes — reads only, all bounded, 30s polling.
+ *
+ * SLICE 183 — every read goes through `authedJson` (portal-primitives.ts).
+ * This hook used to hand-roll `fetch` and coalesce with `|| []`, so a 401
+ * or a 500 was indistinguishable from an empty workspace; the state now
+ * carries `loaded` (every read 2xx) and `readError` (the server's own
+ * sentence + the endpoints that failed), and pages gate their empty
+ * states on `loaded`.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toEpochMs } from "./portal-notifications";
+import { authedJson } from "./portal-primitives";
 
 // ── Window helpers (shared with the time-filter UI) ──────────────────────────
 
@@ -255,13 +263,38 @@ export function classifyStatuses(statuses: readonly number[]): "signedOut" | "ok
   return statuses.every((s) => s === 401) ? "signedOut" : "ok";
 }
 
-// ── Live hook (single source for the Activity Hub + Analytics) ────────────────
+// ── Read outcomes (slice 183) ────────────────────────────────────────────────
+
+/**
+ * SLICE 183 — the honest outcome of one refresh.
+ *
+ * Both shared hooks (this one and portal-search.ts) used to hand-roll `fetch`
+ * and coalesce with `|| []`, so a 401 and a 500 both became "zero rows": a
+ * signed-out session and a broken store rendered as an empty workspace, which
+ * is the same lie the C6 sweep found in individual pages. They now go through
+ * `authedJson` (portal-primitives.ts) — the helper that refuses to invent data.
+ */
+export interface ReadFailure {
+  /** Every read 401'd: there is no portal session to read with. */
+  signedOut: boolean;
+  /** The SERVER's own sentence for the first failed read (never invented). */
+  error: string;
+  /** The endpoints that failed in the latest refresh — real URLs. */
+  sources: string[];
+}
 
 export interface PortalDashboardState {
   inputs: DashboardInputs;
   signedOut: boolean;
   loading: boolean;
-  error: string | null;
+  /**
+   * True only when EVERY read in the latest refresh came back 2xx. An empty
+   * state may render ONLY when this is true — otherwise "nothing here yet" is
+   * being said about a store nobody managed to read.
+   */
+  loaded: boolean;
+  /** Non-null when at least one read failed. */
+  readError: ReadFailure | null;
   updatedAt: number | null;
   refreshDashboard: () => Promise<void>;
 }
@@ -269,13 +302,41 @@ export interface PortalDashboardState {
 const EMPTY_APPROVALS = { pending: [], decided: [] };
 const EMPTY_BILLING = { subscription: null, invoices: [] };
 
+/** The eight read endpoints this hook owns, in call order. */
+export const DASHBOARD_SOURCES = [
+  "/api/portal/approvals",
+  "/api/data/tasks",
+  "/api/data/connected-accounts",
+  "/api/native/import/lanes",
+  "/api/native/billing",
+  "/api/native/proposals",
+  "/api/native/invoice",
+  "/api/native/dealroom",
+] as const;
+
+/** A payload as a row list. `authedJson` already unwraps `data`, so both the
+ *  served `{ data: [...] }` and a bare `[...]` answer land here. */
+export function listOf<T = Record<string, unknown>>(payload: unknown): T[] {
+  if (Array.isArray(payload)) return payload as T[];
+  const inner = (payload as { data?: unknown } | null | undefined)?.data;
+  return Array.isArray(inner) ? (inner as T[]) : [];
+}
+
+/** A payload as a plain object — projections read named fields off it. */
+export function objectOf(payload: unknown): Record<string, any> {
+  return payload && typeof payload === "object" ? (payload as Record<string, any>) : {};
+}
+
+// ── Live hook (single source for the Activity Hub + Analytics) ────────────────
+
 /**
- * Fetch the eight real read endpoints, derive nothing client-side beyond the
- * payload projections, and poll every 30s. SSR-safe: the effect only runs in
- * the browser; the initial state is an honest empty dashboard. If EVERY
- * endpoint 401s (no portal session) the state carries an honest "Sign in"
- * flag instead of numbers. A single 401/error in one source empties only that
- * source's projection — sections stay honest independently.
+ * Fetch the eight real read endpoints through `authedJson`, derive nothing
+ * client-side beyond the payload projections, and poll every 30s. SSR-safe:
+ * the effect only runs in the browser; the initial state is an honest empty
+ * dashboard. If EVERY endpoint 401s (no portal session) the state carries an
+ * honest "Sign in" flag instead of numbers. If SOME endpoint fails, the failed
+ * sources keep their previous rows, `loaded` stays false and `readError` names
+ * them — a section is never emptied by a read that did not succeed.
  */
 export function usePortalDashboard(intervalMs = 30000): PortalDashboardState {
   const [inputs, setInputs] = useState<DashboardInputs>({
@@ -290,58 +351,81 @@ export function usePortalDashboard(intervalMs = 30000): PortalDashboardState {
   });
   const [signedOut, setSignedOut] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [readError, setReadError] = useState<ReadFailure | null>(null);
   const [updatedAt, setUpdatedAt] = useState<number | null>(null);
   const firstRun = useRef(true);
 
   const refreshDashboard = useCallback(async () => {
     try {
       const [a, t, i, l, b, p, inv, dr] = await Promise.all([
-        fetch("/api/portal/approvals", { credentials: "include" }),
-        fetch("/api/data/tasks", { credentials: "include" }),
-        fetch("/api/data/connected-accounts", { credentials: "include" }),
-        fetch("/api/native/import/lanes", { credentials: "include" }),
-        fetch("/api/native/billing", { credentials: "include" }),
-        fetch("/api/native/proposals", { credentials: "include" }),
-        fetch("/api/native/invoice", { credentials: "include" }),
-        fetch("/api/native/dealroom", { credentials: "include" }),
+        authedJson<unknown>(DASHBOARD_SOURCES[0]),
+        authedJson<unknown>(DASHBOARD_SOURCES[1]),
+        authedJson<unknown>(DASHBOARD_SOURCES[2]),
+        authedJson<unknown>(DASHBOARD_SOURCES[3]),
+        authedJson<unknown>(DASHBOARD_SOURCES[4]),
+        authedJson<unknown>(DASHBOARD_SOURCES[5]),
+        authedJson<unknown>(DASHBOARD_SOURCES[6]),
+        authedJson<unknown>(DASHBOARD_SOURCES[7]),
       ]);
-      const statuses = [a.status, t.status, i.status, l.status, b.status, p.status, inv.status, dr.status];
-      if (classifyStatuses(statuses) === "signedOut") {
+      const results = [a, t, i, l, b, p, inv, dr];
+      if (results.every((r) => !r.ok && r.signedOut)) {
         setSignedOut(true);
-        setError(null);
+        setReadError(null);
+        setLoaded(false);
         return;
       }
-      const [aj, tj, ij, lj, bj, pj, invj, drj] = await Promise.all(
-        [a, t, i, l, b, p, inv, dr].map((r) => r.json().catch(() => ({}))),
-      );
-      setInputs({
-        approvals: {
-          pending: Array.isArray(aj?.data?.pending) ? aj.data.pending : [],
-          decided: Array.isArray(aj?.data?.decided) ? aj.data.decided : [],
-        },
-        taskRecords: Array.isArray(tj?.data) ? tj.data : [],
-        integrations: [...(ij?.crm ?? []), ...(ij?.erp ?? []), ...(ij?.other ?? [])],
-        lanes: Array.isArray(lj?.data?.lanes) ? lj.data.lanes : [],
-        // SLICE 178 — the endpoint answers `{ ok: true, billing: {…} }`
-        // (native/billing/router.ts:279,287). This read one level too deep
-        // (`bj.data`), so `subscription` was always null and the invoice list
-        // always empty: the dashboard told every tenant — a paying one included
-        // — that it had no plan, and `isEmpty` counted `!subscription`, so a
-        // workspace whose only data was a live subscription read "nothing to show".
-        billing: {
-          subscription: bj?.billing?.subscription ?? null,
-          invoices: Array.isArray(bj?.billing?.invoices) ? bj.billing.invoices : [],
-        },
-        proposals: Array.isArray(pj?.data) ? pj.data : [],
-        invoices: Array.isArray(invj?.data) ? invj.data : [],
-        dealRooms: Array.isArray(drj?.data) ? drj.data : [],
+      setInputs((prev) => {
+        const approvals = objectOf(a.ok ? a.data : null);
+        const lanesPayload = objectOf(l.ok ? l.data : null);
+        const billing = objectOf(b.ok ? b.data : null).billing;
+        const integrations = objectOf(i.ok ? i.data : null);
+        return {
+          approvals: a.ok
+            ? { pending: listOf(approvals.pending), decided: listOf(approvals.decided) }
+            : prev.approvals,
+          taskRecords: t.ok ? listOf(t.data) : prev.taskRecords,
+          integrations: i.ok
+            ? [...listOf(integrations.crm), ...listOf(integrations.erp), ...listOf(integrations.other)]
+            : prev.integrations,
+          lanes: l.ok ? (listOf(lanesPayload.lanes) as DashboardInputs["lanes"]) : prev.lanes,
+          // SLICE 178 — the endpoint answers `{ ok: true, billing: {…} }`
+          // (native/billing/router.ts:279,287); `authedJson` returns that body
+          // whole because it carries no `data` key, so the envelope is read
+          // here exactly once.
+          billing: b.ok
+            ? {
+                subscription: (billing?.subscription ?? null) as Record<string, unknown> | null,
+                invoices: listOf(billing?.invoices),
+              }
+            : prev.billing,
+          proposals: p.ok ? listOf(p.data) : prev.proposals,
+          invoices: inv.ok ? listOf(inv.data) : prev.invoices,
+          dealRooms: dr.ok ? listOf(dr.data) : prev.dealRooms,
+        };
       });
+      const failed = results
+        .map((r, idx) => ({ r, url: DASHBOARD_SOURCES[idx] as string }))
+        .filter((x) => !x.r.ok);
       setSignedOut(false);
-      setError(null);
-      setUpdatedAt(Date.now());
+      setReadError(
+        failed.length
+          ? {
+              signedOut: false,
+              error: (failed[0].r as { error: string }).error,
+              sources: failed.map((f) => f.url),
+            }
+          : null,
+      );
+      setLoaded(failed.length === 0);
+      if (failed.length === 0) setUpdatedAt(Date.now());
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't refresh dashboard data.");
+      setReadError({
+        signedOut: false,
+        error: e instanceof Error ? e.message : "Couldn't refresh dashboard data.",
+        sources: [],
+      });
+      setLoaded(false);
     } finally {
       if (firstRun.current) {
         firstRun.current = false;
@@ -356,5 +440,5 @@ export function usePortalDashboard(intervalMs = 30000): PortalDashboardState {
     return () => clearInterval(t);
   }, [refreshDashboard, intervalMs]);
 
-  return { inputs, signedOut, loading, error, updatedAt, refreshDashboard };
+  return { inputs, signedOut, loading, loaded, readError, updatedAt, refreshDashboard };
 }

@@ -20,7 +20,7 @@ import {
  */
 
 function WorkspaceAnalytics() {
-  const { inputs, signedOut, loading, error, updatedAt, refreshDashboard } = usePortalDashboard();
+  const { inputs, signedOut, loading, loaded, readError, updatedAt, refreshDashboard } = usePortalDashboard();
 
   // Analytics is all-time — every record with a known timestamp, no windowing.
   const d = useMemo(() => deriveDashboard(inputs, Date.now(), WINDOW_ALL_MS), [inputs]);
@@ -93,20 +93,38 @@ function WorkspaceAnalytics() {
         </button>
       </div>
 
-      {error && (
-        <div className="bg-rose-950/20 border border-rose-500/30 rounded-xl px-5 py-3 text-xs font-mono text-rose-300">
-          Couldn't refresh dashboard data — showing the last loaded values.
+      {readError && (
+        <div
+          role="alert"
+          className="bg-rose-950/20 border border-rose-500/30 rounded-xl px-5 py-3 text-xs font-mono text-rose-300"
+        >
+          {readError.signedOut
+            ? "Your session is not active — sign in again to see your analytics."
+            : `Could not read your workspace counts${
+                readError.sources.length > 1 ? ` (${readError.sources.length} sources)` : ""
+              }: ${readError.error}`}
         </div>
       )}
 
       {d.isEmpty ? (
-        <div className="max-w-xl mx-auto my-8">
-          <PortalEmptyState
-            title="No activity yet in this workspace"
-            body="Counts here come from your workspace's real records — approvals, tasks and workflow runs, integrations, and quote-to-cash. They appear as you use the platform, starting with bringing your data in."
-            action={{ label: "Bring your data in", to: "/portal/import" }}
-          />
-        </div>
+        loaded ? (
+          <div className="max-w-xl mx-auto my-8">
+            <PortalEmptyState
+              title="No activity yet in this workspace"
+              body="Counts here come from your workspace's real records — approvals, tasks and workflow runs, integrations, and quote-to-cash. They appear as you use the platform, starting with bringing your data in."
+              action={{ label: "Bring your data in", to: "/portal/import" }}
+            />
+          </div>
+        ) : (
+          <div className="max-w-xl mx-auto my-8">
+            {/* SLICE 183 — "no activity yet" over a read that failed is the lie
+                this slice removes: the empty state renders only on a full 2xx. */}
+            <p className="text-sm text-stone-400 text-center">
+              Your workspace counts could not be read — see the notice above. Nothing here is an
+              empty workspace.
+            </p>
+          </div>
+        )
       ) : (
         <>
           {/* ─── Operations ─── */}
