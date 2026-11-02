@@ -26,7 +26,15 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { recordAt, recordStatus, recordSummary, classifyStatuses } from "./portal-dashboard";
+import {
+  recordAt,
+  recordStatus,
+  recordSummary,
+  listOf,
+  objectOf,
+  type ReadFailure,
+} from "./portal-dashboard";
+import { authedJson } from "./portal-primitives";
 import { toEpochMs } from "./portal-notifications";
 
 // ── Categories (fixed order, real portal routes) ─────────────────────────────
@@ -445,19 +453,38 @@ export interface PortalGlobalSearchState {
   index: SearchEntry[];
   signedOut: boolean;
   loading: boolean;
-  error: string | null;
+  /** True only when EVERY read in the latest refresh came back 2xx (slice 183). */
+  loaded: boolean;
+  /** Non-null when at least one read failed — the server's own sentence. */
+  readError: ReadFailure | null;
   updatedAt: number | null;
   refreshSearch: () => Promise<void>;
 }
 
 const EMPTY_APPROVALS = { pending: [], decided: [] };
 
+/** The ten read endpoints this hook owns, in call order. */
+export const SEARCH_SOURCES = [
+  "/api/portal/approvals",
+  "/api/data/tasks",
+  "/api/data/workflows",
+  "/api/data/reports",
+  "/api/native/proposals",
+  "/api/native/invoice",
+  "/api/native/dealroom",
+  "/api/data/connected-accounts",
+  "/api/native/import",
+  "/api/native/import/lanes",
+] as const;
+
 /**
- * Fetch the ten real read endpoints, build the index client-side, and poll
- * every 30s. SSR-safe: the effect only runs in the browser; the initial state
- * is an honest empty index. If EVERY endpoint 401s (no portal session) the
- * state carries an honest "Sign in" flag instead of results; a single failed
- * source simply contributes no rows to its category.
+ * Fetch the ten real read endpoints through `authedJson`, build the index
+ * client-side, and poll every 30s. SSR-safe: the effect only runs in the
+ * browser; the initial state is an honest empty index. If EVERY endpoint 401s
+ * (no portal session) the state carries an honest "Sign in" flag instead of
+ * results. If SOME endpoint fails, the failed sources keep their previous rows,
+ * `loaded` stays false and `readError` names them — an empty search result is
+ * never produced by a read that did not succeed.
  */
 export function usePortalGlobalSearch(intervalMs = 30000): PortalGlobalSearchState {
   const [inputs, setInputs] = useState<SearchInputs>({
@@ -474,53 +501,76 @@ export function usePortalGlobalSearch(intervalMs = 30000): PortalGlobalSearchSta
   });
   const [signedOut, setSignedOut] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [readError, setReadError] = useState<ReadFailure | null>(null);
   const [updatedAt, setUpdatedAt] = useState<number | null>(null);
   const firstRun = useRef(true);
 
   const refreshSearch = useCallback(async () => {
     try {
       const [a, t, w, r, p, inv, dr, i, imp, l] = await Promise.all([
-        fetch("/api/portal/approvals", { credentials: "include" }),
-        fetch("/api/data/tasks", { credentials: "include" }),
-        fetch("/api/data/workflows", { credentials: "include" }),
-        fetch("/api/data/reports", { credentials: "include" }),
-        fetch("/api/native/proposals", { credentials: "include" }),
-        fetch("/api/native/invoice", { credentials: "include" }),
-        fetch("/api/native/dealroom", { credentials: "include" }),
-        fetch("/api/data/connected-accounts", { credentials: "include" }),
-        fetch("/api/native/import", { credentials: "include" }),
-        fetch("/api/native/import/lanes", { credentials: "include" }),
+        authedJson<unknown>(SEARCH_SOURCES[0]),
+        authedJson<unknown>(SEARCH_SOURCES[1]),
+        authedJson<unknown>(SEARCH_SOURCES[2]),
+        authedJson<unknown>(SEARCH_SOURCES[3]),
+        authedJson<unknown>(SEARCH_SOURCES[4]),
+        authedJson<unknown>(SEARCH_SOURCES[5]),
+        authedJson<unknown>(SEARCH_SOURCES[6]),
+        authedJson<unknown>(SEARCH_SOURCES[7]),
+        authedJson<unknown>(SEARCH_SOURCES[8]),
+        authedJson<unknown>(SEARCH_SOURCES[9]),
       ]);
-      const statuses = [a.status, t.status, w.status, r.status, p.status, inv.status, dr.status, i.status, imp.status, l.status];
-      if (classifyStatuses(statuses) === "signedOut") {
+      const results = [a, t, w, r, p, inv, dr, i, imp, l];
+      if (results.every((res) => !res.ok && res.signedOut)) {
         setSignedOut(true);
-        setError(null);
+        setReadError(null);
+        setLoaded(false);
         return;
       }
-      const [aj, tj, wj, rj, pj, invj, drj, ij, impj, lj] = await Promise.all(
-        [a, t, w, r, p, inv, dr, i, imp, l].map((res) => res.json().catch(() => ({}))),
-      );
-      setInputs({
-        approvals: {
-          pending: Array.isArray(aj?.data?.pending) ? aj.data.pending : [],
-          decided: Array.isArray(aj?.data?.decided) ? aj.data.decided : [],
-        },
-        taskRecords: Array.isArray(tj?.data) ? tj.data : [],
-        workflows: Array.isArray(wj?.data) ? wj.data : [],
-        reports: Array.isArray(rj?.data) ? rj.data : [],
-        proposals: Array.isArray(pj?.data) ? pj.data : [],
-        invoices: Array.isArray(invj?.data) ? invj.data : [],
-        dealRooms: Array.isArray(drj?.data) ? drj.data : [],
-        integrations: [...(ij?.crm ?? []), ...(ij?.erp ?? []), ...(ij?.other ?? [])],
-        importJobs: Array.isArray(impj?.data?.imports) ? impj.data.imports : [],
-        lanes: Array.isArray(lj?.data?.lanes) ? lj.data.lanes : [],
+      setInputs((prev) => {
+        const approvals = objectOf(a.ok ? a.data : null);
+        const integrations = objectOf(i.ok ? i.data : null);
+        const imports = objectOf(imp.ok ? imp.data : null);
+        const lanes = objectOf(l.ok ? l.data : null);
+        return {
+          approvals: a.ok
+            ? { pending: listOf(approvals.pending), decided: listOf(approvals.decided) }
+            : prev.approvals,
+          taskRecords: t.ok ? listOf(t.data) : prev.taskRecords,
+          workflows: w.ok ? listOf(w.data) : prev.workflows,
+          reports: r.ok ? listOf(r.data) : prev.reports,
+          proposals: p.ok ? listOf(p.data) : prev.proposals,
+          invoices: inv.ok ? listOf(inv.data) : prev.invoices,
+          dealRooms: dr.ok ? listOf(dr.data) : prev.dealRooms,
+          integrations: i.ok
+            ? [...listOf(integrations.crm), ...listOf(integrations.erp), ...listOf(integrations.other)]
+            : prev.integrations,
+          importJobs: imp.ok ? listOf(imports.imports) : prev.importJobs,
+          lanes: l.ok ? listOf(lanes.lanes) : prev.lanes,
+        };
       });
+      const failed = results
+        .map((res, idx) => ({ res, url: SEARCH_SOURCES[idx] as string }))
+        .filter((x) => !x.res.ok);
       setSignedOut(false);
-      setError(null);
-      setUpdatedAt(Date.now());
+      setReadError(
+        failed.length
+          ? {
+              signedOut: false,
+              error: (failed[0].res as { error: string }).error,
+              sources: failed.map((f) => f.url),
+            }
+          : null,
+      );
+      setLoaded(failed.length === 0);
+      if (failed.length === 0) setUpdatedAt(Date.now());
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't refresh search data.");
+      setReadError({
+        signedOut: false,
+        error: e instanceof Error ? e.message : "Couldn't refresh search data.",
+        sources: [],
+      });
+      setLoaded(false);
     } finally {
       if (firstRun.current) {
         firstRun.current = false;
@@ -537,5 +587,5 @@ export function usePortalGlobalSearch(intervalMs = 30000): PortalGlobalSearchSta
 
   const index = useMemo(() => buildSearchIndex(inputs), [inputs]);
 
-  return { inputs, index, signedOut, loading, error, updatedAt, refreshSearch };
+  return { inputs, index, signedOut, loading, loaded, readError, updatedAt, refreshSearch };
 }
