@@ -457,7 +457,7 @@ function AdminCredentialsPage() {
                       {cred && (
                         <button
                           onClick={() => handleDelete(provider.id)}
-                          className="text-stone-500 hover:text-rose-400 text-xs font-bold transition-all px-2 py-1"
+                          className="tap-target text-stone-500 hover:text-rose-400 text-xs font-bold transition-all px-2"
                         >
                           Remove
                         </button>

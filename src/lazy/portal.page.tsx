@@ -193,11 +193,11 @@ type NavLink = {
         </Link>
         <div className="flex items-center gap-4">
           {/* Mobile Search Button (P2-7) */}
-          <Link to="/portal/search" className="p-1 text-stone-400 hover:text-white transition-colors" aria-label="Search workspace">
+          <Link to="/portal/search" className="tap-target text-stone-400 hover:text-white transition-colors" aria-label="Search workspace">
             <PortalIcon name="search" className="w-5 h-5" />
           </Link>
           {/* Mobile Bell Button */}
-          <Link to="/portal/notifications" className="relative p-1 text-stone-400 hover:text-white transition-colors" aria-label="Notifications">
+          <Link to="/portal/notifications" className="tap-target relative text-stone-400 hover:text-white transition-colors" aria-label="Notifications">
             <PortalIcon name="bell" className="w-5 h-5" />
             {unreadCount > 0 && (
               <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white ring-2 ring-stone-950">
@@ -207,7 +207,7 @@ type NavLink = {
           </Link>
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="text-stone-400 hover:text-white focus:outline-none flex items-center gap-1.5"
+            className="tap-target text-stone-400 hover:text-white focus:outline-none gap-1.5"
             aria-label="Toggle navigation menu"
           >
             <span className="text-[10px] font-bold uppercase tracking-wider">{sidebarOpen ? "Close" : "Menu"}</span>
@@ -341,7 +341,7 @@ type NavLink = {
                 that prod-server never serves — removed. */}
             <Link
               to="/portal/notifications"
-              className="relative p-1.5 rounded-lg bg-stone-900 border border-stone-800 hover:bg-stone-800 hover:border-stone-700 hover:text-white text-stone-300 transition-all"
+              className="tap-target relative rounded-lg bg-stone-900 border border-stone-800 hover:bg-stone-800 hover:border-stone-700 hover:text-white text-stone-300 transition-all"
               aria-label="Notifications"
             >
               <PortalIcon name="bell" className="w-5 h-5" />

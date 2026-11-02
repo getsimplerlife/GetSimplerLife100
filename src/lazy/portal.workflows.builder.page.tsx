@@ -105,7 +105,7 @@ function WorkflowBuilderPage() {
         </div>
         <Link
           to="/portal/workflows"
-          className="bg-stone-900 hover:bg-stone-850 text-stone-300 hover:text-white border border-stone-800 text-xs font-mono font-bold px-4 py-2.5 rounded-xl transition-all self-start md:self-auto"
+          className="tap-target bg-stone-900 hover:bg-stone-850 text-stone-300 hover:text-white border border-stone-800 text-xs font-mono font-bold px-4 rounded-xl transition-all self-start md:self-auto"
         >
           ← Back to Registry
         </Link>

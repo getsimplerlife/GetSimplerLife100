@@ -66,7 +66,7 @@ function ProviderDetailPage() {
       <div className="flex flex-col items-center justify-center min-h-[400px] text-center space-y-4">
         <div className="text-4xl">⚠️</div>
         <p className="text-stone-400 font-bold">{error || "Provider not found"}</p>
-        <Link to="/portal/integrations" className="text-emerald-400 font-bold text-sm hover:text-emerald-300">
+        <Link to="/portal/integrations" className="tap-target text-emerald-400 font-bold text-sm hover:text-emerald-300">
           ← Back to the catalog
         </Link>
       </div>

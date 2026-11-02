@@ -135,7 +135,7 @@ export default function ProposalDetailPage() {
   if (!proposal) {
     return (
       <div className="space-y-6 p-6">
-        <Link className="text-sm text-sky-600 underline" to="/portal/proposals">
+        <Link className="tap-target text-sm text-sky-600 underline" to="/portal/proposals">
           ← Back to proposals
         </Link>
         <div className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700">
@@ -150,7 +150,7 @@ export default function ProposalDetailPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <Link className="text-sm text-sky-600 underline" to="/portal/proposals">
+      <Link className="tap-target text-sm text-sky-600 underline" to="/portal/proposals">
         ← Back to proposals
       </Link>
 

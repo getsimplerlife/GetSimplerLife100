@@ -275,7 +275,7 @@ export default function InvoicesPage() {
               </div>
               <Link
                 to="/portal/settings"
-                className="rounded bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700"
+                className="tap-target rounded bg-emerald-600 px-4 text-xs font-bold text-white hover:bg-emerald-700"
               >
                 Set up payments
               </Link>
@@ -325,7 +325,7 @@ export default function InvoicesPage() {
             <PortalEmptyState
               title="No invoices yet"
               body="Invoices are built from approved deal rooms. Create and approve a deal room first, then issue the invoice from the composer above."
-              action={{ label: "Open deal rooms", to: "/deal-rooms/" }}
+              action={{ label: "Open deal rooms", to: "/portal/deal-rooms" }}
             />
           ) : (
             <PortalEmptyState
