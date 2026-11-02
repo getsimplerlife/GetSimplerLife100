@@ -6,10 +6,13 @@
  * rule now is:
  *
  *   - the EXISTING lane sends the message — `sendEmail()` from
- *     src/integrations/email.ts (SendGrid HTTP when SENDGRID_API_KEY is set,
- *     SMTP when configured). No new provider, no new credential store.
- *   - only a PROVIDER ACKNOWLEDGEMENT counts as delivered. SendGrid's 202 is
- *     the acknowledgement; the mock/simulation fallback never is.
+ *     src/integrations/email.ts (SMTP when configured — the live Brevo lane —
+ *     otherwise SendGrid HTTP when SENDGRID_API_KEY is set, with fall-through
+ *     to the other configured lane on failure). No new provider, no new
+ *     credential store.
+ *   - only a PROVIDER ACKNOWLEDGEMENT counts as delivered. SendGrid's 202 or a
+ *     nodemailer transport ack is the acknowledgement; the mock/simulation
+ *     fallback never is.
  *   - when the lane is unconfigured we do NOT dispatch at all (so nothing can
  *     be logged as if it were sent) and report `unconfigured` — the caller
  *     stores that verbatim and the UI says so plainly.
@@ -122,18 +125,22 @@ export async function deliverInvoiceEmail(input: InvoiceEmailInput): Promise<Inv
   }
   try {
     const res = await sendEmail(buildInvoiceEmail(input));
+    // SLICE 170 — sendEmail may fall through to another configured lane, so the
+    // channel we REPORT is the one that actually answered, not merely the
+    // preferred one.
+    const usedChannel = res.channel && res.channel !== "none" ? res.channel : lane.channel;
     if (res.isMock) {
       return {
-        channel: lane.channel,
+        channel: usedChannel,
         outcome: "failed",
         error: "The email lane fell back to simulation (no delivery) — not reported as sent.",
       };
     }
     if (res.success && res.messageId) {
-      return { channel: lane.channel, outcome: "sent", messageId: res.messageId };
+      return { channel: usedChannel, outcome: "sent", messageId: res.messageId };
     }
     return {
-      channel: lane.channel,
+      channel: usedChannel,
       outcome: "failed",
       error: res.error || "The email provider did not acknowledge the message.",
     };

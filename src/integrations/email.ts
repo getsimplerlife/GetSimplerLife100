@@ -1,12 +1,42 @@
-import nodemailer from "nodemailer"; // we can use nodemailer, it is standard and works perfectly in Bun, but let's write a highly resilient wrapper
+import nodemailer from "nodemailer"; // standard, works in Bun; wrapped here for resilience
 
-// SMTP Configuration
-const SMTP_HOST = process.env.SMTP_HOST || "";
-const SMTP_PORT = parseInt(process.env.SMTP_PORT || "587", 10);
-const SMTP_SECURE = process.env.SMTP_SECURE === "true" || SMTP_PORT === 465;
-const SMTP_USER = process.env.SMTP_USER || "";
-const SMTP_PASS = process.env.SMTP_PASS || "";
-const SMTP_FROM = process.env.SMTP_FROM || "Simpler Life 100 <notifications@simplerlife100.ctonew.app>";
+/**
+ * SLICE 170 — the lane configuration is read at CALL time, not import time.
+ * Module-level `const`s captured whatever the process booted with, which made
+ * the lane untestable (a test could not change it) and made "which lane did we
+ * use" depend on when the module happened to be imported.
+ */
+const DEFAULT_SMTP_FROM = "Simpler Life 100 <notifications@simplerlife100.ctonew.app>";
+
+interface SmtpConfig {
+  host: string;
+  port: number;
+  secure: boolean;
+  user: string;
+  pass: string;
+  from: string;
+}
+
+function readSmtpConfig(): SmtpConfig {
+  const port = parseInt(process.env.SMTP_PORT || "587", 10);
+  return {
+    host: (process.env.SMTP_HOST || "").trim(),
+    port,
+    secure: process.env.SMTP_SECURE === "true" || port === 465,
+    user: (process.env.SMTP_USER || "").trim(),
+    pass: process.env.SMTP_PASS || "",
+    from: process.env.SMTP_FROM || DEFAULT_SMTP_FROM,
+  };
+}
+
+/** SMTP is usable only when host + user + pass are all present. */
+function smtpConfigured(cfg: SmtpConfig = readSmtpConfig()): boolean {
+  return Boolean(cfg.host && cfg.user && cfg.pass);
+}
+
+function sendgridKey(): string {
+  return (process.env.SENDGRID_API_KEY || "").trim();
+}
 
 export interface EmailOptions {
   to: string | string[];
@@ -15,13 +45,29 @@ export interface EmailOptions {
   html?: string;
 }
 
+/** One attempt against one provider, in the order they were tried. */
+export interface EmailLaneAttempt {
+  channel: "smtp" | "sendgrid";
+  ok: boolean;
+  error?: string;
+}
+
 export interface EmailResult {
   success: boolean;
   messageId: string;
+  /**
+   * TRUE only when nothing real was attempted (no lane configured). A real
+   * provider was tried and failed → `isMock: false` with `success: false`, so a
+   * caller can always tell "no lane" from "every lane failed".
+   */
   isMock: boolean;
   recipient: string | string[];
   /** Present only on failure (fail-closed paths return success:false instead of throwing). */
   error?: string;
+  /** The lane that produced this result; "none" for the mock path. */
+  channel?: "smtp" | "sendgrid" | "none";
+  /** Every lane tried, in order, with what happened to it (empty for the mock path). */
+  attempts?: EmailLaneAttempt[];
 }
 
 /**
@@ -35,100 +81,158 @@ export interface EmailLaneStatus {
   channel: "sendgrid" | "smtp" | "none";
 }
 export function emailLaneStatus(): EmailLaneStatus {
-  if ((process.env.SENDGRID_API_KEY || "").trim()) return { configured: true, channel: "sendgrid" };
-  if (SMTP_HOST && SMTP_USER && SMTP_PASS) return { configured: true, channel: "smtp" };
+  // SLICE 170 — SMTP wins when it is configured; SendGrid is only consulted
+  // when there is no SMTP lane. (The live lane is Brevo SMTP.)
+  if (smtpConfigured()) return { configured: true, channel: "smtp" };
+  if (sendgridKey()) return { configured: true, channel: "sendgrid" };
   return { configured: false, channel: "none" };
 }
+
+/** Configured lanes in the order `sendEmail` tries them: SMTP first, then SendGrid. */
+function configuredLanes(): Array<"smtp" | "sendgrid"> {
+  const lanes: Array<"smtp" | "sendgrid"> = [];
+  if (smtpConfigured()) lanes.push("smtp");
+  if (sendgridKey()) lanes.push("sendgrid");
+  return lanes;
+}
+
 /**
- * Sends an email. Precedence (#233):
- *   1. SendGrid (HTTP POST /v3/mail/send) when SENDGRID_API_KEY is set —
- *      this is the LIVE path today (SENDGRID_API_KEY + SMTP_FROM configured,
- *      no SMTP_*), so owner reconnect alerts now deliver for real.
- *   2. nodemailer SMTP when SMTP_HOST/USER/PASS are set (unchanged behavior).
- *   3. Mock/simulation logger (unchanged fallback) — never claims delivery.
- * SendGrid was chosen above SMTP because the verified, working credential in
- * the live environment is the SendGrid key (mail.send scope confirmed), while
- * SMTP_* is unset everywhere; SMTP remains for deployments that configure it.
+ * Sends an email. Precedence and fall-through (SLICE 170):
+ *   1. nodemailer SMTP when SMTP_HOST + SMTP_USER + SMTP_PASS are all set —
+ *      this is the LIVE lane (Brevo SMTP). SendGrid is not consulted at all.
+ *   2. SendGrid (HTTP POST /v3/mail/send) when SENDGRID_API_KEY is set and
+ *      there is no SMTP lane — or as the fall-through lane when SMTP fails.
+ *   3. Mock/simulation logger, ONLY when no lane is configured at all — it
+ *      never claims delivery and never runs after a real attempt.
+ * A failing lane falls through to the next configured one instead of
+ * black-holing the message; the returned result names the lane that answered
+ * (`channel`) and every lane tried (`attempts`). `isMock` is true only when
+ * nothing real was attempted.
  */
 export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
   const { to, subject, text, html } = options;
-  const sendgridKey = process.env.SENDGRID_API_KEY || "";
+  const lanes = configuredLanes();
 
-  if (sendgridKey) {
-    return sendViaSendGrid({ to, subject, text, html, apiKey: sendgridKey });
-  }
+  if (lanes.length === 0) return simulateSend(options);
 
-  // If no SMTP configured, fallback to Mock/Simulation mode
-  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
-    const debugPath = "/home/team/shared/sent_emails_debug.json";
-    const debugEmail = {
-      timestamp: new Date().toISOString(),
-      to,
-      subject,
-      text,
-      html,
-      smtpConfig: {
-        host: SMTP_HOST || "none",
-        port: SMTP_PORT,
-        secure: SMTP_PORT === 465,
-      },
-    };
+  const attempts: EmailLaneAttempt[] = [];
+  for (const lane of lanes) {
+    const result =
+      lane === "smtp"
+        ? await sendViaSmtp({ to, subject, text, html, cfg: readSmtpConfig() })
+        : await sendViaSendGrid({ to, subject, text, html, apiKey: sendgridKey() });
 
-    try {
-      const fs = await import("node:fs/promises");
-      let currentLogs: any[] = [];
-      try {
-        const fileContent = await fs.readFile(monitorPath(), "utf-8");
-        currentLogs = JSON.parse(fileContent);
-      } catch {
-        // If file doesn't exist, start fresh
-      }
-      currentLogs.push(debugEmail);
-      await fs.writeFile(debugPath, JSON.stringify(currentLogs, null, 2), "utf-8");
-    } catch (err) {
-      console.error("[Email Mock] Failed to save simulated email to sent_emails_debug.json:", err);
+    if (result.success && result.messageId) {
+      attempts.push({ channel: lane, ok: true });
+      return { ...result, isMock: false, channel: lane, attempts };
     }
 
-    console.log(`[Email Mock] SMTP not configured. Simulated sending to ${to}:`);
-    console.log(`Subject: ${subject}`);
-    return {
-      success: true,
-      messageId: `mock-${crypto.randomUUID()}`,
-      isMock: true,
-      recipient: to,
-    };
+    const error = result.error || "The provider did not acknowledge the message.";
+    attempts.push({ channel: lane, ok: false, error });
+    const next = lanes[lanes.indexOf(lane) + 1];
+    if (next) {
+      console.error(`[Email] lane ${lane} failed (${error}) — falling through to ${next}.`);
+    }
   }
 
-  // Real SMTP Send
+  // Every configured lane was tried and failed. NOT a mock: a real provider
+  // was attempted, and nothing was delivered.
+  const detail = attempts.map((a) => `${a.channel}: ${a.error}`).join(" | ");
+  console.error(`[Email] all configured lanes failed: ${detail}`);
+  return {
+    success: false,
+    messageId: "",
+    isMock: false,
+    recipient: to,
+    channel: attempts[attempts.length - 1].channel,
+    error: `All configured email lanes failed — ${detail}`,
+    attempts,
+  };
+}
+
+/**
+ * Mock/simulation path — unchanged behavior. Reached ONLY when no lane is
+ * configured: it writes the message to the debug log and reports `isMock: true`
+ * so no caller can mistake it for delivery.
+ */
+async function simulateSend(options: EmailOptions): Promise<EmailResult> {
+  const { to, subject, text, html } = options;
+  const cfg = readSmtpConfig();
+  const debugPath = "/home/team/shared/sent_emails_debug.json";
+  const debugEmail = {
+    timestamp: new Date().toISOString(),
+    to,
+    subject,
+    text,
+    html,
+    smtpConfig: {
+      host: cfg.host || "none",
+      port: cfg.port,
+      secure: cfg.secure,
+    },
+  };
+
+  try {
+    const fs = await import("node:fs/promises");
+    let currentLogs: any[] = [];
+    try {
+      const fileContent = await fs.readFile(monitorPath(), "utf-8");
+      currentLogs = JSON.parse(fileContent);
+    } catch {
+      // If file doesn't exist, start fresh
+    }
+    currentLogs.push(debugEmail);
+    await fs.writeFile(debugPath, JSON.stringify(currentLogs, null, 2), "utf-8");
+  } catch (err) {
+    console.error("[Email Mock] Failed to save simulated email to sent_emails_debug.json:", err);
+  }
+
+  console.log(`[Email Mock] No email lane configured. Simulated sending to ${to}:`);
+  console.log(`Subject: ${subject}`);
+  return {
+    success: true,
+    messageId: `mock-${crypto.randomUUID()}`,
+    isMock: true,
+    recipient: to,
+    channel: "none",
+    attempts: [],
+  };
+}
+
+/**
+ * SMTP lane. Fail-closed and non-throwing: a transport error comes back as
+ * `{ success: false, error }` so `sendEmail` can fall through to the next lane
+ * instead of throwing past a working provider.
+ */
+async function sendViaSmtp(opts: {
+  to: string | string[];
+  subject: string;
+  text?: string;
+  html?: string;
+  cfg: SmtpConfig;
+}): Promise<EmailResult> {
+  const { to, subject, text, html, cfg } = opts;
   try {
     const transporter = nodemailer.createTransport({
-      host: SMTP_HOST,
-      port: SMTP_PORT,
-      secure: SMTP_SECURE,
-      auth: {
-        user: SMTP_USER,
-        pass: SMTP_PASS,
-      },
+      host: cfg.host,
+      port: cfg.port,
+      secure: cfg.secure,
+      auth: { user: cfg.user, pass: cfg.pass },
     });
 
-    const info = await transporter.sendMail({
-      from: SMTP_FROM,
-      to,
-      subject,
-      text,
-      html,
-    });
-
+    const info = await transporter.sendMail({ from: cfg.from, to, subject, text, html });
     console.log(`[Email SMTP] Sent email to ${to}. MessageID: ${info.messageId}`);
-    return {
-      success: true,
-      messageId: info.messageId,
-      isMock: false,
-      recipient: to,
-    };
+    return { success: true, messageId: info.messageId, isMock: false, recipient: to, channel: "smtp" };
   } catch (err: any) {
     console.error("[Email SMTP] Send failed:", err);
-    throw new Error(`SMTP Send Failure: ${err.message}`);
+    return {
+      success: false,
+      messageId: "",
+      isMock: false,
+      recipient: to,
+      channel: "smtp",
+      error: `SMTP Send Failure: ${err?.message || String(err)}`,
+    };
   }
 }
 
@@ -153,7 +257,7 @@ async function sendViaSendGrid(opts: {
   apiKey: string;
 }): Promise<EmailResult> {
   const toList = Array.isArray(opts.to) ? opts.to : [opts.to];
-  const from = parseFromAddress(process.env.SMTP_FROM || SMTP_FROM);
+  const from = parseFromAddress(process.env.SMTP_FROM || DEFAULT_SMTP_FROM);
   const content: { type: string; value: string }[] = [];
   if (opts.text) content.push({ type: "text/plain", value: opts.text });
   if (opts.html) content.push({ type: "text/html", value: opts.html });
@@ -177,7 +281,7 @@ async function sendViaSendGrid(opts: {
       // header when the API exposes it (body is empty).
       const messageId = response.headers?.get("x-message-id") || `sg-${crypto.randomUUID()}`;
       console.log(`[Email SendGrid] Sent email to ${opts.to}. MessageID: ${messageId}`);
-      return { success: true, messageId, isMock: false, recipient: opts.to };
+      return { success: true, messageId, isMock: false, recipient: opts.to, channel: "sendgrid" };
     }
     const errText = await response.text().catch(() => "");
     console.error(`[Email SendGrid] Send failed: HTTP ${response.status}: ${errText.slice(0, 500)}`);
@@ -186,6 +290,7 @@ async function sendViaSendGrid(opts: {
       messageId: "",
       isMock: false,
       recipient: opts.to,
+      channel: "sendgrid",
       error: `SendGrid HTTP ${response.status}: ${errText}`,
     };
   } catch (err: any) {
@@ -195,6 +300,7 @@ async function sendViaSendGrid(opts: {
       messageId: "",
       isMock: false,
       recipient: opts.to,
+      channel: "sendgrid",
       error: err?.message || String(err),
     };
   }
