@@ -33,6 +33,7 @@ import { formatCurrencyTotal } from "../proposals/gate";
 import { getChecklist } from "../checklists/store";
 import { listInvoices } from "../invoice/store";
 
+import { readBodyCapped } from "../../lib/request-body";
 export interface NativeDealRoomsCtx {
   dataDir: string;
   userEmail: string; // tenant id
@@ -148,7 +149,9 @@ async function handleAuthedAsync(req: Request, ctx: NativeDealRoomsCtx): Promise
       return Response.json({ data: listDealRooms(dataDir, tenantId).map((d) => summary(d)) });
     }
     if (req.method === "POST") {
-      const b = parseJsonObject(await req.text());
+      const read = await readBodyCapped(req);
+      if (!read.ok) return read.response;
+      const b = parseJsonObject(read.text);
       // Fail-closed: a client-supplied id on create is by definition forged —
       // reject the RAW body BEFORE any normalization (the sanitized mutation
       // drops extraneous keys, so the raw check must happen here, mirroring
@@ -216,7 +219,9 @@ async function handleAuthedAsync(req: Request, ctx: NativeDealRoomsCtx): Promise
     }
     if (req.method === "POST") {
       // POST /:id with a body = update (name/customer/links/status-draft↔active…)
-      const b = parseJsonObject(await req.text());
+      const read = await readBodyCapped(req);
+      if (!read.ok) return read.response;
+      const b = parseJsonObject(read.text);
       if (b.id !== undefined) return json400("invalid id on update (ids are server-assigned)");
       const data = createDealRoomMutationFromInput(b);
       const res = submitDealRoomWrite(dataDir, tenantId, "update", { dealRoomId, data, via: "portal" }, tenantId);

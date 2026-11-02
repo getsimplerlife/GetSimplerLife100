@@ -14,18 +14,49 @@ import {
   MAX_IMPORT_ROWS,
   MAX_IMPORT_BYTES,
   MAX_TABLE_NAME,
+  MAX_TABLE_DESCRIPTION,
   VALID_TABLE_TYPES,
   type TableDef,
   type TableField,
 } from "./types";
 
 export type Validated =
-  | { ok: true; fields: TableField[] }
+  | { ok: true; fields: TableField[]; name: string; description: string }
   | { ok: false; error: string };
 
 const FIELD_KEY_RE = /^[A-Za-z0-9_-]{1,40}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const MONTH_DAYS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+/** Proleptic Gregorian leap year. */
+export function isLeapYear(year: number): boolean {
+  return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+}
+
+/**
+ * SLICE 174 — a YYYY-MM-DD string that names a day that ACTUALLY EXISTS.
+ * The shape check (`\d{4}-\d{2}-\d{2}`) accepted `2026-02-31`, `2026-04-31` and
+ * `2025-02-29`; the row was stored and the CSV export wrote the impossible date
+ * out as if it were real. This is the calendar check: month 1..12 and the day
+ * within that month, leap years included.
+ */
+export function isRealDate(value: string): boolean {
+  // Parsed explicitly rather than through DATE_RE: the shape check is a separate
+  // concern and a shared regex here made the calendar rule depend on its flags.
+  const parts = value.split("-");
+  if (parts.length !== 3) return false;
+  const [ys, ms, ds] = parts;
+  if (ys.length !== 4 || ms.length !== 2 || ds.length !== 2) return false;
+  if (!/^[0-9]+$/.test(ys) || !/^[0-9]+$/.test(ms) || !/^[0-9]+$/.test(ds)) return false;
+  const year = Number(ys);
+  const month = Number(ms);
+  const day = Number(ds);
+  if (month < 1 || month > 12) return false;
+  if (day < 1) return false;
+  const max = month === 2 && isLeapYear(year) ? 29 : MONTH_DAYS[month - 1];
+  return day <= max;
+}
 
 /** Validate a table schema definition (create/update). Fail-closed. */
 export function validateTableSchema(input: {
@@ -33,8 +64,17 @@ export function validateTableSchema(input: {
   description?: unknown;
   fields: unknown;
 }): Validated {
-  const name = typeof input.name === "string" ? input.name.trim().slice(0, MAX_TABLE_NAME) : "";
+  // SLICE 174 — over-length is a 400 that names the field and its limit, never a
+  // silent slice. The old code did `input.name.trim().slice(0, MAX_TABLE_NAME)`
+  // and never looked at the description at all, so a 10,000-character name came
+  // back 200 with 120 characters stored and no indication anything was lost.
+  const name = typeof input.name === "string" ? input.name.trim() : "";
   if (!name) return { ok: false, error: "name is required" };
+  if (name.length > MAX_TABLE_NAME) return { ok: false, error: `name must be ≤ ${MAX_TABLE_NAME} chars` };
+  const description = typeof input.description === "string" ? input.description : "";
+  if (description.length > MAX_TABLE_DESCRIPTION) {
+    return { ok: false, error: `description must be ≤ ${MAX_TABLE_DESCRIPTION} chars` };
+  }
   if (!Array.isArray(input.fields) || input.fields.length === 0) return { ok: false, error: "fields must be a non-empty array" };
   if (input.fields.length > 30) return { ok: false, error: "no more than 30 fields" };
   const fields: TableField[] = [];
@@ -46,8 +86,9 @@ export function validateTableSchema(input: {
     if (!FIELD_KEY_RE.test(key) || key.length > MAX_FIELD_KEY) return { ok: false, error: `field key "${key}" must be a slug [A-Za-z0-9_-]{1,40}` };
     if (seen.has(key)) return { ok: false, error: `duplicate field key "${key}"` };
     seen.add(key);
-    const label = typeof f.label === "string" ? f.label.trim().slice(0, MAX_FIELD_LABEL) : "";
+    const label = typeof f.label === "string" ? f.label.trim() : "";
     if (!label) return { ok: false, error: `field "${key}" label is required` };
+    if (label.length > MAX_FIELD_LABEL) return { ok: false, error: `field "${key}" label must be ≤ ${MAX_FIELD_LABEL} chars` };
     const type = typeof f.type === "string" ? f.type : "";
     if (!(VALID_TABLE_TYPES as readonly string[]).includes(type)) return { ok: false, error: `field "${key}" has invalid type "${type}"` };
     const field: TableField = { key, label, type: type as TableField["type"] };
@@ -64,7 +105,7 @@ export function validateTableSchema(input: {
     if (field.type === "select" && !field.options) return { ok: false, error: `select field "${key}" needs options` };
     fields.push(field);
   }
-  return { ok: true, fields };
+  return { ok: true, fields, name, description };
 }
 
 export type RowValidation = { ok: true; data: Record<string, unknown> } | { ok: false; errors: string[] };
@@ -106,6 +147,9 @@ export function validateRowData(table: TableDef, data: unknown): RowValidation {
       }
       case "date": {
         if (typeof value !== "string" || !DATE_RE.test(value)) { errors.push(`Field "${field.key}" must be a date (YYYY-MM-DD)`); continue; }
+        // SLICE 174 — shape is not existence. `2026-02-31` matched the regex and
+        // was stored + exported as if it were a real day.
+        if (!isRealDate(value)) { errors.push(`Field "${field.key}" is not a real calendar date: ${value} does not exist`); continue; }
         break;
       }
       case "select": {

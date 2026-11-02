@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Card, Badge, Button } from "~/components/ui";
 import { PortalEmptyState, scrollToId } from "~/components/PortalEmptyState";
+import { FieldErrorLine } from "~/components/FieldError";
+import { fieldErrorFrom, fieldErrorProps, type FieldError } from "~/lib/form-field-error";
 
 interface ProposalSummary {
   id: string;
@@ -28,6 +30,8 @@ interface PendingWrite {
   requestedAt: string;
 }
 
+/** The inputs this composer owns — only these can carry a field-level error. */
+const PROPOSAL_FIELDS = ["title", "clientName", "clientEmail", "clientCompany", "terms", "validityDays", "lineItems"] as const;
 const STATUS_LABEL: Record<string, string> = {
   draft: "Draft",
   pending: "Pending client review",
@@ -44,6 +48,8 @@ export default function ProposalsPage() {
   const [feedback, setFeedback] = useState("");
   const [creating, setCreating] = useState(false);
   const [clip, setClip] = useState("");
+  // SLICE 174 — the server names the field it rejected; show it THERE.
+  const [fieldError, setFieldError] = useState<FieldError | null>(null);
   // create form
   const [title, setTitle] = useState("");
   const [clientName, setClientName] = useState("");
@@ -83,6 +89,8 @@ export default function ProposalsPage() {
   async function createProposal() {
     setCreating(true);
     setFeedback("");
+    setError("");
+    setFieldError(null);
     try {
       const itemsRows = lineItemsText
         .split("\n")
@@ -113,9 +121,16 @@ export default function ProposalsPage() {
         setFeedback("Proposal created.");
       } else {
         const j = await res.json().catch(() => ({}));
-        setError(j.error || "Failed to create proposal");
+        const msg = j.error || "Failed to create proposal";
+        setError(msg);
+        // SLICE 174 — put the sentence on the field the server named, and DO NOT
+        // clear the form: everything the user typed survives a rejected submit.
+        setFieldError(fieldErrorFrom(msg, PROPOSAL_FIELDS));
+        await load();
+        return;
       }
       setTitle(""); setClientName(""); setClientEmail(""); setClientCompany("");
+      setFieldError(null);
       await load();
     } finally {
       setCreating(false);
@@ -174,18 +189,38 @@ export default function ProposalsPage() {
       <Card id="proposal-composer">
         <h2 className="mb-3 text-lg font-semibold">New proposal</h2>
         <div className="grid gap-3 md:grid-cols-2">
-          <input className="rounded border p-2" placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
-          <input className="rounded border p-2" placeholder="Client name" value={clientName} onChange={(e) => setClientName(e.target.value)} />
-          <input className="rounded border p-2" placeholder="Client email" value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} />
-          <input className="rounded border p-2" placeholder="Client company" value={clientCompany} onChange={(e) => setClientCompany(e.target.value)} />
-          <input className="rounded border p-2" placeholder="Terms (e.g. Net 30)" value={terms} onChange={(e) => setTerms(e.target.value)} />
-          <input
-            className="rounded border p-2"
-            placeholder="Valid for (days)"
-            type="number"
-            value={String(validityDays)}
-            onChange={(e) => setValidityDays(Number(e.target.value))}
-          />
+          <div className="flex flex-col">
+            <input className="rounded border p-2" placeholder="Title" aria-label="Title" value={title} onChange={(e) => setTitle(e.target.value)} {...fieldErrorProps(fieldError, "title", "proposal-title-error")} />
+            <FieldErrorLine error={fieldError} field="title" id="proposal-title-error" />
+          </div>
+          <div className="flex flex-col">
+            <input className="rounded border p-2" placeholder="Client name" aria-label="Client name" value={clientName} onChange={(e) => setClientName(e.target.value)} {...fieldErrorProps(fieldError, "clientName", "proposal-clientName-error")} />
+            <FieldErrorLine error={fieldError} field="clientName" id="proposal-clientName-error" />
+          </div>
+          <div className="flex flex-col">
+            <input className="rounded border p-2" placeholder="Client email" aria-label="Client email" value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} {...fieldErrorProps(fieldError, "clientEmail", "proposal-clientEmail-error")} />
+            <FieldErrorLine error={fieldError} field="clientEmail" id="proposal-clientEmail-error" />
+          </div>
+          <div className="flex flex-col">
+            <input className="rounded border p-2" placeholder="Client company" aria-label="Client company" value={clientCompany} onChange={(e) => setClientCompany(e.target.value)} {...fieldErrorProps(fieldError, "clientCompany", "proposal-clientCompany-error")} />
+            <FieldErrorLine error={fieldError} field="clientCompany" id="proposal-clientCompany-error" />
+          </div>
+          <div className="flex flex-col">
+            <input className="rounded border p-2" placeholder="Terms (e.g. Net 30)" aria-label="Terms" value={terms} onChange={(e) => setTerms(e.target.value)} {...fieldErrorProps(fieldError, "terms", "proposal-terms-error")} />
+            <FieldErrorLine error={fieldError} field="terms" id="proposal-terms-error" />
+          </div>
+          <div className="flex flex-col">
+            <input
+              className="rounded border p-2"
+              placeholder="Valid for (days)"
+              aria-label="Valid for (days)"
+              type="number"
+              value={String(validityDays)}
+              onChange={(e) => setValidityDays(Number(e.target.value))}
+              {...fieldErrorProps(fieldError, "validityDays", "proposal-validityDays-error")}
+            />
+            <FieldErrorLine error={fieldError} field="validityDays" id="proposal-validityDays-error" />
+          </div>
         </div>
         <label className="mt-3 block text-sm text-stone-400">Line items — one per line: description | qty | unit price</label>
         <textarea className="mt-1 w-full rounded border p-2 font-mono text-sm" rows={3} value={lineItemsText} onChange={(e) => setLineItemsText(e.target.value)} />

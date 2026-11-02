@@ -102,6 +102,8 @@ export const MAX_FIELD_KEY = 40;
 export const MAX_FIELD_LABEL = 120;
 export const MAX_FORM_NAME = 120;
 export const MAX_FORM_DESCRIPTION = 500;
+/** SLICE 174 — a step title used to be silently sliced to a bare 200 literal. */
+export const MAX_STEP_TITLE = 200;
 export const MAX_OPTIONS = 50;
 export const MAX_OPTION_LEN = 200;
 export const MAX_PREFILL_KEYS = 25;

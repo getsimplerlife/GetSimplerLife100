@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { Card, Badge, Button } from "~/components/ui";
 import { PortalEmptyState, scrollToId } from "~/components/PortalEmptyState";
+import { FieldErrorLine } from "~/components/FieldError";
+import { fieldErrorFrom, fieldErrorProps, type FieldError } from "~/lib/form-field-error";
+
+/** The inputs this composer owns — only these can carry a field-level error. */
+const CHECKLIST_FIELDS = ["name", "description", "linkedProposalId", "items"] as const;
 
 interface ChecklistSummary {
   id: string;
@@ -42,6 +47,8 @@ export default function ChecklistsPage() {
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState("");
   const [creating, setCreating] = useState(false);
+  // SLICE 174 — the server names the field it rejected; show it THERE.
+  const [fieldError, setFieldError] = useState<FieldError | null>(null);
   // create form
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -77,6 +84,8 @@ export default function ChecklistsPage() {
   async function createChecklist() {
     setCreating(true);
     setFeedback("");
+    setError("");
+    setFieldError(null);
     try {
       const itemsRows = itemsText
         .split("\n")
@@ -97,9 +106,16 @@ export default function ChecklistsPage() {
         setFeedback("Checklist created.");
       } else {
         const j = await res.json().catch(() => ({}));
-        setError(j.error || "Failed to create checklist");
+        const msg = j.error || "Failed to create checklist";
+        setError(msg);
+        // SLICE 174 — blame the field the server named, and keep every value the
+        // user typed. A rejected submit must never wipe the form.
+        setFieldError(fieldErrorFrom(msg, CHECKLIST_FIELDS));
+        await load();
+        return;
       }
       setName(""); setDescription(""); setLinkedProposalId("");
+      setFieldError(null);
       await load();
     } finally {
       setCreating(false);
@@ -150,16 +166,24 @@ export default function ChecklistsPage() {
       <Card id="checklist-composer">
         <h2 className="mb-3 text-lg font-semibold">New checklist</h2>
         <div className="grid gap-3 md:grid-cols-2">
-          <input className="rounded border p-2" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
-          <input className="rounded border p-2" placeholder="Linked proposal id (optional, prop_…)" value={linkedProposalId} onChange={(e) => setLinkedProposalId(e.target.value)} />
+          <div className="flex flex-col">
+            <input className="rounded border p-2" placeholder="Name" aria-label="Name" value={name} onChange={(e) => setName(e.target.value)} {...fieldErrorProps(fieldError, "name", "checklist-name-error")} />
+            <FieldErrorLine error={fieldError} field="name" id="checklist-name-error" />
+          </div>
+          <div className="flex flex-col">
+            <input className="rounded border p-2" placeholder="Linked proposal id (optional, prop_…)" aria-label="Linked proposal id (optional)" value={linkedProposalId} onChange={(e) => setLinkedProposalId(e.target.value)} {...fieldErrorProps(fieldError, "linkedProposalId", "checklist-linkedProposalId-error")} />
+            <FieldErrorLine error={fieldError} field="linkedProposalId" id="checklist-linkedProposalId-error" />
+          </div>
           <select className="rounded border p-2" value={kind} onChange={(e) => setKind(e.target.value as "delivery" | "custom")}>
             <option value="delivery">Delivery</option>
             <option value="custom">Custom</option>
           </select>
         </div>
-        <input className="mt-3 w-full rounded border p-2" placeholder="Description (optional)" value={description} onChange={(e) => setDescription(e.target.value)} />
+        <input className="mt-3 w-full rounded border p-2" placeholder="Description (optional)" aria-label="Description (optional)" value={description} onChange={(e) => setDescription(e.target.value)} {...fieldErrorProps(fieldError, "description", "checklist-description-error")} />
+        <FieldErrorLine error={fieldError} field="description" id="checklist-description-error" />
         <label className="mt-3 block text-sm text-stone-400">Items — one per line (start each with "in_progress:" or "done:" to set status)</label>
-        <textarea className="mt-1 w-full rounded border p-2 font-mono text-sm" rows={3} value={itemsText} onChange={(e) => setItemsText(e.target.value)} />
+        <textarea className="mt-1 w-full rounded border p-2 font-mono text-sm" rows={3} aria-label="Items" value={itemsText} onChange={(e) => setItemsText(e.target.value)} {...fieldErrorProps(fieldError, "items", "checklist-items-error")} />
+        <FieldErrorLine error={fieldError} field="items" id="checklist-items-error" />
         <Button className="mt-3" onClick={createChecklist} disabled={creating || !name}>
           {creating ? "Creating…" : "Create checklist"}
         </Button>
