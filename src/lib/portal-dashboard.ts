@@ -54,7 +54,10 @@ export interface DashboardInputs {
   integrations: Record<string, unknown>[];
   /** /api/native/import/lanes GET → { data: { lanes: [{ provider, wired }] } } */
   lanes: { provider?: string; wired?: boolean }[];
-  /** /api/native/billing GET → { data: { subscription|null, invoices } } */
+  /** /api/native/billing GET → { ok: true, billing: { source, subscription|null,
+   *  invoices, paymentMethod } } — the view `native/billing/router.ts` returns at
+   *  :279/:287. It is `billing`, NOT `data`; reading `data` here (SLICE 178) made
+   *  the plan and invoice panel empty for every tenant, including a paying one. */
   billing: { subscription: Record<string, unknown> | null; invoices: Record<string, unknown>[] };
   /** /api/native/proposals GET → { data: [...] } */
   proposals: Record<string, unknown>[];
@@ -320,9 +323,15 @@ export function usePortalDashboard(intervalMs = 30000): PortalDashboardState {
         taskRecords: Array.isArray(tj?.data) ? tj.data : [],
         integrations: [...(ij?.crm ?? []), ...(ij?.erp ?? []), ...(ij?.other ?? [])],
         lanes: Array.isArray(lj?.data?.lanes) ? lj.data.lanes : [],
+        // SLICE 178 — the endpoint answers `{ ok: true, billing: {…} }`
+        // (native/billing/router.ts:279,287). This read one level too deep
+        // (`bj.data`), so `subscription` was always null and the invoice list
+        // always empty: the dashboard told every tenant — a paying one included
+        // — that it had no plan, and `isEmpty` counted `!subscription`, so a
+        // workspace whose only data was a live subscription read "nothing to show".
         billing: {
-          subscription: bj?.data?.subscription ?? null,
-          invoices: Array.isArray(bj?.data?.invoices) ? bj.data.invoices : [],
+          subscription: bj?.billing?.subscription ?? null,
+          invoices: Array.isArray(bj?.billing?.invoices) ? bj.billing.invoices : [],
         },
         proposals: Array.isArray(pj?.data) ? pj.data : [],
         invoices: Array.isArray(invj?.data) ? invj.data : [],

@@ -111,6 +111,10 @@ function UnifiedSettingsHub() {
   const [planDesc, setPlanDesc] = useState("");
   const [invoices, setInvoices] = useState<InvoiceItem[]>([]);
   const [loadingBilling, setLoadingBilling] = useState(false);
+  // SLICE 178 — a failed read is not an empty workspace. These carry the reason
+  // so the tab can say "couldn't load" instead of inventing "no plan".
+  const [billingNotice, setBillingNotice] = useState<{ kind: "signedOut" | "error"; message: string } | null>(null);
+  const [connsNotice, setConnsNotice] = useState<{ kind: "signedOut" | "error"; message: string } | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<{ brand?: string; last4?: string; expMonth?: number; expYear?: number } | null>(null);
 
   // General Loading & Feedback
@@ -158,15 +162,29 @@ function UnifiedSettingsHub() {
   }, []);
   // Fetch Connected Accounts on tab click/mount
   const fetchConnectionsData = async () => {
+    setConnsNotice(null);
     try {
       setLoadingConns(true);
       const [providersRes, connsRes] = await Promise.all([
         fetch("/api/integrations/providers"),
         fetch("/api/data/connected-accounts")
       ]);
-      const provsData = await providersRes.json();
+      // SLICE 178 — neither status was read, so a 401/500 fell through to `[]`
+      // and rendered as "No imports yet": an auth failure looked like an answer.
+      if (!connsRes.ok) {
+        setConnections([]);
+        setConnsNotice(
+          connsRes.status === 401
+            ? { kind: "signedOut", message: "Your session has expired — sign in again to see this workspace's imported accounts." }
+            : { kind: "error", message: `Couldn't load your imported accounts (HTTP ${connsRes.status}) — this list is unavailable, not empty.` },
+        );
+        return;
+      }
       const connsData = await connsRes.json();
-      setProviders(provsData.data || provsData || []);
+      if (providersRes.ok) {
+        const provsData = await providersRes.json();
+        setProviders(provsData.data || provsData || []);
+      }
       // a2: derive the list from the real OAuth-store buckets.
       const flat = [...(connsData.crm || []), ...(connsData.erp || []), ...(connsData.other || [])].map((c: any) => ({
         id: c.id,
@@ -190,10 +208,28 @@ function UnifiedSettingsHub() {
   // tenant's own durable purchase rows. Never infers a plan from audit rows and
   // never fabricates a payment method (P1-2).
   const fetchBillingData = async () => {
+    setBillingNotice(null);
     try {
       setLoadingBilling(true);
       const billingRes = await fetch("/api/native/billing", { credentials: "include" });
+      // SLICE 178 — `billingRes.ok` was never read, so `?? {source:"none", …}`
+      // turned a 401 (billing/router.ts:272) into a convincing empty billing
+      // state: "No subscription on file", zero invoices, no payment method.
+      if (!billingRes.ok) {
+        setActivePlan("");
+        setPlanDesc("");
+        setInvoices([]);
+        setPaymentMethod(null);
+        setBillingNotice(
+          billingRes.status === 401
+            ? { kind: "signedOut", message: "Your session has expired — sign in again to see this workspace's plan and invoices." }
+            : { kind: "error", message: `Couldn't load billing (HTTP ${billingRes.status}) — the plan and invoices below are unavailable, not empty.` },
+        );
+        return;
+      }
       const packet = await billingRes.json();
+      // A 2xx that carries no `billing` view is a genuinely empty answer (the
+      // endpoint always sends `{ ok, billing }`), so the shape default stays.
       const billing = packet?.billing ?? { source: "none", subscription: null, invoices: [], paymentMethod: null };
       const sub = billing.subscription ?? null;
       setActivePlan(sub?.planName || "");
@@ -592,6 +628,11 @@ function UnifiedSettingsHub() {
               </Link>
             </div>
 
+            {connsNotice && (
+              <div className="rounded-2xl border border-red-300 bg-red-50 p-4 text-sm text-red-700" role="alert">
+                {connsNotice.message}
+              </div>
+            )}
             {loadingConns ? (
               <div className="flex items-center justify-center py-16">
                 <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-emerald-500"></div>
@@ -638,8 +679,12 @@ function UnifiedSettingsHub() {
               <div className="text-center py-16 border-2 border-dashed border-stone-900 rounded-3xl space-y-4 max-w-xl mx-auto">
                 <span className="text-4xl">📥</span>
                 <div className="space-y-1">
-                  <div className="font-bold text-white text-sm">No imports yet</div>
-                  <p className="text-xs text-stone-500 max-w-sm mx-auto">Imports you run from the Import page appear here in your history — one-shot transfers of your own tool data, nothing stays connected.</p>
+                  <div className="font-bold text-white text-sm">{connsNotice ? "Import history unavailable" : "No imports yet"}</div>
+                  <p className="text-xs text-stone-500 max-w-sm mx-auto">
+                    {connsNotice
+                      ? "We couldn't read your import history, so this is not a list of zero imports."
+                      : "Imports you run from the Import page appear here in your history — one-shot transfers of your own tool data, nothing stays connected."}
+                  </p>
                 </div>
                 <Link
                   to="/portal/import"
@@ -742,6 +787,11 @@ function UnifiedSettingsHub() {
         {activeTab === "billing" && (
           <div className="space-y-8 animate-fadeIn">
             
+            {billingNotice && (
+              <div className="rounded-2xl border border-red-300 bg-red-50 p-4 text-sm text-red-700" role="alert">
+                {billingNotice.message}
+              </div>
+            )}
             {/* Subscriptions Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               
@@ -749,8 +799,10 @@ function UnifiedSettingsHub() {
               <div className="bg-stone-950 border border-stone-900 rounded-3xl p-6 shadow-xl flex flex-col justify-between gap-6 hover:border-emerald-500/10 transition-all duration-300">
                 <div className="space-y-4">
                   <span className="text-[10px] font-black uppercase text-emerald-400 bg-emerald-950/40 border border-emerald-800/40 px-3 py-1 rounded-full tracking-wider">Current Plan</span>
-                  <h3 className="text-2xl font-black text-white">{activePlan || "No subscription on file"}</h3>
-                  <p className="text-stone-400 text-xs leading-relaxed font-semibold">{planDesc || "Choose a plan to activate billing for this workspace."}</p>
+                  <h3 className="text-2xl font-black text-white">{activePlan || (billingNotice ? "Plan unavailable" : "No subscription on file")}</h3>
+                  <p className="text-stone-400 text-xs leading-relaxed font-semibold">
+                    {planDesc || (billingNotice ? "We couldn't read your billing record, so nothing is claimed about it here." : "Choose a plan to activate billing for this workspace.")}
+                  </p>
                 </div>
 
                 <button
@@ -817,7 +869,7 @@ function UnifiedSettingsHub() {
                   </div>
                 ) : (
                   <div className="text-stone-500 text-xs py-12 text-center border-2 border-dashed border-stone-900 rounded-2xl">
-                    No invoices or purchase records yet.
+                    {billingNotice ? "Purchase history unavailable — see the message above." : "No invoices or purchase records yet."}
                   </div>
                 )}
               </div>
