@@ -40,12 +40,34 @@ const ITEM_STATUS_LABEL: Record<string, string> = {
   done: "Done",
 };
 
+/** The server's own sentence about a refused write — `native/checklists/router.ts`
+ *  answers a gate failure with `{ error }`, so the page never invents a reason. */
+function serverError(body: Record<string, any> | null): string {
+  const e = body?.error;
+  return typeof e === "string" ? e.trim() : "";
+}
+
+/** SLICE 178 — a refused verb used to print NOTHING (there was no `else`), so a
+ *  400/401/404/500 left the row unchanged and the control looked dead. */
+function failureSentence(verb: string, status: number, body: Record<string, any> | null): string {
+  const msg = serverError(body);
+  if (!msg) return `${verb} failed (${status}) — the server sent no reason.`;
+  if (msg.toLowerCase().startsWith(`${verb.toLowerCase()} failed`)) return msg;
+  return `${verb} failed (${status}) — ${msg}`;
+}
+
 export default function ChecklistsPage() {
   const [items, setItems] = useState<ChecklistSummary[]>([]);
   const [writes, setWrites] = useState<PendingWrite[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState("");
+  // SLICE 178 — a failure must not be printed in the success box.
+  const [feedbackTone, setFeedbackTone] = useState<"ok" | "error">("ok");
+  const say = (message: string, tone: "ok" | "error" = "ok") => {
+    setFeedback(message);
+    setFeedbackTone(tone);
+  };
   const [creating, setCreating] = useState(false);
   // SLICE 174 — the server names the field it rejected; show it THERE.
   const [fieldError, setFieldError] = useState<FieldError | null>(null);
@@ -71,14 +93,21 @@ export default function ChecklistsPage() {
       .finally(() => setLoading(false));
   }, [load]);
 
-  async function api(method: string, path: string, body?: unknown): Promise<{ ok: boolean; status: number }> {
+  // SLICE 178 — the parsed body travels with the status so a refusal can be
+  // reported in the server's own words instead of vanishing.
+  async function api(
+    method: string,
+    path: string,
+    body?: unknown,
+  ): Promise<{ ok: boolean; status: number; body: Record<string, any> | null }> {
     const res = await fetch(path, {
       method,
       headers: body !== undefined ? { "Content-Type": "application/json" } : undefined,
       credentials: "include",
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
-    return { ok: res.ok, status: res.status };
+    const parsed = (await res.json().catch(() => null)) as Record<string, any> | null;
+    return { ok: res.ok, status: res.status, body: parsed };
   }
 
   async function createChecklist() {
@@ -101,9 +130,9 @@ export default function ChecklistsPage() {
         body: JSON.stringify(body),
       });
       if (res.status === 202) {
-        setFeedback("Checklist queued — approve it below to create it.");
+        say("Checklist queued — approve it below to create it.");
       } else if (res.ok) {
-        setFeedback("Checklist created.");
+        say("Checklist created.");
       } else {
         const j = await res.json().catch(() => ({}));
         const msg = j.error || "Failed to create checklist";
@@ -125,18 +154,27 @@ export default function ChecklistsPage() {
   async function action(id: string, verb: string) {
     setFeedback("");
     const res = await api("POST", `/api/native/checklists/${id}/${verb}`);
-    if (res.status === 202) setFeedback(`${verb} queued — approve it in the queue below.`);
-    else if (res.ok) setFeedback(`${verb} applied.`);
+    if (res.status === 202) {
+      say(`${verb} queued — approve it in the queue below.`);
+    } else if (!res.ok) {
+      // SLICE 178 — this branch did not exist: every failed verb was silent.
+      say(failureSentence(verb, res.status, res.body), "error");
+    } else {
+      say(`${verb} applied.`);
+    }
     await load();
   }
   async function applyWrite(id: string) {
     const res = await api("POST", `/api/native/checklists/writes/${id}/apply`);
-    setFeedback(res.ok ? "Write applied." : "Write apply failed.");
+    if (res.ok) say("Write applied.");
+    else say(serverError(res.body) || `Write apply failed (${res.status}).`, "error");
     await load();
   }
   async function deleteChecklist(id: string) {
     const res = await api("DELETE", `/api/native/checklists/${id}`);
-    setFeedback(res.status === 202 ? "Delete queued." : res.ok ? "Deleted." : "Delete failed.");
+    if (res.status === 202) say("Delete queued.");
+    else if (res.ok) say("Deleted.");
+    else say(failureSentence("delete", res.status, res.body), "error");
     await load();
   }
   async function updateItem(id: string, itemId: string, status: string) {
@@ -147,8 +185,10 @@ export default function ChecklistsPage() {
       it.id === itemId ? { ...it, status } : { ...it, id: it.id, title: it.title, status: it.status, ...(it.assignee ? { assignee: it.assignee } : {}) },
     );
     const res = await api("POST", `/api/native/checklists/${id}`, { items: nextItems });
-    if (res.status === 202) setFeedback("Item update queued — approve it in the queue below.");
-    else if (res.ok) setFeedback("Item updated.");
+    if (res.status === 202) say("Item update queued — approve it in the queue below.");
+    else if (res.ok) say("Item updated.");
+    // SLICE 178 — same missing branch: a refused item update said nothing.
+    else say(failureSentence("item update", res.status, res.body), "error");
     await load();
   }
 
@@ -161,7 +201,17 @@ export default function ChecklistsPage() {
         </div>
       </div>
       {error && <div className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
-      {feedback && <div className="rounded border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-300">{feedback}</div>}
+      {feedback && (
+        <div
+          className={
+            feedbackTone === "error"
+              ? "rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700"
+              : "rounded border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-300"
+          }
+        >
+          {feedback}
+        </div>
+      )}
 
       <Card id="checklist-composer">
         <h2 className="mb-3 text-lg font-semibold">New checklist</h2>

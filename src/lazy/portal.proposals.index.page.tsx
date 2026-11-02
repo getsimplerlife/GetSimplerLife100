@@ -40,12 +40,66 @@ const STATUS_LABEL: Record<string, string> = {
   sent: "Sent",
 };
 
+/** The server's own sentence about a refused write. `router.ts:56` maps every
+ *  gate failure onto `{ error }` with a 400/404/500, and `gate.ts:242` throws the
+ *  full send-refusal sentence, so the page never has to invent a reason. */
+function serverError(body: Record<string, any> | null): string {
+  const e = body?.error;
+  return typeof e === "string" ? e.trim() : "";
+}
+
+/** SLICE 178 — a refused lifecycle verb used to print NOTHING (there was no
+ *  `else`), so a 400/401/404/500 left the row unchanged and the button looked
+ *  dead. The status is always named; the server's sentence is printed as sent. */
+function failureSentence(verb: string, status: number, body: Record<string, any> | null): string {
+  const msg = serverError(body);
+  if (!msg) return `${verb} failed (${status}) — the server sent no reason.`;
+  // gate.ts already opens with "send failed — …": don't print the verb twice.
+  if (msg.toLowerCase().startsWith(`${verb.toLowerCase()} failed`)) return msg;
+  return `${verb} failed (${status}) — ${msg}`;
+}
+
+/** SLICE 178 — what the mail lane actually said about a Send.
+ *
+ *  `POST /api/native/proposals/:id/send` answers 200 with
+ *  `{ data: { status, proposalId, proposalStatus, delivery } }`, where `delivery`
+ *  is the stored `ProposalDeliveryAttempt`
+ *  `{ at, by, channel, outcome: "sent"|"failed"|"unconfigured", messageId?, error? }`
+ *  (native/proposals/router.ts:234-243 ← gate.ts:222-249). A REFUSED send is NOT
+ *  a 200: gate.ts:242 throws the refusal sentence, the router maps it through
+ *  `gateErrorStatus` (`/failed/` → 400), and that sentence reaches the user via
+ *  `failureSentence` above. So this function only ever describes an accepted
+ *  send — and it says "the mail lane acknowledged", never "the client received",
+ *  because an SMTP 250 is all the lane can honestly observe. */
+function sendVerdict(body: Record<string, any> | null): string {
+  const data = body?.data ?? {};
+  const d = data?.delivery ?? null;
+  const status = typeof data?.proposalStatus === "string" ? data.proposalStatus : "unchanged";
+  const outcome = typeof d?.outcome === "string" ? d.outcome : null;
+  const channel = typeof d?.channel === "string" ? d.channel : "the mail lane";
+  const error = typeof d?.error === "string" ? d.error : "";
+  if (!outcome) {
+    return `Send applied, but the server returned no delivery verdict — proposal status ${status}. Treat the email as unconfirmed.`;
+  }
+  if (outcome === "sent") {
+    const id = typeof d?.messageId === "string" ? `, id ${d.messageId}` : "";
+    return `Send applied — the mail lane acknowledged the message (outcome "sent" via ${channel}${id}). Proposal status ${status}.`;
+  }
+  return `Send applied — the mail lane did NOT deliver it (outcome "${outcome}" via ${channel}${error ? `: ${error}` : ""}). Proposal status ${status}.`;
+}
+
 export default function ProposalsPage() {
   const [items, setItems] = useState<ProposalSummary[]>([]);
   const [writes, setWrites] = useState<PendingWrite[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState("");
+  // SLICE 178 — a failure must not be printed in the success box.
+  const [feedbackTone, setFeedbackTone] = useState<"ok" | "error">("ok");
+  const say = (message: string, tone: "ok" | "error" = "ok") => {
+    setFeedback(message);
+    setFeedbackTone(tone);
+  };
   const [creating, setCreating] = useState(false);
   const [clip, setClip] = useState("");
   // SLICE 174 — the server names the field it rejected; show it THERE.
@@ -76,14 +130,22 @@ export default function ProposalsPage() {
       .finally(() => setLoading(false));
   }, [load]);
 
-  async function api(method: string, path: string, body?: unknown): Promise<{ ok: boolean; status: number }> {
+  // SLICE 178 — the body used to be discarded, which is why a Send could only
+  // ever say "applied": the delivery verdict slice 176 returns was unreadable
+  // from the one page where Send is pressed.
+  async function api(
+    method: string,
+    path: string,
+    body?: unknown,
+  ): Promise<{ ok: boolean; status: number; body: Record<string, any> | null }> {
     const res = await fetch(path, {
       method,
       headers: body !== undefined ? { "Content-Type": "application/json" } : undefined,
       credentials: "include",
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
-    return { ok: res.ok, status: res.status };
+    const parsed = (await res.json().catch(() => null)) as Record<string, any> | null;
+    return { ok: res.ok, status: res.status, body: parsed };
   }
 
   async function createProposal() {
@@ -116,9 +178,9 @@ export default function ProposalsPage() {
         }),
       });
       if (res.status === 202) {
-        setFeedback("Draft queued — approve it below to create the proposal.");
+        say("Draft queued — approve it below to create the proposal.");
       } else if (res.ok) {
-        setFeedback("Proposal created.");
+        say("Proposal created.");
       } else {
         const j = await res.json().catch(() => ({}));
         const msg = j.error || "Failed to create proposal";
@@ -140,8 +202,16 @@ export default function ProposalsPage() {
   async function action(id: string, verb: string) {
     setFeedback("");
     const res = await api("POST", `/api/native/proposals/${id}/${verb}`);
-    if (res.status === 202) setFeedback(`${verb} queued — approve it in the queue below.`);
-    else if (res.ok) setFeedback(`${verb} applied.`);
+    if (res.status === 202) {
+      say(`${verb} queued — approve it in the queue below.`);
+    } else if (!res.ok) {
+      // SLICE 178 — this branch did not exist: every failed verb was silent.
+      say(failureSentence(verb, res.status, res.body), "error");
+    } else if (verb === "send") {
+      say(sendVerdict(res.body));
+    } else {
+      say(`${verb} applied.`);
+    }
     await load();
   }
   async function applyWrite(id: string) {
@@ -151,14 +221,16 @@ export default function ProposalsPage() {
     // look like it had just changed something it had not.
     const res = await fetch(`/api/native/proposals/writes/${id}/apply`, { method: "POST", credentials: "include" });
     const j = (await res.json().catch(() => ({}))) as { error?: string; data?: { alreadyApplied?: boolean } };
-    if (!res.ok) setFeedback(j.error || `Write apply failed (${res.status}).`);
-    else if (j.data?.alreadyApplied) setFeedback("That write was already applied — nothing changed.");
-    else setFeedback("Write applied.");
+    if (!res.ok) say(j.error || `Write apply failed (${res.status}).`, "error");
+    else if (j.data?.alreadyApplied) say("That write was already applied — nothing changed.");
+    else say("Write applied.");
     await load();
   }
   async function deleteProposal(id: string) {
     const res = await api("DELETE", `/api/native/proposals/${id}`);
-    setFeedback(res.status === 202 ? "Delete queued." : res.ok ? "Deleted." : "Delete failed.");
+    if (res.status === 202) say("Delete queued.");
+    else if (res.ok) say("Deleted.");
+    else say(failureSentence("delete", res.status, res.body), "error");
     await load();
   }
 
@@ -183,7 +255,17 @@ export default function ProposalsPage() {
         </div>
       </div>
       {error && <div className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
-      {feedback && <div className="rounded border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-300">{feedback}</div>}
+      {feedback && (
+        <div
+          className={
+            feedbackTone === "error"
+              ? "rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700"
+              : "rounded border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-300"
+          }
+        >
+          {feedback}
+        </div>
+      )}
       {clip && <div className="rounded border border-sky-300 bg-sky-50 p-3 text-sm text-sky-800 break-all">{clip}</div>}
 
       <Card id="proposal-composer">
