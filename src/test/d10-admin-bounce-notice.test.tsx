@@ -92,9 +92,18 @@ describe("D-10 — the bounce says so in words", () => {
     expect((router.state.location.search as { notice?: string }).notice).toBe("admin-required");
 
     // …and the dashboard says it in words.
-    const alert = await screen.findByRole("alert");
-    expect(alert.textContent || "").toMatch(/restricted to the workspace owner/i);
-    expect(alert.textContent || "").toMatch(/sent back to your dashboard/i);
+    //
+    // SLICE 183 — this fixture stubs only `/api/me`, so the dashboard's own
+    // reads are unmocked. Since 183 an unmocked read is a READ FAILURE and the
+    // dashboard correctly renders a second `role="alert"` for it, so
+    // `findByRole("alert")` now throws "found multiple elements". The intent
+    // here is unchanged — the bounce must arrive as an alert carrying the
+    // reason — so select the alert that carries it rather than assuming it is
+    // the only one on the page.
+    const alerts = await screen.findAllByRole("alert");
+    const alert = alerts.find((a) => /restricted to the workspace owner/i.test(a.textContent || ""));
+    expect(alert, "no alert carried the bounce reason").toBeTruthy();
+    expect(alert!.textContent || "").toMatch(/sent back to your dashboard/i);
   });
 
   it("renders nothing for an absent or unknown notice code (never invents a message)", () => {
