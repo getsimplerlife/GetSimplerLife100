@@ -1,3 +1,4 @@
+import type { ReactElement } from "react";
 /**
  * slice-176-write-path-truth.test.tsx — the customer-facing write paths stop
  * claiming things that did not happen.
@@ -215,7 +216,7 @@ describe("ITEM 1 — proposals send goes through the real mail lane", () => {
 // ITEM 2 + 3 — the approval queues can say no, and Apply stops inventing
 //             a delivery that did not happen
 // ═══════════════════════════════════════════════════════════════════════════
-function renderAt(path: string, component: () => JSX.Element) {
+function renderAt(path: string, component: () => ReactElement) {
   const rootRoute = createRootRoute({ component: () => <Outlet /> });
   const r = createRoute({ getParentRoute: () => rootRoute, path, component });
   const router = createRouter({
@@ -329,7 +330,7 @@ const INDUSTRY_ROW = { name: "Retail", status: "Available", description: "Retail
 
 /** GET returns `getRows()`; POST answers with `postStatus`/`postBody`. */
 function industryFetch(opts: { postStatus: number; postBody: unknown; getRows: () => unknown[] }) {
-  const fn = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+  const fn = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
     const isPost = (init as RequestInit | undefined)?.method === "POST";
     const status = isPost ? opts.postStatus : 200;
     const body = isPost ? opts.postBody : { data: opts.getRows() };
