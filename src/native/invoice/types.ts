@@ -118,9 +118,12 @@ export interface InvoiceRecord {
   /** Payment due date (ISO yyyy-mm-dd) — net-30 from creation. */
   dueDate: string;
   /**
-   * Public, unguessable read-only share slug (si_…). Minted at SEND time and
-   * registered in the global slug → tenantId index; null until then. The
-   * public route serves ONLY invoices whose status is "sent".
+   * Public, unguessable read-only share slug (si_…). Minted at SEND time —
+   * BEFORE the outbound attempt, alongside the durable `queued` intent — and
+   * registered in the global slug → tenantId index; null until then. Because
+   * it is minted before delivery, an invoice whose email FAILED still carries a
+   * working slug. The public route serves every ISSUED state (sent, failed,
+   * queued) and 404s only `draft` — see `PUBLIC_INVOICE_STATUS` in router.ts.
    */
   shareSlug: string | null;
   /**

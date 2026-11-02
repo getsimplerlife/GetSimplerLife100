@@ -17,6 +17,32 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { invoiceStatusLabel, isInvoiceStatus } from "./invoice-status";
+import type { InvoiceStatus } from "~/native/invoice/types";
+
+/**
+ * SLICE 182 — per-status notice copy for the invoice bell.
+ *
+ * `Record<InvoiceStatus, …>` (not a chain of `if`s): a status added to the
+ * server's `INVOICE_STATUSES` is a COMPILE ERROR here, so the bell can never
+ * again describe a state it has no copy for — which is how a `failed` invoice
+ * came to read "Invoice sent". `draft` is null: nothing has been issued, so
+ * there is nothing to report.
+ */
+const INVOICE_NOTICE_COPY: Record<InvoiceStatus, { title: string; tone: NoticeTone; trailer: string } | null> = {
+  draft: null,
+  // The label ("Sending", "Sent", "Not delivered") comes from invoice-status.ts;
+  // this map adds only the bell's own title and the next step.
+  queued: { title: "Sending…", tone: "info", trailer: "Open Invoices to track it." },
+  sent: { title: "Invoice sent", tone: "info", trailer: "Open Invoices to track it." },
+  failed: {
+    title: "Invoice delivery failed",
+    tone: "error",
+    trailer: "Nothing reached the customer — open Invoices to retry.",
+  },
+};
+/** A status this bundle does not know (server/bundle drift): shown verbatim. */
+const UNKNOWN_INVOICE_NOTICE = { title: "Invoice status unknown", tone: "info" as NoticeTone, trailer: "Open Invoices to see the record." };
 
 // ── Public types ────────────────────────────────────────────────────────────
 
@@ -338,15 +364,24 @@ export function quoteNotices(
     // status "draft" → nothing to report yet.
   }
   for (const i of invoices) {
-    if (!i?.id || !i.status || i.status === "draft") continue;
+    if (!i?.id || !i.status) continue;
+    // SLICE 182 — this loop skipped `draft` and then titled EVERY remaining
+    // invoice "Invoice sent" in the neutral tone. Because the mail lane refuses
+    // every message today, `failed` is the NORMAL state: the bell was telling
+    // the tenant money was on its way for an invoice the server had recorded as
+    // not delivered. The copy is now keyed by the server's own status enum
+    // (`INVOICE_STATUSES`) through a `Record<InvoiceStatus, …>` map, so a new
+    // state is a COMPILE ERROR here rather than a silent "Invoice sent".
+    const copy = isInvoiceStatus(i.status) ? INVOICE_NOTICE_COPY[i.status] : UNKNOWN_INVOICE_NOTICE;
+    if (copy === null) continue; // draft — nothing has been issued yet
     out.push({
       id: `quote:invoice:${i.id}`,
       kind: "quote",
-      tone: "info",
-      title: "Invoice sent",
-      message: `${i.invoiceNumber ? `#${i.invoiceNumber} · ` : ""}${money(i.amountDueCents, i.currency)}${
-        i.invoiceNumber || money(i.amountDueCents, i.currency) ? " sent" : "recorded"
-      }. Open Invoices to track it.`,
+      tone: copy.tone,
+      title: copy.title,
+      message: `${i.invoiceNumber ? `#${i.invoiceNumber} · ` : ""}${money(i.amountDueCents, i.currency)} — ${invoiceStatusLabel(
+        i.status,
+      )}. ${copy.trailer}`,
       link: "/portal/invoices",
       at: recordAt(i.updatedAt, i.createdAt),
       unread: true,

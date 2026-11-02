@@ -215,9 +215,16 @@ describe("(a) delivery truthfulness — never 'sent' without a provider ack", ()
     expect(listAudit(dir, T1).some((a) => a.action === "native.invoice.queued")).toBe(true);
     expect(listAudit(dir, T1).some((a) => a.action === "native.invoice.failed")).toBe(true);
     expect(listAudit(dir, T1).some((a) => a.action === "native.invoice.sent")).toBe(false);
-    // A failed invoice is never public.
+    // SLICE 182 — the boundary is the SLUG, not the delivery status. A failed
+    // invoice IS public: the mail provider refusing the message says nothing
+    // about whether the invoice exists, and the tenant must be able to hand the
+    // link over by any other means. What must never happen is the public view
+    // claiming a send that did not happen — so the status it serves is the
+    // record's own (`failed`), derived here from the system of record.
     expect(inv.shareSlug).toBeTruthy();
-    expect((await publicRoute(`/api/native/invoice/share/${inv.shareSlug}`)).status).toBe(404);
+    const pub = await publicRoute(`/api/native/invoice/share/${inv.shareSlug}`);
+    expect(pub.status).toBe(200);
+    expect(((await pub.json()) as { data: { status: string } }).data.status).toBe(inv.status);
   });
 
   it("provider acknowledges (HTTP 202) → status sent, messageId stored, invoice is terminal", async () => {
@@ -276,7 +283,12 @@ describe("(b) unconfigured lane — truthful non-sent state, nothing dispatched"
     expect(fetchMock).not.toHaveBeenCalled(); // no lane → no dispatch at all
     expect(listAudit(dir, T1).some((a) => a.action === "native.invoice.failed")).toBe(true);
     expect(listAudit(dir, T1).some((a) => a.action === "native.invoice.sent")).toBe(false);
-    expect((await publicRoute(`/api/native/invoice/share/${inv.shareSlug}`)).status).toBe(404);
+    // SLICE 182 — an unconfigured lane is still an ISSUED invoice, so its link
+    // serves; the status it serves is the record's own (`failed`/unconfigured),
+    // never `sent`.
+    const pub = await publicRoute(`/api/native/invoice/share/${inv.shareSlug}`);
+    expect(pub.status).toBe(200);
+    expect(((await pub.json()) as { data: { status: string } }).data.status).toBe(inv.status);
   });
 });
 

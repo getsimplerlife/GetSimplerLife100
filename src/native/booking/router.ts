@@ -307,8 +307,14 @@ async function handleShareAsync(req: Request, ctx: NativeBookingsPublicCtx): Pro
     if (!v.ok) return json400(v.error);
       if (!v.data) return json400("invalid booking request");
     const res = submitBookingWrite(ctx.dataDir, tenantId, "request", { bookingPageId: page.id, request: v.data, via: "public" }, "client");
-    if (res.applied) return Response.json({ data: { status: "applied" } }); // autonomy approved instantly
-    if (res.pending) return Response.json({ data: { status: "pending" } }); // tenant-side approval card queued
+    // SLICE 182 — the WRITE outcome ("applied") is not the booking's STATUS.
+    // A `request` always creates `status: "requested"` (gate.ts), so the page
+    // must be able to print what the record actually says instead of inferring
+    // a confirmation from "applied". The record's own status is returned; it is
+    // null when the write is only pending (no record exists yet, so no slot is
+    // held either).
+    if (res.applied) return Response.json({ data: { status: "applied", bookingStatus: res.booking?.status ?? null } }); // autonomy approved instantly
+    if (res.pending) return Response.json({ data: { status: "pending", bookingStatus: null } }); // tenant-side approval card queued
     return gateErrorStatus((res as { error?: string }).error ?? "booking write failed");
   }
   if (seg.length === 1 && req.method !== "GET" && req.method !== "POST") return json405();
