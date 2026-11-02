@@ -27,7 +27,7 @@ export default function BookingSharePage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [done, setDone] = useState<{ status: string } | null>(null);
+  const [done, setDone] = useState<{ status: string; bookingStatus: string | null } | null>(null);
 
   useEffect(() => {
     fetch(`/api/native/booking/share/${slug}`)
@@ -67,7 +67,10 @@ export default function BookingSharePage() {
       });
       const j = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(j.error || "Request failed");
-      setDone({ status: j.data?.status ?? "pending" });
+      setDone({
+        status: (j.data?.status as string | undefined) ?? "pending",
+        bookingStatus: (j.data?.bookingStatus as string | null | undefined) ?? null,
+      });
       // Fall through: nothing further exposed to the client.
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -81,15 +84,32 @@ export default function BookingSharePage() {
   if (!page) return null;
 
   if (done) {
+    /**
+     * SLICE 182 — "applied" is the WRITE outcome, not the booking's status. The
+     * record this lane creates is `status: "requested"` (native/booking/gate.ts),
+     * so "Booking confirmed" claimed a confirmation nobody had made. The page
+     * now prints what the record says: a confirmation only when the server
+     * reports `confirmed`, and "your time is reserved" only when a record exists
+     * (`requested` — availability.ts counts it as busy). A merely pending write
+     * holds nothing, so it promises nothing.
+     */
+    const confirmed = done.bookingStatus === "confirmed";
+    const held = done.bookingStatus === "requested";
+    const headline = confirmed
+      ? "Booking confirmed"
+      : held
+        ? "Booking request received — your time is reserved"
+        : "Booking request received";
+    const body = confirmed
+      ? "Your time is reserved and confirmed. The host will be in touch with any remaining details."
+      : held
+        ? "Your time is held for you. The host has your request and will confirm any remaining details."
+        : "Your request is pending confirmation. The host will confirm your time shortly.";
     return (
       <div className="mx-auto max-w-2xl px-4 py-12">
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-8 text-center">
-          <h1 className="text-xl font-semibold text-emerald-900">{done.status === "applied" ? "Booking confirmed" : "Booking request received"}</h1>
-          <p className="mt-2 text-emerald-800">
-            {done.status === "applied"
-              ? "Your time is reserved. The host will see it and confirm any remaining details."
-              : "Your request is pending confirmation. The host will confirm your time shortly."}
-          </p>
+          <h1 className="text-xl font-semibold text-emerald-900">{headline}</h1>
+          <p className="mt-2 text-emerald-800">{body}</p>
           <Link to="/" className="mt-6 inline-block font-medium text-emerald-700 underline">Back to home</Link>
         </div>
       </div>
