@@ -137,7 +137,19 @@ const INDUSTRY_BLUEPRINTS = [
 
 
 // ── OAuth Credential Resolution ────────────────────────────────────
-function getOAuthCredentials(provider: string): { clientId: string; clientSecret: string } | null {
+/**
+ * SLICE 177 — the stored client secret is AES-256-GCM ciphertext on disk, so it
+ * is opened (strictly) here, at the one place that is about to USE it. The
+ * result is discriminated because "no credentials configured" and "the stored
+ * credentials exist but cannot be decrypted under the configured
+ * INTEGRATION_ENCRYPTION_KEY" are different answers and must not be collapsed
+ * into one misleading "OAuth not configured" message.
+ */
+type OAuthCredsResult =
+  | { ok: true; clientId: string; clientSecret: string }
+  | { ok: false; reason: "not-configured" | "sealed-unreadable"; detail: string };
+
+function getOAuthCredentials(provider: string): OAuthCredsResult {
   const provUpper = provider.replace(/-/g, "_").toUpperCase();
   // 1. Try OAUTH_<PROVIDER>_CLIENT_ID / OAUTH_<PROVIDER>_CLIENT_SECRET
   let envClientId = process.env[`OAUTH_${provUpper}_CLIENT_ID`];
@@ -148,16 +160,34 @@ function getOAuthCredentials(provider: string): { clientId: string; clientSecret
     envClientSecret = process.env[`${provUpper}_CLIENT_SECRET`];
   }
   if (envClientId && envClientSecret) {
-    return { clientId: envClientId, clientSecret: envClientSecret };
+    return { ok: true, clientId: envClientId, clientSecret: envClientSecret };
   }
-  // 3. Fall back to tenant_oauth_credentials.json
+  // 3. Fall back to tenant_oauth_credentials.json (sealed at rest — see
+  //    src/lib/oauth-credential-store.ts). readJSON opens the store leniently;
+  //    re-open STRICTLY here so an undecryptable secret is reported as such
+  //    instead of being handed to a token exchange as ciphertext.
   const credsFile = join(DATA_DIR, "tenant_oauth_credentials.json");
-  const creds = readJSON(credsFile);
+  let creds: Record<string, any>;
+  try {
+    creds = openCredentialStore(readJSON(credsFile), { strict: true }) || {};
+  } catch (e: any) {
+    return {
+      ok: false,
+      reason: "sealed-unreadable",
+      detail:
+        `The stored OAuth client credentials for ${provider} cannot be decrypted: ` +
+        `${e?.message || String(e)}`,
+    };
+  }
   const key = `${provider}`;
   if (creds[key] && creds[key].clientId && creds[key].clientSecret) {
-    return { clientId: creds[key].clientId, clientSecret: creds[key].clientSecret };
+    return { ok: true, clientId: creds[key].clientId, clientSecret: creds[key].clientSecret };
   }
-  return null;
+  return {
+    ok: false,
+    reason: "not-configured",
+    detail: `OAuth not configured for ${provider}. Add credentials in Admin → OAuth Settings.`,
+  };
 }
 
 function getOAuthRedirectUri(provider: string, req?: Request): string {
@@ -178,6 +208,7 @@ function getOAuthRedirectUri(provider: string, req?: Request): string {
 import { getCanonicalProvider } from "./src/lib/provider-canonical";
 import { resolveServerPort } from "./src/lib/server-port";
 import { requireJwtKey, jwtKeyPresent } from "./src/lib/jwt-key";
+import { credentialKeyProblemSentence, openCredentialStore } from "./src/lib/oauth-credential-store";
 
 // ── SLICE 154 — no session signing key, no server ──────────────────────────
 // Runs before anything else can serve a request. `src/db/auth.ts` throws on
@@ -3920,8 +3951,20 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
         const creds = ((await readJSONLive(credsFile)) as Record<string, any>) || {};
         const existing = creds[providerId] || {};
         const keepSecret = !clientSecret || clientSecret === "••••••••••••••••" || clientSecret.trim() === "";
-        await mergeDurableCredential(credsFile, [{ type: "set", key: providerId, value: { clientId, clientSecret: keepSecret ? (existing.clientSecret || "") : clientSecret } }]);
-        return Response.json({ success: true, providerId });
+        const value = { clientId, clientSecret: keepSecret ? (existing.clientSecret || "") : clientSecret };
+        try {
+          // writeJSON (inside mergeDurableCredential) seals the secret through
+          // src/lib/oauth-credential-store.ts before any byte is persisted. With
+          // INTEGRATION_ENCRYPTION_KEY missing it REFUSES — we never store a
+          // plaintext client secret as a fallback.
+          await mergeDurableCredential(credsFile, [{ type: "set", key: providerId, value }]);
+        } catch (e: any) {
+          if (e?.name === "IntegrationKeyError") {
+            return Response.json({ error: credentialKeyProblemSentence(), reason: "integration-key-missing" }, { status: 409 });
+          }
+          throw e;
+        }
+        return Response.json({ success: true, providerId, secretStoredEncrypted: true });
       }
       if (subPath.startsWith("credentials/") && req.method === "DELETE") {
         const providerId = subPath.replace("credentials/", "");
@@ -4328,10 +4371,11 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
       }
       
       const canonicalProvider = getCanonicalProvider(authProvider);
-      const creds = getOAuthCredentials(canonicalProvider);
-      if (!creds) {
-        return Response.redirect(`/portal/integrations?error=${encodeURIComponent("OAuth not configured for " + canonicalProvider + ". Add credentials in Admin → OAuth Settings.")}`, 302);
+      const credsResult = getOAuthCredentials(canonicalProvider);
+      if (!credsResult.ok) {
+        return Response.redirect(`/portal/integrations?error=${encodeURIComponent(credsResult.detail)}`, 302);
       }
+      const creds = credsResult;
       
       const redirectUri = getOAuthRedirectUri(canonicalProvider, req);
       
@@ -4471,8 +4515,14 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
       // Build OAuth redirect URL dynamically via provider auth modules
       const redirectUri = getOAuthRedirectUri(provider, req);
       const canonicalProvider = getCanonicalProvider(provider);
-      const creds = getOAuthCredentials(canonicalProvider);
-      
+      const credsResult = getOAuthCredentials(canonicalProvider);
+      if (!credsResult.ok && credsResult.reason === "sealed-unreadable") {
+        // Fail closed and say why: the credentials exist but the key that opens
+        // them is missing/wrong. Never fall through to a guessed auth URL.
+        return Response.json({ error: credsResult.detail }, { status: 409 });
+      }
+      const creds = credsResult.ok ? credsResult : null;
+      // Try to use a real provider auth module      
       // Try to use a real provider auth module
       let authUrl: string | null = null;
       

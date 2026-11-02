@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { initDurableStore, durableClose, MemoryKvDriver } from "../lib/durable-store";
 import { readJSON, writeJSON } from "../lib/data-store";
+import { openCredentialStore, isSealedSecret } from "../lib/oauth-credential-store";
 import { refreshOneCredential } from "../lib/token-refresher";
 import { acquireRefreshLease, releaseRefreshLease, refreshContentionStats } from "../lib/connection-refresh-lock";
 
@@ -133,7 +134,12 @@ describe("cross-instance single-flight — durable atomic lease", () => {
     expect(win.status).toBe("ok");
     expect(win.refreshed).toBe(true);
     // The rotated token reached the DURABLE store (cross-instance visible).
-    const stored = (shared.dump()["tenant_oauth_credentials.json"] as Record<string, any>)[KEY];
+    // SLICE 177: the durable mirror stores the row SEALED, so it is opened here
+    // (the assertions below are about the token, not about its ciphertext).
+    const mirroredRow = (shared.dump()["tenant_oauth_credentials.json"] as Record<string, any>)[KEY];
+    expect(isSealedSecret(mirroredRow.refreshToken)).toBe(true);
+    expect(JSON.stringify(mirroredRow)).not.toContain("rt-");
+    const stored = openCredentialStore({ [KEY]: mirroredRow } as Record<string, any>)[KEY];
     expect(stored.refreshToken).not.toBe("shared-rt");
     expect(stored.refreshToken).toMatch(/^rt-/);
   });
@@ -175,7 +181,9 @@ describe("multi-cycle rotation — token moves forward, never consumed", () => {
     }
     // Four consecutive rotations, zero "has been consumed" — each single-use
     // refresh token was redeemed exactly once and advanced to the next.
-    const stored = (driver.dump()["tenant_oauth_credentials.json"] as Record<string, any>)[KEY];
+    const mirroredRow = (driver.dump()["tenant_oauth_credentials.json"] as Record<string, any>)[KEY];
+    expect(isSealedSecret(mirroredRow.refreshToken)).toBe(true);
+    const stored = openCredentialStore({ [KEY]: mirroredRow } as Record<string, any>)[KEY];
     expect(stored.refreshToken).toBe(currentRt());
     expect(stored.refreshToken).toMatch(/^rt-/);
   });

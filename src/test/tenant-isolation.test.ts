@@ -7,6 +7,7 @@ import { handlePortalFileDownload } from "../lib/portal-file-download";
 import { validateOAuthState } from "../lib/oauth-safety";
 import { createGoogleDoc, type ProductivityAdapter } from "../agents/capabilities/productivity";
 import { createMicrosoftWordDoc, type MicrosoftProductivityAdapter } from "../agents/capabilities/productivity-microsoft";
+import { openCredentialStore, isSealedSecret } from "../lib/oauth-credential-store";
 
 /**
  * tenant-isolation.test.ts — CROSS-TENANT DATA ISOLATION regression suite
@@ -193,7 +194,14 @@ describe("3. OAuth token store: per-tenant keys only", () => {
       globalThis.fetch = origFetch;
     }
     expect(out.status).toBe(200);
-    const after = readTokenStore(dir);
+    const rawAfter = readTokenStore(dir);
+    // SLICE 177: the on-disk row is SEALED — the refreshed token is ciphertext
+    // there. Assert the seal, then open the store and keep the per-tenant key
+    // assertion (that is the isolation guarantee, not the byte form).
+    expect(isSealedSecret(rawAfter["a@test.com:google-drive"].accessToken)).toBe(true);
+    expect(isSealedSecret(rawAfter["a@test.com:google-drive"].refreshToken)).toBe(true);
+    expect(JSON.stringify(rawAfter)).not.toContain("tok-new");
+    const after = openCredentialStore(rawAfter) as Record<string, any>;
     expect(after["a@test.com:google-drive"].accessToken).toBe("tok-new");
     // The bare key (if present) holds ONLY app credentials — never an access token.
     expect(after["google-drive"]?.accessToken).toBeUndefined();

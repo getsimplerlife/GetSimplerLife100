@@ -3,6 +3,7 @@ import { readFileSync, existsSync, mkdirSync, readdirSync, statSync, copyFileSyn
 import { atomicWriteSync } from "./atomic-write";
 import { durableEnabled, durableGet, durableHas, durableKeyFor, durableSet, durableGetLive, durableFlush, isPlainObject } from "./durable-store";
 import { isOwnerRole, LEGACY_OWNER_EMAIL } from "./user-roles";
+import { isCredentialStorePath, openCredentialStore, sealCredentialStore } from "./oauth-credential-store";
 
 /**
  * data-store.ts — runtime data directory resolution and boot-time seeding.
@@ -242,10 +243,16 @@ function recordStoreReadError(file: string, err: unknown): StoreReadError {
 export function readJSON(path: string): any {
   const key = durableKeyFor(path);
   const dv = durableGet(key);
-  if (dv !== undefined) return dv;
+  // SLICE 177 — the OAuth credential store is encrypted at rest: open its
+  // secret fields (client secrets + per-tenant access/refresh tokens) on every
+  // read so every caller keeps receiving the shape it always received. A
+  // legacy plaintext value passes through unchanged (no data loss). Only this
+  // one basename is opened — every other store keeps its own lane.
+  if (dv !== undefined) return isCredentialStorePath(path) ? openCredentialStore(dv) : dv;
   if (!existsSync(path)) return {};
   try {
-    return JSON.parse(readFileSync(path, "utf-8"));
+    const parsed = JSON.parse(readFileSync(path, "utf-8"));
+    return isCredentialStorePath(path) ? openCredentialStore(parsed) : parsed;
   } catch (e: any) {
     // The file EXISTS but does not parse: that is data loss in progress, not a
     // normal empty store. Log it loudly and count it, then keep the historical
@@ -268,7 +275,7 @@ export function readJSON(path: string): any {
 export async function readJSONLive(path: string): Promise<any> {
   if (durableEnabled()) {
     const live = await durableGetLive(durableKeyFor(path));
-    if (live !== undefined) return live;
+    if (live !== undefined) return isCredentialStorePath(path) ? openCredentialStore(live) : live;
   }
   return readJSON(path);
 }
@@ -287,8 +294,15 @@ export async function readJSONLive(path: string): Promise<any> {
  * document damaged.
  */
 export function writeJSON(path: string, data: any): void {
-  durableSet(durableKeyFor(path), data);
-  atomicWriteSync(path, JSON.stringify(data, null, 2));
+  // SLICE 177 — seal before ANY byte is persisted or mirrored: the credential
+  // store's client secrets and per-tenant tokens go to disk, to the durable
+  // store and to the off-box backup as AES-256-GCM ciphertext. A write with a
+  // secret to store is REFUSED (IntegrationKeyError, naming
+  // INTEGRATION_ENCRYPTION_KEY) when the key is missing or too short — we never
+  // fall back to plaintext. A store with no secret in it still writes.
+  const sealed = isCredentialStorePath(path) ? sealCredentialStore(data) : data;
+  durableSet(durableKeyFor(path), sealed);
+  atomicWriteSync(path, JSON.stringify(sealed, null, 2));
 }
 
 /**

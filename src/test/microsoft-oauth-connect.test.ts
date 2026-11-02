@@ -146,7 +146,13 @@ describe("prod-server OAuth path resolves through the canonical id (source guard
 
   it("authorize resolves credentials via the canonical provider id", () => {
     // getOAuthCredentials(canonicalProvider) — not the raw URL-provided id
-    expect(src).toContain("const creds = getOAuthCredentials(canonicalProvider);");
+    // SLICE 177: the lookup now returns an OAuthCredsResult so a sealed-but-
+    // unreadable credential fails closed with a 409 instead of a guessed auth
+    // URL, and the bound name is `credsResult`. The ARGUMENT is what this guard
+    // is about: the canonical id, never the id that arrived in the URL.
+    expect(src).toContain("const credsResult = getOAuthCredentials(canonicalProvider);");
+    expect(src).not.toContain("getOAuthCredentials(provider)");
+    expect(src).not.toContain("getOAuthCredentials(authProvider)");
   });
   it("callback stores the token under the canonical provider key", () => {
     expect(src).toContain("const tokenKey = `${user.email}:${canonicalProvider}`;");

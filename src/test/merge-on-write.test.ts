@@ -3,7 +3,8 @@ import { mkdtempSync, mkdirSync, rmSync, readFileSync, writeFileSync } from "nod
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { initDurableStore, durableClose, MemoryKvDriver } from "../lib/durable-store";
-import { mergeDurableCredential } from "../lib/data-store";
+import { mergeDurableCredential, readJSON } from "../lib/data-store";
+import { openCredentialStore, isSealedSecret } from "../lib/oauth-credential-store";
 import { refreshOneCredential } from "../lib/token-refresher";
 
 /**
@@ -73,8 +74,14 @@ async function bootWithAB(dir: string): Promise<MemoryKvDriver> {
   return driver;
 }
 
+/**
+ * SLICE 177: the durable mirror stores the credential store SEALED (client
+ * secrets + per-tenant access/refresh tokens are AES-256-GCM ciphertext), so the
+ * mirror is opened here before its content is compared. Comparing raw bytes
+ * would compare ciphertexts, and every re-seal legitimately produces a new IV.
+ */
 function credsDb(driver: MemoryKvDriver): Record<string, any> {
-  return driver.dump()["tenant_oauth_credentials.json"];
+  return openCredentialStore(driver.dump()["tenant_oauth_credentials.json"]) as Record<string, any>;
 }
 
 describe("#235 merge-on-write — sibling rows survive a stale writer", () => {
@@ -110,9 +117,13 @@ describe("#235 merge-on-write — sibling rows survive a stale writer", () => {
     // App creds also survive.
     expect(after.xero.clientId).toBe("client-id");
     // The refreshed value is also in the LOCAL file (writeJSON mirror).
-    const file = JSON.parse(readFileSync(join(dir, "tenant_oauth_credentials.json"), "utf8"));
+    const file = readJSON(join(dir, "tenant_oauth_credentials.json"));
     expect(file[KEY_B]).toBeDefined();
     expect(file[KEY_A].accessToken).toBe("fresh-access-A");
+    // SLICE 177: and the on-disk copy is sealed — the token is not readable there.
+    const rawFile = JSON.parse(readFileSync(join(dir, "tenant_oauth_credentials.json"), "utf8"));
+    expect(isSealedSecret(rawFile[KEY_A].accessToken)).toBe(true);
+    expect(JSON.stringify(rawFile)).not.toContain("fresh-access-A");
   });
 
   it("(b) helper delete removes only B — A stays", async () => {

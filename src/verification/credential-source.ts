@@ -13,6 +13,7 @@
  * This module performs no network calls. It never logs or prints credential values.
  */
 import { existsSync, readFileSync } from "node:fs";
+import { openCredentialStore } from "../lib/oauth-credential-store";
 import { join } from "node:path";
 import { durableGet, drainPendingWrites } from "../lib/durable-store";
 import { writeJSON } from "../lib/data-store";
@@ -102,9 +103,12 @@ export function loadStoredCredential(
   //    publish, so the DB is the only place the tenant tokens actually live.
   //    (durableGet returns undefined when the store is disabled — e.g. a
   //    local run without DATABASE_URL — and we fall through to the file.)
-  const durableData = durableGet("tenant_oauth_credentials.json") as
-    | Record<string, ProviderCredential>
-    | undefined;
+  // SLICE 177: the store is encrypted at rest (client secrets + per-tenant
+  // access/refresh tokens). The durable mirror holds the SEALED document, so it
+  // is opened here; a legacy plaintext value passes through unchanged.
+  const durableData = openCredentialStore(
+    durableGet("tenant_oauth_credentials.json") as Record<string, ProviderCredential> | undefined,
+  );
   if (durableData && typeof durableData === "object") {
     const hit = findCredentialEntry(durableData, provider, options.tenant);
     if (hit) return { credential: hit.entry, source: `durable:tenant_oauth_credentials.json#${hit.key}` };
@@ -115,7 +119,7 @@ export function loadStoredCredential(
 
   let data: Record<string, ProviderCredential>;
   try {
-    data = JSON.parse(readFileSync(credsFile, "utf8")) as Record<string, ProviderCredential>;
+    data = openCredentialStore(JSON.parse(readFileSync(credsFile, "utf8")) as Record<string, ProviderCredential>);
   } catch {
     return { source: `${credsFile} unreadable` };
   }
@@ -207,14 +211,14 @@ export function persistRefreshedCredential(
   const credsFile = join(dataDir, "tenant_oauth_credentials.json");
   // Read the CURRENT store (durable first — same priority as the loader) so we
   // merge into live state, never overwrite with a stale snapshot.
-  const durableData = durableGet("tenant_oauth_credentials.json") as
-    | Record<string, ProviderCredential>
-    | undefined;
+  const durableData = openCredentialStore(
+    durableGet("tenant_oauth_credentials.json") as Record<string, ProviderCredential> | undefined,
+  );
   let data: Record<string, ProviderCredential> | undefined = durableData;
   if (!data || typeof data !== "object") {
     if (!existsSync(credsFile)) return;
     try {
-      data = JSON.parse(readFileSync(credsFile, "utf8")) as Record<string, ProviderCredential>;
+      data = openCredentialStore(JSON.parse(readFileSync(credsFile, "utf8")) as Record<string, ProviderCredential>);
     } catch {
       return;
     }
