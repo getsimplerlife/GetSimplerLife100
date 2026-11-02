@@ -1,103 +1,176 @@
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 
+/**
+ * SLICE 175 — /portal/audit-logs, made true.
+ *
+ * THE DEFECTS THIS FILE PINS (all verified at 67a67d8).
+ *
+ * 1. The table was PERMANENTLY EMPTY. `GET /api/audit-logs` answers
+ *    `{ data, total, page, limit }`; this page read `data.logs`, so it stored
+ *    `[]` on every response while `total` was non-zero — the table said "No
+ *    audit logs found" and the pager drew underneath it.
+ * 2. Every filter was a no-op. The pills sent `severity`/`status`, the fetch
+ *    sent `offset`/`sortBy`/`sortDir`, and the handler read none of them. A
+ *    control that promises a filter it does not apply is worse than no control.
+ * 3. "Export Audit CSV" fired a POST and discarded the response: no blob, no
+ *    download, ever.
+ * 4. The table read `created_at` / `email` / `details`, but the store writes
+ *    `timestamp` / `user` / `detail` — so even with rows it would have rendered
+ *    "—" and "System" for every entry. It also DEFAULTED a missing severity to
+ *    "info" and a missing status to "success", inventing values the log does
+ *    not record.
+ *
+ * What is left here is only what the store can answer: the actor, the action,
+ * the resource and the detail, plus a real search, a real newest/oldest sort, a
+ * real pager and a real CSV of the rows the current search selects. Severity
+ * and status are not recorded in this log, so there is no pill or column for
+ * them — the page says so instead of showing a filter that always returns
+ * nothing.
+ */
 
+interface AuditEntry {
+  id?: string;
+  timestamp?: string;
+  created_at?: string;
+  user?: string;
+  email?: string;
+  action?: string;
+  resource?: string;
+  detail?: string;
+  details?: string;
+  ip?: string;
+}
+
+interface AuditStats {
+  totalEvents: number;
+  uniqueUsers: number;
+  firstEventAt: string | null;
+  lastEventAt: string | null;
+}
+
+const PAGE_SIZE = 25;
+
+/** The store's field names first, then the older aliases. */
+const actorOf = (log: AuditEntry) => log.user || log.email || "";
+const whenOf = (log: AuditEntry) => log.timestamp || log.created_at || "";
+const detailOf = (log: AuditEntry) => {
+  const raw = log.detail ?? log.details;
+  if (raw === undefined || raw === null || raw === "") return "";
+  return typeof raw === "string" ? raw : JSON.stringify(raw);
+};
 
 function SystemAuditLogs() {
-  const [logs, setLogs] = useState<any[]>([]);
+  const [logs, setLogs] = useState<AuditEntry[]>([]);
   const [total, setTotal] = useState(0);
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<AuditStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [severityFilter, setSeverityFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [error, setError] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
   const [page, setPage] = useState(0);
-  const pageSize = 25;
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState("");
 
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     setLoading(true);
+    setError("");
     try {
       const params = new URLSearchParams();
-      params.set("limit", String(pageSize));
-      params.set("offset", String(page * pageSize));
-      params.set("sortBy", "created_at");
-      params.set("sortDir", "desc");
-      if (searchTerm) params.set("search", searchTerm);
-      if (severityFilter !== "all") params.set("severity", severityFilter);
-      if (statusFilter !== "all") params.set("status", statusFilter);
+      params.set("page", String(page + 1));
+      params.set("limit", String(PAGE_SIZE));
+      params.set("sortBy", "timestamp");
+      params.set("sortDir", sortDir);
+      if (search) params.set("search", search);
 
       const res = await fetch(`/api/audit-logs?${params}`, { credentials: "include" });
-      if (res.ok) {
-        const data = await res.json();
-        setLogs(data.logs || []);
-        setTotal(data.total || 0);
-        setStats(data.stats || null);
+      if (!res.ok) {
+        // A status is not an empty log: a 401/500 must look like a failure.
+        setLogs([]);
+        setTotal(0);
+        setStats(null);
+        setError(
+          res.status === 401
+            ? "Please sign in to read this workspace's audit log."
+            : `Could not load the audit log (HTTP ${res.status}).`,
+        );
+        return;
       }
+      const payload = (await res.json()) as { data?: AuditEntry[]; total?: number; stats?: AuditStats };
+      setLogs(Array.isArray(payload.data) ? payload.data : []);
+      setTotal(typeof payload.total === "number" ? payload.total : 0);
+      setStats(payload.stats ?? null);
     } catch (err) {
-      console.error("Failed to fetch audit logs:", err);
+      setLogs([]);
+      setTotal(0);
+      setStats(null);
+      setError("Could not load the audit log: the request failed.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  };
+  }, [page, sortDir, search]);
 
   useEffect(() => {
     fetchLogs();
-  }, [page, severityFilter, statusFilter]);
+  }, [fetchLogs]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(0);
-    fetchLogs();
+    setSearch(searchInput.trim());
   };
 
-  const formatDate = (timestamp: number | string | null) => {
+  /** Real CSV of exactly the rows the current search selects (server-built). */
+  const handleExport = async () => {
+    setExportError("");
+    setExporting(true);
+    try {
+      const params = new URLSearchParams();
+      params.set("format", "csv");
+      params.set("sortBy", "timestamp");
+      params.set("sortDir", sortDir);
+      if (search) params.set("search", search);
+      const res = await fetch(`/api/audit-logs?${params}`, { credentials: "include" });
+      if (!res.ok) {
+        setExportError(`Could not export the audit log (HTTP ${res.status}).`);
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `audit-log-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      setExportError("Could not export the audit log.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const formatDate = (timestamp: string | null | undefined) => {
     if (!timestamp) return "—";
-    const d = typeof timestamp === "string" ? new Date(timestamp) : new Date(timestamp);
+    const d = new Date(timestamp);
+    if (Number.isNaN(d.getTime())) return "—";
     return d.toLocaleString("en-US", {
       month: "short", day: "numeric", year: "numeric",
       hour: "2-digit", minute: "2-digit",
     });
   };
 
-  const severityOptions = [
-    { key: "all", name: "All Severities" },
-    { key: "info", name: "Info" },
-    { key: "warning", name: "Warning" },
-    { key: "error", name: "Error" },
-    { key: "critical", name: "Critical" },
-  ];
-
-  const statusOptions = [
-    { key: "all", name: "All Statuses" },
-    { key: "success", name: "Success" },
-    { key: "failure", name: "Failure" },
-    { key: "pending", name: "Pending" },
-  ];
-
-  const statusBadge = (status: string) => {
-    const map: Record<string, string> = {
-      success: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-      failure: "bg-rose-500/10 text-rose-400 border-rose-500/20",
-      pending: "bg-amber-500/10 text-amber-400 border-amber-500/20",
-    };
-    return map[status] || "bg-stone-800 text-stone-400 border-stone-700";
-  };
-
-  const severityBadge = (severity: string) => {
-    const map: Record<string, string> = {
-      info: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-      warning: "bg-amber-500/10 text-amber-400 border-amber-500/20",
-      error: "bg-rose-500/10 text-rose-400 border-rose-500/20",
-      critical: "bg-red-600/20 text-red-400 border-red-500/30",
-    };
-    return map[severity] || "bg-stone-800 text-stone-400 border-stone-700";
-  };
-
-  if (loading && logs.length === 0) {
+  if (loading && logs.length === 0 && !error) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="w-8 h-8 border-2 border-stone-800 border-t-white rounded-full animate-spin" />
       </div>
     );
   }
+
+  const firstRow = total === 0 ? 0 : page * PAGE_SIZE + 1;
+  const lastRow = Math.min((page + 1) * PAGE_SIZE, total);
 
   return (
     <div className="space-y-8 text-stone-100 max-w-6xl mx-auto">
@@ -106,101 +179,87 @@ function SystemAuditLogs() {
         <div>
           <h1 className="text-3xl font-black text-white tracking-tight">📜 System Audit Logs</h1>
           <p className="text-stone-400 mt-1 text-sm">
-            Immutable ledger logging user actions, AI decisions, API calls, and tenant security events.
-            {stats && <span className="text-stone-600 ml-3 text-xs font-mono">{stats.totalEvents?.toLocaleString() || 0} total events</span>}
+            Every action recorded for this workspace — who did it, to which record, and when. Entries are appended by the
+            server and are never edited.
           </p>
         </div>
         <button
-          onClick={() => fetch("/api/audit-log", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({ action: "export_audit_csv", resource: "audit-logs", details: { format: "csv" } }),
-          })}
-          className="bg-stone-900 hover:bg-stone-800 text-stone-300 font-bold text-xs px-5 py-2.5 rounded-xl border border-stone-800 transition-all self-start md:self-auto"
+          onClick={handleExport}
+          disabled={exporting}
+          className="bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-stone-300 font-bold text-xs px-5 py-2.5 rounded-xl border border-stone-800 transition-all self-start md:self-auto"
         >
-          🔒 Export Audit CSV
+          {exporting ? "Building CSV…" : "🔒 Export Audit CSV"}
         </button>
       </div>
 
-      {/* Stats Mini Cards */}
+      {exportError && (
+        <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm font-bold text-rose-300" role="alert">
+          {exportError}
+        </div>
+      )}
+
+      {error && (
+        <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm font-bold text-rose-300" role="alert">
+          {error}
+        </div>
+      )}
+
+      {/* Stats — computed server-side over this workspace's whole log */}
       {stats && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="bg-stone-950 border border-stone-900 rounded-xl p-4">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-stone-500 font-bold">Total Events</span>
-            <p className="text-xl font-black text-white mt-1">{stats.totalEvents?.toLocaleString() || 0}</p>
+            <span className="text-[10px] font-mono uppercase tracking-wider text-stone-500 font-bold">All events</span>
+            <p className="text-xl font-black text-white mt-1">{stats.totalEvents.toLocaleString()}</p>
           </div>
           <div className="bg-stone-950 border border-stone-900 rounded-xl p-4">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-stone-500 font-bold">Unique Users</span>
-            <p className="text-xl font-black text-white mt-1">{stats.uniqueUsers || 0}</p>
+            <span className="text-[10px] font-mono uppercase tracking-wider text-stone-500 font-bold">Actors</span>
+            <p className="text-xl font-black text-white mt-1">{stats.uniqueUsers}</p>
           </div>
           <div className="bg-stone-950 border border-stone-900 rounded-xl p-4">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-stone-500 font-bold">Recent Errors</span>
-            <p className={`text-xl font-black mt-1 ${stats.recentErrors > 0 ? "text-rose-400" : "text-emerald-400"}`}>
-              {stats.recentErrors || 0}
-            </p>
+            <span className="text-[10px] font-mono uppercase tracking-wider text-stone-500 font-bold">First event</span>
+            <p className="text-sm font-black text-white mt-1">{formatDate(stats.firstEventAt)}</p>
           </div>
           <div className="bg-stone-950 border border-stone-900 rounded-xl p-4">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-stone-500 font-bold">7-Day Window</span>
-            <p className="text-xl font-black text-white mt-1">Last 7d</p>
+            <span className="text-[10px] font-mono uppercase tracking-wider text-stone-500 font-bold">Latest event</span>
+            <p className="text-sm font-black text-white mt-1">{formatDate(stats.lastEventAt)}</p>
           </div>
         </div>
       )}
 
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
-        {/* Severity filter pills */}
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {severityOptions.map((opt) => (
-            <button
-              key={opt.key}
-              onClick={() => { setSeverityFilter(opt.key); setPage(0); }}
-              className={`px-3 py-1.5 text-[10px] font-bold rounded-lg border transition-all ${
-                severityFilter === opt.key
-                  ? "bg-blue-500/10 border-blue-500/30 text-blue-400"
-                  : "bg-stone-900 border-stone-800 text-stone-400 hover:text-stone-200 hover:border-stone-700"
-              }`}
-            >
-              {opt.name}
-            </button>
-          ))}
-        </div>
-        <span className="text-stone-700">|</span>
-        {/* Status filter pills */}
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {statusOptions.map((opt) => (
-            <button
-              key={opt.key}
-              onClick={() => { setStatusFilter(opt.key); setPage(0); }}
-              className={`px-3 py-1.5 text-[10px] font-bold rounded-lg border transition-all ${
-                statusFilter === opt.key
-                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                  : "bg-stone-900 border-stone-800 text-stone-400 hover:text-stone-200 hover:border-stone-700"
-              }`}
-            >
-              {opt.name}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Search Bar */}
+      {/* Search + sort — the only two filters this log can answer */}
       <form onSubmit={handleSearch} className="bg-stone-950 border border-stone-900 rounded-xl p-4">
-        <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row gap-3">
           <input
             type="text"
-            placeholder="Search by user, action, resource, or details..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            aria-label="Search the audit log"
+            placeholder="Search by actor, action, resource, or detail…"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
             className="flex-1 bg-stone-900 border border-stone-800 rounded-lg px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 text-stone-200 placeholder-stone-500"
           />
-          <button
-            type="submit"
-            className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-5 py-2 rounded-lg transition-all"
-          >
-            Search
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-5 py-2 rounded-lg transition-all"
+            >
+              Search
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPage(0);
+                setSortDir(sortDir === "desc" ? "asc" : "desc");
+              }}
+              className="bg-stone-900 hover:bg-stone-800 border border-stone-800 text-stone-300 font-bold text-xs px-4 py-2 rounded-lg transition-all"
+            >
+              {sortDir === "desc" ? "Newest first ↓" : "Oldest first ↑"}
+            </button>
+          </div>
         </div>
+        <p className="text-[10px] text-stone-600 mt-2">
+          This log records the actor, action, resource and detail of each event. It does not record a severity or a
+          status, so there is no severity or status filter here.
+        </p>
       </form>
 
       {/* Audit Log Table */}
@@ -215,47 +274,57 @@ function SystemAuditLogs() {
                 <th className="p-4">Action</th>
                 <th className="p-4">Resource</th>
                 <th className="p-4">Details</th>
-                <th className="p-4">Severity</th>
-                <th className="p-4">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-900">
-              {logs.length === 0 ? (
+              {error ? (
+                // An error must never wear the empty state's clothes: "No audit
+                // logs found" is a claim about the log, and a failed read is not
+                // evidence about the log.
                 <tr>
-                  <td colSpan={8} className="p-12 text-center text-stone-500">
+                  <td colSpan={6} className="p-12 text-center text-stone-500">
+                    <div className="text-2xl mb-2">⚠️</div>
+                    <p className="text-xs font-bold">The audit log could not be loaded</p>
+                    <p className="text-[10px] text-stone-600 mt-1">This is an error, not an empty log.</p>
+                  </td>
+                </tr>
+              ) : logs.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="p-12 text-center text-stone-500">
                     <div className="text-2xl mb-2">📭</div>
-                    <p className="text-xs font-bold">No audit logs found</p>
-                    <p className="text-[10px] text-stone-600 mt-1">Try adjusting your filters or search terms.</p>
+                    {total > 0 ? (
+                      <>
+                        <p className="text-xs font-bold">No rows on this page</p>
+                        <p className="text-[10px] text-stone-600 mt-1">The log holds {total.toLocaleString()} entries — go back a page.</p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-xs font-bold">No audit logs found</p>
+                        <p className="text-[10px] text-stone-600 mt-1">
+                          {search ? "Nothing matches this search." : "Nothing has been recorded for this workspace yet."}
+                        </p>
+                      </>
+                    )}
                   </td>
                 </tr>
               ) : (
-                logs.map((log) => (
-                  <tr key={log.id} className="hover:bg-stone-900/30 transition-colors">
+                logs.map((log, idx) => (
+                  <tr key={log.id || `row-${idx}`} className="hover:bg-stone-900/30 transition-colors">
                     <td className="p-4 font-mono text-[10px] text-stone-500 max-w-[120px] truncate" title={log.id}>
-                      {log.id?.slice(0, 8)}...
+                      {log.id ? `${log.id.slice(0, 8)}…` : "—"}
                     </td>
-                    <td className="p-4 text-stone-400 text-[10px] whitespace-nowrap">{formatDate(log.created_at)}</td>
-                    <td className="p-4 font-bold text-white text-[10px] max-w-[140px] truncate" title={log.email || log.user_id || ""}>
-                      {log.email || log.user_id || "System"}
+                    <td className="p-4 text-stone-400 text-[10px] whitespace-nowrap">{formatDate(whenOf(log))}</td>
+                    <td className="p-4 font-bold text-white text-[10px] max-w-[140px] truncate" title={actorOf(log)}>
+                      {actorOf(log) || "—"}
                     </td>
                     <td className="p-4">
-                      <span className="text-stone-200 font-bold text-[10px]">{log.action}</span>
+                      <span className="text-stone-200 font-bold text-[10px]">{log.action || "—"}</span>
                     </td>
                     <td className="p-4 text-stone-400 text-[10px] max-w-[120px] truncate" title={log.resource || ""}>
                       {log.resource || "—"}
                     </td>
-                    <td className="p-4 text-stone-500 text-[10px] max-w-[200px] truncate" title={typeof log.details === "string" ? log.details : JSON.stringify(log.details || "")}>
-                      {typeof log.details === "string" ? log.details : (log.details ? JSON.stringify(log.details).slice(0, 80) : "—")}
-                    </td>
-                    <td className="p-4">
-                      <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${severityBadge(log.severity)}`}>
-                        {log.severity || "info"}
-                      </span>
-                    </td>
-                    <td className="p-4">
-                      <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${statusBadge(log.status)}`}>
-                        {log.status || "success"}
-                      </span>
+                    <td className="p-4 text-stone-500 text-[10px] max-w-[200px] truncate" title={detailOf(log)}>
+                      {detailOf(log) ? (detailOf(log).length > 80 ? `${detailOf(log).slice(0, 80)}…` : detailOf(log)) : "—"}
                     </td>
                   </tr>
                 ))
@@ -265,10 +334,10 @@ function SystemAuditLogs() {
         </div>
 
         {/* Pagination */}
-        {total > pageSize && (
+        {total > PAGE_SIZE && (
           <div className="border-t border-stone-900 px-4 py-3 flex items-center justify-between text-xs">
             <span className="text-stone-500 font-mono">
-              Showing {page * pageSize + 1}–{Math.min((page + 1) * pageSize, total)} of {total.toLocaleString()}
+              Showing {firstRow}–{lastRow} of {total.toLocaleString()}
             </span>
             <div className="flex gap-2">
               <button
@@ -280,7 +349,7 @@ function SystemAuditLogs() {
               </button>
               <button
                 onClick={() => setPage(page + 1)}
-                disabled={(page + 1) * pageSize >= total}
+                disabled={(page + 1) * PAGE_SIZE >= total}
                 className="px-3 py-1.5 rounded-lg bg-stone-900 border border-stone-800 text-stone-400 font-bold hover:text-white hover:border-stone-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
               >
                 Next →

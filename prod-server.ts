@@ -2538,9 +2538,26 @@ async function handleFetch(req: Request, server?: ServerPeerSource): Promise<Res
       const user = await getUserFromSession(req);
       if (user === null || user === undefined) return Response.json({ error: "Not authenticated" }, { status: 401 });
       const AUDIT_FILE = join(DATA_DIR, "tenant_audit_logs.json");
-      const page = parseInt(url.searchParams.get("page") || "1");
-      const limit = parseInt(url.searchParams.get("limit") || "20");
-      const search = (url.searchParams.get("search") || "").toLowerCase();
+      // SLICE 175: the tenant page sends `offset` + `sortBy` + `sortDir` and its
+      // pills send `severity`/`status`, but this handler read only
+      // page/limit/search - so every one of those controls was a no-op that
+      // promised a filter it never applied. All six are honoured below.
+      const qp = url.searchParams;
+      const intParam = (name: string, fallback: number): number => {
+        const raw = qp.get(name);
+        if (raw === null || raw.trim() === "") return fallback;
+        const n = Number.parseInt(raw, 10);
+        return Number.isFinite(n) ? n : fallback;
+      };
+      const page = Math.max(1, intParam("page", 1));
+      const AUDIT_LIMIT_MAX = 10000; // the admin page reads ?limit=10000 for stats
+      const limit = Math.min(AUDIT_LIMIT_MAX, Math.max(1, intParam("limit", 20)));
+      const search = (qp.get("search") || "").trim().toLowerCase();
+      const severity = (qp.get("severity") || "").trim().toLowerCase();
+      const status = (qp.get("status") || "").trim().toLowerCase();
+      const sortBy = (qp.get("sortBy") || "").trim();
+      const sortDir = (qp.get("sortDir") || "").trim().toLowerCase() === "asc" ? "asc" : "desc";
+      const format = (qp.get("format") || "").trim().toLowerCase();
       const data = readJSON(AUDIT_FILE);
       // D-19 (sweep A): the store is normally a per-email map and the caller's
       // own slice is returned. The legacy/corrupt FLAT-ARRAY shape carries no
@@ -2562,17 +2579,117 @@ async function handleFetch(req: Request, server?: ServerPeerSource): Promise<Res
       } else {
         logs = [];
       }
+      // Field aliases: `appendAudit` writes timestamp/user/detail, while older
+      // rows (and the tenant page) use created_at/email/details. Read both.
+      const FIELD_ALIASES: Record<string, string[]> = {
+        timestamp: ["timestamp", "created_at"],
+        created_at: ["created_at", "timestamp"],
+        user: ["user", "email", "userEmail", "user_email"],
+        email: ["email", "user", "userEmail", "user_email"],
+        detail: ["detail", "details"],
+        details: ["details", "detail"],
+      };
+      const pick = (entry: any, key: string): unknown => {
+        if (!entry || typeof entry !== "object") return undefined;
+        for (const k of FIELD_ALIASES[key] ?? [key]) {
+          const v = entry[k];
+          if (v !== undefined && v !== null && v !== "") return v;
+        }
+        return undefined;
+      };
+      const asText = (entry: any, key: string): string => {
+        const v = pick(entry, key);
+        return v === undefined ? "" : String(v).toLowerCase();
+      };
+      // Stats describe the caller's WHOLE slice, never the current filter, so a
+      // card reading "All events" cannot disagree with a filtered table.
+      const scoped = logs;
+      let firstEventMs = Number.POSITIVE_INFINITY;
+      let lastEventMs = Number.NEGATIVE_INFINITY;
+      const actors = new Set<string>();
+      for (const entry of scoped) {
+        const actor = pick(entry, "user");
+        if (typeof actor === "string" && actor) actors.add(actor);
+        const ms = Date.parse(String(pick(entry, "timestamp") ?? ""));
+        if (Number.isFinite(ms)) {
+          if (ms < firstEventMs) firstEventMs = ms;
+          if (ms > lastEventMs) lastEventMs = ms;
+        }
+      }
+      const stats = {
+        totalEvents: scoped.length,
+        uniqueUsers: actors.size,
+        firstEventAt: Number.isFinite(firstEventMs) ? new Date(firstEventMs).toISOString() : null,
+        lastEventAt: Number.isFinite(lastEventMs) ? new Date(lastEventMs).toISOString() : null,
+      };
       if (search) {
         logs = logs.filter((l: any) =>
-          (l.action || "").toLowerCase().includes(search) ||
-          (l.resource || "").toLowerCase().includes(search) ||
-          (l.detail || "").toLowerCase().includes(search)
+          asText(l, "action").includes(search) ||
+          asText(l, "resource").includes(search) ||
+          asText(l, "detail").includes(search) ||
+          asText(l, "user").includes(search)
         );
       }
+      // A severity/status filter matches only entries that RECORD the field: an
+      // entry with no severity is unknown, not "info", and must never satisfy a
+      // filter it cannot answer.
+      if (severity && severity !== "all") logs = logs.filter((l: any) => asText(l, "severity") === severity);
+      if (status && status !== "all") logs = logs.filter((l: any) => asText(l, "status") === status);
+      if (sortBy) {
+        const dir = sortDir === "asc" ? 1 : -1;
+        logs = logs
+          .map((entry: any, i: number) => ({ entry, i }))
+          .sort((a: any, b: any) => {
+            const av = pick(a.entry, sortBy);
+            const bv = pick(b.entry, sortBy);
+            let cmp = 0;
+            if (av === undefined && bv === undefined) cmp = 0;
+            else if (av === undefined) cmp = -1;
+            else if (bv === undefined) cmp = 1;
+            else {
+              const an = typeof av === "number" ? av : Date.parse(String(av));
+              const bn = typeof bv === "number" ? bv : Date.parse(String(bv));
+              if (Number.isFinite(an) && Number.isFinite(bn)) cmp = an - bn;
+              else cmp = String(av).localeCompare(String(bv));
+            }
+            // Stable: ties keep store order whichever direction was asked for.
+            return cmp !== 0 ? cmp * dir : a.i - b.i;
+          })
+          .map((x: any) => x.entry);
+      }
       const total = logs.length;
-      const start = (page - 1) * limit;
+      // `offset` is the tenant page's paging contract; `page` is the admin
+      // page's. Whichever is present decides the window.
+      const offsetRaw = qp.get("offset");
+      const start = offsetRaw !== null && offsetRaw.trim() !== ""
+        ? Math.max(0, intParam("offset", 0))
+        : (page - 1) * limit;
+      // Real CSV of exactly the rows the current filters select (Enterprise
+      // sells "full audit export"): same filters, no paging window.
+      if (format === "csv") {
+        const csvCell = (value: unknown): string => {
+          let s = value === undefined || value === null ? "" : String(value);
+          // Spreadsheet formula injection: a leading = + - @ is executed on open.
+          if (/^[=+@\t\r]/.test(s) || /^-/.test(s)) s = "'" + s;
+          return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+        };
+        const cols = ["id", "timestamp", "user", "action", "resource", "detail", "ip"];
+        const lines = [cols.join(",")];
+        for (const entry of logs) {
+          lines.push(cols.map((c) => csvCell(pick(entry, c))).join(","));
+        }
+        const stamp = new Date().toISOString().slice(0, 10);
+        return new Response(lines.join("\r\n") + "\r\n", {
+          status: 200,
+          headers: {
+            "Content-Type": "text/csv; charset=utf-8",
+            "Content-Disposition": `attachment; filename="audit-log-${stamp}.csv"`,
+            "Cache-Control": "no-store",
+          },
+        });
+      }
       const paged = logs.slice(start, start + limit);
-      return Response.json({ data: paged, total, page, limit });
+      return Response.json({ data: paged, total, page, limit, offset: start, stats });
     }
 
     // ── Integration APIs ──────────────────────────────────────────

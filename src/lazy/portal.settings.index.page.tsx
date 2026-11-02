@@ -89,15 +89,10 @@ function UnifiedSettingsHub() {
   const [timezone, setTimezone] = useState("");
   const [language, setLanguage] = useState("en");
 
-  // AI & Security states (saved under profile/model section)
-  const [aiModel, setAIModel] = useState("");
-  const [temperature, setTemperature] = useState(0);
-  const [dataRetention, setDataRetention] = useState("");
-  const [mfaEnabled, setMfaEnabled] = useState(false);
-  const [sessionTimeout, setSessionTimeout] = useState("");
-  const [notifyEmail, setNotifyEmail] = useState(false);
-  const [notifySMS, setNotifySMS] = useState(false);
-  const [notifySlack, setNotifySlack] = useState(false);
+  // SLICE 175: aiModel, temperature, dataRetention, mfaEnabled, sessionTimeout,
+  // notifyEmail, notifySMS and notifySlack used to live here as toggles that
+  // wrote a value nothing read. They are gone (see the right-hand column below,
+  // which now says plainly that those capabilities do not exist yet).
 
   // 2. Connected Accounts states
   const [, setProviders] = useState<ProviderItem[]>([]);
@@ -122,39 +117,45 @@ function UnifiedSettingsHub() {
   const [loadingSettings, setLoadingSettings] = useState(true);
   const [feedback, setFeedback] = useState("");
 
-  // Load Business Profile settings on mount
+  // SLICE 175 — the load/save shapes now agree with the store.
+  //
+  // `tenant_settings.json` holds ONE FLAT OBJECT per tenant
+  // (`{ "you@example.com": { companyName: "Acme", … } }`) and the POST merges
+  // the request body into that object. This loader used to accept ONLY an ARRAY
+  // of `{ key, value }` rows — a shape the endpoint never returns — so nothing
+  // ever came back after a reload; and the saver posted `{ section, key, value }`,
+  // which overwrote the previous key on every request, leaving the workspace
+  // holding only the last field it saved. Both sides speak the flat shape now,
+  // which is also the shape src/native/invoice/issuer.ts reads to label an
+  // invoice with the workspace's own name.
   useEffect(() => {
     fetch("/api/data/settings", { credentials: "include" })
-      .then((r) => r.json())
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
       .then((d) => {
-        if (d.data && Array.isArray(d.data)) {
-          d.data.forEach((item: any) => {
-            if (item.key === "companyName") setCompanyName(item.value);
-            if (item.key === "logoUrl") setLogoUrl(item.value);
-            if (item.key === "industry") setIndustry(item.value);
-            if (item.key === "address") setAddress(item.value);
-            if (item.key === "phone") setPhone(item.value);
-            if (item.key === "website") setWebsite(item.value);
-            if (item.key === "timezone") setTimezone(item.value);
-            if (item.key === "language") setLanguage(item.value);
-            if (item.key === "aiModel") setAIModel(item.value);
-            if (item.key === "temperature") setTemperature(parseFloat(item.value) || 0.4);
-            if (item.key === "dataRetention") setDataRetention(item.value);
-            if (item.key === "mfaEnabled") setMfaEnabled(item.value === "true" || item.value === true);
-            if (item.key === "sessionTimeout") setSessionTimeout(item.value);
-            if (item.key === "notifyEmail") setNotifyEmail(item.value === "true" || item.value === true);
-            if (item.key === "notifySMS") setNotifySMS(item.value === "true" || item.value === true);
-            if (item.key === "notifySlack") setNotifySlack(item.value === "true" || item.value === true);
-          });
+        const apply = (key: unknown, value: unknown) => {
+          if (typeof key !== "string") return;
+          const text = value === undefined || value === null ? "" : String(value);
+          if (key === "companyName") setCompanyName(text);
+          if (key === "logoUrl") setLogoUrl(text);
+          if (key === "industry") setIndustry(text);
+          if (key === "address") setAddress(text);
+          if (key === "phone") setPhone(text);
+          if (key === "website") setWebsite(text);
+          if (key === "timezone") setTimezone(text);
+          if (key === "language") setLanguage(text);
+        };
+        const data = (d as { data?: unknown })?.data;
+        if (Array.isArray(data)) {
+          data.forEach((row) => apply((row as { key?: unknown })?.key, (row as { value?: unknown })?.value));
+        } else if (data && typeof data === "object") {
+          Object.entries(data as Record<string, unknown>).forEach(([key, value]) => apply(key, value));
         }
-        setLoadingSettings(false);
       })
       .catch((err) => {
         console.error("Error loading settings:", err);
-        setLoadingSettings(false);
-      });
+      })
+      .finally(() => setLoadingSettings(false));
   }, []);
-
   // Fetch Connected Accounts on tab click/mount
   const fetchConnectionsData = async () => {
     try {
@@ -286,49 +287,26 @@ function UnifiedSettingsHub() {
       } else if (sectionName === "Regional Options") {
         payload.timezone = timezone;
         payload.language = language;
-      } else if (sectionName === "AI Model Gateway") {
-        payload.aiModel = aiModel;
-        payload.temperature = temperature;
-        payload.dataRetention = dataRetention;
-      } else if (sectionName === "Security Options") {
-        payload.mfaEnabled = mfaEnabled;
-        payload.sessionTimeout = sessionTimeout;
-      } else if (sectionName === "Notification Channels") {
-        payload.notifyEmail = notifyEmail;
-        payload.notifySMS = notifySMS;
-        payload.notifySlack = notifySlack;
       }
 
-      // Save to generic endpoint row by row
+      // One FLAT key per request. The endpoint merges the body into the tenant's
+      // settings object, so `{ [key]: value }` ADDS a key; the old
+      // `{ section, key, value }` body overwrote the previous key on every call.
       for (const [key, value] of Object.entries(payload)) {
-        await fetch("/api/data/settings", {
+        const res = await fetch("/api/data/settings", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify({ section: sectionName, key, value }),
+          body: JSON.stringify({ [key]: value }),
         });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
       }
 
-
-      setFeedback(`Success: ${sectionName} updated successfully`);
+      setFeedback(`Success: ${sectionName} saved.`);
       setTimeout(() => setFeedback(""), 3000);
     } catch (err) {
       console.error("Failed to save settings:", err);
       setFeedback("Error: Failed to save changes.");
-    }
-  };
-
-  // Save a single toggle/key-value setting immediately (no section button needed)
-  const saveToggleSetting = async (key: string, value: any) => {
-    try {
-      await fetch("/api/data/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ section: "toggles", key, value }),
-      });
-    } catch (err) {
-      console.error("Toggle save error:", err);
     }
   };
 
@@ -465,6 +443,12 @@ function UnifiedSettingsHub() {
                   </div>
                 </div>
 
+                <p className="text-[10px] text-stone-500 border-t border-stone-900 pt-4">
+                  All six fields are saved to your workspace record. The company name is the one the product reads
+                  today: it is the issuer name printed on invoices. The other five are stored for later use and change
+                  nothing in the product yet.
+                </p>
+
                 <div className="pt-2 flex justify-end">
                   <button
                     onClick={() => handleSaveProfile("Brand & Profile")}
@@ -514,6 +498,11 @@ function UnifiedSettingsHub() {
                   </div>
                 </div>
 
+                <p className="text-[10px] text-stone-500 border-t border-stone-900 pt-4">
+                  Saved to your workspace record. Nothing in the product reads these two values yet — dates, times and
+                  amounts are formatted the same way for every workspace.
+                </p>
+
                 <div className="pt-2 flex justify-end">
                   <button
                     onClick={() => handleSaveProfile("Regional Options")}
@@ -526,192 +515,60 @@ function UnifiedSettingsHub() {
 
             </div>
 
-            {/* Right Hand Side Settings: AI, Security, Notifications */}
+            {/* Right Hand Side: the capabilities that do NOT exist yet, stated
+                plainly. SLICE 175 removed six stored-and-never-read toggles
+                here (mfaEnabled, notifySMS, sessionTimeout, aiModel,
+                dataRetention, notifySlack) plus two of the same class
+                (notifyEmail, temperature). Each one showed "saved" and changed
+                nothing, because no server path, auth path, mailer or retention
+                job reads any of those keys. Nothing is built for them here —
+                they are later waves — so the page says so instead. */}
             <div className="space-y-8">
-              
-              {/* AI Model Settings */}
-              <div className="bg-stone-950 border border-stone-900 rounded-3xl p-6 shadow-xl space-y-6">
+
+              <div className="bg-stone-950 border border-stone-900 rounded-3xl p-6 shadow-xl space-y-4">
                 <div className="border-b border-stone-900 pb-3">
                   <h3 className="text-base font-black text-white flex items-center gap-2">
-                    <span>🧠</span> AI Model Gateway
+                    <span>🧠</span> AI Settings
                   </h3>
-                  <p className="text-xs text-stone-500">Select default LLM brains used across standard operational task executions.</p>
                 </div>
-
-                <div className="space-y-5 text-xs font-semibold text-stone-400">
-                  <div className="space-y-2">
-                    <label className="block font-bold uppercase tracking-wider text-stone-500">Default AI Model Brain</label>
-                    <select
-                      value={aiModel}
-                      onChange={(e) => setAIModel(e.target.value)}
-                      className="w-full bg-stone-900 border border-stone-800/80 rounded-xl px-4 py-3 outline-none text-white font-black text-xs"
-                    >
-                      <option value="openai-gpt4o">OpenAI GPT-4o (Production Core)</option>
-                      <option value="anthropic-claude35-sonnet">Anthropic Claude 3.5 Sonnet</option>
-                      <option value="meta-llama3-70b">Meta Llama 3 70B (Open-Source)</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <label className="font-bold uppercase tracking-wider text-stone-500">Creativity Temperature</label>
-                      <span className="text-emerald-400 font-bold">{temperature}</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.1"
-                      value={temperature}
-                      onChange={(e) => setTemperature(parseFloat(e.target.value))}
-                      className="w-full accent-emerald-500 cursor-pointer"
-                    />
-                    <div className="flex justify-between text-[10px] text-stone-500 font-bold">
-                      <span>PRECISE (0.0)</span>
-                      <span>BALANCED</span>
-                      <span>CREATIVE (1.0)</span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="block font-bold uppercase tracking-wider text-stone-500">Standard Data Retention</label>
-                    <select
-                      value={dataRetention}
-                      onChange={(e) => setDataRetention(e.target.value)}
-                      className="w-full bg-stone-900 border border-stone-800/80 rounded-xl px-4 py-3 outline-none text-white font-bold"
-                    >
-                      <option value="30-days">30 Days (Standard Audit)</option>
-                      <option value="90-days">90 Days (Enterprise Compliant)</option>
-                      <option value="365-days">1 Year (Long-term Archives)</option>
-                    </select>
-                  </div>
-
-                  <button
-                    onClick={() => handleSaveProfile("AI Model Gateway")}
-                    className="w-full bg-stone-900 hover:bg-stone-850 border border-stone-800 text-stone-200 font-bold py-3 rounded-xl shadow-md transition-all text-center"
-                  >
-                    💾 Update AI Gateway Settings
-                  </button>
-                </div>
+                <p className="text-xs text-stone-400">
+                  Not available yet. No language model runs in this workspace, so there is no model to choose and no
+                  creativity setting to tune — quotes, invoices, reports and reminders are produced by deterministic
+                  code.
+                </p>
+                <p className="text-xs text-stone-400">
+                  Data retention is not configurable yet either: nothing currently deletes or expires this workspace's
+                  records, so there is no retention period to select.
+                </p>
               </div>
 
-              {/* MFA & Identity Security settings */}
-              <div className="bg-stone-950 border border-stone-900 rounded-3xl p-6 shadow-xl space-y-6">
+              <div className="bg-stone-950 border border-stone-900 rounded-3xl p-6 shadow-xl space-y-4">
                 <div className="border-b border-stone-900 pb-3">
                   <h3 className="text-base font-black text-white flex items-center gap-2">
-                    <span>🔑</span> Account Security Settings
+                    <span>🔑</span> Account Security
                   </h3>
-                  <p className="text-xs text-stone-500">Control workspace credential access rules and tenant security thresholds.</p>
                 </div>
-
-                <div className="space-y-4 text-xs font-semibold text-stone-400">
-                  <div className="flex items-center justify-between p-3 bg-stone-900/50 rounded-2xl border border-stone-900">
-                    <div>
-                      <div className="font-bold text-white text-xs">MFA Multi-Factor Auth</div>
-                      <div className="text-[10px] text-stone-500">Require secondary OTP codes on administrative logins.</div>
-                    </div>
-                    <button
-                      onClick={() => { setMfaEnabled(!mfaEnabled); saveToggleSetting("mfaEnabled", !mfaEnabled); }}
-                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
-                        mfaEnabled ? "bg-emerald-600" : "bg-stone-800"
-                      }`}
-                    >
-                      <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-stone-200 shadow ring-0 transition duration-200 ease-in-out ${
-                        mfaEnabled ? "translate-x-5" : "translate-x-0"
-                      }`} />
-                    </button>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="block font-bold uppercase tracking-wider text-stone-500">Console Session Timeout</label>
-                    <select
-                      value={sessionTimeout}
-                      onChange={(e) => setSessionTimeout(e.target.value)}
-                      className="w-full bg-stone-900 border border-stone-800/80 rounded-xl px-4 py-3 outline-none text-white font-bold"
-                    >
-                      <option value="60-mins">60 Minutes</option>
-                      <option value="120-mins">120 Minutes (2 hours)</option>
-                      <option value="1440-mins">24 Hours (Long session)</option>
-                    </select>
-                  </div>
-
-                  <button
-                    onClick={() => handleSaveProfile("Security Options")}
-                    className="w-full bg-stone-900 hover:bg-stone-850 border border-stone-800 text-stone-200 font-bold py-3 rounded-xl transition-all"
-                  >
-                    💾 Save Security Thresholds
-                  </button>
-                </div>
+                <p className="text-xs text-stone-400">
+                  Multi-factor authentication is not available yet. Sign-in is an email address and a password, checked
+                  against a bcrypt hash, over an encrypted connection; the session is a signed, HttpOnly cookie. There
+                  is no second factor to switch on, so there is no switch here.
+                </p>
+                <p className="text-xs text-stone-400">
+                  Session length is not configurable yet: a session lasts until you sign out or it is revoked.
+                </p>
               </div>
 
-              {/* Notification Channels settings */}
-              <div className="bg-stone-950 border border-stone-900 rounded-3xl p-6 shadow-xl space-y-6">
+              <div className="bg-stone-950 border border-stone-900 rounded-3xl p-6 shadow-xl space-y-4">
                 <div className="border-b border-stone-900 pb-3">
                   <h3 className="text-base font-black text-white flex items-center gap-2">
-                    <span>🔔</span> Notification Routing
+                    <span>🔔</span> Notification Channels
                   </h3>
-                  <p className="text-xs text-stone-500">Configure alert channels when automations require manual approval.</p>
                 </div>
-
-                <div className="space-y-4 text-xs font-semibold text-stone-400">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-bold text-white text-xs">Email Notifications</div>
-                      <div className="text-[10px] text-stone-500">Primary dashboard inbox messages.</div>
-                    </div>
-                    <button
-                      onClick={() => { setNotifyEmail(!notifyEmail); saveToggleSetting("notifyEmail", !notifyEmail); }}
-                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
-                        notifyEmail ? "bg-emerald-600" : "bg-stone-800"
-                      }`}
-                    >
-                      <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-stone-200 shadow ring-0 transition duration-200 ease-in-out ${
-                        notifyEmail ? "translate-x-5" : "translate-x-0"
-                      }`} />
-                    </button>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-bold text-white text-xs">SMS Emergency Alerts</div>
-                      <div className="text-[10px] text-stone-500">Receive system failures as text alerts.</div>
-                    </div>
-                    <button
-                      onClick={() => { setNotifySMS(!notifySMS); saveToggleSetting("notifySMS", !notifySMS); }}
-                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
-                        notifySMS ? "bg-emerald-600" : "bg-stone-800"
-                      }`}
-                    >
-                      <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-stone-200 shadow ring-0 transition duration-200 ease-in-out ${
-                        notifySMS ? "translate-x-5" : "translate-x-0"
-                      }`} />
-                    </button>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-bold text-white text-xs">Slack Dispatch logs</div>
-                      <div className="text-[10px] text-stone-500">Post system task updates directly to Slack.</div>
-                    </div>
-                    <button
-                      onClick={() => { setNotifySlack(!notifySlack); saveToggleSetting("notifySlack", !notifySlack); }}
-                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
-                        notifySlack ? "bg-emerald-600" : "bg-stone-800"
-                      }`}
-                    >
-                      <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-stone-200 shadow ring-0 transition duration-200 ease-in-out ${
-                        notifySlack ? "translate-x-5" : "translate-x-0"
-                      }`} />
-                    </button>
-                  </div>
-
-                  <button
-                    onClick={() => handleSaveProfile("Notification Channels")}
-                    className="w-full bg-stone-900 hover:bg-stone-850 border border-stone-800 text-stone-200 font-bold py-3 rounded-xl transition-all"
-                  >
-                    💾 Save Alert Preferences
-                  </button>
-                </div>
+                <p className="text-xs text-stone-400">
+                  Not available yet. This workspace has no SMS lane and no Slack connection, and there is no
+                  per-channel switch that would change what gets delivered — so there are no toggles here. Approval
+                  requests wait in the portal's approval queue.
+                </p>
               </div>
 
             </div>
