@@ -18,7 +18,7 @@ import {
  */
 
 function TasksQueue() {
-  const { inputs, signedOut, loading, updatedAt } = usePortalDashboard(30000);
+  const { inputs, signedOut, loading, loaded, readError, updatedAt } = usePortalDashboard(30000);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("all");
 
@@ -81,6 +81,18 @@ function TasksQueue() {
         </div>
       </div>
 
+      {/* SLICE 183 — a failed READ is never an empty workspace. */}
+      {readError && (
+        <div
+          role="alert"
+          className="rounded-xl border border-rose-700/50 bg-rose-950/50 px-4 py-3 text-sm text-rose-100"
+        >
+          {readError.signedOut
+            ? "Your session is not active — sign in again to see your tasks."
+            : `Could not read your task records: ${readError.error}`}
+        </div>
+      )}
+
       <div className="flex border-b border-stone-900 overflow-x-auto select-none gap-2 pb-px scrollbar-none">
         {tabs.map((tab) => (
           <button
@@ -108,7 +120,16 @@ function TasksQueue() {
         />
       </div>
 
-      {filtered.length === 0 ? (
+      {!loaded ? (
+        <div className="bg-stone-950 rounded-2xl border border-stone-900 p-8">
+          {/* SLICE 183 — "no records yet" is only honest after a full 2xx. */}
+          <p className="text-sm text-stone-400 text-center">
+            {readError
+              ? "Your task records could not be read — see the notice above. This is not an empty workspace."
+              : "Loading your task records…"}
+          </p>
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="bg-stone-950 rounded-2xl border border-stone-900 p-8">
           <PortalEmptyState
             title={rows.length === 0 ? "No task or workflow run records yet" : "No records match this view"}

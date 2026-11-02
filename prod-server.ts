@@ -3746,7 +3746,13 @@ function buildLeadEmail(email: string, toolName: string, result: any): { subject
         const userData = Array.isArray(data) ? data : (data[user.email] || []);
         return Response.json({ data: userData });
       } catch (e: any) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
-        return Response.json({ data: [] });
+        // SLICE 183 - a store read that THROWS is not an empty workspace. This
+        // answered `200 { data: [] }`, which no caller can tell apart from "you
+        // have no rows": every page downstream rendered an empty workspace over
+        // a broken store. Same shape as every other server failure here -
+        // `{ error }` with a non-2xx status, a generic sentence (no path, no
+        // stack), the detail only in the log above.
+        return Response.json({ error: "Couldn't read this workspace store." }, { status: 500 });
       }
     }
 

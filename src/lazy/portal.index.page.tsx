@@ -27,7 +27,7 @@ function ActivityHubDashboard() {
   // D-10: the admin panel's bounce carries its reason in the URL; say it here
   // rather than silently teleporting a non-owner back to the dashboard.
   const { notice } = useSearch({ strict: false }) as { notice?: string };
-  const { inputs, signedOut, loading, error, updatedAt, refreshDashboard } = usePortalDashboard();
+  const { inputs, signedOut, loading, readError, updatedAt, refreshDashboard } = usePortalDashboard();
 
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("24h");
   const [feedback, setFeedback] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
@@ -448,9 +448,19 @@ function ActivityHubDashboard() {
       )}
 
       {/* ── Honest status / feedback ─────────────────────────────── */}
-      {error && (
-        <div className="fixed bottom-20 right-6 bg-stone-900 border border-rose-500/30 text-rose-300 px-5 py-3 rounded-xl z-50 font-mono text-xs max-w-sm">
-          Couldn't refresh dashboard data — showing the last loaded values.
+      {/* SLICE 183 — the hook now names the sources that failed and carries the
+          server's own sentence; this used to print a fixed "Couldn't refresh"
+          line even when a single read had failed. */}
+      {readError && (
+        <div
+          role="alert"
+          className="fixed bottom-20 right-6 bg-stone-900 border border-rose-500/30 text-rose-300 px-5 py-3 rounded-xl z-50 font-mono text-xs max-w-sm"
+        >
+          {readError.signedOut
+            ? "Your session is not active — sign in again to see your workspace."
+            : `Could not read ${
+                readError.sources.length > 1 ? `${readError.sources.length} sources` : "part of your workspace"
+              }: ${readError.error}. Anything below may be out of date.`}
         </div>
       )}
 
