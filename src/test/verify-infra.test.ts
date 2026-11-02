@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { durableClose, durableFlush, durableGet, initDurableStore, MemoryKvDriver } from "../lib/durable-store";
+import { openCredentialStore, isSealedSecret } from "../lib/oauth-credential-store";
 import { hasAdapter } from "../verification/adapters";
 import {
   loadOAuthAppCredentials,
@@ -246,7 +247,15 @@ describe("phase 7 verification infra — credential source", () => {
       await durableFlush();
       // The rotated refresh token must survive in the durable store.
       const stored = durableGet("tenant_oauth_credentials.json") as Record<string, any>;
-      const entry = stored["owner@example.com:xero"];
+      const rawEntry = stored["owner@example.com:xero"];
+      // SLICE 177: the durable mirror stores the row SEALED (the tokens are
+      // AES-256-GCM ciphertext). Assert the seal, then open the store and keep
+      // the assertion that was here.
+      expect(isSealedSecret(rawEntry.accessToken)).toBe(true);
+      expect(isSealedSecret(rawEntry.refreshToken)).toBe(true);
+      const entry = (openCredentialStore({ "owner@example.com:xero": rawEntry }) as Record<string, any>)[
+        "owner@example.com:xero"
+      ];
       expect(entry.accessToken).toBe("new-access");
       expect(entry.refreshToken).toBe("new-refresh");
       expect(entry.expiresAt).toBe(loaded.credential!.expiresAt);
@@ -280,7 +289,15 @@ describe("phase 7 verification infra — credential source", () => {
       persistRefreshedCredential("xero", loaded.credential!, { tenant: "owner@example.com", dataDir: dir });
       await durableFlush();
       const stored = durableGet("tenant_oauth_credentials.json") as Record<string, any>;
-      const entry = stored["owner@example.com:xero"];
+      const rawEntry = stored["owner@example.com:xero"];
+      // SLICE 177: sealed on the mirror; non-secret fields stay readable there.
+      expect(isSealedSecret(rawEntry.accessToken)).toBe(true);
+      expect(isSealedSecret(rawEntry.refreshToken)).toBe(true);
+      expect(rawEntry.tenantId).toBe("org-123");
+      expect(rawEntry.scope).toBe("accounting.invoices.read");
+      const entry = (openCredentialStore({ "owner@example.com:xero": rawEntry }) as Record<string, any>)[
+        "owner@example.com:xero"
+      ];
       expect(entry.tenantId).toBe("org-123");
       expect(entry.scope).toBe("accounting.invoices.read");
       expect(entry.accessToken).toBe("fresh-access");

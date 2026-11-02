@@ -42,8 +42,8 @@
  * ----------------------------------------------
  * A value that is not in the sealed form is returned to the reader AS-IS. A
  * secret stored before this slice therefore stays readable forever, and it is
- * upgraded to ciphertext the first time anything writes the store (a reconnect,
- * a token refresh, an admin save). Sealing is idempotent: a value already in
+ * upgraded to ciphertext the first time anything writes the store (connecting
+ * the provider again, a token refresh, an admin save). Sealing is idempotent: a value already in
  * the sealed form is never re-encrypted, so a read → modify → write cycle
  * cannot double-encrypt.
  *

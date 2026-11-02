@@ -7,6 +7,7 @@ import type { AdapterContext } from "../verification/adapters/index";
 import { createDocuSignClient } from "../integrations/providers/docusign/client";
 import { durableClose, durableFlush, durableGet, initDurableStore, MemoryKvDriver } from "../lib/durable-store";
 import { loadProviderCredentials, persistRefreshedCredential } from "../verification/credential-source";
+import { openCredentialStore, isSealedSecret } from "../lib/oauth-credential-store";
 
 function jsonResponse(data: unknown) {
   return { ok: true, status: 200, headers: new Headers({ "content-type": "application/json" }), json: async () => data } as unknown as Response;
@@ -192,7 +193,15 @@ describe("DocuSign refresh-token rotation persistence (#173)", () => {
       persistRefreshedCredential("docusign", loaded.credential!, { tenant: "owner@example.com", dataDir: dir });
       await durableFlush();
       const stored = durableGet("tenant_oauth_credentials.json") as Record<string, any>;
-      const entry = stored["owner@example.com:docusign"];
+      const rawEntry = stored["owner@example.com:docusign"];
+      // SLICE 177: the durable mirror stores the row SEALED. Assert the seal,
+      // then open it and keep the rotation assertions below — those are what
+      // guard the refresh_token_mismatch regression.
+      expect(isSealedSecret(rawEntry.accessToken)).toBe(true);
+      expect(isSealedSecret(rawEntry.refreshToken)).toBe(true);
+      const entry = (openCredentialStore({ "owner@example.com:docusign": rawEntry }) as Record<string, any>)[
+        "owner@example.com:docusign"
+      ];
       expect(entry.accessToken).toBe("new-at");
       expect(entry.refreshToken).toBe("rotated-rt");
       expect(entry.accountId).toBe("acct-1");

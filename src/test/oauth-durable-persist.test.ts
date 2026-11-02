@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { persistOAuthTokenDurable } from "../api/integrationRoutes";
 import { loadStoredCredential } from "../verification/credential-source";
+import { openCredentialStore, isSealedSecret } from "../lib/oauth-credential-store";
 
 /**
  * OAuth callback durable-persist regression suite (P1, 2026-08-19).
@@ -58,8 +59,13 @@ describe("OAuth callback durable-persist (P1 reconnect no longer silently loses 
     expect(existsSync(file)).toBe(true);
     const stored = JSON.parse(readFileSync(file, "utf8"));
     expect(stored[key]).toBeDefined();
-    expect(stored[key].accessToken).toBe("at_123");
-    expect(stored[key].refreshToken).toBe("rt_456");
+    // SLICE 177: the file on disk is SEALED — the tokens are ciphertext there.
+    expect(isSealedSecret(stored[key].accessToken)).toBe(true);
+    expect(isSealedSecret(stored[key].refreshToken)).toBe(true);
+    expect(readFileSync(file, "utf8")).not.toContain("at_123");
+    const opened = openCredentialStore(stored) as Record<string, any>;
+    expect(opened[key].accessToken).toBe("at_123");
+    expect(opened[key].refreshToken).toBe("rt_456");
     expect(stored[key].provider).toBe(PROVIDER);
     expect(stored[key].email).toBe(EMAIL);
     expect(stored[key].scope).toBe("accounting.transactions");

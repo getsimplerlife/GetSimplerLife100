@@ -18,6 +18,7 @@ import {
 } from "../lib/token-refresher";
 import { writeJSON } from "../lib/data-store";
 import { initDurableStore, durableClose, durableFlush, MemoryKvDriver } from "../lib/durable-store";
+import { openCredentialStore, isSealedSecret } from "../lib/oauth-credential-store";
 
 let tmpDir: string;
 let now: number;
@@ -140,7 +141,12 @@ describe("token refresher — sweep", () => {
     expect(r.refreshed).toBe(0);
     expect(r.failed).toBe(0);
     expect(fetchMock).not.toHaveBeenCalled();
-    const onDisk = JSON.parse(readFileSync(join(dir, "tenant_oauth_credentials.json"), "utf-8"));
+    const rawOnDisk = JSON.parse(readFileSync(join(dir, "tenant_oauth_credentials.json"), "utf-8"));
+    // SLICE 177: the credential store is SEALED on disk — the token is ciphertext
+    // there. Assert the seal, then open the store and keep the assertion below.
+    expect(isSealedSecret(rawOnDisk["owner@example.com:xero"].accessToken)).toBe(true);
+    expect(JSON.stringify(rawOnDisk)).not.toContain("old-access");
+    const onDisk = openCredentialStore(rawOnDisk) as Record<string, any>;
     expect(onDisk["owner@example.com:xero"].accessToken).toBe("old-access");
   });
 
@@ -168,7 +174,13 @@ describe("token refresher — sweep", () => {
     expect(body).toContain("client_id=client-id");
     // Durable store (the real write path) holds the new tokens.
     await durableFlush();
-    const dbTokens = driver.dump()["tenant_oauth_credentials.json"]["owner@example.com:xero"];
+    const rawTokens = driver.dump()["tenant_oauth_credentials.json"]["owner@example.com:xero"];
+    // SLICE 177: the durable mirror holds the row sealed.
+    expect(isSealedSecret(rawTokens.accessToken)).toBe(true);
+    expect(isSealedSecret(rawTokens.refreshToken)).toBe(true);
+    const dbTokens = (openCredentialStore({ "owner@example.com:xero": rawTokens }) as Record<string, any>)[
+      "owner@example.com:xero"
+    ];
     expect(dbTokens.accessToken).toBe("new-access");
     expect(dbTokens.refreshToken).toBe("new-refresh");
     expect(dbTokens.expiresAt).toBeGreaterThan(Math.floor(now / 1000));
@@ -203,7 +215,13 @@ describe("token refresher — sweep", () => {
     expect(body).toContain("client_id=client-id");
     // Rotation persisted through the durable write path (PR #156 rule).
     await durableFlush();
-    const dbTokens = driver.dump()["tenant_oauth_credentials.json"]["owner@example.com:docusign"];
+    const rawTokens = driver.dump()["tenant_oauth_credentials.json"]["owner@example.com:docusign"];
+    // SLICE 177: the durable mirror holds the rotated pair sealed.
+    expect(isSealedSecret(rawTokens.accessToken)).toBe(true);
+    expect(isSealedSecret(rawTokens.refreshToken)).toBe(true);
+    const dbTokens = (openCredentialStore({ "owner@example.com:docusign": rawTokens }) as Record<string, any>)[
+      "owner@example.com:docusign"
+    ];
     expect(dbTokens.accessToken).toBe("new-access");
     expect(dbTokens.refreshToken).toBe("new-refresh");
     expect(dbTokens.expiresAt).toBeGreaterThan(Math.floor(now / 1000));
