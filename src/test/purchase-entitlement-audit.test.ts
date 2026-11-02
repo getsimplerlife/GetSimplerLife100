@@ -260,20 +260,22 @@ describe("Purchase-flow integrity audit (owner directive: no free stuff)", () =>
       expect(runRes.status).toBe(404);
       expect((await runRes.json()).error).toBe("not found");
     });
-    it("F4: ANY purchase (incl. the $1 generic) enables monitoring ingress for that tenant", async () => {
-      // Owner decision 2026-08-14 (F4): a successful purchase of ANY type —
-      // including the $1 generic product — sets canMonitor true for the
-      // tenant (monitoring ingress enabled). Provider ACTIONS stay
-      // connection-gated (unchanged). The $1 generic purchase was recorded
-      // in the test above; the monitoring webhook must now be accepted.
+    it("F4: no unsigned monitoring ingress exists for ANY tenant, purchased or not", async () => {
+      // SLICE 184: this used to assert that a purchase enabled the generic,
+      // UNSIGNED monitoring receiver (any provider id, no signature, straight
+      // into dispatch()). That branch is REMOVED — the owner's F4 intent
+      // (monitoring ingress follows entitlement) now lives only behind the two
+      // signed receivers, whose gate is unchanged. Intent preserved and made
+      // stricter: a purchase can never buy an unauthenticated ingress.
       const monRes = await fetch(`${BASE_URL}/api/monitoring/webhook/hubspot`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ employeeId: "emp-invoice-ledger-ai", eventType: "invoice.created", tenantId: GENERIC_EMAIL, payload: { f4: true } }),
       });
       const mon = await monRes.json();
-      expect(mon.status).toBe("processed");
-      expect(mon.dispatchedTo).toBe("emp-invoice-ledger-ai");
+      expect(monRes.status).toBe(404);
+      expect(mon.status).toBeUndefined();
+      expect(mon.dispatchedTo).toBeUndefined();
     });
   });
 
@@ -309,14 +311,17 @@ describe("Purchase-flow integrity audit (owner directive: no free stuff)", () =>
 
     it("a forged event does NOT flip the tenant monitoring gate (proves configureTenant never ran)", async (ctx) => {
       if (!serverEnforcesSignatures) { ctx.skip(); return; }
+      // SLICE 184: the unsigned generic receiver is gone, so a forged event is
+      // refused before any entitlement question is asked (404, no dispatch
+      // outcome). Intent preserved: a forged event still cannot flip the gate.
       const res = await fetch(`${BASE_URL}/api/monitoring/webhook/hubspot`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ employeeId: "emp-invoice-ledger-ai", eventType: "invoice.created", tenantId: FORGED_EMAIL, payload: { forged: true } }),
       });
       const json = await res.json();
-      expect(json.status).toBe("failed");
-      expect(json.reason).toMatch(/not entitled/i);
+      expect(res.status).toBe(404);
+      expect(json.status).toBeUndefined();
     });
   });
 
@@ -340,14 +345,17 @@ describe("Purchase-flow integrity audit (owner directive: no free stuff)", () =>
       });
       expect(runRes.status).toBe(404);
 
+      // SLICE 184: no unsigned receiver exists to be "denied" — the request is
+      // refused outright (404, no dispatch outcome). Intent preserved: a
+      // non-purchaser reaches no monitoring lane at all.
       const monRes = await fetch(`${BASE_URL}/api/monitoring/webhook/hubspot`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ employeeId: "emp-invoice-ledger-ai", eventType: "invoice.created", tenantId: NOPURCHASE_EMAIL, payload: {} }),
       });
       const mon = await monRes.json();
-      expect(mon.status).toBe("failed");
-      expect(mon.reason).toMatch(/not entitled/i);
+      expect(monRes.status).toBe(404);
+      expect(mon.status).toBeUndefined();
     });
   });
 });

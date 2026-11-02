@@ -242,38 +242,52 @@ describe("End-to-end purchase provisioning", () => {
     expect(purchases[unsignedEmail]).toBeUndefined();
   });
 
-  it("entitled tenant is accepted at monitoring webhook after purchase", async () => {
-    const { json } = await post("/api/monitoring/webhook/hubspot", {
+  // SLICE 184 — these two tests used to POST the homegrown monitoring shape
+  // ({employeeId, eventType, tenantId, payload}) to
+  // /api/monitoring/webhook/hubspot and assert a dispatch outcome
+  // ("processed" / "skipped"). That branch accepted ANY provider id, unsigned
+  // and unauthenticated, and reached dispatch(); it is REMOVED. The intent is
+  // preserved in the only form that is still true: a purchase no longer opens
+  // an unsigned monitoring ingress, for an entitled tenant or anyone else —
+  // the surviving receivers (xero, slack) are signature-verified and fail
+  // closed (see src/test/slice-184-door-and-writes.test.ts and the per-receiver
+  // suites). Dedupe itself is still covered directly in
+  // src/test/monitoring-foundation.test.ts.
+  it("entitled tenant cannot reach the retired unsigned monitoring ingress", async () => {
+    const { status, json } = await post("/api/monitoring/webhook/hubspot", {
       employeeId: "emp-invoice-ledger-ai",
       eventType: "invoice.created",
       tenantId: TEST_EMAIL,
       payload: { invoice: "post-purchase-test" },
     });
 
-    expect(json.status).toBe("processed");
-    expect(json.dispatchedTo).toBe("emp-invoice-ledger-ai");
+    expect(status).toBe(404);
+    expect(json.status).toBeUndefined();
+    expect(json.dispatchedTo).toBeUndefined();
   });
 
-  it("duplicate events are skipped", async () => {
+  it("a repeated event id gets the same refusal — no dispatch outcome is reachable", async () => {
     const eventId = "e2e-dup-" + Date.now();
 
-    const { json: first } = await post("/api/monitoring/webhook/hubspot", {
+    const { status: firstStatus, json: first } = await post("/api/monitoring/webhook/hubspot", {
       id: eventId,
       employeeId: "emp-invoice-ledger-ai",
       eventType: "invoice.created",
       tenantId: TEST_EMAIL,
       payload: { invoice: "dup-1" },
     });
-    expect(first.status).toBe("processed");
+    expect(firstStatus).toBe(404);
+    expect(first.status).toBeUndefined();
 
-    const { json: second } = await post("/api/monitoring/webhook/hubspot", {
+    const { status: secondStatus, json: second } = await post("/api/monitoring/webhook/hubspot", {
       id: eventId,
       employeeId: "emp-invoice-ledger-ai",
       eventType: "invoice.created",
       tenantId: TEST_EMAIL,
       payload: { invoice: "dup-2" },
     });
-    expect(second.status).toBe("skipped");
-    expect(second.reason).toBe("Duplicate event");
+    expect(secondStatus).toBe(404);
+    expect(second.status).toBeUndefined();
+    expect(second.reason).toBeUndefined();
   });
 });
