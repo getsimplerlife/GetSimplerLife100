@@ -30,6 +30,7 @@ import {
   type ProposalLineItem,
   type ProposalSignature,
   type ProposalSignatureInput,
+  type ProposalDeliveryAttempt,
 } from "./types";
 
 export interface NativeProposalAuditEntry {
@@ -135,7 +136,7 @@ export function applyProposalMutation(
   mutation: ProposalMutation,
   nextStatus: ProposalStatus | null,
   actor: string,
-  extra?: { shareSlug?: string; docId?: string | null; signerName?: string },
+  extra?: { shareSlug?: string; docId?: string | null; signerName?: string; lastDeliveryAttempt?: ProposalDeliveryAttempt },
 ): ProposalRecord | null {
   const state = loadState(dataDir);
   const tenant = state[tenantId];
@@ -156,6 +157,7 @@ export function applyProposalMutation(
     ...(mutation.lineItems !== undefined ? { lineItems: mutation.lineItems as ProposalLineItem[] } : {}),
     ...(extra?.shareSlug !== undefined ? { shareSlug: extra.shareSlug } : {}),
     ...(extra?.docId !== undefined ? { docId: extra.docId } : {}),
+    ...(extra?.lastDeliveryAttempt !== undefined ? { lastDeliveryAttempt: extra.lastDeliveryAttempt } : {}),
     ...(nextStatus !== null ? applyStatusMeta(nextStatus, actor) : {}),
     version: p.version + 1,
     updatedAt: now,

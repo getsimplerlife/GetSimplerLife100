@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -18,6 +18,7 @@ import { listTenantActions } from "../lib/approval-queue";
 import { listDeliveries, saveSubscription } from "../native/webhooks/store";
 import { readJSON } from "../lib/data-store";
 import { getDoc, readDocumentBytes } from "../native/documents/store";
+import { clearMailLane } from "./mail-lane-isolation";
 
 const T1 = "tenant-a@acme.test";
 const T2 = "tenant-b@acme.test";
@@ -79,11 +80,37 @@ function seedSubscription() {
 }
 const tick = () => new Promise((r) => setTimeout(r, 120));
 
+/**
+ * SLICE 176 — `send` now really dispatches through the mail lane, so a test
+ * that expects `status === "sent"` must GIVE the proposal a lane to reach.
+ * These stubs are the invoice lane's own pattern (native-invoice-delivery.test):
+ * SendGrid is the lane, and a 202 with an x-message-id is the provider ack.
+ */
+const ACK_202 = () =>
+  ({
+    status: 202,
+    ok: true,
+    headers: { get: (h: string) => (h.toLowerCase() === "x-message-id" ? "sg-test-msg-1" : null) },
+    text: async () => "",
+  }) as unknown as Response;
+/** Give the current test a real (stubbed) mail lane that acknowledges. */
+function stubAckingMailLane() {
+  vi.stubEnv("SENDGRID_API_KEY", "SG.test-key");
+  vi.stubEnv("SITE_ORIGIN", "https://proposals.example.test");
+  vi.stubGlobal("fetch", vi.fn(async () => ACK_202()));
+}
+
+let restoreMailLane: () => void;
 beforeEach(() => {
+  // Never inherit the box's Brevo SMTP lane — state the world explicitly.
+  restoreMailLane = clearMailLane();
   dir = mkdtempSync(join(tmpdir(), "native-proposals-"));
   registerBuiltinNativeProposalEventTypes();
 });
 afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
+  restoreMailLane();
   if (dir) rmSync(dir, { recursive: true, force: true });
 });
 
@@ -183,6 +210,7 @@ describe("share + PDF generation", () => {
 
   it("public share: GET summary, approve rides the tenant Approval Queue, send generates final v2 PDF", async () => {
     seedSubscription();
+    stubAckingMailLane();
     const id = await createAndApply();
     await route("POST", `/api/native/proposals/${id}/open`);
     await route("POST", `/api/native/proposals/writes/${pendingFirst("open")!.id}/apply`);
@@ -202,7 +230,7 @@ describe("share + PDF generation", () => {
     expect(ptw!.payload.via).toBe("client-decision");
     expect(getProposal(dir, T1, id)!.status).toBe("pending"); // untouched yet
     // Owner approves the card → applied + typed event delivered.
-    noteOwnerDecision(dir, T1, ptw!.approvalActionId, "approved", T1);
+    await noteOwnerDecision(dir, T1, ptw!.approvalActionId, "approved", T1);
     await tick();
     const approved = getProposal(dir, T1, id)!;
     expect(approved.status).toBe("approved");
@@ -241,7 +269,7 @@ describe("share + PDF generation", () => {
     expect(reject.status).toBe(202);
     const ptw = pendingFirst("reject");
     // Owner rejects the card -> write NOT applied; proposal status unchanged.
-    noteOwnerDecision(dir, T1, ptw!.approvalActionId, "rejected", T1);
+    await noteOwnerDecision(dir, T1, ptw!.approvalActionId, "rejected", T1);
     expect(getProposal(dir, T1, id)!.status).toBe("pending");
     expect(listPendingWrites(dir, T1).find((w) => w.approvalActionId === ptw!.approvalActionId)!.status).toBe("rejected");
     // The client may re-send a decision; an owner who lets the rejection through
@@ -249,7 +277,7 @@ describe("share + PDF generation", () => {
     const reject2 = await share("POST", slug, { decision: "reject" });
     expect(reject2.status).toBe(202);
     const ptw2 = listPendingWrites(dir, T1).find((w) => w.op === "reject" && w.status === "pending")!;
-    const applied = executePendingProposalWrite(dir, T1, ptw2.approvalActionId, T1);
+    const applied = await executePendingProposalWrite(dir, T1, ptw2.approvalActionId, T1);
     expect(applied.ok).toBe(true);
     expect(getProposal(dir, T1, id)!.status).toBe("rejected");
     await tick();
@@ -282,7 +310,7 @@ describe("cross-tenant isolation + autonomy + durability", () => {
 
   it("autonomy allow-list auto-applies create; globs NEVER auto-delete", async () => {
     setAutonomyWorkflow(T1, "native-proposals", { enabled: true, allowList: [{ id: "al-cr-1", action: "createProposal" }] }, dir);
-    const res = submitProposalWrite(dir, T1, "create", { data: validBody() }, T1);
+    const res = await submitProposalWrite(dir, T1, "create", { data: validBody() }, T1);
     expect(res.applied).toBe(true);
     expect((res as { autonomy: boolean }).autonomy).toBe(true);
     const rec = (res as { proposal: { id: string } }).proposal;
@@ -292,7 +320,7 @@ describe("cross-tenant isolation + autonomy + durability", () => {
     expect((autoAudit?.[T1] ?? []).some((e: { action: string }) => e.action === "createProposal")).toBe(true);
     // Glob allow-list entry for delete does NOT auto-delete (exact-id required).
     setAutonomyWorkflow(T1, "native-proposals", { enabled: true, allowList: [{ id: "al-del-1", action: "deleteProposal" }, { id: "al-del-2", action: "*.Proposal" }] }, dir);
-    const del = submitProposalWrite(dir, T1, "delete", { proposalId: rec.id }, T1);
+    const del = await submitProposalWrite(dir, T1, "delete", { proposalId: rec.id }, T1);
     expect(del.applied).toBe(false);
     expect((del as { pending: boolean }).pending).toBe(true); // still gated
   });
@@ -348,7 +376,7 @@ describe("e-sign (Phase 2.2)", () => {
     expect(ptw.payload.signature!.signerName).toBe("Jamie Doe");
     // Owner approves the card → signature recorded (proposal status untouched until apply).
     expect(getProposal(dir, T1, id)!.signatures.length).toBe(0);
-    noteOwnerDecision(dir, T1, ptw.approvalActionId, "approved", T1);
+    await noteOwnerDecision(dir, T1, ptw.approvalActionId, "approved", T1);
     await tick();
     const p = getProposal(dir, T1, id)!;
     expect(p.status).toBe("approved");
@@ -365,10 +393,11 @@ describe("e-sign (Phase 2.2)", () => {
   });
   it("drawn signature (PNG) is stored + embedded in the regenerated final PDF", async () => {
     seedSubscription();
+    stubAckingMailLane();
     const { id, slug } = await openForSign();
     const res = await share("POST", slug, { decision: "approve", signerName: "Drew Artist", signature: { signerName: "Drew Artist", signatureType: "drawn", drawnDataUrl: `data:image/png;base64,${PNG_1PX}` } });
     expect(res.status).toBe(202);
-    noteOwnerDecision(dir, T1, pendingFirst("approve")!.approvalActionId, "approved", T1);
+    await noteOwnerDecision(dir, T1, pendingFirst("approve")!.approvalActionId, "approved", T1);
     const approved = getProposal(dir, T1, id)!;
     expect(approved.status).toBe("approved");
     expect(approved.signatures[0].drawnDataUrl).toBe(`data:image/png;base64,${PNG_1PX}`);

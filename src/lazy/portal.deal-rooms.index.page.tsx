@@ -174,9 +174,35 @@ export default function DealRoomsPage() {
     }
     await load();
   }
-  async function applyWrite(id: string) {
-    const res = await api("POST", `/api/native/dealroom/writes/${id}/apply`);
-    setFeedback(res.ok ? "Write applied." : "Write apply failed.");
+  /**
+   * SLICE 176 — the old version reported "Write applied." from `res.ok` alone,
+   * so a replayed (already-applied) write claimed a fresh apply. The server's
+   * own `alreadyApplied` flag decides what we say.
+   */
+  async function applyWrite(id: string, op: string) {
+    setFeedback("");
+    setError("");
+    const res = await fetch(`/api/native/dealroom/writes/${id}/apply`, { method: "POST", credentials: "include" });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) setError((j?.error as string | undefined) || "Could not apply this write.");
+    else if (j?.data?.alreadyApplied) setFeedback("That write was already applied — nothing changed.");
+    else setFeedback(`Write applied — ${op}.`);
+    await load();
+  }
+
+  /**
+   * Reject a queued write (SLICE 176). The server has always implemented
+   * `/api/native/dealroom/writes/:id/reject`; the page rendered no control for
+   * it, so a reviewer could only approve.
+   */
+  async function rejectWrite(id: string) {
+    if (!window.confirm("Reject this write? The change is discarded and nothing is applied.")) return;
+    setFeedback("");
+    setError("");
+    const res = await fetch(`/api/native/dealroom/writes/${id}/reject`, { method: "POST", credentials: "include" });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) setError((j?.error as string | undefined) || "Could not reject this write.");
+    else setFeedback("Write rejected — the change was discarded and nothing was applied.");
     await load();
   }
   async function deleteDealRoom(id: string) {
@@ -328,7 +354,12 @@ export default function DealRoomsPage() {
                 <span className="text-stone-400">
                   <code>{w.op}</code> · {w.via} · {new Date(w.requestedAt).toLocaleString()}
                 </span>
-                <Button onClick={() => applyWrite(w.id)}>Apply</Button>
+                <div className="flex items-center gap-2">
+                  <Button onClick={() => applyWrite(w.id, w.op)}>Apply</Button>
+                  <Button variant="secondary" onClick={() => rejectWrite(w.id)}>
+                    Reject
+                  </Button>
+                </div>
               </div>
             ))}
           </div>

@@ -196,15 +196,53 @@ export default function InvoicesPage() {
     await load();
   }
 
-  async function applyWrite(id: string) {
+  /**
+   * SLICE 176 — this used to read the invoice's STATUS and print a delivery
+   * claim from it. Re-pressing Apply on a write that was already applied
+   * replayed an idempotent no-op and then printed "the invoice was emailed and
+   * the provider acknowledged it" for a message that was never sent (and, for a
+   * non-send op on an already-sent invoice, for a message that was not sent
+   * NOW). The claim is now derived from the OP the server actually executed and
+   * from the server's own `alreadyApplied` flag — never from the status.
+   */
+  async function applyWrite(id: string, op: string) {
+    setFeedback("");
+    setError("");
     const res = await fetch(`/api/native/invoice/writes/${id}/apply`, { method: "POST", credentials: "include" });
     const j = await res.json().catch(() => ({}));
     const status = j?.data?.invoiceStatus as string | undefined;
     const notice = (j?.data?.notice as string | undefined) || "";
-    if (res.ok && notice) setFeedback(`Write applied. ${notice}`.trim());
-    else if (res.ok && status === "failed") setFeedback("Write applied — the invoice was NOT delivered (see the reason on the invoice).");
-    else if (res.ok && status === "sent") setFeedback("Write applied — the invoice was emailed and the provider acknowledged it.");
-    else setFeedback(res.ok ? "Write applied." : "Write apply failed.");
+    const alreadyApplied = Boolean(j?.data?.alreadyApplied);
+    if (!res.ok) {
+      setError((j?.error as string | undefined) || "Could not apply this write.");
+    } else if (alreadyApplied) {
+      // A replay changes nothing and sends nothing. Say exactly that.
+      setFeedback(`That write was already applied — nothing changed and no email was sent.${notice ? ` ${notice}` : ""}`.trim());
+    } else if (op === "send") {
+      if (status === "sent") setFeedback("Write applied — the invoice was emailed and the provider acknowledged it.");
+      else if (status === "failed") setFeedback("Write applied — the invoice was NOT delivered (see the reason on the invoice).");
+      else setFeedback(`Write applied — invoice status is now "${status ?? "unknown"}".`);
+    } else if (notice) {
+      setFeedback(`Write applied. ${notice}`.trim());
+    } else {
+      setFeedback(`Write applied — ${op}.`);
+    }
+    await load();
+  }
+
+  /**
+   * Reject a queued write (SLICE 176). The server has always implemented
+   * `/api/native/invoice/writes/:id/reject` — the page simply never rendered a
+   * control for it, so a reviewer's only option was "yes".
+   */
+  async function rejectWrite(id: string) {
+    if (!window.confirm("Reject this write? The change is discarded and nothing is applied.")) return;
+    setFeedback("");
+    setError("");
+    const res = await fetch(`/api/native/invoice/writes/${id}/reject`, { method: "POST", credentials: "include" });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) setError((j?.error as string | undefined) || "Could not reject this write.");
+    else setFeedback("Write rejected — the change was discarded and nothing was applied.");
     await load();
   }
 
@@ -469,7 +507,12 @@ export default function InvoicesPage() {
                 <span className="text-stone-400">
                   <code>{w.op}</code> · {w.via} · {new Date(w.requestedAt).toLocaleString()}
                 </span>
-                <Button onClick={() => applyWrite(w.id)}>Apply</Button>
+                <div className="flex items-center gap-2">
+                  <Button onClick={() => applyWrite(w.id, w.op)}>Apply</Button>
+                  <Button variant="secondary" onClick={() => rejectWrite(w.id)}>
+                    Reject
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
