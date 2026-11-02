@@ -1,10 +1,45 @@
 import { useState, useEffect } from "react";
 import { PortalEmptyState } from "~/components/PortalEmptyState";
 
+/**
+ * SLICE 180 — THE ROW SHAPES THIS PAGE READS.
+ *
+ * The audit store's real row is `{ id, timestamp, user, action, resource,
+ * detail, ip }` (the shape `prod-server.ts` writes), and `/api/audit-logs`
+ * hands those rows through UNTOUCHED: its FIELD_ALIASES table only renames
+ * fields while SORTING, never in the body it returns. This page read
+ * `log.userId` and `log.createdAt`, neither of which any row has ever carried,
+ * so `actorOf` was always empty → "Recent Activity — No activity recorded" for
+ * every client, and the last-action date never rendered.
+ *
+ * ONE accessor pair, used everywhere below. Do not scatter `||` fallbacks
+ * through the JSX: a field-name change must be a one-line change here.
+ */
+const actorOf = (log: any): string => log?.user ?? log?.email;
+const whenOf = (log: any): string => log?.timestamp ?? log?.created_at;
+/**
+ * Purchase rows are built by `buildPlanPurchase` in `src/lib/stripe-webhook.ts`
+ * as `{ id, type, tier, productName, amount, stripeSessionId, status,
+ * purchasedAt }` — `purchasedAt`, never `createdAt` — and they carry no
+ * `userId`; the tenant is the map key in `tenant_purchases.json`, which the
+ * owner-gated `/api/admin/purchases` route now surfaces as `tenantEmail`.
+ */
+const purchaseWhenOf = (p: any): string => p?.purchasedAt ?? p?.createdAt ?? "";
 
+/** A date that cannot be parsed renders as "—", never "Invalid Date". */
+const fmtDate = (value: string): string => {
+  if (!value) return "—";
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString();
+};
+const msOf = (value: string): number => {
+  const ms = Date.parse(value);
+  return Number.isFinite(ms) ? ms : 0;
+};
 
 function AdminIndex() {
-  const [data, setData] = useState<{ users: any[]; audits: any[]; auditLogs: any[]; subscriptions: any[] } | null>(null);
+  const [data, setData] = useState<{ users: any[]; purchases: any[]; auditLogs: any[]; subscriptions: any[] } | null>(null);
+  const [notices, setNotices] = useState<{ purchases?: string; audit?: string }>({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
@@ -12,24 +47,40 @@ function AdminIndex() {
   useEffect(() => {
     (async () => {
       try {
-        const [usersRes, auditsRes, logsRes, subsRes] = await Promise.all([
+        const [usersRes, purchasesRes, logsRes, subsRes] = await Promise.all([
           fetch("/api/admin/users", { credentials: "include" }),
-          // R4 (cleanup a): the anonymous purchases subPath never existed
-          // (always an empty array). Read the REAL per-tenant purchase records instead.
-          fetch("/api/purchases", { credentials: "include" }),
-          fetch("/api/audit-logs", { credentials: "include" }),
+          // SLICE 180 — `/api/purchases` answers only the CALLER'S OWN rows
+          // (`purchases[user.email]`), keyed by a map rather than by a field on
+          // the row, so this page bucketed the owner's own purchases under every
+          // client. `/api/admin/purchases` is the owner-gated all-tenant read
+          // (same 401/403 gate as `/api/admin/users`), one row per purchase with
+          // its owning `tenantEmail`.
+          fetch("/api/admin/purchases", { credentials: "include" }),
+          // SLICE 180 — with no query string the server's default window is the
+          // FIRST 20 rows in store order (`prod-server.ts` `intParam("limit",
+          // 20)`) and unsorted, so "recent activity" was the 20 OLDEST entries.
+          // Ask for the whole slice, newest first, explicitly.
+          fetch("/api/audit-logs?sortBy=timestamp&sortDir=desc&limit=10000", { credentials: "include" }),
           // Slice 139: real per-tenant subscription state (cancelled / past_due
           // / dunning) so the operator can see who has stopped paying instead of
           // reading a permanent "Active".
           fetch("/api/admin/subscriptions", { credentials: "include" }),
         ]);
         const usersJson = usersRes.ok ? await usersRes.json() : { data: [] };
-        const auditsJson = auditsRes.ok ? await auditsRes.json() : { data: [] };
+        const purchasesJson = purchasesRes.ok ? await purchasesRes.json() : { data: [] };
         const logsJson = logsRes.ok ? await logsRes.json() : { data: [] };
         const subsJson = subsRes.ok ? await subsRes.json() : { data: [] };
+        setNotices({
+          purchases: purchasesRes.ok
+            ? undefined
+            : `Couldn't load purchases (HTTP ${purchasesRes.status}) — the purchase panel is unavailable, not empty.`,
+          audit: logsRes.ok
+            ? undefined
+            : `Couldn't load activity (HTTP ${logsRes.status}) — the activity panel is unavailable, not empty.`,
+        });
         setData({
           users: usersJson.data || [],
-          audits: auditsJson.data || [],
+          purchases: purchasesJson.data || [],
           auditLogs: logsJson.data || [],
           subscriptions: subsJson.data || [],
         });
@@ -60,43 +111,47 @@ function AdminIndex() {
     );
   }
 
-  const { users, audits, auditLogs } = data;
+  const { users, purchases, auditLogs } = data;
   const subscriptions: any[] = data.subscriptions || [];
   const attention = subscriptions.filter((s) => s && (s.access === "revoked" || s.access === "at_risk"));
 
-  // Build a map of user_id -> purchases
-  const purchasesByUser: Record<string, any[]> = {};
-  for (const a of audits) {
-    if (!purchasesByUser[a.userId]) purchasesByUser[a.userId] = [];
-    purchasesByUser[a.userId].push(a);
+  // tenantEmail -> purchases. The owner-gated route attaches the owning
+  // tenant's email to each row; a row without one is never attributed to a
+  // client (it still counts in the total, because it is a real purchase).
+  const purchasesByTenant: Record<string, any[]> = {};
+  for (const p of purchases) {
+    const email = typeof p?.tenantEmail === "string" ? p.tenantEmail : "";
+    if (!email) continue;
+    if (!purchasesByTenant[email]) purchasesByTenant[email] = [];
+    purchasesByTenant[email].push(p);
   }
 
-  // Build a map of user_id -> activity
-  const activityByUser: Record<string, any[]> = {};
+  // actor email -> activity
+  const activityByActor: Record<string, any[]> = {};
   for (const log of auditLogs) {
-    const uid = log.userId || log.email;
-    if (!uid) continue;
-    if (!activityByUser[uid]) activityByUser[uid] = [];
-    activityByUser[uid].push(log);
+    const actor = actorOf(log);
+    if (!actor) continue;
+    if (!activityByActor[actor]) activityByActor[actor] = [];
+    activityByActor[actor].push(log);
   }
 
-  // Sort activity by most recent
-  for (const uid of Object.keys(activityByUser)) {
-    activityByUser[uid].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  // Sort activity by most recent, from the row's own timestamp.
+  for (const actor of Object.keys(activityByActor)) {
+    activityByActor[actor].sort((a, b) => msOf(whenOf(b)) - msOf(whenOf(a)));
   }
 
   // Aggregate stats
   const totalUsers = users.length;
-  const totalPurchases = audits.length;
+  const totalPurchases = purchases.length;
   const totalLogins = auditLogs.filter(l => l.action === "login").length;
   const totalRegistrations = auditLogs.filter(l => l.action === "register").length;
 
-  const filteredUsers = users.filter(u => 
-    u.email.toLowerCase().includes(search.toLowerCase())
+  const filteredUsers = users.filter(u =>
+    String(u.email ?? "").toLowerCase().includes(search.toLowerCase())
   );
 
-  const selectedUserData = selectedUser 
-    ? users.find(u => u.id === selectedUser) 
+  const selectedUserData = selectedUser
+    ? users.find(u => u.id === selectedUser)
     : null;
 
   return (
@@ -122,18 +177,29 @@ function AdminIndex() {
           <div className="text-xs text-stone-400 font-bold mt-1 uppercase tracking-wider">Total Clients</div>
         </div>
         <div className="bg-stone-900 p-5 rounded-2xl border border-stone-800">
-          <div className="text-3xl font-black text-emerald-400">{totalPurchases}</div>
+          <div className="text-3xl font-black text-emerald-400">{notices.purchases ? "—" : totalPurchases}</div>
           <div className="text-xs text-stone-400 font-bold mt-1 uppercase tracking-wider">Total Purchases</div>
         </div>
         <div className="bg-stone-900 p-5 rounded-2xl border border-stone-800">
-          <div className="text-3xl font-black text-blue-400">{totalLogins}</div>
+          <div className="text-3xl font-black text-blue-400">{notices.audit ? "—" : totalLogins}</div>
           <div className="text-xs text-stone-400 font-bold mt-1 uppercase tracking-wider">Sessions</div>
         </div>
         <div className="bg-stone-900 p-5 rounded-2xl border border-stone-800">
-          <div className="text-3xl font-black text-amber-400">{totalRegistrations}</div>
+          <div className="text-3xl font-black text-amber-400">{notices.audit ? "—" : totalRegistrations}</div>
           <div className="text-xs text-stone-400 font-bold mt-1 uppercase tracking-wider">Registrations</div>
         </div>
       </div>
+
+      {notices.purchases && (
+        <div className="rounded-2xl border border-rose-900/60 bg-rose-950/30 p-4 text-xs font-bold text-rose-300">
+          {notices.purchases}
+        </div>
+      )}
+      {notices.audit && (
+        <div className="rounded-2xl border border-rose-900/60 bg-rose-950/30 p-4 text-xs font-bold text-rose-300">
+          {notices.audit}
+        </div>
+      )}
 
       {/* Subscription state (slice 139) — real Stripe lifecycle state, not a
           permanent "Active". Only tenants that need attention are listed. */}
@@ -156,9 +222,9 @@ function AdminIndex() {
                   <div className="font-bold text-white text-sm truncate">{s.tenantEmail}</div>
                   <div className="text-[11px] text-stone-500 font-semibold">
                     {s.planName || "Platform subscription"}
-                    {s.canceledAt ? ` · cancelled ${new Date(s.canceledAt).toLocaleDateString()}` : ""}
+                    {s.canceledAt ? ` · cancelled ${fmtDate(s.canceledAt)}` : ""}
                     {s.dunning?.active
-                      ? ` · payment failed${s.dunning.since ? ` ${new Date(s.dunning.since).toLocaleDateString()}` : ""}${
+                      ? ` · payment failed${s.dunning.since ? ` ${fmtDate(s.dunning.since)}` : ""}${
                           s.dunning.attemptCount > 1 ? ` (attempt ${s.dunning.attemptCount})` : ""
                         }`
                       : ""}
@@ -215,8 +281,8 @@ function AdminIndex() {
               )
             )}
             {filteredUsers.map((u) => {
-              const userPurchases = purchasesByUser[u.id] || [];
-              const userActivity = activityByUser[u.id] || [];
+              const userPurchases = purchasesByTenant[u.email] || [];
+              const userActivity = activityByActor[u.email] || [];
               const lastAction = userActivity.length > 0 ? userActivity[0] : null;
               const isOwner = u.role === 'admin' || u.role === 'owner';
               return (
@@ -230,7 +296,7 @@ function AdminIndex() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-9 h-9 rounded-full bg-emerald-900/40 border border-emerald-800/60 flex items-center justify-center text-emerald-400 font-black shrink-0">
-                        {u.email.charAt(0).toUpperCase()}
+                        {String(u.email ?? "?").charAt(0).toUpperCase()}
                       </div>
                       <div className="min-w-0">
                         <div className="font-bold text-white truncate flex items-center gap-2">
@@ -240,7 +306,7 @@ function AdminIndex() {
                           )}
                         </div>
                         <div className="text-xs text-stone-500 font-semibold">
-                          Registered {new Date(u.createdAt).toLocaleDateString()}
+                          Registered {fmtDate(u.createdAt)}
                         </div>
                       </div>
                     </div>
@@ -252,7 +318,7 @@ function AdminIndex() {
                       )}
                       {lastAction && (
                         <span className="text-[10px] text-stone-500 font-bold">
-                          {new Date(lastAction.createdAt).toLocaleDateString()}
+                          {fmtDate(whenOf(lastAction))}
                         </span>
                       )}
                       <span className="text-stone-600">{'>'}</span>
@@ -274,21 +340,23 @@ function AdminIndex() {
                   <button onClick={() => setSelectedUser(null)} aria-label="Close user details" className="text-stone-500 hover:text-white text-sm font-bold">✕</button>
                 </div>
                 <div className="text-xs text-stone-500 font-semibold">
-                  ID: {selectedUserData.id.slice(0, 8)}...<br />
-                  Registered: {new Date(selectedUserData.createdAt).toLocaleString()}
+                  ID: {String(selectedUserData.id ?? "").slice(0, 8)}...<br />
+                  Registered: {fmtDate(selectedUserData.createdAt)}
                 </div>
               </div>
 
               {/* Purchases */}
               <div>
                 <h4 className="text-[10px] font-black text-stone-500 uppercase tracking-wider mb-2">Purchases</h4>
-                {(purchasesByUser[selectedUserData.id] || []).length === 0 ? (
+                {notices.purchases ? (
+                  <div className="text-xs font-semibold p-3 bg-stone-950/40 rounded-xl text-rose-300">{notices.purchases}</div>
+                ) : (purchasesByTenant[selectedUserData.email] || []).length === 0 ? (
                   <div className="text-xs text-stone-600 font-semibold p-3 bg-stone-950/40 rounded-xl">No purchases yet</div>
                 ) : (
                   <div className="space-y-2">
-                    {purchasesByUser[selectedUserData.id].map((a: any) => (
+                    {purchasesByTenant[selectedUserData.email].map((a: any) => (
                       <div key={a.id} className="bg-stone-950/40 p-3 rounded-xl border border-stone-800/60">
-                        <div className="font-bold text-sm text-white">{a.type}</div>
+                        <div className="font-bold text-sm text-white">{a.productName || a.tier || a.type}</div>
                         <div className="flex items-center gap-2 mt-1">
                           <span className={`text-[10px] font-black uppercase px-1.5 py-0.5 rounded ${
                             a.status === 'completed' || a.status === 'implemented' || a.status === 'active'
@@ -297,7 +365,7 @@ function AdminIndex() {
                               ? 'bg-amber-950/40 text-amber-400 border border-amber-900/40'
                               : 'bg-stone-800 text-stone-400'
                           }`}>{a.status}</span>
-                          <span className="text-[10px] text-stone-500">{new Date(a.createdAt).toLocaleDateString()}</span>
+                          <span className="text-[10px] text-stone-500">{fmtDate(purchaseWhenOf(a))}</span>
                         </div>
                       </div>
                     ))}
@@ -308,11 +376,15 @@ function AdminIndex() {
               {/* Recent Activity */}
               <div>
                 <h4 className="text-[10px] font-black text-stone-500 uppercase tracking-wider mb-2">Recent Activity</h4>
-                {(activityByUser[selectedUserData.id] || []).length === 0 ? (
-                  <div className="text-xs text-stone-600 font-semibold p-3 bg-stone-950/40 rounded-xl">No activity recorded</div>
+                {notices.audit ? (
+                  <div className="text-xs font-semibold p-3 bg-stone-950/40 rounded-xl text-rose-300">{notices.audit}</div>
+                ) : (activityByActor[selectedUserData.email] || []).length === 0 ? (
+                  <div className="text-xs text-stone-600 font-semibold p-3 bg-stone-950/40 rounded-xl">
+                    No activity for this client in your audit log.
+                  </div>
                 ) : (
                   <div className="space-y-1.5 max-h-60 overflow-y-auto">
-                    {(activityByUser[selectedUserData.id] || []).slice(0, 20).map((log: any, idx: number) => (
+                    {(activityByActor[selectedUserData.email] || []).slice(0, 20).map((log: any, idx: number) => (
                       <div key={log.id || idx} className="flex items-center justify-between bg-stone-950/30 p-2.5 rounded-lg border border-stone-800/40">
                         <div className="flex items-center gap-2">
                           <span className={`w-1.5 h-1.5 rounded-full ${
@@ -326,7 +398,7 @@ function AdminIndex() {
                           </div>
                         </div>
                         <span className="text-[10px] text-stone-600 shrink-0">
-                          {new Date(log.createdAt).toLocaleDateString()} {new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {fmtDate(whenOf(log))} {whenOf(log) ? new Date(whenOf(log)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}
                         </span>
                       </div>
                     ))}

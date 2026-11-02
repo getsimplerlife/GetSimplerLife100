@@ -33,7 +33,15 @@
  *             all (lastAttempt.outcome "unconfigured"). Retryable via `send`.
  * `queued` and `failed` are NOT legal records — only `sent` is terminal.
  */
-export type InvoiceStatus = "draft" | "queued" | "sent" | "failed";
+/**
+ * SLICE 180 — the ONE runtime list of every status this server can emit.
+ * The union type is derived from it, so a new state added here is a compile
+ * error everywhere it is not handled (see src/lib/invoice-status.ts), and the
+ * customer-facing share page can never silently fall through to a friendly
+ * label for a state it has no copy for.
+ */
+export const INVOICE_STATUSES = ["draft", "queued", "sent", "failed"] as const;
+export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
 
 /** One delivery attempt against the email lane (append-style, latest wins). */
 export interface InvoiceDeliveryAttempt {
