@@ -31,7 +31,23 @@ export interface FieldError {
  *   `clientEmail must be a valid email or empty`
  *   `description is required`
  */
-const LEADING_FIELD_RE = /^(?:Field\s+"([^"]+)"|([A-Za-z][A-Za-z0-9_]*))\b/;
+/**
+ * Two sentence shapes, tried in this order:
+ *   `Field "due" is not a real calendar date: …`   → quoted form, field in quotes
+ *   `name must be ≤ 120 chars`                     → bare form, field is the first token
+ *
+ * WHY TWO REGEXES AND NOT ONE ALTERNATION. The single-regex form
+ * `/^(?:Field\s+"([^"]+)"|([A-Za-z]\w*))\b/` looks right and silently fails: after
+ * the quoted branch matches `Field "due"`, the trailing `\b` asserts a word
+ * boundary between `"` and the following space — both non-word characters, so
+ * there is no boundary, the branch backtracks, the bare branch matches `Field`
+ * instead, and `Field` is never a known field. The date sentence therefore
+ * returned null and the message stayed in the page banner. The bare branch also
+ * ends in `(?=\s|$|:)` rather than `\b` so a field name can never be truncated
+ * at a non-word character (`linkedDealRoomId is required` still matches whole).
+ */
+const QUOTED_FIELD_RE = /^Field\s+"([^"]+)"/;
+const BARE_FIELD_RE = /^([A-Za-z][A-Za-z0-9_]*)(?=\s|$|:)/;
 
 /** Map a server error message onto one of `known` fields, or null.
  *  `aliases` renames a wire field to the input the page actually renders
@@ -43,9 +59,9 @@ export function fieldErrorFrom(
 ): FieldError | null {
   const trimmed = (message ?? "").trim();
   if (!trimmed) return null;
-  const m = LEADING_FIELD_RE.exec(trimmed);
-  if (!m) return null;
-  const candidate = m[1] ?? m[2] ?? "";
+  const quoted = QUOTED_FIELD_RE.exec(trimmed);
+  const bare = quoted ? null : BARE_FIELD_RE.exec(trimmed);
+  const candidate = quoted?.[1] ?? bare?.[1] ?? "";
   if (!candidate || !known.includes(candidate)) return null;
   return { field: aliases[candidate] ?? candidate, message: trimmed };
 }
