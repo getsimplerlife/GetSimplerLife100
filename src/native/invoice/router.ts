@@ -18,11 +18,23 @@
  * invoice the customer received by email. Same signed-slug pattern as
  * proposals (2.1): the global index maps slug → tenantId ONLY, the slug is
  * unguessable, and the lane is READ-ONLY. Fail-closed rules:
- *   - unknown / malformed / stale slug → 404,
- *   - an invoice that is NOT "sent" → 404 (a draft or a failed delivery is
- *     never public),
+ *   - unknown / malformed / stale / revoked slug → 404,
+ *   - the boundary is the SLUG, not the delivery status (slice 182). The rule
+ *     is "is this invoice ISSUED?", and an invoice is issued once the send path
+ *     has minted its slug and stored its PDF — i.e. every state except
+ *     `draft`. `sent` and `failed` are both issued: a mail provider refusing
+ *     the message does not mean the invoice does not exist, and the tenant must
+ *     be able to hand the link over by any other means. `draft` is never public
+ *     (nothing was issued). `queued` IS public: it is the same issued record
+ *     mid-dispatch, its badge honestly says "Sending", and 404ing it would
+ *     break a link the customer already holds while a failed invoice is
+ *     retried. `PUBLIC_INVOICE_STATUS` below is typed `Record<InvoiceStatus,…>`
+ *     so a new status is a compile error here rather than a silent 404 — the
+ *     allow-list of one (`status === "sent"`) is exactly what broke this lane,
  *   - the view carries ONLY that one invoice (number, amounts, line items,
  *     due date, issuer, bill-to) — no ids, no listing, no other records.
+ *   - the customer-facing badge is never invented: the four states come from
+ *     src/lib/invoice-status.ts, so a failed invoice reads "Not delivered".
  *
  * PAYMENT (slice 134): `POST /api/native/invoice/share/:slug/pay` creates a
  * Stripe Checkout Session on the ISSUING TENANT'S OWN Stripe account (their
@@ -68,7 +80,7 @@ import { createTenantCheckoutSession } from "./stripe-checkout";
 import { getOrCreateTenantWebhookToken, rotateTenantWebhookToken, invoiceWebhookPath } from "./webhook-token";
 import { getDealRoom } from "../dealroom/store";
 import { readDocumentBytes, getDoc } from "../documents/store";
-import type { InvoiceRecord } from "./types";
+import type { InvoiceRecord, InvoiceStatus } from "./types";
 
 export interface NativeInvoicesCtx {
   dataDir: string;
@@ -117,7 +129,8 @@ function summary(i: {
 }
 
 /**
- * Customer-facing view of a SENT invoice — only what that invoice says.
+ * Customer-facing view of an ISSUED invoice — sent, failed or in flight; never
+ * a draft (slice 182). Only what that invoice says.
  * No record ids, no docId, no deal-room id, no audit, no other records.
  * `issuerName` is a human DISPLAY NAME resolved by issuer.ts — never the
  * tenant id (the workspace account identifier) and never an entity id.
@@ -413,6 +426,33 @@ export function handleNativeInvoicesAuthed(req: Request, ctx: NativeInvoicesCtx)
 const NO_STORE = { "cache-control": "no-store", "x-robots-tag": "noindex, nofollow" } as const;
 
 /**
+ * SLICE 182 — which invoice states the PUBLIC lane serves, as a TYPED map.
+ *
+ * Typed `Record<InvoiceStatus, boolean>` on purpose: a new status in
+ * `INVOICE_STATUSES` is a COMPILE ERROR here rather than a silent 404. That is
+ * the defect this replaces — an allow-list of exactly one state
+ * (`status === "sent"`), which made every invoice whose email the provider
+ * refused unreachable at its own share link while every other share link in
+ * the product (proposal, deal room, survey) kept working.
+ *
+ * THE RULE: an invoice is public once it has been ISSUED, and issued means the
+ * send path minted its slug and stored its PDF. `draft` is the only state that
+ * is not issued, so it is the only one that 404s. Delivery status is not the
+ * boundary; the signed, unguessable, tenant-revocable slug is.
+ */
+export const PUBLIC_INVOICE_STATUS: Record<InvoiceStatus, boolean> = {
+  draft: false, // nothing issued: no slug, no PDF, nothing left the building
+  queued: true, // issued, mid-dispatch — the badge says "Sending"
+  sent: true, // issued and acknowledged by the provider
+  failed: true, // issued; the EMAIL was refused, the invoice still exists
+};
+
+/** True when the public lane may serve an invoice in this state. */
+export function isInvoicePubliclyShareable(status: InvoiceStatus): boolean {
+  return PUBLIC_INVOICE_STATUS[status];
+}
+
+/**
  * Fixed-window rate limit for the public pay lane (slug → bucket). A customer
  * legitimately needs a handful of attempts; an abuser must not be able to spin
  * up thousands of Checkout Sessions on the tenant's own Stripe account.
@@ -441,9 +481,10 @@ async function handleShareAsync(req: Request, ctx: NativeInvoicePublicCtx): Prom
   if (!tenantId) return json404("Unknown invoice share link"); // unknown / retired slug
   const invoice = getInvoiceBySlug(ctx.dataDir, tenantId, slug);
   if (!invoice) return json404("Unknown invoice share link"); // stale index entry
-  // FAIL-CLOSED: only a genuinely SENT invoice is public. A draft, an in-flight
-  // dispatch (queued) or a failed delivery never resolves on the public lane.
-  if (invoice.status !== "sent") return json404("Unknown invoice share link");
+  // FAIL-CLOSED on the ISSUED test, not on a delivery status (slice 182): a
+  // draft is never public; sent / failed / queued all are. See
+  // PUBLIC_INVOICE_STATUS above for why, and for the compile-time guard.
+  if (!isInvoicePubliclyShareable(invoice.status)) return json404("Unknown invoice share link");
 
   // ── PAY (the only write on the public lane) ──
   // Creates a Checkout Session on the ISSUING TENANT'S OWN Stripe account.

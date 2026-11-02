@@ -439,7 +439,12 @@ export default function InvoicesPage() {
                     {i.lastAttempt?.outcome === "failed" && i.lastAttempt.error && (
                       <p className="mt-1 text-xs text-red-500">Failure reason: {i.lastAttempt.error}</p>
                     )}
-                    {i.status === "sent" && i.shareSlug && (
+                    {/* SLICE 182 — the link is served for every ISSUED state
+                        (sent / failed / queued), so the tenant must be able to
+                        copy it for a `failed` invoice too: that is the whole
+                        point — paste it into their own mailbox. Only a draft
+                        has no link (nothing was issued). */}
+                    {i.status !== "draft" && i.shareSlug && (
                       <div className="mt-2 space-y-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <code className="max-w-full truncate rounded bg-stone-100 px-2 py-1 text-xs text-stone-700">
@@ -461,7 +466,7 @@ export default function InvoicesPage() {
                         </p>
                       </div>
                     )}
-                    {i.status === "sent" && !i.shareSlug && (
+                    {i.status !== "draft" && !i.shareSlug && (
                       <div className="mt-2 space-y-1">
                         <p className="text-xs text-amber-500">
                           Public link revoked{i.shareRevokedAt ? ` ${new Date(i.shareRevokedAt).toLocaleString()}` : ""} — the old URL

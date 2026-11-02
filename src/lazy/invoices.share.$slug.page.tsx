@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useSearch } from "@tanstack/react-router";
 import { Card, Badge } from "~/components/ui";
+import { invoiceStatusLabel, invoiceStatusTone } from "~/lib/invoice-status";
 
 /**
  * Public invoice page — what the CUSTOMER sees from the emailed link.
@@ -14,8 +15,13 @@ import { Card, Badge } from "~/components/ui";
  * The page never claims the invoice is paid: without a webhook from the firm's
  * own Stripe account we cannot know that, so after a checkout return it says the
  * payment was submitted and that the issuer confirms it.
- * The server refuses (404) any slug that is unknown, stale, or belongs to an
- * invoice that was not genuinely sent.
+ *
+ * SLICE 182 — the server serves every ISSUED invoice (sent, failed, queued) and
+ * 404s only a draft. So this page is reachable for an invoice whose email the
+ * mail provider refused, and the badge must say so: the four states come from
+ * src/lib/invoice-status.ts, so a `failed` invoice reads "Not delivered" — never
+ * "Issued", never "Draft". "Issued" stays the word for `sent` on this page: it
+ * is what the customer is looking at, and it is true.
  */
 interface ShareLineItem {
   description: string;
@@ -109,8 +115,24 @@ export default function InvoiceSharePage() {
             From {view.issuerName} · Bill to {view.billToName}
           </p>
         </div>
-        <Badge>{view.status === "sent" ? "Issued" : view.status}</Badge>
+        {/* SLICE 182 — the badge is derived from the server's status enum via
+            src/lib/invoice-status.ts, so a failed delivery reads "Not delivered"
+            (never the raw enum, never "Draft"). "Issued" is kept for `sent`:
+            that is what the customer is holding. */}
+        <Badge variant={invoiceStatusTone(view.status)}>
+          {view.status === "sent" ? "Issued" : invoiceStatusLabel(view.status)}
+        </Badge>
       </div>
+
+      {/* A customer can reach this page for an invoice whose EMAIL was refused
+          (slice 182). Say what "Not delivered" means here so the badge is not
+          read as "this invoice is not real". */}
+      {view.status === "failed" && (
+        <p className="mb-4 text-sm text-stone-600">
+          This invoice is valid as shown. The email copy of it was not delivered, so {view.issuerName} may not have
+          reached you — they can send it again, and this page is the record.
+        </p>
+      )}
 
       <Card>
         <table className="w-full text-sm">

@@ -53,6 +53,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Card, CardBody, Badge, Button } from "~/components/ui";
 import { PortalEmptyState, scrollToId } from "~/components/PortalEmptyState";
+import { authedJson } from "~/lib/portal-primitives";
 import FileImportPanel from "~/components/FileImportPanel";
 
 /** Per-lane HONEST trust copy — the single source of truth for what each
@@ -225,7 +226,17 @@ interface ImportView {
   sourceLabel: string;
   status: string;
   createdAt: string;
-  tableId?: string;
+  /**
+   * SLICE 182 — the target is NESTED on the server
+   * (`ImportTarget { kind: "table"; tableId }` in src/native/import/types.ts,
+   * passed through verbatim by `publicJob()` and served by router.ts). This
+   * view used to declare a top-level `tableId?: string` that no response has
+   * ever carried, so `tables.find(t => t.id === im.tableId)` was always
+   * undefined: the page told the tenant their own table "has no fields", the
+   * bulk-map panel never rendered, and Commit could only ever answer
+   * "commit failed: no field mapping".
+   */
+  target?: { kind: "table"; tableId: string };
   mapping?: MappingView[];
 }
 /** Ledger entry exactly as publicRun exposes it (op, at, counts, note). */
@@ -254,18 +265,14 @@ interface PendingWriteView {
   status: string;
   requestedAt: string;
 }
-const json = async (r: Response) => {
-  const t = await r.text().catch(() => "{}");
-  try {
-    return JSON.parse(t);
-  } catch {
-    return { error: t };
-  }
-};
-async function api(path: string, init?: RequestInit): Promise<{ ok: boolean; data?: any; error?: string }> {
-  const res = await fetch(path, { credentials: "include", headers: { accept: "application/json", "content-type": "application/json" }, ...init });
-  const body = await json(res);
-  return { ok: res.ok, data: body?.data, error: body?.error ?? (res.ok ? undefined : `HTTP ${res.status}`) };
+/**
+ * SLICE 182 — every request goes through `authedJson` (src/lib/portal-primitives)
+ * so a 401 is a SIGNED-OUT state and any other non-2xx carries the server's own
+ * message, instead of both being rendered as an empty workspace.
+ */
+async function api(path: string, init?: RequestInit): Promise<{ ok: boolean; data?: any; error?: string; signedOut?: boolean }> {
+  const r = await authedJson<any>(path, init);
+  return r.ok ? { ok: true, data: r.data } : { ok: false, error: r.error, signedOut: r.signedOut };
 }
 
 export default function PortalImportIndexPage() {
@@ -279,6 +286,14 @@ export default function PortalImportIndexPage() {
   const [busy, setBusy] = useState<Record<string, boolean>>({});
   const [note, setNote] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  /**
+   * SLICE 182 — the four reads below used to be fire-and-forget: a 401 left the
+   * page saying "Import lanes (0 wired)" and "No imports yet", i.e. a signed-out
+   * session was rendered as an empty workspace. `loaded` is true only after all
+   * four reads came back 2xx, and the empty states render only then.
+   */
+  const [readError, setReadError] = useState<{ signedOut: boolean; error: string } | null>(null);
+  const [loaded, setLoaded] = useState(false);
 
   const load = useCallback(async () => {
     const [l, t, i, w] = await Promise.all([
@@ -287,10 +302,18 @@ export default function PortalImportIndexPage() {
       api("/api/native/import"),
       api("/api/native/import/writes"),
     ]);
-    if (l.data) setLanes((l.data.lanes as LaneView[]) ?? []);
-    if (t.data) setTables((t.data.tables as TableView[]) ?? []);
-    if (i.data) setImports((i.data.imports as ImportView[]) ?? []);
-    if (w.data) setWrites((w.data.writes as PendingWriteView[]) ?? []);
+    const failed = [l, t, i, w].find((r) => !r.ok);
+    if (failed) {
+      setReadError({ signedOut: !!failed.signedOut, error: failed.error ?? "Request failed" });
+      setLoaded(false);
+      return;
+    }
+    setReadError(null);
+    setLoaded(true);
+    setLanes((l.data?.lanes as LaneView[]) ?? []);
+    setTables((t.data?.tables as TableView[]) ?? []);
+    setImports((i.data?.imports as ImportView[]) ?? []);
+    setWrites((w.data?.writes as PendingWriteView[]) ?? []);
     // Auto-load each import's run ledger (honest timeline source).
     const ids: string[] = Array.isArray(i.data?.imports)
       ? (i.data.imports as ImportView[]).map((im) => im.id)
@@ -409,6 +432,15 @@ export default function PortalImportIndexPage() {
 
       {note && <div className="rounded-md bg-amber-950/50 border border-amber-700/40 px-3 py-2 text-sm">{note}</div>}
 
+      {/* SLICE 182 — a failed READ is never an empty workspace. */}
+      {readError && (
+        <div role="alert" className="rounded-md border border-rose-700/50 bg-rose-950/50 px-3 py-2 text-sm text-rose-100">
+          {readError.signedOut
+            ? "Your session is not active — sign in again to see your imports. Nothing below reflects your data."
+            : `Could not load your imports: ${readError.error}`}
+        </div>
+      )}
+
       {/* Pending approvals — verdict-first Approval Queue mirror */}
       {writes.length > 0 && (
         <Card>
@@ -432,7 +464,9 @@ export default function PortalImportIndexPage() {
         </Card>
       )}
 
-      {/* Lanes catalog — honest per-lane trust badges */}
+      {/* Lanes catalog — honest per-lane trust badges. Rendered only after a
+          2xx read: "Import lanes (0 wired)" on a failed read is a lie (slice 182). */}
+      {loaded && (
       <Card>
         <CardBody>
           <h2 className="font-medium mb-1">Import lanes ({wiredCount} wired)</h2>
@@ -457,8 +491,10 @@ export default function PortalImportIndexPage() {
           </div>
         </CardBody>
       </Card>
+      )}
 
       {/* New import — client-managed, targets the tenant's own table */}
+      {loaded && (
       <Card id="import-composer">
         <CardBody>
           <h2 className="font-medium mb-1">Start an import</h2>
@@ -483,12 +519,17 @@ export default function PortalImportIndexPage() {
           </form>
         </CardBody>
       </Card>
+      )}
 
       {/* Import jobs — pull → preview → map → commit with run-ledger timeline */}
       <Card>
         <CardBody>
           <h2 className="font-medium mb-2">Your imports</h2>
-          {imports.length === 0 ? (
+          {!loaded ? (
+            <p className="text-sm text-slate-400">
+              {readError ? "Your imports could not be read — see the notice above." : "Loading your imports…"}
+            </p>
+          ) : imports.length === 0 ? (
             <PortalEmptyState
               title="No imports yet"
               body="Set up your first import with the form above: pick a lane, name it, and choose one of your own tables as the target. Preview and approve every step — nothing is imported until you approve."
@@ -501,7 +542,7 @@ export default function PortalImportIndexPage() {
                 const previewState = previewByJob[im.id];
                 const previewRows = previewState?.rows ?? [];
                 const sourceKeys = previewRows.length > 0 ? Object.keys(previewRows[0] ?? {}) : [];
-                const table = tables.find((t) => t.id === im.tableId);
+                const table = tables.find((t) => t.id === im.target?.tableId);
                 const tableFields = table?.fields ?? [];
                 const savedMappings = im.mapping ?? [];
                 const draft = mapDrafts[im.id] ?? {};
@@ -518,7 +559,7 @@ export default function PortalImportIndexPage() {
                       <div>
                         <span className="text-sm font-medium">{IMPORT_LANE_COPY[im.provider]?.name ?? im.provider}</span>
                         <span className="ml-2 text-xs text-slate-400">{im.sourceLabel}</span>
-                        <span className="ml-2 text-xs text-slate-400">→ {table?.name ?? im.tableId ?? "table"}</span>
+                        <span className="ml-2 text-xs text-slate-400">→ {table?.name ?? im.target?.tableId ?? "table"}</span>
                       </div>
                       <span className="flex items-center gap-2 text-xs text-slate-400 font-mono">
                         <span>{im.id}</span>

@@ -35,6 +35,10 @@ export const INVOICE_STATUS_TONE: Record<InvoiceStatus, InvoiceStatusTone> = {
 const isInvoiceStatus = (value: unknown): value is InvoiceStatus =>
   typeof value === "string" && (INVOICE_STATUSES as readonly string[]).includes(value);
 
+/** Exported (slice 182) so a consumer can pick a per-status behaviour and keep
+ *  the exhaustiveness guarantee instead of re-testing `=== "sent"`. */
+export { isInvoiceStatus };
+
 /** The label for a server status; an unknown value is shown verbatim. */
 export function invoiceStatusLabel(status: string | null | undefined): string {
   if (isInvoiceStatus(status)) return INVOICE_STATUS_LABEL[status];

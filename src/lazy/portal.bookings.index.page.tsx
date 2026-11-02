@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Card, Badge, Button } from "~/components/ui";
+import { authedJson } from "~/lib/portal-primitives";
 interface PageSummary {
   id: string;
   name: string;
@@ -63,17 +64,37 @@ export default function BookingsPage() {
   const [availStart, setAvailStart] = useState(9 * 60);
   const [availEnd, setAvailEnd] = useState(17 * 60);
   const [filterPage, setFilterPage] = useState("");
+  /** True only after BOTH reads came back 2xx — empty states render only then. */
+  const [loaded, setLoaded] = useState(false);
+  const [readError, setReadError] = useState<{ signedOut: boolean; error: string } | null>(null);
 
   const load = useCallback(async () => {
-    const res = await fetch("/api/native/booking", { credentials: "include" });
-    if (!res.ok && res.status !== 401) throw new Error("Failed to load booking pages");
-    if (res.ok) {
-      const j = await res.json();
-      setPages(j.data?.pages ?? []);
-      setBookings(j.data?.bookings ?? []);
+    // SLICE 182 — both reads go through `authedJson` (src/lib/portal-primitives).
+    // Before this, a 401 was silently swallowed (`!res.ok && res.status !== 401`)
+    // and the writes read was skipped unless 2xx, so a signed-out session
+    // rendered "No booking pages yet" / "Nothing pending." — an empty workspace
+    // invented from a failed read. Now a 401 is a sign-in state and any other
+    // non-2xx carries the server's own message; the empty states render only
+    // after both reads came back 2xx (`loaded`).
+    const [p, wr] = await Promise.all([
+      authedJson<{ pages?: PageSummary[]; bookings?: BookingSummary[] }>("/api/native/booking"),
+      authedJson<{ pendingWrites?: PendingWrite[] }>("/api/native/booking/writes"),
+    ]);
+    const failed = [p, wr].find((r) => !r.ok);
+    if (failed) {
+      setReadError({
+        signedOut: !!failed.signedOut,
+        error: failed.signedOut ? "" : failed.error,
+      });
+      setLoaded(false);
+      return;
     }
-    const wr = await fetch("/api/native/booking/writes", { credentials: "include" });
-    if (wr.ok) setWrites((await wr.json()).data?.pendingWrites ?? []);
+    if (!p.ok || !wr.ok) return; // narrowing only — `failed` above already returned
+    setReadError(null);
+    setLoaded(true);
+    setPages(p.data.pages ?? []);
+    setBookings(p.data.bookings ?? []);
+    setWrites(wr.data.pendingWrites ?? []);
   }, []);
   useEffect(() => {
     load()
@@ -133,6 +154,13 @@ export default function BookingsPage() {
         </div>
         <Button onClick={() => setShowCreate((v) => !v)}>{showCreate ? "Cancel" : "New booking page"}</Button>
       </div>
+      {readError && (
+        <div role="alert" className="rounded-lg bg-rose-50 px-4 py-2 text-sm text-rose-700">
+          {readError.signedOut
+            ? "Your session is not active — sign in again to see your booking pages. Nothing below reflects your data."
+            : `Could not load your booking pages: ${readError.error}`}
+        </div>
+      )}
       {error && <div className="rounded-lg bg-rose-50 px-4 py-2 text-sm text-rose-700">{error}</div>}
       {feedback && <div className="rounded-lg bg-emerald-500/10 px-4 py-2 text-sm text-emerald-300">{feedback}</div>}
 
@@ -211,7 +239,7 @@ export default function BookingsPage() {
             </div>
           </Card>
         ))}
-        {pages.length === 0 && <p className="text-sm text-slate-500">No booking pages yet — create one to get your public booking link.</p>}
+        {loaded && pages.length === 0 && <p className="text-sm text-slate-500">No booking pages yet — create one to get your public booking link.</p>}
       </div>
 
       <div>
@@ -237,7 +265,7 @@ export default function BookingsPage() {
               </div>
             </div>
           ))}
-          {bookings.filter((b) => !filterPage || b.bookingPageId === filterPage).length === 0 && <p className="px-5 py-3 text-sm text-slate-500">No bookings.</p>}
+          {loaded && bookings.filter((b) => !filterPage || b.bookingPageId === filterPage).length === 0 && <p className="px-5 py-3 text-sm text-slate-500">No bookings.</p>}
         </Card>
       </div>
 
@@ -256,7 +284,7 @@ export default function BookingsPage() {
               </div>
             </div>
           ))}
-          {writes.filter((w) => w.status === "pending").length === 0 && <p className="px-5 py-3 text-sm text-slate-500">Nothing pending.</p>}
+          {loaded && writes.filter((w) => w.status === "pending").length === 0 && <p className="px-5 py-3 text-sm text-slate-500">Nothing pending.</p>}
         </Card>
       </div>
     </div>
