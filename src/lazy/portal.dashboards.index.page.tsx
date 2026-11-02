@@ -106,7 +106,21 @@ interface AlertRule {
   metric: string;
   op: string;
   threshold: number;
+  /**
+   * The rule's CURRENT BREACH FLAG, not an enabled switch: the gate sets it true
+   * when a run finds the condition true and back to false when a later run
+   * finds it false (src/native/dashboard/gate.ts:492-528; a new rule starts
+   * false, gate.ts:639). This page therefore labels it as a breach state and
+   * says plainly when a rule has never fired — it never claims the rule is
+   * "disabled", because no such field exists.
+   */
   active: boolean;
+}
+/** A durable fired-alert record (GET /api/native/dashboard/alerts → records). */
+interface AlertRecord {
+  id: string;
+  ruleId: string;
+  firedAt: string;
 }
 
 const VIZ_KINDS = ["number", "bar", "table", "line"] as const;
@@ -123,6 +137,7 @@ export default function DashboardsPage() {
   const [writes, setWrites] = useState<PendingWrite[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [alerts, setAlerts] = useState<AlertRule[]>([]);
+  const [alertRecords, setAlertRecords] = useState<AlertRecord[]>([]);
   const [openId, setOpenId] = useState<string | null>(null);
   const [openName, setOpenName] = useState("");
   const [widgets, setWidgets] = useState<ReportSummary[]>([]);
@@ -147,7 +162,7 @@ export default function DashboardsPage() {
       authedJson<{ tables: TableOption[] }>("/api/native/tables"),
       authedJson<{ writes: PendingWrite[] }>("/api/native/dashboard/writes"),
       authedJson<{ schedules: Schedule[] }>("/api/native/dashboard/schedules"),
-      authedJson<{ rules: AlertRule[] }>("/api/native/dashboard/alerts"),
+      authedJson<{ rules: AlertRule[]; records: AlertRecord[] }>("/api/native/dashboard/alerts"),
     ]);
     if (!dashRes.ok) {
       if (dashRes.signedOut) setSignedOut(true);
@@ -161,7 +176,10 @@ export default function DashboardsPage() {
     if (tabRes.ok) setTables(Array.isArray(tabRes.data?.tables) ? tabRes.data.tables : []);
     if (wrRes.ok) setWrites(Array.isArray(wrRes.data?.writes) ? wrRes.data.writes : []);
     if (schRes.ok) setSchedules(Array.isArray(schRes.data?.schedules) ? schRes.data.schedules : []);
-    if (alrRes.ok) setAlerts(Array.isArray(alrRes.data?.rules) ? alrRes.data.rules : []);
+    if (alrRes.ok) {
+      setAlerts(Array.isArray(alrRes.data?.rules) ? alrRes.data.rules : []);
+      setAlertRecords(Array.isArray(alrRes.data?.records) ? alrRes.data.records : []);
+    }
   }, []);
 
   useEffect(() => {
@@ -747,7 +765,9 @@ export default function DashboardsPage() {
           <h2 className="mb-1 text-lg font-semibold">Scheduled delivery &amp; alerts</h2>
           <p className="mb-3 text-xs text-stone-500">
             Read-only here: these records exist for this workspace and are shown exactly as stored. An active schedule
-            renders its report on its UTC anchor and stores the run; alert rules are evaluated on every run.
+            renders its report on its UTC anchor and stores the run; alert rules are evaluated on every run. A rule's
+            breach state is that evaluation's result — set when a run finds the condition true, cleared when a later run
+            finds it false — so a rule that has never fired says so rather than reading "clear".
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
@@ -773,7 +793,12 @@ export default function DashboardsPage() {
                 <ul className="mt-1 space-y-1 text-sm">
                   {alerts.map((a) => (
                     <li key={a.id}>
-                      {a.name} · {a.metric} {a.op} {formatNumber(a.threshold)} · {a.active ? "breached" : "clear"}
+                      {a.name} · {a.metric} {a.op} {formatNumber(a.threshold)} ·{" "}
+                      {a.active
+                        ? "breached — a run found the condition true"
+                        : alertRecords.some((r) => r.ruleId === a.id)
+                          ? "not breached — a later run cleared it"
+                          : "not breached — never fired"}
                     </li>
                   ))}
                 </ul>
