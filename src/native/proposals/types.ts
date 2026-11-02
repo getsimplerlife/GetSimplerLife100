@@ -56,8 +56,31 @@ export interface ProposalRecord {
   rejectedBy?: string;
   sentAt?: string;
   sentBy?: string;
+  /**
+   * SLICE 176 — the outcome of the LAST attempt to email this proposal.
+   * `sentAt`/`sentBy` are set ONLY when the provider acknowledged the message;
+   * this field records every attempt (including a refusal) so the portal can
+   * say what actually happened instead of guessing from the status.
+   */
+  lastDeliveryAttempt?: ProposalDeliveryAttempt;
   /** E-signatures captured on acceptance (Phase 2.2) — appended by the gated apply executor only. */
   signatures: ProposalSignature[];
+}
+
+/**
+ * One attempt to hand the proposal to the mail lane. `outcome` is the lane's
+ * own answer — "sent" only on a provider acknowledgement, "unconfigured" when
+ * no lane exists (nothing was dispatched at all).
+ */
+export interface ProposalDeliveryAttempt {
+  at: string;
+  by: string;
+  channel: "sendgrid" | "smtp" | "none";
+  outcome: "sent" | "failed" | "unconfigured";
+  /** Provider message id — present ONLY on an acknowledged send. */
+  messageId?: string;
+  /** The lane's refusal reason — present on every non-sent outcome. */
+  error?: string;
 }
 
 /**

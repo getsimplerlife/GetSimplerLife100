@@ -129,7 +129,7 @@ async function handleAuthedAsync(req: Request, ctx: NativeProposalsCtx): Promise
     if (req.method === "POST") {
       const b = parseJsonObject(await req.text());
       const data = mutationFromBody(b);
-      const res = submitProposalWrite(dataDir, tenantId, "create", { data, via: "portal" }, tenantId);
+      const res = await submitProposalWrite(dataDir, tenantId, "create", { data, via: "portal" }, tenantId);
       if (res.applied) return Response.json({ data: { status: "applied", proposalId: res.proposal.id, autonomy: res.autonomy } });
       if (res.pending) return Response.json({ data: { status: "pending", approvalActionId: res.approvalActionId } }, { status: 202 });
       return gateErrorStatus(res.error);
@@ -158,10 +158,10 @@ async function handleAuthedAsync(req: Request, ctx: NativeProposalsCtx): Promise
       if (!ptw || ptw.tenantId !== tenantId) return json404("no pending write for this proposal action");
       if (seg[2] === "reject") {
         // Owner-side reject of the card + write (approve path stays noteOwnerDecision).
-        noteOwnerDecision(dataDir, tenantId, ptw.approvalActionId, "rejected", tenantId);
+        await noteOwnerDecision(dataDir, tenantId, ptw.approvalActionId, "rejected", tenantId);
         return Response.json({ data: { status: "rejected", id: ptw.id } });
       }
-      const res = executePendingProposalWrite(dataDir, tenantId, ptw.approvalActionId, tenantId);
+      const res = await executePendingProposalWrite(dataDir, tenantId, ptw.approvalActionId, tenantId);
       if (!res.ok) return gateErrorStatus(res.reason);
       return Response.json({ data: { status: res.alreadyApplied ? "alreadyApplied" : "applied", proposalId: res.record.id, alreadyApplied: !!res.alreadyApplied } });
     }
@@ -190,7 +190,7 @@ async function handleAuthedAsync(req: Request, ctx: NativeProposalsCtx): Promise
       return Response.json({ data: { ...publicSummary(proposal, url.origin), clientEmail: proposal.clientEmail, shareSlug: proposal.shareSlug, docId: proposal.docId, terms: proposal.terms, lineItems: proposal.lineItems, signatures: proposal.signatures ?? [] } });
     }
     if (req.method === "DELETE") {
-      const res = submitProposalWrite(dataDir, tenantId, "delete", { proposalId, via: "portal" }, tenantId);
+      const res = await submitProposalWrite(dataDir, tenantId, "delete", { proposalId, via: "portal" }, tenantId);
       if (res.applied) return Response.json({ data: { status: "applied", autonomy: res.autonomy } });
       if (res.pending) return Response.json({ data: { status: "pending", approvalActionId: res.approvalActionId } }, { status: 202 });
       return gateErrorStatus(res.error);
@@ -199,7 +199,7 @@ async function handleAuthedAsync(req: Request, ctx: NativeProposalsCtx): Promise
       // POST /:id with a body = update (title/client/lineItems/terms…)
       const b = parseJsonObject(await req.text());
       const data = mutationFromBody(b);
-      const res = submitProposalWrite(dataDir, tenantId, "update", { proposalId, data, via: "portal" }, tenantId);
+      const res = await submitProposalWrite(dataDir, tenantId, "update", { proposalId, data, via: "portal" }, tenantId);
       if (res.applied) return Response.json({ data: { status: "applied", proposalId: res.proposal.id, autonomy: res.autonomy } });
       if (res.pending) return Response.json({ data: { status: "pending", approvalActionId: res.approvalActionId } }, { status: 202 });
       return gateErrorStatus(res.error);
@@ -226,8 +226,22 @@ async function handleAuthedAsync(req: Request, ctx: NativeProposalsCtx): Promise
 
   // ── /api/native/proposals/:id/<verb> — gated lifecycle transitions ──
   const verb = seg[1];
-  const res = submitProposalWrite(dataDir, tenantId, verb as "update" | "open" | "approve" | "reject" | "send", { proposalId, via: "portal" }, tenantId);
-  if (res.applied) return Response.json({ data: { status: "applied", proposalId: res.proposal.id, autonomy: res.autonomy } });
+  const res = await submitProposalWrite(dataDir, tenantId, verb as "update" | "open" | "approve" | "reject" | "send", { proposalId, via: "portal" }, tenantId);
+  if (res.applied) {
+    // SLICE 176 — a send only reaches here after the mail lane acknowledged the
+    // message, so the delivery attempt travels with the answer. The portal
+    // prints what the lane said instead of inferring "sent" from the verb.
+    return Response.json({
+      data: {
+        status: "applied",
+        proposalId: res.proposal.id,
+        autonomy: res.autonomy,
+        ...(verb === "send"
+          ? { proposalStatus: res.proposal.status, delivery: res.proposal.lastDeliveryAttempt ?? null }
+          : {}),
+      },
+    });
+  }
   if (res.pending) return Response.json({ data: { status: "pending", approvalActionId: res.approvalActionId } }, { status: 202 });
   return gateErrorStatus(res.error);
 }
@@ -274,7 +288,7 @@ async function handleShareAsync(req: Request, ctx: NativeProposalsPublicCtx): Pr
       if (!v.ok) return json400(v.error);
       signature = v.signature;
     }
-    const res = submitProposalWrite(ctx.dataDir, tenantId, decision, { proposalId: proposal.id, via: "client-decision", signerName: signerName || undefined, signature }, tenantId);
+    const res = await submitProposalWrite(ctx.dataDir, tenantId, decision, { proposalId: proposal.id, via: "client-decision", signerName: signerName || undefined, signature }, tenantId);
     if (res.applied) return Response.json({ data: { status: "applied", decision, autonomy: res.autonomy } });
     if (res.pending) return Response.json({ data: { status: "pending", approvalActionId: res.approvalActionId } }, { status: 202 });
     return gateErrorStatus(res.error);

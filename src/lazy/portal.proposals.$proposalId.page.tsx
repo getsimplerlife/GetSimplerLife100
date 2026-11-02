@@ -104,10 +104,24 @@ export default function ProposalDetailPage() {
         headers: { "Content-Type": "application/json" },
         credentials: "include",
       });
-      const j = (await res.json().catch(() => ({}))) as { error?: string; data?: { status?: string } };
+      const j = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        data?: { status?: string; delivery?: { channel?: string; messageId?: string } | null };
+      };
       if (res.status === 202) setFeedback(`${verb} queued — approve it in the pending-writes queue on /portal/proposals.`);
-      else if (res.ok) setFeedback(`${verb} applied.`);
-      else setError(j.error || `${verb} failed (${res.status})`);
+      else if (res.ok) {
+        // SLICE 176 — "send" only reaches here once the mail lane ACKNOWLEDGED
+        // the message, so say that. Any refusal comes back non-ok with the
+        // lane's own reason (see the error branch below).
+        if (verb === "send") {
+          const d = j.data?.delivery;
+          setFeedback(
+            `Proposal emailed via ${d?.channel ?? "the configured mail lane"} — the provider acknowledged it${d?.messageId ? ` (${d.messageId})` : ""}.`,
+          );
+        } else {
+          setFeedback(`${verb} applied.`);
+        }
+      } else setError(j.error || `${verb} failed (${res.status})`);
       await load();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e));

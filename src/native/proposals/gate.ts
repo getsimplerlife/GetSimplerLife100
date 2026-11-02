@@ -22,6 +22,8 @@ import { randomBytes } from "node:crypto";
 import { generateProposalEntityId, generateShareSlug, insertProposal, applyProposalMutation, listPendingWrites, savePendingWrite, appendAudit, getProposal, registerSlug, unregisterSlug, markPendingWrite, removeProposal, appendProposalSignature } from "./store";
 import { validateProposalMutation, normalizeLineItems, validateSignatureInput } from "./validate";
 import { renderProposalPdf, storeProposalPdf } from "./generate";
+import { deliverProposalEmail, proposalShareUrl } from "./delivery";
+import { resolveIssuerDisplayName } from "../invoice/issuer";
 import {
   MAX_PENDING_PROPOSAL_WRITES,
   type ProposalRecord,
@@ -31,6 +33,7 @@ import {
   type PendingProposalWrite,
   type ProposalStatus,
   type ProposalSignatureInput,
+  type ProposalDeliveryAttempt,
 } from "./types";
 
 export type ProposalWriteRequest = {
@@ -142,7 +145,7 @@ function validateWrite(dataDir: string, tenantId: string, op: ProposalOp, req: P
 }
 
 /** Apply a validated write to the store + audit + typed event (fire-and-forget). */
-function applyMutation(
+async function applyMutation(
   dataDir: string,
   tenantId: string,
   op: ProposalOp,
@@ -150,7 +153,7 @@ function applyMutation(
   mutation: ProposalMutation,
   nextStatus: ProposalStatus,
   actor: string,
-): ProposalRecord {
+): Promise<ProposalRecord> {
   let record: ProposalRecord;
   let docId: string | null = null;
   let slug: string | null = null;
@@ -196,14 +199,52 @@ function applyMutation(
     return record;
   }
   if (op === "send") {
-    // Render + store the final PDF BEFORE the status flip — a failed render must
-    // never leave a "sent" record pointing at the old unsigned document.
+    // SLICE 176 — this branch used to stamp "sent" with ZERO mail calls: the
+    // PDF was rendered, stored, audited and webhooked, and the client received
+    // nothing. The order is now the invoice lane's (see invoice/gate.ts:351):
+    //   1. render + store the final PDF (nothing is claimed yet),
+    //   2. dispatch through the EXISTING mail lane,
+    //   3. "sent" ONLY on a provider acknowledgement; otherwise the record keeps
+    //      its previous status, the refusal is stored and audited, and the
+    //      caller gets a truthful failure it can show the user.
     const latest = getProposal(dataDir, tenantId, req.proposalId!);
     if (!latest) throw new Error("proposal not found");
     const rendered = renderProposalPdf(latest, { final: true, footerText: `Proposal ${latest.id}` });
     const sentDocId = storeProposalPdf(dataDir, tenantId, latest, rendered, actor, latest.docId);
-    const sent = applyProposalMutation(dataDir, tenantId, latest.id, {}, "sent", actor, { docId: sentDocId })!;
-    appendAudit(dataDir, { tenantId, actor, action: "native.proposal.send", proposalId: sent.id, detail: `Sent final proposal "${sent.title}" (doc ${sentDocId})` });
+    // The share slug is minted by `open`; a proposal that never left draft has
+    // none, so we fall back to the PDF endpoint rather than inventing a URL.
+    const shareUrl = latest.shareSlug ? proposalShareUrl(latest.shareSlug) : "";
+    const delivery = await deliverProposalEmail({
+      proposal: { ...latest, docId: sentDocId },
+      shareUrl,
+      issuerName: resolveIssuerDisplayName(tenantId, dataDir),
+    });
+    const attempt: ProposalDeliveryAttempt = {
+      at: new Date().toISOString(),
+      by: actor,
+      channel: delivery.channel,
+      outcome: delivery.outcome,
+      ...(delivery.messageId ? { messageId: delivery.messageId } : {}),
+      ...(delivery.error ? { error: delivery.error } : {}),
+    };
+    if (delivery.outcome !== "sent") {
+      // Keep the pre-send status (approved) — nothing was delivered, so the
+      // record must not read "sent". The PDF + the attempt are still stored so
+      // the tenant can see exactly what the lane said.
+      const kept = applyProposalMutation(dataDir, tenantId, latest.id, {}, null, actor, { docId: sentDocId, lastDeliveryAttempt: attempt })!;
+      appendAudit(dataDir, {
+        tenantId,
+        actor,
+        action: "native.proposal.send_failed",
+        proposalId: kept.id,
+        detail: `Proposal "${kept.title}" was NOT emailed (${attempt.outcome} via ${attempt.channel}): ${attempt.error ?? "unknown error"} — status stays "${kept.status}", nothing is claimed as sent`,
+      });
+      throw new Error(
+        `send failed — the mail lane refused the message (${attempt.outcome} via ${attempt.channel}): ${attempt.error ?? "no reason given"}. The proposal status is still "${kept.status}"; nothing was delivered.`,
+      );
+    }
+    const sent = applyProposalMutation(dataDir, tenantId, latest.id, {}, "sent", actor, { docId: sentDocId, lastDeliveryAttempt: attempt })!;
+    appendAudit(dataDir, { tenantId, actor, action: "native.proposal.sent", proposalId: sent.id, detail: `Emailed final proposal "${sent.title}" via ${attempt.channel} (provider ack ${attempt.messageId ?? "?"}) — doc ${sentDocId}` });
     publishEvent(dataDir, tenantId, "native.proposal.updated", { proposalId: sent.id, title: sent.title, status: "sent", changed: ["status", "docId"] });
     return sent;
   }
@@ -242,13 +283,13 @@ function applyMutation(
  * reach the queue. Then the gate: allow-listed autonomy applies immediately;
  * otherwise a durable pending-write mirror + approval card are created.
  */
-export function submitProposalWrite(
+export async function submitProposalWrite(
   dataDir: string,
   tenantId: string,
   op: ProposalOp,
   req: ProposalWriteRequest,
   actor: string,
-): ProposalWriteResult {
+): Promise<ProposalWriteResult> {
   if (!tenantId?.trim() || !actor?.trim()) return { applied: false, pending: false, error: "tenantId and actor are required" };
   let validated: { proposal: ProposalRecord | null; mutation: ProposalMutation; nextStatus: ProposalStatus };
   try {
@@ -269,7 +310,7 @@ export function submitProposalWrite(
   const gate = approvalGate(tenantId, action, "native-proposals", params, { dataDir, workflowId: "native-proposals" });
   if (gate.allowed) {
     try {
-      const record = applyMutation(dataDir, tenantId, op, req, validated.mutation, validated.nextStatus, actor);
+      const record = await applyMutation(dataDir, tenantId, op, req, validated.mutation, validated.nextStatus, actor);
       if (gate.autonomy && !op.startsWith("delete")) {
         try {
           recordAutonomyOutcome(tenantId, gate.workflowId || "native-proposals", action, "native-proposals", true, { dataDir, allowListId: gate.allowListId });
@@ -313,12 +354,12 @@ export function submitProposalWrite(
  * Approve-path executor: applies the pending write the approval card
  * authorized. Idempotent — replay returns the stored result (200).
  */
-export function executePendingProposalWrite(
+export async function executePendingProposalWrite(
   dataDir: string,
   tenantId: string,
   approvalActionId: string,
   actor: string,
-): { ok: true; record: ProposalRecord; ptwId: string; op: ProposalOp; alreadyApplied?: boolean } | { ok: false; reason: string } {
+): Promise<{ ok: true; record: ProposalRecord; ptwId: string; op: ProposalOp; alreadyApplied?: boolean } | { ok: false; reason: string }> {
   if (!tenantId?.trim() || !approvalActionId?.trim()) return { ok: false, reason: "tenantId and approvalActionId are required" };
   const stateWrites = listPendingWrites(dataDir, tenantId);
   const ptw = stateWrites.find((w) => w.approvalActionId === approvalActionId);
@@ -339,7 +380,7 @@ export function executePendingProposalWrite(
     return { ok: false, reason: msg };
   }
   try {
-    const record = applyMutation(dataDir, tenantId, ptw.op, { proposalId: ptw.proposalId ?? undefined, data: ptw.payload.data, via: ptw.payload.via, signerName: ptw.payload.signerName, signature: ptw.payload.signature }, validated.mutation, validated.nextStatus, actor);
+    const record = await applyMutation(dataDir, tenantId, ptw.op, { proposalId: ptw.proposalId ?? undefined, data: ptw.payload.data, via: ptw.payload.via, signerName: ptw.payload.signerName, signature: ptw.payload.signature }, validated.mutation, validated.nextStatus, actor);
     markPendingWrite(dataDir, tenantId, ptw.id, "applied", actor, { status: record.status, proposalId: record.id, docId: record.docId });
     return { ok: true, record, ptwId: ptw.id, op: ptw.op };
   } catch (e) {
@@ -350,17 +391,17 @@ export function executePendingProposalWrite(
 }
 
 /** Record the owner decision + transition the shared approval card too. */
-export function noteOwnerDecision(
+export async function noteOwnerDecision(
   dataDir: string,
   tenantId: string,
   approvalActionId: string,
   decision: "approved" | "rejected",
   owner: string,
-): void {
+): Promise<void> {
   const ptw = listPendingWrites(dataDir, tenantId).find((w) => w.approvalActionId === approvalActionId);
   if (!ptw || ptw.status !== "pending") return; // idempotent
   if (decision === "approved") {
-    const res = executePendingProposalWrite(dataDir, tenantId, approvalActionId, owner);
+    const res = await executePendingProposalWrite(dataDir, tenantId, approvalActionId, owner);
     markApproved(tenantId, approvalActionId, owner, { result: res.ok ? { status: res.record.status, proposalId: res.record.id } : undefined, ...(res.ok ? {} : { resultError: res.reason }) }, dataDir);
   } else {
     markPendingWrite(dataDir, tenantId, ptw.id, "rejected", owner);
