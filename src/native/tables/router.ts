@@ -25,7 +25,7 @@
  * audit entries. Tenant isolation: every read/write is `{ [tenantId]: ... }`
  * keyed — a foreign table/row id → 404 (fail-closed).
  */
-import { MAX_TABLES_PER_TENANT, MAX_TABLE_NAME, MAX_TABLE_DESCRIPTION, MAX_IMPORT_ROWS, type TableDef } from "./types";
+import { MAX_TABLES_PER_TENANT, MAX_IMPORT_ROWS, type TableDef } from "./types";
 import {
   countRows,
   listTables,
@@ -42,6 +42,7 @@ import {
 } from "./store";
 import { validateTableSchema, parseImportContent, toCsv } from "./validate";
 import { submitTableWrite, executePendingTableWrite } from "./gate";
+import { readBodyCapped } from "../../lib/request-body";
 
 export interface NativeTablesCtx {
   userEmail: string;
@@ -107,7 +108,9 @@ async function route(req: Request, ctx: NativeTablesCtx): Promise<Response> {
   }
   // POST /api/native/tables — create
   if (pathname === "/api/native/tables" && req.method === "POST") {
-    const b = parseJsonObject(await req.text());
+    const read = await readBodyCapped(req);
+    if (!read.ok) return read.response;
+    const b = parseJsonObject(read.text);
     if (listTables(ctx.dataDir, tenantId).length >= MAX_TABLES_PER_TENANT) return json400(`Table limit reached (${MAX_TABLES_PER_TENANT})`);
     const v = validateTableSchema({ name: b.name, description: b.description, fields: b.fields });
     if (!v.ok) return json400(v.error);
@@ -115,8 +118,11 @@ async function route(req: Request, ctx: NativeTablesCtx): Promise<Response> {
     const table: TableDef = {
       id: generateTableEntityId("tbl"),
       tenantId,
-      name: String(b.name).trim().slice(0, MAX_TABLE_NAME),
-      description: typeof b.description === "string" ? b.description.slice(0, MAX_TABLE_DESCRIPTION) : "",
+      // SLICE 174 — the VALIDATED values, not a silent slice. validateTableSchema
+      // now rejects an over-length name/description with a 400 that names the
+      // field and its limit, so nothing reaching here is ever truncated.
+      name: v.name,
+      description: v.description,
       fields: v.fields,
       version: 1,
       createdAt: now,
@@ -140,7 +146,9 @@ async function route(req: Request, ctx: NativeTablesCtx): Promise<Response> {
     const row = getRow(ctx.dataDir, tenantId, rowId);
     if (!row || row.tableId !== tableId) return Response.json({ error: "Row not found" }, { status: 404 });
     if (req.method === "POST") {
-      const b = parseJsonObject(await req.text());
+      const read = await readBodyCapped(req);
+      if (!read.ok) return read.response;
+      const b = parseJsonObject(read.text);
       if (!b.data || typeof b.data !== "object" || Array.isArray(b.data)) return json400("data object is required");
       try {
         const res = submitTableWrite(ctx.dataDir, tenantId, tableId, "update", { rowData: b.data as Record<string, unknown>, existingRowId: rowId }, actor);
@@ -175,11 +183,13 @@ async function route(req: Request, ctx: NativeTablesCtx): Promise<Response> {
   }
   // POST /api/native/tables/:id — schema update (EMPTY only)
   if (rest === "" && req.method === "POST") {
-    const b = parseJsonObject(await req.text());
+    const read = await readBodyCapped(req);
+    if (!read.ok) return read.response;
+    const b = parseJsonObject(read.text);
     const v = validateTableSchema({ name: b.name ?? table.name, description: b.description ?? table.description, fields: b.fields ?? table.fields });
     if (!v.ok) return json400(v.error);
     if (countRows(ctx.dataDir, tenantId, tableId) > 0) return json400("Schema update is only allowed on an empty table");
-    const updated = updateTableSchema(ctx.dataDir, tenantId, tableId, v.fields, String(b.name ?? table.name).trim().slice(0, MAX_TABLE_NAME), typeof b.description === "string" ? b.description.slice(0, MAX_TABLE_DESCRIPTION) : table.description, actor);
+    const updated = updateTableSchema(ctx.dataDir, tenantId, tableId, v.fields, v.name, v.description, actor);
     if (!updated) return Response.json({ error: "Table not found" }, { status: 404 });
     return Response.json({ data: { id: updated.id, version: updated.version } });
   }
@@ -203,7 +213,9 @@ async function route(req: Request, ctx: NativeTablesCtx): Promise<Response> {
   }
   // POST /api/native/tables/:id/rows — GATED insert
   if (rest === "/rows" && req.method === "POST") {
-    const b = parseJsonObject(await req.text());
+    const read = await readBodyCapped(req);
+    if (!read.ok) return read.response;
+    const b = parseJsonObject(read.text);
     if (!b.data || typeof b.data !== "object" || Array.isArray(b.data)) return json400("data object is required");
     try {
       const res = submitTableWrite(ctx.dataDir, tenantId, tableId, "insert", { rowData: b.data as Record<string, unknown> }, actor);
@@ -215,7 +227,9 @@ async function route(req: Request, ctx: NativeTablesCtx): Promise<Response> {
   }
   // POST /api/native/tables/:id/import — GATED bulk import
   if (rest === "/import" && req.method === "POST") {
-    const b = parseJsonObject(await req.text());
+    const read = await readBodyCapped(req);
+    if (!read.ok) return read.response;
+    const b = parseJsonObject(read.text);
     const format = typeof b.format === "string" ? b.format.toLowerCase() : "";
     const content = typeof b.content === "string" ? b.content : "";
     const parsed = parseImportContent(format, content);

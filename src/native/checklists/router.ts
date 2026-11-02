@@ -20,6 +20,7 @@ import {
 import { submitChecklistWrite, executePendingChecklistWrite, noteOwnerDecision, createMutationFromInput } from "./gate";
 import { registerNativeEventType } from "../webhooks/registry";
 
+import { readBodyCapped } from "../../lib/request-body";
 export interface NativeChecklistsCtx {
   dataDir: string;
   userEmail: string; // tenant id
@@ -63,7 +64,9 @@ async function handleAsync(req: Request, ctx: NativeChecklistsCtx): Promise<Resp
       return Response.json({ data: listChecklists(dataDir, tenantId).map((c) => summary(c)) });
     }
     if (req.method === "POST") {
-      const b = parseJsonObject(await req.text());
+      const read = await readBodyCapped(req);
+      if (!read.ok) return read.response;
+      const b = parseJsonObject(read.text);
       const data = createMutationFromInput(b);
       const res = submitChecklistWrite(dataDir, tenantId, "create", { data, via: "portal" }, tenantId);
       if (res.applied) return Response.json({ data: { status: "applied", checklistId: res.checklist.id, autonomy: res.autonomy } });
@@ -126,7 +129,9 @@ async function handleAsync(req: Request, ctx: NativeChecklistsCtx): Promise<Resp
     }
     if (req.method === "POST") {
       // POST /:id with a body = update (name/description/kind/items…)
-      const b = parseJsonObject(await req.text());
+      const read = await readBodyCapped(req);
+      if (!read.ok) return read.response;
+      const b = parseJsonObject(read.text);
       const data = createMutationFromInput(b);
       const res = submitChecklistWrite(dataDir, tenantId, "update", { checklistId, data, via: "portal" }, tenantId);
       if (res.applied) return Response.json({ data: { status: "applied", checklistId: res.checklist.id, autonomy: res.autonomy } });

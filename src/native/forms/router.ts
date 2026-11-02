@@ -35,6 +35,7 @@ import {
   MAX_FIELD_LABEL,
   MAX_FORM_NAME,
   MAX_FORM_DESCRIPTION,
+  MAX_STEP_TITLE,
   MAX_OPTIONS,
   MAX_OPTION_LEN,
   MAX_PREFILL_KEYS,
@@ -69,6 +70,7 @@ import {
 import { validateSubmission, applyPrefill, type RawAnswer } from "./logic";
 import { registerNativeEventType } from "../webhooks/registry";
 
+import { readBodyCapped } from "../../lib/request-body";
 export interface NativeFormsCtx {
   userEmail: string;
   dataDir: string;
@@ -107,9 +109,17 @@ function validateFormDef(input: {
   steps: unknown;
   prefillKeys?: unknown;
 }): { ok: true; name: string; description: string; steps: FormStep[]; prefillKeys: string[] } | { ok: false; error: string } {
-  const name = typeof input.name === "string" ? input.name.trim().slice(0, MAX_FORM_NAME) : "";
+  // SLICE 174 — over-length is a 400 that names the field and its limit, never a
+  // silent slice. `name.trim().slice(0, MAX_FORM_NAME)` and an unbounded-length
+  // description meant a 10,000-character name came back 200 with 120 characters
+  // stored; the builder showed the truncated value only after a reload.
+  const name = typeof input.name === "string" ? input.name.trim() : "";
   if (!name) return { ok: false, error: "name is required" };
-  const description = typeof input.description === "string" ? input.description.slice(0, MAX_FORM_DESCRIPTION) : "";
+  if (name.length > MAX_FORM_NAME) return { ok: false, error: `name must be ≤ ${MAX_FORM_NAME} chars` };
+  const description = typeof input.description === "string" ? input.description : "";
+  if (description.length > MAX_FORM_DESCRIPTION) {
+    return { ok: false, error: `description must be ≤ ${MAX_FORM_DESCRIPTION} chars` };
+  }
   if (!Array.isArray(input.steps) || input.steps.length === 0) return { ok: false, error: "steps must be a non-empty array" };
   if (input.steps.length > MAX_STEPS) return { ok: false, error: `No more than ${MAX_STEPS} steps` };
   const steps: FormStep[] = [];
@@ -128,8 +138,9 @@ function validateFormDef(input: {
       if (!FIELD_KEY_RE.test(key) || key.length > MAX_FIELD_KEY) return { ok: false, error: `field key "${key}" must be a slug [A-Za-z0-9_-]{1,40}` };
       if (seenKeys.has(key)) return { ok: false, error: `duplicate field key "${key}"` };
       seenKeys.add(key);
-      const label = typeof f.label === "string" ? f.label.trim().slice(0, MAX_FIELD_LABEL) : "";
+      const label = typeof f.label === "string" ? f.label.trim() : "";
       if (!label) return { ok: false, error: `field "${key}" label is required` };
+      if (label.length > MAX_FIELD_LABEL) return { ok: false, error: `field "${key}" label must be ≤ ${MAX_FIELD_LABEL} chars` };
       const type = typeof f.type === "string" ? f.type : "";
       const TYPES = ["text", "textarea", "email", "number", "date", "select", "checkbox", "file"];
       if (!TYPES.includes(type)) return { ok: false, error: `field "${key}" has invalid type "${type}"` };
@@ -182,7 +193,11 @@ function validateFormDef(input: {
       if (maxFileBytes) field.maxFileBytes = maxFileBytes;
       fields.push(field);
     }
-    steps.push({ id: typeof rawStep.id === "string" && /^step_[A-Za-z0-9_-]+$/.test(rawStep.id) ? rawStep.id : generateFormEntityId("step"), title: typeof rawStep.title === "string" ? rawStep.title.slice(0, 200) : undefined, fields });
+    // SLICE 174 — a step title over the limit is refused, not silently sliced.
+    if (typeof rawStep.title === "string" && rawStep.title.length > MAX_STEP_TITLE) {
+      return { ok: false, error: `Step ${si + 1} title must be ≤ ${MAX_STEP_TITLE} chars` };
+    }
+    steps.push({ id: typeof rawStep.id === "string" && /^step_[A-Za-z0-9_-]+$/.test(rawStep.id) ? rawStep.id : generateFormEntityId("step"), title: typeof rawStep.title === "string" ? rawStep.title : undefined, fields });
   }
   const prefillKeys: string[] = Array.isArray(input.prefillKeys)
     ? input.prefillKeys.filter((k): k is string => typeof k === "string" && seenKeys.has(k) && k.length <= MAX_FIELD_KEY).slice(0, MAX_PREFILL_KEYS)
@@ -208,9 +223,13 @@ function makeFormSubmission(tenantId: string, form: FormDefinition, answers: Rec
 // ── Public submit (slug-gated, idempotent) ────────────────────────────────
 export async function handleNativeFormSubmit(req: Request, ctx: NativeFormsPublicCtx): Promise<Response> {
   if (req.method !== "POST") return Response.json({ error: "Method not allowed" }, { status: 405 });
+  // SLICE 174 — bounded read: a 10 MiB upload lane base64-inflates to ~13.4 MiB,
+  // which clears the 16 MiB ceiling; anything beyond it is a 413 before buffering.
+  const read = await readBodyCapped(req);
+  if (!read.ok) return read.response;
   let parsed: ReturnType<typeof parseJsonObject>;
   try {
-    parsed = parseJsonObject(await req.text());
+    parsed = parseJsonObject(read.text);
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "Bad request" }, { status: 400 });
   }
@@ -318,7 +337,9 @@ async function handleNativeFormsAuthedAsync(req: Request, ctx: NativeFormsCtx): 
       return Response.json({ data: listFormAudit(ctx.dataDir, tenantId) });
     }
     if (pathname === "/api/native/forms" && req.method === "POST") {
-      const b = parseJsonObject(await req.text());
+      const read = await readBodyCapped(req);
+      if (!read.ok) return read.response;
+      const b = parseJsonObject(read.text);
       if (listForms(ctx.dataDir, tenantId).length >= MAX_FORMS_PER_TENANT) {
         return Response.json({ error: `Form limit reached (${MAX_FORMS_PER_TENANT})` }, { status: 400 });
       }
@@ -402,7 +423,9 @@ async function handleNativeFormsAuthedAsync(req: Request, ctx: NativeFormsCtx): 
       return Response.json({ data: form });
     }
     if (action === "" && req.method === "POST") {
-      const b = parseJsonObject(await req.text());
+      const read = await readBodyCapped(req);
+      if (!read.ok) return read.response;
+      const b = parseJsonObject(read.text);
       const def = validateFormDef({ name: b.name ?? form.name, description: b.description ?? form.description, steps: b.steps ?? form.steps, prefillKeys: b.prefillKeys ?? form.prefillKeys });
       if (!def.ok) return Response.json({ error: def.error }, { status: 400 });
       const updated = updateForm(ctx.dataDir, tenantId, formId, { name: def.name, description: def.description, steps: def.steps, prefillKeys: def.prefillKeys }, tenantId);

@@ -2,6 +2,13 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Card, Badge, Button } from "~/components/ui";
 import { PortalEmptyState, scrollToId } from "~/components/PortalEmptyState";
+import { FieldErrorLine } from "~/components/FieldError";
+import { fieldErrorFrom, fieldErrorProps, type FieldError } from "~/lib/form-field-error";
+
+/** The inputs this composer owns — only these can carry a field-level error. */
+const INVOICE_FIELDS = ["dealRoomId", "linkedDealRoomId", "customerEmail"] as const;
+/** The wire field is `linkedDealRoomId`; the select the user sees is `dealRoomId`. */
+const INVOICE_ALIASES = { linkedDealRoomId: "dealRoomId" };
 
 interface DeliveryAttempt {
   at: string;
@@ -80,6 +87,8 @@ export default function InvoicesPage() {
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState("");
   const [creating, setCreating] = useState(false);
+  // SLICE 174 — the server names the field it rejected; show it THERE.
+  const [fieldError, setFieldError] = useState<FieldError | null>(null);
   const [dealRoomId, setDealRoomId] = useState("");
   const [composerEmail, setComposerEmail] = useState("");
   const [rowEmail, setRowEmail] = useState<Record<string, string>>({});
@@ -117,8 +126,12 @@ export default function InvoicesPage() {
     setCreating(true);
     setFeedback("");
     setError("");
+    setFieldError(null);
     if (!dealRoomId) {
-      setError("Pick a deal room to invoice first.");
+      // SLICE 174 — this one is ours, not the server's: put it on the select.
+      const msg = "Pick a deal room to invoice first.";
+      setError(msg);
+      setFieldError({ field: "dealRoomId", message: msg });
       setCreating(false);
       return;
     }
@@ -136,7 +149,12 @@ export default function InvoicesPage() {
       else if (res.ok) setFeedback("Invoice created as draft.");
       else {
         const j = await res.json().catch(() => ({}));
-        setError(j.error || "Failed to create invoice");
+        const msg = j.error || "Failed to create invoice";
+        setError(msg);
+        // SLICE 174 — blame the field the server named, and keep what was typed.
+        setFieldError(fieldErrorFrom(msg, INVOICE_FIELDS, INVOICE_ALIASES));
+        await load();
+        return;
       }
       setDealRoomId("");
       setComposerEmail("");
@@ -287,19 +305,27 @@ export default function InvoicesPage() {
       <Card id="invoice-composer">
         <h2 className="mb-3 text-lg font-semibold">Create invoice from a deal room</h2>
         <div className="flex flex-wrap items-end gap-3">
-          <select className="min-w-64 rounded border p-2" value={dealRoomId} onChange={(e) => setDealRoomId(e.target.value)}>
-            <option value="">Pick an active deal room</option>
-            {dealRooms.map((d) => (
-              <option key={d.id} value={d.id}>{d.name}</option>
-            ))}
-          </select>
-          <input
-            className="min-w-64 rounded border p-2"
-            type="email"
-            placeholder="Customer email (optional — defaults to the deal room's)"
-            value={composerEmail}
-            onChange={(e) => setComposerEmail(e.target.value)}
-          />
+          <div className="flex flex-col">
+            <select className="min-w-64 rounded border p-2" aria-label="Deal room to invoice" value={dealRoomId} onChange={(e) => setDealRoomId(e.target.value)} {...fieldErrorProps(fieldError, "dealRoomId", "invoice-dealRoomId-error")}>
+              <option value="">Pick an active deal room</option>
+              {dealRooms.map((d) => (
+                <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
+            </select>
+            <FieldErrorLine error={fieldError} field="dealRoomId" id="invoice-dealRoomId-error" />
+          </div>
+          <div className="flex flex-col">
+            <input
+              className="min-w-64 rounded border p-2"
+              type="email"
+              placeholder="Customer email (optional — defaults to the deal room's)"
+              aria-label="Customer email (optional)"
+              value={composerEmail}
+              onChange={(e) => setComposerEmail(e.target.value)}
+              {...fieldErrorProps(fieldError, "customerEmail", "invoice-customerEmail-error")}
+            />
+            <FieldErrorLine error={fieldError} field="customerEmail" id="invoice-customerEmail-error" />
+          </div>
           <Button onClick={createInvoice} disabled={creating || !dealRoomId}>
             {creating ? "Creating…" : "Create invoice"}
           </Button>

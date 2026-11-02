@@ -28,6 +28,7 @@ import { sweepExpiredOAuthStates, OAUTH_STATE_TTL_MS } from "./src/lib/oauth-sta
 import { acquireSingleInstanceOwnership, portAlreadyBound } from "./src/lib/single-instance";
 import { isOwnerUser, LEGACY_OWNER_EMAIL } from "./src/lib/user-roles";
 import { guardRequest, guardAccount, clearAccountBudget, peerAddressFrom, describeTrustedProxies } from "./src/lib/rate-limit";
+import { MAX_REQUEST_BODY_BYTES, requestTooLarge } from "./src/lib/request-body";
 import { readBackupStatus, countStoreEntries, readBackupFreshness, resolveStaleFactor } from "./src/lib/backup-status";
 import { runBackup } from "./scripts/lib/backup-core";
 import { makeEncryptHook } from "./scripts/lib/backup-crypto";
@@ -961,6 +962,16 @@ async function handleFetch(req: Request, server?: ServerPeerSource): Promise<Res
       header: (name) => req.headers.get(name),
     });
     if (blockedByRateLimit) return blockedByRateLimit;
+    // SLICE 174 — bounded bodies at the single choke point. A declared
+    // Content-Length over the cap is refused with a 413 BEFORE any lane reads
+    // the body; the JSON lanes also enforce the cap while streaming, so a
+    // chunked body with no declared length cannot slip past either. 16 MiB
+    // clears a 10 MiB upload lane (base64-inflated) and a 10k-row import with
+    // headroom, and is still a bound.
+    const declaredBodyLength = Number(req.headers.get("content-length") ?? "");
+    if (Number.isFinite(declaredBodyLength) && declaredBodyLength > MAX_REQUEST_BODY_BYTES) {
+      return requestTooLarge();
+    }
 
     // Health check endpoint (I7: never cached — uptime monitors must see live state)
     if (pathname === "/api/health" && req.method === "GET") {

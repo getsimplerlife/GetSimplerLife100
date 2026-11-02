@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { Card, Badge, Button } from "~/components/ui";
 import { PortalEmptyState, scrollToId } from "~/components/PortalEmptyState";
+import { FieldErrorLine } from "~/components/FieldError";
+import { fieldErrorFrom, fieldErrorProps, type FieldError } from "~/lib/form-field-error";
+
+/** The inputs this composer owns — only these can carry a field-level error. */
+const DEAL_ROOM_FIELDS = ["name", "customerName", "customerEmail", "description", "linkedProposalId", "linkedChecklistId"] as const;
 
 interface DealRoomSummary {
   id: string;
@@ -61,6 +66,8 @@ export default function DealRoomsPage() {
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState("");
   const [creating, setCreating] = useState(false);
+  // SLICE 174 — the server names the field it rejected; show it THERE.
+  const [fieldError, setFieldError] = useState<FieldError | null>(null);
   // create form
   const [name, setName] = useState("");
   const [customerName, setCustomerName] = useState("");
@@ -122,6 +129,8 @@ export default function DealRoomsPage() {
   async function createDealRoom() {
     setCreating(true);
     setFeedback("");
+    setError("");
+    setFieldError(null);
     try {
       const body: Record<string, unknown> = { name, customerName, customerEmail, description, linkedProposalId };
       if (linkedChecklistId.trim()) body.linkedChecklistId = linkedChecklistId.trim();
@@ -137,9 +146,16 @@ export default function DealRoomsPage() {
         setFeedback("Deal room created.");
       } else {
         const j = await res.json().catch(() => ({}));
-        setError(j.error || "Failed to create deal room");
+        const msg = j.error || "Failed to create deal room";
+        setError(msg);
+        // SLICE 174 — blame the field the server named, and keep every value the
+        // user typed. A rejected submit must never wipe the form.
+        setFieldError(fieldErrorFrom(msg, DEAL_ROOM_FIELDS));
+        await load();
+        return;
       }
       setName(""); setCustomerName(""); setCustomerEmail(""); setDescription(""); setLinkedProposalId(""); setLinkedChecklistId("");
+      setFieldError(null);
       await load();
     } finally {
       setCreating(false);
@@ -200,15 +216,27 @@ export default function DealRoomsPage() {
       <Card id="deal-room-composer">
         <h2 className="mb-3 text-lg font-semibold">New deal room</h2>
         <div className="grid gap-3 md:grid-cols-2">
-          <input className="rounded border p-2" placeholder="Deal room name" value={name} onChange={(e) => setName(e.target.value)} />
-          <input className="rounded border p-2" placeholder="Customer name" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
-          <input className="rounded border p-2" placeholder="Customer email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} />
-          <select className="rounded border p-2" value={linkedProposalId} onChange={(e) => setLinkedProposalId(e.target.value)}>
+          <div className="flex flex-col">
+            <input className="rounded border p-2" placeholder="Deal room name" aria-label="Deal room name" value={name} onChange={(e) => setName(e.target.value)} {...fieldErrorProps(fieldError, "name", "dealroom-name-error")} />
+            <FieldErrorLine error={fieldError} field="name" id="dealroom-name-error" />
+          </div>
+          <div className="flex flex-col">
+            <input className="rounded border p-2" placeholder="Customer name" aria-label="Customer name" value={customerName} onChange={(e) => setCustomerName(e.target.value)} {...fieldErrorProps(fieldError, "customerName", "dealroom-customerName-error")} />
+            <FieldErrorLine error={fieldError} field="customerName" id="dealroom-customerName-error" />
+          </div>
+          <div className="flex flex-col">
+            <input className="rounded border p-2" placeholder="Customer email" aria-label="Customer email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} {...fieldErrorProps(fieldError, "customerEmail", "dealroom-customerEmail-error")} />
+            <FieldErrorLine error={fieldError} field="customerEmail" id="dealroom-customerEmail-error" />
+          </div>
+          <div className="flex flex-col">
+          <select className="rounded border p-2" aria-label="Link a proposal (required)" value={linkedProposalId} onChange={(e) => setLinkedProposalId(e.target.value)} {...fieldErrorProps(fieldError, "linkedProposalId", "dealroom-linkedProposalId-error")}>
             <option value="">Link a proposal (required)</option>
             {proposals.map((p) => (
               <option key={p.id} value={p.id}>{p.title} ({p.status})</option>
             ))}
           </select>
+            <FieldErrorLine error={fieldError} field="linkedProposalId" id="dealroom-linkedProposalId-error" />
+          </div>
           <select className="rounded border p-2" value={linkedChecklistId} onChange={(e) => setLinkedChecklistId(e.target.value)}>
             <option value="">Link a checklist (optional)</option>
             {checklists.map((c) => (
@@ -216,7 +244,8 @@ export default function DealRoomsPage() {
             ))}
           </select>
         </div>
-        <input className="mt-3 w-full rounded border p-2" placeholder="Description (optional)" value={description} onChange={(e) => setDescription(e.target.value)} />
+        <input className="mt-3 w-full rounded border p-2" placeholder="Description (optional)" aria-label="Description (optional)" value={description} onChange={(e) => setDescription(e.target.value)} {...fieldErrorProps(fieldError, "description", "dealroom-description-error")} />
+        <FieldErrorLine error={fieldError} field="description" id="dealroom-description-error" />
         <Button className="mt-3" onClick={createDealRoom} disabled={creating || !name || !customerName || !customerEmail || !linkedProposalId}>
           {creating ? "Creating…" : "Create deal room"}
         </Button>
