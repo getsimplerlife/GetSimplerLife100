@@ -27,6 +27,7 @@ import {
   entryText,
   providerLabel,
   SEARCH_CATEGORIES,
+  SEARCH_SOURCES,
   type SearchInputs,
 } from "../lib/portal-search";
 
@@ -195,10 +196,15 @@ describe("endpoint discipline", () => {
     "/api/native/import/lanes",
   ];
 
-  it("lib fetches EXACTLY the ten real read endpoints (no new search endpoint)", () => {
-    const seen = new Set<string>();
-    for (const m of libSrc.matchAll(/fetch\("(\/api\/[^"]+)"\s*,/g)) seen.add(m[1]);
-    expect([...seen].sort()).toEqual([...ALLOWED].sort());
+  it("lib reads EXACTLY the ten real read endpoints (no new search endpoint)", () => {
+    // SLICE 183 — the lib no longer hand-rolls `fetch("…")`; it reads through
+    // `authedJson` from one exported list. The old guard matched the CALL SHAPE,
+    // so it went red when that shape changed — and it would have stayed green if
+    // an eleventh endpoint had been added through a helper. Pin the list the lib
+    // actually uses, and forbid a hand-rolled fetch outright so the two can
+    // never drift apart again.
+    expect([...SEARCH_SOURCES].sort()).toEqual([...ALLOWED].sort());
+    expect(libSrc).not.toMatch(/\bfetch\s*\(/);
   });
 
   it("no dead/stale/fabricated endpoint strings anywhere in the slice", () => {
