@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Card, Badge, Button } from "~/components/ui";
 import { PortalEmptyState, scrollToId } from "~/components/PortalEmptyState";
+import { surveySharePath } from "~/lib/share-links";
 
 // ── Types (Phase 3.4 native surveys — NPS / CSAT / scorecard / custom) ─────
 interface QuestionDraft {
@@ -134,7 +135,13 @@ export default function SurveysPage() {
     setStats(f.data.stats);
   };
 
-  const shareUrl = selected ? `${window.location.origin}/api/native/survey/share/${selected.slug}` : "";
+  // SLICE 181 — the share link must be the RESPONDENT PAGE
+  // (src/routes/surveys.share.$slug.tsx), not the JSON endpoint it used to point
+  // at (`/api/native/survey/share/<slug>`). A tenant copied that link and sent
+  // it to their client, who got `{"data":{...}}` and no way to answer.
+  // The path lives in src/lib/share-links.ts so this page, the respondent page
+  // and the route-existence test cannot drift apart.
+  const shareUrl = selected ? `${window.location.origin}${surveySharePath(selected.slug)}` : "";
 
   return (
     <div className="space-y-8">

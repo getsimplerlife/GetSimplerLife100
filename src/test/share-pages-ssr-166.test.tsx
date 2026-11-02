@@ -14,6 +14,7 @@ import {
 import ProposalSharePage from "~/lazy/proposals.share.$slug.page";
 import InvoiceSharePage from "~/lazy/invoices.share.$slug.page";
 import DealRoomSharePage from "~/lazy/deal-rooms.share.$slug.page";
+import SurveyRespondentPage from "~/lazy/surveys.share.$slug.page";
 
 /**
  * SLICE 166 — T2: the three public share pages must render on the server.
@@ -116,5 +117,16 @@ describe("SLICE 166 — public share pages render on the server (no window)", ()
       DealRoomSharePage as AnyComponent,
     );
     expect(html).toContain("Loading deal room");
+  });
+
+  // SLICE 181 — the survey respondent page is the same class of page: opened
+  // from a link by someone who is not a user, on a server that has no `window`.
+  it("surveys/share/$slug renders server-side", async () => {
+    const html = await renderRouteAt(
+      "/surveys/share/abcd1234",
+      "/surveys/share/$slug",
+      SurveyRespondentPage as AnyComponent,
+    );
+    expect(html).toContain("Loading survey");
   });
 });
