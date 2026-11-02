@@ -34,10 +34,12 @@ import { tenantSettingsPath } from "../lib/tenant-settings";
 import { insertProposal } from "../native/proposals/store";
 import { insertChecklist } from "../native/checklists/store";
 import { setNativeEventObserver } from "../native/webhooks/outbound";
+import { clearMailLane } from "./mail-lane-isolation";
 
 const T1 = "tenant-a@acme.test";
 const T2 = "tenant-b@acme.test";
 let dir: string;
+let restoreMailLane: () => void;
 let events: string[];
 
 function req(method: string, pathname: string, body?: unknown): Request {
@@ -164,6 +166,11 @@ const REJECT_500 = () =>
   }) as unknown as Response;
 
 beforeEach(() => {
+  // SLICE 170 — state the world: no mail lane unless the test configures one.
+  // The box exports a real Brevo SMTP lane (SMTP_HOST/USER/PASS); inheriting it
+  // made the "no lane configured" and "SendGrid is the lane" cases go red for a
+  // reason that had nothing to do with the code under test.
+  restoreMailLane = clearMailLane();
   dir = mkdtempSync(join(tmpdir(), "native-invoice-delivery-"));
   seedRefs(T1);
   seedRefs(T2);
@@ -178,6 +185,7 @@ afterEach(() => {
   setNativeEventObserver(null);
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
+  restoreMailLane();
   if (dir) rmSync(dir, { recursive: true, force: true });
 });
 

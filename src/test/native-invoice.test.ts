@@ -17,10 +17,12 @@ import { setAutonomyWorkflow, autonomyAuditPath } from "../lib/autonomy";
 import { listTenantActions } from "../lib/approval-queue";
 import { readJSON } from "../lib/data-store";
 import { listDocs } from "../native/documents/store";
+import { clearMailLane } from "./mail-lane-isolation";
 
 const T1 = "tenant-a@acme.test";
 const T2 = "tenant-b@acme.test";
 let dir: string;
+let restoreMailLane: () => void;
 
 function authedReq(method: string, pathname: string, body?: unknown): Request {
   const url = `http://native.test${pathname}`;
@@ -118,12 +120,17 @@ async function createAndApply(dealRoomId: string, tenantId = T1): Promise<string
 }
 
 beforeEach(() => {
+  // SLICE 170 — state the world: no mail lane unless the test configures one
+  // (this box exports a real Brevo SMTP lane; inheriting it made the
+  // "unconfigured lane" case go red for an unrelated reason).
+  restoreMailLane = clearMailLane();
   dir = mkdtempSync(join(tmpdir(), "native-invoice-"));
   seedRefs(T1);
   registerBuiltinNativeInvoiceEventTypes();
 });
 afterEach(() => {
   vi.unstubAllEnvs();
+  restoreMailLane();
   if (dir) rmSync(dir, { recursive: true, force: true });
 });
 

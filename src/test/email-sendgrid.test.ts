@@ -1,8 +1,15 @@
 /**
  * email-sendgrid.test.ts — #233: sendEmail() must use SendGrid (HTTP POST)
- * when SENDGRID_API_KEY is set, BEFORE falling back to SMTP/mock, so the
- * owner reconnect alerts actually deliver (live env has SENDGRID_API_KEY +
- * SMTP_FROM, no SMTP_*).
+ * when SENDGRID_API_KEY is set and there is NO SMTP lane, so the owner
+ * reconnect alerts actually deliver.
+ *
+ * SLICE 170 — this file states the world it assumes. It used to `delete` the
+ * SMTP_* variables, but `src/integrations/email.ts` read them once at import
+ * time, so on a box that exports a real Brevo lane (SMTP_HOST/USER/PASS) the
+ * module still had SMTP configured and these tests went red for a reason that
+ * had nothing to do with the code under test. The lane is now read per call,
+ * and this file blanks the whole lane in its own setup (`clearMailLane`).
+ * Precedence (SMTP wins) lives in `email-precedence-170.test.ts`.
  *
  * Fail-closed rule under test: ONLY HTTP 202 counts as delivered. Any other
  * status or a network throw returns { success: false, error } — never a
@@ -10,25 +17,25 @@
  */
 import { describe, it, expect, beforeEach, afterEach, afterAll, vi } from "vitest";
 import { sendEmail } from "../integrations/email";
+import { clearMailLane } from "./mail-lane-isolation";
 
 const originalFetch = globalThis.fetch;
 // Canonical env pattern (per repo convention, verify-infra.test.ts): snapshot
 // process.env once and restore it in afterAll — vitest env helpers like
 // vi.stubEnv/unstubAllEnvs are NOT available on Bun 1.3.14.
 const originalEnv = { ...process.env };
+let restoreMailLane: () => void;
 let fetchMock: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
-  // Isolate from any real env (SendGrid + SMTP unset → mock fallback by default).
-  delete process.env.SENDGRID_API_KEY;
-  delete process.env.SMTP_HOST;
-  delete process.env.SMTP_USER;
-  delete process.env.SMTP_PASS;
+  // State the world: NO mail lane on this machine, whatever the host exports.
+  restoreMailLane = clearMailLane();
   fetchMock = vi.fn();
   globalThis.fetch = fetchMock as unknown as typeof globalThis.fetch;
 });
 afterEach(() => {
   globalThis.fetch = originalFetch;
+  restoreMailLane();
   vi.restoreAllMocks();
 });
 afterAll(() => {
@@ -115,23 +122,15 @@ describe("sendEmail with SENDGRID_API_KEY set (no SMTP)", () => {
   });
 });
 
-describe("sendEmail precedence", () => {
-  it("uses SendGrid when BOTH SENDGRID_API_KEY and SMTP_* are set (SendGrid first)", async () => {
-    process.env.SENDGRID_API_KEY = "SG.test";
-    process.env.SMTP_HOST = "smtp.example.com";
-    process.env.SMTP_USER = "u";
-    process.env.SMTP_PASS = "p";
-    fetchMock.mockResolvedValue(fakeResponse(202));
-    const res = await sendEmail({ to: "owner@x.com", subject: "s", text: "b" });
-    expect(res.success).toBe(true);
-    expect(res.isMock).toBe(false);
-    expect(fetchMock).toHaveBeenCalledTimes(1); // SendGrid, not nodemailer
-  });
-
+describe("sendEmail with no lane configured", () => {
+  // SLICE 170: the old "SendGrid first" precedence test moved to
+  // email-precedence-170.test.ts and INVERTED — SMTP now wins, so SendGrid is
+  // only reached when there is no SMTP lane (or as the fall-through lane).
   it("falls back to mock when neither SendGrid nor SMTP is configured (no fetch, isMock:true)", async () => {
     const res = await sendEmail({ to: "owner@x.com", subject: "s", text: "b" });
     expect(res.success).toBe(true);
     expect(res.isMock).toBe(true);
+    expect(res.channel).toBe("none");
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
