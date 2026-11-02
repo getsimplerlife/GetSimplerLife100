@@ -250,7 +250,11 @@ describe("slice 180 — /api/admin/backup is POST-only and same-origin", () => {
     const block = src.slice(start, end);
     const methodGuard = block.indexOf('req.method !== "POST"');
     const originCheck = block.indexOf("checkRequestSameOrigin(");
-    const write = block.indexOf("runBackupSnapshot()");
+    // The real call is `await runBackupSnapshot();`. A bare `runBackupSnapshot()`
+    // ALSO matches the SLICE 180 comment that explains this very fix, which
+    // would place the "write" above the guards and make the ordering assertion
+    // vacuous. Match the call, not the prose about the call.
+    const write = block.indexOf("await runBackupSnapshot()");
     expect(methodGuard, "the backup route must check the verb").toBeGreaterThan(-1);
     expect(originCheck, "the backup route must check the origin").toBeGreaterThan(methodGuard);
     expect(write, "the write must come after both guards").toBeGreaterThan(originCheck);
