@@ -25,7 +25,7 @@
  * audit entries. Tenant isolation: every read/write is `{ [tenantId]: ... }`
  * keyed — a foreign table/row id → 404 (fail-closed).
  */
-import { MAX_TABLES_PER_TENANT, MAX_TABLE_NAME, MAX_TABLE_DESCRIPTION, MAX_IMPORT_ROWS, type TableDef } from "./types";
+import { MAX_TABLES_PER_TENANT, MAX_IMPORT_ROWS, type TableDef } from "./types";
 import {
   countRows,
   listTables,
