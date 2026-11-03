@@ -271,6 +271,16 @@ describe("cross-tenant isolation + autonomy + public share", () => {
     // Unknown slug → 404.
     expect((await handleNativeDealRoomShare(new Request("http://native.test/api/native/dealroom/share/dr_bogus123"), { dataDir: dir })).status).toBe(404);
     expect((await handleNativeDealRoomShare(new Request("http://native.test/api/native/dealroom/share/not-a-dr-slug"), { dataDir: dir })).status).toBe(404);
+    // SLICE 192a — a DRAFT room is not published: its slug refuses with a
+    // reason instead of serving the room (this used to be a 200).
+    const draftShare = await handleNativeDealRoomShare(new Request(`http://native.test/api/native/dealroom/share/${d.shareSlug}`), { dataDir: dir });
+    expect(draftShare.status).toBe(410);
+    expect(((await draftShare.json()) as { reason?: string }).reason).toBe("not-published");
+    // Publish it (draft → active through the gate), then the same link serves it.
+    const act = await route("POST", `/api/native/dealroom/${id}`, { status: "active" });
+    expect(act.status).toBe(202);
+    expect((await route("POST", `/api/native/dealroom/writes/${pendingFirst("update")!.id}/apply`)).status).toBe(200);
+    expect(getDealRoom(dir, T1, id)!.status).toBe("active");
     // GET renders the read-only view — deal metadata + proposal summary + checklist %.
     const res = await handleNativeDealRoomShare(new Request(`http://native.test/api/native/dealroom/share/${d.shareSlug}`), { dataDir: dir });
     expect(res.status).toBe(200);
@@ -278,7 +288,7 @@ describe("cross-tenant isolation + autonomy + public share", () => {
     // Safe surface: deal basics + proposal summary + checklist progress % — nothing internal.
     expect(body.name).toBe("Acme onboarding deal");
     expect(body.customerName).toBe("Acme Corp");
-    expect(body.status).toBe("draft");
+    expect(body.status).toBe("active");
     const prop = body.proposal as Record<string, unknown> | null;
     expect(prop).not.toBeNull();
     expect((prop as Record<string, unknown>).title).toBe("Onboarding retainer");
@@ -302,7 +312,7 @@ describe("cross-tenant isolation + autonomy + public share", () => {
     const again = await handleNativeDealRoomShare(new Request(`http://native.test/api/native/dealroom/share/${d.shareSlug}`), { dataDir: dir });
     expect(again.status).toBe(200);
     expect(((await again.json()).data as Record<string, unknown>).name).toBe("Acme onboarding deal");
-    // Record untouched after share requests.
-    expect(getDealRoom(dir, T1, id)!.version).toBe(1);
+    // Record untouched after share requests (v2 = the activation above).
+    expect(getDealRoom(dir, T1, id)!.version).toBe(2);
   });
 });

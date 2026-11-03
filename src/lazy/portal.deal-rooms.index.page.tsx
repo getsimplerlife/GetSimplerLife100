@@ -17,6 +17,10 @@ interface DealRoomSummary {
   linkedChecklistId: string | null;
   status: string;
   shareSlug: string | null;
+  /** SLICE 192a — the server's own publish answer (`isDealRoomPubliclyShareable`).
+   *  A link printed for a room the server refuses to open is a lie, so the portal
+   *  shows the link only when this is true. */
+  publiclyShareable: boolean;
   version: number;
   updatedAt: string;
 }
@@ -304,9 +308,13 @@ export default function DealRoomsPage() {
                       proposal {d.linkedProposalId}
                       {d.linkedChecklistId ? ` · checklist ${d.linkedChecklistId}` : ""}
                     </p>
-                    {d.shareSlug ? (
+                    {d.publiclyShareable && d.shareSlug ? (
                       <p className="text-xs text-sky-600">Customer view: /deal-rooms/share/{d.shareSlug}</p>
-                    ) : null}
+                    ) : (
+                      <p className="text-xs text-stone-400">
+                        Customer link is not live — a deal room is readable by the customer only while it is active.
+                      </p>
+                    )}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {d.status === "draft" && <Button onClick={() => activate(d.id)}>Activate</Button>}

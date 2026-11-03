@@ -298,11 +298,37 @@ describe("cross-tenant isolation + autonomy", () => {
   });
 
   it("public deal-room share view exposes a SAFE invoice summary (number/amount/status only — no internal ids)", async () => {
+    // SLICE 192a — the room must be PUBLISHED (active) for its link to open at
+    // all, and the invoice must be ISSUED for it to appear: a draft invoice is
+    // filtered out by the invoice module's own predicate. A send with no email
+    // lane configured lands in `failed` — issued, and therefore shareable.
+    vi.stubEnv("SENDGRID_API_KEY", "");
     const dealRoomId = await createDealRoom();
-    await createAndApply(dealRoomId);
+    const { handleNativeDealRoomsAuthed } = await import("../native/dealroom/router");
+    const activate = await handleNativeDealRoomsAuthed(new Request(`http://native.test/api/native/dealroom/${dealRoomId}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ status: "active" }),
+    }), { userEmail: T1, dataDir: dir });
+    expect(activate.status).toBe(202);
+    const { listPendingWrites: listRoomWrites, getDealRoom, listDealRooms } = await import("../native/dealroom/store");
+    const roomWrite = listRoomWrites(dir, T1).find((w) => w.status === "pending" && w.op === "update")!;
+    await handleNativeDealRoomsAuthed(new Request(`http://native.test/api/native/dealroom/writes/${roomWrite.id}/apply`, { method: "POST" }), { userEmail: T1, dataDir: dir });
+    expect(getDealRoom(dir, T1, dealRoomId)!.status).toBe("active");
+    const id = await createAndApply(dealRoomId);
+    // Still a draft here — the room's link must NOT show it.
+    expect(getInvoice(dir, T1, id)!.status).toBe("draft");
     const { handleNativeDealRoomShare } = await import("../native/dealroom/router");
-    const { getDealRoom, listDealRooms } = await import("../native/dealroom/store");
     const room = listDealRooms(dir, T1)[0];
+    const draftView = await handleNativeDealRoomShare(new Request(`http://native.test/api/native/dealroom/share/${room.shareSlug}`, { method: "GET" }), { dataDir: dir });
+    expect(draftView.status).toBe(200);
+    expect(((await draftView.json()) as { data: { invoices: unknown[] } }).data.invoices.length).toBe(0);
+    // Issue it (generate → send; no lane → `failed`, which is an issued invoice).
+    expect((await route("POST", `/api/native/invoice/${id}/generate`)).status).toBe(202);
+    await route("POST", `/api/native/invoice/writes/${pendingFirst("generate")!.id}/apply`);
+    expect((await route("POST", `/api/native/invoice/${id}/send`)).status).toBe(202);
+    await route("POST", `/api/native/invoice/writes/${pendingFirst("send")!.id}/apply`);
+    expect(getInvoice(dir, T1, id)!.status).toBe("failed");
     // Invoice visible on the PUBLIC share (no auth) — safe summary only.
     const res = await handleNativeDealRoomShare(new Request(`http://native.test/api/native/dealroom/share/${room.shareSlug}`, { method: "GET" }), { dataDir: dir });
     expect(res.status).toBe(200);
@@ -312,7 +338,7 @@ describe("cross-tenant isolation + autonomy", () => {
     expect(inv.invoiceNumber).toBe("INV-0001");
     expect(inv.currency).toBe("USD");
     expect(inv.amountDueCents).toBe(500000 + 2 * 125050);
-    expect(inv.status).toBe("draft");
+    expect(inv.status).toBe("failed");
     // NO internal ids / internals may leak through the public view.
     const raw = JSON.stringify(body.data);
     expect(raw).not.toMatch(/inv_[A-Za-z0-9_-]+/); // no inv_ record ids

@@ -28,10 +28,15 @@ import {
 } from "./store";
 import { submitDealRoomWrite, executePendingDealRoomWrite, noteOwnerDecision, createDealRoomMutationFromInput } from "./gate";
 import { isDealRoomId } from "./validate";
+import { isDealRoomPubliclyShareable, type DealRoomStatus } from "./types";
 import { getProposal } from "../proposals/store";
 import { formatCurrencyTotal } from "../proposals/gate";
 import { getChecklist } from "../checklists/store";
 import { listInvoices } from "../invoice/store";
+// SLICE 192a — the invoice module's OWN publish predicate. Not a copy of the
+// status list: the invoice lane refuses to serve a draft, and the deal room must
+// refuse to hand one over for exactly the same reasons (see PUBLIC_INVOICE_STATUS).
+import { isInvoicePubliclyShareable } from "../invoice/router";
 
 import { readBodyCapped } from "../../lib/request-body";
 export interface NativeDealRoomsCtx {
@@ -72,12 +77,15 @@ function summary(d: {
   description: string;
   linkedProposalId: string;
   linkedChecklistId: string | null;
-  status: string;
+  status: DealRoomStatus;
   shareSlug: string | null;
   version: number;
   updatedAt: string;
 }) {
-  return d;
+  // SLICE 192a — the tenant surface states the SAME publish answer the public
+  // lane enforces, from the same predicate, so the portal can never print a
+  // customer link that the server would refuse to open.
+  return { ...d, publiclyShareable: isDealRoomPubliclyShareable(d.status) };
 }
 
 /**
@@ -125,8 +133,13 @@ function publicShareView(dataDir: string, tenantId: string, d: {
     // Invoices for this deal room — SAFE SUMMARY ONLY (invoice number, currency,
     // amount in cents, status). No internal inv_ record ids, no docId, no audit —
     // resolved strictly inside the slug→tenant context (no cross-tenant leak).
+    //
+    // SLICE 192a — and ONLY what the client may see. A `draft` invoice has been
+    // issued to nobody; the invoice share lane refuses to serve it, and this
+    // lane used to hand its number, currency and amount over anyway. The filter
+    // is the invoice module's own predicate, not a second copy of the list.
     invoices: listInvoices(dataDir, tenantId)
-      .filter((i) => i.linkedDealRoomId === d.id)
+      .filter((i) => i.linkedDealRoomId === d.id && isInvoicePubliclyShareable(i.status))
       .map((i) => ({
         invoiceNumber: i.invoiceNumber,
         currency: i.currency,
@@ -240,6 +253,20 @@ async function handleAuthedAsync(req: Request, ctx: NativeDealRoomsCtx): Promise
     if (res.pending) return Response.json({ data: { status: "pending", approvalActionId: res.approvalActionId } }, { status: 202 });
     return gateErrorStatus(res.error);
   }
+  // SLICE 192a — POST /:id/share/revoke kills the customer link: the current
+  // slug is retired and a fresh one is minted, so the URL the client holds
+  // stops resolving. Same gated-write path as every other deal-room mutation.
+  if (verb === "share" && seg[2] === "revoke" && seg.length === 3) {
+    if (req.method !== "POST") return Response.json({ error: "Method not allowed" }, { status: 405 });
+    const res = submitDealRoomWrite(dataDir, tenantId, "revokeShare", { dealRoomId, via: "portal" }, tenantId);
+    if (res.applied) {
+      return Response.json({
+        data: { status: "applied", dealRoomId: res.dealRoom.id, shareSlug: res.dealRoom.shareSlug, autonomy: res.autonomy },
+      });
+    }
+    if (res.pending) return Response.json({ data: { status: "pending", approvalActionId: res.approvalActionId } }, { status: 202 });
+    return gateErrorStatus(res.error);
+  }
   return json404("Unknown native dealroom endpoint");
 }
 
@@ -252,16 +279,43 @@ export function handleNativeDealRoomsAuthed(req: Request, ctx: NativeDealRoomsCt
 }
 
 // ── PUBLIC share (read-only client view) ────────────────────────────────────
+/**
+ * SLICE 192a — the publish rule, enforced on the lane that actually serves the
+ * link. Before this, a slug minted at `draft` resolved immediately and an
+ * archived room stayed readable forever: there was no state in which the link
+ * was not live.
+ *
+ * The two refusals stay DISTINCT so the page can say something true:
+ *   - unknown / stale / revoked slug → 404 "Unknown deal room share link";
+ *   - a room that exists but is not published → 410 with the reason.
+ * Neither is a 200 with a blank page, and neither is a 500.
+ */
 async function handleShareAsync(req: Request, ctx: NativeDealRoomsPublicCtx): Promise<Response> {
   const url = new URL(req.url);
   const seg = url.pathname.replace(/^\/api\/native\/dealroom\/share\/?/, "").split("/").filter(Boolean);
   if (seg.length !== 1 || !/^dr_[A-Za-z0-9_-]+$/.test(seg[0])) return json404("Unknown deal room share link");
   const slug = seg[0];
+  // Read-only lane: the method check comes before any lookup, so a POST to a
+  // link answers 405 whatever state the room is in.
+  if (req.method !== "GET") return json405();
   const tenantId = lookupDealRoomShareTenant(ctx.dataDir, slug);
   if (!tenantId) return json404("Unknown deal room share link");
   const dealRoom = getDealRoomBySlug(ctx.dataDir, tenantId, slug);
   if (!dealRoom) return json404("Unknown deal room share link"); // slug stale → fail-closed
-  if (req.method !== "GET") return json405();
+  if (!isDealRoomPubliclyShareable(dealRoom.status)) {
+    // 410 Gone: the link is not a wrong address, it is a room the sender has
+    // not published (or has finished). The page says exactly that.
+    return Response.json(
+      {
+        error:
+          dealRoom.status === "archived"
+            ? "This deal room is no longer available."
+            : "This deal room has not been published yet.",
+        reason: dealRoom.status === "archived" ? "archived" : "not-published",
+      },
+      { status: 410 },
+    );
+  }
   return Response.json({ data: publicShareView(ctx.dataDir, tenantId, dealRoom) });
 }
 function json405(): Response {

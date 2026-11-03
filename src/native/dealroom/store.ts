@@ -161,6 +161,33 @@ export function applyDealRoomMutation(
   return updated;
 }
 
+/**
+ * SLICE 192a — replace a room's public slug (the revoke executor only).
+ *
+ * Deliberately NOT part of `DealRoomMutation`: a slug is a bearer credential,
+ * not a field a tenant edits, and routing it through the update validator would
+ * let an update payload carry one. The caller unregisters the OLD slug first
+ * (see gate.ts) so a crash mid-way can only leave a dead link, never a live one.
+ */
+export function setDealRoomShareSlug(
+  dataDir: string,
+  tenantId: string,
+  dealRoomId: string,
+  shareSlug: string,
+  actor: string,
+): DealRoomRecord | null {
+  const state = loadState(dataDir);
+  const tenant = state[tenantId];
+  const idx = tenant?.dealRooms.findIndex((d) => d.id === dealRoomId) ?? -1;
+  if (!tenant || idx < 0) return null;
+  const d = tenant.dealRooms[idx];
+  const now = new Date().toISOString();
+  const updated: DealRoomRecord = { ...d, shareSlug, version: d.version + 1, updatedAt: now, updatedBy: actor };
+  tenant.dealRooms[idx] = updated;
+  saveState(dataDir, state);
+  return updated;
+}
+
 // ── Pending writes (durable mirror of the approval card) ────────────────────
 export function listPendingWrites(dataDir: string, tenantId: string): PendingDealRoomWrite[] {
   return loadState(dataDir)[tenantId]?.pendingWrites ?? [];
