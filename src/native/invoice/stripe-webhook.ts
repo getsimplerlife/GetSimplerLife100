@@ -32,12 +32,12 @@
  * platform's own Stripe account, and no log, audit line or response containing a
  * secret, a signature or a full provider payload — ids and amounts only.
  */
-import { readJSON, writeJSON, resolveDataDir } from "../../lib/data-store";
+import { readJSON, writeJSON, resolveDataDir, StoreUnreadableError } from "../../lib/data-store";
 import { verifyStripeSignature } from "../../lib/stripe-webhook";
 import { publishWebhookEvent, flushTenantDeliveries } from "../webhooks/outbound";
 import { loadTenantWebhookSecret } from "./stripe-connect";
 import { isWebhookTokenShape, lookupTenantByWebhookToken } from "./webhook-token";
-import { getInvoiceByNumber, applyInvoiceMutation, appendAudit } from "./store";
+import { getInvoiceByNumber, applyInvoiceMutation, appendAudit, invoiceStoreUnreadable } from "./store";
 import { sanitizeProviderMessage } from "./stripe-checkout";
 import {
   MAX_PROCESSED_WEBHOOK_EVENTS,
@@ -192,6 +192,13 @@ export function applyCheckoutSessionEvent(
   // resolve, which is the cross-tenant guard for this lane.
   const invoice: InvoiceRecord | null = getInvoiceByNumber(dataDir, tenantId, reference);
   if (!invoice) {
+    // SLICE 193 — a null lookup means one of two very different things. If the
+    // store itself does not parse, every number fails to resolve and answering
+    // "no invoice exists in this workspace" would blame the customer's reference
+    // for our own unreadable file. That is not a mismatch — it is unanswerable.
+    if (invoiceStoreUnreadable(dataDir)) {
+      throw new StoreUnreadableError(`${dataDir}/native_invoices.json`);
+    }
     return recordMismatch(
       dataDir,
       tenantId,
@@ -483,6 +490,37 @@ async function handleVerified(req: Request, ctx: InvoiceWebhookCtx): Promise<Res
 
   if (wasEventProcessed(ctx.dataDir, eventId)) {
     return jsonResponse(200, { received: true, outcome: "duplicate" });
+  }
+
+  // SLICE 193 — THE MONEY LANE. If the invoice store exists and does not parse,
+  // every lookup in it answers null, and this lane used to answer 200 "no
+  // invoice INV-0001 exists in this workspace": Stripe never retries, the invoice
+  // never reads paid, and the audit blames the customer's reference. An
+  // unreadable store is OUR failure — answer 5xx so the provider retries, say so
+  // in those words, make no claim about the customer, and do NOT remember the
+  // event as handled.
+  const isMoneyEvent =
+    type === "checkout.session.completed" ||
+    type === "checkout.session.async_payment_succeeded" ||
+    type === "checkout.session.expired" ||
+    type === "payment_intent.payment_failed";
+  if (isMoneyEvent && invoiceStoreUnreadable(ctx.dataDir)) {
+    try {
+      appendAudit(ctx.dataDir, {
+        tenantId,
+        actor: WEBHOOK_ACTOR,
+        action: "native.invoice.webhook.unreadable",
+        invoiceId: "",
+        detail: `Verified event ${eventId} was NOT applied: this workspace could not read its own invoice records. The provider is told to retry and no claim is made about the customer's reference.`,
+      });
+    } catch {
+      // The audit store may be the unreadable one. Never mask the 5xx.
+    }
+    return jsonResponse(503, {
+      received: false,
+      error:
+        "This workspace could not read its own invoice records, so the event was not applied. Nothing was marked paid; retry once the store is readable.",
+    });
   }
 
   let outcome: WebhookOutcome;
