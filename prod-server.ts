@@ -3718,6 +3718,166 @@ function applyStripeLifecycleEvent(input: {
         return Response.json({ error: "not found" }, { status: 404 });
       }
 
+      // ── /api/data/clients + /api/data/projects (SLICE 189) ──────────
+      // The client + project spine: the customer entity everything else is
+      // meant to hang off. Both tables ride the SAME generic tenant lane
+      // (/api/data/:table) rather than a new router — but they need a real
+      // WRITE path and a LOUD read, so they are dispatched here, ahead of the
+      // generic file fallback. Merge-on-write per tenant, exactly like
+      // /api/data/reports (slice 184): the live store is re-read, THIS tenant's
+      // rows are appended, and no other tenant's rows are touched or dropped.
+      {
+        const spinePath = subPath.replace(/\/$/, "");
+        const spineSlash = spinePath.indexOf("/");
+        const spineTable = spineSlash < 0 ? spinePath : spinePath.slice(0, spineSlash);
+        const spineRowId = spineSlash < 0 ? "" : spinePath.slice(spineSlash + 1);
+
+        if (spineTable === "clients" || spineTable === "projects") {
+          const spineLabel = spineTable === "clients" ? "client" : "project";
+          const spineFile = join(DATA_DIR, `tenant_${spineTable}.json`);
+
+          // readJSON is LENIENT by design: a missing file is `{}`, and a file
+          // that exists but does not parse is logged, counted and ALSO `{}`.
+          // That is right for stores with many readers, but wrong here — a
+          // corrupt clients store would answer an empty list and the page would
+          // print "No clients yet" over real data loss, and a POST would then
+          // overwrite the corrupt file and destroy every tenant's rows in it.
+          // So both stores are parsed once here, and a store that exists but
+          // does not parse answers 500 (slice 183's rule) instead of an empty
+          // workspace, on the READ and on the WRITE.
+          const storeDoesNotParse = (file: string): boolean => {
+            if (!existsSync(file)) return false;
+            try {
+              const raw = readFileSync(file, "utf-8");
+              if (!raw.trim()) return false;
+              JSON.parse(raw);
+              return false;
+            } catch {
+              return true;
+            }
+          };
+          // This tenant's rows out of a `{ email: rows[] }` store. A bare
+          // non-empty array is the legacy deployment-wide shape: refused, never
+          // rewritten (rewriting it would drop the rows it holds).
+          const readTenantRows = (file: string): any[] => {
+            const live = readJSON(file);
+            if (Array.isArray(live)) {
+              if (live.length > 0) throw new Error("legacy-shape");
+              return [];
+            }
+            const store = live && typeof live === "object" ? live : {};
+            const mine = store[user.email];
+            if (mine === undefined) return [];
+            if (!Array.isArray(mine)) throw new Error("bad-shape");
+            return mine;
+          };
+          const readFailure = (e: any) => {
+            const legacy = String(e?.message || "").includes("legacy-shape");
+            console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
+            return legacy
+              ? Response.json(
+                  { error: `This workspace's ${spineLabel} store is in a legacy shape — ${spineLabel}s are not being read or saved yet.` },
+                  { status: 409 },
+                )
+              : Response.json({ error: "Couldn't read this workspace store." }, { status: 500 });
+          };
+
+          if (req.method === "GET") {
+            if (storeDoesNotParse(spineFile)) {
+              console.log("[SSR] FAILED url=" + url + " err=store does not parse");
+              return Response.json({ error: "Couldn't read this workspace store." }, { status: 500 });
+            }
+            let rows: any[];
+            try {
+              rows = readTenantRows(spineFile);
+            } catch (e: any) {
+              return readFailure(e);
+            }
+            if (spineRowId) {
+              const row = rows.find((r: any) => r && r.id === spineRowId);
+              if (!row) {
+                return Response.json({ error: `That ${spineLabel} does not exist in this workspace.` }, { status: 404 });
+              }
+              return Response.json({ data: row });
+            }
+            if (spineTable === "projects") {
+              const wantedClient = new URL(url).searchParams.get("clientId");
+              if (wantedClient) rows = rows.filter((r: any) => r && r.clientId === wantedClient);
+            }
+            return Response.json({ data: rows });
+          }
+
+          if (req.method !== "POST") {
+            return Response.json({ error: "Method not allowed" }, { status: 405 });
+          }
+
+          const { parseClientInput, parseProjectInput } = await import("./src/lib/clients");
+          let posted: any;
+          try {
+            posted = await req.json();
+          } catch {
+            return Response.json({ error: "Invalid request" }, { status: 400 });
+          }
+
+          if (storeDoesNotParse(spineFile)) {
+            console.log("[SSR] FAILED url=" + url + " err=store does not parse");
+            return Response.json(
+              { error: `This workspace's ${spineLabel} store could not be read, so nothing was saved.` },
+              { status: 500 },
+            );
+          }
+
+          try {
+            const live = readJSON(spineFile);
+            if (Array.isArray(live) && live.length > 0) {
+              return readFailure(new Error("legacy-shape"));
+            }
+            const store: Record<string, any> = live && typeof live === "object" && !Array.isArray(live) ? live : {};
+            const mine = Array.isArray(store[user.email]) ? store[user.email] : [];
+            const now = new Date().toISOString();
+
+            if (spineTable === "clients") {
+              const result = parseClientInput(posted);
+              if (!result.value) return Response.json({ error: result.error }, { status: 400 });
+              const row = { id: crypto.randomUUID(), ...result.value, createdAt: now, updatedAt: now };
+              store[user.email] = [...mine, row];
+              writeJSON(spineFile, store);
+              return Response.json({ data: row }, { status: 201 });
+            }
+
+            const result = parseProjectInput(posted);
+            if (!result.value) return Response.json({ error: result.error }, { status: 400 });
+            // A project hangs off a client, so the client must exist in THIS
+            // tenant before the project is written. Checked against the
+            // tenant's own rows — another tenant's client id is not a client.
+            const clientsFile = join(DATA_DIR, "tenant_clients.json");
+            if (storeDoesNotParse(clientsFile)) {
+              console.log("[SSR] FAILED url=" + url + " err=clients store does not parse");
+              return Response.json(
+                { error: "This workspace's client store could not be read, so the project was not saved." },
+                { status: 500 },
+              );
+            }
+            let clientRows: any[];
+            try {
+              clientRows = readTenantRows(clientsFile);
+            } catch (e: any) {
+              return readFailure(e);
+            }
+            if (!clientRows.some((c: any) => c && c.id === result.value!.clientId)) {
+              return Response.json({ error: "That client does not exist in this workspace." }, { status: 400 });
+            }
+            const row = { id: crypto.randomUUID(), ...result.value, createdAt: now, updatedAt: now };
+            store[user.email] = [...mine, row];
+            writeJSON(spineFile, store);
+            return Response.json({ data: row }, { status: 201 });
+          } catch (e: any) {
+            console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
+            return Response.json({ error: `Couldn't save this ${spineLabel}.` }, { status: 500 });
+          }
+        }
+      }
+
       // Generic: return data from matching JSON file
       const fileName = `${subPath.replace(/\/$/, "")}.json`;
       const filePath = join(DATA_DIR, fileName);

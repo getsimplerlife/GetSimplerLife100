@@ -11,6 +11,8 @@ import type { SVGProps } from "react";
  */
 export type PortalIconName =
   | "dashboard"
+  | "clients"
+  | "projects"
   | "proposals"
   | "invoices"
   | "checklists"
@@ -48,6 +50,9 @@ export type NoticeIconName = "approval" | "complete" | "error" | "info";
 
 const NAV_PATHS: Record<PortalIconName, string> = {
   dashboard: "M3 12l9-9 9 9M5 10v10a1 1 0 001 1h4v-6h4v6h4a1 1 0 001-1V10",
+  clients:
+    "M16 21v-2a4 4 0 00-4-4H7a4 4 0 00-4 4v2M9.5 11a4 4 0 100-8 4 4 0 000 8zm10.5 10v-2a4 4 0 00-3-3.87M17 3.13a4 4 0 010 7.75",
+  projects: "M4 6a1 1 0 011-1h4l2 2h8a1 1 0 011 1v10a1 1 0 01-1 1H5a1 1 0 01-1-1V6zM8 13l2 2 4-4",
   proposals: "M7 3h7l5 5v11a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2zm4 5h6M9 12h6M9 16h5",
   invoices: "M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2V3zm4 5h6M9 12h6",
   checklists: "M9 12l2 2 4-4m5 2a9 9 0 11-18 0 9 9 0 0118 0z",
