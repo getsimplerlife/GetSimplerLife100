@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Card, Badge, Button, Input } from "~/components/ui";
+import { authedJson } from "~/lib/portal-primitives";
 
 
 
@@ -22,6 +23,14 @@ function AdminCredentialsPage() {
   const [providers, setProviders] = useState<Provider[]>([]);
   const [configuredMap, setConfiguredMap] = useState<Record<string, ConfiguredCredential>>({});
   const [loading, setLoading] = useState(true);
+  // SLICE 190 — "nothing is configured" is a claim, and this page used to make
+  // it about a read that never answered. `configuredCount` is derived from
+  // `providers` + `configuredMap`; when either read failed both stayed empty,
+  // the owner was told NOTHING was configured, and the natural response is to
+  // retype secrets that are already stored. `loaded` is true only when BOTH
+  // reads came back 2xx, and no count is printed without it.
+  const [loaded, setLoaded] = useState(false);
+  const [readError, setReadError] = useState("");
   const [searchTerm, setSearchBar] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [filterConfigured, setFilterConfigured] = useState<"all" | "configured" | "unconfigured">("all");
@@ -36,37 +45,35 @@ function AdminCredentialsPage() {
   const [showSecret, setShowSecret] = useState(false);
 
   const fetchData = async () => {
-    try {
-      // 1. Fetch all providers from registry
-      const providersRes = await fetch("/api/integrations/providers");
-      let providerList: Provider[] = [];
-      if (providersRes.ok) {
-        // /api/integrations/providers returns { data: [...] } (registry), NOT a
-        // bare array — unwrap defensively so a {data:[...]} shape never reaches
-        // .map(). (configured credentials below use /api/admin/credentials,
-        // which returns a bare array, and are handled separately.)
-        const json = await providersRes.json();
-        providerList = (Array.isArray(json) ? json : (json.data || [])).filter(
-          (p: any) => p && p.id && typeof p.category === "string"
-        );
-        setProviders(providerList);
-      }
-
-      // 2. Fetch configured credentials
-      const credsRes = await fetch("/api/admin/credentials");
-      if (credsRes.ok) {
-        const credsList: ConfiguredCredential[] = await credsRes.json();
-        const map: Record<string, ConfiguredCredential> = {};
-        for (const cred of credsList) {
-          map[cred.providerId] = cred;
-        }
-        setConfiguredMap(map);
-      }
-    } catch (err) {
-      console.error("Failed to load OAuth credentials page data:", err);
-    } finally {
-      setLoading(false);
+    // 1. The provider registry and 2. the configured-credential list are read
+    // INDEPENDENTLY and judged independently: either one failing means the
+    // page cannot honestly say what is configured, so `loaded` stays false and
+    // the failure names the endpoint that did not answer.
+    const [providersRes, credsRes] = await Promise.all([
+      authedJson<unknown>("/api/integrations/providers"),
+      authedJson<ConfiguredCredential[]>("/api/admin/credentials"),
+    ]);
+    const failures: string[] = [];
+    if (providersRes.ok) {
+      const json = providersRes.data;
+      const list = (Array.isArray(json) ? json : ((json as { data?: unknown })?.data ?? [])) as Provider[];
+      setProviders(
+        list.filter((p: any) => p && p.id && typeof p.category === "string"),
+      );
+    } else {
+      failures.push(`providers (${providersRes.error})`);
     }
+    if (credsRes.ok) {
+      const credsList = Array.isArray(credsRes.data) ? credsRes.data : [];
+      const map: Record<string, ConfiguredCredential> = {};
+      for (const cred of credsList) map[cred.providerId] = cred;
+      setConfiguredMap(map);
+    } else {
+      failures.push(`configured credentials (${credsRes.error})`);
+    }
+    setReadError(failures.join(" · "));
+    setLoaded(failures.length === 0);
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -188,6 +195,38 @@ function AdminCredentialsPage() {
           <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-stone-400 font-bold">Loading system OAuth credentials...</p>
         </div>
+      </div>
+    );
+  }
+
+  // SLICE 190 — no count is printed about a list nobody read. "Configured: 0"
+  // over a failed read is the sentence that makes an owner retype secrets that
+  // are already stored, so the metrics banner and the provider grid are not
+  // rendered at all until both reads answer.
+  if (!loaded) {
+    return (
+      <div className="space-y-6 text-white">
+        <div>
+          <h1 className="text-3xl font-black flex items-center gap-3">🔑 OAuth Client Credentials</h1>
+        </div>
+        <Card className="bg-stone-900/60 border border-rose-900/60 p-8 rounded-2xl space-y-4">
+          <span className="text-3xl">⚠️</span>
+          <h2 className="text-lg font-black">Your credentials could not be read</h2>
+          <p className="text-sm text-stone-400 max-w-xl leading-relaxed">
+            {readError || "The read did not answer."} Nothing is claimed about what is configured — this is not a list
+            of zero credentials, it is an unread one. Do not retype a client ID or secret until this page can read what
+            is already stored.
+          </p>
+          <Button
+            onClick={() => {
+              setLoading(true);
+              void fetchData();
+            }}
+            className="bg-stone-800 hover:bg-stone-700 text-stone-200 border border-stone-700 font-bold text-xs py-2 px-4 rounded-xl"
+          >
+            Retry →
+          </Button>
+        </Card>
       </div>
     );
   }

@@ -11,6 +11,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { Card, CardBody, Badge, Button } from "~/components/ui";
+import { authedJson } from "~/lib/portal-primitives";
 
 interface ConnectionView {
   id: string;
@@ -68,24 +69,34 @@ export default function PortalSecureTransportIndexPage() {
   const [runs, setRuns] = useState<RunView[]>([]);
   const [writes, setWrites] = useState<PendingWriteView[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
+  // SLICE 190 — five silent `if (x.ok)` reads. A failed read rendered an EMPTY
+  // SFTP connection list, an EMPTY rule list, an EMPTY PGP key ring and an
+  // EMPTY run ledger with no statement at all: the page looked like a freshly
+  // configured workspace rather than an unreadable one.
+  const [loaded, setLoaded] = useState(false);
+  const [readError, setReadError] = useState("");
 
   const load = useCallback(async () => {
-    try {
-      const [c, r, k, n, w] = await Promise.all([
-        fetch("/api/native/transport/connections", { headers: { accept: "application/json" } }),
-        fetch("/api/native/transport/rules", { headers: { accept: "application/json" } }),
-        fetch("/api/native/transport/keys", { headers: { accept: "application/json" } }),
-        fetch("/api/native/transport/runs", { headers: { accept: "application/json" } }),
-        fetch("/api/native/transport/writes", { headers: { accept: "application/json" } }),
-      ]);
-      if (c.ok) setConnections(((await c.json()) as { data: { connections: ConnectionView[] } }).data.connections ?? []);
-      if (r.ok) setRules(((await r.json()) as { data: { rules: RuleView[] } }).data.rules ?? []);
-      if (k.ok) setKeys(((await k.json()) as { data: { keys: KeyView[] } }).data.keys ?? []);
-      if (n.ok) setRuns(((await n.json()) as { data: { runs: RunView[] } }).data.runs ?? []);
-      if (w.ok) setWrites(((await w.json()) as { data: { writes: PendingWriteView[] } }).data.writes ?? []);
-    } catch {
-      setNotice("Could not reach the secure transport service right now.");
+    const [c, r, k, n, w] = await Promise.all([
+      authedJson<{ connections: ConnectionView[] }>("/api/native/transport/connections"),
+      authedJson<{ rules: RuleView[] }>("/api/native/transport/rules"),
+      authedJson<{ keys: KeyView[] }>("/api/native/transport/keys"),
+      authedJson<{ runs: RunView[] }>("/api/native/transport/runs"),
+      authedJson<{ writes: PendingWriteView[] }>("/api/native/transport/writes"),
+    ]);
+    const errors = [c, r, k, n, w].flatMap((x) => (x.ok ? [] : [x.error]));
+    if (errors.length > 0) {
+      setReadError(errors.join(" · "));
+      setLoaded(false);
+      return;
     }
+    if (c.ok) setConnections(c.data?.connections ?? []);
+    if (r.ok) setRules(r.data?.rules ?? []);
+    if (k.ok) setKeys(k.data?.keys ?? []);
+    if (n.ok) setRuns(n.data?.runs ?? []);
+    if (w.ok) setWrites(w.data?.writes ?? []);
+    setReadError("");
+    setLoaded(true);
   }, []);
   useEffect(() => {
     void load();
@@ -171,6 +182,12 @@ export default function PortalSecureTransportIndexPage() {
       </div>
 
       {notice && <div className="rounded-md bg-amber-950/50 border border-amber-700/40 px-3 py-2 text-sm">{notice}</div>}
+      {readError && (
+        <div role="alert" className="rounded-md border border-rose-700/50 bg-rose-950/50 px-3 py-2 text-sm text-rose-200">
+          Could not read this workspace&apos;s secure transport — {readError}. The connection list, rules, key ring and
+          run ledger below are unread, not empty.
+        </div>
+      )}
 
       {writes.length > 0 && (
         <Card>
@@ -198,14 +215,18 @@ export default function PortalSecureTransportIndexPage() {
           <CardBody>
             <h2 className="font-medium mb-1">SFTP connections</h2>
             <p className="text-xs text-slate-400 mb-2">Credentials are encrypted at rest and never returned to this page.</p>
-            <ul className="space-y-1 text-sm mb-3">
-              {connections.map((c) => (
-                <li key={c.id} className="flex justify-between">
-                  <span>{c.name} — {c.host}:{c.port} ({c.username})</span>
-                  <span className="text-slate-400">{c.failClosed ? "fail-closed" : "config"} · pool {c.poolMax}</span>
-                </li>
-              ))}
-            </ul>
+            {loaded ? (
+              <ul className="space-y-1 text-sm mb-3">
+                {connections.map((c) => (
+                  <li key={c.id} className="flex justify-between">
+                    <span>{c.name} — {c.host}:{c.port} ({c.username})</span>
+                    <span className="text-slate-400">{c.failClosed ? "fail-closed" : "config"} · pool {c.poolMax}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mb-3 text-sm text-rose-300">The SFTP connection list could not be read.</p>
+            )}
             <form onSubmit={connForm} className="grid gap-2 text-sm">
               <input name="name" placeholder="Name" required className="w-full rounded border border-slate-700 bg-slate-900 px-2 py-1" />
               <div className="grid grid-cols-3 gap-2">
@@ -230,14 +251,18 @@ export default function PortalSecureTransportIndexPage() {
           <CardBody>
             <h2 className="font-medium mb-1">Transfer rules</h2>
             <p className="text-xs text-slate-400 mb-2">Pattern matching selects files by name/extension; triggers monitor for new files or content change.</p>
-            <ul className="space-y-1 text-sm mb-3">
-              {rules.map((r) => (
-                <li key={r.id} className="flex justify-between">
-                  <span>{r.name} — {r.direction} {r.pattern}</span>
-                  <span className="text-slate-400">{r.remoteDir} · ≤{r.fileSizeCapMb}MB</span>
-                </li>
-              ))}
-            </ul>
+            {loaded ? (
+              <ul className="space-y-1 text-sm mb-3">
+                {rules.map((r) => (
+                  <li key={r.id} className="flex justify-between">
+                    <span>{r.name} — {r.direction} {r.pattern}</span>
+                    <span className="text-slate-400">{r.remoteDir} · ≤{r.fileSizeCapMb}MB</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mb-3 text-sm text-rose-300">The transfer rule list could not be read.</p>
+            )}
             <form onSubmit={ruleForm} className="grid gap-2 text-sm">
               <input name="name" placeholder="Rule name" required className="w-full rounded border border-slate-700 bg-slate-900 px-2 py-1" />
               <div className="grid grid-cols-2 gap-2">
@@ -270,14 +295,18 @@ export default function PortalSecureTransportIndexPage() {
           <CardBody>
             <h2 className="font-medium mb-1">PGP key ring</h2>
             <p className="text-xs text-slate-400 mb-2">Armored key material is stored encrypted at rest; only the fingerprint is shown here.</p>
-            <ul className="space-y-1 text-sm mb-3">
-              {keys.map((k) => (
-                <li key={k.id} className="flex justify-between">
-                  <span>{k.label} ({k.kind})</span>
-                  <span className="font-mono text-xs text-slate-400">{k.fingerprint.slice(0, 24)}…</span>
-                </li>
-              ))}
-            </ul>
+            {loaded ? (
+              <ul className="space-y-1 text-sm mb-3">
+                {keys.map((k) => (
+                  <li key={k.id} className="flex justify-between">
+                    <span>{k.label} ({k.kind})</span>
+                    <span className="font-mono text-xs text-slate-400">{k.fingerprint.slice(0, 24)}…</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mb-3 text-sm text-rose-300">The PGP key ring could not be read.</p>
+            )}
             <form onSubmit={keyForm} className="grid gap-2 text-sm">
               <div className="grid grid-cols-2 gap-2">
                 <input name="label" placeholder="Key label" required className="rounded border border-slate-700 bg-slate-900 px-2 py-1" />
@@ -299,14 +328,18 @@ export default function PortalSecureTransportIndexPage() {
           <CardBody>
             <h2 className="font-medium mb-1">Transfer runs</h2>
             <p className="text-xs text-slate-400 mb-2">Records the approved transfer request and the files its pattern matched — a request record, not a claim that files moved.</p>
-            <ul className="space-y-1 text-sm mb-3">
-              {runs.map((r) => (
-                <li key={r.id} className="flex justify-between">
-                  <span>rule {r.ruleId} — {r.matchedFiles.length} matched / {r.unmatchedFiles.length} skipped</span>
-                  <span className="text-slate-400">{r.createdAt.slice(0, 16).replace("T", " ")}</span>
-                </li>
-              ))}
-            </ul>
+            {loaded ? (
+              <ul className="space-y-1 text-sm mb-3">
+                {runs.map((r) => (
+                  <li key={r.id} className="flex justify-between">
+                    <span>rule {r.ruleId} — {r.matchedFiles.length} matched / {r.unmatchedFiles.length} skipped</span>
+                    <span className="text-slate-400">{r.createdAt.slice(0, 16).replace("T", " ")}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mb-3 text-sm text-rose-300">The transfer run ledger could not be read.</p>
+            )}
             <form onSubmit={runForm} className="grid gap-2 text-sm">
               <select name="ruleId" required className="rounded border border-slate-700 bg-slate-900 px-2 py-1">
                 <option value="">Rule…</option>

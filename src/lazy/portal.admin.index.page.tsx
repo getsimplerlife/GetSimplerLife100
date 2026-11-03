@@ -39,8 +39,16 @@ const msOf = (value: string): number => {
 
 function AdminIndex() {
   const [data, setData] = useState<{ users: any[]; purchases: any[]; auditLogs: any[]; subscriptions: any[] } | null>(null);
-  const [notices, setNotices] = useState<{ purchases?: string; audit?: string }>({});
+  // SLICE 190 — the CLIENTS read was the silent one: `usersRes.ok ? … : {data:[]}`
+  // made a failed `/api/admin/users` render "Total Clients 0" and "No clients
+  // yet" — the owner told their business has no customers. Purchases and
+  // activity already had notices (slice 180); the client list and the
+  // subscription state did not.
+  const [notices, setNotices] = useState<{ purchases?: string; audit?: string; users?: string; subscriptions?: string }>({});
   const [loading, setLoading] = useState(true);
+  // True only when the whole read settled; combined with `notices.users` it is
+  // the one thing that separates "no clients" from "the client list is unread".
+  const [loaded, setLoaded] = useState(false);
   const [search, setSearch] = useState("");
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
 
@@ -71,12 +79,18 @@ function AdminIndex() {
         const logsJson = logsRes.ok ? await logsRes.json() : { data: [] };
         const subsJson = subsRes.ok ? await subsRes.json() : { data: [] };
         setNotices({
+          users: usersRes.ok
+            ? undefined
+            : `Couldn't load clients (HTTP ${usersRes.status}) — the client list is unavailable, not empty.`,
           purchases: purchasesRes.ok
             ? undefined
             : `Couldn't load purchases (HTTP ${purchasesRes.status}) — the purchase panel is unavailable, not empty.`,
           audit: logsRes.ok
             ? undefined
             : `Couldn't load activity (HTTP ${logsRes.status}) — the activity panel is unavailable, not empty.`,
+          subscriptions: subsRes.ok
+            ? undefined
+            : `Couldn't load subscription state (HTTP ${subsRes.status}) — nothing is claimed about cancelled subscriptions or failing cards.`,
         });
         setData({
           users: usersJson.data || [],
@@ -84,8 +98,10 @@ function AdminIndex() {
           auditLogs: logsJson.data || [],
           subscriptions: subsJson.data || [],
         });
+        setLoaded(true);
       } catch (e) {
         console.error("Failed to load admin data:", e);
+        setLoaded(false);
       }
       setLoading(false);
     })();
@@ -112,6 +128,10 @@ function AdminIndex() {
   }
 
   const { users, purchases, auditLogs } = data;
+  // SLICE 190 — the client list is only "empty" when the read that fills it
+  // answered. `clientsLoaded` is that conjunction, and every count and empty
+  // state about clients is gated on it.
+  const clientsLoaded = loaded && !notices.users;
   const subscriptions: any[] = data.subscriptions || [];
   const attention = subscriptions.filter((s) => s && (s.access === "revoked" || s.access === "at_risk"));
 
@@ -173,7 +193,7 @@ function AdminIndex() {
       {/* Stats Row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-stone-900 p-5 rounded-2xl border border-stone-800">
-          <div className="text-3xl font-black text-white">{totalUsers}</div>
+          <div className="text-3xl font-black text-white">{clientsLoaded ? totalUsers : "—"}</div>
           <div className="text-xs text-stone-400 font-bold mt-1 uppercase tracking-wider">Total Clients</div>
         </div>
         <div className="bg-stone-900 p-5 rounded-2xl border border-stone-800">
@@ -190,6 +210,11 @@ function AdminIndex() {
         </div>
       </div>
 
+      {notices.users && (
+        <div role="alert" className="rounded-2xl border border-rose-900/60 bg-rose-950/30 p-4 text-xs font-bold text-rose-300">
+          {notices.users}
+        </div>
+      )}
       {notices.purchases && (
         <div className="rounded-2xl border border-rose-900/60 bg-rose-950/30 p-4 text-xs font-bold text-rose-300">
           {notices.purchases}
@@ -207,10 +232,12 @@ function AdminIndex() {
         <div className="p-5 border-b border-stone-800 flex items-center justify-between">
           <h2 className="text-sm font-bold text-stone-400 uppercase tracking-wider">Subscription State</h2>
           <span className="text-[10px] font-black text-stone-500 uppercase tracking-wider">
-            {subscriptions.length} on file
+            {notices.subscriptions ? "—" : `${subscriptions.length} on file`}
           </span>
         </div>
-        {attention.length === 0 ? (
+        {notices.subscriptions ? (
+          <div className="p-5 text-rose-300 text-xs font-bold">{notices.subscriptions}</div>
+        ) : attention.length === 0 ? (
           <div className="p-5 text-stone-500 text-xs">
             No cancelled subscriptions and no failing cards on file.
           </div>
@@ -265,7 +292,13 @@ function AdminIndex() {
           </div>
           <div className="divide-y divide-stone-800/60">
             {filteredUsers.length === 0 && (
-              users.length === 0 ? (
+              !clientsLoaded ? (
+                <PortalEmptyState
+                  compact
+                  title="The client list could not be read"
+                  body="This is not a list of zero clients — it is an unread one. Reload to try again."
+                />
+              ) : users.length === 0 ? (
                 <PortalEmptyState
                   compact
                   title="No clients yet"

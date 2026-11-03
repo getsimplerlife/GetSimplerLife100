@@ -53,6 +53,11 @@ export default function AutomationsPage() {
   const [ent, setEnt] = useState<{ tier: string; label: string; controlPlane: boolean } | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  // SLICE 190 — `load()` threw into `setError`, so the failure WAS stated; the
+  // page then printed "No rules yet.", "None pending." and "No runs recorded."
+  // underneath it. A stated error and an affirmative empty state contradict
+  // each other, and the empty state is the one a reader believes.
+  const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [name, setName] = useState("");
   const [triggerKind, setTriggerKind] = useState<"event" | "schedule">("event");
@@ -86,8 +91,10 @@ export default function AutomationsPage() {
       setRuns(rn.data.runs);
       setWrites(w.data.writes);
       setError("");
+      setLoaded(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+      setLoaded(false);
     }
   }, []);
   useEffect(() => { void load(); }, [load]);
@@ -366,7 +373,11 @@ export default function AutomationsPage() {
 
       <Card><CardBody>
         <h2 className="font-semibold mb-2">Rules</h2>
-        {rules.length === 0 && <p className="text-sm text-stone-400">No rules yet.</p>}
+        {!loaded ? (
+          <p className="text-sm text-stone-400">The rule list could not be read — see the message above.</p>
+        ) : rules.length === 0 ? (
+          <p className="text-sm text-stone-400">No rules yet.</p>
+        ) : null}
         <div className="space-y-2">
           {rules.map((r) => (
             <div key={r.id} className="flex items-center justify-between gap-3 rounded-xl border border-stone-800 px-4 py-3">
@@ -394,7 +405,11 @@ export default function AutomationsPage() {
 
       <Card><CardBody>
         <h2 className="font-semibold mb-2">Pending automation approvals</h2>
-        {writes.length === 0 && <p className="text-sm text-stone-400">None pending.</p>}
+        {!loaded ? (
+          <p className="text-sm text-stone-400">The pending-approval list could not be read — see the message above.</p>
+        ) : writes.length === 0 ? (
+          <p className="text-sm text-stone-400">None pending.</p>
+        ) : null}
         {writes.map((w) => (
           <div key={w.id} className="flex items-center justify-between gap-3 rounded-xl border border-stone-800 px-4 py-2 mb-2">
             <span className="text-sm">{w.op} <span className="text-stone-400">by {w.requestedBy}</span></span>
@@ -408,7 +423,11 @@ export default function AutomationsPage() {
 
       <Card><CardBody>
         <h2 className="font-semibold mb-2">Run ledger (durable attempts)</h2>
-        {runs.length === 0 && <p className="text-sm text-stone-400">No runs recorded.</p>}
+        {!loaded ? (
+          <p className="text-sm text-stone-400">The run ledger could not be read — see the message above.</p>
+        ) : runs.length === 0 ? (
+          <p className="text-sm text-stone-400">No runs recorded.</p>
+        ) : null}
         <div className="space-y-1">
           {runs.slice(0, 20).map((r) => (
             <div key={r.id} className="text-xs flex items-center gap-2 border-b border-stone-800 py-1">

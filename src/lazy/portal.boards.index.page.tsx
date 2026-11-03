@@ -59,6 +59,11 @@ export default function BoardsPage() {
   const [writes, setWrites] = useState<PendingWrite[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  // SLICE 190 — `api()` throws with the server's own sentence, so the failure
+  // WAS stated; what was missing is the other half: `boards` stayed [] and the
+  // page printed "No boards yet" underneath the error. This is one of the two
+  // genuinely A-tier capabilities on the platform, and it had no test at all.
+  const [loaded, setLoaded] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -92,7 +97,11 @@ export default function BoardsPage() {
   useEffect(() => {
     setLoading(true);
     Promise.all([refreshBoards(), refreshWrites()])
-      .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+      .then(() => setLoaded(true))
+      .catch((e) => {
+        setError(e instanceof Error ? e.message : String(e));
+        setLoaded(false);
+      })
       .finally(() => setLoading(false));
   }, [refreshBoards, refreshWrites]);
 
@@ -232,11 +241,18 @@ export default function BoardsPage() {
             </Card>
           ))}
           {boards.length === 0 && (
-            <PortalEmptyState
-              compact
-              title="No boards yet"
-              body="Create your first board with New board above — new boards ride the approval queue."
-            />
+            loaded ? (
+              <PortalEmptyState
+                compact
+                title="No boards yet"
+                body="Create your first board with New board above — new boards ride the approval queue."
+              />
+            ) : (
+              <div className="rounded border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200">
+                The board list could not be read, so this is not an empty workspace — it is an unread one. Nothing was
+                changed. Reload to try again.
+              </div>
+            )
           )}
         </div>
 

@@ -9,6 +9,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { Card, CardBody, Badge, Button } from "~/components/ui";
+import { authedJson } from "~/lib/portal-primitives";
 
 interface CampaignView {
   id: string;
@@ -58,21 +59,33 @@ export default function PortalAccessReviewIndexPage() {
   const [writes, setWrites] = useState<PendingWriteView[]>([]);
   const [selectedCampaign, setSelectedCampaign] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // SLICE 190 — three silent `if (x.ok)` reads plus a fourth for the selected
+  // campaign's items. A failed read printed "No campaigns yet.", "No
+  // attestations recorded yet.", "No pending items." and "Nothing awaiting
+  // approval." — four affirmative statements about a store nobody read, on the
+  // one page whose whole job is proving that attestations happened.
+  const [loaded, setLoaded] = useState(false);
+  const [readError, setReadError] = useState("");
+  const [itemsError, setItemsError] = useState("");
   const [form, setForm] = useState({ name: "", description: "", cadence: "on-demand", memberTableId: "", workflowIds: "", reviewerEmails: "" });
 
   const load = useCallback(async () => {
-    try {
-      const [c, e, w] = await Promise.all([
-        fetch("/api/native/accessreview/campaigns", { headers: { accept: "application/json" } }),
-        fetch("/api/native/accessreview/evidence", { headers: { accept: "application/json" } }),
-        fetch("/api/native/accessreview/writes", { headers: { accept: "application/json" } }),
-      ]);
-      if (c.ok) setCampaigns(((await c.json()) as { data: { campaigns: CampaignView[] } }).data.campaigns ?? []);
-      if (e.ok) setEvidence(((await e.json()) as { data: { evidence: EvidenceView[] } }).data.evidence ?? []);
-      if (w.ok) setWrites(((await w.json()) as { data: { writes: PendingWriteView[] } }).data.writes ?? []);
-    } catch {
-      setNotice("Could not reach the access-review service right now.");
+    const [c, e, w] = await Promise.all([
+      authedJson<{ campaigns: CampaignView[] }>("/api/native/accessreview/campaigns"),
+      authedJson<{ evidence: EvidenceView[] }>("/api/native/accessreview/evidence"),
+      authedJson<{ writes: PendingWriteView[] }>("/api/native/accessreview/writes"),
+    ]);
+    const errors = [c, e, w].flatMap((x) => (x.ok ? [] : [x.error]));
+    if (errors.length > 0) {
+      setReadError(errors.join(" · "));
+      setLoaded(false);
+      return;
     }
+    if (c.ok) setCampaigns(c.data?.campaigns ?? []);
+    if (e.ok) setEvidence(e.data?.evidence ?? []);
+    if (w.ok) setWrites(w.data?.writes ?? []);
+    setReadError("");
+    setLoaded(true);
   }, []);
   useEffect(() => {
     void load();
@@ -81,13 +94,28 @@ export default function PortalAccessReviewIndexPage() {
   useEffect(() => {
     if (!selectedCampaign) {
       setItems([]);
+      setItemsError("");
       return;
     }
-    void fetch(`/api/native/accessreview/campaigns/${selectedCampaign}/items`, { headers: { accept: "application/json" } })
-      .then(async (r) => {
-        if (r.ok) setItems(((await r.json()) as { data: { items: ItemView[] } }).data.items ?? []);
-      })
-      .catch(() => setNotice("Could not load review items."));
+    // SLICE 190 — `if (r.ok)` with no else: a failed item read rendered
+    // "No pending items." for a campaign that may have plenty.
+    let cancelled = false;
+    void (async () => {
+      const res = await authedJson<{ items: ItemView[] }>(
+        `/api/native/accessreview/campaigns/${selectedCampaign}/items`,
+      );
+      if (cancelled) return;
+      if (!res.ok) {
+        setItems([]);
+        setItemsError(res.error);
+        return;
+      }
+      setItemsError("");
+      setItems(res.data?.items ?? []);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [selectedCampaign]);
 
   async function submit(path: string, body: unknown): Promise<void> {
@@ -136,6 +164,12 @@ export default function PortalAccessReviewIndexPage() {
       </div>
 
       {notice && <div className="mb-4 rounded-md bg-blue-50 px-4 py-3 text-sm text-blue-800">{notice}</div>}
+      {readError && (
+        <div role="alert" className="mb-4 rounded-md border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+          Could not read this workspace&apos;s access reviews — {readError}. Campaigns, the evidence log and pending
+          approvals below are unread, not empty.
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
@@ -191,7 +225,11 @@ export default function PortalAccessReviewIndexPage() {
         <Card>
           <CardBody>
             <h2 className="mb-3 text-lg font-medium">Campaigns</h2>
-            {campaigns.length === 0 && <p className="text-sm text-stone-500">No campaigns yet.</p>}
+            {!loaded ? (
+              <p className="text-sm text-stone-500">The campaign list could not be read — see the message above.</p>
+            ) : campaigns.length === 0 ? (
+              <p className="text-sm text-stone-500">No campaigns yet.</p>
+            ) : null}
             <div className="space-y-3">
               {campaigns.map((c) => (
                 <div key={c.id} className="rounded-md border p-3">
@@ -251,9 +289,13 @@ export default function PortalAccessReviewIndexPage() {
         <Card className="mt-6">
           <CardBody>
             <h2 className="mb-3 text-lg font-medium">Review items — pending attestation</h2>
-            {items.filter((i) => i.status === "pending").length === 0 && (
+            {itemsError ? (
+              <p role="alert" className="text-sm text-rose-600">
+                The review items could not be read — {itemsError}. This is not an empty campaign.
+              </p>
+            ) : items.filter((i) => i.status === "pending").length === 0 ? (
               <p className="text-sm text-stone-500">No pending items.</p>
-            )}
+            ) : null}
             <div className="space-y-3">
               {items
                 .filter((i) => i.status === "pending")
@@ -288,7 +330,11 @@ export default function PortalAccessReviewIndexPage() {
       <Card className="mt-6">
         <CardBody>
           <h2 className="mb-3 text-lg font-medium">Evidence log</h2>
-          {evidence.length === 0 && <p className="text-sm text-stone-500">No attestations recorded yet.</p>}
+          {!loaded ? (
+            <p className="text-sm text-stone-500">The evidence log could not be read — see the message above.</p>
+          ) : evidence.length === 0 ? (
+            <p className="text-sm text-stone-500">No attestations recorded yet.</p>
+          ) : null}
           <div className="max-h-72 space-y-2 overflow-y-auto">
             {evidence.map((e) => (
               <div key={e.id} className="rounded-md border p-2 text-sm">
@@ -305,7 +351,11 @@ export default function PortalAccessReviewIndexPage() {
       <Card className="mt-6">
         <CardBody>
           <h2 className="mb-3 text-lg font-medium">Pending approvals</h2>
-          {writes.length === 0 && <p className="text-sm text-stone-500">Nothing awaiting approval.</p>}
+          {!loaded ? (
+            <p className="text-sm text-stone-500">The pending-approval list could not be read — see the message above.</p>
+          ) : writes.length === 0 ? (
+            <p className="text-sm text-stone-500">Nothing awaiting approval.</p>
+          ) : null}
           <div className="space-y-2">
             {writes.map((w) => (
               <div key={w.id} className="flex items-center justify-between rounded-md border p-2 text-sm">
