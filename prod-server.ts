@@ -27,6 +27,8 @@ import { startHealthHeartbeat, probeProvider } from "./src/lib/connection-health
 import { sweepExpiredOAuthStates, OAUTH_STATE_TTL_MS } from "./src/lib/oauth-state-sweeper";
 import { acquireSingleInstanceOwnership, portAlreadyBound } from "./src/lib/single-instance";
 import { isOwnerUser, LEGACY_OWNER_EMAIL } from "./src/lib/user-roles";
+import { replyToAddress } from "./src/integrations/email";
+import { buildLeadEmail } from "./src/lib/lead-email";
 import { guardRequest, guardAccount, clearAccountBudget, peerAddressFrom, describeTrustedProxies } from "./src/lib/rate-limit";
 import { MAX_REQUEST_BODY_BYTES, requestTooLarge } from "./src/lib/request-body";
 import { readBackupStatus, countStoreEntries, readBackupFreshness, resolveStaleFactor } from "./src/lib/backup-status";
@@ -2916,23 +2918,39 @@ async function handleFetch(req: Request, server?: ServerPeerSource): Promise<Res
           connectionRequirements: connectionRequirements[p.id] || null,
         }));
         return Response.json({ data: augmented, total, page, limit });
-      } catch (e: any) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
-        return Response.json({ data: [], total: 0 });
+      } catch (e: any) {
+        // SLICE 185: this used to answer 200 `{ data: [], total: 0 }`, which
+        // made /portal/integrations/providers say "No Providers Match Your
+        // Query ... try checking spelling" over a catalog nobody had read.
+        // A failed read is a failed read: 500 + a sentence a tenant can act on,
+        // with the detail in the server log line above only.
+        console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e)));
+        return Response.json({ error: "The platform catalog could not be loaded. Please try again." }, { status: 500 });
       }
     }
 
     if (pathname === "/api/tools/analyze" && req.method === "POST") {
-      // Cleanup (c): the AI-employee catalog is retired — no per-agent
-      // pricing or payment links remain. The analysis stays a plain
-      // automation suggestion carrying no roster fields.
-      try {
-        return Response.json({ analysis: {
-          topMatch: "Automation AI",
+      // SLICE 185: this route used to answer EVERY caller with
+      // `savingsSummary: "20 hours/week"` — a statistic nobody measured,
+      // invented for whoever happened to post here. It reads no description
+      // and runs no matcher, so it has no analysis to report and must not
+      // quote a number, a match or an industry.
+      //
+      // The real engine is `analyzeDescription()` in
+      // src/tools/automation-analyzer.ts, which derives matches and an
+      // ESTIMATE from the caller's own description; it is what
+      // /tools/can-we-automate-this runs in the browser. Until this route is
+      // wired to it, it says plainly that it measured nothing.
+      return Response.json({
+        analysis: {
+          topMatch: null,
           allMatches: [],
-          industryGuess: "General Business",
-          savingsSummary: "20 hours/week"
-        }});
-      } catch (e: any) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e))); return Response.json({ analysis: { topMatch: "Automation AI", allMatches: [] } }); }
+          industryGuess: null,
+          savingsSummary: null,
+          savingsBasis: "none",
+          note: "No analysis was performed — this endpoint does not read your description, so it reports no matches and no savings figure.",
+        },
+      });
     }
 // ── Email Sender (SendGrid) ───────────────────────────────────────────────────
 async function sendEmailSMTP(opts: { to: string; subject: string; body: string }): Promise<{ sent: boolean; error?: string }> {
@@ -2953,6 +2971,10 @@ async function sendEmailSMTP(opts: { to: string; subject: string; body: string }
       body: JSON.stringify({
         personalizations: [{ to: [{ email: opts.to }] }],
         from: { email: emailFrom },
+        // Slice 185: replies must reach a human. `simplerlife100.com` has no MX,
+        // so without this header a reply to a lead email bounces. The address
+        // comes from the ONE definition in src/integrations/email.ts.
+        reply_to: { email: replyToAddress() },
         subject: opts.subject,
         content: [{ type: "text/plain", value: opts.body }],
       }),
@@ -3250,72 +3272,6 @@ function applyStripeLifecycleEvent(input: {
   };
 }
 
-function buildLeadEmail(email: string, toolName: string, result: any): { subject: string; body: string; matchedAgents: { name: string }[]; bestPlan: string; planLink: string } {
-  // Cleanup (c): the AI-employee roster is retired — "matched" are now the
-  // automation/workflow names the tool itself returned (no per-agent pricing,
-  // payment links, or catalog lookups).
-  const matched: { name: string }[] = [];
-  const seen = new Set<string>();
-  const addName = (n: string) => {
-    if (n && !seen.has(n)) { seen.add(n); matched.push({ name: n }); }
-  };
-
-  let processInfo = "";
-
-  if (toolName === "can-we-automate-this" && result.topMatch) {
-    addName(typeof result.topMatch === "string" ? result.topMatch : (result.topMatch.name || ""));
-    processInfo = (result.processDescription || "Automation workflow");
-    if (result.savingsSummary) processInfo += "\nSavings: " + result.savingsSummary;
-  } else if (toolName === "assessment" && result.topWorkflows) {
-    const wfs = Array.isArray(result.topWorkflows) ? result.topWorkflows.slice(0, 5) : [];
-    for (const wf of wfs) {
-      const wfName = typeof wf === 'string' ? wf : (wf.name || '');
-      addName(wfName);
-    }
-  } else if (toolName === "ai-advisor" && result.messages) {
-    // No catalog matcher remains — the advisor surfaces nothing sku-like;
-    // its suggestions appear under the can-we-automate/assessment tools.
-  }
-
-  // Plan recommendation: locked platform tiers (owner 09-27) — one platform,
-  // every capability in every tier. Tiers differ by scale, governance, support.
-  const count = matched.length;
-  let bestPlan: string, planLink: string, planPrice: string, planIncludes: string;
-  if (count <= 3) {
-    bestPlan = "Starter"; planLink = "/pricing"; planPrice = "$199/mo + $500 onboarding";
-    planIncludes = "100% of native capabilities (records, forms, docs/e-sign, webhooks, booking, boards, AI extraction, surveys/NPS, transforms/EDI, dashboards/BI, automations) • Standard support";
-  } else if (count <= 7) {
-    bestPlan = "Growth"; planLink = "/pricing"; planPrice = "$599/mo + $1,500 onboarding";
-    planIncludes = "100% of native capabilities • Higher scale limits • Multi-step approvals + autonomy allow-lists • Priority support";
-  } else {
-    bestPlan = "Enterprise"; planLink = "/pricing"; planPrice = "$1,499/mo (onboarding included)";
-    planIncludes = "100% of native capabilities • Highest scale limits • Advanced governance + allow-lists • Dedicated support • Custom on-demand vendor-API builds (SAP/SuiteScript)";
-  }
-
-  // Build email body
-  const L = "\n";
-  let body = "New Lead Captured from Simple Life 100" + L + L;
-  body += "Email: " + email + L;
-  body += "Tool: " + toolName + L;
-  if (processInfo) body += L + processInfo + L;
-  body += L;
-
-  // Suggested automations (capability names only — no per-agent pricing, no SKU links)
-  if (matched.length) {
-    body += "SUGGESTED AUTOMATIONS:" + L;
-    for (const a of matched) body += "  \u2022 " + a.name + L;
-    body += L;
-  }
-  // Recommended platform tier
-  body += "═══════════════════════════════════" + L;
-  body += "RECOMMENDED PLAN: " + bestPlan.toUpperCase() + " — " + planPrice + L;
-  body += "═══════════════════════════════════" + L + L;
-  body += planIncludes + L;
-  body += L + "VIEW PRICING: https://simplerlife100.ctonew.app" + planLink + L;
-
-  const subject = "New Lead: " + email + " - " + toolName;
-  return { subject, body, matchedAgents: matched, bestPlan, planLink };
-}
     if (pathname === "/api/tools/capture-lead" && req.method === "POST") {
       try {
         const body = await req.json();
