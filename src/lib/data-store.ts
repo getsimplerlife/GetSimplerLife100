@@ -239,6 +239,58 @@ function recordStoreReadError(file: string, err: unknown): StoreReadError {
   return record;
 }
 
+/**
+ * SLICE 193 — A STORE THAT EXISTS AND DOES NOT PARSE IS NEVER OVERWRITTEN.
+ *
+ * `readJSON` answers `{}` for a corrupt file so one bad store cannot break every
+ * reader. The cost of that leniency was invisible until the lenient-store audit
+ * counted it: nearly every store is read-whole → mutate → write-whole, so the
+ * first save after a corrupt read replaced recoverable bytes with a small, valid,
+ * WRONG document — and two boot seeders did it with no user action at all
+ * (`integrations.json` became `[]`, `users.json` became one seeded admin).
+ *
+ * The guard is here, in the one write helper, rather than at 69 call sites: a
+ * write to a store that is currently unreadable is REFUSED and the bytes on disk
+ * are left exactly as they are. A caller that is genuinely repairing the file
+ * says so explicitly (`{ repair: true }`) and is then trusted with the write.
+ */
+export class StoreUnreadableError extends Error {
+  readonly file: string;
+  constructor(file: string) {
+    super(`refusing to write ${file}: the file exists and does not parse`);
+    this.name = "StoreUnreadableError";
+    this.file = file;
+  }
+}
+
+/**
+ * True when `path` exists on disk and its bytes are not valid JSON. A file we
+ * cannot even read counts as unreadable — refusing the write is the safe side.
+ * A MISSING file is not unreadable: creating a store is still allowed.
+ */
+export function isStoreUnreadable(path: string): boolean {
+  if (!existsSync(path)) return false;
+  try {
+    JSON.parse(readFileSync(path, "utf-8"));
+    return false;
+  } catch {
+    return true;
+  }
+}
+
+/** One loud line per unreadable store, attributable and greppable. */
+export function reportUnreadableStore(file: string, where: string): void {
+  console.error(
+    JSON.stringify({
+      event: "store_unreadable_refused",
+      severity: "error",
+      where,
+      file,
+      detail: "the file exists and does not parse; it was left untouched and no write was performed",
+    }),
+  );
+}
+
 /** Read a JSON file; a MISSING file reads as {} (never throws). */
 export function readJSON(path: string): any {
   const key = durableKeyFor(path);
@@ -293,7 +345,17 @@ export async function readJSONLive(path: string): Promise<any> {
  * A failed write THROWS. It never reports success and never leaves the original
  * document damaged.
  */
-export function writeJSON(path: string, data: any): void {
+export function writeJSON(path: string, data: any, opts?: { repair?: boolean }): void {
+  // SLICE 193 — THE GUARD. A store that exists and does not parse is never
+  // overwritten by a normal save: doing so replaces recoverable bytes with a
+  // small valid wrong document, which is how a corrupt store became a destroyed
+  // one. Only an explicit repair (`{ repair: true }`, used by the seeders that
+  // CREATE a missing file and by nothing that mutates a live one) may write over
+  // unparseable bytes.
+  if (!opts?.repair && isStoreUnreadable(path)) {
+    reportUnreadableStore(path, "writeJSON");
+    throw new StoreUnreadableError(path);
+  }
   // SLICE 177 — seal before ANY byte is persisted or mirrored: the credential
   // store's client secrets and per-tenant tokens go to disk, to the durable
   // store and to the off-box backup as AES-256-GCM ciphertext. A write with a
@@ -371,12 +433,22 @@ function fileOrDurableExists(file: string): boolean {
  * read-modify-write handlers (`data[email] = ...`) throw on it. Normalize
  * to {} and write through (writeJSON mirrors to the durable store too).
  */
-function ensurePlainObjectFile(file: string): void {
-  if (!fileOrDurableExists(file)) { writeJSON(file, {}); return; }
+function ensurePlainObjectFile(file: string): boolean {
+  if (!fileOrDurableExists(file)) { writeJSON(file, {}); return true; }
+  // SLICE 193 — an existing file that does not parse is LEFT ALONE. readJSON
+  // answers {} for it, which would have looked like a primitive needing repair;
+  // repairing it would overwrite the only recoverable bytes. Boot continues and
+  // every caller sees an unreadable store rather than a silently emptied one.
+  if (isStoreUnreadable(file)) { reportUnreadableStore(file, "seedDataFiles"); return false; }
   try {
     const v = readJSON(file);
     if (!isPlainObject(v)) writeJSON(file, {});
-  } catch { writeJSON(file, {}); }
+  } catch {
+    // Could not even determine the shape: never overwrite on a guess.
+    reportUnreadableStore(file, "seedDataFiles");
+    return false;
+  }
+  return true;
 }
 
 /**
@@ -394,13 +466,18 @@ export function seedDataFiles(dataDir: string): void {
   }
 
   // integrations.json MUST be an array — .find() crashes on {}
+  // SLICE 193 — CREATE-IF-MISSING ONLY, like everything else here. A corrupt
+  // integrations.json reads {} (not an array) and used to be overwritten with []
+  // at boot: corruption became destruction with no user action. It is now left
+  // byte-for-byte as it is.
   const intFile = join(dataDir, "integrations.json");
   if (!fileOrDurableExists(intFile)) { writeJSON(intFile, []); }
+  else if (isStoreUnreadable(intFile)) { reportUnreadableStore(intFile, "seedDataFiles"); }
   else {
     try {
       const v = readJSON(intFile);
       if (!Array.isArray(v)) writeJSON(intFile, []);
-    } catch (_) { writeJSON(intFile, []); }
+    } catch (_) { reportUnreadableStore(intFile, "seedDataFiles"); }
   }
 
   // tenant_oauth_credentials.json — persists OAuth tokens across deploys.
@@ -409,12 +486,17 @@ export function seedDataFiles(dataDir: string): void {
 
   // Seed admin user if no admin exists (create-if-missing only). users.json
   // must be a plain object first — the admin block below assigns `users[email]`.
-  ensurePlainObjectFile(join(dataDir, "users.json"));
   const adminEmail = process.env.ADMIN_EMAIL || LEGACY_OWNER_EMAIL;
   const usersFile = join(dataDir, "users.json");
-  const users = readJSON(usersFile);
+  // SLICE 193 — THE WORST BOOT TRAP. A corrupt users.json read as {}, hasAdmin
+  // was false, and the seed block below wrote ONE seeded admin over it on the
+  // next restart — the owner's own account, silently gone. Seeding may only ever
+  // CREATE a missing file, so the whole block is skipped when the file exists
+  // and does not parse.
+  const usersUsable = ensurePlainObjectFile(usersFile);
+  const users = usersUsable ? readJSON(usersFile) : {};
   const hasAdmin = Object.values(users).some((u: any) => u && isOwnerRole(u.role));
-  if (!hasAdmin) {
+  if (usersUsable && !hasAdmin) {
     const { hashSync } = require("bcryptjs") as typeof import("bcryptjs");
     const adminPass = process.env.ADMIN_PASSWORD || "Mdsl1234";
     // P1-5 role-based gating: if the owner account ALREADY exists (e.g. it was

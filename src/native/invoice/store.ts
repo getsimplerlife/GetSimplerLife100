@@ -12,7 +12,7 @@
  *   PDF bytes (docId → Phase 1.2 add-only doc history, exactly like 2.1).
  */
 import { randomBytes } from "node:crypto";
-import { readJSON, writeJSON, resolveDataDir } from "../../lib/data-store";
+import { readJSON, writeJSON, resolveDataDir, isStoreUnreadable } from "../../lib/data-store";
 import {
   NATIVE_INVOICES_KEY,
   NATIVE_INVOICES_AUDIT_KEY,
@@ -108,6 +108,16 @@ export function listInvoices(dataDir: string, tenantId: string): InvoiceRecord[]
 }
 export function getInvoice(dataDir: string, tenantId: string, invoiceId: string): InvoiceRecord | null {
   return listInvoices(dataDir, tenantId).find((i) => i.id === invoiceId) ?? null;
+}
+/**
+ * SLICE 193 — "the store is unreadable" is NOT "this invoice does not exist".
+ * `readJSON` answers {} for a corrupt native_invoices.json, so every lookup in it
+ * returns null and a real payment would be answered "no invoice exists in this
+ * workspace" — a 200 the provider never retries, and an audit line blaming the
+ * customer's reference. Callers that answer a provider must ask this first.
+ */
+export function invoiceStoreUnreadable(dataDir: string): boolean {
+  return isStoreUnreadable(dataPath(dataDir, NATIVE_INVOICES_KEY));
 }
 /**
  * Resolve an invoice by its human number WITHIN one tenant (slice 155). The
