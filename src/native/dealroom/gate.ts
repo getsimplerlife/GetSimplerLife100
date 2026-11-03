@@ -39,6 +39,7 @@ import {
   generateDealRoomSlug,
   registerDealRoomSlug,
   unregisterDealRoomSlug,
+  setDealRoomShareSlug,
 } from "./store";
 import { validateDealRoomMutation, createDealRoomMutationFromInput, isDealRoomId } from "./validate";
 import {
@@ -66,6 +67,9 @@ const ACTION_NAME: Record<DealRoomOp, string> = {
   update: "updateDealRoom",
   archive: "archiveDealRoom",
   delete: "deleteDealRoom",
+  // Verb-first, like the rest: `revoke` is in approval-queue's WRITE_VERB, so a
+  // share link — a bearer credential — cannot be killed without an approval.
+  revokeShare: "revokeDealRoomShare",
 };
 
 /** Status transition allowed from a given current status (fail-closed). */
@@ -83,6 +87,11 @@ function statusFor(op: DealRoomOp, current: DealRoomStatus, requested?: DealRoom
       return null; // any other transition (e.g. → archived) is illegal here
     case "archive":
       return current === "draft" || current === "active" ? "archived" : null;
+    case "revokeShare":
+      // SLICE 192a — revoking is an action on the SLUG, not a lifecycle state:
+      // the room keeps whatever status it has (a draft's link is killable too,
+      // and an archived room's stale link must still be retireable).
+      return current;
     case "delete":
       return null; // removal handled separately
     default:
@@ -132,6 +141,11 @@ function validateWrite(
   const dealRoom = getDealRoom(dataDir, tenantId, req.dealRoomId);
   if (!dealRoom) throw new Error("deal room not found");
   if (op === "delete") return { mutation: {}, nextStatus: dealRoom.status };
+  // SLICE 192a — revoke needs no field change and no status transition; it is
+  // the executor that swaps the slug. A revoke on a room with no live slug is a
+  // no-op that still mints a fresh one, so replaying an approved write twice
+  // succeeds twice instead of failing the second time.
+  if (op === "revokeShare") return { mutation: {}, nextStatus: dealRoom.status };
   const nextStatus = statusFor(op, dealRoom.status, op === "update" ? req.data?.status : undefined);
   if (nextStatus === null) throw new Error(`cannot ${op} a deal room in status ${dealRoom.status}`);
   let mutation: DealRoomMutation = {};
@@ -196,6 +210,30 @@ function applyMutation(
     publishEvent(dataDir, tenantId, "native.dealroom.deleted", { dealRoomId: d.id, name: d.name });
     return { ...d, status: "deleted" } as unknown as DealRoomRecord;
   }
+  if (op === "revokeShare") {
+    // SLICE 192a — ORDER IS THE SAFETY PROPERTY, not an implementation detail:
+    // the old slug is unregistered FIRST and the record only then carries the
+    // fresh one. A crash between the two writes leaves a record pointing at a
+    // slug that no longer resolves (the page refuses it); the reverse order
+    // would leave the retired link LIVE on a record that says otherwise.
+    const room = getDealRoom(dataDir, tenantId, req.dealRoomId!)!;
+    if (!room) throw new Error("deal room not found");
+    const retired = room.shareSlug;
+    if (retired) unregisterDealRoomSlug(dataDir, retired);
+    const fresh = generateDealRoomSlug();
+    registerDealRoomSlug(dataDir, fresh, tenantId);
+    const swapped = setDealRoomShareSlug(dataDir, tenantId, room.id, fresh, actor)!;
+    appendAudit(dataDir, {
+      tenantId,
+      actor,
+      action: "native.dealroom.shareRevoked",
+      dealRoomId: room.id,
+      // No slug value in the audit (or anywhere): the link is a bearer credential.
+      detail: `Revoked the customer link for deal room "${room.name}" and issued a fresh one — the previous link no longer resolves${retired ? "" : " (there was no live link)"}`,
+    });
+    publishEvent(dataDir, tenantId, "native.dealroom.share.revoked", { dealRoomId: room.id, name: room.name, hadLiveLink: !!retired });
+    return swapped;
+  }
   const record = applyDealRoomMutation(dataDir, tenantId, req.dealRoomId!, mutation, nextStatus, actor)!;
   if (!record) throw new Error("deal room not found");
   if (op === "archive") {
@@ -255,7 +293,9 @@ export function submitDealRoomWrite(
   if (pending.length >= MAX_PENDING_DEAL_ROOM_WRITES) {
     return { applied: false, pending: false, error: `Pending-write cap reached (${MAX_PENDING_DEAL_ROOM_WRITES}) — approve or reject before writing more` };
   }
-  if (op === "update" || op === "archive") {
+  if (op === "update" || op === "archive" || op === "revokeShare") {
+    // One pending write per (op, room): two queued revokes would mint two fresh
+    // slugs and leave the second approval killing a link nobody was given.
     const existing = pending.find((w) => w.status === "pending" && w.op === op && w.dealRoomId === (req.dealRoomId ?? null));
     if (existing) return { applied: false, pending: true, approvalActionId: existing.approvalActionId, op };
   }

@@ -1,7 +1,28 @@
 import { useEffect, useState } from "react";
 import { useParams } from "@tanstack/react-router";
-import { Card, Badge } from "~/components/ui";
+import { Card, Badge, Button } from "~/components/ui";
 import { invoiceStatusLabel, invoiceStatusTone } from "~/lib/invoice-status";
+
+/**
+ * SLICE 192a — the page a CLIENT opens from a deal-room link.
+ *
+ * WHAT CHANGED AND WHY. The server now applies a publish rule (only an `active`
+ * room is shareable; see `isDealRoomPubliclyShareable`), so this page has three
+ * real outcomes instead of one collapsed "Deal room not found":
+ *   - 404 / 410 → "this link isn't available" — the sender has not published the
+ *     room, has archived it, or the link was revoked. Nothing to retry.
+ *   - anything else (5xx, unreadable payload, no network) → a failure WITH a
+ *     retry. A failure must never render as an empty-but-confident room, and a
+ *     200 carrying nothing must never render as a blank page.
+ *   - 200 with a readable room → the room.
+ *
+ * The invoice list is the server's filtered view: an invoice the client may not
+ * see (a draft) never reaches this page at all.
+ *
+ * SSR: the slug comes from the router (`useParams`), never `window.location` —
+ * a `window` read while rendering throws on the server (slice 166).
+ */
+
 interface ShareProposal {
   title: string;
   status: string;
@@ -30,27 +51,112 @@ interface ShareView {
   invoices: ShareInvoice[];
   updatedAt: string;
 }
+
 const STATUS_LABEL: Record<string, string> = {
   draft: "Draft",
   active: "Active",
   archived: "Archived",
 };
+
+type Phase = "loading" | "ready" | "not-available" | "error";
+
 export default function DealRoomSharePage() {
   // SLICE 166 — see proposals.share: the router knows the slug during SSR.
   const { slug } = useParams({ from: "/deal-rooms/share/$slug" });
+  const [phase, setPhase] = useState<Phase>("loading");
   const [view, setView] = useState<ShareView | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [notAvailable, setNotAvailable] = useState("");
+  const [loadError, setLoadError] = useState("");
+  const [attempt, setAttempt] = useState(0);
+
   useEffect(() => {
-    fetch(`/api/native/dealroom/share/${slug}`)
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("Deal room not found"))))
-      .then((j) => setView(j.data))
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
-      .finally(() => setLoading(false));
-  }, [slug]);
-  if (loading) return <div className="p-8 text-gray-500">Loading deal room…</div>;
-  if (error && !view) return <div className="p-8 text-red-600">{error || "Deal room not found"}</div>;
-  if (!view) return <div className="p-8 text-red-600">Deal room not found</div>;
+    let cancelled = false;
+    setPhase("loading");
+    setLoadError("");
+    setNotAvailable("");
+    fetch(`/api/native/dealroom/share/${slug}`, { headers: { accept: "application/json" } })
+      .then(async (res) => {
+        if (cancelled) return;
+        const body = (await res.json().catch(() => null)) as
+          | { data?: ShareView; error?: string; reason?: string }
+          | null;
+        // 404 = unknown/stale/revoked slug. 410 = the room exists but is not
+        // published (draft) or is finished (archived). Both mean the same thing
+        // to the reader: this link does not open. The server's own sentence is
+        // printed rather than a guess about which case it was.
+        if (res.status === 404 || res.status === 410) {
+          setNotAvailable(body?.error || "");
+          setPhase("not-available");
+          return;
+        }
+        if (!res.ok) {
+          setLoadError(body?.error || `The server answered with HTTP ${res.status}.`);
+          setPhase("error");
+          return;
+        }
+        const data = body?.data;
+        // Never fall back to an empty room: a payload we cannot read is an
+        // error the reader can retry, not a page that silently shows nothing.
+        if (!data || typeof data.name !== "string") {
+          setLoadError("The deal room arrived in a form this page cannot read.");
+          setPhase("error");
+          return;
+        }
+        setView({
+          dealRoomId: typeof data.dealRoomId === "string" ? data.dealRoomId : "",
+          name: data.name,
+          customerName: typeof data.customerName === "string" ? data.customerName : "",
+          status: typeof data.status === "string" ? data.status : "",
+          description: typeof data.description === "string" ? data.description : "",
+          proposal: data.proposal ?? null,
+          checklist: data.checklist ?? null,
+          invoices: Array.isArray(data.invoices) ? data.invoices : [],
+          updatedAt: typeof data.updatedAt === "string" ? data.updatedAt : "",
+        });
+        setPhase("ready");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setLoadError("We could not reach the server. Check your connection and try again.");
+        setPhase("error");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [slug, attempt]);
+
+  if (phase === "loading") return <div className="p-8 text-gray-500">Loading deal room…</div>;
+
+  if (phase === "not-available") {
+    return (
+      <div className="mx-auto max-w-2xl p-6">
+        <Card className="p-6">
+          <h1 className="text-2xl font-bold">This deal room isn&apos;t available</h1>
+          <p className="mt-2 text-sm text-gray-600">
+            {notAvailable ||
+              "The link may be out of date, or the sender has not published this deal room. Ask them to send you a fresh link."}
+          </p>
+        </Card>
+      </div>
+    );
+  }
+
+  if (phase === "error" || !view) {
+    return (
+      <div className="mx-auto max-w-2xl p-6">
+        <Card className="p-6">
+          <h1 className="text-2xl font-bold">We couldn&apos;t load this deal room</h1>
+          <p className="mt-2 text-sm text-gray-600">{loadError || "The deal room could not be loaded."}</p>
+          <div className="mt-4">
+            <Button variant="outline" onClick={() => setAttempt((n) => n + 1)}>
+              Try again
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-2xl p-6">
       <div className="mb-6 flex items-center justify-between">
@@ -87,7 +193,7 @@ export default function DealRoomSharePage() {
       </Card>
       <Card className="mb-4">
         <h3 className="mb-2 text-sm font-semibold text-gray-600">Invoices</h3>
-        {view.invoices && view.invoices.length > 0 ? (
+        {view.invoices.length > 0 ? (
           <div className="space-y-2">
             {view.invoices.map((inv) => (
               <div key={inv.invoiceNumber} className="flex items-center justify-between rounded border p-2 text-sm">
@@ -128,7 +234,9 @@ export default function DealRoomSharePage() {
           <p className="text-sm text-gray-500">No delivery checklist is linked yet.</p>
         )}
       </Card>
-      <p className="mt-4 text-xs text-gray-400">Last updated {new Date(view.updatedAt).toLocaleDateString()}</p>
+      {view.updatedAt ? (
+        <p className="mt-4 text-xs text-gray-400">Last updated {new Date(view.updatedAt).toLocaleDateString()}</p>
+      ) : null}
     </div>
   );
 }

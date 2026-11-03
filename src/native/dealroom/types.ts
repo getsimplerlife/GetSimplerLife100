@@ -62,10 +62,38 @@ export interface DealRoomMutation {
 
 /**
  * Gated-write ops. ACTION NAMES are verb-first (createDealRoom/updateDealRoom/
- * archiveDealRoom/deleteDealRoom) so the Approval Queue isWriteAction
- * classifies them as writes — same rule as 2.1/2.3 (never a verb-last name).
+ * archiveDealRoom/deleteDealRoom/revokeDealRoomShare) so the Approval Queue
+ * isWriteAction classifies them as writes — same rule as 2.1/2.3 (never a
+ * verb-last name).
+ *
+ * SLICE 192a — `revokeShare` is an ACTION ON THE SLUG, not a lifecycle state:
+ * it retires the current public slug and mints a fresh one, so the link the
+ * client holds stops resolving. The room's status is untouched by it.
  */
-export type DealRoomOp = "create" | "update" | "archive" | "delete";
+export type DealRoomOp = "create" | "update" | "archive" | "delete" | "revokeShare";
+
+/**
+ * SLICE 192a — THE PUBLISH RULE, in one place.
+ *
+ * Before this existed the slug was minted at create and resolved from `draft`,
+ * so a room nobody had published was readable by anyone holding the link, and
+ * an archived room stayed readable forever. Only `active` is a published room:
+ * `draft` has never been sent anywhere and `archived` is finished.
+ *
+ * Typed `Record<DealRoomStatus, boolean>` on purpose — a new status is a
+ * compile error here rather than a silently-public page (the same discipline as
+ * `PUBLIC_INVOICE_STATUS` in the invoice router).
+ */
+export const PUBLIC_DEAL_ROOM_STATUS: Record<DealRoomStatus, boolean> = {
+  draft: false, // never published — the link must not open
+  active: true, // published by the tenant — the only shareable state
+  archived: false, // finished — the old link must stop working
+};
+
+/** True when the public lane may serve a deal room in this state. */
+export function isDealRoomPubliclyShareable(status: DealRoomStatus): boolean {
+  return PUBLIC_DEAL_ROOM_STATUS[status] === true;
+}
 
 export interface PendingDealRoomWrite {
   id: string; // dlw_<random>
