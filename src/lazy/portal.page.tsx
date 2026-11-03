@@ -134,6 +134,11 @@ type NavLink = {
   };
   const navLinks: NavLink[] = [
     { name: "Dashboard", subtitle: "Activity · Overview", path: "/portal", icon: "dashboard", section: "Overview" },
+    // SLICE 189 — the client + project spine. These two come before the
+    // quote-to-cash rows on purpose: a proposal, an invoice and a checklist
+    // are all about a client, and until this slice there was no client.
+    { name: "Clients", subtitle: "Customers · Contacts", path: "/portal/clients", icon: "clients", section: "Workspace" },
+    { name: "Projects", subtitle: "Delivery · Status", path: "/portal/projects", icon: "projects", section: "Workspace" },
     { name: "Proposals", subtitle: "Quote-to-cash · E-sign", path: "/portal/proposals", icon: "proposals", section: "Workspace" },
     { name: "Invoices", subtitle: "Bill · Track · Notify", path: "/portal/invoices", icon: "invoices", section: "Workspace" },
     { name: "Checklists", subtitle: "Onboarding · Drives", path: "/portal/checklists", icon: "checklists", section: "Workspace" },
@@ -164,6 +169,7 @@ type NavLink = {
   ];
   const mobileLinks: NavLink[] = [
     { name: "Dashboard", path: "/portal", icon: "dashboard" },
+    { name: "Clients", path: "/portal/clients", icon: "clients" },
     { name: "Proposals", path: "/portal/proposals", icon: "proposals" },
     { name: "Bring data in", path: "/portal/import", icon: "import" },
     { name: "Approvals", path: "/portal/approvals", icon: "approvals" },
