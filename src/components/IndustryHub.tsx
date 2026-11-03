@@ -69,20 +69,10 @@ export default function IndustryHub({ data }: { data: IndustryHubType }) {
             )}
           </div>
         </section>
-        {/* KPI Displays */}
-        <section className="px-6 py-8 max-w-5xl mx-auto relative z-20">
-          <p className="text-center text-[11px] font-mono uppercase tracking-widest text-stone-500 mb-4">
-            Illustrative capacity estimates — not measured client results
-          </p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {c.kpis.map((kpi, i) => (
-              <div key={i} className="p-6 bg-stone-900/60 border border-stone-850 rounded-2xl shadow-xl hover:border-stone-700 transition-colors text-center">
-                <div className="text-3xl lg:text-4xl font-black mb-1 text-emerald-400">{kpi.value}</div>
-                <div className="text-[10px] font-mono uppercase tracking-widest text-stone-500">{kpi.label}</div>
-              </div>
-            ))}
-          </div>
-        </section>
+        {/* Slice 187: four "illustrative capacity estimate" tiles stood here —
+            invented multiples and percentages with no measurement behind them.
+            A disclaimer does not make a number true, so the tiles are gone
+            rather than relabelled. */}
 
         {/* Dynamic Recommendation Engine Section */}
         <section id="recommendations" className="px-6 py-20 max-w-7xl mx-auto">

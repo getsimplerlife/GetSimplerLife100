@@ -68,19 +68,23 @@ export default function WorkflowPage({ data }: { data: WorkflowType }) {
           </div>
         </section>
 
-        {/* Metrics Bar */}
+        {/* What changes — NOT a metrics bar. Slice 186 replaced the invented
+            multipliers behind these three tiles with mechanism sentences, which
+            left the labels ("Labor Efficiency", "Operational Accuracy", "Payback
+            Period") describing measurements the text no longer makes. The labels
+            now say what the text actually is. */}
         <section className="px-6 py-10 border-y border-stone-900 bg-stone-900/10">
           <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="p-6 bg-stone-950/40 border border-stone-900 rounded-2xl">
-              <div className="text-stone-500 font-mono text-[10px] tracking-widest uppercase mb-1">⏱ Labor Efficiency</div>
+              <div className="text-stone-500 font-mono text-[10px] tracking-widest uppercase mb-1">⏱ What changes in the manual work</div>
               <div className="text-xl font-bold text-emerald-400">{w.timeSaved}</div>
             </div>
             <div className="p-6 bg-stone-950/40 border border-stone-900 rounded-2xl">
-              <div className="text-stone-500 font-mono text-[10px] tracking-widest uppercase mb-1">🎯 Operational Accuracy</div>
+              <div className="text-stone-500 font-mono text-[10px] tracking-widest uppercase mb-1">🎯 What changes in accuracy</div>
               <div className="text-xl font-bold text-emerald-400">{w.accuracyGain}</div>
             </div>
             <div className="p-6 bg-stone-950/40 border border-stone-900 rounded-2xl">
-              <div className="text-stone-500 font-mono text-[10px] tracking-widest uppercase mb-1">📈 Payback Period</div>
+              <div className="text-stone-500 font-mono text-[10px] tracking-widest uppercase mb-1">📈 Time to value</div>
               <div className="text-xl font-bold text-emerald-400">{w.roiTimeline}</div>
             </div>
           </div>

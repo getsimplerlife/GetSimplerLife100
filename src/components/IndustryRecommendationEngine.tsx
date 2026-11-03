@@ -7,6 +7,21 @@ interface IndustryRecommendationEngineProps {
   industry: IndustryHub;
 }
 
+/**
+ * SLICE 187 — what this engine used to do and no longer does.
+ *
+ * It read a per-pain-point hours figure baked into `content/industries.ts`,
+ * scaled it by a company-size ladder, scaled that again by an "AI efficiency
+ * rate", and priced the result at a flat hourly rate — then rendered the total
+ * as "Annual Savings" with no disclaimer. Every one of those four numbers was
+ * invented: the visitor's clicks only chose WHICH invented baseline was added
+ * up. All four are gone from both this file and the content file.
+ *
+ * Now the matching is still real (their pain points and their stack pick the
+ * workflows), but the money is arithmetic on three things they state, shown
+ * next to the output and changeable there. The share is the only assumption and
+ * it is labelled as theirs.
+ */
 export function IndustryRecommendationEngine({ industry }: IndustryRecommendationEngineProps) {
   const [companySize, setCompanySize] = useState<"small" | "medium" | "large">("medium");
   const [selectedTools, setSelectedTools] = useState<string[]>(["outlook", "quickbooks"]);
@@ -14,47 +29,46 @@ export function IndustryRecommendationEngine({ industry }: IndustryRecommendatio
     industry.painPoints.map((_, i) => i) // Select all by default
   );
 
-  const [annualSavings, setAnnualSavings] = useState(0);
-  const [hoursSavedPerMonth, setHoursSavedPerMonth] = useState(0);
+  // The visitor's own numbers. Nothing here is a figure of ours.
+  const [weeklyHours, setWeeklyHours] = useState(10);
+  const [hourlyCost, setHourlyCost] = useState(45);
+  const [automationShare, setAutomationShare] = useState(0.5);
+
   const [matchingWorkflows, setMatchingWorkflows] = useState<AutomationCard[]>([]);
 
-  // Calculate savings dynamically
+  // Company size does exactly one honest job: it picks the tier we would
+  // actually sell a team that size (locked prices, no setup fee).
+  const tierForSize =
+    companySize === "small"
+      ? { name: "Starter", monthly: 199 }
+      : companySize === "medium"
+        ? { name: "Growth", monthly: 599 }
+        : { name: "Enterprise", monthly: 1499 };
+
+  const weeksPerYear = 52;
+  const annualHours = weeklyHours * weeksPerYear;
+  const annualLaborValue = annualHours * hourlyCost;
+  const annualSavings = annualLaborValue * automationShare;
+  const hoursSavedPerMonth = (annualHours * automationShare) / 12;
+
+  const arithmetic = [
+    `${weeklyHours} hours a week × ${weeksPerYear} weeks = ${annualHours.toLocaleString()} hours a year`,
+    `${annualHours.toLocaleString()} hours × $${hourlyCost}/hour = $${Math.round(annualLaborValue).toLocaleString()} a year of labour`,
+    `× ${Math.round(automationShare * 100)}% (the share you set) = $${Math.round(annualSavings).toLocaleString()} a year`,
+  ];
+
   useEffect(() => {
-    // 1. Calculate base hours wasted per week from selected pain points
-    let weeklyHoursWasted = 0;
-    selectedPains.forEach((pIdx) => {
-      const pain = industry.painPoints[pIdx];
-      if (pain && pain.hoursPerWeek) {
-        weeklyHoursWasted += pain.hoursPerWeek;
-      }
-    });
-
-    // 2. Adjust weekly hours based on company size multiplier
-    // Small: 0.6x, Medium: 1.0x, Large: 2.2x
-    const sizeMultiplier = companySize === "small" ? 0.6 : companySize === "medium" ? 1.0 : 2.2;
-    const adjustedWeeklyHours = weeklyHoursWasted * sizeMultiplier;
-
-    // 3. AI efficiency rate is 85%
-    const efficiencyRate = 0.85;
-    const monthlyHoursSaved = adjustedWeeklyHours * 4.33 * efficiencyRate;
-
-    // 4. Translate to annual dollar savings (average fully loaded ops rate: $45/hr)
-    const hourlyRate = 45;
-    const annualCashSaved = monthlyHoursSaved * hourlyRate * 12;
-
-    setHoursSavedPerMonth(Math.round(monthlyHoursSaved));
-    setAnnualSavings(Math.round(annualCashSaved));
-
-    // 5. Filter automation library cards to show recommendations
-    // Find up to 4 matching automation workflows in this industry
-    const matches = automationLibrary.filter((card) =>
-      card.industry.includes(industry.id)
-    );
-
-    // Filter cards to match selected pain points or selected tools if possible
-    // Otherwise return top 4 industry workflows
-    setMatchingWorkflows(matches.slice(0, 4));
-  }, [companySize, selectedPains, selectedTools, industry]);
+    // Recommendations come from the visitor's own selections: the industry's
+    // workflows, ranked by how many of their chosen tools each one touches.
+    const matches = automationLibrary.filter((card) => card.industry.includes(industry.id));
+    const scored = matches
+      .map((card) => ({
+        card,
+        overlap: card.integrations.filter((i) => selectedTools.includes(i)).length,
+      }))
+      .sort((a, b) => b.overlap - a.overlap);
+    setMatchingWorkflows(scored.slice(0, 4).map((s) => s.card));
+  }, [selectedTools, selectedPains, industry]);
 
   const toggleTool = (tool: string) => {
     if (selectedTools.includes(tool)) {
@@ -131,6 +145,12 @@ export function IndustryRecommendationEngine({ industry }: IndustryRecommendatio
                 </button>
               ))}
             </div>
+            <p className="text-[10px] font-mono text-stone-500">
+              Tier for a team this size:{" "}
+              <span className="text-emerald-400 font-bold">
+                {tierForSize.name} — ${tierForSize.monthly}/mo, no setup fee
+              </span>
+            </p>
           </div>
 
           {/* Step 2: Pain Point Toggles */}
@@ -163,11 +183,6 @@ export function IndustryRecommendationEngine({ industry }: IndustryRecommendatio
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-start gap-2">
                         <span className="text-xs font-bold block truncate">{pain.title}</span>
-                        {pain.hoursPerWeek && (
-                          <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-rose-500/10 text-rose-400 shrink-0">
-                            ~{pain.hoursPerWeek}h
-                          </span>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -211,11 +226,12 @@ export function IndustryRecommendationEngine({ industry }: IndustryRecommendatio
 
             <div className="flex-1 text-center md:text-left space-y-2">
               <span className="text-[11px] font-mono font-bold text-emerald-400 uppercase tracking-widest">
-                Est. Financial Impact
+                Your numbers, not ours
               </span>
-              <h3 className="text-2xl font-black text-white">Your Custom AI ROI</h3>
+              <h3 className="text-2xl font-black text-white">The work you selected, priced</h3>
               <p className="text-stone-400 text-xs leading-relaxed">
-                By automating these selected operational workflows, your team can eliminate manual bottlenecks and reduce repetitive data entry.
+                Your selections pick the workflows below. The money is arithmetic on the three inputs
+                underneath — we have not measured your team's hours, rate or results.
               </p>
               <div className="pt-4 flex flex-wrap gap-4 justify-center md:justify-start">
                 <Link
@@ -233,32 +249,84 @@ export function IndustryRecommendationEngine({ industry }: IndustryRecommendatio
               </div>
             </div>
 
-            <div className="w-full md:w-52 shrink-0 space-y-4">
-              {/* Cash Savings Indicator */}
+            <div className="w-full md:w-64 shrink-0 space-y-4">
+              {/* Cash figure — arithmetic on the inputs beside it */}
               <div className="bg-stone-950 border border-stone-850 p-4 rounded-2xl text-center shadow-inner">
                 <div className="text-[10px] font-mono font-black text-stone-500 uppercase tracking-wider mb-1">
-                  Annual Savings
+                  At the share you set
                 </div>
-                <div className="text-2xl lg:text-3xl font-black text-emerald-400 animate-pulse">
-                  ${annualSavings.toLocaleString()}
+                <div className="text-2xl lg:text-3xl font-black text-emerald-400">
+                  ${Math.round(annualSavings).toLocaleString()}
                 </div>
                 <div className="text-[9px] font-mono text-stone-400 mt-1">
-                  Cash savings / year
+                  of annual labour, per the inputs below
                 </div>
               </div>
 
-              {/* Hours Saved Indicator */}
+              {/* Hours figure — same arithmetic */}
               <div className="bg-stone-950 border border-stone-850 p-4 rounded-2xl text-center shadow-inner">
                 <div className="text-[10px] font-mono font-black text-stone-500 uppercase tracking-wider mb-1">
-                  Reclaimed Time
+                  At the share you set
                 </div>
                 <div className="text-2xl lg:text-3xl font-black text-indigo-400">
-                  {hoursSavedPerMonth} hrs
+                  {Math.round(hoursSavedPerMonth).toLocaleString()} hrs
                 </div>
                 <div className="text-[9px] font-mono text-stone-400 mt-1">
-                  Reclaimed / month
+                  reclaimed / month
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* The three inputs behind both figures above */}
+          <div className="bg-stone-950/60 border border-stone-800 rounded-2xl p-6 space-y-4">
+            <div>
+              <h4 className="text-xs font-mono font-bold uppercase tracking-widest text-stone-400">
+                Your numbers — change any of them
+              </h4>
+              <p className="text-[11px] text-stone-500 mt-1 leading-relaxed">
+                We have not measured your team's hours, your labour rate, or how much of this work
+                automation takes. All three are yours; the arithmetic below uses only them.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <label className="block">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-stone-500 block mb-1">
+                  Hours a week your team spends on these tasks
+                </span>
+                <input type="number" min={0} step={1} value={weeklyHours}
+                  onChange={(e) => setWeeklyHours(Math.max(0, Number(e.target.value) || 0))}
+                  className="w-full bg-stone-900 border border-stone-800 rounded-lg px-3 py-2 text-sm text-stone-100 outline-none focus:border-stone-600" />
+              </label>
+              <label className="block">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-stone-500 block mb-1">
+                  Fully loaded cost per hour
+                </span>
+                <input type="number" min={0} step={1} value={hourlyCost}
+                  onChange={(e) => setHourlyCost(Math.max(0, Number(e.target.value) || 0))}
+                  className="w-full bg-stone-900 border border-stone-800 rounded-lg px-3 py-2 text-sm text-stone-100 outline-none focus:border-stone-600" />
+              </label>
+            </div>
+            <div>
+              <div className="flex justify-between items-center text-xs mb-1">
+                <span className="font-bold text-stone-300">
+                  Share of that work automation takes
+                  <span className="text-stone-500 font-normal"> — your assumption</span>
+                </span>
+                <span className="font-black text-emerald-400">{Math.round(automationShare * 100)}%</span>
+              </div>
+              <input type="range" min={0} max={100} step={5} value={Math.round(automationShare * 100)}
+                onChange={(e) => setAutomationShare(Number(e.target.value) / 100)}
+                className="w-full h-2 bg-stone-800 rounded-full appearance-none cursor-pointer accent-emerald-500" />
+              <p className="text-[10px] text-stone-500 mt-1">
+                Nobody can know this before a pilot. It is the only guess in the model, and it is yours to set.
+              </p>
+            </div>
+            <div className="bg-stone-900/60 border border-stone-800 rounded-xl p-4 space-y-1.5">
+              <div className="text-[10px] font-mono uppercase tracking-wider text-stone-500 mb-2">The arithmetic</div>
+              {arithmetic.map((line) => (
+                <div key={line} className="text-[11px] font-mono text-stone-300 leading-relaxed">{line}</div>
+              ))}
             </div>
           </div>
 
@@ -294,7 +362,7 @@ export function IndustryRecommendationEngine({ industry }: IndustryRecommendatio
 
                   <div className="mt-4 pt-4 border-t border-stone-850/60 space-y-3">
                     <div className="flex justify-between text-[10px] font-mono text-stone-500">
-                      <span>Automation impact:</span>
+                      <span>What it does:</span>
                       <span className="text-white font-bold">{card.timeSaved}</span>
                     </div>
 

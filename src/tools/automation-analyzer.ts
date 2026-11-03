@@ -12,9 +12,8 @@ import { workflows, type Workflow } from "../content/workflows";
 
 export interface AnalysisResult {
   match: Workflow;
+  /** Weighted keyword match count — arithmetic on the words the visitor typed. */
   score: number;
-  estimatedHoursSaved: number;
-  estimatedWeeklyHours: number;
   confidence: "high" | "medium" | "low";
   suggestedAgentName: string;
   suggestedAgentEmoji: string;
@@ -25,7 +24,6 @@ export interface AnalysisSummary {
   topMatch: AnalysisResult;
   allMatches: AnalysisResult[];
   industryGuess: string;
-  savingsSummary: string;
 }
 
 // ── Keyword to Workflow Matching ─────────────────────────────────────────
@@ -155,44 +153,24 @@ const agentNameMap: Record<string, { name: string; emoji: string }> = {
   "email-marketing": { name: "Campaign AI", emoji: "📣" },
 };
 
-// ── Savings Estimation ────────────────────────────────────────────────────
-
-function estimateHoursSaved(_matchScore: number, keywordCount: number): number {
-  // Base savings per workflow type
-  const baseRanges: Record<string, { min: number; max: number }> = {
-    "invoice-automation": { min: 15, max: 30 },
-    "purchase-order-management": { min: 10, max: 25 },
-    "inventory-reconciliation": { min: 10, max: 20 },
-    "dispatch-scheduling": { min: 10, max: 25 },
-    "patient-intake": { min: 15, max: 30 },
-    "claims-processing": { min: 20, max: 40 },
-    "payroll-processing": { min: 8, max: 20 },
-    "onboarding": { min: 10, max: 20 },
-    "customer-support-triage": { min: 15, max: 35 },
-    "ap-ar-automation": { min: 10, max: 25 },
-    "data-entry-automation": { min: 15, max: 40 },
-    "document-processing": { min: 10, max: 25 },
-    "compliance-reporting": { min: 8, max: 20 },
-    "lead-response": { min: 10, max: 20 },
-  };
-
-  const range = baseRanges[Object.keys(baseRanges).find(() => true) || ""] || { min: 8, max: 20 };
-
-  // Use the first matching workflow's range based on matchScore
-  const avg = (range.min + range.max) / 2;
-  return Math.round(avg * (0.8 + (keywordCount / 10) * 0.4));
-}
-
-function estimateWeeklyHours(description: string): number {
-  const lower = description.toLowerCase();
-  if (lower.includes("every morning") || lower.includes("daily")) return 5;
-  if (lower.includes("every hour") || lower.includes("hourly")) return 20;
-  if (lower.includes("each invoice") || lower.includes("each order")) return 10;
-  if (lower.includes("weekly")) return 3;
-  if (lower.includes("monthly")) return 2;
-  if (lower.includes("multiple times") || lower.includes("several")) return 8;
-  return 4; // default
-}
+// ── Savings Estimation: deliberately absent ─────────────────────────────
+//
+// SLICE 187. Two functions lived here and both invented their output:
+//
+//   estimateHoursSaved()  priced every workflow from a hard-coded hour range
+//                         table, and — the genuine bug — looked the range up
+//                         with a predicate that always returned true, so the
+//                         lookup always resolved to the FIRST key: every
+//                         workflow was priced at invoice-automation's range and
+//                         the rest of the table was dead.
+//   estimateWeeklyHours() turned a keyword in the visitor's description
+//                         ("daily" → 5, "hourly" → 20) into hours per week.
+//
+// Neither measured anything: a word in a paragraph is not a time study. Both
+// are gone, together with the fields they fed, so nothing downstream can
+// render an hour figure this engine did not earn. What the analyzer does now is
+// what it can defend: match the visitor's own words to the workflow patterns we
+// build, and say which ones matched.
 
 // ── Main Analysis Function ───────────────────────────────────────────────
 
@@ -276,8 +254,6 @@ export function analyzeDescription(description: string): AnalysisSummary {
       topMatch: {
         match: defaultWorkflow,
         score: 1,
-        estimatedHoursSaved: 10,
-        estimatedWeeklyHours: estimateWeeklyHours(description),
         confidence: "low",
         suggestedAgentName: agentNameMap[defaultWorkflow.id]?.name || "Automation AI",
         suggestedAgentEmoji: agentNameMap[defaultWorkflow.id]?.emoji || "🤖",
@@ -285,7 +261,6 @@ export function analyzeDescription(description: string): AnalysisSummary {
       },
       allMatches: [],
       industryGuess: detectIndustry(lower),
-      savingsSummary: "Based on a general automation assessment, we estimate significant time savings.",
     };
   }
 
@@ -293,22 +268,16 @@ export function analyzeDescription(description: string): AnalysisSummary {
   const allResults: AnalysisResult[] = scored.map(s => ({
     match: s.workflow,
     score: s.score,
-    estimatedHoursSaved: estimateHoursSaved(s.score, s.keywords.length),
-    estimatedWeeklyHours: estimateWeeklyHours(description),
     confidence: s.score > 30 ? "high" : s.score > 15 ? "medium" : "low",
     suggestedAgentName: agentNameMap[s.workflow.id]?.name || "Automation AI",
     suggestedAgentEmoji: agentNameMap[s.workflow.id]?.emoji || "🤖",
     keywords: s.keywords,
   }));
 
-  const top = allResults[0];
-  const totalHours = allResults.reduce((sum, r) => sum + r.estimatedHoursSaved, 0);
-
   return {
-    topMatch: top,
+    topMatch: allResults[0],
     allMatches: allResults.slice(0, 5),
     industryGuess: detectIndustry(lower),
-    savingsSummary: `We estimate your team could save **${totalHours}+ hours per week** across ${allResults.length} automation opportunities. The top match alone could save **${top.estimatedHoursSaved} hours per week**.`,
   };
 }
 

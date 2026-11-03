@@ -3,7 +3,17 @@ import { useState, useRef } from "react";
 import { Link } from "@tanstack/react-router";
 import { Header } from "~/components/Header";
 import { Footer } from "~/components/Footer";
-import { assessmentQuestions, runAssessment, type AssessmentAnswers, type AssessmentReport } from "~/tools/assessment-engine";
+import {
+  assessmentQuestions,
+  runAssessment,
+  computeSavings,
+  defaultSavingsInputs,
+  DEFAULT_SAVINGS_INPUTS,
+  type AssessmentAnswers,
+  type AssessmentReport,
+  type SavingsInputs,
+} from "~/tools/assessment-engine";
+import { SavingsAssumptions } from "~/components/SavingsAssumptions";
 ;
 const initialAnswers: AssessmentAnswers = {
   industry: "",
@@ -25,6 +35,8 @@ function AutomationAssessment() {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<AssessmentAnswers>(initialAnswers);
   const [report, setReport] = useState<AssessmentReport | null>(null);
+  // The four inputs behind every dollar figure; visible and editable on the report.
+  const [savingsInputs, setSavingsInputs] = useState<SavingsInputs>(DEFAULT_SAVINGS_INPUTS);
   const [generating, setGenerating] = useState(false);
   const [showContactForm, setShowContactForm] = useState(false);
   const [emailInput, setEmailInput] = useState(answers.email || "");
@@ -72,7 +84,9 @@ function AutomationAssessment() {
   const generateReport = () => {
     setGenerating(true);
     setTimeout(() => {
-      const result = runAssessment(answers);
+      const seeded = defaultSavingsInputs(answers.monthlyInvoiceVolume);
+      setSavingsInputs(seeded);
+      const result = runAssessment(answers, seeded);
       setReport(result);
       setGenerating(false);
     }, 800);
@@ -90,6 +104,8 @@ function AutomationAssessment() {
     } catch (e) { console.error(e); }
     setSubmitting(false);
   };
+
+  const savings = computeSavings(savingsInputs);
 
   const downloadPDF = async () => {
     if (!report) return;
@@ -117,7 +133,8 @@ function AutomationAssessment() {
     y += 8;
     pdf.setFontSize(12);
     pdf.setTextColor(50);
-    pdf.text(`Estimated Annual Savings: $${report.annualSavings.toLocaleString()}`, 20, y);
+    for (const line of savings.lines) { pdf.text(line, 20, y); y += 5; }
+    pdf.text("The share you set is your assumption, not a result we measured.", 20, y);
     y += 7;
     pdf.text(`Top Opportunities: ${report.topWorkflows.length} workflows identified`, 20, y);
     y += 12;
@@ -137,7 +154,7 @@ function AutomationAssessment() {
       y += 6;
       pdf.setFontSize(10);
       pdf.setTextColor(80);
-      pdf.text(`Impact Score: ${w.impactScore}  |  Est. Savings: $${w.estimatedAnnualSavings.toLocaleString()}/yr  |  Timeline: ${w.implementationTime}`, 30, y);
+      pdf.text(`Match score: ${w.impactScore}  |  Timeline: ${w.implementationTime}`, 30, y);
       y += 5;
       pdf.text(w.workflow.description.substring(0, 100) + "...", 30, y);
       y += 8;
@@ -159,7 +176,7 @@ function AutomationAssessment() {
     pdf.setTextColor(80);
     report.roadmap.quickWins.slice(0, 4).forEach((w) => {
       if (y > 280) { pdf.addPage(); y = 20; }
-      pdf.text(`  ✓ ${w.workflow.name} — $${w.estimatedAnnualSavings.toLocaleString()}/yr`, 25, y);
+      pdf.text(`  ✓ ${w.workflow.name} — ${w.implementationTime}`, 25, y);
       y += 5;
     });
     y += 5;
@@ -173,7 +190,7 @@ function AutomationAssessment() {
     pdf.setTextColor(80);
     report.roadmap.mediumTerm.slice(0, 4).forEach((w) => {
       if (y > 280) { pdf.addPage(); y = 20; }
-      pdf.text(`  → ${w.workflow.name} — $${w.estimatedAnnualSavings.toLocaleString()}/yr`, 25, y);
+      pdf.text(`  → ${w.workflow.name} — ${w.implementationTime}`, 25, y);
       y += 5;
     });
     y += 5;
@@ -187,7 +204,7 @@ function AutomationAssessment() {
     pdf.setTextColor(80);
     report.roadmap.longTerm.slice(0, 4).forEach((w) => {
       if (y > 280) { pdf.addPage(); y = 20; }
-      pdf.text(`  ◆ ${w.workflow.name} — $${w.estimatedAnnualSavings.toLocaleString()}/yr`, 25, y);
+      pdf.text(`  ◆ ${w.workflow.name} — ${w.implementationTime}`, 25, y);
       y += 5;
     });
     y += 8;
@@ -370,10 +387,12 @@ function AutomationAssessment() {
                 Based on your responses, here's your personalized automation roadmap.
               </p>
               <div className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-900/30 border border-emerald-800/50 rounded-2xl">
-                <span className="text-3xl font-black text-emerald-400">${report.annualSavings.toLocaleString()}</span>
-                <span className="text-stone-400 text-sm font-medium">estimated annual savings</span>
+                <span className="text-3xl font-black text-emerald-400">${savings.annualLabourValue.toLocaleString()}</span>
+                <span className="text-stone-400 text-sm font-medium">a year of labour, at your volume, your minutes and your rate</span>
               </div>
             </div>
+
+            <SavingsAssumptions value={savingsInputs} onChange={setSavingsInputs} accent="emerald" />
 
             {/* Top 5 Workflows */}
             <div className="bg-stone-900/50 border border-stone-800 rounded-2xl p-6">
@@ -399,11 +418,11 @@ function AutomationAssessment() {
                       </div>
                       <p className="text-xs text-stone-400 mt-1 line-clamp-2">{w.workflow.description}</p>
                       <div className="flex items-center gap-4 mt-2 text-xs">
-                        <span className="text-emerald-400 font-bold">${w.estimatedAnnualSavings.toLocaleString()}/yr</span>
+                        <span className="text-emerald-400 font-bold">Match score: {w.impactScore}</span>
                         <span className="text-stone-600">•</span>
                         <span className="text-stone-500">{w.implementationTime}</span>
                         <span className="text-stone-600">•</span>
-                        <span className="text-stone-500">Score: {w.impactScore}</span>
+
                       </div>
                     </div>
                     <a
@@ -433,7 +452,7 @@ function AutomationAssessment() {
                           <span className="text-emerald-400 mt-0.5">✓</span>
                           <div>
                             <span className="font-medium">{w.workflow.name}</span>
-                            <span className="text-stone-400 block">${w.estimatedAnnualSavings.toLocaleString()}/yr</span>
+                            <span className="text-stone-400 block">{w.implementationTime}</span>
                           </div>
                         </li>
                       ))}
@@ -453,7 +472,7 @@ function AutomationAssessment() {
                           <span className="text-amber-400 mt-0.5">→</span>
                           <div>
                             <span className="font-medium">{w.workflow.name}</span>
-                            <span className="text-stone-400 block">${w.estimatedAnnualSavings.toLocaleString()}/yr</span>
+                            <span className="text-stone-400 block">{w.implementationTime}</span>
                           </div>
                         </li>
                       ))}
@@ -473,7 +492,7 @@ function AutomationAssessment() {
                           <span className="text-red-400 mt-0.5">◆</span>
                           <div>
                             <span className="font-medium">{w.workflow.name}</span>
-                            <span className="text-stone-400 block">${w.estimatedAnnualSavings.toLocaleString()}/yr</span>
+                            <span className="text-stone-400 block">{w.implementationTime}</span>
                           </div>
                         </li>
                       ))}

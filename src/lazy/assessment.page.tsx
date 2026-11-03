@@ -1,9 +1,14 @@
 import {
   assessmentQuestions,
   runAssessment,
+  computeSavings,
+  defaultSavingsInputs,
+  DEFAULT_SAVINGS_INPUTS,
   type AssessmentAnswers,
-  type AssessmentReport
+  type AssessmentReport,
+  type SavingsInputs
 } from "../tools/assessment-engine";
+import { SavingsAssumptions } from "../components/SavingsAssumptions";
 import { useState, useRef } from "react";
 import { Link } from "@tanstack/react-router";
 
@@ -29,6 +34,9 @@ function AssessmentPage() {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<AssessmentAnswers>(initialAnswers);
   const [report, setReport] = useState<AssessmentReport | null>(null);
+  // The four inputs behind every dollar figure on this page. Visible and
+  // editable on the report itself; seeded from the visitor's volume answer.
+  const [savingsInputs, setSavingsInputs] = useState<SavingsInputs>(DEFAULT_SAVINGS_INPUTS);
   const [generating, setGenerating] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
 
@@ -73,11 +81,15 @@ function AssessmentPage() {
   const generateReport = () => {
     setGenerating(true);
     setTimeout(() => {
-      const result = runAssessment(answers);
+      const seeded = defaultSavingsInputs(answers.monthlyInvoiceVolume);
+      setSavingsInputs(seeded);
+      const result = runAssessment(answers, seeded);
       setReport(result);
       setGenerating(false);
     }, 1500);
   };
+
+  const savings = computeSavings(savingsInputs);
 
   const downloadPDF = async () => {
     if (!report) return;
@@ -107,10 +119,15 @@ function AssessmentPage() {
 
     pdf.setFontSize(11);
     pdf.setTextColor(75, 85, 99); // Gray 600
-    pdf.text(`Estimated Annual Savings from Automation: $${report.annualSavings.toLocaleString()}/year`, 20, y);
+    pdf.text("Priced with the numbers you supplied:", 20, y);
     y += 6;
-    pdf.text(`Efficiency Rate Target: 85% reduction in manual cycle times.`, 20, y);
-    y += 15;
+    for (const line of savings.lines) {
+      pdf.text(line, 20, y);
+      y += 5;
+    }
+    pdf.setFontSize(9);
+    pdf.text("The share you set is your assumption, not a result we measured. Only a pilot can measure it.", 20, y);
+    y += 14;
 
     // Top Workflows
     pdf.setFontSize(16);
@@ -130,7 +147,7 @@ function AssessmentPage() {
 
       pdf.setFontSize(10);
       pdf.setTextColor(107, 114, 128); // Gray 500
-      pdf.text(`Est. Savings: $${w.estimatedAnnualSavings.toLocaleString()}/yr | Timeline: ${w.implementationTime} | Impact: ${w.impactScore}/10`, 22, y);
+      pdf.text(`Match score: ${w.impactScore} | Timeline: ${w.implementationTime}`, 22, y);
       y += 5;
 
       pdf.setFontSize(9);
@@ -158,7 +175,7 @@ function AssessmentPage() {
     pdf.setFontSize(10);
     pdf.setTextColor(75, 85, 99);
     report.roadmap.quickWins.slice(0, 3).forEach((w) => {
-      pdf.text(`• ${w.workflow.name} — $${w.estimatedAnnualSavings.toLocaleString()}/yr`, 25, y);
+      pdf.text(`• ${w.workflow.name} — ${w.implementationTime}`, 25, y);
       y += 5;
     });
 
@@ -170,7 +187,7 @@ function AssessmentPage() {
     pdf.setFontSize(10);
     pdf.setTextColor(75, 85, 99);
     report.roadmap.mediumTerm.slice(0, 3).forEach((w) => {
-      pdf.text(`• ${w.workflow.name} — $${w.estimatedAnnualSavings.toLocaleString()}/yr`, 25, y);
+      pdf.text(`• ${w.workflow.name} — ${w.implementationTime}`, 25, y);
       y += 5;
     });
 
@@ -417,18 +434,24 @@ function AssessmentPage() {
               <div className="flex flex-col md:flex-row items-center justify-center gap-6 max-w-xl mx-auto bg-stone-950/60 border border-stone-800 p-6 rounded-2xl">
                 <div className="text-center md:text-left shrink-0">
                   <div className="text-stone-500 text-[10px] font-mono font-bold uppercase tracking-wider mb-1">
-                    ESTIMATED ANNUAL DIVIDEND
+                    ANNUAL LABOUR VALUE OF THE WORK YOU DESCRIBED
                   </div>
                   <div className="text-3xl md:text-4xl font-black text-indigo-400 font-mono tracking-tight">
-                    ${report.annualSavings.toLocaleString()}
+                    ${savings.annualLabourValue.toLocaleString()}
                   </div>
                 </div>
                 <div className="hidden md:block h-10 w-px bg-stone-800" />
                 <div className="text-stone-400 text-xs text-left leading-relaxed">
-                  Calculated based on an average fully loaded labor standard of **$45/hr** and an target AI process efficiency rate of **85%** across active departments.
+                  Volume × minutes per item × your hourly cost — the arithmetic is printed below,
+                  and every input in it is yours to change. At the share you set, the part automation
+                  would take is <span className="text-indigo-300 font-bold">${savings.annualSavings.toLocaleString()}</span> a year.
                 </div>
               </div>
             </div>
+
+            {/* The arithmetic behind every dollar figure above — all four inputs
+                are the visitor's, shown here, editable here. */}
+            <SavingsAssumptions value={savingsInputs} onChange={setSavingsInputs} />
 
             {/* Recommendations & Custom Workflows Grid */}
             <div className="bg-stone-900/20 border border-stone-800/80 rounded-2xl p-6 md:p-8">
@@ -468,11 +491,9 @@ function AssessmentPage() {
                           {w.workflow.description}
                         </p>
                         <div className="flex items-center gap-4 mt-3 text-[11px] font-mono text-stone-400">
-                          <span className="text-indigo-400 font-bold">${w.estimatedAnnualSavings.toLocaleString()}/yr</span>
+                          <span className="text-indigo-400 font-bold">Match score: {w.impactScore}</span>
                           <span className="text-stone-700">•</span>
                           <span>Timeline: {w.implementationTime}</span>
-                          <span className="text-stone-700">•</span>
-                          <span>Impact Score: {w.impactScore}/10</span>
                         </div>
                       </div>
                     </div>
@@ -507,7 +528,7 @@ function AssessmentPage() {
                             <span className="text-emerald-500 font-bold mt-0.5">✓</span>
                             <div>
                               <span className="font-semibold block">{w.workflow.name}</span>
-                              <span className="text-[10px] text-stone-500 block font-mono">${w.estimatedAnnualSavings.toLocaleString()}/yr saved</span>
+                              <span className="text-[10px] text-stone-500 block font-mono">{w.implementationTime}</span>
                             </div>
                           </li>
                         ))}
@@ -531,7 +552,7 @@ function AssessmentPage() {
                             <span className="text-amber-500 font-bold mt-0.5">→</span>
                             <div>
                               <span className="font-semibold block">{w.workflow.name}</span>
-                              <span className="text-[10px] text-stone-500 block font-mono">${w.estimatedAnnualSavings.toLocaleString()}/yr saved</span>
+                              <span className="text-[10px] text-stone-500 block font-mono">{w.implementationTime}</span>
                             </div>
                           </li>
                         ))}
@@ -555,7 +576,7 @@ function AssessmentPage() {
                             <span className="text-rose-500 font-bold mt-0.5">◆</span>
                             <div>
                               <span className="font-semibold block">{w.workflow.name}</span>
-                              <span className="text-[10px] text-stone-500 block font-mono">${w.estimatedAnnualSavings.toLocaleString()}/yr saved</span>
+                              <span className="text-[10px] text-stone-500 block font-mono">{w.implementationTime}</span>
                             </div>
                           </li>
                         ))}

@@ -16,21 +16,28 @@
  * This guard scans the enumerated public copy and fails on a numeric claim that
  * is not in `ALLOWED` with a written reason.
  *
+ * ── SLICE 187 CLOSED THE DEFERRALS ──────────────────────────────────────────
+ * Slice 186 exempted four files (`content/industries.ts`, the recommendation
+ * engine, `assessment.page.tsx`, `roi-calculator.page.tsx`) because their
+ * engines still invented their numbers. Slice 187 rebuilt those engines around
+ * the visitor's own inputs, so the exemption list is GONE — all four are scanned
+ * like every other public page, and the test below pins that they stay scanned.
+ *
  * ── WHAT THIS GUARD DOES NOT COVER (deliberately, and not silently) ──────────
- * 1. `src/content/industries.ts`, `src/components/IndustryRecommendationEngine.tsx`,
- *    `src/lazy/assessment.page.tsx`, `src/lazy/roi-calculator.page.tsx` — listed in
- *    `DEFERRED` below with the reason. Slice 187 rebuilds those engines.
- * 2. Portal pages (`src/lazy/portal.*.page.tsx`, `src/routes/portal.*.tsx`), the
+ * 1. Portal pages (`src/lazy/portal.*.page.tsx`, `src/routes/portal.*.tsx`), the
  *    per-customer share pages (`invoices.share`, `deal-rooms.share`,
  *    `bookings.share`), `login`, and `after-purchase` — not marketing copy. They
  *    render tenant data, and portal/server fabrication is `honesty-copy-guardrail`.
  * 3. Non-page modules (`src/tools/*`, `src/lib/*`, `prod-server.ts`) — server and
- *    engine sources. `src/tools/automation-analyzer.ts` and `assessment-engine.ts`
- *    still hold invented hour/dollar tables and are slice 187's work.
- * 4. Rendered output. A number can also be assembled from a variable
- *    (`{top.estimatedHoursSaved}h/week`) and no source-text regex sees that.
- *    Slice 186 removed every such interpolation it found in the pages above by
- *    hand; a future one needs a human read, not this test.
+ *    engine sources. Slice 187 emptied the last invented tables out of
+ *    `src/tools/assessment-engine.ts` and `src/tools/automation-analyzer.ts`;
+ *    `src/test/slice-187-honest-numbers.test.ts` guards those two by name, since
+ *    this guard only walks the enumerated copy.
+ * 4. Rendered output. A number assembled from a variable is invisible to a
+ *    source regex. Slices 186 and 187 removed every such interpolation they
+ *    found by hand, and the numbers those pages now interpolate are the
+ *    visitor's own inputs (see `SavingsAssumptions`); a future one needs a human
+ *    read, not this test.
  * 5. CSS. Tailwind width utilities such as `max-w-[80%]` match `\d+%`; they are
  *    allow-listed with that reason rather than by a cleverer regex that would
  *    also miss a real claim.
@@ -59,37 +66,15 @@ const PATTERNS: { name: string; rx: RegExp }[] = [
   { name: "dollar-per-hour", rx: /\$\d[\d,]*\s*(?:\/|per\s+)\s*(?:hr|hour)/gi },
 ];
 
-// ── Files whose numbers belong to slice 187 (lead brief: out of scope) ───────
-// Every entry needs a reason. Each file must still exist, so an exemption cannot
-// outlive the file it exempts.
-const DEFERRED: { file: string; reason: string }[] = [
-  {
-    file: "src/content/industries.ts",
-    reason:
-      "DEFERRED to slice 187: 118 invented baselines (hoursPerWeek, savingsPercent, ROI multiples) feed the " +
-      "recommendation engine, which 187 rebuilds. The lead's slice-186 brief declares this file out of scope. " +
-      "Delete this exemption when 187 lands — it must not survive the rebuild.",
-  },
-  {
-    file: "src/components/IndustryRecommendationEngine.tsx",
-    reason:
-      "DEFERRED to slice 187: hard-coded multipliers (0.6x/1.0x/2.2x) and an 85% baseline; the brief names this " +
-      "component out of scope. Delete this exemption when 187 lands.",
-  },
-  {
-    file: "src/lazy/assessment.page.tsx",
-    reason:
-      "DEFERRED to slice 187: renders assessment-engine output plus an 85% 'efficiency rate target' and a $45/hr " +
-      "labor standard. `src/tools/assessment-engine.ts` is named out of scope in the brief; the page cannot be " +
-      "made honest before the engine is.",
-  },
-  {
-    file: "src/lazy/roi-calculator.page.tsx",
-    reason:
-      "DEFERRED to slice 187: the page states the calculator's own invented basis (85% efficiency, 3x error " +
-      "cost). `src/components/RicherROICalculator.tsx` is named out of scope; fixing the footnote without the " +
-      "model would be a half-fix.",
-  },
+// ── No exemptions remain ────────────────────────────────────────────────────
+// Slice 186 exempted four files here. Slice 187 made them honest, so the list is
+// deleted rather than emptied: there is no mechanism left to defer a file, and
+// `PREVIOUSLY_DEFERRED` below asserts each one is inside the scan.
+const PREVIOUSLY_DEFERRED = [
+  "src/content/industries.ts",
+  "src/components/IndustryRecommendationEngine.tsx",
+  "src/lazy/assessment.page.tsx",
+  "src/lazy/roi-calculator.page.tsx",
 ];
 
 // ── Individual survivors, each with a written reason ─────────────────────────
@@ -175,8 +160,7 @@ export function publicCopyFiles(): string[] {
   const lazy = listDir("src/lazy", (n) => n.endsWith(".page.tsx") && !isExcluded(n));
   const content = listDir("src/content", (n) => n.endsWith(".ts"));
   const components = listDir("src/components", (n) => n.startsWith("Industry") && n.endsWith(".tsx"));
-  const deferred = new Set(DEFERRED.map((d) => d.file));
-  return [...routes, ...lazy, ...content, ...components].filter((f) => !deferred.has(f));
+  return [...routes, ...lazy, ...content, ...components];
 }
 
 /** Strip allow-listed substrings for one file, leaving only unjustified claims. */
@@ -214,10 +198,11 @@ describe("public marketing copy — no ungrounded statistic (slice 186)", () => 
     expect(files).toContain("src/content/resources.ts");
   });
 
-  it("every deferred file still exists and carries a real reason", () => {
-    for (const d of DEFERRED) {
-      expect(existsSync(P(d.file)), `${d.file} is exempt but no longer exists — remove the exemption`).toBe(true);
-      expect(d.reason.length, `${d.file} needs a written reason`).toBeGreaterThan(40);
+  it("the four files slice 186 deferred are scanned like any other public page", () => {
+    const files = publicCopyFiles();
+    for (const f of PREVIOUSLY_DEFERRED) {
+      expect(existsSync(P(f)), `${f} no longer exists — remove it from PREVIOUSLY_DEFERRED`).toBe(true);
+      expect(files, `${f} was deferred in 186 and slice 187 removed the exemption — it must stay scanned`).toContain(f);
     }
   });
 

@@ -55,8 +55,13 @@ export interface AssessmentAnswers {
 
 export interface WorkflowRecommendation {
   workflow: Workflow;
+  /**
+   * Weighted count of the visitor's OWN answers that point at this workflow
+   * (industry 30, each pain point 25, department 20, each tool 15, compliance
+   * 10). It is arithmetic on their input with the weights stated in the report,
+   * not a measurement of anything.
+   */
   impactScore: number;
-  estimatedAnnualSavings: number;
   implementationTime: string;
   priority: "quick-win" | "medium-term" | "long-term";
 }
@@ -70,7 +75,8 @@ export interface IntegrationRecommendation {
 
 export interface AssessmentReport {
   answers: AssessmentAnswers;
-  annualSavings: number;
+  /** Arithmetic on the visitor's own inputs — see `computeSavings`. */
+  savings: SavingsBreakdown;
   topWorkflows: WorkflowRecommendation[];
   recommendedIntegrations: IntegrationRecommendation[];
   roadmap: {
@@ -335,64 +341,98 @@ const departmentWorkflowMapping: Record<string, string[]> = {
 };
 
 // ── Savings Calculation ──────────────────────────────────────────────────
+//
+// SLICE 187. What was here before: a hard-coded dollar figure per workflow (36
+// entries, invoice-automation at twenty-five thousand), an invented company-size
+// ladder and an invented volume ladder, multiplied together and rendered as
+// "Estimated Annual Savings: $…".
+// The visitor's answers only chose WHICH constant came back; nothing in the
+// product had ever measured any of it.
+//
+// What is here now: arithmetic on four things the visitor states, every one of
+// them visible and editable on the report itself, plus the arithmetic written
+// out line by line so a reader can check it.
+//
+//   monthlyVolume   how many items (invoices, orders, documents) the team
+//                   handles in a month — pre-filled from their own answer to
+//                   the volume question, and editable
+//   minutesPerItem  minutes of manual work one item takes today — their number
+//   hourlyCost      their fully loaded cost per hour — their number
+//   automationShare how much of that manual work automation takes. This is the
+//                   one number nobody can know before a pilot, so the VISITOR
+//                   owns it: it is a slider they set and can change, and the
+//                   report says plainly that it is their assumption, not our
+//                   measurement.
 
-function calculateAnnualSavings(
-  workflowId: string,
-  companySize: string,
-  volume: string,
-): number {
-  const baseSavings: Record<string, number> = {
-    "invoice-automation": 25000,
-    "purchase-order-management": 18000,
-    "inventory-reconciliation": 22000,
-    "dispatch-scheduling": 20000,
-    "route-optimization": 28000,
-    "carrier-coordination": 15000,
-    "pod-collection": 12000,
-    "freight-audit": 16000,
-    "patient-intake": 20000,
-    "appointment-scheduling": 15000,
-    "insurance-verification": 18000,
-    "medical-coding": 25000,
-    "claims-processing": 35000,
-    "compliance-reporting": 20000,
-    "ap-ar-automation": 22000,
-    "data-entry-automation": 18000,
-    "document-processing": 15000,
-    "contract-review": 20000,
-    "onboarding": 15000,
-    "client-intake": 12000,
-    "payroll-processing": 15000,
-    "benefits-administration": 12000,
-    "vendor-management": 15000,
-    "customer-support-triage": 20000,
-    "lead-response": 12000,
-    "payment-reconciliation": 20000,
-    "reporting-automation": 15000,
-    "approval-workflow": 10000,
-    "notification-automation": 8000,
-    "social-media-management": 10000,
-    "email-automation": 12000,
-    "email-marketing": 15000,
-    "erp-updates": 18000,
-    "production-reporting": 20000,
-    "quality-assurance": 15000,
-    "supplier-communication": 12000,
+export interface SavingsInputs {
+  monthlyVolume: number;
+  minutesPerItem: number;
+  hourlyCost: number;
+  /** 0…1. The visitor's assumption about how much of the manual work goes away. */
+  automationShare: number;
+}
+
+export interface SavingsBreakdown {
+  inputs: SavingsInputs;
+  monthlyHours: number;
+  annualHours: number;
+  annualLabourValue: number;
+  annualSavings: number;
+  /** The arithmetic, one line per step, for rendering verbatim. */
+  lines: string[];
+}
+
+/** Midpoint of each volume answer, used only to PRE-FILL an editable field. */
+export const VOLUME_FROM_ANSWER: Record<string, number> = {
+  "0-100": 50,
+  "101-500": 300,
+  "501-2000": 1200,
+  "2001-10000": 6000,
+  "10000+": 20000,
+};
+
+/**
+ * Starting values for the four inputs. Three of them are round defaults the
+ * visitor overwrites with their own numbers on the report; the volume comes
+ * from their own answer. None of them is presented as a measurement.
+ */
+export const DEFAULT_SAVINGS_INPUTS: SavingsInputs = {
+  monthlyVolume: VOLUME_FROM_ANSWER["101-500"],
+  minutesPerItem: 8,
+  hourlyCost: 45,
+  automationShare: 0.5,
+};
+
+export function defaultSavingsInputs(volumeAnswer: string): SavingsInputs {
+  return {
+    ...DEFAULT_SAVINGS_INPUTS,
+    monthlyVolume: VOLUME_FROM_ANSWER[volumeAnswer] ?? DEFAULT_SAVINGS_INPUTS.monthlyVolume,
   };
+}
 
-  const sizeMultipliers: Record<string, number> = {
-    "1-10": 0.5, "11-50": 1.0, "51-200": 1.5, "201-500": 2.0, "501+": 3.0,
-  };
+const fmt = (n: number) => Math.round(n).toLocaleString("en-US");
+const fmt1 = (n: number) => (Math.round(n * 10) / 10).toLocaleString("en-US");
 
-  const volumeMultipliers: Record<string, number> = {
-    "0-100": 0.5, "101-500": 1.0, "501-2000": 1.5, "2001-10000": 2.0, "10000+": 3.0,
-  };
+/** Pure arithmetic. No constant in here is a claim about a result. */
+export function computeSavings(inputs: SavingsInputs): SavingsBreakdown {
+  const volume = Math.max(0, Number(inputs.monthlyVolume) || 0);
+  const minutes = Math.max(0, Number(inputs.minutesPerItem) || 0);
+  const rate = Math.max(0, Number(inputs.hourlyCost) || 0);
+  const share = Math.min(1, Math.max(0, Number(inputs.automationShare) || 0));
 
-  const base = baseSavings[workflowId] || 15000;
-  const sizeMultiplier = sizeMultipliers[companySize] || 1.0;
-  const volumeMultiplier = volumeMultipliers[volume] || 1.0;
+  const monthlyHours = (volume * minutes) / 60;
+  const annualHours = monthlyHours * 12;
+  const annualLabourValue = annualHours * rate;
+  const annualSavings = annualLabourValue * share;
 
-  return Math.round(base * sizeMultiplier * volumeMultiplier);
+  const lines = [
+    `${fmt(volume)} items/month × ${fmt1(minutes)} min/item ÷ 60 = ${fmt1(monthlyHours)} hours of manual work a month`,
+    `${fmt1(monthlyHours)} hours/month × 12 = ${fmt1(annualHours)} hours a year`,
+    `${fmt1(annualHours)} hours/year × ${fmt1(rate)}/hour = ${fmt(annualLabourValue)} a year of labour`,
+    `× ${fmt1(share * 100)}% (the share you set) = ${fmt(annualSavings)} a year`,
+  ];
+
+  return { inputs: { ...inputs, automationShare: share }, monthlyHours, annualHours, annualLabourValue, annualSavings, lines };
 }
 
 function estimateImplementationTime(workflowId: string): string {
@@ -463,7 +503,7 @@ function findMatchingIntegrations(softwareValues: string[]): IntegrationRecommen
 
 // ── Main Assessment Function ─────────────────────────────────────────────
 
-export function runAssessment(answers: AssessmentAnswers): AssessmentReport {
+export function runAssessment(answers: AssessmentAnswers, savingsInputs?: SavingsInputs): AssessmentReport {
   const scoredWorkflows = new Map<string, number>();
   const workflowSources = new Map<string, string[]>();
 
@@ -524,7 +564,6 @@ export function runAssessment(answers: AssessmentAnswers): AssessmentReport {
       recommendations.push({
         workflow,
         impactScore: score,
-        estimatedAnnualSavings: calculateAnnualSavings(wfId, answers.companySize, answers.monthlyInvoiceVolume),
         implementationTime: implTime,
         priority: determinePriority(wfId, implTime),
       });
@@ -540,15 +579,15 @@ export function runAssessment(answers: AssessmentAnswers): AssessmentReport {
   const mediumTerm = top10.filter(w => w.priority === "medium-term");
   const longTerm = top10.filter(w => w.priority === "long-term");
 
-  // Calculate total annual savings (top 5)
-  const annualSavings = top10.slice(0, 5).reduce((sum, w) => sum + w.estimatedAnnualSavings, 0);
+  // The money figure: arithmetic on the visitor's own inputs, never a table.
+  const savings = computeSavings(savingsInputs ?? defaultSavingsInputs(answers.monthlyInvoiceVolume));
 
   // Find recommended integrations
   const recommendedIntegrations = findMatchingIntegrations(answers.currentSoftware);
 
   return {
     answers,
-    annualSavings,
+    savings,
     topWorkflows: top10.slice(0, 5),
     recommendedIntegrations,
     roadmap: { quickWins, mediumTerm, longTerm },
@@ -572,12 +611,14 @@ export function generateReportText(report: AssessmentReport): string {
     `Department Focus: ${report.departmentFocus}`,
     "",
     "=== EXECUTIVE SUMMARY ===",
-    `Estimated Annual Savings: $${report.annualSavings.toLocaleString()}`,
-    `Top Automation Opportunities Identified: ${report.topWorkflows.length}`,
+    "The work you described, priced with your own numbers:",
+    ...report.savings.lines.map((l) => `  ${l}`),
+    "That share is your assumption, not a measured result — only a pilot can measure it.",
+    `Automation patterns matched to your answers: ${report.topWorkflows.length}`,
     "",
     "=== TOP 5 WORKFLOWS TO AUTOMATE ===",
     ...report.topWorkflows.map((w, i) =>
-      `${i + 1}. ${w.workflow.name} — $${w.estimatedAnnualSavings.toLocaleString()}/yr (${w.implementationTime})`
+      `${i + 1}. ${w.workflow.name} — match score ${w.impactScore} (${w.implementationTime})`
     ),
     "",
     "=== IMPLEMENTATION ROADMAP ===",
@@ -603,6 +644,5 @@ export function generateReportText(report: AssessmentReport): string {
  * Generate an HTML version of the report for the page
  */
 export function generateReportSummary(report: AssessmentReport): string {
-  const totalWins = report.roadmap.quickWins.length + report.roadmap.mediumTerm.length + report.roadmap.longTerm.length;
-  return `Found ${report.topWorkflows.length} automation opportunities that could save your team **$${report.annualSavings.toLocaleString()}/year**. We identified **${totalWins} workflows** across ${report.roadmap.quickWins.length} quick wins, ${report.roadmap.mediumTerm.length} medium-term, and ${report.roadmap.longTerm.length} long-term initiatives.`;
+  return `Matched ${report.topWorkflows.length} automation patterns to your answers — ${report.roadmap.quickWins.length} quick wins, ${report.roadmap.mediumTerm.length} medium-term, ${report.roadmap.longTerm.length} long-term. Priced with your own numbers: ${report.savings.lines.join(" ")} That share is the assumption you set, not a measured result.`;
 }
