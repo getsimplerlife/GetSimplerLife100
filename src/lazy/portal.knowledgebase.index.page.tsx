@@ -9,6 +9,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { Card, CardBody, Badge, Button } from "~/components/ui";
+import { authedJson } from "~/lib/portal-primitives";
 
 interface CategoryView {
   id: string;
@@ -47,25 +48,36 @@ export default function PortalKnowledgeBaseIndexPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [searchHits, setSearchHits] = useState<ArticleView[] | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // SLICE 190 — four silent `if (x.ok)` reads made a failed knowledge-base read
+  // render "No categories yet." / "No articles yet" / "No pending approvals.",
+  // and a failed SEARCH rendered as "No articles match your workspace's
+  // content." — a false statement about the tenant's own content.
+  const [loaded, setLoaded] = useState(false);
+  const [readError, setReadError] = useState("");
+  const [searchError, setSearchError] = useState("");
   const [catForm, setCatForm] = useState({ name: "", description: "" });
   const [artForm, setArtForm] = useState({ title: "", body: "", tags: "", categoryId: "" });
   const [draftForm, setDraftForm] = useState({ question: "", sourceArticleIds: "" });
 
   const load = useCallback(async () => {
-    try {
-      const [c, a, d, w] = await Promise.all([
-        fetch("/api/native/knowledgebase/categories", { headers: { accept: "application/json" } }),
-        fetch("/api/native/knowledgebase/articles", { headers: { accept: "application/json" } }),
-        fetch("/api/native/knowledgebase/drafts", { headers: { accept: "application/json" } }),
-        fetch("/api/native/knowledgebase/writes", { headers: { accept: "application/json" } }),
-      ]);
-      if (c.ok) setCategories(((await c.json()) as { data: { categories: CategoryView[] } }).data.categories ?? []);
-      if (a.ok) setArticles(((await a.json()) as { data: { articles: ArticleView[] } }).data.articles ?? []);
-      if (d.ok) setDrafts(((await d.json()) as { data: { drafts: DraftView[] } }).data.drafts ?? []);
-      if (w.ok) setWrites(((await w.json()) as { data: { writes: PendingWriteView[] } }).data.writes ?? []);
-    } catch {
-      setNotice("Could not reach the knowledge-base service right now.");
+    const [c, a, d, w] = await Promise.all([
+      authedJson<{ categories: CategoryView[] }>("/api/native/knowledgebase/categories"),
+      authedJson<{ articles: ArticleView[] }>("/api/native/knowledgebase/articles"),
+      authedJson<{ drafts: DraftView[] }>("/api/native/knowledgebase/drafts"),
+      authedJson<{ writes: PendingWriteView[] }>("/api/native/knowledgebase/writes"),
+    ]);
+    const errors = [c, a, d, w].flatMap((x) => (x.ok ? [] : [x.error]));
+    if (errors.length > 0) {
+      setReadError(errors.join(" · "));
+      setLoaded(false);
+      return;
     }
+    if (c.ok) setCategories(c.data?.categories ?? []);
+    if (a.ok) setArticles(a.data?.articles ?? []);
+    if (d.ok) setDrafts(d.data?.drafts ?? []);
+    if (w.ok) setWrites(w.data?.writes ?? []);
+    setReadError("");
+    setLoaded(true);
   }, []);
   useEffect(() => {
     void load();
@@ -111,11 +123,22 @@ export default function PortalKnowledgeBaseIndexPage() {
   async function runSearch(): Promise<void> {
     if (!searchTerm.trim()) {
       setSearchHits(null);
+      setSearchError("");
       return;
     }
-    const res = await fetch(`/api/native/knowledgebase/search?q=${encodeURIComponent(searchTerm.trim())}`, { headers: { accept: "application/json" } });
-    if (res.ok) setSearchHits(((await res.json()) as { data: { articles: ArticleView[] } }).data.articles ?? []);
-    else setSearchHits([]);
+    // SLICE 190 — `else setSearchHits([])` turned a 500 into "No articles match
+    // your workspace's content.": a statement about the tenant's own content
+    // made about a read that never answered.
+    const res = await authedJson<{ articles: ArticleView[] }>(
+      `/api/native/knowledgebase/search?q=${encodeURIComponent(searchTerm.trim())}`,
+    );
+    if (!res.ok) {
+      setSearchHits(null);
+      setSearchError(res.error);
+      return;
+    }
+    setSearchError("");
+    setSearchHits(res.data?.articles ?? []);
   }
 
   const statusColor: Record<string, string> = { draft: "bg-stone-700 text-stone-200", published: "bg-emerald-900 text-emerald-200", archived: "bg-stone-800 text-stone-400" };
@@ -127,6 +150,12 @@ export default function PortalKnowledgeBaseIndexPage() {
         <p className="text-stone-400 text-sm mt-1">Articles, categories and search over your workspace's own how-to content. Every change is approval-gated; AI answer drafting is config-only and OFF by default.</p>
       </div>
       {notice && <div className="rounded-lg bg-stone-900 border border-stone-700 px-4 py-3 text-sm text-stone-200">{notice}</div>}
+      {readError && (
+        <div role="alert" className="rounded-lg bg-rose-950/40 border border-rose-800/50 px-4 py-3 text-sm text-rose-200">
+          Could not read this workspace&apos;s knowledge base — {readError}. Categories, articles and pending approvals
+          below are unread, not empty.
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Create category */}
@@ -163,6 +192,12 @@ export default function PortalKnowledgeBaseIndexPage() {
             <input className="flex-1 rounded-lg bg-stone-900 border border-stone-700 px-3 py-2 text-sm text-white placeholder-stone-500" placeholder="Search titles, bodies and tags…" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void runSearch(); }} />
             <Button onClick={runSearch}>Search</Button>
           </div>
+          {searchError && (
+            <p role="alert" className="mt-4 text-sm text-rose-300">
+              The search could not be read — {searchError}. This is not a result of zero matching articles: the search
+              never answered.
+            </p>
+          )}
           {searchHits && (
             <div className="mt-4 space-y-2">
               {searchHits.length === 0 && <p className="text-sm text-stone-400">No articles match your workspace's content.</p>}
@@ -187,7 +222,11 @@ export default function PortalKnowledgeBaseIndexPage() {
             {categories.map((c) => (
               <span key={c.id} className="inline-flex items-center gap-2 rounded-full bg-stone-900 border border-stone-700 px-3 py-1 text-xs text-stone-300">{c.name}</span>
             ))}
-            {categories.length === 0 && <p className="text-sm text-stone-500">No categories yet.</p>}
+            {!loaded ? (
+              <p className="text-sm text-stone-500">The category list could not be read — see the message above.</p>
+            ) : categories.length === 0 ? (
+              <p className="text-sm text-stone-500">No categories yet.</p>
+            ) : null}
           </div>
         </CardBody>
       </Card>
@@ -215,7 +254,11 @@ export default function PortalKnowledgeBaseIndexPage() {
                 </div>
               </div>
             ))}
-            {articles.length === 0 && <p className="text-sm text-stone-500">No articles yet — create one above.</p>}
+            {!loaded ? (
+              <p className="text-sm text-stone-500">The article list could not be read — see the message above.</p>
+            ) : articles.length === 0 ? (
+              <p className="text-sm text-stone-500">No articles yet — create one above.</p>
+            ) : null}
           </div>
         </CardBody>
       </Card>
@@ -262,7 +305,11 @@ export default function PortalKnowledgeBaseIndexPage() {
                 </div>
               </div>
             ))}
-            {writes.length === 0 && <p className="text-sm text-stone-500">No pending approvals.</p>}
+            {!loaded ? (
+              <p className="text-sm text-stone-500">The pending-approval list could not be read — see the message above.</p>
+            ) : writes.length === 0 ? (
+              <p className="text-sm text-stone-500">No pending approvals.</p>
+            ) : null}
           </div>
         </CardBody>
       </Card>

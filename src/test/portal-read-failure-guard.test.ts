@@ -40,10 +40,14 @@
  *
  * ── THE REMAINDER IS COUNTED, NOT EXEMPTED ──────────────────────────────────
  * Slice 188 fixed the five worst pages plus the shared notifications hook,
- * which together cover every portal page. The other affected routes are listed
- * in `SLICE_189_REMAINDER` — one entry per surviving violation, each with the
- * reason "slice 189", and the test pins the file count so the debt can only
- * shrink by editing this list. A blanket exemption would hide it; this cannot.
+ * which together cover every portal page. Slice 190 fixed the twelve routes in
+ * read-failure batch A (the pages whose PRIMARY read rendered a failure as an
+ * affirmative empty state), and removed each of them from the list below. What
+ * is left is read-failure BATCH B — pages whose secondary reads sit beside an
+ * honest primary — listed in `BATCH_B_REMAINDER`, one entry per surviving
+ * violation, each with the reason naming the batch that owns it, and the test
+ * pins the file count so the debt can only shrink by editing this list. A
+ * blanket exemption would hide it; this cannot.
  */
 import { describe, expect, it } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
@@ -247,38 +251,35 @@ const ALLOWED: AllowEntry[] = [
 ];
 
 /**
- * SLICE 189 — the counted remainder.
+ * BATCH B — the counted remainder.
  *
- * 15 portal pages render an affirmative empty state ("No invoices yet", "No
- * boards yet", …) with no notion that a read can fail: they hold an `error`
- * string for writes, but nothing distinguishes "zero rows" from "the read did
- * not answer". They are NOT exempted from the guard — each is listed here by
- * name, the count below is pinned, and slice 189 removes them one at a time.
+ * 8 portal pages still render an affirmative empty state ("No invoices yet",
+ * "No checklists yet", …) with no notion that a read can fail: they hold an
+ * `error` string for writes, but nothing distinguishes "zero rows" from "the
+ * read did not answer". They are NOT exempted from the guard — each is listed
+ * here by name, the count below is pinned, and a later slice removes them one
+ * at a time.
  *
  * Slice 188 fixed the five worst (approvals, dashboard, vault, communications,
  * notifications) plus the shared bell hook, which together cover every portal
- * page's shell; those five no longer appear anywhere in this file.
+ * page's shell. Slice 190 fixed batch A and deleted those entries: settings,
+ * admin/credentials, the admin layout, dedupe, knowledgebase, accessreview,
+ * secure-transport, assistant, boards, tables, admin/index and automations.
+ * None of the twelve appears anywhere in this file.
  */
-const SLICE_189_REMAINDER: AllowEntry[] = [
-  { file: "src/lazy/portal.accessreview.index.page.tsx", rule: "empty-state-unconditional", reason: "slice 189", what: "No campaigns yet." },
-  { file: "src/lazy/portal.admin.audit.page.tsx", rule: "empty-state-unconditional", reason: "slice 189", what: "No audit logs found" },
-  { file: "src/lazy/portal.admin.index.page.tsx", rule: "empty-state-unconditional", reason: "slice 189", what: "No clients yet" },
-  { file: "src/lazy/portal.assistant.index.page.tsx", rule: "empty-state-unconditional", reason: "slice 189", what: "No asks yet" },
-  { file: "src/lazy/portal.automations.index.page.tsx", rule: "empty-state-unconditional", reason: "slice 189", what: "No rules yet." },
-  { file: "src/lazy/portal.boards.index.page.tsx", rule: "empty-state-unconditional", reason: "slice 189", what: "No boards yet" },
-  { file: "src/lazy/portal.checklists.index.page.tsx", rule: "empty-state-unconditional", reason: "slice 189", what: "No checklists yet" },
-  { file: "src/lazy/portal.deal-rooms.index.page.tsx", rule: "empty-state-unconditional", reason: "slice 189", what: "No deal rooms yet" },
-  { file: "src/lazy/portal.dedupe.index.page.tsx", rule: "empty-state-unconditional", reason: "slice 189", what: "No merges yet." },
-  { file: "src/lazy/portal.document-ai.index.page.tsx", rule: "empty-state-unconditional", reason: "slice 189", what: "No extraction runs yet." },
-  { file: "src/lazy/portal.invoices.index.page.tsx", rule: "empty-state-unconditional", reason: "slice 189", what: "No invoices yet" },
-  { file: "src/lazy/portal.knowledgebase.index.page.tsx", rule: "empty-state-unconditional", reason: "slice 189", what: "No categories yet." },
-  { file: "src/lazy/portal.proposals.index.page.tsx", rule: "empty-state-unconditional", reason: "slice 189", what: "No proposals yet" },
-  { file: "src/lazy/portal.surveys.index.page.tsx", rule: "empty-state-unconditional", reason: "slice 189", what: "No surveys yet" },
-  { file: "src/lazy/portal.transforms.index.page.tsx", rule: "empty-state-unconditional", reason: "slice 189", what: "No transforms yet" },
+const BATCH_B_REMAINDER: AllowEntry[] = [
+  { file: "src/lazy/portal.admin.audit.page.tsx", rule: "empty-state-unconditional", reason: "batch B", what: "No audit logs found" },
+  { file: "src/lazy/portal.checklists.index.page.tsx", rule: "empty-state-unconditional", reason: "batch B", what: "No checklists yet" },
+  { file: "src/lazy/portal.deal-rooms.index.page.tsx", rule: "empty-state-unconditional", reason: "batch B", what: "No deal rooms yet" },
+  { file: "src/lazy/portal.document-ai.index.page.tsx", rule: "empty-state-unconditional", reason: "batch B", what: "No extraction runs yet." },
+  { file: "src/lazy/portal.invoices.index.page.tsx", rule: "empty-state-unconditional", reason: "batch B", what: "No invoices yet" },
+  { file: "src/lazy/portal.proposals.index.page.tsx", rule: "empty-state-unconditional", reason: "batch B", what: "No proposals yet" },
+  { file: "src/lazy/portal.surveys.index.page.tsx", rule: "empty-state-unconditional", reason: "batch B", what: "No surveys yet" },
+  { file: "src/lazy/portal.transforms.index.page.tsx", rule: "empty-state-unconditional", reason: "batch B", what: "No transforms yet" },
 ];
 
 /** The number of pages still carrying the render-time half of this class. */
-export const REMAINDER_COUNT = 15;
+export const REMAINDER_COUNT = 8;
 
 const key = (v: { file: string; rule: string }) => `${v.file}|${v.rule}`;
 
@@ -320,7 +321,7 @@ describe("portal read-failure guard (slice 188)", () => {
   it("no scanned file reads a response body it never checked, or clears an unresolved error", () => {
     const violations: Violation[] = [];
     for (const file of scannedFiles()) violations.push(...findViolations(file, readFileSync(P(file), "utf8")));
-    const { unexplained, stale } = reconcile(violations, [...ALLOWED, ...SLICE_189_REMAINDER]);
+    const { unexplained, stale } = reconcile(violations, [...ALLOWED, ...BATCH_B_REMAINDER]);
     // Compared as TEXT, not as arrays: a failed assertion must print every
     // offending line in full, so the next engineer can read the debt.
     expect(
@@ -344,17 +345,40 @@ describe("portal read-failure guard (slice 188)", () => {
     }
   });
 
-  it("the slice-189 remainder is named, counted and carries its reason", () => {
+  it("the batch-B remainder is named, counted and carries its reason", () => {
     // The debt is visible and it can only shrink by editing this list: the count
-    // is pinned, every entry names its owning slice, and a fixed page leaves a
+    // is pinned, every entry names its owning batch, and a fixed page leaves a
     // stale entry that the reconcile above already fails on.
-    const files = new Set(SLICE_189_REMAINDER.map((e) => e.file));
-    expect(files.size, "the slice-189 remainder changed — update REMAINDER_COUNT and the list together").toBe(
+    const files = new Set(BATCH_B_REMAINDER.map((e) => e.file));
+    expect(files.size, "the batch-B remainder changed — update REMAINDER_COUNT and the list together").toBe(
       REMAINDER_COUNT,
     );
-    for (const e of SLICE_189_REMAINDER) {
-      expect(e.reason).toBe("slice 189");
+    for (const e of BATCH_B_REMAINDER) {
+      expect(e.reason).toBe("batch B");
       expect(e.what, `${e.file} should say what it renders`).toBeTruthy();
+    }
+  });
+
+  it("no page fixed by slice 190 is allow-listed or in the remainder", () => {
+    // The twelve batch-A routes were FIXED, not exempted. An entry for any of
+    // them would be the guard blessing the bug it was written to catch.
+    const fixed = [
+      "src/lazy/portal.settings.index.page.tsx",
+      "src/lazy/portal.admin.credentials.page.tsx",
+      "src/lazy/portal.admin.page.tsx",
+      "src/lazy/portal.dedupe.index.page.tsx",
+      "src/lazy/portal.knowledgebase.index.page.tsx",
+      "src/lazy/portal.accessreview.index.page.tsx",
+      "src/lazy/portal.secure-transport.index.page.tsx",
+      "src/lazy/portal.assistant.index.page.tsx",
+      "src/lazy/portal.boards.index.page.tsx",
+      "src/lazy/portal.tables.index.page.tsx",
+      "src/lazy/portal.admin.index.page.tsx",
+      "src/lazy/portal.automations.index.page.tsx",
+    ];
+    for (const f of fixed) {
+      expect([...ALLOWED, ...BATCH_B_REMAINDER].filter((e) => e.file === f), `${f} must not be allow-listed`).toEqual([]);
+      expect(findViolations(f, readFileSync(P(f), "utf8")), `${f} regressed`).toEqual([]);
     }
   });
 
@@ -369,7 +393,7 @@ describe("portal read-failure guard (slice 188)", () => {
       "src/lazy/portal.communications.index.page.tsx",
       "src/lazy/portal.approvals.index.page.tsx",
     ]) {
-      expect([...ALLOWED, ...SLICE_189_REMAINDER].filter((e) => e.file === fixed), `${fixed} must not be allow-listed`).toEqual([]);
+      expect([...ALLOWED, ...BATCH_B_REMAINDER].filter((e) => e.file === fixed), `${fixed} must not be allow-listed`).toEqual([]);
     }
   });
 

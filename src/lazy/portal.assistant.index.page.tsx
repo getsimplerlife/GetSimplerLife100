@@ -6,6 +6,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { Card, CardBody, Badge, Button } from "~/components/ui";
+import { authedJson } from "~/lib/portal-primitives";
 
 interface AssistantMessageView {
   id: string;
@@ -36,24 +37,28 @@ export default function PortalAssistantIndexPage() {
   const [prompt, setPrompt] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  // SLICE 190 — two silent `if (mRes.ok)` / `if (wRes.ok)` reads. A failed read
+  // left `messages` at [] and the transcript said "No asks yet — your message
+  // history appears here once approved", which reads as "this workspace has
+  // never asked anything" about a store nobody read.
+  const [loaded, setLoaded] = useState(false);
+  const [readError, setReadError] = useState("");
 
   const load = useCallback(async () => {
-    try {
-      const [mRes, wRes] = await Promise.all([
-        fetch("/api/native/assistant/messages", { headers: { accept: "application/json" } }),
-        fetch("/api/native/assistant/writes", { headers: { accept: "application/json" } }),
-      ]);
-      if (mRes.ok) {
-        const m = (await mRes.json()) as { messages: AssistantMessageView[] };
-        setMessages(m.messages ?? []);
-      }
-      if (wRes.ok) {
-        const w = (await wRes.json()) as { writes: PendingWriteView[] };
-        setWrites((w.writes ?? []).filter((x) => x.status === "pending"));
-      }
-    } catch {
-      setNotice("Could not reach the assistant right now.");
+    const [mRes, wRes] = await Promise.all([
+      authedJson<{ messages: AssistantMessageView[] }>("/api/native/assistant/messages"),
+      authedJson<{ writes: PendingWriteView[] }>("/api/native/assistant/writes"),
+    ]);
+    const errors = [mRes, wRes].flatMap((x) => (x.ok ? [] : [x.error]));
+    if (errors.length > 0) {
+      setReadError(errors.join(" · "));
+      setLoaded(false);
+      return;
     }
+    if (mRes.ok) setMessages(mRes.data?.messages ?? []);
+    if (wRes.ok) setWrites((wRes.data?.writes ?? []).filter((x) => x.status === "pending"));
+    setReadError("");
+    setLoaded(true);
   }, []);
 
   useEffect(() => {
@@ -115,6 +120,12 @@ export default function PortalAssistantIndexPage() {
       {notice && (
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm text-amber-100" role="status">
           {notice}
+        </div>
+      )}
+      {readError && (
+        <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-2 text-sm text-rose-100" role="alert">
+          Could not read this workspace&apos;s assistant history — {readError}. The transcript and pending asks below
+          are unread, not empty.
         </div>
       )}
 
@@ -182,7 +193,9 @@ export default function PortalAssistantIndexPage() {
       <Card>
         <CardBody>
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">Transcript</h2>
-          {messages.length === 0 ? (
+          {!loaded ? (
+            <p className="text-sm text-muted-foreground">The transcript could not be read — see the message above.</p>
+          ) : messages.length === 0 ? (
             <p className="text-sm text-muted-foreground">No asks yet — your message history appears here once approved.</p>
           ) : (
             <ul className="space-y-2">

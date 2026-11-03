@@ -87,6 +87,14 @@ export default function TablesPage() {
   const [signedOut, setSignedOut] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  // SLICE 190 — `load()` set an error and returned, and the page then rendered
+  // "No tables yet" / "Nothing waiting for approval." / "No rows yet" over
+  // stores it had never read. Three flags, because the three reads are
+  // independent: a failed rows read must not hide a table list that DID load,
+  // and must not claim the table is empty.
+  const [loaded, setLoaded] = useState(false);
+  const [writesLoaded, setWritesLoaded] = useState(false);
+  const [rowsLoaded, setRowsLoaded] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [tables, setTables] = useState<TableSummary[]>([]);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -110,13 +118,25 @@ export default function TablesPage() {
     if (!res.ok) {
       if (res.signedOut) setSignedOut(true);
       else setError(res.error);
+      setLoaded(false);
       return;
     }
     setSignedOut(false);
     setError("");
     setTables(Array.isArray(res.data?.tables) ? res.data.tables : []);
+    setLoaded(true);
     const wr = await authedJson<{ writes: PendingWrite[] }>("/api/native/tables/writes");
-    if (wr.ok) setWrites(Array.isArray(wr.data?.writes) ? wr.data.writes : []);
+    if (wr.ok) {
+      setWrites(Array.isArray(wr.data?.writes) ? wr.data.writes : []);
+      setWritesLoaded(true);
+    } else {
+      // SLICE 190 — this read was silent. A pending write that could not be
+      // read is not "nothing waiting for approval": it may be a queued row the
+      // tenant is waiting on.
+      if (wr.signedOut) setSignedOut(true);
+      else setError(wr.error);
+      setWritesLoaded(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -132,9 +152,11 @@ export default function TablesPage() {
     if (!res.ok) {
       if (res.signedOut) setSignedOut(true);
       else setError(res.error);
+      setRowsLoaded(false);
       return;
     }
     setRows(Array.isArray(res.data?.rows) ? res.data.rows : []);
+    setRowsLoaded(true);
     setPage(1);
   }, []);
 
@@ -411,6 +433,11 @@ export default function TablesPage() {
           <h2 className="mb-3 text-lg font-semibold">Your tables ({tables.length})</h2>
           {loading ? (
             <p className="text-sm text-stone-500">Loading…</p>
+          ) : !loaded ? (
+            <div className="rounded border border-rose-300 bg-rose-50 p-4 text-sm text-rose-800" role="alert">
+              The table list could not be read, so this is not an empty workspace — it is an unread one. Do not create a
+              table to replace one that may already exist.
+            </div>
           ) : tables.length === 0 ? (
             <PortalEmptyState
               title="No tables yet"
@@ -481,6 +508,12 @@ export default function TablesPage() {
                     <tr>
                       <td className="px-2 py-3 text-stone-500" colSpan={openTable.fields.length + 2}>
                         Loading rows…
+                      </td>
+                    </tr>
+                  ) : !rowsLoaded ? (
+                    <tr>
+                      <td className="px-2 py-3 text-rose-700" colSpan={openTable.fields.length + 2}>
+                        This table&apos;s rows could not be read — this is not an empty table.
                       </td>
                     </tr>
                   ) : paged.rows.length === 0 ? (
@@ -606,7 +639,11 @@ export default function TablesPage() {
       <Card>
         <div className="p-6">
           <h2 className="mb-3 text-lg font-semibold">Pending writes ({pendingWrites.length})</h2>
-          {pendingWrites.length === 0 ? (
+          {!writesLoaded ? (
+            <p className="text-sm text-rose-700">
+              The pending-write list could not be read — this is not “nothing waiting for approval”.
+            </p>
+          ) : pendingWrites.length === 0 ? (
             <p className="text-sm text-stone-500">Nothing waiting for approval.</p>
           ) : (
             <div className="space-y-2">

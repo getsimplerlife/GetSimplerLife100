@@ -9,6 +9,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { Card, CardBody, Badge, Button } from "~/components/ui";
+import { authedJson } from "~/lib/portal-primitives";
 
 interface RuleView {
   id: string;
@@ -82,27 +83,37 @@ export default function PortalDedupeIndexPage() {
   const [tables, setTables] = useState<TableView[]>([]);
   const [writes, setWrites] = useState<PendingWriteView[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
+  // SLICE 190 — seven silent `if (x.ok)` reads. A 500 on any of them left the
+  // matching array at [] and the page printed "No merges yet." / "No open
+  // suggestions" / "Nothing waiting for approval." about a store nobody read.
+  // `loaded` is true only when every one of the seven came back 2xx.
+  const [loaded, setLoaded] = useState(false);
+  const [readError, setReadError] = useState("");
   const load = useCallback(async () => {
-    try {
-      const [r, q, s, n, i, t, w] = await Promise.all([
-        fetch("/api/native/dedupe/rules", { headers: { accept: "application/json" } }),
-        fetch("/api/native/dedupe/quality-rules", { headers: { accept: "application/json" } }),
-        fetch("/api/native/dedupe/suggestions", { headers: { accept: "application/json" } }),
-        fetch("/api/native/dedupe/runs", { headers: { accept: "application/json" } }),
-        fetch("/api/native/dedupe/identities", { headers: { accept: "application/json" } }),
-        fetch("/api/native/tables", { headers: { accept: "application/json" } }),
-        fetch("/api/native/dedupe/writes", { headers: { accept: "application/json" } }),
-      ]);
-      if (r.ok) setRules(((await r.json()) as { data: { rules: RuleView[] } }).data.rules ?? []);
-      if (q.ok) setQuality(((await q.json()) as { data: { rules: QualityView[] } }).data.rules ?? []);
-      if (s.ok) setSuggestions(((await s.json()) as { data: { suggestions: SuggestionView[] } }).data.suggestions ?? []);
-      if (n.ok) setRuns(((await n.json()) as { data: { runs: RunView[] } }).data.runs ?? []);
-      if (i.ok) setIdentities(((await i.json()) as { data: { identities: IdentityView[] } }).data.identities ?? []);
-      if (t.ok) setTables(((await t.json()) as { data: { tables: TableView[] } }).data.tables ?? []);
-      if (w.ok) setWrites(((await w.json()) as { data: { writes: PendingWriteView[] } }).data.writes ?? []);
-    } catch {
-      setNotice("Could not reach the dedupe & MDM service right now.");
+    const [r, q, s, n, i, t, w] = await Promise.all([
+      authedJson<{ rules: RuleView[] }>("/api/native/dedupe/rules"),
+      authedJson<{ rules: QualityView[] }>("/api/native/dedupe/quality-rules"),
+      authedJson<{ suggestions: SuggestionView[] }>("/api/native/dedupe/suggestions"),
+      authedJson<{ runs: RunView[] }>("/api/native/dedupe/runs"),
+      authedJson<{ identities: IdentityView[] }>("/api/native/dedupe/identities"),
+      authedJson<{ tables: TableView[] }>("/api/native/tables"),
+      authedJson<{ writes: PendingWriteView[] }>("/api/native/dedupe/writes"),
+    ]);
+    const errors = [r, q, s, n, i, t, w].flatMap((x) => (x.ok ? [] : [x.error]));
+    if (errors.length > 0) {
+      setReadError(errors.join(" · "));
+      setLoaded(false);
+      return;
     }
+    if (r.ok) setRules(r.data?.rules ?? []);
+    if (q.ok) setQuality(q.data?.rules ?? []);
+    if (s.ok) setSuggestions(s.data?.suggestions ?? []);
+    if (n.ok) setRuns(n.data?.runs ?? []);
+    if (i.ok) setIdentities(i.data?.identities ?? []);
+    if (t.ok) setTables(t.data?.tables ?? []);
+    if (w.ok) setWrites(w.data?.writes ?? []);
+    setReadError("");
+    setLoaded(true);
   }, []);
   useEffect(() => {
     void load();
@@ -187,6 +198,15 @@ export default function PortalDedupeIndexPage() {
       </div>
       {notice && (
         <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">{notice}</div>
+      )}
+      {/* SLICE 190 — the page-level statement. Every empty state below is gated
+          on `loaded`, so this sentence is the only thing standing where a claim
+          about the workspace would otherwise be. */}
+      {readError && (
+        <div role="alert" className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+          Could not read this workspace&apos;s dedupe data — {readError}. Nothing below is a claim that you have no
+          rules, suggestions, merges or pending approvals: those lists are unread, not empty.
+        </div>
       )}
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -336,7 +356,9 @@ export default function PortalDedupeIndexPage() {
             Deterministic duplicates (confidence 1.0). Merging records an identity pointer — the richer row becomes the
             survivor, duplicates are marked superseded, and no underlying record is deleted or modified.
           </p>
-          {suggestions.length === 0 ? (
+          {!loaded ? (
+            <p className="mt-3 text-sm text-slate-500">The suggestion list could not be read — see the message above.</p>
+          ) : suggestions.length === 0 ? (
             <p className="mt-3 text-sm text-slate-500">No open suggestions. Run a scan to find candidate duplicates.</p>
           ) : (
             <ul className="mt-3 divide-y divide-stone-800">
@@ -370,7 +392,9 @@ export default function PortalDedupeIndexPage() {
           <CardBody>
             <h2 className="text-lg font-semibold text-stone-100">Record identities</h2>
             <p className="mt-1 text-xs text-slate-500">Golden-record pointers from approved merges.</p>
-            {identities.length === 0 ? (
+            {!loaded ? (
+              <p className="mt-3 text-sm text-slate-500">The identity list could not be read — see the message above.</p>
+            ) : identities.length === 0 ? (
               <p className="mt-3 text-sm text-slate-500">No merges yet.</p>
             ) : (
               <ul className="mt-3 divide-y divide-stone-800">
@@ -390,7 +414,9 @@ export default function PortalDedupeIndexPage() {
           <CardBody>
             <h2 className="text-lg font-semibold text-stone-100">Pending approvals</h2>
             <p className="mt-1 text-xs text-slate-500">Every dedupe mutation waits here until you approve or reject it.</p>
-            {writes.length === 0 ? (
+            {!loaded ? (
+              <p className="mt-3 text-sm text-slate-500">The pending-write list could not be read — see the message above.</p>
+            ) : writes.length === 0 ? (
               <p className="mt-3 text-sm text-slate-500">Nothing waiting for approval.</p>
             ) : (
               <ul className="mt-3 divide-y divide-stone-800">

@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { authedJson } from "~/lib/portal-primitives";
 
 
 
@@ -105,6 +106,12 @@ function UnifiedSettingsHub() {
   const [stripeKeyInput, setStripeKeyInput] = useState("");
   const [stripeBusy, setStripeBusy] = useState(false);
   const [stripeError, setStripeError] = useState("");
+  // SLICE 190 — a Stripe status read that failed is NOT "not connected".
+  // `fetchStripeStatus` used to `if (!res.ok) return;` inside a bare `catch`,
+  // so a 500 or a dead network rendered the amber "No Stripe account
+  // connected" box and invited the owner to paste a key that is already
+  // stored. `stripeReadError` is the only thing that separates the two.
+  const [stripeReadError, setStripeReadError] = useState("");
 
   // 3. Plan & Billing states
   const [activePlan, setActivePlan] = useState("");
@@ -132,34 +139,60 @@ function UnifiedSettingsHub() {
   // holding only the last field it saved. Both sides speak the flat shape now,
   // which is also the shape src/native/invoice/issuer.ts reads to label an
   // invoice with the workspace's own name.
-  useEffect(() => {
-    fetch("/api/data/settings", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
-      .then((d) => {
-        const apply = (key: unknown, value: unknown) => {
-          if (typeof key !== "string") return;
-          const text = value === undefined || value === null ? "" : String(value);
-          if (key === "companyName") setCompanyName(text);
-          if (key === "logoUrl") setLogoUrl(text);
-          if (key === "industry") setIndustry(text);
-          if (key === "address") setAddress(text);
-          if (key === "phone") setPhone(text);
-          if (key === "website") setWebsite(text);
-          if (key === "timezone") setTimezone(text);
-          if (key === "language") setLanguage(text);
-        };
-        const data = (d as { data?: unknown })?.data;
-        if (Array.isArray(data)) {
-          data.forEach((row) => apply((row as { key?: unknown })?.key, (row as { value?: unknown })?.value));
-        } else if (data && typeof data === "object") {
-          Object.entries(data as Record<string, unknown>).forEach(([key, value]) => apply(key, value));
-        }
-      })
-      .catch((err) => {
-        console.error("Error loading settings:", err);
-      })
-      .finally(() => setLoadingSettings(false));
+  // SLICE 190 — THE MOST DANGEROUS READ ON THE PORTAL.
+  //
+  // Before this slice the loader below ended in `.catch(err => console.error)`
+  // and `setLoadingSettings(false)` ran regardless: a failed read left every
+  // field at "", the page rendered an EDITABLE BLANK form that looked like a
+  // workspace with no profile, and `handleSaveProfile` would then POST those
+  // blanks over the values that are really stored — silently destroying the
+  // issuer name that prints on every invoice. `profileLoaded` is true only when
+  // the read came back 2xx, and the form is not rendered without it.
+  const [profileLoaded, setProfileLoaded] = useState(false);
+  const [profileReadError, setProfileReadError] = useState("");
+
+  const loadProfile = useCallback(async () => {
+    const res = await authedJson<unknown>("/api/data/settings");
+    if (!res.ok) {
+      setProfileReadError(res.error);
+      setProfileLoaded(false);
+      return;
+    }
+    const d = res.data as { data?: unknown } | unknown[] | null;
+    const apply = (key: unknown, value: unknown) => {
+      if (typeof key !== "string") return;
+      const text = value === undefined || value === null ? "" : String(value);
+      if (key === "companyName") setCompanyName(text);
+      if (key === "logoUrl") setLogoUrl(text);
+      if (key === "industry") setIndustry(text);
+      if (key === "address") setAddress(text);
+      if (key === "phone") setPhone(text);
+      if (key === "website") setWebsite(text);
+      if (key === "timezone") setTimezone(text);
+      if (key === "language") setLanguage(text);
+    };
+    // `authedJson` already unwraps `data`; the endpoint's body has also been
+    // served as `{ data: {...} }` historically, so accept both flat object and
+    // `{ key, value }` rows without inventing anything.
+    const data = (d as { data?: unknown })?.data ?? d;
+    if (Array.isArray(data)) {
+      data.forEach((row) => apply((row as { key?: unknown })?.key, (row as { value?: unknown })?.value));
+    } else if (data && typeof data === "object") {
+      Object.entries(data as Record<string, unknown>).forEach(([key, value]) => apply(key, value));
+    }
+    setProfileReadError("");
+    setProfileLoaded(true);
   }, []);
+
+  const reloadProfile = useCallback(() => {
+    setLoadingSettings(true);
+    void loadProfile().finally(() => setLoadingSettings(false));
+  }, [loadProfile]);
+
+  useEffect(() => {
+    void loadProfile().finally(() => setLoadingSettings(false));
+  }, [loadProfile]);
+
   // Fetch Connected Accounts on tab click/mount
   const fetchConnectionsData = async () => {
     setConnsNotice(null);
@@ -252,15 +285,19 @@ function UnifiedSettingsHub() {
   };
 
   // ── Payments: the workspace's own Stripe account ──────────────────────────
+  // SLICE 190 — the status read now goes through `authedJson` and keeps the
+  // failure. `if (!res.ok) return;` + a bare `catch` used to leave
+  // `stripeStatus` null, which the payments tab rendered as "No Stripe account
+  // connected" — an invitation to paste a key that may already be stored.
   const fetchStripeStatus = async () => {
-    try {
-      const res = await fetch("/api/native/invoice/stripe", { credentials: "include" });
-      if (!res.ok) return;
-      const json = await res.json();
-      setStripeStatus(json.data as StripeStatus);
-    } catch {
-      /* a status read failure is not an error the user can act on */
+    const res = await authedJson<StripeStatus>("/api/native/invoice/stripe");
+    if (!res.ok) {
+      setStripeReadError(res.error);
+      setStripeStatus(null);
+      return;
     }
+    setStripeReadError("");
+    setStripeStatus(res.data as StripeStatus);
   };
   const handleConnectStripe = async () => {
     const secretKey = stripeKeyInput.trim();
@@ -309,6 +346,14 @@ function UnifiedSettingsHub() {
 
   // Handle Profile Update Save
   const handleSaveProfile = async (sectionName: string) => {
+    // SLICE 190 — the write path refuses to run on a read that never answered.
+    // Without this a blank form (a failed read) could be POSTed over the real
+    // values one key at a time. The guard is on the SAVE, not only on the
+    // render, because the button is one focus-ring away from a stale DOM.
+    if (!profileLoaded) {
+      setFeedback("Error: your saved profile was never read, so nothing was saved. Reload this page first.");
+      return;
+    }
     try {
       setFeedback(`Saving ${sectionName} settings...`);
       const payload: Record<string, any> = {};
@@ -407,6 +452,30 @@ function UnifiedSettingsHub() {
             {/* Left Hand: General Business Information */}
             <div className="lg:col-span-2 space-y-8">
               
+              {/* SLICE 190 — the form is not rendered over a read that never
+                  answered. A blank editable form is indistinguishable from a
+                  workspace with no profile, and saving it would overwrite the
+                  real values. */}
+              {!profileLoaded && (
+                <div className="bg-stone-950 border border-rose-900/60 rounded-3xl p-6 md:p-8 space-y-4 shadow-xl">
+                  <span className="text-3xl">⚠️</span>
+                  <h3 className="text-lg font-black text-white">Your saved profile could not be read</h3>
+                  <p className="text-xs text-stone-400 leading-relaxed max-w-xl">
+                    {profileReadError || "The read did not answer."} The form is hidden rather than shown blank, because
+                    saving a blank form would overwrite the profile that is already stored. This is not an empty
+                    profile — it is an unread one.
+                  </p>
+                  <button
+                    onClick={reloadProfile}
+                    className="bg-stone-800 hover:bg-stone-700 text-stone-200 border border-stone-700 font-bold py-2 px-4 rounded-xl text-xs"
+                  >
+                    Retry →
+                  </button>
+                </div>
+              )}
+
+              {profileLoaded && (
+              <>
               {/* Profile Card */}
               <div className="bg-stone-950 border border-stone-900 rounded-3xl p-6 md:p-8 space-y-6 shadow-xl">
                 <div className="border-b border-stone-900 pb-3">
@@ -548,6 +617,8 @@ function UnifiedSettingsHub() {
                   </button>
                 </div>
               </div>
+              </>
+              )}
 
             </div>
 
@@ -709,7 +780,12 @@ function UnifiedSettingsHub() {
               </p>
             </div>
 
-            {stripeStatus?.connected ? (
+            {stripeReadError ? (
+              <div className="rounded-2xl border border-rose-500/30 bg-rose-500/5 p-4 text-xs text-rose-200" role="alert">
+                Your Stripe status could not be read — {stripeReadError}. This is not “not connected”: whether a key is
+                stored is unknown, so do not paste a new one until this page can read the status.
+              </div>
+            ) : stripeStatus?.connected ? (
               <div className="space-y-4">
                 <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4">
                   <span className="text-emerald-400 text-lg">✓</span>

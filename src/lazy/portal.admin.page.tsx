@@ -8,6 +8,12 @@ function AdminLayout() {
   const location = useLocation();
   const [user, setUser] = useState<{ email: string } | null>(null);
   const [loading, setLoading] = useState(true);
+  // SLICE 190 — a session read that threw used to land in `catch { console.error }`,
+  // `setLoading(false)` ran anyway, `user` stayed null and `if (!user) return null`
+  // rendered a COMPLETELY BLANK SCREEN on every /portal/admin/* route. The owner
+  // got a white page with no way to tell "you are not an admin" from "the read
+  // failed". `failure` is what makes that difference visible.
+  const [failure, setFailure] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -28,10 +34,12 @@ function AdminLayout() {
           return;
         }
         setUser(userData);
+        setFailure("");
       } catch (e) {
-        console.error(e);
+        setFailure(e instanceof Error ? e.message : "The session could not be read.");
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     })();
   }, []);
 
@@ -66,7 +74,29 @@ function AdminLayout() {
     );
   }
 
-  if (!user) return null;
+  // SLICE 190 — never `return null` here. A blank screen is the worst possible
+  // failure state: it looks like a permission refusal, a routing bug and a
+  // crashed app all at once, and it leaves the owner nothing to act on.
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-stone-950 flex items-center justify-center p-6">
+        <div className="text-center max-w-md">
+          <div className="text-4xl mb-4">⚠️</div>
+          <h1 className="text-lg font-black text-white">Admin access could not be verified</h1>
+          <p className="text-stone-400 text-sm mt-2 leading-relaxed">
+            {failure || "The session read did not answer."} This is not a permission refusal — it is an unread one, so
+            no admin page was opened and nothing was changed.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-5 bg-stone-800 hover:bg-stone-700 text-stone-200 border border-stone-700 font-bold py-2 px-4 rounded-xl text-xs"
+          >
+            Reload →
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-stone-950 text-white flex">
