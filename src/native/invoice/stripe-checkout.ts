@@ -73,6 +73,15 @@ function isStripeHostedUrl(url: unknown): url is string {
 }
 
 /**
+ * SLICE 191 — the refusal copy lives here ONCE. The public share lane refuses
+ * with these same sentences, so the page and the POST cannot word the same
+ * refusal two different ways.
+ */
+export const NO_ONLINE_PAYMENT_MESSAGE =
+  "Online payment is not set up for this invoice. Payment is arranged directly with the issuer.";
+export const NO_PAYABLE_AMOUNT_MESSAGE = "This invoice has no payable amount, so a payment cannot be started.";
+
+/**
  * Create the Checkout Session. Never throws: every outcome is explicit so the
  * caller can show the truth to the customer.
  */
@@ -85,7 +94,7 @@ export async function createTenantCheckoutSession(input: TenantCheckoutInput): P
     return {
       ok: false,
       reason: "not_connected",
-      message: "Online payment is not set up for this invoice. Payment is arranged directly with the issuer.",
+      message: NO_ONLINE_PAYMENT_MESSAGE,
     };
   }
 
@@ -95,7 +104,7 @@ export async function createTenantCheckoutSession(input: TenantCheckoutInput): P
     return {
       ok: false,
       reason: "invalid_amount",
-      message: "This invoice has no payable amount, so a payment cannot be started.",
+      message: NO_PAYABLE_AMOUNT_MESSAGE,
     };
   }
   const currency = String(invoice.currency || "").trim().toLowerCase();
