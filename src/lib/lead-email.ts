@@ -7,7 +7,7 @@
  * It lived in prod-server.ts, so no test could reach it: importing the server
  * entry starts a listener. That is exactly how the setup-fee copy survived
  * three weeks after the owner dropped setup fees (2026-10-30) — the email
- * quoted a one-time onboarding charge alongside each tier's monthly price
+ * quoted an upfront charge alongside each tier's monthly price
  * while the site and Stripe charged the monthly price and nothing else. The
  * exact figures are deliberately NOT reproduced here: the setup-fee guard in
  * `src/test/setup-fee-removal.test.ts` scans raw source, comments included, so
