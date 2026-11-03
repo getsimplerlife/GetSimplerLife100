@@ -132,6 +132,7 @@ function seedRefs() {
     createdAt: now,
     createdBy: T1,
     updatedAt: now,
+    updatedBy: T1,
   });
 }
 /** Create a deal room through the gate and return its id (always starts `draft`). */
@@ -174,7 +175,7 @@ function seedInvoice(over: Partial<InvoiceRecord> & { id: string; invoiceNumber:
     tenantId: T1,
     linkedDealRoomId: "",
     currency: "USD",
-    lineItems: [{ description: "Setup", qty: 1, unitPriceCents: 500000, amountCents: 500000 }],
+    lineItems: [{ id: "li_s192a", description: "Setup", qty: 1, unitPriceCents: 500000 }],
     amountDueCents: 500000,
     status: "draft",
     docId: null,
