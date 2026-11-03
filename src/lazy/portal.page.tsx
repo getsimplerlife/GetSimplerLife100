@@ -39,7 +39,7 @@ function PortalLayout() {
   // endpoints (approval queue, import runs, quote-to-cash records) — the
   // legacy agent-era notifications store is not served anywhere, so every
   // legacy write was dead-end theater and is gone.
-  const { feed, unreadCount, notificationsError, updatedAt, refreshNotifications } = usePortalNotifications();
+  const { feed, unreadCount, loaded, readError, updatedAt, refreshNotifications } = usePortalNotifications();
 
   useLayoutEffect(() => {
     (async () => {
@@ -183,7 +183,7 @@ type NavLink = {
   if (!user && !loading) return null;
 
   return (
-    <PortalContext.Provider value={{ userEmail: user?.email || "", feed, unreadCount, notificationsError, updatedAt, refreshNotifications }}>
+    <PortalContext.Provider value={{ userEmail: user?.email || "", feed, unreadCount, loaded, readError, updatedAt, refreshNotifications }}>
       <div className="min-h-screen bg-black text-stone-100 font-sans antialiased selection:bg-stone-800 selection:text-white pb-16 lg:pb-0">
       
       {/* Mobile Top Header */}
@@ -202,6 +202,19 @@ type NavLink = {
             {unreadCount > 0 && (
               <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white ring-2 ring-stone-950">
                 {unreadCount}
+              </span>
+            )}
+            {/* SLICE 188 — a bell whose feed could not be read must look
+                different from a bell with nothing to report. Without this the
+                badge is the ONLY signal, and a failed read renders no badge at
+                all: the tenant sees a quiet bell over an unread queue. */}
+            {readError && (
+              <span
+                className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[10px] font-black text-black ring-2 ring-stone-950"
+                title={`Notifications couldn't be refreshed — ${readError}`}
+                aria-label="Notifications couldn't be refreshed"
+              >
+                !
               </span>
             )}
           </Link>
@@ -350,13 +363,24 @@ type NavLink = {
                   {unreadCount}
                 </span>
               )}
+              {/* SLICE 188 — same rule as the mobile bell: an unreadable feed
+                  is a state of its own, never a quiet zero. */}
+              {readError && (
+                <span
+                  className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[10px] font-black text-black ring-2 ring-stone-950"
+                  title={`Notifications couldn't be refreshed — ${readError}`}
+                  aria-label="Notifications couldn't be refreshed"
+                >
+                  !
+                </span>
+              )}
             </Link>
           </div>
         </header>
 
         {/* Content Viewport */}
         <div className="flex-1 p-6 lg:p-10 overflow-y-auto max-w-6xl w-full mx-auto animate-fadeIn select-text">
-          <TypedOutlet context={{ userEmail: user?.email || "", feed, unreadCount, notificationsError, updatedAt, refreshNotifications } as PortalContextType} />
+          <TypedOutlet context={{ userEmail: user?.email || "", feed, unreadCount, loaded, readError, updatedAt, refreshNotifications } as PortalContextType} />
         </div>
       </main>
 

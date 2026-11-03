@@ -16,8 +16,9 @@
  * theater with live, derived state. ZERO server/auth changes.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { invoiceStatusLabel, isInvoiceStatus } from "./invoice-status";
+import { authedJson } from "./portal-primitives";
 import type { InvoiceStatus } from "~/native/invoice/types";
 
 /**
@@ -426,80 +427,132 @@ export function buildNoticeFeed(inputs: NoticeFeedInputs): NoticeFeed {
 }
 
 // ── Live hook (single source for shell badge + notifications page) ──────────
+//
+// SLICE 188 — this hook used to hand-roll five `fetch` calls, collect their
+// statuses, and then parse EVERY body unconditionally. Only "all five 401" was
+// treated as a failure; five 500s, five HTML fallbacks or five `{}` bodies all
+// ended at `feed: []`, `unreadCount: 0`, error null — and the shell renders the
+// bell only when `unreadCount > 0`, so the failure was invisible on every page
+// except /portal/notifications, which then said "Nothing needs your attention
+// right now". A tenant cannot be told their queue is clear by a read that
+// failed. The reads now go through `authedJson` (the proven shape in
+// portal-primitives), each source is judged on its own, and the outcome is
+// carried as `loaded` + `readError` instead of an empty feed.
 
 export interface PortalNotificationsState {
   feed: NoticeItem[];
   unreadCount: number;
-  notificationsError: string | null;
+  /**
+   * True only when EVERY read in the latest refresh came back 2xx. The bell
+   * badge and the notifications page may say "nothing needs your attention"
+   * ONLY when this is true — otherwise they describe a queue nobody read.
+   */
+  loaded: boolean;
+  /** Non-null when at least one read failed. Carries the SERVER's own words. */
+  readError: string | null;
   updatedAt: number | null;
   refreshNotifications: () => void;
 }
 
+/** The five read endpoints the feed is derived from, in call order. */
+export const NOTIFICATION_SOURCES = [
+  "/api/portal/approvals",
+  "/api/native/import",
+  "/api/native/proposals",
+  "/api/native/invoice",
+  "/api/native/dealroom",
+] as const;
+
+const EMPTY_INPUTS: NoticeFeedInputs = {
+  pending: [],
+  decided: [],
+  imports: [],
+  runsByJob: {},
+  proposals: [],
+  invoices: [],
+  dealRooms: [],
+};
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+function asList<T>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+
 /**
- * Fetch the five real read endpoints, derive the feed client-side, and poll.
- * SSR-safe: effect only runs in the browser; the initial state is an honest
- * empty feed. If every endpoint 401s (no portal session) the state carries an
- * honest "Sign in to see notifications." message instead of fake items.
+ * Fetch the five real read endpoints through `authedJson`, derive the feed
+ * client-side, and poll. A source that fails keeps its PREVIOUS rows (a read
+ * that did not succeed never empties a section), `loaded` goes false and
+ * `readError` names the first failure — so a bell that could not be refreshed
+ * looks different from a workspace with nothing to do.
  */
 export function usePortalNotifications(intervalMs = 30000): PortalNotificationsState {
-  const [feed, setFeed] = useState<NoticeItem[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [notificationsError, setNotificationsError] = useState<string | null>(null);
+  const [inputs, setInputs] = useState<NoticeFeedInputs>(EMPTY_INPUTS);
+  const [loaded, setLoaded] = useState(false);
+  const [readError, setReadError] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<number | null>(null);
 
   const refreshNotifications = useCallback(async () => {
     try {
-      const [a, i, p, inv, dr] = await Promise.all([
-        fetch("/api/portal/approvals", { credentials: "include" }),
-        fetch("/api/native/import", { credentials: "include" }),
-        fetch("/api/native/proposals", { credentials: "include" }),
-        fetch("/api/native/invoice", { credentials: "include" }),
-        fetch("/api/native/dealroom", { credentials: "include" }),
-      ]);
-      const statuses = [a.status, i.status, p.status, inv.status, dr.status];
-      if (statuses.every((s) => s === 401)) {
-        setFeed([]);
-        setUnreadCount(0);
-        setNotificationsError("Sign in to see notifications.");
+      const results = await Promise.all(NOTIFICATION_SOURCES.map((url) => authedJson<unknown>(url)));
+      const [a, i, p, inv, dr] = results;
+      if (results.every((r) => !r.ok && r.signedOut)) {
+        setInputs(EMPTY_INPUTS);
+        setLoaded(false);
+        setReadError("Sign in to see notifications.");
         return;
       }
-      const [aj, ij, pj, invj, drj] = await Promise.all(
-        [a, i, p, inv, dr].map((r) => r.json().catch(() => ({}))),
-      );
-      const imports: ImportJobShape[] = Array.isArray(ij?.data?.imports) ? ij.data.imports : [];
-      // Bound the per-job run-ledger fetches (honest + cheap: 8 jobs max).
-      const runsByJob: Record<string, RunLedgerShape[]> = {};
+
+      const imports = i.ok ? asList<ImportJobShape>(asRecord(i.data).imports) : [];
+      // Bound the per-job run-ledger reads (honest + cheap: 8 jobs max). Each
+      // one is judged like any other read: a failed ledger is a failed read.
       const ids = imports
         .map((im) => im.id)
         .filter((x): x is string => Boolean(x))
         .slice(0, 8);
+      const runsByJob: Record<string, RunLedgerShape[]> = {};
+      const runFailures: string[] = [];
       if (ids.length > 0) {
-        const results = await Promise.all(
-          ids.map(async (id) => {
-            const r = await fetch(`/api/native/import/${id}/runs`, { credentials: "include" });
-            const j = await r.json().catch(() => ({}));
-            return [id, Array.isArray(j?.data?.runs) ? j.data.runs : []] as const;
-          }),
+        const runResults = await Promise.all(
+          ids.map((id) => authedJson<unknown>(`/api/native/import/${id}/runs`)),
         );
-        for (const [id, runs] of results) runsByJob[id] = runs;
+        ids.forEach((id, idx) => {
+          const run = runResults[idx];
+          if (run && run.ok) runsByJob[id] = asList<RunLedgerShape>(asRecord(run.data).runs);
+          else runFailures.push(`/api/native/import/${id}/runs`);
+        });
       }
-      const built = buildNoticeFeed({
-        pending: aj?.data?.pending ?? [],
-        decided: aj?.data?.decided ?? [],
-        imports,
-        runsByJob,
-        proposals: Array.isArray(pj?.data) ? pj.data : [],
-        invoices: Array.isArray(invj?.data) ? invj.data : [],
-        dealRooms: Array.isArray(drj?.data) ? drj.data : [],
-      });
-      setFeed(built.items);
-      setUnreadCount(built.unreadCount);
-      setNotificationsError(null);
-      setUpdatedAt(Date.now());
+
+      setInputs((prev) => ({
+        pending: a.ok ? asList<ApprovalActionShape>(asRecord(a.data).pending) : prev.pending,
+        decided: a.ok ? asList<ApprovalActionShape>(asRecord(a.data).decided) : prev.decided,
+        imports: i.ok ? imports : prev.imports,
+        runsByJob: i.ok ? runsByJob : prev.runsByJob,
+        proposals: p.ok ? asList<ProposalShape>(p.data) : prev.proposals,
+        invoices: inv.ok ? asList<InvoiceShape>(inv.data) : prev.invoices,
+        dealRooms: dr.ok ? asList<DealRoomShape>(dr.data) : prev.dealRooms,
+      }));
+
+      const failed = results
+        .map((r, idx) => ({ r, url: NOTIFICATION_SOURCES[idx] as string }))
+        .filter((x) => !x.r.ok);
+      const failedCount = failed.length + runFailures.length;
+      if (failedCount === 0) {
+        setReadError(null);
+        setLoaded(true);
+        setUpdatedAt(Date.now());
+      } else {
+        const first = failed[0]?.r as { error: string } | undefined;
+        const message = first ? first.error : "A run ledger could not be read.";
+        setReadError(failedCount === 1 ? message : `${message} (${failedCount} reads failed)`);
+        setLoaded(false);
+      }
     } catch (e) {
-      setNotificationsError(
-        e instanceof Error ? e.message : "Couldn't refresh notifications.",
-      );
+      // `authedJson` never throws; this only fires if something around it does.
+      setReadError(e instanceof Error ? e.message : "Couldn't refresh notifications.");
+      setLoaded(false);
     }
   }, []);
 
@@ -509,5 +562,10 @@ export function usePortalNotifications(intervalMs = 30000): PortalNotificationsS
     return () => clearInterval(t);
   }, [refreshNotifications, intervalMs]);
 
-  return { feed, unreadCount, notificationsError, updatedAt, refreshNotifications };
+  // One derivation for the badge and the page: `unreadCount` can never disagree
+  // with the items that render.
+  const feed = useMemo(() => buildNoticeFeed(inputs).items, [inputs]);
+  const unreadCount = useMemo(() => feed.filter((item) => item.unread).length, [feed]);
+
+  return { feed, unreadCount, loaded, readError, updatedAt, refreshNotifications };
 }

@@ -51,8 +51,12 @@ function Vault() {
   const [docs, setDocs] = useState<VaultDoc[]>([]);
   const [rules, setRules] = useState<FolderRule[]>([]);
   const [loading, setLoading] = useState(true);
+  // SLICE 188 — "no documents" and "we could not read your documents" are two
+  // different sentences. `loaded` is the only thing that separates them.
+  const [loaded, setLoaded] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [rulesError, setRulesError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -72,11 +76,23 @@ function Vault() {
         window.location.href = "/login";
         return;
       }
+      // SLICE 188 — 401 was the ONLY status this read ever checked. Every other
+      // failure (500, the SPA's HTML fallback, a body with no `data`) fell
+      // through to `Array.isArray(...) ? ... : []` and then explicitly CLEARED
+      // the error: a vault nobody could read rendered as an empty vault.
+      if (!res.ok) {
+        setError(`Could not load vault: the server answered ${res.status}. Your documents are not shown — this is not an empty vault.`);
+        setLoaded(false);
+        return;
+      }
       const json = await res.json();
       setDocs(Array.isArray(json.data) ? json.data : []);
+      // Reached only when the read succeeded, so this clears a RESOLVED error.
       setError(null);
+      setLoaded(true);
     } catch (e: any) {
       setError("Could not load vault: " + (e?.message || String(e)));
+      setLoaded(false);
     } finally {
       setLoading(false);
     }
@@ -85,11 +101,19 @@ function Vault() {
   const loadRules = useCallback(async () => {
     try {
       const res = await fetch("/api/vault/folders");
-      if (!res.ok) return;
+      // SLICE 188 — a bare `return` on non-2xx plus an empty `catch` meant the
+      // folder rules silently became "none" whenever the read failed. The rules
+      // are secondary, but saying "No rules yet" about a failed read is still a
+      // claim we cannot support.
+      if (!res.ok) {
+        setRulesError(`Couldn't read folder rules (the server answered ${res.status}).`);
+        return;
+      }
       const json = await res.json();
-      setRules(Array.isArray(json.data.rules) ? json.data.rules : [] as FolderRule[]);
-    } catch {
-      /* rules are secondary — keep the page usable */
+      setRules(Array.isArray(json.data?.rules) ? json.data.rules : ([] as FolderRule[]));
+      setRulesError(null);
+    } catch (e: any) {
+      setRulesError("Couldn't read folder rules: " + (e?.message || String(e)));
     }
   }, []);
 
@@ -137,6 +161,13 @@ function Vault() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ documentId: doc.id, route }),
       });
+      // SLICE 188 — read the status before the body: an error body used to be
+      // reported as "filing failed" with no server sentence behind it.
+      if (!res.ok) {
+        toast(`⚠️ Filing "${doc.name}" failed: the server answered ${res.status}.`);
+        setBusyId(null);
+        return;
+      }
       const json = await res.json();
       const out = json.data;
       if (out.pending) toast(`📋 Filing "${doc.name}" sent for approval`);
@@ -158,6 +189,11 @@ function Vault() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ documentId: doc.id }),
       });
+      if (!res.ok) {
+        toast(`⚠️ ${path} of "${doc.name}" failed: the server answered ${res.status}.`);
+        setBusyId(null);
+        return;
+      }
       const json = await res.json();
       const out = json.data;
       if (out.pending) toast(`📋 ${path} of "${doc.name}" sent for approval`);
@@ -186,6 +222,10 @@ function Vault() {
           priority: 100,
         }),
       });
+      if (!res.ok) {
+        toast(`⚠️ Rule "${name}" not saved: the server answered ${res.status}.`);
+        return;
+      }
       const json = await res.json();
       if (json.data?.ok) toast(`✅ Rule "${name}" saved`);
       else toast(`⚠️ ${json.data?.error || "rule save failed"}`);
@@ -285,9 +325,25 @@ function Vault() {
       {/* Docs list */}
       <div className="mb-8 space-y-2">
         {loading && <p className="text-sm text-slate-500">Loading vault…</p>}
-        {!loading && docs.length === 0 && (
+        {/* SLICE 188 — `loaded` gate. "No documents yet" is a statement about
+            the tenant's vault; it may only be made when the vault was read. */}
+        {!loading && loaded && docs.length === 0 && (
           <div className="rounded-lg border border-slate-800 bg-slate-900/40 px-4 py-8 text-center text-sm text-slate-500">
             No documents yet — upload a contract, invoice, or any file above.
+          </div>
+        )}
+        {!loading && !loaded && docs.length === 0 && (
+          <div className="rounded-lg border border-red-900/60 bg-red-950/30 px-4 py-8 text-center text-sm text-red-300">
+            <p className="font-semibold">Your vault could not be read.</p>
+            <p className="mt-1 text-xs text-red-200/80">
+              {error ?? "The read did not answer."} Nothing is missing from your account — this list is unavailable.
+            </p>
+            <button
+              onClick={() => void loadDocs()}
+              className="mt-3 text-xs font-bold text-emerald-400 hover:text-emerald-300"
+            >
+              Retry →
+            </button>
           </div>
         )}
         {docs.map((doc) => (
@@ -379,7 +435,8 @@ function Vault() {
             </div>
             <Button type="submit" variant="primary" size="sm">+ Add rule</Button>
           </form>
-          {rules.length === 0 && <p className="text-xs text-slate-500">No rules yet. Example: <code className="text-emerald-400">{"{customer}"}/{"{type}"}/{"{YYYY}"}</code> → "Acme Corp/Contract/2026".</p>}
+          {rulesError && <p className="text-xs text-red-400">{rulesError}</p>}
+          {rules.length === 0 && !rulesError && <p className="text-xs text-slate-500">No rules yet. Example: <code className="text-emerald-400">{"{customer}"}/{"{type}"}/{"{YYYY}"}</code> → "Acme Corp/Contract/2026".</p>}
           <div className="flex flex-wrap gap-2">
             {rules.map((rule) => (
               <div key={rule.id} className="flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-950/50 px-3 py-1.5 text-xs">

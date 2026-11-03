@@ -27,6 +27,9 @@ function CommsInbox() {
   const [comms, setComms] = useState<CommMsg[]>([]);
   const [pending, setPending] = useState<PendingWrite[]>([]);
   const [loading, setLoading] = useState(true);
+  // SLICE 188 — "nothing to reply to" and "we could not read your inbox" are
+  // different statements; `loaded` is what tells them apart.
+  const [loaded, setLoaded] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [error, setError] = useState("");
   const [composeFor, setComposeFor] = useState<string | null>(null);
@@ -39,13 +42,28 @@ function CommsInbox() {
         fetch("/api/native/communications", { credentials: "include" }),
         fetch("/api/native/communications/writes", { credentials: "include" }),
       ]);
+      // SLICE 188 — neither status was checked anywhere on this path, so a 500,
+      // the SPA's HTML fallback or an `{ error }` body rendered as an EMPTY
+      // inbox with `error` untouched: the page said "Nothing to reply to yet"
+      // about a log it never read.
+      if (!threadRes.ok || !writesRes.ok) {
+        const failed = [
+          ...(threadRes.ok ? [] : [`the message log (server answered ${threadRes.status})`]),
+          ...(writesRes.ok ? [] : [`the pending replies (server answered ${writesRes.status})`]),
+        ];
+        setError(`Couldn't read ${failed.join(" and ")}. Your inbox is not empty — it could not be read.`);
+        setLoaded(false);
+        return;
+      }
       const thread = await threadRes.json();
       setComms(Array.isArray(thread?.data?.messages) ? thread.data.messages : []);
       const writes = await writesRes.json();
       setPending(Array.isArray(writes?.data?.writes) ? writes.data.writes : []);
+      setLoaded(true);
     } catch (e) {
       console.error(e);
       setError("Couldn't load your communications log. Please try again.");
+      setLoaded(false);
     } finally {
       setLoading(false);
     }
@@ -208,7 +226,7 @@ function CommsInbox() {
   };
 
   const empty =
-    comms.length === 0 && pending.length === 0 ? (
+    loaded && comms.length === 0 && pending.length === 0 ? (
       <div className="bg-stone-900 p-10 rounded-3xl border border-dashed border-stone-700 shadow-sm text-center">
         <div className="text-3xl mb-3">💬</div>
         <h3 className="font-black text-stone-100 text-lg">Nothing to reply to yet</h3>
@@ -228,6 +246,24 @@ function CommsInbox() {
           Messages and replies logged for your workspace. Replies are saved to your communications log — nothing is sent as email from this page.
         </p>
       </div>
+
+      {/* SLICE 188 — the failed-read state. It replaces the affirmative empty
+          state entirely: a log that could not be read is never "nothing here". */}
+      {!loading && !loaded && (
+        <div className="bg-stone-900 p-10 rounded-3xl border border-red-900/60 shadow-sm text-center">
+          <div className="text-3xl mb-3">⚠️</div>
+          <h3 className="font-black text-stone-100 text-lg">Your communications log could not be read</h3>
+          <p className="text-stone-400 text-sm mt-2 max-w-md mx-auto leading-relaxed">
+            {error || "The read did not answer."} Nothing has been lost — the log is simply unavailable right now.
+          </p>
+          <button
+            onClick={() => void load()}
+            className="mt-4 bg-stone-800 hover:bg-stone-700 text-white font-bold text-xs px-4 py-2 rounded-xl border border-stone-700"
+          >
+            Retry →
+          </button>
+        </div>
+      )}
 
       {empty}
 

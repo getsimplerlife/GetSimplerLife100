@@ -37,7 +37,8 @@ const portalValue = {
   userEmail: "user-qa@example.test",
   feed: [],
   unreadCount: 0,
-  notificationsError: null,
+  loaded: true,
+  readError: null,
   updatedAt: null,
   refreshNotifications: () => {},
 };
