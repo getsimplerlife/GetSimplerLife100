@@ -8,6 +8,25 @@ import nodemailer from "nodemailer"; // standard, works in Bun; wrapped here for
  */
 const DEFAULT_SMTP_FROM = "Simpler Life 100 <notifications@simplerlife100.ctonew.app>";
 
+/**
+ * SLICE 185 — every outbound message must name a mailbox a human actually
+ * reads. `simplerlife100.com` has NO MX record, so a reply addressed to the
+ * From address is undeliverable: a customer hitting "Reply" reached nobody.
+ * `Reply-To` points at the owner's real inbox instead.
+ *
+ * ONE definition, used by every lane (nodemailer SMTP here, the SendGrid HTTP
+ * body here, and `sendEmailSMTP` in prod-server.ts which imports this). Read at
+ * CALL time (slice 170's rule) so `EMAIL_REPLY_TO` can override it without an
+ * import-order surprise, and so a test can prove the header is wired to this
+ * source rather than to a literal pasted next to the send.
+ */
+export const DEFAULT_REPLY_TO = "electric.vortexz@gmail.com";
+
+/** The address replies are routed to right now: `EMAIL_REPLY_TO`, else the owner's inbox. */
+export function replyToAddress(): string {
+  return (process.env.EMAIL_REPLY_TO || "").trim() || DEFAULT_REPLY_TO;
+}
+
 interface SmtpConfig {
   host: string;
   port: number;
@@ -220,7 +239,15 @@ async function sendViaSmtp(opts: {
       auth: { user: cfg.user, pass: cfg.pass },
     });
 
-    const info = await transporter.sendMail({ from: cfg.from, to, subject, text, html });
+    const info = await transporter.sendMail({
+      from: cfg.from,
+      to,
+      subject,
+      text,
+      html,
+      // Slice 185: replies must reach a human — the domain has no MX.
+      replyTo: replyToAddress(),
+    });
     console.log(`[Email SMTP] Sent email to ${to}. MessageID: ${info.messageId}`);
     return { success: true, messageId: info.messageId, isMock: false, recipient: to, channel: "smtp" };
   } catch (err: any) {
@@ -272,6 +299,8 @@ async function sendViaSendGrid(opts: {
       body: JSON.stringify({
         personalizations: [{ to: toList.map((email) => ({ email })) }],
         from,
+        // Slice 185: SendGrid's Reply-To field — same single source as SMTP.
+        reply_to: { email: replyToAddress() },
         subject: opts.subject,
         content,
       }),

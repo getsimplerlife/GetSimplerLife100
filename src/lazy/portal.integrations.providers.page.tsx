@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { IntegrationsProviderCard, type Provider } from "~/components/IntegrationsProviderCard";
 import { Card } from "~/components/ui";
+import { authedJson } from "~/lib/portal-primitives";
 
 
 
@@ -9,33 +10,35 @@ function ProviderDirectoryPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
+  // SLICE 185: a failed read is not an empty catalog. Before this the page
+  // dropped any non-2xx on the floor and then said "No Providers Match Your
+  // Query — try checking spelling" over a catalog nobody had read.
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [signedOut, setSignedOut] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   const loadData = async () => {
-    try {
-      setLoading(true);
-      // Load providers
-      const provRes = await fetch("/api/integrations/providers", { credentials: "include" });
-      let provData: Provider[] = [];
-      if (provRes.ok) {
-        const json = await provRes.json();
-        // Endpoint returns { data: [...] } after the admin-gate fix; unwrap
-        // defensively and drop null/sparse entries (they crash .category reads).
-        provData = (Array.isArray(json) ? json : (json.data || [])).filter(
-          (p: any) => p && p.id && typeof p.category === "string"
-        );
-      }
-
-      setProviders(provData);
-    } catch (err) {
-      console.error("Failed to load provider catalog:", err);
-    } finally {
-      setLoading(false);
+    setLoading(true);
+    const res = await authedJson<Provider[] | { data?: Provider[] }>("/api/integrations/providers");
+    if (res.ok) {
+      const raw = res.data as any;
+      const list: Provider[] = Array.isArray(raw) ? raw : (Array.isArray(raw?.data) ? raw.data : []);
+      // Drop null/sparse entries (they crash .category reads).
+      setProviders(list.filter((p: any) => p && p.id && typeof p.category === "string"));
+      setLoadError(null);
+      setSignedOut(false);
+    } else {
+      setProviders([]);
+      setLoadError(res.error);
+      setSignedOut(res.signedOut);
     }
+    setLoading(false);
   };
 
   useEffect(() => {
-    loadData();
-  }, []);
+    void loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reloadKey]);
 
   const categories = ["all", ...Array.from(new Set(providers.map((p) => p.category)))].sort();
 
@@ -99,8 +102,24 @@ function ProviderDirectoryPage() {
         </div>
       </Card>
 
-      {/* Grid of Providers */}
-      {filteredProviders.length > 0 ? (
+      {/* Grid of Providers — a failed read renders as a failure, never as an
+          empty search result (slice 185). */}
+      {loadError ? (
+        <div className="text-center py-20 border border-red-900/60 rounded-3xl bg-red-950/20" role="alert">
+          <span className="text-3xl">⚠️</span>
+          <h3 className="text-base font-bold text-white mt-4">
+            {signedOut ? "Your session is not active" : "The platform catalog could not be loaded"}
+          </h3>
+          <p className="text-xs text-stone-400 mt-1">{loadError}</p>
+          <button
+            type="button"
+            onClick={() => setReloadKey((k) => k + 1)}
+            className="mt-5 px-4 py-2 text-[10px] font-mono tracking-widest uppercase rounded-lg border border-stone-800 text-stone-300 hover:text-white hover:border-stone-600"
+          >
+            Try again
+          </button>
+        </div>
+      ) : filteredProviders.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredProviders.map((p) => (
             <IntegrationsProviderCard
@@ -115,7 +134,7 @@ function ProviderDirectoryPage() {
           <span className="text-3xl">📭</span>
           <h3 className="text-base font-bold text-white mt-4">No Providers Match Your Query</h3>
           <p className="text-xs text-stone-400 mt-1">
-            Try checking spelling or choosing another integrations category category.
+            Try checking spelling or choosing another integrations category.
           </p>
         </div>
       )}
