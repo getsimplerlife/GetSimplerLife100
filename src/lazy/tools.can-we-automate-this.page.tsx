@@ -15,7 +15,6 @@ interface AnalysisData {
   topMatch: string;
   allMatches: { name: string; match: number }[];
   industryGuess: string;
-  savingsSummary: string;
   suggestedAgentName: string;
 }
 
@@ -48,7 +47,6 @@ function CanWeAutomateThis() {
         topMatch: analysis.topMatch.suggestedAgentName,
         allMatches: (analysis.allMatches || []).map((r: any) => ({ name: r.suggestedAgentName, match: r.confidence })),
         industryGuess: analysis.industryGuess || "cross-industry",
-        savingsSummary: `${analysis.topMatch.estimatedHoursSaved} hours/week`,
         suggestedAgentName: analysis.topMatch.suggestedAgentName,
       });
       setStep("email");
@@ -134,7 +132,6 @@ function CanWeAutomateThis() {
             <p className="text-stone-400 mb-2">
               We matched your workflow to <span className="text-emerald-400 font-bold">{result.topMatch || result.suggestedAgentName}</span>
             </p>
-            <p className="text-sm text-stone-500 mb-6">Estimated savings: {result.savingsSummary}</p>
             <div className="max-w-sm mx-auto space-y-3">
               <label className="text-xs font-mono text-stone-400">Enter your email to see your full automation plan:</label>
               <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
@@ -155,15 +152,8 @@ function CanWeAutomateThis() {
             <div className="text-xs font-mono text-emerald-400 font-bold tracking-wider mb-1">✅ AUTOMATION OPPORTUNITY DETECTED</div>
             <h2 className="text-2xl font-black">{result.topMatch || result.suggestedAgentName}</h2>
             <p className="text-stone-400 text-sm mt-1">Automation matched to your workflow</p>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
-              <div className="bg-stone-900/80 border border-stone-800 rounded-xl p-4 text-center">
-                <div className="text-2xl font-black text-emerald-400">{result.savingsSummary.split(" ")[0]}</div>
-                <div className="text-[10px] font-mono text-stone-400 mt-1">SAVED / WEEK</div>
-              </div>
-              <div className="bg-stone-900/80 border border-stone-800 rounded-xl p-4 text-center">
-                <div className="text-2xl font-black text-emerald-400">85-95%</div>
-                <div className="text-[10px] font-mono text-stone-400 mt-1">MATCH CONFIDENCE</div>
-              </div>
+            {/* No hours-saved and no match-confidence tile: nothing measured either one. */}
+            <div className="grid grid-cols-2 gap-3 mt-4">
               <div className="bg-stone-900/80 border border-stone-800 rounded-xl p-4 text-center">
                 <div className="text-lg font-black text-stone-300">{result.industryGuess}</div>
                 <div className="text-[10px] font-mono text-stone-400 mt-1">INDUSTRY</div>

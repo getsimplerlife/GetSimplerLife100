@@ -12,7 +12,7 @@ function ToolsHub() {
     const analysis = analyzeDescription(quickInput);
     const top = analysis.topMatch;
     setQuickResult(
-      `🎯 **${top.match.name}** — Save ~${top.estimatedHoursSaved}h/week with ${top.suggestedAgentName}`
+      `🎯 **${top.match.name}** — ${top.suggestedAgentName} takes this on`
     );
   };
 
@@ -25,7 +25,7 @@ function ToolsHub() {
           AI <span className="text-emerald-400">Productivity</span> Tools
         </h1>
         <p className="text-stone-400 text-lg max-w-2xl mx-auto">
-          Free tools to analyze your workflows, estimate savings, and discover automation opportunities — no signup required.
+          Free tools to map your workflows and find the automation that fits — no signup required.
         </p>
       </section>
 
@@ -47,8 +47,8 @@ function ToolsHub() {
               </p>
               <div className="grid grid-cols-3 gap-3 text-center text-xs">
                 <div className="bg-stone-900/50 rounded-lg p-3">
-                  <div className="font-bold text-emerald-400">30+</div>
-                  <div className="text-stone-400 mt-0.5">Workflows matched</div>
+                  <div className="font-bold text-emerald-400">Keyword</div>
+                  <div className="text-stone-400 mt-0.5">Match</div>
                 </div>
                 <div className="bg-stone-900/50 rounded-lg p-3">
                   <div className="font-bold text-emerald-400">Instant</div>

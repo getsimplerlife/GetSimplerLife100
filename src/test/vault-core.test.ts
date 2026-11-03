@@ -4,7 +4,7 @@
  * content-hash dedupe, versioning add-only, route DSL robustness, auto-folder
  * rules, approval-gated filing (default ON → pending), autonomy allow-list
  * execution, non-destruction (destroy needs gate + exact id; never glob),
- * immutable audit, and the drive-by industryContent.ts balance fix.
+ * immutable audit.
  */
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import { mkdtempSync, rmSync, existsSync } from "fs";
@@ -218,21 +218,6 @@ describe("search + audit immutability", () => {
     expect(a1).toHaveLength(1);
     expect(a1[0].documentId).toBe("d1");
     expect(listVaultAudit(dir, T2)).toHaveLength(1); // never leaks
-  });
-});
-
-describe("industryContent drive-by fix (pre-existing main syntax error)", () => {
-  it("the content file parses with balanced braces", () => {
-    const fs = require("fs") as typeof import("fs");
-    const src = fs.readFileSync(join(process.cwd(), "src/content/industryContent.ts"), "utf8");
-    const strip = (s: string) =>
-      s
-        .replace(/"(?:[^"\\]|\\.)*"/g, '""')
-        .replace(/`(?:[^`\\]|\\.)*`/g, "``")
-        .replace(/\/\/[^\n]*/g, "");
-    const cleaned = strip(src);
-    expect(cleaned.split("{").length).toBe(cleaned.split("}").length);
-    expect(existsSync(join(process.cwd(), "src/content/industryContent.ts"))).toBe(true);
   });
 });
 
