@@ -12,7 +12,13 @@ export interface PortalContextType {
   userEmail: string;
   feed: NoticeItem[];
   unreadCount: number;
-  notificationsError: string | null;
+  /**
+   * SLICE 188 — true only when every notifications read came back 2xx. A page
+   * may render an affirmative empty state ONLY when this is true.
+   */
+  loaded: boolean;
+  /** The failure the bell could not hide (server's own words), or null. */
+  readError: string | null;
   /** Epoch ms of the last successful refresh — real, not fabricated. */
   updatedAt: number | null;
   refreshNotifications: () => void;

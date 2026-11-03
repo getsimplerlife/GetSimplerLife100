@@ -277,9 +277,13 @@ describe("P2-3 honesty guard — dead-end theater is gone from the touched surfa
     expect(context).not.toContain("markAsRead");
     expect(context).not.toContain("markAllAsRead");
     expect(context).not.toContain("addNotification");
-    // and the new surface keys ARE there
-    for (const key of ["feed", "unreadCount", "notificationsError", "updatedAt", "refreshNotifications"]) {
+    // and the new surface keys ARE there. SLICE 188 renamed the failure key:
+    // `notificationsError` became `readError` plus a `loaded` flag, because the
+    // old one was cleared on every non-401 refresh (five 500s read as "all
+    // clear"). Pinning the removal keeps a rename from silently reinstating it.
+    for (const key of ["feed", "unreadCount", "loaded", "readError", "updatedAt", "refreshNotifications"]) {
       expect(context).toContain(key);
     }
+    expect(context).not.toContain("notificationsError");
   });
 });

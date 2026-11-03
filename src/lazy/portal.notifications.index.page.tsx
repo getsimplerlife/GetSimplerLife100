@@ -95,7 +95,7 @@ function NoticeSection({ title, items, emptyTitle, emptyBody, openLabel, openTo 
 }
 
 function NotificationsPage() {
-  const { feed, unreadCount, notificationsError, updatedAt, refreshNotifications } = usePortalContext();
+  const { feed, unreadCount, loaded, readError, updatedAt, refreshNotifications } = usePortalContext();
 
   const approvals = feed.filter((i) => i.kind === "approval");
   const imports = feed.filter((i) => i.kind === "import");
@@ -135,10 +135,10 @@ function NotificationsPage() {
       </div>
 
       {/* Honest error state — never substitute fake items. */}
-      {notificationsError && (
+      {readError && (
         <div className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-4">
           <p className="text-xs font-bold text-rose-300">Couldn't refresh notifications.</p>
-          <p className="text-xs text-stone-400 mt-1">{notificationsError}</p>
+          <p className="text-xs text-stone-400 mt-1">{readError}</p>
           <button
             onClick={refreshNotifications}
             className="mt-3 text-xs font-bold text-emerald-400 hover:text-emerald-300"
@@ -148,8 +148,11 @@ function NotificationsPage() {
         </div>
       )}
 
-      {/* Totally empty + healthy: ONE honest empty state — no placeholder rows. */}
-      {feed.length === 0 && !notificationsError && (
+      {/* Totally empty + HEALTHY: ONE honest empty state — no placeholder rows.
+          SLICE 188 — gated on `loaded`. An empty feed is only "nothing needs
+          your attention" when every read succeeded; otherwise this card told
+          the tenant their queue was clear while the server was unreadable. */}
+      {feed.length === 0 && loaded && (
         <PortalEmptyState
           title="Nothing needs your attention right now"
           body="When an approval, import run, or quote-to-cash record changes in your workspace, it appears here automatically. The count shown on the bell above comes from the same live data."

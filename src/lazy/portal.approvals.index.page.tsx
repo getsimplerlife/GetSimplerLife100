@@ -56,6 +56,11 @@ function ApprovalQueue() {
   const [decided, setDecided] = useState<ApprovalAction[]>([]);
   const [mode, setMode] = useState<"on" | "auto">("on");
   const [loading, setLoading] = useState(true);
+  // SLICE 188 — the money path. `pending` is [] both when nothing is queued and
+  // when the queue could not be read; `loaded` is the only thing that separates
+  // "All clear" from "no answer", and this is the one page where confusing the
+  // two is unforgivable.
+  const [loaded, setLoaded] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [error, setError] = useState("");
   const [editing, setEditing] = useState<ApprovalAction | null>(null);
@@ -70,8 +75,10 @@ function ApprovalQueue() {
       setPending(json.data?.pending || []);
       setDecided(json.data?.decided || []);
       setMode(json.data?.mode || "on");
+      setLoaded(true);
     } catch (e: any) {
       setError(e?.message || "Failed to load approvals");
+      setLoaded(false);
     } finally {
       setLoading(false);
     }
@@ -183,12 +190,33 @@ function ApprovalQueue() {
       {/* Pending */}
       <section>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-black text-stone-100 uppercase tracking-wide">Pending ({pending.length})</h2>
-          <Badge variant={pending.length > 0 ? "warning" : "emerald"}>
-            {pending.length === 0 ? "All clear" : `${pending.length} awaiting review`}
+          <h2 className="text-sm font-black text-stone-100 uppercase tracking-wide">
+            Pending ({loaded ? pending.length : "—"})
+          </h2>
+          <Badge variant={!loaded ? "danger" : pending.length > 0 ? "warning" : "emerald"}>
+            {!loaded ? "Not read" : pending.length === 0 ? "All clear" : `${pending.length} awaiting review`}
           </Badge>
         </div>
-        {pending.length === 0 ? (
+        {/* SLICE 188 — `loaded` gates the affirmative state. A queue that could
+            not be read is NOT an empty queue: before this gate the page printed
+            "🎉 All Clear! No agent writes are waiting for approval." over an
+            approvals array that had never been read. */}
+        {!loaded ? (
+          <Card className="p-12 text-center">
+            <span className="text-4xl">⚠️</span>
+            <h3 className="text-md font-bold mt-4 text-stone-100">The approval queue could not be read</h3>
+            <p className="text-xs text-stone-400 mt-1 max-w-md mx-auto leading-relaxed">
+              {error || "The read did not answer."} This is not an empty queue — it is an unread one. Do not treat
+              pending writes as approved.
+            </p>
+            <button
+              onClick={() => void load()}
+              className="mt-4 bg-stone-800 hover:bg-stone-700 text-stone-200 border border-stone-700 font-bold py-2 px-4 rounded-xl text-xs"
+            >
+              Retry →
+            </button>
+          </Card>
+        ) : pending.length === 0 ? (
           <Card className="p-12 text-center">
             <span className="text-4xl">🎉</span>
             <h3 className="text-md font-bold mt-4 text-stone-100">All Clear!</h3>

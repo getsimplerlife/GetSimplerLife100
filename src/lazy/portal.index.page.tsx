@@ -27,7 +27,7 @@ function ActivityHubDashboard() {
   // D-10: the admin panel's bounce carries its reason in the URL; say it here
   // rather than silently teleporting a non-owner back to the dashboard.
   const { notice } = useSearch({ strict: false }) as { notice?: string };
-  const { inputs, signedOut, loading, readError, updatedAt, refreshDashboard } = usePortalDashboard();
+  const { inputs, signedOut, loading, loaded, readError, updatedAt, refreshDashboard } = usePortalDashboard();
 
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("24h");
   const [feedback, setFeedback] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
@@ -212,7 +212,12 @@ function ActivityHubDashboard() {
       )}
 
       {/* ── Onboarding checklist for new users ──────────────────── */}
-      {isNewUser && (
+      {/* SLICE 188 — `isNewUser` is derived from counts, so with EVERY read
+          failing it is true (0 integrations, 0 records) and this card told a
+          returning tenant "Your workspace is ready" over a workspace nobody
+          could read. The welcome card is a claim about the data; it may only
+          render when the data arrived. */}
+      {isNewUser && loaded && (
         <div className="bg-stone-950 border border-stone-900 rounded-2xl p-8 text-center max-w-xl mx-auto">
           <div className="text-4xl mb-4">🚀</div>
           <h3 className="text-lg font-bold text-white mb-2">Welcome to Simpler Life 100</h3>
@@ -314,7 +319,26 @@ function ActivityHubDashboard() {
                   <span className="bg-amber-500/10 text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded-md border border-amber-500/20">{pendingApprovals}</span>
                 )}
               </div>
-              {derived.approvals.pending === 0 ? (
+              {/* SLICE 188 — the partial-failure case. Integrations and tasks
+                  read fine, approvals did not: `isNewUser` is false, the page
+                  takes this branch, and "🎉 All clear" was printed over an
+                  approvals array that was never read. `loaded` is the only
+                  thing that separates "no approvals" from "no answer". */}
+              {!loaded ? (
+                <div className="text-center py-6">
+                  <div className="text-xl mb-1">⚠️</div>
+                  <p className="text-[10px] font-bold text-amber-400">Approvals couldn't be read</p>
+                  <p className="text-[10px] text-stone-500 mt-1 leading-relaxed">
+                    {readError?.error ?? "The queue did not answer."} This is not an empty queue.
+                  </p>
+                  <button
+                    onClick={() => void refreshDashboard()}
+                    className="mt-3 text-[10px] font-bold text-emerald-400 hover:text-emerald-300"
+                  >
+                    Retry →
+                  </button>
+                </div>
+              ) : derived.approvals.pending === 0 ? (
                 <div className="text-center py-6">
                   <div className="text-xl mb-1">🎉</div>
                   <p className="text-[10px] font-bold text-stone-400">All clear</p>
