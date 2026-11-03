@@ -34,6 +34,7 @@ import {
   createRoute,
   createRouter,
 } from "@tanstack/react-router";
+import type { RouteComponent } from "@tanstack/react-router";
 import ClientsPage from "../lazy/portal.clients.index.page";
 import ClientDetailPage from "../lazy/portal.clients.$clientId.page";
 import ProjectsPage from "../lazy/portal.projects.index.page";
@@ -84,8 +85,16 @@ function renderAt(initialPath: string, overrides: PageDef[]) {
   for (const def of STUBS) merged.set(def.path, def.component);
   for (const def of overrides) merged.set(def.path, def.component);
   const rootRoute = createRootRoute({ component: () => <Outlet /> });
+  // `RouteComponent` is `RouteTypes<{}>['component'] & { preload? }`, an
+  // intersection a plain `ComponentType` does not satisfy structurally even
+  // though it satisfies the runtime contract. The cast is the harness, not the
+  // pages: slice 189 shipped this file with a red `tsc` because nothing checked.
   const children = [...merged.entries()].map(([path, component]) =>
-    createRoute({ getParentRoute: () => rootRoute, path, component }),
+    createRoute({
+      getParentRoute: () => rootRoute,
+      path,
+      component: component as unknown as RouteComponent,
+    }),
   );
   const router = createRouter({
     routeTree: rootRoute.addChildren(children),
