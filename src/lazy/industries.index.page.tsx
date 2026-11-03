@@ -54,11 +54,11 @@ function IndustriesIndexPage() {
             const rest = industries.filter((i) => !focusedIds.includes(i.id));
             const problemLines: Record<string, string> = {
               insurance: "Claims processing is manual, slow, and error-prone — adjusters lose days per file to data re-keying.",
-              legal: "Firms lose 15+ billable hours a week to time entry, matter setup, and invoice assembly.",
+              legal: "Time entry, matter setup, and invoice assembly are three separate manual steps — the clock, the file, and the bill never line up on their own.",
               "real-estate": "Speed-to-lead decides the deal — manual listing sync and follow-up lose hours of momentum.",
               healthcare: "Patient intake, scheduling, and compliance paperwork consume staff hours that should go to care.",
               construction: "Estimates, field reports, and change orders are re-keyed by hand — margins leak at every handoff.",
-              "professional-services": "10–15% of billable time never gets billed because tracking and invoicing are manual.",
+              "professional-services": "Hours are tracked by hand and invoiced later, so what gets billed depends on someone remembering to write it down.",
               "financial-services": "Regulatory reporting and client onboarding are re-keyed across systems — audit exposure grows.",
             };
             return (

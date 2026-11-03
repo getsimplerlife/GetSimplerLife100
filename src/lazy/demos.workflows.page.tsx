@@ -376,6 +376,10 @@ Simpler Life 100`);
           <p className="text-stone-400 text-sm md:text-base leading-relaxed">
             Run real-time animated simulations showing exactly how industry-specific automations ingest data, classify intent, extract parameters, and execute downstream operations automatically.
           </p>
+          {/* Simulation disclosure — every figure below is sample data, never a measurement */}
+          <p className="text-xs text-amber-400/90 font-mono border border-amber-500/30 bg-amber-500/10 rounded-xl px-4 py-2 max-w-2xl mx-auto leading-relaxed">
+            Simulation — every amount, timing and score on this page is illustrative sample data for the demo. It is not a measurement of our product and not a customer result.
+          </p>
         </div>
 
         {/* Tab Controls */}
@@ -799,7 +803,7 @@ Simpler Life 100`);
 
                     {/* Compound Business Value Callout */}
                     <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400 text-[10px] leading-relaxed font-bold">
-                      🏆 Automated in 4.5 seconds with 100% data fidelity. Under standard manual dispatch rules, this transaction would require an estimated 15 minutes of employee keyboard-keying, risking copy-paste fat-finger mistakes.
+                      🏆 One pass wrote the record, updated the systems it belongs in, and notified the channel — with an approval point wherever a person has to sign off.
                     </div>
                   </div>
                 )}
