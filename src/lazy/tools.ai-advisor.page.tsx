@@ -112,24 +112,21 @@ function AIAdvisor() {
       const analysis = analyzeDescription(description);
       const top = analysis.topMatch;
 
-      const totalHours = analysis.allMatches.reduce((sum: number, r: any) => sum + r.estimatedHoursSaved, 0);
-
+      // No hours-saved line and no dollar line: we have never measured either one.
       const resultMessage = [
         "🎯 **Analysis Complete! Here's what I found:**\n",
-        `Based on what you've shared, here are the top automation opportunities for your team:\n`,
+        `Based on what you've shared, here are the automation opportunities that fit your team's work:\n`,
         `**🥇 ${top.suggestedAgentEmoji} ${top.match.name}**`,
-        `   → ${top.estimatedHoursSaved}h/week saved | ${top.confidence} match confidence`,
         `   → ${top.match.description}`,
         "",
         ...analysis.allMatches.slice(1, 3).map(
           (r: any, i: number) =>
-            `**${i === 0 ? "🥈" : "🥉"} ${r.suggestedAgentEmoji} ${r.match.name}**\n   → ${r.estimatedHoursSaved}h/week saved | ${r.confidence} match\n   → ${r.match.description}`
+            `**${i === 0 ? "🥈" : "🥉"} ${r.suggestedAgentEmoji} ${r.match.name}**\n   → ${r.match.description}`
         ),
         "",
-        `📊 **Total estimated savings: ~${totalHours} hours per week**`,
-        `💰 **That's approximately $${(totalHours * 25 * 4).toLocaleString()} per month in labor savings**`,
+        `📊 **${analysis.allMatches.length} matching pattern${analysis.allMatches.length === 1 ? "" : "s"} in the library**`,
         "",
-        `*Based on a blended labor rate of $25/hr*`,
+        `Next step: we scope it with you — the steps, the approval points, and the systems it touches.`,
       ].join("\n");
 
       addMessage("advisor", resultMessage.trim());

@@ -71,7 +71,7 @@ export const resources: Resource[] = [
     title: "AI Contract Review Playbook",
     type: "guide",
     description:
-      "How legal and procurement teams can use AI to review contracts 10x faster. Covers clause detection, risk flagging, playbook compliance checking, and integration with existing contract management systems.",
+      "How legal and procurement teams can put AI to work on contract review: clause detection, risk flagging, playbook compliance checking, and integration with existing contract management systems.",
     industry: ["legal", "financial-services", "insurance", "real-estate", "construction"],
     format: "PDF",
   },
@@ -170,7 +170,7 @@ export const resources: Resource[] = [
     title: "The Productive Agent: AI Tools for Real Estate Professionals",
     type: "guide",
     description:
-      "How real estate agents can reclaim 20+ hours per week with AI — covering instant lead response, automated showing coordination, contract generation, and pipeline management. Includes step-by-step implementation guides.",
+      "How real estate agents can hand instant lead response, showing coordination, contract generation, and pipeline updates to an automated system — with step-by-step implementation guides.",
     industry: ["real-estate"],
     format: "PDF",
   },
@@ -197,7 +197,7 @@ export const resources: Resource[] = [
     title: "IT Service Desk Optimization with AI",
     type: "guide",
     description:
-      "Guide to reducing IT service desk ticket volume by 40%+ through AI automation. Covers password reset automation, account provisioning, intelligent triage, and knowledge base integration.",
+      "Guide to applying AI automation to IT service desk work — password reset automation, account provisioning, intelligent triage, and knowledge base integration.",
     industry: ["financial-services", "healthcare", "manufacturing", "energy", "insurance"],
     format: "PDF",
   },

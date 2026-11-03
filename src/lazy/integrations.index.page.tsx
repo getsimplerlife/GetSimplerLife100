@@ -9,7 +9,8 @@ interface CrossAppAutomation {
   description: string;
   trigger: string;
   steps: string[];
-  roi: string;
+  /** What the automation changes about the work — mechanism, never a measured result. */
+  outcome: string;
 }
 
 const COMMON_CROSS_AUTOMATIONS: CrossAppAutomation[] = [
@@ -24,7 +25,7 @@ const COMMON_CROSS_AUTOMATIONS: CrossAppAutomation[] = [
       "AI inserts/updates Lead record in Salesforce and assigns to the matching Account Exec.",
       "Slack/Teams notification is posted with key opportunity data and pre-drafted call agenda."
     ],
-    roi: "Average response time reduced from 4 hours to 90 seconds, 25% increase in conversion."
+    outcome: "Every inbound lead is parsed, written to the CRM, and routed to an owner the moment it arrives — nobody re-types it and nothing waits in an inbox."
   },
   {
     name: "Automated Invoice & Bill Ingestion",
@@ -37,7 +38,7 @@ const COMMON_CROSS_AUTOMATIONS: CrossAppAutomation[] = [
       "AI matches the invoice to open PO and receiving documents in SAP or NetSuite.",
       "If matching is successful, AI posts bill directly to QuickBooks / Bill.com; otherwise, flags variance."
     ],
-    roi: "85% reduction in manual AP invoicing costs, straight-through posting rate over 90%."
+    outcome: "Invoices are read, matched to their purchase order, and posted to the ledger — unmatched lines are flagged for a person instead of being keyed in."
   },
   {
     name: "Customer Support Ticket Escalation & Auto-Responder",
@@ -50,7 +51,7 @@ const COMMON_CROSS_AUTOMATIONS: CrossAppAutomation[] = [
       "AI drafts an intelligent response and schedules it for agent approval or auto-sends if low-risk.",
       "Critical SLA breaches trigger real-time hot escalations in Slack engineering channels."
     ],
-    roi: "First contact resolution increased by 35%, engineering notification lags reduced by 4 hours."
+    outcome: "Tickets are classified on arrival, answered from your own help-centre articles, and escalated to the owning channel — with the reply held for approval."
   },
   {
     name: "Logistical Freight Dispatch Router",
@@ -63,7 +64,7 @@ const COMMON_CROSS_AUTOMATIONS: CrossAppAutomation[] = [
       "AI generates dispatch orders and distributes confirmations to carriers via Outlook.",
       "Real-time dispatch board in Slack or portal notifies operators of completed routes."
     ],
-    roi: "Dispatcher load time reduced by 15 hours/week per operator, fuel cost savings of ~6%."
+    outcome: "Dispatch lists are read from the spreadsheet or ERP, sequenced against driver hours and routing data, and confirmed to carriers without a phone call."
   },
   {
     name: "Interactive Month-End Financial Close & Reconciliation",
@@ -76,7 +77,7 @@ const COMMON_CROSS_AUTOMATIONS: CrossAppAutomation[] = [
       "Flags payment processing discrepancies or missing ledger categories automatically.",
       "Outputs a fully reconciled Excel close workbook with clear audit trails for review."
     ],
-    roi: "Month-end reconciliation cycle reduced from 6 days to 3 hours, 100% auditable logs."
+    outcome: "Transaction registers are pulled from each system, matched by statement ID against the ledger, and variances flagged — every step written to an audit trail."
   },
 ];
 
@@ -658,7 +659,7 @@ function IntegrationExplorerPage() {
                         </div>
                       </div>
                       <span className="text-[10px] font-mono text-emerald-400 font-bold bg-emerald-500/5 border border-emerald-500/10 px-2 py-1 rounded h-fit">
-                        ROI: {autom.roi.split(",")[0]}
+                        Outcome: {autom.outcome}
                       </span>
                     </div>
 
@@ -789,6 +790,9 @@ function IntegrationExplorerPage() {
                     <span className="h-2 w-2 rounded-full bg-amber-500" />
                     <span className="h-2 w-2 rounded-full bg-emerald-500" />
                     <span className="pl-2">S1 Workflow Simulator</span>
+                    <span className="ml-auto text-[9px] font-bold text-amber-400 border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 rounded">
+                      Simulated demo — illustrative steps, not a measurement
+                    </span>
                   </div>
 
                   {/* Terminal Screen */}
