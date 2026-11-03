@@ -5,23 +5,12 @@ export interface RicherROICalculatorProps {
   embed?: boolean;
 }
 
-const INDUSTRY_PRESETS: Record<string, { employees: number; hourlyCost: number; tasksPerDay: number; timePerTask: number; errorRate: number }> = {
-  Manufacturing: { employees: 120, hourlyCost: 32, tasksPerDay: 8, timePerTask: 15, errorRate: 4 },
-  Logistics: { employees: 80, hourlyCost: 28, tasksPerDay: 12, timePerTask: 10, errorRate: 6 },
-  Healthcare: { employees: 200, hourlyCost: 45, tasksPerDay: 6, timePerTask: 25, errorRate: 3 },
-  Retail: { employees: 60, hourlyCost: 22, tasksPerDay: 10, timePerTask: 12, errorRate: 7 },
-  "Financial Services": { employees: 150, hourlyCost: 55, tasksPerDay: 5, timePerTask: 30, errorRate: 2 },
-  Construction: { employees: 40, hourlyCost: 38, tasksPerDay: 4, timePerTask: 20, errorRate: 8 },
-  Technology: { employees: 100, hourlyCost: 65, tasksPerDay: 7, timePerTask: 18, errorRate: 3 },
-  Hospitality: { employees: 50, hourlyCost: 20, tasksPerDay: 15, timePerTask: 8, errorRate: 10 },
-};
-
 /**
  * LOCKED PLATFORM TIERS (owner 09-27): one platform, every capability in every
- * tier. Tiers differ by scale limits, governance and support; Enterprise adds
- * custom on-demand vendor-API builds. There is no setup fee: the only cost is
- * the monthly platform subscription, so the model below costs the subscription
- * (annualised) instead of a one-off implementation charge.
+ * tier. Tiers differ by scale limits, governance and support. There is no setup
+ * fee: the buyer's only cost is the monthly platform subscription, so the model
+ * below costs the subscription (annualised) instead of a one-off implementation
+ * charge.
  */
 const PLATFORM_TIERS = [
   { name: "Starter", monthly: 199, employees: "10-30", paymentLink: "/pricing" },
@@ -35,22 +24,41 @@ function getRecommendedTier(emps: number) {
   return PLATFORM_TIERS[2];
 }
 
+/**
+ * SLICE 187 — what this calculator used to do and no longer does.
+ *
+ * It carried eight industry presets that filled the sliders with invented
+ * per-industry numbers (headcount, hourly cost, minutes per task, an error
+ * rate), multiplied the result by an unexplained reclamation rate of 0.85,
+ * added an "error cost" saving worth three times the task rate, and presented
+ * the sum as the visitor's ROI.
+ *
+ * Every one of those constants is gone. The model is now arithmetic on what the
+ * visitor sets on the sliders, plus ONE labelled assumption they own — the share
+ * of the work automation takes — which is a slider, not a hidden multiplier.
+ * The arithmetic is printed so it can be checked.
+ */
 export function RicherROICalculator({ embed = false }: RicherROICalculatorProps) {
   const [showResults, setShowResults] = useState(false);
   const [email, setEmail] = useState("");
   const [emailSent, setEmailSent] = useState(false);
-  const [selectedIndustry, setSelectedIndustry] = useState("");
 
   const [employees, setEmployees] = useState(50);
   const [hourlyCost, setHourlyCost] = useState(35);
   const [tasksPerDay, setTasksPerDay] = useState(5);
   const [timePerTask, setTimePerTask] = useState(20);
-  const [errorRate, setErrorRate] = useState(5);
+  // The one assumption nobody can measure before a pilot — the visitor's to set.
+  const [reclamationShare, setReclamationShare] = useState(50);
+  // A stated, editable planning default, not a measured fact.
+  const [workingDays, setWorkingDays] = useState(250);
 
   const [annualHoursSaved, setAnnualHoursSaved] = useState(0);
   const [totalAnnualSavings, setTotalAnnualSavings] = useState(0);
   const [paybackMonths, setPaybackMonths] = useState(0);
   const [threeYearNetImpact, setThreeYearNetImpact] = useState(0);
+  const [currentAnnualLaborCost, setCurrentAnnualLaborCost] = useState(0);
+  const [dailyHours, setDailyHours] = useState(0);
+  const [annualHours, setAnnualHours] = useState(0);
 
   const recommendedTier = getRecommendedTier(employees);
   // No setup fee: the buyer's only cost is the monthly subscription.
@@ -58,37 +66,33 @@ export function RicherROICalculator({ embed = false }: RicherROICalculatorProps)
   const annualPlatformCost = monthlyCost * 12;
 
   useEffect(() => {
-    const workingDays = 250;
-    const dailyHours = (employees * tasksPerDay * timePerTask) / 60;
-    const annualHours = dailyHours * workingDays;
-    const hoursSaved = annualHours * 0.85;
-    const laborSavings = hoursSaved * hourlyCost;
-    const totalTasksPerYear = employees * tasksPerDay * workingDays;
-    const errorsPerYear = totalTasksPerYear * (errorRate / 100);
-    const hoursSpentOnErrors = errorsPerYear * (timePerTask / 60) * 3;
-    const errorSavings = hoursSpentOnErrors * hourlyCost;
-    const annualSavings = laborSavings + errorSavings;
-    // Payback vs one year of platform subscription (there is no setup fee).
-    const payback = annualSavings > 0 ? (annualPlatformCost / annualSavings) * 12 : 0;
-    const netImpact = (annualSavings * 3) - (annualPlatformCost * 3);
+    const perDay = (employees * tasksPerDay * timePerTask) / 60;
+    const perYear = perDay * workingDays;
+    const share = reclamationShare / 100;
+    const hoursSaved = perYear * share;
+    const savings = hoursSaved * hourlyCost;
+    const laborCost = perYear * hourlyCost;
+    // Payback against one year of platform subscription (there is no setup fee).
+    const payback = savings > 0 ? (annualPlatformCost / savings) * 12 : 0;
+    const netImpact = savings * 3 - annualPlatformCost * 3;
+
+    setDailyHours(perDay);
+    setAnnualHours(perYear);
+    setCurrentAnnualLaborCost(laborCost);
     setAnnualHoursSaved(hoursSaved);
-    setTotalAnnualSavings(annualSavings);
+    setTotalAnnualSavings(savings);
     setPaybackMonths(payback);
     setThreeYearNetImpact(netImpact);
-  }, [employees, hourlyCost, tasksPerDay, timePerTask, errorRate, annualPlatformCost]);
+  }, [employees, hourlyCost, tasksPerDay, timePerTask, reclamationShare, workingDays, annualPlatformCost]);
 
   const timelineMonths = [1, 3, 6, 12, 24];
 
-  const applyPreset = (industry: string) => {
-    const p = INDUSTRY_PRESETS[industry];
-    if (!p) return;
-    setSelectedIndustry(industry);
-    setEmployees(p.employees);
-    setHourlyCost(p.hourlyCost);
-    setTasksPerDay(p.tasksPerDay);
-    setTimePerTask(p.timePerTask);
-    setErrorRate(p.errorRate);
-  };
+  const arithmetic = [
+    `${employees} people × ${tasksPerDay} tasks/day × ${timePerTask} min ÷ 60 = ${dailyHours.toFixed(1)} hours of manual work a day`,
+    `${dailyHours.toFixed(1)} hours/day × ${workingDays} working days = ${Math.round(annualHours).toLocaleString()} hours a year`,
+    `${Math.round(annualHours).toLocaleString()} hours × $${hourlyCost}/hour = $${Math.round(currentAnnualLaborCost).toLocaleString()} a year of labour`,
+    `× ${reclamationShare}% (the share you set) = $${Math.round(totalAnnualSavings).toLocaleString()} a year`,
+  ];
 
   const handleCaptureEmail = async () => {
     if (!email.trim() || emailSent) return;
@@ -99,7 +103,19 @@ export function RicherROICalculator({ embed = false }: RicherROICalculatorProps)
         body: JSON.stringify({
           email,
           toolName: "roi-calculator",
-          result: { employees, hourlyCost, tasksPerDay, timePerTask, errorRate, annualHoursSaved, totalAnnualSavings, paybackMonths, threeYearNetImpact, recommendedTier: recommendedTier.name },
+          result: {
+            employees,
+            hourlyCost,
+            tasksPerDay,
+            timePerTask,
+            reclamationShare,
+            workingDays,
+            annualHoursSaved,
+            totalAnnualSavings,
+            paybackMonths,
+            threeYearNetImpact,
+            recommendedTier: recommendedTier.name,
+          },
         }),
       });
     } catch {}
@@ -119,7 +135,7 @@ export function RicherROICalculator({ embed = false }: RicherROICalculatorProps)
     y += 10;
     pdf.setFontSize(14);
     pdf.setTextColor(100);
-    pdf.text("AI Operations ROI Report", w / 2, y, { align: "center" });
+    pdf.text("Operations ROI Model", w / 2, y, { align: "center" });
     y += 12;
     pdf.setFontSize(10);
     pdf.text(`Generated: ${new Date().toLocaleDateString()}`, w / 2, y, { align: "center" });
@@ -129,22 +145,29 @@ export function RicherROICalculator({ embed = false }: RicherROICalculatorProps)
     y += 10;
     pdf.setFontSize(12);
     pdf.setTextColor(0);
-    pdf.text(`Industry: ${selectedIndustry || "Custom"}`, 20, y);
-    pdf.text(`Employees: ${employees}`, 120, y);
-    y += 8;
-    pdf.text(`Hourly Cost: $${hourlyCost}`, 20, y);
+    pdf.text(`People: ${employees}`, 20, y);
     pdf.text(`Tasks/Day: ${tasksPerDay}`, 120, y);
     y += 8;
-    pdf.text(`Time/Task: ${timePerTask} min`, 20, y);
-    pdf.text(`Error Rate: ${errorRate}%`, 120, y);
+    pdf.text(`Cost/Hour: $${hourlyCost}`, 20, y);
+    pdf.text(`Minutes/Task: ${timePerTask}`, 120, y);
+    y += 8;
+    pdf.text(`Working Days/Year: ${workingDays}`, 20, y);
+    pdf.text(`Share Automation Takes: ${reclamationShare}%`, 120, y);
     y += 12;
     pdf.setFontSize(14);
     pdf.setTextColor(16, 185, 129);
-    pdf.text("Results", 20, y);
+    pdf.text("The arithmetic", 20, y);
     y += 8;
-    pdf.setFontSize(11);
+    pdf.setFontSize(10);
     pdf.setTextColor(0);
-    pdf.text(`Annual Hours Saved: ${Math.round(annualHoursSaved).toLocaleString()}`, 20, y);
+    for (const line of arithmetic) {
+      pdf.text(line, 20, y);
+      y += 6;
+    }
+    y += 4;
+    pdf.text("The share you set is your assumption, not a result we measured.", 20, y);
+    y += 10;
+    pdf.text(`Annual Hours Reclaimed: ${Math.round(annualHoursSaved).toLocaleString()}`, 20, y);
     y += 7;
     pdf.text(`Annual Savings: $${Math.round(totalAnnualSavings).toLocaleString()}`, 20, y);
     y += 7;
@@ -153,7 +176,7 @@ export function RicherROICalculator({ embed = false }: RicherROICalculatorProps)
     pdf.text(`3-Year Net Impact: $${Math.round(threeYearNetImpact).toLocaleString()}`, 20, y);
     y += 7;
     pdf.text(`Recommended Tier: ${recommendedTier.name} ($${recommendedTier.monthly}/mo, no setup fee)`, 20, y);
-    pdf.save("simpler-life-100-roi-report.pdf");
+    pdf.save("simpler-life-100-roi-model.pdf");
   };
 
   return (
@@ -163,27 +186,17 @@ export function RicherROICalculator({ embed = false }: RicherROICalculatorProps)
         {/* LEFT COLUMN: Inputs & Sliders (7 Cols) */}
         <div className="lg:col-span-7 bg-stone-900/60 rounded-3xl p-6 lg:p-8 border border-stone-800/80 backdrop-blur-md space-y-6">
           <div className="border-b border-stone-800 pb-4">
-            <h3 className="text-xl font-black text-white flex items-center gap-2"><span>🎛️</span> Operations Parameters</h3>
-            <p className="text-xs text-stone-400 mt-1">Select your industry or adjust sliders for a custom estimate.</p>
-          </div>
-
-          {/* Industry Presets */}
-          <div className="flex flex-wrap gap-2">
-            {Object.keys(INDUSTRY_PRESETS).map((ind) => (
-              <button key={ind} onClick={() => applyPreset(ind)}
-                className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-all ${
-                  selectedIndustry === ind ? "bg-emerald-600 text-white" : "bg-stone-800 text-stone-400 hover:text-white hover:bg-stone-700"
-                }`}>
-                {ind}
-              </button>
-            ))}
+            <h3 className="text-xl font-black text-white flex items-center gap-2"><span>🎛️</span> Your Operations Parameters</h3>
+            <p className="text-xs text-stone-400 mt-1">
+              Every number below is yours. We have not measured your team's work, so we do not pre-fill it with a figure of ours.
+            </p>
           </div>
 
           <div className="space-y-6">
             {/* Employees */}
             <div className="space-y-2">
               <div className="flex justify-between items-center text-sm">
-                <span className="font-bold text-stone-300">Total Employees Impacted</span>
+                <span className="font-bold text-stone-300">People doing this work</span>
                 <span className="text-emerald-400 font-black text-base">{employees}</span>
               </div>
               <input type="range" min="5" max="300" step="5" value={employees} onChange={(e) => setEmployees(parseInt(e.target.value))}
@@ -193,17 +206,17 @@ export function RicherROICalculator({ embed = false }: RicherROICalculatorProps)
             {/* Hourly Cost */}
             <div className="space-y-2">
               <div className="flex justify-between items-center text-sm">
-                <span className="font-bold text-stone-300">Average Hourly Cost</span>
+                <span className="font-bold text-stone-300">Fully loaded cost per hour</span>
                 <span className="text-emerald-400 font-black text-base">${hourlyCost}</span>
               </div>
-              <input type="range" min="15" max="100" step="1" value={hourlyCost} onChange={(e) => setHourlyCost(parseInt(e.target.value))}
+              <input type="range" min="15" max="150" step="1" value={hourlyCost} onChange={(e) => setHourlyCost(parseInt(e.target.value))}
                 className="w-full h-2 bg-stone-800 rounded-full appearance-none cursor-pointer accent-emerald-500" />
             </div>
 
             {/* Tasks Per Day */}
             <div className="space-y-2">
               <div className="flex justify-between items-center text-sm">
-                <span className="font-bold text-stone-300">Repetitive Tasks Per Day</span>
+                <span className="font-bold text-stone-300">Repetitive tasks per person per day</span>
                 <span className="text-emerald-400 font-black text-base">{tasksPerDay}</span>
               </div>
               <input type="range" min="1" max="30" step="1" value={tasksPerDay} onChange={(e) => setTasksPerDay(parseInt(e.target.value))}
@@ -213,26 +226,45 @@ export function RicherROICalculator({ embed = false }: RicherROICalculatorProps)
             {/* Time Per Task */}
             <div className="space-y-2">
               <div className="flex justify-between items-center text-sm">
-                <span className="font-bold text-stone-300">Minutes Per Task</span>
+                <span className="font-bold text-stone-300">Minutes per task</span>
                 <span className="text-emerald-400 font-black text-base">{timePerTask} min</span>
               </div>
               <input type="range" min="1" max="60" step="1" value={timePerTask} onChange={(e) => setTimePerTask(parseInt(e.target.value))}
                 className="w-full h-2 bg-stone-800 rounded-full appearance-none cursor-pointer accent-emerald-500" />
             </div>
 
-            {/* Error Rate */}
+            {/* Working days — a stated planning default, editable */}
             <div className="space-y-2">
               <div className="flex justify-between items-center text-sm">
-                <span className="font-bold text-stone-300">Manual Error Rate</span>
-                <span className="text-emerald-400 font-black text-base">{errorRate}%</span>
+                <span className="font-bold text-stone-300">
+                  Working days a year
+                  <span className="text-stone-500 font-normal"> — planning default, change it</span>
+                </span>
+                <input type="number" min={1} max={366} value={workingDays}
+                  onChange={(e) => setWorkingDays(Math.max(0, parseInt(e.target.value) || 0))}
+                  className="w-20 bg-stone-950 border border-stone-800 rounded-lg px-2 py-1 text-sm text-emerald-400 font-black text-right outline-none focus:border-stone-600" />
               </div>
-              <input type="range" min="1" max="20" step="1" value={errorRate} onChange={(e) => setErrorRate(parseInt(e.target.value))}
+            </div>
+
+            {/* The one assumption */}
+            <div className="space-y-2">
+              <div className="flex justify-between items-center text-sm">
+                <span className="font-bold text-stone-300">
+                  Share of that work automation takes
+                  <span className="text-stone-500 font-normal"> — your assumption</span>
+                </span>
+                <span className="text-emerald-400 font-black text-base">{reclamationShare}%</span>
+              </div>
+              <input type="range" min="0" max="100" step="5" value={reclamationShare} onChange={(e) => setReclamationShare(parseInt(e.target.value))}
                 className="w-full h-2 bg-stone-800 rounded-full appearance-none cursor-pointer accent-emerald-500" />
+              <p className="text-[10px] text-stone-500">
+                Nobody can know this before a pilot. It is the only guess in the model, and it is yours to set.
+              </p>
             </div>
 
             {/* Recommended Tier Display */}
             <div className="bg-stone-950/60 border border-stone-800 rounded-xl p-4 text-center">
-              <div className="text-xs font-mono text-stone-400 mb-1">RECOMMENDED TIER</div>
+              <div className="text-xs font-mono text-stone-400 mb-1">TIER FOR A TEAM THIS SIZE</div>
               <div className="text-lg font-black text-emerald-400">{recommendedTier.name}</div>
               <div className="text-sm text-stone-400">${recommendedTier.monthly}/mo, no setup fee — {recommendedTier.employees} employees</div>
             </div>
@@ -240,7 +272,7 @@ export function RicherROICalculator({ embed = false }: RicherROICalculatorProps)
             {/* See My ROI Button */}
             <button onClick={() => { if (!showResults) setShowResults(true); }}
               className="w-full bg-emerald-500 hover:bg-emerald-400 text-black font-black py-3.5 rounded-2xl text-sm transition-all shadow-lg">
-              🔍 See My ROI Projection
+              🔍 See My Projection
             </button>
           </div>
         </div>
@@ -249,15 +281,14 @@ export function RicherROICalculator({ embed = false }: RicherROICalculatorProps)
         <div className="lg:col-span-5 space-y-5">
           {/* Key Stats */}
           <div className="bg-stone-900/60 rounded-3xl p-6 lg:p-8 border border-stone-800/80 space-y-5">
-            <h3 className="text-lg font-black text-white">What this problem costs you</h3>
-            {/* Flow: Current annual labor cost → Potential annual savings → Onboarding → Payback → 3-year opportunity */}
+            <h3 className="text-lg font-black text-white">What this work costs you</h3>
             <div className="space-y-2.5">
               <div className="flex items-center justify-between rounded-xl bg-stone-950/60 border border-stone-800/50 px-4 py-3">
                 <span className="text-xs font-mono text-stone-400">CURRENT ANNUAL LABOR COST</span>
-                <span className="text-sm font-black text-white">${(employees * tasksPerDay * (timePerTask / 60) * 250 * hourlyCost).toLocaleString()}</span>
+                <span className="text-sm font-black text-white">${Math.round(currentAnnualLaborCost).toLocaleString()}</span>
               </div>
               <div className="flex items-center justify-between rounded-xl bg-stone-950/60 border border-emerald-500/20 px-4 py-3">
-                <span className="text-xs font-mono text-emerald-400">POTENTIAL ANNUAL SAVINGS</span>
+                <span className="text-xs font-mono text-emerald-400">AT THE SHARE YOU SET</span>
                 <span className="text-sm font-black text-emerald-400">${Math.round(totalAnnualSavings).toLocaleString()}</span>
               </div>
               <div className="flex items-center justify-between rounded-xl bg-stone-950/60 border border-stone-800/50 px-4 py-3">
@@ -265,21 +296,31 @@ export function RicherROICalculator({ embed = false }: RicherROICalculatorProps)
                 <span className="text-sm font-black text-white">${annualPlatformCost.toLocaleString()}</span>
               </div>
               <div className="flex items-center justify-between rounded-xl bg-stone-950/60 border border-stone-800/50 px-4 py-3">
-                <span className="text-xs font-mono text-stone-400">ESTIMATED PAYBACK</span>
+                <span className="text-xs font-mono text-stone-400">PAYBACK AT THAT SHARE</span>
                 <span className="text-sm font-black text-white">{paybackMonths.toFixed(1)} months</span>
               </div>
               <div className="flex items-center justify-between rounded-xl bg-emerald-950/40 border border-emerald-500/30 px-4 py-3">
-                <span className="text-xs font-mono text-emerald-300">3-YEAR OPPORTUNITY</span>
+                <span className="text-xs font-mono text-emerald-300">3-YEAR NET AT THAT SHARE</span>
                 <span className="text-sm font-black text-emerald-300">${Math.round(threeYearNetImpact).toLocaleString()}</span>
               </div>
             </div>
+
+            {/* The arithmetic, printed */}
+            <div className="bg-stone-950/60 border border-stone-800 rounded-xl p-4 space-y-1.5">
+              <div className="text-[10px] font-mono uppercase tracking-wider text-stone-500 mb-2">The arithmetic</div>
+              {arithmetic.map((line) => (
+                <div key={line} className="text-[11px] font-mono text-stone-300 leading-relaxed">{line}</div>
+              ))}
+            </div>
+
             <p className="text-[10px] text-stone-500 italic">
-              Illustrative estimate based on your inputs — your real numbers depend on your process.
+              These are your inputs, not our measurements. Your real numbers depend on your process,
+              and only a pilot measures the share automation actually takes.
             </p>
 
             {/* Timeline */}
             <div className="space-y-2">
-              <div className="text-xs font-mono text-stone-400 mb-2">CUMULATIVE NET RETURN</div>
+              <div className="text-xs font-mono text-stone-400 mb-2">CUMULATIVE NET AT THAT SHARE</div>
               {timelineMonths.map((m) => {
                 const savingsAtMonth = (totalAnnualSavings / 12) * m;
                 const netValue = savingsAtMonth - monthlyCost * m;
@@ -301,13 +342,13 @@ export function RicherROICalculator({ embed = false }: RicherROICalculatorProps)
             {/* Email Gate */}
             {!showResults ? (
               <div className="p-4 bg-stone-950/60 border border-stone-800 rounded-xl space-y-3 text-center">
-                <p className="text-xs text-stone-400">Enter your email to unlock full results and platform tiers:</p>
+                <p className="text-xs text-stone-400">Enter your email to unlock the tier breakdown:</p>
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@company.com"
                   className="w-full bg-stone-900 border border-stone-800 rounded-xl p-2.5 text-sm text-stone-200 placeholder-stone-600 outline-none focus:border-emerald-700 text-center" />
                 <button onClick={handleCaptureEmail} disabled={!email.trim()}
                   className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:bg-stone-700 disabled:text-stone-400 text-black font-bold text-sm py-2.5 rounded-xl transition-all">
-                  Unlock Full Results →
+                  Unlock Tier Breakdown →
                 </button>
               </div>
             ) : (
@@ -315,11 +356,11 @@ export function RicherROICalculator({ embed = false }: RicherROICalculatorProps)
                 {/* 3-Year Net Return */}
                 <div className="pt-4 border-t border-stone-800 flex items-center justify-between">
                   <div>
-                    <span className="text-[10px] font-bold text-stone-400 uppercase block">3-Year Net Return</span>
+                    <span className="text-[10px] font-bold text-stone-400 uppercase block">3-Year Net at That Share</span>
                     <span className="text-xl font-black text-white">${Math.round(threeYearNetImpact).toLocaleString()}</span>
                   </div>
                   <span className="text-[10px] font-black uppercase tracking-widest bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1.5 rounded-full">
-                    {(threeYearNetImpact / (annualPlatformCost * 3)).toFixed(1)}x ROI
+                    {(threeYearNetImpact / (annualPlatformCost * 3)).toFixed(1)}x return on subscription
                   </span>
                 </div>
 
@@ -352,7 +393,7 @@ export function RicherROICalculator({ embed = false }: RicherROICalculatorProps)
                   </Link>
                   <button onClick={downloadPDF}
                     className="block w-full text-center bg-stone-800 hover:bg-stone-700 text-stone-300 font-bold py-2.5 rounded-xl text-xs transition-all">
-                    📄 Download PDF Report
+                    📄 Download PDF
                   </button>
                 </div>
               </>

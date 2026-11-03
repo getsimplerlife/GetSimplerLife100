@@ -7,8 +7,7 @@ export interface IndustryHub {
   tagline: string;
   hook: string;
   description: string;
-  painPoints: { title: string; description: string; hoursPerWeek?: number }[];
-  kpis: { value: string; label: string }[];
+  painPoints: { title: string; description: string }[];
   workflows: string[];
   integrations: string[];
   auditPackages: {
@@ -32,38 +31,27 @@ export const industries: IndustryHub[] = [
         title: "Manual QA Documentation",
         description:
           "Quality assurance teams spend hours manually transcribing inspection results into spreadsheets and ERP modules. Errors go unnoticed until downstream audits catch them.",
-        hoursPerWeek: 18,
       },
       {
         title: "Inventory Reconciliation Chaos",
         description:
           "Inventory data lives in disconnected systems — raw materials in one, WIP in another, finished goods in a third. Reconciling across them requires constant manual intervention and spreadsheet gymnastics.",
-        hoursPerWeek: 12,
       },
       {
         title: "Paper-Based Shop Floor Reporting",
         description:
           "Production operators fill out paper logs that sit in a binder until someone manually enters them into the system. Real-time decision-making is impossible.",
-        hoursPerWeek: 15,
       },
       {
         title: "Supply Chain Exception Handling",
         description:
           "Supplier delays, material shortages, and quality holds trigger manual notification chains. Each exception takes 45+ minutes of phone-tag and email forwarding to resolve.",
-        hoursPerWeek: 10,
       },
       {
         title: "Production Scheduling Bottlenecks",
         description:
           "Schedulers manually balance machine capacity, labor availability, and material supply daily. One change cascades into hours of re-planning.",
-        hoursPerWeek: 20,
       },
-    ],
-    kpis: [
-      { value: "2.1x", label: "Illustrative efficiency gain" },
-      { value: "50%", label: "Illustrative reduction in QC overhead" },
-      { value: "99.9%", label: "Illustrative inventory data accuracy" },
-      { value: "85%", label: "Illustrative faster order processing" },
     ],
     workflows: [
       "invoice-automation",
@@ -114,38 +102,27 @@ export const industries: IndustryHub[] = [
         title: "Manual Dispatch Scheduling",
         description:
           "Dispatchers spend 2+ hours every morning building routes on a whiteboard, manually calling drivers, and juggling last-minute changes.",
-        hoursPerWeek: 25,
       },
       {
         title: "Paper Proof-of-Delivery",
         description:
           "Drivers collect paper signatures that get lost, fade, or sit in cabs for days. Without POD, invoices can't be sent and disputes pile up.",
-        hoursPerWeek: 8,
       },
       {
         title: "Freight Invoice Reconciliation",
         description:
           "Every carrier sends a different invoice format. AP teams manually cross-reference rates against contracts, taking 10-15 minutes per invoice.",
-        hoursPerWeek: 20,
       },
       {
         title: "Real-Time Shipment Tracking Gap",
         description:
-          "Customers call for updates because there's no automated status feed. CSRs spend 30% of their day answering 'where's my load?' questions.",
-        hoursPerWeek: 15,
+          "Customers call for updates because there's no automated status feed, and the answering lands on a person. Every 'where's my load?' call is time a CSR is not spending on work that needs a human.",
       },
       {
         title: "Carrier Communication Fragmentation",
         description:
           "Rate requests, schedule changes, and issue resolution happen across phone, email, and text — with no audit trail.",
-        hoursPerWeek: 10,
       },
-    ],
-    kpis: [
-      { value: "98%", label: "Illustrative on-time delivery rate" },
-      { value: "22%", label: "Illustrative fuel cost reduction" },
-      { value: "2.0x", label: "Illustrative ROI on automation investment" },
-      { value: "140 hrs", label: "Illustrative monthly labor hours saved" },
     ],
     workflows: [
       "dispatch-scheduling",
@@ -190,44 +167,33 @@ export const industries: IndustryHub[] = [
     tagline: "HIPAA-compliant automation for providers",
     hook: "Automate patient intake, scheduling, and compliance documentation.",
     description:
-      "Healthcare providers are drowning in administrative overhead. Clinical staff spend 40%+ of their day on data entry, phone calls, and paper forms instead of patient care. Simpler Life 100's platform handles patient intake, insurance verification, appointment scheduling, medical coding prep, and compliance documentation — all within your existing EHR and practice management systems. HIPAA-compliant by design.",
+      "Healthcare providers are drowning in administrative overhead. Clinical staff spend their day on data entry, phone calls, and paper forms instead of patient care. Simpler Life 100's platform handles patient intake, insurance verification, appointment scheduling, medical coding prep, and compliance documentation — all within your existing EHR and practice management systems. HIPAA-compliant by design.",
     painPoints: [
       {
         title: "Manual Patient Intake",
         description:
           "Patients fill paper forms that staff manually transcribe into the EHR. Each new patient takes 15-20 minutes of typing, and errors in transcription cause downstream billing issues.",
-        hoursPerWeek: 40,
       },
       {
         title: "Insurance Verification by Phone/Fax",
         description:
           "Staff spend hours on hold with insurance companies, manually verifying eligibility. Each verification takes 8-12 minutes, and benefits summaries arrive by fax hours later.",
-        hoursPerWeek: 15,
       },
       {
         title: "Appointment Scheduling Friction",
         description:
-          "Phone calls for scheduling dominate front desk time. No-show rates of 15-30% persist because reminder systems are manual or non-existent.",
-        hoursPerWeek: 30,
+          "Phone calls for scheduling dominate front desk time. No-shows stay high because reminder systems are manual or non-existent.",
       },
       {
         title: "Medical Coding Backlog",
         description:
           "Clinicians dictate notes that sit in a queue for coders. Average turnaround is 3-5 days, delaying billing cycles and cash flow.",
-        hoursPerWeek: 25,
       },
       {
         title: "Compliance Documentation Overhead",
         description:
           "HIPAA audits require meticulous documentation of PHI access, policy attestations, and breach logs. Collecting evidence takes weeks.",
-        hoursPerWeek: 10,
       },
-    ],
-    kpis: [
-      { value: "18+ hrs", label: "Illustrative saved per provider weekly" },
-      { value: "94%", label: "Illustrative no-show reduction achieved" },
-      { value: "100%", label: "Illustrative hIPAA compliance assured" },
-      { value: "60%", label: "Illustrative faster claims processing" },
     ],
     workflows: [
       "patient-intake",
@@ -277,39 +243,28 @@ export const industries: IndustryHub[] = [
       {
         title: "Manual Bid Preparation",
         description:
-          "Estimators spend 15-30 hours per week compiling bids from spreadsheets, searching for historical pricing, and manually calculating material quantities.",
-        hoursPerWeek: 25,
+          "Estimators lose whole days of the week to compiling bids from spreadsheets, searching for historical pricing, and manually calculating material quantities.",
       },
       {
         title: "Change Order Chaos",
         description:
           "Change orders travel through email threads, text messages, and paper forms. Tracking approvals and budget impact across 20+ subcontractors is impossible.",
-        hoursPerWeek: 15,
       },
       {
         title: "Paper Field Reports",
         description:
           "Superintendents fill daily logs by hand. These sit in a truck until someone drives them to the office, where they're entered into the system 2-3 days late.",
-        hoursPerWeek: 12,
       },
       {
         title: "Material Price Tracking",
         description:
           "Material costs fluctuate weekly, but active project budgets reflect pricing from months ago. Nobody knows the real margin until the job is done.",
-        hoursPerWeek: 8,
       },
       {
         title: "Progress Billing Bottleneck",
         description:
           "Billing requires manually aggregating work completed, materials delivered, and change orders approved. Each invoice takes 4-6 hours to prepare.",
-        hoursPerWeek: 18,
       },
-    ],
-    kpis: [
-      { value: "20+ hrs", label: "Illustrative saved per estimator weekly" },
-      { value: "35%", label: "Illustrative faster project closeouts" },
-      { value: "2.5x", label: "Illustrative bid submission speed increase" },
-      { value: "15%", label: "Illustrative margin improvement" },
     ],
     workflows: [
       "invoice-automation",
@@ -360,38 +315,27 @@ export const industries: IndustryHub[] = [
         title: "Manual Audit Evidence Collection",
         description:
           "Compliance teams spend weeks pulling screenshots, emails, and logs to prove controls are operating effectively. Each exam cycle costs 200+ person-hours of evidence gathering.",
-        hoursPerWeek: 30,
       },
       {
         title: "KYC/AML Onboarding Delays",
         description:
           "Client onboarding requires identity verification, background checks, and document collection. Each new client takes 3-5 business days and $150+ in manual processing costs.",
-        hoursPerWeek: 20,
       },
       {
         title: "Regulatory Reporting Fragmentation",
         description:
           "Reporting requirements vary by jurisdiction. Data must be pulled from 4+ systems, normalized manually, and formatted differently for each regulator.",
-        hoursPerWeek: 15,
       },
       {
         title: "Transaction Alert Overload",
         description:
-          "Monitoring systems generate 10,000+ alerts monthly. 97% are false positives that analysts manually review and dismiss — wasting hundreds of hours.",
-        hoursPerWeek: 35,
+          "Monitoring systems generate thousands of alerts a month. Most are noise that analysts manually review and dismiss — hours that produce nothing.",
       },
       {
         title: "Policy Attestation Tracking",
         description:
           "Employee policy acknowledgments, training completions, and conflict-of-interest disclosures are tracked in separate spreadsheets. Gaps aren't visible until audit time.",
-        hoursPerWeek: 8,
       },
-    ],
-    kpis: [
-      { value: "100%", label: "Illustrative audit pass rate achieved" },
-      { value: "80%", label: "Illustrative faster regulatory reporting" },
-      { value: "14 days", label: "Illustrative client onboarding time" },
-      { value: "3.5x", label: "Illustrative compliance team productivity" },
     ],
     workflows: [
       "compliance-reporting",
@@ -444,38 +388,27 @@ export const industries: IndustryHub[] = [
         title: "Manual Audit Evidence Collection",
         description:
           "Compliance teams spend weeks pulling screenshots, emails, and logs to prove controls are operating effectively. Each exam cycle costs 200+ person-hours of evidence gathering.",
-        hoursPerWeek: 30,
       },
       {
         title: "KYC/AML Onboarding Delays",
         description:
           "Client onboarding requires identity verification, background checks, and document collection. Each new client takes 3-5 business days and $150+ in manual processing costs.",
-        hoursPerWeek: 20,
       },
       {
         title: "Regulatory Reporting Fragmentation",
         description:
           "Reporting requirements vary by jurisdiction. Data must be pulled from 4+ systems, normalized manually, and formatted differently for each regulator.",
-        hoursPerWeek: 15,
       },
       {
         title: "Transaction Alert Overload",
         description:
-          "Monitoring systems generate 10,000+ alerts monthly. 97% are false positives that analysts manually review and dismiss — wasting hundreds of hours.",
-        hoursPerWeek: 35,
+          "Monitoring systems generate thousands of alerts a month. Most are noise that analysts manually review and dismiss — hours that produce nothing.",
       },
       {
         title: "Policy Attestation Tracking",
         description:
           "Employee policy acknowledgments, training completions, and conflict-of-interest disclosures are tracked in separate spreadsheets. Gaps aren't visible until audit time.",
-        hoursPerWeek: 8,
       },
-    ],
-    kpis: [
-      { value: "100%", label: "Illustrative audit pass rate achieved" },
-      { value: "80%", label: "Illustrative faster regulatory reporting" },
-      { value: "14 days", label: "Illustrative client onboarding time" },
-      { value: "3.5x", label: "Illustrative compliance team productivity" },
     ],
     workflows: [
       "compliance-reporting",
@@ -528,38 +461,27 @@ export const industries: IndustryHub[] = [
         title: "Asset Data Intake Overload",
         description:
           "New assets arrive with spec sheets, warranty documents, and compliance certificates. Each set of docs takes 45+ minutes to manually enter into the asset management system.",
-        hoursPerWeek: 20,
       },
       {
         title: "Inspection Report Logjams",
         description:
           "Field inspectors collect data on paper or tablets. Reports are compiled into PDFs and emailed — someone spends days copying data from PDFs into tracking systems.",
-        hoursPerWeek: 25,
       },
       {
         title: "Reactive Maintenance Scheduling",
         description:
-          "Maintenance is triggered by breakdowns rather than data. Without automated condition monitoring and work order generation, unplanned downtime costs 3-5x more than scheduled maintenance.",
-        hoursPerWeek: 15,
+          "Maintenance is triggered by breakdowns rather than data. Without automated condition monitoring and work order generation, unplanned downtime costs far more than scheduled maintenance.",
       },
       {
         title: "Disconnected Field Operations",
         description:
           "Field data lives in tablets, email, and paper. Office teams can't see real-time asset status, so decisions are based on yesterday's data.",
-        hoursPerWeek: 12,
       },
       {
         title: "Regulatory Filing Burden",
         description:
           "Environmental compliance, safety reporting, and production data must be filed monthly with multiple agencies. Each filing requires pulling data from 4+ silos.",
-        hoursPerWeek: 18,
       },
-    ],
-    kpis: [
-      { value: "2.2x", label: "Illustrative efficiency gain" },
-      { value: "65%", label: "Illustrative reduction in reporting time" },
-      { value: "24/7", label: "Illustrative automated monitoring availability" },
-      { value: "40%", label: "Illustrative maintenance cost reduction" },
     ],
     workflows: [
       "data-entry-automation",
@@ -610,38 +532,27 @@ export const industries: IndustryHub[] = [
         title: "Reactive Inventory Management",
         description:
           "Stockouts trigger emergency PO workflows that bypass normal procurement. Inventory counts are always 2-3 days behind reality, causing overstock and understock simultaneously.",
-        hoursPerWeek: 18,
       },
       {
         title: "Manual Order Fulfillment",
         description:
           "Orders land in the POS, get emailed to fulfillment, picked from paper lists, packed, and shipped — with status updates entered manually at every step.",
-        hoursPerWeek: 22,
       },
       {
         title: "Customer Support Spikes",
         description:
-          "During sales events, order status and return inquiries spike 4x. CSRs handle each inquiry in 6-8 minutes by checking 2-3 systems manually.",
-        hoursPerWeek: 30,
+          "During sales events, order status and return inquiries spike. CSRs handle each inquiry by hand across several disconnected systems.",
       },
       {
         title: "SKU-Level Pricing Updates",
         description:
           "Promotional pricing requires updating 100s of SKUs individually across the POS and ecommerce platform. Errors cause customer complaints and margin loss.",
-        hoursPerWeek: 10,
       },
       {
         title: "Shrinkage Detection Latency",
         description:
           "Inventory shrinkage isn't visible until quarterly physical counts. By then, theft patterns and process failures are months old.",
-        hoursPerWeek: 6,
       },
-    ],
-    kpis: [
-      { value: "99.5%", label: "Illustrative inventory accuracy achieved" },
-      { value: "55%", label: "Illustrative shrinkage reduction" },
-      { value: "1.6x", label: "Illustrative ROI on automation investment" },
-      { value: "70%", label: "Illustrative faster fulfillment cycle" },
     ],
     workflows: [
       "inventory-reconciliation",
@@ -688,44 +599,33 @@ export const industries: IndustryHub[] = [
     tagline: "Streamline matter management & maximize billable hours",
     hook: "Stop losing 15+ billable hours a week to administrative work.",
     description:
-      "Law firms leave millions on the table every year through unbillable administrative work — matter creation, document management, client intake, conflict checking, and billing. Associates at top firms spend 30%+ of their week on tasks that could be fully automated. Simpler Life 100 deploys AI legal assistants that handle intake, conflict checks, document drafting, deadline tracking, and time capture — so every hour worked is an hour billed.",
+      "Law firms leave millions on the table every year through unbillable administrative work — matter creation, document management, client intake, conflict checking, and billing. Associates at top firms spend a large part of their week on tasks that could be fully automated. Simpler Life 100 deploys AI legal assistants that handle intake, conflict checks, document drafting, deadline tracking, and time capture — so every hour worked is an hour billed.",
     painPoints: [
       {
         title: "Non-Billable Administrative Overload",
         description:
-          "Attorneys and paralegals spend 30%+ of their week on administrative tasks — opening matters, organizing files, and managing correspondence — that cannot be billed to clients.",
-        hoursPerWeek: 15,
+          "Attorneys and paralegals spend a large part of their week on administrative tasks — opening matters, organizing files, and managing correspondence — that cannot be billed to clients.",
       },
       {
         title: "Manual Client Intake",
         description:
           "New client inquiries go through phone, email, and web forms. Intake staff manually enter data into the PMS, run conflict checks, and send engagement letters. Each intake takes 45+ minutes.",
-        hoursPerWeek: 20,
       },
       {
         title: "Document Version Chaos",
         description:
           "Contracts and briefs undergo 15+ revisions via email attachments. Without centralized version control, teams waste hours reconciling changes and risk filing the wrong version.",
-        hoursPerWeek: 8,
       },
       {
         title: "Conflict Check Bottleneck",
         description:
           "Every new matter requires conflict checks against current and former clients. Staff manually search 3+ databases, and each check takes 15-20 minutes.",
-        hoursPerWeek: 10,
       },
       {
         title: "Time Capture Leakage",
         description:
-          "Attorneys forget to log small time increments — phone calls, quick emails, document reviews. Industry averages show 5-10% of billable time is never captured.",
-        hoursPerWeek: 6,
+          "Attorneys forget to log small time increments — phone calls, quick emails, document reviews. Small increments get lost, and billable time that is never captured is never billed.",
       },
-    ],
-    kpis: [
-      { value: "12+ hrs", label: "Illustrative billable hours recovered weekly" },
-      { value: "60%", label: "Illustrative faster document turnaround" },
-      { value: "99.9%", label: "Illustrative deadline compliance rate" },
-      { value: "18%", label: "Illustrative revenue increase per attorney" },
     ],
     workflows: [
       "contract-review",
@@ -777,39 +677,28 @@ export const industries: IndustryHub[] = [
       {
         title: "Manual Claims Data Entry",
         description:
-          "Each new claim requires entering 30+ data fields from phone calls, emails, and paper forms into the claims management system. Errors in data entry cause 15% rework rate.",
-        hoursPerWeek: 28,
+          "Each new claim requires entering 30+ data fields from phone calls, emails, and paper forms into the claims management system. Every data-entry error becomes downstream rework.",
       },
       {
         title: "Multi-System Policy Verification",
         description:
           "Adjusters manually cross-reference policy details across 3+ legacy systems. Each verification takes 10-15 minutes and pulls data from systems that don't talk to each other.",
-        hoursPerWeek: 15,
       },
       {
         title: "Underwriting Document Review",
         description:
           "Claims over a threshold require underwriter review of policy documents, endorsements, and correspondence. Each review takes 45+ minutes of reading and cross-referencing.",
-        hoursPerWeek: 20,
       },
       {
         title: "Fraud False-Positive Triage",
         description:
-          "Fraud detection flags 15% of claims for review, but 80% of flags are false positives. Investigators waste 70% of their time clearing innocent claims.",
-        hoursPerWeek: 18,
+          "Fraud detection flags claims for review, most of them false positives. Investigators spend their time clearing innocent claims.",
       },
       {
         title: "Regulatory Filing Burden",
         description:
           "State-level regulatory filings require monthly data submissions. Each filing pulls data from claims, underwriting, finance, and compliance systems.",
-        hoursPerWeek: 12,
       },
-    ],
-    kpis: [
-      { value: "80%", label: "Illustrative faster claims processing" },
-      { value: "65%", label: "Illustrative claim leakage reduction" },
-      { value: "1.8x", label: "Illustrative ROI on automation investment" },
-      { value: "95%", label: "Illustrative data accuracy rate" },
     ],
     workflows: [
       "claims-processing",
@@ -861,39 +750,28 @@ export const industries: IndustryHub[] = [
       {
         title: "Leads Go Cold Instantly",
         description:
-          "80% of buyers contact the first agent who responds. Without automated response, leads sit in your CRM for 30+ minutes — long enough to lose the deal.",
-        hoursPerWeek: 25,
+          "Buyers usually contact whoever responds first. Without an automated response, leads sit in your CRM until somebody notices — long enough to lose the deal.",
       },
       {
         title: "Showing Coordination Nightmare",
         description:
           "Each showing requires 6+ calls or texts between agent, buyer, seller, and listing agent. Scheduling a single showing wastes 45+ minutes of back-and-forth.",
-        hoursPerWeek: 12,
       },
       {
         title: "Contract Workflow Fatigue",
         description:
           "Contracts require pulling data from MLS, adding custom terms, calculating prorations, and collecting signatures. Each contract takes 3-4 hours of painstaking work.",
-        hoursPerWeek: 15,
       },
       {
         title: "Lead Nurturing Gaps",
         description:
-          "After the first week, most agents stop following up systematically. 60% of leads never receive a second contact, leaving thousands in pipeline value on the table.",
-        hoursPerWeek: 8,
+          "After the first week, most agents stop following up systematically. Most leads never receive a second contact, leaving pipeline value on the table.",
       },
       {
         title: "MLS Data Duplication",
         description:
           "Listing details are entered into MLS, then re-entered into the CRM, then again into marketing materials. Each listing requires 45+ minutes of duplicate data entry.",
-        hoursPerWeek: 10,
       },
-    ],
-    kpis: [
-      { value: "45 sec", label: "Illustrative lead response time achieved" },
-      { value: "3.4x", label: "Illustrative more leads converted" },
-      { value: "22 hrs", label: "Illustrative saved per agent weekly" },
-      { value: "60%", label: "Illustrative faster contract turnaround" },
     ],
     workflows: [
       "client-intake",
@@ -944,38 +822,28 @@ export const industries: IndustryHub[] = [
     tagline: "Mission-critical precision — automated",
     hook: "Every design change in aerospace triggers a paper trail across engineering, quality, supply chain, and regulators.",
     description:
-      "Aerospace manufacturers operate under AS9100 standards where a single missing signature can ground a production line. Simpler Life 100 deploys one platform that automates engineering change notice routing, supplier quality documentation, FAA and ITAR compliance reporting, and government contract billing. Your engineers focus on flight-critical work while the platform handles the documentation chain with 100% traceability — audit-ready at every step.",
+      "Aerospace manufacturers operate under AS9100 standards where a single missing signature can ground a production line. Simpler Life 100 deploys one platform that automates engineering change notice routing, supplier quality documentation, FAA and ITAR compliance reporting, and government contract billing. Your engineers focus on flight-critical work while the platform handles the documentation chain with a complete, traceable record — audit-ready at every step.",
     painPoints: [
       {
         title: "Engineering Change Notice Backlogs",
         description:
           "Every design change triggers a paper trail across engineering, quality, supply chain, and the FAA. Manual ECN routing takes 3–7 days, and a single missing signature can ground a production line. Most shops have 15–30 open ECNs at any time.",
-        hoursPerWeek: 20,
       },
       {
         title: "Supplier Quality Documentation",
         description:
           "AS9100 requires traceable supplier quality records for every part. Receiving teams manually match certs, C of Cs, material test reports, and process specs against POs — 12–18 minutes per shipment, with errors creating audit exposure.",
-        hoursPerWeek: 15,
       },
       {
         title: "Regulatory Compliance Reporting",
         description:
           "FAA, EASA, and ITAR compliance require meticulous documentation. Quarterly reports pull data from 5+ disconnected systems. One missed filing costs $10K+ in penalties and puts certifications at risk.",
-        hoursPerWeek: 12,
       },
       {
         title: "Government Contract Billing",
         description:
           "DCAA-compliant billing requires exact labor hour tracking, cost allocation, and audit-ready documentation. Manual reconciliation across timekeeping, project management, and accounting takes 20+ hours per billing cycle.",
-        hoursPerWeek: 18,
       },
-    ],
-    kpis: [
-      { value: "65%", label: "Illustrative faster ECN cycle time" },
-      { value: "4.2x", label: "Illustrative first-year ROI multiplier" },
-      { value: "99.8%", label: "Illustrative documentation accuracy" },
-      { value: "$48K", label: "Illustrative avoided compliance penalties" },
     ],
     workflows: [
       "document-processing",
@@ -1025,33 +893,23 @@ export const industries: IndustryHub[] = [
       {
         title: "Commodity Contract Reconciliation",
         description:
-          "Grain elevators and processors manage hundreds of contracts with different basis levels, delivery periods, and quality specs. Manually reconciling settlement sheets against contracts takes 8–12 hours per week, and errors cost thousands in incorrect payouts.",
-        hoursPerWeek: 12,
+          "Grain elevators and processors manage hundreds of contracts with different basis levels, delivery periods, and quality specs. Manually reconciling settlement sheets against contracts eats a working day or more each week, and errors turn into incorrect payouts.",
       },
       {
         title: "FSMA Traceability Documentation",
         description:
           "The Food Safety Modernization Act requires one-up/one-down traceability for every lot. Paper-based lot tracking means traceability exercises take 24–48 hours when the regulator wants them in under 4.",
-        hoursPerWeek: 10,
       },
       {
         title: "Equipment Maintenance Scheduling",
         description:
           "Planting and harvest windows don't wait. Manual maintenance logs and paper-based service records mean preventative work gets skipped until something breaks — and breakdowns during harvest cascade into six-figure losses.",
-        hoursPerWeek: 8,
       },
       {
         title: "Supplier Invoice Processing",
         description:
           "Seed, chemical, fertilizer, and fuel invoices arrive in dozens of formats — emailed PDFs, portal downloads, paper bills. AP clerks manually key each into the accounting system, averaging 8 minutes per invoice.",
-        hoursPerWeek: 15,
       },
-    ],
-    kpis: [
-      { value: "78%", label: "Illustrative faster traceability response" },
-      { value: "62%", label: "Illustrative reduction in invoice processing time" },
-      { value: "99.5%", label: "Illustrative settlement accuracy" },
-      { value: "3.1x", label: "Illustrative first-year ROI multiplier" },
     ],
     workflows: [
       "invoice-automation",
@@ -1102,32 +960,22 @@ export const industries: IndustryHub[] = [
         title: "PPAP Documentation Bottlenecks",
         description:
           "Every new part requires a Production Part Approval Process submission — dozens of documents including PFMEAs, control plans, MSA studies, and dimensional results. Manually assembling a PPAP takes 20–40 hours and delays SOP by weeks.",
-        hoursPerWeek: 25,
       },
       {
         title: "EDI Order Processing Errors",
         description:
-          "OEMs send 830/862 releases with weekly revisions. Manual EDI translation and order entry leads to mis-shipments, line-down penalties, and premium freight charges that eat 3–5% of revenue.",
-        hoursPerWeek: 18,
+          "OEMs send releases that get revised every week. Manual EDI translation and order entry leads to mis-shipments, line-down penalties, and premium freight charges.",
       },
       {
         title: "Supplier Quality Scorecards",
         description:
           "IATF 16949 requires tracked supplier performance. Quality teams manually pull data from receiving, production, and warranty systems, spending 8 hours per supplier per quarter building scorecards instead of improving supplier quality.",
-        hoursPerWeek: 12,
       },
       {
         title: "JIT Material Release Management",
         description:
           "MRP signals change daily. Planners manually adjust material releases across dozens of suppliers — a single missed update means either a line-down or excess inventory carrying cost.",
-        hoursPerWeek: 15,
       },
-    ],
-    kpis: [
-      { value: "85%", label: "Illustrative faster PPAP submissions" },
-      { value: "$120K", label: "Illustrative annual premium freight savings" },
-      { value: "99.2%", label: "Illustrative eDI order accuracy" },
-      { value: "5.0x", label: "Illustrative first-year ROI multiplier" },
     ],
     workflows: [
       "document-processing",
@@ -1178,33 +1026,23 @@ export const industries: IndustryHub[] = [
       {
         title: "Multi-Channel Order Reconciliation",
         description:
-          "Orders from Shopify, Amazon, Walmart Marketplace, and wholesale EDI each have different formats, fee structures, and fulfillment requirements. Manual reconciliation takes 15+ hours per week and oversells cost 3–5% of GMV.",
-        hoursPerWeek: 15,
+          "Orders from Shopify, Amazon, Walmart Marketplace, and wholesale EDI each have different formats, fee structures, and fulfillment requirements. Manual reconciliation eats the week, and oversells cost margin.",
       },
       {
         title: "Supplier Purchase Order Management",
         description:
-          "Planners manually convert forecasts into POs across 20–50 suppliers with different lead times, MOQs, and pricing tiers. Stockouts during peak season lose 8–10% of potential revenue.",
-        hoursPerWeek: 12,
+          "Planners manually convert forecasts into POs across 20–50 suppliers with different lead times, MOQs, and pricing tiers. Stockouts during peak season lose sales you had already forecast.",
       },
       {
         title: "Returns & RMA Processing",
         description:
           "Returns from multiple channels with different policies. Manual RMA creation, label generation, disposition assessment, and refund processing takes 8–12 minutes per return — every delay drives a negative review.",
-        hoursPerWeek: 20,
       },
       {
         title: "Customer Support Ticket Triage",
         description:
           "WISMO, return requests, product questions, and account issues flood the inbox. Manual triage means simple questions wait hours while complex ones get rushed — hurting CSAT across the board.",
-        hoursPerWeek: 25,
       },
-    ],
-    kpis: [
-      { value: "82%", label: "Illustrative auto-resolved support tickets" },
-      { value: "99.7%", label: "Illustrative order reconciliation accuracy" },
-      { value: "15%", label: "Illustrative inventory carrying cost reduction" },
-      { value: "5.5x", label: "Illustrative first-year ROI multiplier" },
     ],
     workflows: [
       "invoice-automation",
@@ -1258,32 +1096,22 @@ export const industries: IndustryHub[] = [
         title: "Enrollment Document Processing",
         description:
           "Every new student brings transcripts, immunization records, proof of residency, and enrollment forms. Admissions staff manually verify, scan, index, and file each document — 15–20 minutes per student, and peak season means months of overtime.",
-        hoursPerWeek: 30,
       },
       {
         title: "Grant & Title Fund Compliance",
         description:
           "Federal and state grants require meticulous documentation of every dollar spent. Manual reconciliation of grant expenditures against approved budgets takes 25+ hours per grant per reporting period — audit findings can claw back funding.",
-        hoursPerWeek: 15,
       },
       {
         title: "Purchase Order & Procurement",
         description:
           "Schools order everything from textbooks to HVAC maintenance. Manual PO creation, multi-level approval routing, and budget code verification means requisitions take 5–10 days on average.",
-        hoursPerWeek: 10,
       },
       {
         title: "Faculty & Staff Onboarding",
         description:
           "New hires require HR paperwork, credential verification, background checks, IT account provisioning, and benefits enrollment. Manual coordination across HR, IT, and departments means new faculty wait 2–3 weeks for full system access.",
-        hoursPerWeek: 8,
       },
-    ],
-    kpis: [
-      { value: "70%", label: "Illustrative faster enrollment processing" },
-      { value: "85%", label: "Illustrative faster procurement cycle" },
-      { value: "99.3%", label: "Illustrative enrollment document accuracy" },
-      { value: "3.5x", label: "Illustrative first-year ROI multiplier" },
     ],
     workflows: [
       "document-processing",
@@ -1335,32 +1163,22 @@ export const industries: IndustryHub[] = [
         title: "Public Records Request Processing",
         description:
           "FOIA and state open records requests require document search across email, file shares, and legacy systems. Manual searches take 4–12 hours per request, and statutory deadlines mean staff are in constant crisis mode — risking lawsuits and fines.",
-        hoursPerWeek: 20,
       },
       {
         title: "Permit Application Processing",
         description:
           "Building permits, business licenses, and environmental permits require multiple department reviews. Paper-based routing takes 2–6 weeks for a simple permit, and lost applications mean citizens restart the process.",
-        hoursPerWeek: 25,
       },
       {
         title: "Grant Management & Reporting",
         description:
           "Federal and state grants require quarterly performance reports, financial reconciliations, and procurement compliance documentation. Manual assembly across disconnected systems takes 30–50 hours per grant per quarter.",
-        hoursPerWeek: 15,
       },
       {
         title: "Constituent Correspondence Management",
         description:
           "Emails, letters, and web forms flow into general inboxes with no triage. Manual sorting means urgent matters get buried, response times average 5–10 business days, and repeat contacts on the same issue are treated as new.",
-        hoursPerWeek: 18,
       },
-    ],
-    kpis: [
-      { value: "75%", label: "Illustrative reduction in FOIA backlog" },
-      { value: "68%", label: "Illustrative faster permit issuance" },
-      { value: "99.1%", label: "Illustrative records request completeness" },
-      { value: "3.3x", label: "Illustrative first-year ROI multiplier" },
     ],
     workflows: [
       "document-processing",
@@ -1411,32 +1229,22 @@ export const industries: IndustryHub[] = [
         title: "Group Booking & Room Block Management",
         description:
           "Sales managers track room blocks, cut-off dates, attrition clauses, and pickup reports across 30–50 active groups. Missed cut-off dates lose revenue from unreleased rooms, and manual pickup reporting means forecasting is always 48 hours behind.",
-        hoursPerWeek: 15,
       },
       {
         title: "Banquet Event Order Processing",
         description:
           "Every wedding, conference, and dinner generates a BEO with AV, menus, setup, and billing. Manual creation and distribution to culinary, AV, and ops takes 2–3 hours per event, and version-chaos means the kitchen works from last week's menu.",
-        hoursPerWeek: 12,
       },
       {
         title: "Vendor Invoice Processing",
         description:
           "F&B, linens, landscaping, maintenance, and amenity suppliers send 200–500 invoices monthly. Manual coding to department and GL takes 6–8 minutes per invoice, and month-end close is a 3-day scramble.",
-        hoursPerWeek: 18,
       },
       {
         title: "Guest Service Request Management",
         description:
           "Requests via text, app, front desk, and housekeeper notes have no unified triage system. Urgent maintenance issues get the same priority as extra towel requests, and shift-change handoffs lose track of open items.",
-        hoursPerWeek: 10,
       },
-    ],
-    kpis: [
-      { value: "65%", label: "Illustrative faster month-end close" },
-      { value: "4.2%", label: "Illustrative group revenue recovery" },
-      { value: "99.2%", label: "Illustrative invoice coding accuracy" },
-      { value: "3.8x", label: "Illustrative first-year ROI multiplier" },
     ],
     workflows: [
       "invoice-automation",
@@ -1488,32 +1296,22 @@ export const industries: IndustryHub[] = [
         title: "Rights & Clearances Management",
         description:
           "Every piece of content involves music rights, stock footage licenses, talent agreements, and location releases. Manual tracking in spreadsheets means expired licenses slip through — creating legal exposure that can pull content off platforms.",
-        hoursPerWeek: 10,
       },
       {
         title: "Talent & Crew Payment Processing",
         description:
           "Union and non-union talent payments require session fees, residuals, royalties, and expense reimbursements with complex calculation rules. Manual processing takes 15–20 minutes per payment and errors trigger guild audits.",
-        hoursPerWeek: 15,
       },
       {
         title: "Content Metadata Management",
         description:
           "Publishing content across platforms requires consistent metadata — titles, descriptions, tags, rights windows, territory restrictions. Manual entry for each platform means inconsistent metadata and missed discoverability.",
-        hoursPerWeek: 8,
       },
       {
         title: "Vendor & Freelancer Invoice Processing",
         description:
           "Every production uses dozens of vendors and freelancers, each with their own invoice format. AP manually codes to the correct project, cost category, and tax treatment — 8–10 minutes per invoice across hundreds of invoices.",
-        hoursPerWeek: 12,
       },
-    ],
-    kpis: [
-      { value: "100%", label: "Illustrative rights compliance achieved" },
-      { value: "65%", label: "Illustrative faster vendor payments" },
-      { value: "90%", label: "Illustrative reduction in metadata errors" },
-      { value: "3.2x", label: "Illustrative first-year ROI multiplier" },
     ],
     workflows: [
       "contract-review",
@@ -1565,32 +1363,22 @@ export const industries: IndustryHub[] = [
         title: "Batch Record Review",
         description:
           "Every batch generates a 50–200 page record. QA reviewers manually verify every entry against SOPs, specs, and GMP requirements — 4–8 hours per batch. A single missed discrepancy can result in a 483 observation or warning letter.",
-        hoursPerWeek: 30,
       },
       {
         title: "Deviation & CAPA Management",
         description:
           "When a deviation occurs, the investigation, root cause analysis, CAPA proposal, and effectiveness verification create a paper trail taking 20–40 hours to document. Manual tracking means CAPAs fall through cracks and repeat deviations occur.",
-        hoursPerWeek: 18,
       },
       {
         title: "Regulatory Submission Assembly",
         description:
           "IND, NDA, and ANDA submissions require thousands of documents in eCTD format. Manual compilation, hyperlinking, and validation takes 200–400 hours per submission — formatting errors cause RTF rejections that delay review timelines.",
-        hoursPerWeek: 25,
       },
       {
         title: "Supplier Qualification Documentation",
         description:
           "GMP requires qualified suppliers with audited quality systems. Manual tracking of supplier audits, quality agreements, and CoAs across 200+ suppliers means qualifications expire unnoticed until an auditor finds the gap.",
-        hoursPerWeek: 10,
       },
-    ],
-    kpis: [
-      { value: "70%", label: "Illustrative faster batch release" },
-      { value: "$180K", label: "Illustrative avoided compliance findings" },
-      { value: "100%", label: "Illustrative batch record review completeness" },
-      { value: "5.8x", label: "Illustrative first-year ROI multiplier" },
     ],
     workflows: [
       "document-processing",
@@ -1633,7 +1421,7 @@ export const industries: IndustryHub[] = [
     accent: "#4b5563",
     bgLight: "bg-gray-50",
     tagline: "Bill more. Admin less.",
-    hook: "The most profitable hour in professional services is the one that gets billed — and 10–15% never do.",
+    hook: "The most profitable hour in professional services is the one that gets billed — and plenty never do.",
     description:
       "Consulting, accounting, engineering, and advisory firms lose millions to billing leakage, slow engagement setup, manual expense processing, and invoice assembly. Simpler Life 100 deploys one platform that accelerates engagement setup, recovers lost billable time through intelligent time entry review, automates expense report processing, and assembles client-ready invoices in minutes. Your professionals bill more hours while your back office runs on autopilot.",
     painPoints: [
@@ -1641,32 +1429,22 @@ export const industries: IndustryHub[] = [
         title: "Engagement Setup Delays",
         description:
           "Every new project requires engagement letters, SOWs, budget setup, and team assignment. Manual coordination across partners, legal, resource management, and finance takes 5–10 days — all non-billable time and a poor first impression.",
-        hoursPerWeek: 12,
       },
       {
         title: "Time Entry & Billing Leakage",
         description:
-          "Professionals enter vague time descriptions with wrong project codes, and 10–15% of billable time goes unentered each week. Billing coordinators chase missing time, correct codes, and massage narratives — 20+ hours per week of non-billable rework.",
-        hoursPerWeek: 20,
+          "Professionals enter vague time descriptions with wrong project codes, and billable time goes unentered every week. Billing coordinators chase missing time, correct codes, and rewrite narratives — non-billable rework that grows with the team.",
       },
       {
         title: "Expense Report Processing",
         description:
           "Consultants submit crumpled receipts and vague expense descriptions weeks after travel. Finance manually verifies against client billing guidelines, codes to the right project, and chases missing documentation — 12–15 minutes per expense report.",
-        hoursPerWeek: 10,
       },
       {
         title: "Client Invoice Assembly",
         description:
           "Each client has unique formatting, backup documentation, and submission requirements. Manually assembling invoices with time detail, expense backup, and cover pages takes 15–25 minutes per invoice every month.",
-        hoursPerWeek: 15,
       },
-    ],
-    kpis: [
-      { value: "7%", label: "Illustrative billable hour recovery" },
-      { value: "12 days", label: "Illustrative dSO improvement" },
-      { value: "99.5%", label: "Illustrative invoicing accuracy" },
-      { value: "5.5x", label: "Illustrative first-year ROI multiplier" },
     ],
     workflows: [
       "invoice-automation",
@@ -1711,40 +1489,30 @@ export const industries: IndustryHub[] = [
     accent: "#2563eb",
     bgLight: "bg-blue-50",
     tagline: "Scale operations without scaling headcount",
-    hook: "SaaS companies waste 15–25% of software spend on unused licenses and auto-renewals nobody reviewed.",
+    hook: "SaaS companies pay for licenses nobody uses and auto-renewals nobody reviewed.",
     description:
-      "B2B SaaS and tech companies scaling from $10M to $100M hit an operational wall — IT tickets pile up, SaaS vendor sprawl drains budgets, deal desk bottlenecks slow revenue recognition, and customer onboarding documentation takes days per account. Simpler Life 100 deploys one platform that auto-resolves 40% of IT tickets, discovers and manages every SaaS subscription, validates sales orders against pricing policies in minutes, and generates customized onboarding plans from deal data. Scale revenue without scaling ops headcount.",
+      "B2B SaaS and tech companies scaling from $10M to $100M hit an operational wall — IT tickets pile up, SaaS vendor sprawl drains budgets, deal desk bottlenecks slow revenue recognition, and customer onboarding documentation takes days per account. Simpler Life 100 deploys one platform that auto-resolves the IT tickets that need no human, discovers and manages every SaaS subscription, validates sales orders against pricing policies in minutes, and generates customized onboarding plans from deal data. Scale revenue without scaling ops headcount.",
     painPoints: [
       {
         title: "IT Operations Ticket Overload",
         description:
           "IT teams drown in access requests, software provisioning, and troubleshooting tickets. Manual triage and routing means critical infrastructure alerts sit alongside password reset requests, and MTTR averages 4+ hours for routine issues.",
-        hoursPerWeek: 25,
       },
       {
         title: "SaaS Vendor Sprawl & Renewals",
         description:
-          "Every department buys their own tools. Finance has no centralized view of 150+ SaaS subscriptions, auto-renewals hit without review, and unused licenses cost 15–25% of total software spend. Manual tracking in spreadsheets doesn't scale.",
-        hoursPerWeek: 10,
+          "Every department buys their own tools. Finance has no centralized view of 150+ SaaS subscriptions, auto-renewals hit without review, and unused licenses quietly consume software spend. Manual tracking in spreadsheets doesn't scale.",
       },
       {
         title: "Deal Desk & Sales Order Processing",
         description:
           "Sales closes deals but order forms arrive with pricing errors, missing approvals, and non-standard terms. Deal desk manually validates every order against price books and discount policies — 25–40 minutes per order, and errors cause billing disputes.",
-        hoursPerWeek: 15,
       },
       {
         title: "Customer Onboarding Documentation",
         description:
           "Every new customer requires a tailored onboarding plan, technical configuration docs, and training materials. CS teams manually assemble these from templates — 3–5 hours per customer that delays time-to-value.",
-        hoursPerWeek: 12,
       },
-    ],
-    kpis: [
-      { value: "40%", label: "Illustrative auto-resolved IT tickets" },
-      { value: "20%", label: "Illustrative saaS spend reduction" },
-      { value: "99.5%", label: "Illustrative order accuracy" },
-      { value: "6.0x", label: "Illustrative first-year ROI multiplier" },
     ],
     workflows: [
       "service-desk-automation",
@@ -1791,40 +1559,30 @@ export const industries: IndustryHub[] = [
     accent: "#0891b2",
     bgLight: "bg-cyan-50",
     tagline: "Connect faster. Operate smarter.",
-    hook: "A single billing error on a wholesale circuit can cost $2K–$10K per month — and most providers audit less than 60% of carrier invoices.",
+    hook: "A single billing error on a wholesale circuit compounds month after month — and most providers audit only a fraction of their carrier invoices.",
     description:
-      "Telecom service providers, ISPs, and MSPs manage extraordinary operational complexity — service order orchestration across 5+ teams, carrier invoice auditing across dozens of underlying providers, network inventory reconciliation, and customer MACD processing. Simpler Life 100 deploys one platform that automates end-to-end service delivery, audits every carrier invoice to recover 3–7% of costs, continuously reconciles network inventory, and processes MACDs same-day. Your NOC focuses on network health, not spreadsheet reconciliation.",
+      "Telecom service providers, ISPs, and MSPs manage extraordinary operational complexity — service order orchestration across 5+ teams, carrier invoice auditing across dozens of underlying providers, network inventory reconciliation, and customer MACD processing. Simpler Life 100 deploys one platform that automates end-to-end service delivery, audits every carrier invoice and recovers what it finds, continuously reconciles network inventory, and processes MACDs same-day. Your NOC focuses on network health, not spreadsheet reconciliation.",
     painPoints: [
       {
         title: "Service Order Processing",
         description:
           "Every new circuit or service order requires coordination across sales engineering, network operations, field services, and billing. Manual handoffs between 5+ teams create 3–10 day provisioning cycles and frequent escalations.",
-        hoursPerWeek: 20,
       },
       {
         title: "Carrier Invoice Auditing",
         description:
           "Providers pay dozens of underlying carriers for circuits, colocation, and transit. Each carrier invoice requires validation against contracted rates and circuit inventory — a single billing error can cost $2K–$10K per month.",
-        hoursPerWeek: 15,
       },
       {
         title: "Network Inventory Reconciliation",
         description:
-          "What's actually in the network rarely matches what's in the inventory system. Circuits get turned up without being recorded, decom'd circuits stay in the database, and capacity planning runs on data that's 15–20% inaccurate.",
-        hoursPerWeek: 12,
+          "What's actually in the network rarely matches what's in the inventory system. Circuits get turned up without being recorded, decom'd circuits stay in the database, and capacity planning runs on data nobody can vouch for.",
       },
       {
         title: "Customer MACD Processing",
         description:
           "Moves, adds, changes, and disconnects come in via email, portal, and phone. Manual processing means MACDs take 3–7 days, and billing doesn't start/stop automatically — causing credit requests and revenue leakage.",
-        hoursPerWeek: 10,
       },
-    ],
-    kpis: [
-      { value: "65%", label: "Illustrative faster service delivery" },
-      { value: "5%", label: "Illustrative carrier cost recovery" },
-      { value: "98%", label: "Illustrative network inventory accuracy" },
-      { value: "4.8x", label: "Illustrative first-year ROI multiplier" },
     ],
     workflows: [
       "invoice-automation",
@@ -1868,40 +1626,30 @@ export const industries: IndustryHub[] = [
     accent: "#d97706",
     bgLight: "bg-amber-50",
     tagline: "Keep moving. Automate the rest.",
-    hook: "A single missed PM interval can strand passengers, trigger expensive road calls, and reduce vehicle lifespan by 15–20%.",
+    hook: "A single missed PM interval can strand passengers, trigger expensive road calls, and shorten vehicle lifespan.",
     description:
       "Transit agencies, charter services, and paratransit operators manage complex fleet operations where safety, compliance, and on-time performance are non-negotiable. Simpler Life 100 deploys one platform that automates preventive maintenance scheduling across every vehicle, tracks driver CDL and medical certifications with proactive alerts, communicates real-time service alerts to passengers, and optimizes paratransit trip scheduling automatically. Your fleet runs safer, your drivers stay compliant, and your riders stay informed.",
     painPoints: [
       {
         title: "Fleet Maintenance Management",
         description:
-          "Preventive maintenance schedules for dozens or hundreds of vehicles are tracked on whiteboards and spreadsheets. Missed PM intervals cause breakdowns that strand passengers, trigger expensive road calls, and reduce vehicle lifespan by 15–20%.",
-        hoursPerWeek: 15,
+          "Preventive maintenance schedules for dozens or hundreds of vehicles are tracked on whiteboards and spreadsheets. Missed PM intervals cause breakdowns that strand passengers, trigger expensive road calls, and shorten vehicle lifespan.",
       },
       {
         title: "Driver Qualification & Compliance",
         description:
           "Every driver requires a CDL with proper endorsements, medical certificates, and annual MVR checks. Manual tracking across a rotating driver roster means expired credentials go unnoticed until a roadside inspection — risking out-of-service orders.",
-        hoursPerWeek: 8,
       },
       {
         title: "Passenger Communication",
         description:
           "When routes are delayed or canceled, passengers find out at the stop. Manual communication means riders wait in the rain for buses that aren't coming, and customer service lines get flooded with calls that could have been a text message.",
-        hoursPerWeek: 12,
       },
       {
         title: "Trip Scheduling & Dispatch",
         description:
-          "Paratransit and charter operators manually schedule trips, assign vehicles, and optimize routes. Dispatchers spend 3–5 hours per day on schedule building, and manual scheduling leaves 10–15% efficiency on the table.",
-        hoursPerWeek: 20,
+          "Paratransit and charter operators manually schedule trips, assign vehicles, and optimize routes. Dispatchers lose hours every day to schedule building, and manual scheduling leaves capacity on the table.",
       },
-    ],
-    kpis: [
-      { value: "95%", label: "Illustrative pM compliance rate" },
-      { value: "12%", label: "Illustrative on-time performance improvement" },
-      { value: "100%", label: "Illustrative driver compliance achieved" },
-      { value: "4.2x", label: "Illustrative first-year ROI multiplier" },
     ],
     workflows: [
       "inventory-reconciliation",

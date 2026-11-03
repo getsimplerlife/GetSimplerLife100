@@ -30,7 +30,8 @@ function ROICalculatorPage() {
               ROI Calculator
             </h1>
             <p className="text-stone-400 text-sm md:text-base leading-relaxed">
-              Quantify your labor waste and calculate the precise break-even and compounding net returns of running automation across your workflows.
+              Put your own numbers in — your team, your minutes per task, your labour cost — and see the
+              arithmetic. Every input is yours to change, and the one assumption in the model is yours to set.
             </p>
           </div>
 
@@ -43,26 +44,32 @@ function ROICalculatorPage() {
           <div className="grid md:grid-cols-3 gap-8 pt-12 border-t border-stone-900 max-w-5xl mx-auto">
             <div className="space-y-2">
               <h4 className="font-bold text-white text-sm flex items-center gap-2">
-                <span className="text-emerald-400">📊</span> How we model your savings
+                <span className="text-emerald-400">📊</span> How the model works
               </h4>
               <p className="text-xs text-stone-400 leading-relaxed">
-                Calculations are modeled based on standard 250-day working years, with an average AI-driven efficiency/reclamation rate of 85% on manual redundant steps.
+                People × tasks per day × minutes per task ÷ 60 gives hours of manual work; × your working
+                days gives hours a year; × your hourly cost gives what the work costs. The working-days
+                figure is a planning default you can change, and the arithmetic is printed under the results.
               </p>
             </div>
             <div className="space-y-2">
               <h4 className="font-bold text-white text-sm flex items-center gap-2">
-                <span className="text-emerald-400">🛡️</span> Mitigating manual error costs
+                <span className="text-emerald-400">🛡️</span> The one assumption
               </h4>
               <p className="text-xs text-stone-400 leading-relaxed">
-                Standard industry models state locating and remediating manual process errors costs approximately 3x the standard hourly task rate. Our calculator integrates this mitigation.
+                How much of that work automation actually takes is the only figure in the model nobody can
+                know before a pilot. It is a slider you set, it is labelled as your assumption, and we do not
+                add an invented error-cost multiplier on top of it.
               </p>
             </div>
             <div className="space-y-2">
               <h4 className="font-bold text-white text-sm flex items-center gap-2">
-                <span className="text-emerald-400">⚡</span> Rapid 21-day deployment
+                <span className="text-emerald-400">⚡</span> What the platform costs
               </h4>
               <p className="text-xs text-stone-400 leading-relaxed">
-                Because Simpler Life 100 uses pre-trained vertical adapters, our deployment timeline averages 21 days with no legacy ERP disruptions.
+                Your only cost is the monthly subscription — no setup fee. The model costs the tier that
+                fits the team size you enter and shows the payback against it, so the return is measured
+                against a price we actually charge.
               </p>
             </div>
           </div>
