@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useParams, useSearch } from "@tanstack/react-router";
 import { Card, Badge } from "~/components/ui";
 import { invoiceStatusLabel, invoiceStatusTone } from "~/lib/invoice-status";
@@ -12,9 +12,14 @@ import { invoiceStatusLabel, invoiceStatusTone } from "~/lib/invoice-status";
  * page says plainly that payment is arranged with the issuer and shows no
  * button at all.
  *
- * The page never claims the invoice is paid: without a webhook from the firm's
- * own Stripe account we cannot know that, so after a checkout return it says the
- * payment was submitted and that the issuer confirms it.
+ * SLICE 191 — the page renders the record's PAID state and can never take a
+ * second payment. `paid` is true only after the issuing firm's own verified
+ * Stripe webhook confirmed the money (the server's `isInvoicePayable` decides),
+ * and then the page is a receipt: a Paid badge with the date, the amount paid,
+ * no "Total due" line and no Pay button. `?checkout=return` is a flag anyone can
+ * type into a URL, so the "payment was submitted" sentence needs the server's
+ * own `paymentStartedAt` record behind it; without one the page says it has no
+ * record that a payment was started.
  *
  * SLICE 182 — the server serves every ISSUED invoice (sent, failed, queued) and
  * 404s only a draft. So this page is reachable for an invoice whose email the
@@ -41,15 +46,140 @@ interface InvoiceView {
   status: string;
   hasPdf: boolean;
   pdfPath: string;
-  /** TRUE only when the issuing firm connected its own Stripe account. */
+  /** TRUE only when this invoice can take a payment right now (the server's
+   *  `isInvoicePayable`: connected Stripe, a payable amount, not already paid). */
   canPay: boolean;
   /** Truthful "a payment was started" stamp — never a "paid" claim. */
   paymentStartedAt: string | null;
+  /** TRUE only after the issuing firm's own verified Stripe webhook confirmed it. */
+  paid: boolean;
+  paidAt: string | null;
+  amountPaidCents: number | null;
+  /** Whether `issuedAt` is the SEND date or, when the record has none, its creation date. */
+  issuedAtSource?: "sent" | "created";
 }
 
 function money(cents: number, currency: string): string {
   return `${currency} ${(cents / 100).toFixed(2)}`;
 }
+
+/**
+ * SLICE 191 — the pay panel is a TYPED DECISION, not a growing ternary: every
+ * state has exactly one renderer in PAY_PANEL below, so a new state is a
+ * compile error instead of a silent fall-through. Same discipline the audit
+ * praised in `PUBLIC_INVOICE_STATUS`.
+ */
+type PayPanelState = "paid" | "returned" | "unconfirmed" | "payable" | "unpayable";
+
+function payPanelState(view: InvoiceView, checkoutState: string | undefined): PayPanelState {
+  // A confirmed payment outranks everything: the invoice is a receipt now.
+  if (view.paid) return "paid";
+  if (checkoutState === "return") {
+    // `?checkout=return` is text in a URL — anyone can append it. It is evidence
+    // of nothing on its own; it counts only when the server holds a record that
+    // a checkout was actually started on THIS invoice.
+    return view.paymentStartedAt ? "returned" : "unconfirmed";
+  }
+  return view.canPay ? "payable" : "unpayable";
+}
+
+interface PayPanelProps {
+  view: InvoiceView;
+  checkoutState: string | undefined;
+  paying: boolean;
+  payError: string;
+  onPay: () => void;
+}
+
+/**
+ * One renderer per state — `Record<PayPanelState, …>` means a state added to
+ * `PayPanelState` without copy here does not compile.
+ */
+const PAY_PANEL: Record<PayPanelState, (p: PayPanelProps) => ReactNode> = {
+  // A confirmed payment. Reads as a receipt: what was paid, when, and by whom —
+  // never "Total due", never a button that could charge again.
+  paid: ({ view }) => (
+    <div>
+      <div className="flex items-center gap-2">
+        <Badge variant="success">Paid</Badge>
+        {view.paidAt && (
+          <span className="text-sm text-stone-600">{new Date(view.paidAt).toLocaleDateString()}</span>
+        )}
+      </div>
+      <p className="mt-2 text-sm text-stone-700">
+        Invoice {view.invoiceNumber}
+        {view.amountPaidCents != null
+          ? ` — ${money(view.amountPaidCents, view.currency)} paid to ${view.issuerName}.`
+          : ` — paid to ${view.issuerName}.`}
+      </p>
+      <p className="mt-1 text-xs text-stone-600">
+        Their own Stripe account confirmed this payment, so nothing further is due on this invoice and this page
+        cannot take a second payment.
+      </p>
+    </div>
+  ),
+  // `?checkout=return` AND the server's record that a checkout was started.
+  returned: ({ view }) => (
+    <div>
+      <p className="text-sm font-medium text-emerald-700">
+        Thank you — your payment was submitted to {view.issuerName}.
+      </p>
+      <p className="mt-1 text-xs text-stone-600">
+        Stripe handled the card payment on {view.issuerName}&apos;s own account and sent you a receipt. They will
+        confirm it on their side — this page cannot mark the invoice as paid by itself.
+      </p>
+    </div>
+  ),
+  // The flag with nothing behind it. Say what this page knows: nothing.
+  unconfirmed: ({ view }) => (
+    <div>
+      <p className="text-sm font-medium text-stone-700">
+        This page has no record that a payment was started for this invoice.
+      </p>
+      <p className="mt-1 text-xs text-stone-600">
+        Nothing was charged from this link. If you have just paid, {view.issuerName} will confirm it on their side —
+        this page cannot mark the invoice as paid by itself.
+      </p>
+    </div>
+  ),
+  payable: ({ view, checkoutState, paying, payError, onPay }) => (
+    <div>
+      <button
+        type="button"
+        onClick={onPay}
+        disabled={paying}
+        className="w-full rounded bg-emerald-600 px-4 py-3 text-base font-semibold text-white hover:bg-emerald-700 disabled:opacity-60 sm:w-auto"
+      >
+        {paying ? "Starting secure checkout…" : `Pay ${money(view.amountDueCents, view.currency)}`}
+      </button>
+      <p className="mt-2 text-xs text-stone-500">
+        You will be taken to a secure Stripe checkout. The payment goes directly to {view.issuerName}.
+      </p>
+      {view.paymentStartedAt && (
+        <p className="mt-1 text-xs text-stone-500">
+          A payment was started on {new Date(view.paymentStartedAt).toLocaleString()} — if you did not finish it, you
+          can start again above.
+        </p>
+      )}
+      {checkoutState === "cancelled" && (
+        <p className="mt-2 text-xs text-amber-600">No payment was taken — you cancelled the checkout.</p>
+      )}
+      {payError && <p className="mt-2 text-xs text-red-600">{payError}</p>}
+    </div>
+  ),
+  unpayable: ({ view }) => (
+    <div>
+      <p className="text-sm text-stone-700">
+        Payment is arranged directly with {view.issuerName} — this page does not take payment.
+      </p>
+      {view.paymentStartedAt && (
+        <p className="mt-1 text-xs text-stone-500">
+          A payment was started on {new Date(view.paymentStartedAt).toLocaleString()}.
+        </p>
+      )}
+    </div>
+  ),
+};
 
 export default function InvoiceSharePage() {
   // SLICE 166 — route params and the ?checkout= flag come from the router, not
@@ -155,16 +285,25 @@ export default function InvoiceSharePage() {
             ))}
           </tbody>
         </table>
-        <p className="mt-3 text-right text-lg font-semibold">Total due: {money(view.amountDueCents, view.currency)}</p>
+        {/* SLICE 191 — a paid invoice has no "Total due": the receipt in the pay
+            panel states what was actually paid. */}
+        {!view.paid && (
+          <p className="mt-3 text-right text-lg font-semibold">Total due: {money(view.amountDueCents, view.currency)}</p>
+        )}
       </Card>
 
       <Card className="mt-4">
         <div className="grid gap-2 text-sm sm:grid-cols-2">
           <p>
-            <span className="text-stone-500">Issued:</span> {new Date(view.issuedAt).toLocaleDateString()}
+            {/* SLICE 191 — "Issued" only when the date really is the send date;
+                otherwise say what the date is. The "(net 30)" parenthetical is
+                gone: the record's due date is its own field, not a term this
+                page can assert. */}
+            <span className="text-stone-500">{view.issuedAtSource === "sent" ? "Issued:" : "Created:"}</span>{" "}
+            {new Date(view.issuedAt).toLocaleDateString()}
           </p>
           <p>
-            <span className="text-stone-500">Due:</span> {view.dueDate} (net 30)
+            <span className="text-stone-500">Due:</span> {view.dueDate}
           </p>
         </div>
         {view.hasPdf && (
@@ -177,54 +316,10 @@ export default function InvoiceSharePage() {
         )}
       </Card>
 
-      {/* PAY — only when the issuing firm connected its own Stripe account. */}
+      {/* PAY — the panel is decided ONCE, then rendered by the state's own
+          entry in PAY_PANEL. A paid invoice never reaches the button. */}
       <Card className="mt-4">
-        {checkoutState === "return" ? (
-          <div>
-            <p className="text-sm font-medium text-emerald-700">
-              Thank you — your payment was submitted to {view.issuerName}.
-            </p>
-            <p className="mt-1 text-xs text-stone-600">
-              Stripe handled the card payment on {view.issuerName}&apos;s own account and sent you a receipt. They will
-              confirm it on their side — this page cannot mark the invoice as paid by itself.
-            </p>
-          </div>
-        ) : view.canPay ? (
-          <div>
-            <button
-              type="button"
-              onClick={pay}
-              disabled={paying}
-              className="w-full rounded bg-emerald-600 px-4 py-3 text-base font-semibold text-white hover:bg-emerald-700 disabled:opacity-60 sm:w-auto"
-            >
-              {paying ? "Starting secure checkout…" : `Pay ${money(view.amountDueCents, view.currency)}`}
-            </button>
-            <p className="mt-2 text-xs text-stone-500">
-              You will be taken to a secure Stripe checkout. The payment goes directly to {view.issuerName}.
-            </p>
-            {view.paymentStartedAt && (
-              <p className="mt-1 text-xs text-stone-500">
-                A payment was started on {new Date(view.paymentStartedAt).toLocaleString()} — if you did not finish it,
-                you can start again above.
-              </p>
-            )}
-            {checkoutState === "cancelled" && (
-              <p className="mt-2 text-xs text-amber-600">No payment was taken — you cancelled the checkout.</p>
-            )}
-            {payError && <p className="mt-2 text-xs text-red-600">{payError}</p>}
-          </div>
-        ) : (
-          <div>
-            <p className="text-sm text-stone-700">
-              Payment is arranged directly with {view.issuerName} — this page does not take payment.
-            </p>
-            {view.paymentStartedAt && (
-              <p className="mt-1 text-xs text-stone-500">
-                A payment was started on {new Date(view.paymentStartedAt).toLocaleString()}.
-              </p>
-            )}
-          </div>
-        )}
+        {PAY_PANEL[payPanelState(view, checkoutState)]({ view, checkoutState, paying, payError, onPay: pay })}
       </Card>
     </div>
   );

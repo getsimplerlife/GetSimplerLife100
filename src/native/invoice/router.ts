@@ -76,7 +76,11 @@ import {
   getTenantStripeStatus,
   setTenantWebhookSecret,
 } from "./stripe-connect";
-import { createTenantCheckoutSession } from "./stripe-checkout";
+import {
+  createTenantCheckoutSession,
+  NO_ONLINE_PAYMENT_MESSAGE,
+  NO_PAYABLE_AMOUNT_MESSAGE,
+} from "./stripe-checkout";
 import { getOrCreateTenantWebhookToken, rotateTenantWebhookToken, invoiceWebhookPath } from "./webhook-token";
 import { getDealRoom } from "../dealroom/store";
 import { readDocumentBytes, getDoc } from "../documents/store";
@@ -128,6 +132,43 @@ function summary(i: {
   return i;
 }
 
+/** What the payability predicate needs to know about the issuing tenant. */
+export interface InvoicePayContext {
+  dataDir: string;
+  tenantId: string;
+}
+
+/**
+ * Why this invoice cannot take a payment right now — `null` means it can.
+ * The REASONS are the single source of truth; `isInvoicePayable` is only their
+ * boolean shadow, so the button's condition and the POST's refusal can never
+ * drift apart.
+ */
+type InvoicePayBlock = "paid" | "not_connected" | "invalid_amount";
+
+function invoicePayBlock(inv: InvoiceRecord, ctx: InvoicePayContext): InvoicePayBlock | null {
+  // 1. THE MONEY ALREADY ARRIVED. `payment` is written by exactly one thing:
+  //    the issuing tenant's own verified Stripe webhook. It is final — a paid
+  //    invoice can never take a second charge from this link.
+  if (inv.payment) return "paid";
+  // 2. Nothing payable to charge.
+  if (!Number.isInteger(inv.amountDueCents) || inv.amountDueCents <= 0) return "invalid_amount";
+  // 3. No connected account → no provider call, no button.
+  if (!getTenantStripeStatus(ctx.dataDir, ctx.tenantId).connected) return "not_connected";
+  return null;
+}
+
+/**
+ * SLICE 191 — THE ONE PREDICATE: true only when this invoice can take a payment
+ * right now. `publicInvoiceView`'s `canPay` and the `pay` branch of the public
+ * share handler BOTH call this. Before it, the page had no paid state at all, so
+ * a paid invoice still showed "Total due" and a live Pay button, and the POST
+ * minted a second full-amount Checkout Session on the tenant's own Stripe.
+ */
+export function isInvoicePayable(inv: InvoiceRecord, ctx: InvoicePayContext): boolean {
+  return invoicePayBlock(inv, ctx) === null;
+}
+
 /**
  * Customer-facing view of an ISSUED invoice — sent, failed or in flight; never
  * a draft (slice 182). Only what that invoice says.
@@ -135,19 +176,19 @@ function summary(i: {
  * `issuerName` is a human DISPLAY NAME resolved by issuer.ts — never the
  * tenant id (the workspace account identifier) and never an entity id.
  *
- * `canPay` is TRUE only when the ISSUING TENANT has connected its own Stripe
- * account; the page then renders a real "Pay {amount}" button. It carries no
+ * `canPay` is TRUE only when this invoice can take a payment right now — it is
+ * `isInvoicePayable`'s answer, the SAME predicate the POST refuses on, so a paid
+ * invoice reports `canPay: false` and the page renders no button. It carries no
  * hint, no mode and no key material — the customer learns nothing about the
  * tenant's credentials, only that this invoice can be paid online.
  * `paymentStartedAt` is the truthful "a payment was started" stamp — never a
- * "paid" claim (confirming a payment would need a webhook, which is out of
- * scope).
+ * "paid" claim; `paid` below comes only from the tenant's own verified webhook.
  */
 export function publicInvoiceView(
   inv: InvoiceRecord,
   billToName: string,
   issuerName: string,
-  canPay = false,
+  payCtx: InvoicePayContext,
 ): Record<string, unknown> {
   return {
     invoiceNumber: inv.invoiceNumber,
@@ -161,12 +202,21 @@ export function publicInvoiceView(
       amountCents: Math.round(li.qty * li.unitPriceCents),
     })),
     amountDueCents: inv.amountDueCents,
-    issuedAt: inv.createdAt,
+    /**
+     * SLICE 191 — the SEND date, and a label for what the date actually is.
+     * `createdAt` was being served as `issuedAt` and printed as "Issued:", so an
+     * invoice created on Monday and sent on Friday claimed to be issued Monday.
+     * When the record carries no send date the page labels it "Created:" rather
+     * than calling a creation date an issue date.
+     */
+    issuedAt: inv.sentAt ?? inv.createdAt,
+    issuedAtSource: inv.sentAt ? "sent" : "created",
     dueDate: inv.dueDate,
     status: inv.status,
     hasPdf: inv.docId !== null,
     pdfPath: `/api/native/invoice/share/${inv.shareSlug}/pdf`,
-    canPay,
+    // SLICE 191 — derived, never passed in: the SAME predicate the POST refuses on.
+    canPay: isInvoicePayable(inv, payCtx),
     paymentStartedAt: inv.paymentStartedAt ?? null,
     /**
      * SLICE 155 — the payment truth, and the only place it is stated.
@@ -498,6 +548,26 @@ async function handleShareAsync(req: Request, ctx: NativeInvoicePublicCtx): Prom
         { status: 429, headers: NO_STORE },
       );
     }
+    // SLICE 191 — A PAID INVOICE CANNOT TAKE A SECOND PAYMENT. The predicate is
+    // the same one the GET lane derives `canPay` from, so the page and this POST
+    // cannot disagree. A refusal here creates NO Checkout Session at all.
+    const block = invoicePayBlock(invoice, { dataDir: ctx.dataDir, tenantId });
+    if (block !== null) {
+      if (block === "paid") {
+        const paidAt = invoice.payment?.paidAt ?? null;
+        const when = paidAt ? ` on ${new Date(paidAt).toLocaleDateString()}` : "";
+        return Response.json(
+          {
+            error: `This invoice was already paid${when}. Nothing has been charged now, and a second payment cannot be started from this link.`,
+          },
+          { status: 409, headers: NO_STORE },
+        );
+      }
+      return Response.json(
+        { error: block === "not_connected" ? NO_ONLINE_PAYMENT_MESSAGE : NO_PAYABLE_AMOUNT_MESSAGE },
+        { status: 409, headers: NO_STORE },
+      );
+    }
     const base = `${publicOrigin()}/invoices/share/${slug}`;
     const res = await createTenantCheckoutSession({
       dataDir: ctx.dataDir,
@@ -564,14 +634,13 @@ async function handleShareAsync(req: Request, ctx: NativeInvoicePublicCtx): Prom
   const dealRoom = getDealRoom(ctx.dataDir, tenantId, invoice.linkedDealRoomId);
   // The customer learns ONLY whether this invoice can be paid online — never
   // the tenant's connection hint, mode or key material.
-  const canPay = getTenantStripeStatus(ctx.dataDir, tenantId).connected;
   return Response.json(
     {
       data: publicInvoiceView(
         invoice,
         dealRoom?.customerName || "Customer",
         resolveIssuerDisplayName(tenantId, ctx.dataDir),
-        canPay,
+        { dataDir: ctx.dataDir, tenantId },
       ),
     },
     { headers: NO_STORE },
