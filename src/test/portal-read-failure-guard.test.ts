@@ -42,12 +42,15 @@
  * Slice 188 fixed the five worst pages plus the shared notifications hook,
  * which together cover every portal page. Slice 190 fixed the twelve routes in
  * read-failure batch A (the pages whose PRIMARY read rendered a failure as an
- * affirmative empty state), and removed each of them from the list below. What
- * is left is read-failure BATCH B — pages whose secondary reads sit beside an
- * honest primary — listed in `BATCH_B_REMAINDER`, one entry per surviving
- * violation, each with the reason naming the batch that owns it, and the test
- * pins the file count so the debt can only shrink by editing this list. A
- * blanket exemption would hide it; this cannot.
+ * affirmative empty state). Slice read-failure batch B fixed the last eight,
+ * and `BATCH_B_REMAINDER` is now EMPTY with `REMAINDER_COUNT = 0`: no portal
+ * page is left whose empty state can stand in for an unread store.
+ *
+ * The list itself stays, and the count stays pinned. The debt could only ever
+ * shrink by editing this file, so an entry that comes back for a page fixed
+ * here is caught by the reconcile below (a stale allow-entry fails the build)
+ * and by the "must not be allow-listed" test — a blanket exemption would hide
+ * the class; this cannot.
  */
 import { describe, expect, it } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
@@ -251,35 +254,34 @@ const ALLOWED: AllowEntry[] = [
 ];
 
 /**
- * BATCH B — the counted remainder.
+ * BATCH B — the counted remainder. **EMPTY.**
  *
- * 8 portal pages still render an affirmative empty state ("No invoices yet",
- * "No checklists yet", …) with no notion that a read can fail: they hold an
- * `error` string for writes, but nothing distinguishes "zero rows" from "the
- * read did not answer". They are NOT exempted from the guard — each is listed
- * here by name, the count below is pinned, and a later slice removes them one
- * at a time.
+ * The eight pages that used to sit here (admin/audit, checklists, deal-rooms,
+ * document-ai, invoices, proposals, surveys, transforms) each rendered an
+ * affirmative empty state — "No invoices yet", "No checklists yet", … — with no
+ * notion that a read could fail: they held an `error` string for WRITES, but
+ * nothing distinguished "zero rows" from "the read did not answer". They were
+ * never exempted, only counted by name, and read-failure batch B removed every
+ * one of them together with its entry here.
+ *
+ * The list stays, empty, and `REMAINDER_COUNT` stays pinned at 0: the debt can
+ * only shrink by editing this file, so a page that regresses to the old shape
+ * has nowhere to hide. The render-time half is asserted per page in
+ * `slice-batch-b-portal-read-failure.test.tsx` — rule 4 below is a heuristic and
+ * could not see a ternary.
  *
  * Slice 188 fixed the five worst (approvals, dashboard, vault, communications,
  * notifications) plus the shared bell hook, which together cover every portal
  * page's shell. Slice 190 fixed batch A and deleted those entries: settings,
  * admin/credentials, the admin layout, dedupe, knowledgebase, accessreview,
  * secure-transport, assistant, boards, tables, admin/index and automations.
- * None of the twelve appears anywhere in this file.
+ * Slice read-failure batch B fixed the last eight, above. None of the twenty-five
+ * appears anywhere in this file.
  */
-const BATCH_B_REMAINDER: AllowEntry[] = [
-  { file: "src/lazy/portal.admin.audit.page.tsx", rule: "empty-state-unconditional", reason: "batch B", what: "No audit logs found" },
-  { file: "src/lazy/portal.checklists.index.page.tsx", rule: "empty-state-unconditional", reason: "batch B", what: "No checklists yet" },
-  { file: "src/lazy/portal.deal-rooms.index.page.tsx", rule: "empty-state-unconditional", reason: "batch B", what: "No deal rooms yet" },
-  { file: "src/lazy/portal.document-ai.index.page.tsx", rule: "empty-state-unconditional", reason: "batch B", what: "No extraction runs yet." },
-  { file: "src/lazy/portal.invoices.index.page.tsx", rule: "empty-state-unconditional", reason: "batch B", what: "No invoices yet" },
-  { file: "src/lazy/portal.proposals.index.page.tsx", rule: "empty-state-unconditional", reason: "batch B", what: "No proposals yet" },
-  { file: "src/lazy/portal.surveys.index.page.tsx", rule: "empty-state-unconditional", reason: "batch B", what: "No surveys yet" },
-  { file: "src/lazy/portal.transforms.index.page.tsx", rule: "empty-state-unconditional", reason: "batch B", what: "No transforms yet" },
-];
+const BATCH_B_REMAINDER: AllowEntry[] = [];
 
 /** The number of pages still carrying the render-time half of this class. */
-export const REMAINDER_COUNT = 8;
+export const REMAINDER_COUNT = 0;
 
 const key = (v: { file: string; rule: string }) => `${v.file}|${v.rule}`;
 
@@ -379,6 +381,36 @@ describe("portal read-failure guard (slice 188)", () => {
     for (const f of fixed) {
       expect([...ALLOWED, ...BATCH_B_REMAINDER].filter((e) => e.file === f), `${f} must not be allow-listed`).toEqual([]);
       expect(findViolations(f, readFileSync(P(f), "utf8")), `${f} regressed`).toEqual([]);
+    }
+  });
+
+  it("no page fixed by slice read-failure batch B is allow-listed or in the remainder", () => {
+    // The eight batch-B routes were FIXED, not exempted — exactly as with batch
+    // A above. An entry for any of them would be the guard blessing the bug it
+    // was written to catch, and `findViolations` returning anything here means
+    // the page slipped back to the shape that renders an empty state over an
+    // unread store.
+    const fixed = [
+      "src/lazy/portal.admin.audit.page.tsx",
+      "src/lazy/portal.checklists.index.page.tsx",
+      "src/lazy/portal.deal-rooms.index.page.tsx",
+      "src/lazy/portal.document-ai.index.page.tsx",
+      "src/lazy/portal.invoices.index.page.tsx",
+      "src/lazy/portal.proposals.index.page.tsx",
+      "src/lazy/portal.surveys.index.page.tsx",
+      "src/lazy/portal.transforms.index.page.tsx",
+    ];
+    expect(fixed.length, "batch B fixed eight pages — keep this list and REMAINDER_COUNT in step").toBe(8);
+    for (const f of fixed) {
+      expect([...ALLOWED, ...BATCH_B_REMAINDER].filter((e) => e.file === f), `${f} must not be allow-listed`).toEqual([]);
+      expect(findViolations(f, readFileSync(P(f), "utf8")), `${f} regressed`).toEqual([]);
+    }
+    // The render-time half is invisible to this file; the behaviour test is the
+    // only thing that can hold it, so it must exist and must name every page.
+    const behaviour = readFileSync(P("src/test/slice-batch-b-portal-read-failure.test.tsx"), "utf8");
+    for (const f of fixed) {
+      const mod = f.replace("src/lazy/", "../lazy/").replace(/\.tsx$/, "");
+      expect(behaviour, `${f} has no render-time test in slice-batch-b-portal-read-failure.test.tsx`).toContain(mod);
     }
   });
 

@@ -92,6 +92,10 @@ export default function ProposalsPage() {
   const [items, setItems] = useState<ProposalSummary[]>([]);
   const [writes, setWrites] = useState<PendingWrite[]>([]);
   const [loading, setLoading] = useState(true);
+  // SLICE read-failure batch B — `items` stays [] when the read throws, so the
+  // card printed "No proposals yet" over a failed read. `loaded` is the only
+  // thing that may unlock the affirmative empty state.
+  const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState("");
   // SLICE 178 — a failure must not be printed in the success box.
@@ -115,18 +119,26 @@ export default function ProposalsPage() {
 
   const load = useCallback(async () => {
     const res = await fetch("/api/native/proposals", { credentials: "include" });
-    if (!res.ok) throw new Error("Failed to load proposals");
+    // SLICE batch B — the failure is the SERVER's own sentence when it sent one.
+    if (!res.ok) {
+      const e = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new Error(e.error || "Failed to load proposals");
+    }
     const json = await res.json();
     setItems(json.data || []);
     const wr = await fetch("/api/native/proposals/writes", { credentials: "include" });
     if (!wr.ok) throw new Error(`Failed to load the pending-writes queue (${wr.status})`);
     const wjson = await wr.json();
     setWrites(wjson.data || []);
+    setLoaded(true);
   }, []);
 
   useEffect(() => {
     load()
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
+      .catch((e: unknown) => {
+        setError(e instanceof Error ? e.message : String(e));
+        setLoaded(false);
+      })
       .finally(() => setLoading(false));
   }, [load]);
 
@@ -315,6 +327,13 @@ export default function ProposalsPage() {
         <h2 className="mb-3 text-lg font-semibold">Open proposals ({items.length})</h2>
         {loading ? (
           <p className="text-sm text-stone-500">Loading…</p>
+        ) : !loaded ? (
+          /* SLICE batch B — a failed read is not "No proposals yet". */
+          <div role="alert" className="rounded border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200">
+            The proposal list could not be read, so this is not an empty workspace — it is an unread one. Nothing was
+            changed.{" "}
+            <button type="button" className="font-bold underline" onClick={() => void load()}>Try again</button>
+          </div>
         ) : items.length === 0 ? (
           <PortalEmptyState
             title="No proposals yet"

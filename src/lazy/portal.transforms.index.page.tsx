@@ -84,6 +84,13 @@ export default function TransformsPage() {
   const [transforms, setTransforms] = useState<TransformSummary[]>([]);
   const [pending, setPending] = useState<PendingWrite[]>([]);
   const [form, setForm] = useState({ ...EMPTY_FORM });
+  // SLICE read-failure batch B — `transforms` stays [] when the read throws, so
+  // the card printed "No transforms yet" over a failed read. `loaded` is the
+  // only thing that may unlock the affirmative empty state.
+  const [loaded, setLoaded] = useState(false);
+  // `loading` gates the failure block: without it a page that has not finished
+  // its first read would flash "could not be read" before the data arrives.
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -99,8 +106,12 @@ export default function TransformsPage() {
       setTransforms(t.transforms);
       setPending(w.writes.filter((x) => x.status === "pending"));
       setError("");
+      setLoaded(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+      setLoaded(false);
+    } finally {
+      setLoading(false);
     }
   }, []);
   useEffect(() => {
@@ -299,7 +310,17 @@ export default function TransformsPage() {
             Your transforms <Badge variant="stone">{transforms.length}</Badge>
           </h2>
           <div className="space-y-2">
-            {transforms.length === 0 ? <p className="text-sm text-slate-400">No transforms yet — create one above.</p> : null}
+            {loading ? (
+              <p className="text-sm text-slate-400">Loading…</p>
+            ) : !loaded ? (
+              /* SLICE batch B — a failed read is not "No transforms yet". */
+              <div role="alert" className="rounded border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200">
+                The transform list could not be read, so this is not an empty workspace — it is an unread one.{" "}
+                <button type="button" className="font-bold underline" onClick={() => void refresh()}>Try again</button>
+              </div>
+            ) : transforms.length === 0 ? (
+              <p className="text-sm text-slate-400">No transforms yet — create one above.</p>
+            ) : null}
             {transforms.map((t) => (
               <div key={t.id} className="rounded border border-stone-800 p-3">
                 <div className="flex items-center justify-between">

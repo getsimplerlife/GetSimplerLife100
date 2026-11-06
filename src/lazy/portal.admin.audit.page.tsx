@@ -3,6 +3,10 @@ function AuditDashboard() {
   const [stats, setStats] = useState<any>(null);
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  // SLICE read-failure batch B — `logs` stays [] when the read throws, so the
+  // table printed "No audit logs found" over a failed read. `loaded` is the
+  // only thing that may unlock the affirmative empty state.
+  const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState("");
@@ -18,9 +22,14 @@ function AuditDashboard() {
       });
       if (search) params.set("search", search);
       const res = await fetch(`/api/audit-logs?${params}`);
-      if (!res.ok) throw new Error("Failed to fetch logs");
+      // SLICE batch B — the failure is the SERVER's own sentence when it sent one.
+      if (!res.ok) {
+        const e = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(e.error || `Failed to fetch logs (${res.status})`);
+      }
       const data = await res.json();
       setLogs(data.data || []);
+      setLoaded(true);
       // Audit-B (10-26): stats come from the REAL /api/audit-logs store —
       // full set, unfiltered, derived client-side (no separate stats endpoint).
       try {
@@ -42,6 +51,7 @@ function AuditDashboard() {
       } catch { /* stats are best-effort; the log table still renders */ }
     } catch (e: any) {
       setError(e.message);
+      setLoaded(false);
     }
     setLoading(false);
   };
@@ -105,8 +115,14 @@ function AuditDashboard() {
               </tr>
             </thead>
             <tbody>
+              {/* SLICE batch B — a failed read is not an empty log. */}
               {loading ? (
                 <tr><td colSpan={7} className="px-4 py-8 text-center text-stone-400">Loading...</td></tr>
+              ) : !loaded ? (
+                <tr><td colSpan={7} className="px-4 py-8 text-center text-rose-300">
+                  The audit log could not be read, so this is not an empty log — it is an unread one.{" "}
+                  <button type="button" className="font-bold underline" onClick={() => void fetchLogs()}>Try again</button>
+                </td></tr>
               ) : logs.length === 0 ? (
                 <tr><td colSpan={7} className="px-4 py-8 text-center text-stone-400">No audit logs found</td></tr>
               ) : logs.map((log) => (

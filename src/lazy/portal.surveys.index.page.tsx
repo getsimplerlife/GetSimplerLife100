@@ -65,6 +65,13 @@ export default function SurveysPage() {
   const [writes, setWrites] = useState<PendingWrite[]>([]);
   const [selected, setSelected] = useState<SurveyFull | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
+  // SLICE read-failure batch B — `surveys` stays [] when the read throws, so the
+  // card printed "No surveys yet" over a failed read. `loaded` is the only
+  // thing that may unlock the affirmative empty state.
+  const [loaded, setLoaded] = useState(false);
+  // `loading` gates the failure block: without it a page that has not finished
+  // its first read would flash "could not be read" before the data arrives.
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   // builder state
@@ -87,8 +94,12 @@ export default function SurveysPage() {
         setSelected(f.data.survey);
         setStats(f.data.stats);
       }
+      setLoaded(true);
     } catch (e: any) {
       setError(e.message ?? String(e));
+      setLoaded(false);
+    } finally {
+      setLoading(false);
     }
   }, [selected]);
 
@@ -272,7 +283,16 @@ export default function SurveysPage() {
           <h2 className="text-sm font-semibold text-stone-100">Surveys</h2>
           <Badge variant="stone">{surveys.length}</Badge>
         </div>
-        {surveys.length === 0 ? (
+        {loading ? (
+          <p className="text-sm text-slate-400">Loading…</p>
+        ) : !loaded ? (
+          /* SLICE batch B — a failed read is not "No surveys yet". */
+          <div role="alert" className="rounded border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200">
+            The survey list could not be read, so this is not an empty workspace — it is an unread one. Nothing was
+            changed.{" "}
+            <button type="button" className="font-bold underline" onClick={() => void load()}>Try again</button>
+          </div>
+        ) : surveys.length === 0 ? (
           <PortalEmptyState
             title="No surveys yet"
             body="Build your first survey in the composer above."
