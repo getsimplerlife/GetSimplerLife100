@@ -303,7 +303,20 @@ describe("approval store operations", () => {
     const s = summarizeAction("createXeroInvoice", "xero", { Type: "ACCREC", LineItems: [{ Quantity: 1 }], huge: "x".repeat(500) });
     expect(s.what).toContain("createXeroInvoice");
     expect(s.where).toBe("xero");
-    expect(s.why).toContain("approval queue");
+    // SLICE 198 — the wording changed on purpose. "Agent-initiated write
+    // captured by the approval queue" was FALSE for a human's own portal write
+    // (the sweep caught it on /portal/approvals). What this test must guard is
+    // the property, not the old string: `why` says what happens next and, when
+    // the origin is known, who asked. All three origins are asserted so the
+    // line cannot silently regress to agent language.
+    expect(s.why).toContain("nothing is written until it is approved");
+    expect(s.why).not.toMatch(/agent-initiated/i);
+    expect(summarizeAction("createXeroInvoice", "xero", {}, { requestedBy: "owner@test" }).why).toContain(
+      "Queued by owner@test",
+    );
+    expect(summarizeAction("createXeroInvoice", "xero", {}, { requestedBy: "public:abc123" }).why).toContain(
+      "Submitted through a public share link",
+    );
     expect(s.what.length).toBeLessThan(300);
   });
 });
