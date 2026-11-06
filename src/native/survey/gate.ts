@@ -79,7 +79,7 @@ export type SurveyWriteResult =
 
 /** Verb-first action names — every verb is in WRITE_VERB (approved by the
  *  classification test; this slice's standing fail-open control). */
-const ACTION_NAME: Record<SurveyOp, string> = {
+export const ACTION_NAME: Record<SurveyOp, string> = {
   create: "createSurvey",
   update: "updateSurvey",
   publish: "publishSurvey",
@@ -198,7 +198,7 @@ export function submitSurveyWrite(
     return { applied: false, pending: false, error: msg };
   }
   const action = ACTION_NAME[op];
-  const gate = approvalGate(tenantId, action, "native-survey", { surveyId: req.surveyId, op, via: req.via ?? "portal" }, { dataDir, workflowId: "native-survey" });
+  const gate = approvalGate(tenantId, action, "native-survey", { surveyId: req.surveyId, op, via: req.via ?? "portal" }, { dataDir, workflowId: "native-survey", requestedBy: actor });
   if (gate.allowed) {
     const out = applyNow(dataDir, tenantId, op, req, actor, !!gate.autonomy);
     if (!out.ok) return { applied: false, pending: false, error: out.error };

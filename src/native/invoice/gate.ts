@@ -87,7 +87,7 @@ export type InvoiceWriteResult =
   | { applied: false; pending: true; approvalActionId: string; op: InvoiceOp }
   | { applied: false; pending: false; error: string };
 
-const ACTION_NAME: Record<InvoiceOp, string> = {
+export const ACTION_NAME: Record<InvoiceOp, string> = {
   create: "createInvoice",
   generate: "generateInvoice",
   send: "sendInvoice",
@@ -455,7 +455,7 @@ export async function submitInvoiceWrite(
     op,
     via: req.via ?? "portal",
   };
-  const gate = approvalGate(tenantId, action, "native-invoices", params, { dataDir, workflowId: "native-invoices" });
+  const gate = approvalGate(tenantId, action, "native-invoices", params, { dataDir, workflowId: "native-invoices", requestedBy: actor });
   if (gate.allowed) {
     try {
       const invoice = await applyValidated(dataDir, tenantId, op, req, validated.mutation, actor, validated.snapshot);

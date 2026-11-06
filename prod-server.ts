@@ -2632,16 +2632,27 @@ async function handleFetch(req: Request, server?: ServerPeerSource): Promise<Res
         const outcome = await executeAction(record.actionType, payload, user.email, {
           bypassApproval: true, // human approved this exact payload
           agentId: record.agentId,
-          dataDir: DATA_DIR, // native vault executors read/write the tenant store here
+          dataDir: DATA_DIR, // native executors read/write the tenant store here
+          // SLICE 198 - the native executors apply the DURABLE pending write this
+          // card authorised, so they need its id. Without it they refuse rather
+          // than guess which write to apply.
+          approvalActionId: actionId,
         });
         const approved = markApproved(user.email, actionId, user.email, outcome.success ? { result: outcome.data } : { error: outcome.error }, DATA_DIR);
-        // Audit the decision (best-effort).
+        // SLICE 198 - the audit line names the record that was actually created
+        // (each module's apply path returns its own id), and stops calling a
+        // human's own portal write an "agent write".
+        const createdRecordId = outcome.success
+          ? outcome.data?.record?.id || outcome.data?.surveyId || outcome.data?.booking?.id || outcome.data?.page?.id || ""
+          : "";
         try {
           appendAudit(
             user,
             outcome.success ? "portal.approvals.approve" : "portal.approvals.approve-failed",
             actionId,
-            `${outcome.success ? "Executed" : "Execution failed for"} agent write ${record.actionType} (${record.provider})`,
+            `${outcome.success ? "Executed" : "Execution failed for"} ${record.actionType} (${record.provider})` +
+              (createdRecordId ? ` - record ${createdRecordId}` : "") +
+              (outcome.success ? "" : ` - ${outcome.error || "no reason given"}`),
           );
         } catch { /* best-effort */ }
         return Response.json({ data: { action: approved, execution: { success: outcome.success, error: outcome.error, result: outcome.data } } });

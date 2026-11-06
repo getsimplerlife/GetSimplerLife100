@@ -11,6 +11,7 @@
 
 import { actionRegistry, executeAction } from "./action-executor";
 import { vaultActions } from "../integrations/providers/vault/actions";
+import { registerNativeExecutors } from "../native/actions";
 
 // ── Tool Definition Types ────────────────────────────────────────────────
 
@@ -495,6 +496,16 @@ registerProviderActions("mirth-connect", [mirthConnectModule], ["mirthActions"])
 // See src/integrations/providers/vault/actions.ts. Without this registration,
 // approving a vault write answered "Unknown action" and never executed.
 actionRegistry.registerProvider("vault", vaultActions, { native: true });
+
+// ── NATIVE portal-module write executors (slice 198) ─────────────────────
+// The six portal modules that queue their creates through the Approval Queue
+// (proposals, invoices, deal rooms, checklists, surveys, booking pages) had NO
+// registered executor, so approving their cards answered `Unknown action` and
+// the write never happened. Each handler here calls that module's OWN
+// pending-write apply path. See src/native/actions.ts. Idempotent — the queue
+// also calls it, so the registry is populated whether or not this module was
+// the one that loaded first.
+registerNativeExecutors(actionRegistry);
 
 // ── Public API ───────────────────────────────────────────────────────────
 

@@ -26,6 +26,13 @@ import { join } from "path";
 import { readJSON, writeJSON, resolveDataDir, isStoreUnreadable, reportUnreadableStore, StoreUnreadableError } from "./data-store";
 import { getTenantSettings } from "./tenant-settings";
 import { isAutonomyEnabled, isAutonomyEligible, getAutonomyWorkflow } from "./autonomy";
+// SLICE 198 — the queue asks the EXECUTOR's own registry whether an action can
+// run before it mints a card for it. `../engine/action-registry` is the map the
+// executor consults (no provider/OAuth graph), and `../native/actions` registers
+// the native executors into that same map. Both are import-light on purpose:
+// this module is loaded by every native gate.
+import { actionRegistry } from "../engine/action-registry";
+import { registerNativeExecutors, isQueueExecutableProvider } from "../native/actions";
 
 export const APPROVAL_QUEUE_KEY = "tenant_approvals.json";
 
@@ -306,15 +313,42 @@ export function approvalGate(
   actionName: string,
   provider: string,
   params: Record<string, any>,
-  opts?: { agentId?: string; dataDir?: string; chainId?: string; workflowId?: string; dedupeKey?: string },
+  opts?: {
+    agentId?: string;
+    dataDir?: string;
+    chainId?: string;
+    workflowId?: string;
+    dedupeKey?: string;
+    /** Who asked for this write (the portal actor, or "public:…" for a share
+     *  link). Rendered on the card so it says what is true about its origin. */
+    requestedBy?: string;
+  },
 ): ApprovalGateOutcome {
   if (!isWriteAction(actionName)) return { allowed: true };
+  const workflowId = opts?.workflowId || opts?.agentId || "default";
+  // SLICE 198 — FAIL-CLOSED AT ENQUEUE. The sweep's P1-1: `createProposal` was
+  // carded, and approving it answered `Unknown action` — the card left the
+  // queue and the write stayed pending forever, with no way back. A card the
+  // executor cannot run is worse than a refusal, because it looks like progress.
+  // The registry consulted here is the EXECUTOR's own map, so the two cannot
+  // disagree. Scoped to the providers whose writes execute through the engine
+  // (see QUEUE_EXECUTABLE_PROVIDERS): the other native gates apply their writes
+  // through their own module approve endpoint and must keep queueing.
+  registerNativeExecutors(actionRegistry);
+  if (isQueueExecutableProvider(provider) && !actionRegistry.hasAction(actionName)) {
+    return {
+      allowed: false,
+      error:
+        `No executor is registered for "${actionName}" (${provider}) — the write was refused instead of being ` +
+        `queued as a card that could never run. Nothing was written and no approval card was created.`,
+      workflowId,
+    };
+  }
   const mode = approvalModeForTenant(tenantId, opts?.dataDir);
   // Legacy tenant-wide "auto" opt-out is honored ONLY when the workflow is
   // explicitly autonomy-enabled AND the action is allow-listed. Anything
   // else stays approval-gated (fail-closed). A tenant that enabled "auto"
   // but never set an allow-list gets nothing auto-executed.
-  const workflowId = opts?.workflowId || opts?.agentId || "default";
   if (mode === "auto" || isAutonomyEnabled(tenantId, workflowId, opts?.dataDir)) {
     const wf = getAutonomyWorkflow(tenantId, workflowId, opts?.dataDir);
     const matched = wf.allowList.find((e) => isAutonomyEligible(e, actionName, params));
@@ -338,7 +372,7 @@ export function approvalGate(
         agentId: opts?.agentId || "ai-employee",
         actionType: actionName,
         provider,
-        summary: summarizeAction(actionName, provider, params),
+        summary: summarizeAction(actionName, provider, params, { requestedBy: opts?.requestedBy }),
         payload: params || {},
         chainId: opts?.chainId,
         // SLICE 192b-3 — a lane that knows what the decision IS passes its key
@@ -377,6 +411,7 @@ export function summarizeAction(
   actionName: string,
   provider: string,
   params: Record<string, any>,
+  opts?: { requestedBy?: string },
 ): { what: string; where: string; why: string } {
   const p = params || {};
   const keys = Object.keys(p).filter((k) => k !== "id");
@@ -384,8 +419,21 @@ export function summarizeAction(
   return {
     what: `${actionName}${detail ? ` (${detail})` : ""}`,
     where: provider || "unknown system",
-    why: "Agent-initiated write captured by the approval queue — pending human review.",
+    // SLICE 198 — this line used to read "Agent-initiated write captured by the
+    // approval queue" for a write the signed-in human had just made in the
+    // portal. `src/agents/*` is retired; nothing agentic queued these. Say who
+    // asked and what happens next, and claim nothing else.
+    why: whyLine(opts?.requestedBy),
   };
+}
+
+function whyLine(requestedBy?: string): string {
+  const who = (requestedBy || "").trim();
+  if (who.startsWith("public:")) {
+    return "Submitted through a public share link — nothing is written until it is approved here.";
+  }
+  if (who) return `Queued by ${who} — nothing is written until it is approved.`;
+  return "Queued for approval — nothing is written until it is approved.";
 }
 
 function safeShort(v: unknown): string {

@@ -50,7 +50,7 @@ export type ProposalWriteResult =
   | { applied: false; pending: true; approvalActionId: string; op: ProposalOp }
   | { applied: false; pending: false; error: string };
 
-const ACTION_NAME: Record<ProposalOp, string> = {
+export const ACTION_NAME: Record<ProposalOp, string> = {
   create: "createProposal",
   update: "updateProposal",
   open: "openProposal",
@@ -410,7 +410,7 @@ export async function submitProposalWrite(
     op === "approve" || op === "reject" || op === "revokeShare"
       ? `${tenantId}|${action}|${req.proposalId ?? "__create__"}`
       : undefined;
-  const gate = approvalGate(tenantId, action, "native-proposals", params, { dataDir, workflowId: "native-proposals", dedupeKey: cardDedupeKey });
+  const gate = approvalGate(tenantId, action, "native-proposals", params, { dataDir, workflowId: "native-proposals", dedupeKey: cardDedupeKey, requestedBy: actor });
   if (gate.allowed) {
     try {
       const record = await applyMutation(dataDir, tenantId, op, req, validated.mutation, validated.nextStatus, actor, validated.signature);
