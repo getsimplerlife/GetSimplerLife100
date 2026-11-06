@@ -204,8 +204,13 @@ export function validateSignatureInput(
   if (signerName.length < 1 || signerName.length > MAX_SIGNER_NAME) {
     return { ok: false, error: `signerName must be 1..${MAX_SIGNER_NAME} chars` };
   }
-  const signatureType = v.signatureType;
-  if (signatureType !== "typed" && signatureType !== "drawn") {
+  // Narrowed explicitly: `v.signatureType` is `unknown`, and a `!==` guard does
+  // not narrow `unknown` to a literal union, so `signatureType` would widen back
+  // to `string` and fail to satisfy ProposalSignatureInput (tsc caught this at
+  // 192b-1 — the tests were green and the typecheck was red).
+  const signatureType: "typed" | "drawn" | null =
+    v.signatureType === "typed" ? "typed" : v.signatureType === "drawn" ? "drawn" : null;
+  if (signatureType === null) {
     return { ok: false, error: "signatureType must be \"typed\" or \"drawn\"" };
   }
   let initials: string | undefined;
