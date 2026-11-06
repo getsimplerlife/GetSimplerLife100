@@ -78,6 +78,15 @@ function parseJsonObject(raw: string): Record<string, unknown> {
 }
 const json400 = (error: string) => Response.json({ error }, { status: 400 });
 const json404 = (error: string) => Response.json({ error }, { status: 404 });
+/**
+ * SLICE 195a — a refusal that already knows its own HTTP answer (a client
+ * reference that is missing, foreign, or unreadable) is answered with THAT
+ * status. Every other refusal keeps the message-shape mapping below, so this
+ * slice changes no existing status code.
+ */
+function refusal(error: string, status?: number): Response {
+  return typeof status === "number" ? Response.json({ error }, { status }) : gateErrorStatus(error);
+}
 function gateErrorStatus(error: string): Response {
   const nf = /not found|no pending write|already applied|already decided/.test(error);
   const bad = /required|must|cap reached|cannot|invalid|at least|failed/.test(error);
@@ -89,6 +98,10 @@ function gateErrorStatus(error: string): Response {
 /** Mutation parsed from a request body (create/update). */
 function mutationFromBody(body: Record<string, unknown>): ProposalMutation {
   const m: ProposalMutation = {};
+  // SLICE 195a — the client this quote is for travels with the mutation; the
+  // gate refuses a create without it and validates the id against the tenant's
+  // own client store before anything is queued.
+  if (typeof body.clientId === "string") m.clientId = body.clientId;
   if (typeof body.title === "string") m.title = body.title;
   if (typeof body.clientName === "string") m.clientName = body.clientName;
   if (typeof body.clientEmail === "string") m.clientEmail = body.clientEmail;
@@ -105,6 +118,13 @@ export function publicSummary(p: ProposalRecord, origin?: string): Record<string
   return {
     id: p.id,
     title: p.title,
+    /**
+     * SLICE 195a — the client this quote is for, so the portal can show it and
+     * a client's page can list its own quotes. `null` (never "" and never a
+     * guessed name) for a row written before this slice: the page prints
+     * "Unassigned" for it.
+     */
+    clientId: p.clientId ?? null,
     clientName: p.clientName,
     clientCompany: p.clientCompany,
     status: p.status,
@@ -182,7 +202,7 @@ async function handleAuthedAsync(req: Request, ctx: NativeProposalsCtx): Promise
       const res = await submitProposalWrite(dataDir, tenantId, "create", { data, via: "portal" }, tenantId);
       if (res.applied) return Response.json({ data: { status: "applied", proposalId: res.proposal.id, autonomy: res.autonomy } });
       if (res.pending) return Response.json({ data: { status: "pending", approvalActionId: res.approvalActionId } }, { status: 202 });
-      return gateErrorStatus(res.error);
+      return refusal(res.error, res.status);
     }
     return Response.json({ error: "Method not allowed" }, { status: 405 });
   }
@@ -243,7 +263,7 @@ async function handleAuthedAsync(req: Request, ctx: NativeProposalsCtx): Promise
       const res = await submitProposalWrite(dataDir, tenantId, "delete", { proposalId, via: "portal" }, tenantId);
       if (res.applied) return Response.json({ data: { status: "applied", autonomy: res.autonomy } });
       if (res.pending) return Response.json({ data: { status: "pending", approvalActionId: res.approvalActionId } }, { status: 202 });
-      return gateErrorStatus(res.error);
+      return refusal(res.error, res.status);
     }
     if (req.method === "POST") {
       // POST /:id with a body = update (title/client/lineItems/terms…)
@@ -252,7 +272,7 @@ async function handleAuthedAsync(req: Request, ctx: NativeProposalsCtx): Promise
       const res = await submitProposalWrite(dataDir, tenantId, "update", { proposalId, data, via: "portal" }, tenantId);
       if (res.applied) return Response.json({ data: { status: "applied", proposalId: res.proposal.id, autonomy: res.autonomy } });
       if (res.pending) return Response.json({ data: { status: "pending", approvalActionId: res.approvalActionId } }, { status: 202 });
-      return gateErrorStatus(res.error);
+      return refusal(res.error, res.status);
     }
     return Response.json({ error: "Method not allowed" }, { status: 405 });
   }
@@ -289,7 +309,7 @@ async function handleAuthedAsync(req: Request, ctx: NativeProposalsCtx): Promise
       });
     }
     if (revoke.pending) return Response.json({ data: { status: "pending", approvalActionId: revoke.approvalActionId } }, { status: 202 });
-    return gateErrorStatus(revoke.error);
+    return refusal(revoke.error, revoke.status);
   }
 
   // ── /api/native/proposals/:id/<verb> — gated lifecycle transitions ──
@@ -311,7 +331,7 @@ async function handleAuthedAsync(req: Request, ctx: NativeProposalsCtx): Promise
     });
   }
   if (res.pending) return Response.json({ data: { status: "pending", approvalActionId: res.approvalActionId } }, { status: 202 });
-  return gateErrorStatus(res.error);
+  return refusal(res.error, res.status);
 }
 
 // ── AUTHED router (exported for prod-server) ────────────────────────────────
@@ -440,7 +460,7 @@ async function handleShareAsync(req: Request, ctx: NativeProposalsPublicCtx): Pr
     // SLICE 192b-3 — the store refused: 503, never a 200 that pretends the card
     // was queued, and never the internal path in the message.
     if (isApprovalStoreUnavailable(res.error)) return approvalStoreUnavailable();
-    return gateErrorStatus(res.error);
+    return refusal(res.error, res.status);
   }
   return Response.json({ error: "Method not allowed" }, { status: 405, headers: NO_STORE });
 }

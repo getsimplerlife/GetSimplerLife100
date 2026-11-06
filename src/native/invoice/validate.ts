@@ -7,6 +7,9 @@
  * here ever trusts a client-supplied record id.
  */
 import { MAX_CUSTOMER_EMAIL, MAX_LINE_DESCRIPTION, type InvoiceMutation } from "./types";
+// SLICE 195a — the SHAPE rule for a client id, from the one module that owns
+// it. Existence in THIS tenant is a store question answered by the gate.
+import { isClientRefShape } from "../../lib/client-ref";
 
 export type ValidateResult = { ok: true } | { ok: false; error: string };
 
@@ -55,6 +58,12 @@ function checkStr(v: unknown, max: number, min = 0): boolean {
  */
 export function validateInvoiceMutation(m: InvoiceMutation, { requireDealRoom = false }: { requireDealRoom?: boolean } = {}): ValidateResult & { data?: InvoiceMutation } {
   const out: InvoiceMutation = {};
+  // SLICE 195a — shape only; "required on create" and "exists in this tenant"
+  // are both decided in the gate, which can see the client store.
+  if (m.clientId !== undefined) {
+    if (!isClientRefShape(m.clientId)) return { ok: false, error: "clientId must be a client id from this workspace" };
+    out.clientId = m.clientId.trim();
+  }
   if (m.linkedDealRoomId !== undefined) {
     if (!isDealRoomIdRef(m.linkedDealRoomId)) return { ok: false, error: "linkedDealRoomId must be a deal room id (dea_…)" };
     out.linkedDealRoomId = m.linkedDealRoomId;
@@ -72,6 +81,10 @@ export function validateInvoiceMutation(m: InvoiceMutation, { requireDealRoom = 
 /** Build an InvoiceMutation from a create request body (raw keys dropped). */
 export function createInvoiceMutationFromInput(body: Record<string, unknown>): InvoiceMutation {
   const m: InvoiceMutation = {};
+  // SLICE 195a — the client the invoice bills. Passed through as-is: the shape
+  // check rejects a non-string, and the gate refuses a missing id outright
+  // rather than falling back to the linked deal room's customer (a guess).
+  if (typeof body.clientId === "string") m.clientId = body.clientId;
   if (typeof body.linkedDealRoomId === "string") m.linkedDealRoomId = body.linkedDealRoomId;
   if (typeof body.customerEmail === "string") m.customerEmail = body.customerEmail;
   return m;

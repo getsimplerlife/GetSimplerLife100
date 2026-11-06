@@ -21,6 +21,10 @@ import { publishWebhookEvent, flushTenantDeliveries } from "../webhooks/outbound
 import { randomBytes } from "node:crypto";
 import { generateProposalEntityId, generateShareSlug, insertProposal, applyProposalMutation, listPendingWrites, savePendingWrite, appendAudit, getProposal, registerSlug, unregisterSlug, markPendingWrite, removeProposal, appendProposalSignature } from "./store";
 import { validateProposalMutation, normalizeLineItems, validateSignatureInput, proposalSignedContent, signatureMatchesContent } from "./validate";
+// SLICE 195a — the client this quote is for is validated against THIS tenant's
+// client store before the write is ever queued (lib/client-store.ts owns the
+// order: no id → 400, unreadable store → 503, foreign/unknown id → 400).
+import { assertTenantClient, ClientRefError } from "../../lib/client-store";
 import { renderProposalPdf, storeProposalPdf } from "./generate";
 import { deliverProposalEmail, proposalShareUrl } from "./delivery";
 import { resolveIssuerDisplayName } from "../invoice/issuer";
@@ -48,7 +52,13 @@ export type ProposalWriteRequest = {
 export type ProposalWriteResult =
   | { applied: true; pending: false; proposal: ProposalRecord; op: ProposalOp; autonomy: boolean; actionId?: string }
   | { applied: false; pending: true; approvalActionId: string; op: ProposalOp }
-  | { applied: false; pending: false; error: string };
+  /**
+   * SLICE 195a — `status` is set only by a refusal that knows its own HTTP
+   * answer (a `ClientRefError`: 400 for a missing/foreign client, 503 for an
+   * unreadable client store). Every other refusal keeps the router's
+   * message-shape mapping, so nothing else changes behaviour.
+   */
+  | { applied: false; pending: false; error: string; status?: number };
 
 const ACTION_NAME: Record<ProposalOp, string> = {
   create: "createProposal",
@@ -102,9 +112,15 @@ function validateWrite(
     const data = req.data ?? {};
     const v = validateProposalMutation(data);
     if (!v.ok) throw new Error(v.error);
+    // SLICE 195a — a quote must name the client it is for, and the name is an
+    // id validated against THIS tenant's client store. Checked BEFORE the gate,
+    // so a proposal that can never be saved never queues an approval card, and
+    // re-checked at apply time by the executor's own validateWrite call.
+    const clientId = assertTenantClient(dataDir, tenantId, data.clientId, "proposal");
     const items = data.lineItems !== undefined ? normalizeLineItems(data.lineItems) : null;
     if (data.lineItems !== undefined && items === null) throw new Error("lineItems must be an array of {description, qty, unitPrice}");
     const mutation: ProposalMutation = {
+      clientId,
       title: data.title ?? "Untitled proposal",
       clientName: data.clientName ?? "",
       clientEmail: data.clientEmail ?? "",
@@ -160,6 +176,11 @@ function validateWrite(
       );
     }
     mutation = { ...data };
+    // SLICE 195a — moving a draft to another client is allowed, but only to a
+    // client of THIS tenant. Same check, same order, same sentences.
+    if (mutation.clientId !== undefined) {
+      mutation.clientId = assertTenantClient(dataDir, tenantId, mutation.clientId, "proposal");
+    }
     if (mutation.lineItems !== undefined) {
       const items = normalizeLineItems(mutation.lineItems);
       if (items === null) throw new Error("lineItems must be an array of {description, qty, unitPrice}");
@@ -201,6 +222,8 @@ async function applyMutation(
     record = {
       id: generateProposalEntityId("prop"),
       tenantId,
+      // SLICE 195a — validated by validateWrite before the gate; never a guess.
+      clientId: mutation.clientId!,
       title: mutation.title!,
       clientName: mutation.clientName!,
       clientEmail: mutation.clientEmail ?? "",
@@ -386,7 +409,10 @@ export async function submitProposalWrite(
     validated = validateWrite(dataDir, tenantId, op, req);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    return { applied: false, pending: false, error: msg };
+    // SLICE 195a — a client refusal carries its own status (400/503); every
+    // other message keeps the router's existing shape mapping.
+    const status = e instanceof ClientRefError ? e.status : undefined;
+    return { applied: false, pending: false, error: msg, ...(status ? { status } : {}) };
   }
   const action = ACTION_NAME[op];
   const params: Record<string, any> = {

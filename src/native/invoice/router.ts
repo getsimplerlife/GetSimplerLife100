@@ -107,6 +107,15 @@ function parseJsonObject(raw: string): Record<string, unknown> {
 }
 const json400 = (error: string) => Response.json({ error }, { status: 400 });
 const json404 = (error: string) => Response.json({ error }, { status: 404 });
+/**
+ * SLICE 195a — a refusal that already knows its own HTTP answer (a client
+ * reference that is missing, foreign, or unreadable) is answered with THAT
+ * status. Every other refusal keeps the message-shape mapping below, so this
+ * slice changes no existing status code.
+ */
+function refusal(error: string, status?: number): Response {
+  return typeof status === "number" ? Response.json({ error }, { status }) : gateErrorStatus(error);
+}
 function gateErrorStatus(error: string): Response {
   const nf = /not found|no pending write|already applied|already decided|unknown linkedDealRoomId|linked deal room has no/.test(error);
   const bad = /required|must|cap reached|cannot|invalid|at least|failed|unknown/.test(error);
@@ -257,7 +266,7 @@ async function handleAuthedAsync(req: Request, ctx: NativeInvoicesCtx): Promise<
       const res = await submitInvoiceWrite(dataDir, tenantId, "create", { data, via: "portal" }, tenantId);
       if (res.applied) return Response.json({ data: { status: "applied", invoiceId: res.invoice.id, autonomy: res.autonomy } });
       if (res.pending) return Response.json({ data: { status: "pending", approvalActionId: res.approvalActionId } }, { status: 202 });
-      return gateErrorStatus(res.error);
+      return refusal(res.error, res.status);
     }
     return Response.json({ error: "Method not allowed" }, { status: 405 });
   }
@@ -386,7 +395,7 @@ async function handleAuthedAsync(req: Request, ctx: NativeInvoicesCtx): Promise<
       const res = await submitInvoiceWrite(dataDir, tenantId, "delete", { invoiceId, via: "portal" }, tenantId);
       if (res.applied) return Response.json({ data: { status: "applied", autonomy: res.autonomy } });
       if (res.pending) return Response.json({ data: { status: "pending", approvalActionId: res.approvalActionId } }, { status: 202 });
-      return gateErrorStatus(res.error);
+      return refusal(res.error, res.status);
     }
     return Response.json({ error: "Method not allowed" }, { status: 405 });
   }
@@ -422,7 +431,7 @@ async function handleAuthedAsync(req: Request, ctx: NativeInvoicesCtx): Promise<
       });
     }
     if (res.pending) return Response.json({ data: { status: "pending", approvalActionId: res.approvalActionId } }, { status: 202 });
-    return gateErrorStatus(res.error);
+    return refusal(res.error, res.status);
   }
   // ── /api/native/invoice/:id/share/(revoke|rotate) — slice 152 ──
   // The public slug is a BEARER credential: whoever holds it can read the
@@ -459,7 +468,7 @@ async function handleAuthedAsync(req: Request, ctx: NativeInvoicesCtx): Promise<
       });
     }
     if (res.pending) return Response.json({ data: { status: "pending", approvalActionId: res.approvalActionId } }, { status: 202 });
-    return gateErrorStatus(res.error);
+    return refusal(res.error, res.status);
   }
   return json404("Unknown native invoice endpoint");
 }

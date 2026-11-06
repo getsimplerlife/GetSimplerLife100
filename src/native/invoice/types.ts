@@ -97,6 +97,17 @@ export interface InvoiceLineItem {
 export interface InvoiceRecord {
   id: string; // inv_<random> — server-assigned
   tenantId: string;
+  /**
+   * SLICE 195a — THE CLIENT THIS INVOICE BILLS, as an id in the tenant's own
+   * client store. Required on create and validated server-side against that
+   * store (`lib/client-store.ts`), never trusted from the body.
+   *
+   * OPTIONAL IN THE TYPE BECAUSE THAT IS THE TRUTH: every invoice written before
+   * this slice has no such field on disk and must keep reading. Those rows
+   * render as "Unassigned" (lib/client-ref.ts) — never inferred from
+   * `customerEmail` or the linked deal room, never rewritten, never deleted.
+   */
+  clientId?: string;
   /** Human invoice number, per-tenant sequence (INV-0001, INV-0002, …). */
   invoiceNumber: string;
   /** Linked deal room — REQUIRED, must exist in-tenant (404-no-IDOR). */
@@ -169,6 +180,11 @@ export interface InvoiceRecord {
 
 /** Create payload — linkedDealRoomId required; everything else derived. */
 export interface InvoiceMutation {
+  /**
+   * SLICE 195a — the client this invoice bills. REQUIRED on create (the gate
+   * refuses without it) and validated against the tenant's own client store.
+   */
+  clientId?: string;
   linkedDealRoomId?: string;
   /** Optional explicit recipient; validated BEFORE the gate. Omitted → the
    *  deal room's own customerEmail is snapshotted (never invented). */

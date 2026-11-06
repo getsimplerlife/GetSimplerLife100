@@ -106,6 +106,17 @@ export interface ProposalLineItemInput {
 export interface ProposalRecord {
   id: string; // prop_<random>
   tenantId: string;
+  /**
+   * SLICE 195a — THE CLIENT THIS QUOTE IS FOR, as an id in the tenant's own
+   * client store. Required on create and validated server-side against that
+   * store (`lib/client-store.ts`), never trusted from the body.
+   *
+   * OPTIONAL IN THE TYPE, AND THAT IS THE HONEST MODEL: every proposal written
+   * before this slice has no such field on disk, and those rows must keep
+   * reading. They render as "Unassigned" (lib/client-ref.ts) — never guessed at
+   * from `clientName`, never rewritten, never deleted.
+   */
+  clientId?: string;
   title: string;
   clientName: string;
   clientEmail: string; // optional ("" when unset)
@@ -212,6 +223,12 @@ export interface ProposalSignatureInput {
 /** Partial update payload — same shape as create minus status (status is op-driven). */
 export interface ProposalMutation {
   title?: string;
+  /**
+   * SLICE 195a — the client this quote is for. Required on create; on update it
+   * may only be set to another client of THIS tenant (the gate checks it
+   * against the client store either way).
+   */
+  clientId?: string;
   clientName?: string;
   clientEmail?: string;
   clientCompany?: string;

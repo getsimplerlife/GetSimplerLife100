@@ -24,6 +24,10 @@ import {
   type ProposalSignedContent,
 } from "./types";
 import { sha256Of } from "../documents/store";
+// SLICE 195a — the SHAPE rule for a client id, from the one module that owns it.
+// Whether that client EXISTS in this tenant is a store question, answered by
+// lib/client-store.ts in the gate; this is only "could this be an id".
+import { isClientRefShape } from "../../lib/client-ref";
 
 export type ValidateResult = { ok: true } | { ok: false; error: string };
 
@@ -45,6 +49,12 @@ export function validateProposalMutation(m: ProposalMutation): ValidateResult {
   };
   if (m.title !== undefined && !check(m.title, MAX_TITLE_LENGTH, 1)) {
     return { ok: false, error: `title must be a 1..${MAX_TITLE_LENGTH}-char string` };
+  }
+  // SLICE 195a — shape only. `undefined` is allowed here because an UPDATE may
+  // legitimately not touch the client; "required" is a create rule and lives in
+  // the gate, which can also see whether the client exists.
+  if (m.clientId !== undefined && !isClientRefShape(m.clientId)) {
+    return { ok: false, error: "clientId must be a client id from this workspace" };
   }
   if (m.clientName !== undefined && !check(m.clientName, MAX_CLIENT_NAME, 1)) {
     return { ok: false, error: `clientName must be a 1..${MAX_CLIENT_NAME}-char string` };

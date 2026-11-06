@@ -156,6 +156,10 @@ export function applyProposalMutation(
   const updated: ProposalRecord = {
     ...p,
     signatures: p.signatures ?? [],
+    // SLICE 195a — a draft may be moved to another client of this tenant; the
+    // gate has already validated the id. A record with no client keeps having
+    // none (nothing here invents one).
+    ...(mutation.clientId !== undefined ? { clientId: mutation.clientId.trim() } : {}),
     ...(mutation.title !== undefined ? { title: mutation.title.trim().slice(0, 120) } : {}),
     ...(mutation.clientName !== undefined ? { clientName: mutation.clientName.trim().slice(0, 120) } : {}),
     ...(mutation.clientEmail !== undefined ? { clientEmail: mutation.clientEmail.trim().slice(0, 200) } : {}),

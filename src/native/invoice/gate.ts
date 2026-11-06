@@ -64,6 +64,10 @@ import {
 import { renderInvoicePdf, storeInvoicePdf, lineTotalCents, invoiceTotalCents } from "./generate";
 import { resolveIssuerDisplayName } from "./issuer";
 import { validateInvoiceMutation, createInvoiceMutationFromInput, isInvoiceId, validateCustomerEmail } from "./validate";
+// SLICE 195a — the client this invoice bills is validated against THIS tenant's
+// client store before the write is ever queued (lib/client-store.ts owns the
+// order: no id -> 400, unreadable store -> 503, foreign/unknown id -> 400).
+import { assertTenantClient, ClientRefError } from "../../lib/client-store";
 import { deliverInvoiceEmail, invoiceShareUrl } from "./delivery";
 import {
   INVOICE_DUE_DAYS,
@@ -85,7 +89,13 @@ export type InvoiceWriteRequest = {
 export type InvoiceWriteResult =
   | { applied: true; pending: false; invoice: InvoiceRecord; op: InvoiceOp; autonomy: boolean; actionId?: string }
   | { applied: false; pending: true; approvalActionId: string; op: InvoiceOp }
-  | { applied: false; pending: false; error: string };
+  /**
+   * SLICE 195a — `status` is set only by a refusal that knows its own HTTP
+   * answer (a `ClientRefError`: 400 for a missing/foreign client, 503 for an
+   * unreadable client store). Every other refusal keeps the router's
+   * message-shape mapping, so nothing else changes behaviour.
+   */
+  | { applied: false; pending: false; error: string; status?: number };
 
 const ACTION_NAME: Record<InvoiceOp, string> = {
   create: "createInvoice",
@@ -158,6 +168,12 @@ function validateWrite(
     const data = req.data ?? {};
     const v = validateInvoiceMutation(data, { requireDealRoom: true });
     if (!v.ok) throw new Error(v.error);
+    // SLICE 195a — an invoice must name the client it bills, validated against
+    // THIS tenant's client store before the write is queued (lib/client-store.ts
+    // owns the order: no id → 400, unreadable store → 503, foreign/unknown → 400).
+    // Deliberately NOT derived from the deal room: deriving it would be a guess
+    // dressed as a convenience, and a guess here bills the wrong customer.
+    const clientId = assertTenantClient(dataDir, tenantId, v.data?.clientId, "invoice");
     const dealRoomId = v.data?.linkedDealRoomId;
     if (!dealRoomId) throw new Error("linkedDealRoomId is required");
     const dealRoom = getDealRoom(dataDir, tenantId, dealRoomId);
@@ -182,7 +198,7 @@ function validateWrite(
       unitPriceCents: Math.round(li.unitPrice * 100), // integer cents, no float drift
     }));
     return {
-      mutation: { linkedDealRoomId: dealRoomId, ...(explicitEmail ? { customerEmail: explicitEmail } : {}) },
+      mutation: { clientId, linkedDealRoomId: dealRoomId, ...(explicitEmail ? { customerEmail: explicitEmail } : {}) },
       nextStatus: "draft" as const,
       snapshot: { proposalId: proposal.id, currency: proposal.currency, lineItems, customerEmail: recipient },
     };
@@ -265,6 +281,8 @@ function applyMutation(
     const record: InvoiceRecord = {
       id: generateInvoiceEntityId("inv"),
       tenantId,
+      // SLICE 195a — validated by validateWrite before the gate; never a guess.
+      clientId: mutation.clientId!,
       invoiceNumber: nextInvoiceNumber(dataDir, tenantId),
       linkedDealRoomId: mutation.linkedDealRoomId!,
       currency: snapshot?.currency ?? "USD",
@@ -283,7 +301,7 @@ function applyMutation(
       updatedBy: actor,
     };
     insertInvoice(dataDir, record);
-    appendAudit(dataDir, { tenantId, actor, action: "native.invoice.create", invoiceId: record.id, detail: `Created invoice ${record.invoiceNumber} for deal room ${record.linkedDealRoomId} (${snapshot?.proposalId ?? "?"}) — ${record.currency} ${(record.amountDueCents / 100).toFixed(2)}, due ${record.dueDate}${record.customerEmail ? `, bill to ${record.customerEmail}` : " (no customer email on file)"}` });
+    appendAudit(dataDir, { tenantId, actor, action: "native.invoice.create", invoiceId: record.id, detail: `Created invoice ${record.invoiceNumber} for client ${record.clientId} via deal room ${record.linkedDealRoomId} (${snapshot?.proposalId ?? "?"}) — ${record.currency} ${(record.amountDueCents / 100).toFixed(2)}, due ${record.dueDate}${record.customerEmail ? `, bill to ${record.customerEmail}` : " (no customer email on file)"}` });
     publishEvent(dataDir, tenantId, "native.invoice.created", { invoiceId: record.id, invoiceNumber: record.invoiceNumber, linkedDealRoomId: record.linkedDealRoomId, currency: record.currency, amountDueCents: record.amountDueCents, status: record.status });
     return record;
   }
@@ -447,7 +465,10 @@ export async function submitInvoiceWrite(
     validated = validateWrite(dataDir, tenantId, op, req);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    return { applied: false, pending: false, error: msg };
+    // SLICE 195a — a client refusal carries its own status (400/503); every
+    // other message keeps the router's existing shape mapping.
+    const status = e instanceof ClientRefError ? e.status : undefined;
+    return { applied: false, pending: false, error: msg, ...(status ? { status } : {}) };
   }
   const action = ACTION_NAME[op];
   const params: Record<string, any> = {
