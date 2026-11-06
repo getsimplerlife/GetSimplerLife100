@@ -19,7 +19,9 @@ import {
   MIN_VALIDITY_DAYS,
   type ProposalLineItem,
   type ProposalMutation,
+  type ProposalRecord,
   type ProposalSignatureInput,
+  type ProposalSignedContent,
 } from "./types";
 import { sha256Of } from "../documents/store";
 
@@ -119,21 +121,96 @@ const DATA_URL_RE = /^data:image\/png;base64,[A-Za-z0-9+/=]+$/;
 const INITIALS_RE = /^[A-Za-z0-9 .'\-]+$/;
 
 /**
+ * SLICE 192b — the proposal content a signature is taken against.
+ *
+ * Only what the client is actually shown and agreeing to: the title, the
+ * currency, the line items (description/qty/unitPrice — NOT the internal
+ * `li_…` ids, which change on every normalize), the terms and the record
+ * version. Nothing internal, nothing derived.
+ */
+export function proposalSignedContent(
+  p: Pick<ProposalRecord, "title" | "currency" | "lineItems" | "terms" | "version">,
+): ProposalSignedContent {
+  return {
+    title: p.title,
+    currency: p.currency,
+    lineItems: (p.lineItems ?? []).map((li) => ({ description: li.description, qty: li.qty, unitPrice: li.unitPrice })),
+    terms: p.terms ?? "",
+    version: p.version,
+  };
+}
+
+/**
+ * The fingerprint an e-signature carries: sha256 over the SIGNED CONTENT and
+ * the signature fields, in one canonical JSON. Both halves matter — the first
+ * says WHAT was agreed, the second says WHO agreed to it.
+ */
+export function signaturePayloadHash(
+  sig: Pick<ProposalSignatureInput, "signerName" | "signatureType" | "initials" | "drawnDataUrl">,
+  content: ProposalSignedContent,
+): string {
+  const canonical = JSON.stringify({
+    content: {
+      title: content.title,
+      currency: content.currency,
+      lineItems: content.lineItems.map((li) => ({ description: li.description, qty: li.qty, unitPrice: li.unitPrice })),
+      terms: content.terms,
+      version: content.version,
+    },
+    signerName: sig.signerName,
+    signatureType: sig.signatureType,
+    initials: sig.initials ?? null,
+    drawnDataUrl: sig.drawnDataUrl ?? null,
+  });
+  return sha256Of(new TextEncoder().encode(canonical));
+}
+
+/**
+ * Does this signature still describe the proposal as it stands? Re-derives the
+ * hash from the CURRENT content and compares. A line item edited after signing
+ * makes this false — which is the whole point of hashing the content.
+ *
+ * The `version` component is PINNED from the signature (`signedVersion`), not
+ * taken from the live record: the record's own version advances with every
+ * status transition (approve, then the signature append), so using it here
+ * would report every signature as broken. The version is in the hash to record
+ * WHICH revision was signed; the substantive content is what must still match.
+ */
+export function signatureMatchesContent(
+  sig: Pick<ProposalSignatureInput, "signerName" | "signatureType" | "initials" | "drawnDataUrl" | "payloadHash" | "signedVersion">,
+  content: ProposalSignedContent,
+): boolean {
+  return signaturePayloadHash(sig, { ...content, version: sig.signedVersion }) === sig.payloadHash;
+}
+
+/**
  * Validate a signature captured on the share page (Phase 2.2 e-sign).
  * Fail-closed: name/initials bounds, strict base64 PNG data-URL shape,
  * decoded-size cap and PNG magic-byte sniffing. Returns the normalized input
- * plus a durable sha256 payloadHash. Runs BEFORE the gate — a never-valid
- * signature never queues (400).
+ * plus the durable sha256 payloadHash and the signed content version. Runs
+ * BEFORE the gate — a never-valid signature never queues (400).
+ *
+ * SLICE 192b — `content` is REQUIRED: the hash is over the proposal, not over
+ * the signature. Any `payloadHash` the caller supplied is ignored and
+ * recomputed here, so a client cannot choose its own fingerprint.
  */
-export function validateSignatureInput(value: unknown): { ok: true; signature: ProposalSignatureInput } | { ok: false; error: string } {
+export function validateSignatureInput(
+  value: unknown,
+  content: ProposalSignedContent,
+): { ok: true; signature: ProposalSignatureInput } | { ok: false; error: string } {
   if (!value || typeof value !== "object" || Array.isArray(value)) return { ok: false, error: "signature must be an object" };
   const v = value as Record<string, unknown>;
   const signerName = typeof v.signerName === "string" ? v.signerName.trim() : "";
   if (signerName.length < 1 || signerName.length > MAX_SIGNER_NAME) {
     return { ok: false, error: `signerName must be 1..${MAX_SIGNER_NAME} chars` };
   }
-  const signatureType = v.signatureType;
-  if (signatureType !== "typed" && signatureType !== "drawn") {
+  // Narrowed explicitly: `v.signatureType` is `unknown`, and a `!==` guard does
+  // not narrow `unknown` to a literal union, so `signatureType` would widen back
+  // to `string` and fail to satisfy ProposalSignatureInput (tsc caught this at
+  // 192b-1 — the tests were green and the typecheck was red).
+  const signatureType: "typed" | "drawn" | null =
+    v.signatureType === "typed" ? "typed" : v.signatureType === "drawn" ? "drawn" : null;
+  if (signatureType === null) {
     return { ok: false, error: "signatureType must be \"typed\" or \"drawn\"" };
   }
   let initials: string | undefined;
@@ -164,7 +241,8 @@ export function validateSignatureInput(value: unknown): { ok: true; signature: P
     }
     drawnDataUrl = url;
   }
-  const canonical = JSON.stringify({ signerName, signatureType, initials: initials ?? null, drawnDataUrl: drawnDataUrl ?? null });
-  const payloadHash = sha256Of(new TextEncoder().encode(canonical));
-  return { ok: true, signature: { signerName, signatureType, initials, drawnDataUrl, payloadHash } };
+  const fields = { signerName, signatureType, initials, drawnDataUrl };
+  // The hash covers the PROPOSAL, not just the pen stroke (SLICE 192b).
+  const payloadHash = signaturePayloadHash(fields, content);
+  return { ok: true, signature: { ...fields, payloadHash, signedVersion: content.version } };
 }

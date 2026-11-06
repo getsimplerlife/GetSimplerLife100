@@ -15,6 +15,80 @@
  */
 export type ProposalStatus = "draft" | "pending" | "approved" | "rejected" | "sent";
 
+/**
+ * SLICE 192b — THE PUBLISH RULE, in one place.
+ *
+ * The share slug is minted by `open` (draft → pending) and by `revokeShare`;
+ * a draft has no slug at all. The rule below is what a PUBLIC reader is
+ * allowed to see, and it is consumed by BOTH lanes that can hand a proposal to
+ * a client: the proposal share GET and the deal-room share view. Before this
+ * existed the deal room served a linked proposal's title, status and total with
+ * no status filter, so an active room printed a draft quote's amount to the
+ * customer — the exact state the proposal lane itself refuses to serve.
+ *
+ * Typed `Record<ProposalStatus, boolean>` on purpose — a new status is a
+ * compile error here rather than a silently-public page (the same discipline as
+ * `PUBLIC_INVOICE_STATUS` in the invoice router and `PUBLIC_DEAL_ROOM_STATUS`).
+ */
+export const PUBLIC_PROPOSAL_STATUS: Record<ProposalStatus, boolean> = {
+  draft: false, // never issued: no slug, no PDF, nothing left the building
+  pending: true, // opened for client review — the link the client holds
+  approved: true, // the client decided; the quote they signed stays readable
+  rejected: true, // same record, honest verdict — not a secret
+  sent: true, // final PDF filed and emailed; the record still exists
+};
+
+/** True when a public lane may serve a proposal in this state. */
+export function isProposalPubliclyShareable(status: ProposalStatus): boolean {
+  return PUBLIC_PROPOSAL_STATUS[status] === true;
+}
+
+/**
+ * SLICE 192b — the validity window, computed rather than printed.
+ *
+ * `validityDays` was stored and rendered ("Valid for 30 days") but nothing
+ * derived from it: `grep -i expire` over src/** returned zero matches, so a
+ * quote stayed signable forever. `expiresAt` is set by `open` from the day the
+ * quote was ISSUED (not the day the row was created) plus `validityDays`.
+ */
+export function computeProposalExpiry(issuedAt: string, validityDays: number): string {
+  const from = Date.parse(issuedAt);
+  const days = Number.isFinite(validityDays) && validityDays > 0 ? validityDays : 0;
+  return new Date((Number.isFinite(from) ? from : Date.now()) + days * 86_400_000).toISOString();
+}
+
+/**
+ * True when this proposal's validity window has closed. ONE definition, used by
+ * the share GET (what the client is shown), the decision POST (what the server
+ * refuses) and the deal-room view.
+ *
+ * Fail-closed on an unreadable date: a record that claims an expiry we cannot
+ * parse is not a licence to keep signing. A record with NO expiry claim (a
+ * draft, or one written before this slice) is not "expired" — it is simply not
+ * claiming a window, and the draft gate above is what keeps it unpublished.
+ */
+export function isProposalExpired(record: { expiresAt?: string | null }, now: number | string | Date = Date.now()): boolean {
+  const claim = record.expiresAt;
+  if (typeof claim !== "string" || claim.length === 0) return false;
+  const at = Date.parse(claim);
+  if (!Number.isFinite(at)) return true;
+  const at2 = now instanceof Date ? now.getTime() : typeof now === "number" ? now : Date.parse(now);
+  if (!Number.isFinite(at2)) return true;
+  return at2 >= at;
+}
+
+/**
+ * The proposal content a signature binds. Hashed together with the signature
+ * fields so that "who signed" and "what they signed" are one fingerprint.
+ */
+export interface ProposalSignedContent {
+  title: string;
+  currency: string;
+  lineItems: { description: string; qty: number; unitPrice: number }[];
+  terms: string;
+  version: number;
+}
+
 export interface ProposalLineItem {
   id: string; // li_<random> — never user-supplied
   description: string;
@@ -45,6 +119,22 @@ export interface ProposalRecord {
   shareSlug: string | null;
   /** Latest generated PDF as a native document record (Phase 1.2 store). */
   docId: string | null;
+  /**
+   * SLICE 192b — the instant this proposal was ISSUED to the client, i.e. the
+   * `open` transition that minted the share slug. Set only by `open`; the page
+   * must print "Issued" from THIS, never from `createdAt` (191's
+   * `issuedAtSource` fix, applied here).
+   */
+  issuedAt?: string;
+  /** SLICE 192b — `issuedAt` + `validityDays`. Computed, never hand-set. */
+  expiresAt?: string;
+  /**
+   * SLICE 192b — the content `version` the most recent signature was captured
+   * against. Mirrors `ProposalSignature.signedVersion` for the latest signature
+   * so a reader can compare it with `version` at a glance; the per-signature
+   * field is the authoritative one (a proposal can carry several signatures).
+   */
+  signedVersion?: number;
   version: number;
   createdAt: string;
   createdBy: string;
@@ -85,9 +175,15 @@ export interface ProposalDeliveryAttempt {
 
 /**
  * A captured e-signature (Phase 2.2). At least one of initials/drawnDataUrl is
- * set (signatureType decides which). payloadHash = sha256 over the canonical
- * JSON of {signerName, signatureType, initials, drawnDataUrl} — a durable
- * tamper-evident fingerprint recorded in audit + the final PDF.
+ * set (signatureType decides which).
+ *
+ * SLICE 192b — `payloadHash` used to be sha256 over the SIGNATURE FIELDS ONLY
+ * ({signerName, signatureType, initials, drawnDataUrl}), so the amount the
+ * client agreed to was bound to nothing: the record could be edited afterwards
+ * and the audit trail could not tell. It is now sha256 over the canonical JSON
+ * of the signed CONTENT ({title, currency, lineItems, terms, version}) together
+ * with those signature fields — see `signaturePayloadHash` in validate.ts.
+ * `signedVersion` records which content version that hash was taken from.
  */
 export interface ProposalSignature {
   id: string; // sig_<random> — never user-supplied
@@ -95,7 +191,10 @@ export interface ProposalSignature {
   signatureType: "typed" | "drawn";
   initials?: string; // typed initials (1..MAX_INITIALS_LENGTH) when typed
   drawnDataUrl?: string; // data:image/png;base64,… when drawn (magic-byte checked)
-  payloadHash: string; // sha256 hex of the canonical payload
+  /** sha256 hex over the signed content + the signature fields. */
+  payloadHash: string;
+  /** SLICE 192b — the record `version` this signature was captured against. */
+  signedVersion: number;
   capturedAt: string;
 }
 
@@ -106,6 +205,8 @@ export interface ProposalSignatureInput {
   initials?: string;
   drawnDataUrl?: string;
   payloadHash: string;
+  /** SLICE 192b — set by validateSignatureInput from the signed content. */
+  signedVersion: number;
 }
 
 /** Partial update payload — same shape as create minus status (status is op-driven). */
@@ -126,8 +227,14 @@ export interface ProposalMutation {
  * Approval Queue isWriteAction classifies them as writes (verb-first rule, 1.4).
  * NOTE: "share" is deliberately NOT used as an action verb — it is absent from
  * WRITE_VERB in approval-queue.ts and would silently BYPASS the gate (fail-open).
+ *
+ * SLICE 192b — `revokeShare` is an ACTION ON THE SLUG, not a lifecycle state
+ * (the same rule 192a gave deal rooms): it retires the current public slug and
+ * mints a fresh one, so the link the client holds stops resolving while the
+ * record — and its status — survive. Before this, `delete` was the only way to
+ * kill a link, and it destroyed the record.
  */
-export type ProposalOp = "create" | "update" | "open" | "approve" | "reject" | "send" | "delete";
+export type ProposalOp = "create" | "update" | "open" | "approve" | "reject" | "send" | "delete" | "revokeShare";
 
 export interface PendingProposalWrite {
   id: string; // ppw_<random>

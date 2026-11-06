@@ -136,7 +136,16 @@ export function applyProposalMutation(
   mutation: ProposalMutation,
   nextStatus: ProposalStatus | null,
   actor: string,
-  extra?: { shareSlug?: string; docId?: string | null; signerName?: string; lastDeliveryAttempt?: ProposalDeliveryAttempt },
+  extra?: {
+    shareSlug?: string;
+    docId?: string | null;
+    signerName?: string;
+    lastDeliveryAttempt?: ProposalDeliveryAttempt;
+    /** SLICE 192b — set by `open` only: the day the quote was issued. */
+    issuedAt?: string;
+    /** SLICE 192b — derived from issuedAt + validityDays, never hand-set. */
+    expiresAt?: string;
+  },
 ): ProposalRecord | null {
   const state = loadState(dataDir);
   const tenant = state[tenantId];
@@ -158,6 +167,8 @@ export function applyProposalMutation(
     ...(extra?.shareSlug !== undefined ? { shareSlug: extra.shareSlug } : {}),
     ...(extra?.docId !== undefined ? { docId: extra.docId } : {}),
     ...(extra?.lastDeliveryAttempt !== undefined ? { lastDeliveryAttempt: extra.lastDeliveryAttempt } : {}),
+    ...(extra?.issuedAt !== undefined ? { issuedAt: extra.issuedAt } : {}),
+    ...(extra?.expiresAt !== undefined ? { expiresAt: extra.expiresAt } : {}),
     ...(nextStatus !== null ? applyStatusMeta(nextStatus, actor) : {}),
     version: p.version + 1,
     updatedAt: now,
@@ -196,6 +207,11 @@ export function appendProposalSignature(
   const updated: ProposalRecord = {
     ...p,
     signatures: [...signatures, sig],
+    // SLICE 192b — mirror the signed content version on the record so a reader
+    // can compare it with `version` without walking the signatures array. The
+    // per-signature `signedVersion` stays authoritative (several signatures can
+    // exist on one proposal).
+    signedVersion: sig.signedVersion,
     version: p.version + 1,
     updatedAt: now,
     updatedBy: actor,

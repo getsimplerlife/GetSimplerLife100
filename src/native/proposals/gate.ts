@@ -20,12 +20,13 @@ import { recordAutonomyOutcome } from "../../lib/autonomy";
 import { publishWebhookEvent, flushTenantDeliveries } from "../webhooks/outbound";
 import { randomBytes } from "node:crypto";
 import { generateProposalEntityId, generateShareSlug, insertProposal, applyProposalMutation, listPendingWrites, savePendingWrite, appendAudit, getProposal, registerSlug, unregisterSlug, markPendingWrite, removeProposal, appendProposalSignature } from "./store";
-import { validateProposalMutation, normalizeLineItems, validateSignatureInput } from "./validate";
+import { validateProposalMutation, normalizeLineItems, validateSignatureInput, proposalSignedContent, signatureMatchesContent } from "./validate";
 import { renderProposalPdf, storeProposalPdf } from "./generate";
 import { deliverProposalEmail, proposalShareUrl } from "./delivery";
 import { resolveIssuerDisplayName } from "../invoice/issuer";
 import {
   MAX_PENDING_PROPOSAL_WRITES,
+  computeProposalExpiry,
   type ProposalRecord,
   type ProposalMutation,
   type ProposalLineItem,
@@ -57,6 +58,10 @@ const ACTION_NAME: Record<ProposalOp, string> = {
   reject: "rejectProposal",
   send: "sendProposal",
   delete: "deleteProposal",
+  // SLICE 192b — verb-first like the rest: `revoke` is in approval-queue's
+  // WRITE_VERB, so a share link — a bearer credential — cannot be killed
+  // without an approval.
+  revokeShare: "revokeProposalShare",
 };
 
 /** Status transition allowed from a given current status (fail-closed). */
@@ -76,13 +81,23 @@ function statusFor(op: ProposalOp, current: ProposalStatus): ProposalStatus | nu
       return current === "approved" ? "sent" : null;
     case "delete":
       return null; // deletion removes the record — handled separately
+    case "revokeShare":
+      // SLICE 192b — revoking is an action on the SLUG, not a lifecycle state:
+      // the record keeps whatever status it has (a pending quote whose link was
+      // leaked is retired without pretending the quote was withdrawn).
+      return current;
     default:
       return null;
   }
 }
 
 /** Validate the write intent BEFORE the gate — throws on invalid (→ 400). */
-function validateWrite(dataDir: string, tenantId: string, op: ProposalOp, req: ProposalWriteRequest): { proposal: ProposalRecord | null; mutation: ProposalMutation; nextStatus: ProposalStatus } {
+function validateWrite(
+  dataDir: string,
+  tenantId: string,
+  op: ProposalOp,
+  req: ProposalWriteRequest,
+): { proposal: ProposalRecord | null; mutation: ProposalMutation; nextStatus: ProposalStatus; signature?: ProposalSignatureInput } {
   if (op === "create") {
     const data = req.data ?? {};
     const v = validateProposalMutation(data);
@@ -113,6 +128,15 @@ function validateWrite(dataDir: string, tenantId: string, op: ProposalOp, req: P
   const proposal = getProposal(dataDir, tenantId, req.proposalId);
   if (!proposal) throw new Error("proposal not found");
   if (op === "delete") return { proposal, mutation: {}, nextStatus: proposal.status };
+  // SLICE 192b — revoke needs no field change and no status transition; the
+  // executor swaps the slug. A DRAFT has never been published, so there is no
+  // link to revoke and minting one would publish a draft by the back door.
+  if (op === "revokeShare") {
+    if (proposal.status === "draft") {
+      throw new Error("cannot revoke the share link of a proposal in status draft — it has never been shared (open it first)");
+    }
+    return { proposal, mutation: {}, nextStatus: proposal.status };
+  }
   const nextStatus = statusFor(op, proposal.status);
   if (nextStatus === null) {
     throw new Error(`cannot ${op} a proposal in status ${proposal.status}`);
@@ -125,8 +149,15 @@ function validateWrite(dataDir: string, tenantId: string, op: ProposalOp, req: P
     const data = req.data ?? {};
     const v = validateProposalMutation(data);
     if (!v.ok) throw new Error(v.error);
-    if (proposal.status !== "draft" && proposal.status !== "pending") {
-      throw new Error(`cannot update a proposal in status ${proposal.status}`);
+    // SLICE 192b — a quote is frozen from the moment the client holds the link.
+    // `pending` used to be editable, and `applyProposalMutation` wrote the new
+    // line items into the SAME record under the SAME slug, so the client's page
+    // silently re-priced itself on the next refresh with the same "Issued" date.
+    // A change now requires retiring the link (revokeShare) first.
+    if (proposal.status !== "draft") {
+      throw new Error(
+        `cannot update a proposal in status ${proposal.status} — a quote the client holds is frozen; revoke its share link first`,
+      );
     }
     mutation = { ...data };
     if (mutation.lineItems !== undefined) {
@@ -137,11 +168,17 @@ function validateWrite(dataDir: string, tenantId: string, op: ProposalOp, req: P
   }
   // Phase 2.2 e-sign: an approve write may carry a signature — validated HERE
   // (before the gate) so a never-valid signature never queues (fail-closed).
+  // SLICE 192b — validated AGAINST THE PROPOSAL: the returned signature carries
+  // a hash over the content the client is agreeing to, and the version it was
+  // taken from. This is the value the pending-write mirror stores, so the
+  // approval card names exactly what was signed.
+  let signature: ProposalSignatureInput | undefined;
   if (op === "approve" && req.signature !== undefined) {
-    const v = validateSignatureInput(req.signature);
+    const v = validateSignatureInput(req.signature, proposalSignedContent(proposal));
     if (!v.ok) throw new Error(v.error);
+    signature = v.signature;
   }
-  return { proposal, mutation, nextStatus };
+  return { proposal, mutation, nextStatus, signature };
 }
 
 /** Apply a validated write to the store + audit + typed event (fire-and-forget). */
@@ -153,6 +190,8 @@ async function applyMutation(
   mutation: ProposalMutation,
   nextStatus: ProposalStatus,
   actor: string,
+  /** The SERVER-computed signature (hash over the signed content) — never the raw client value. */
+  signature?: ProposalSignatureInput,
 ): Promise<ProposalRecord> {
   let record: ProposalRecord;
   let docId: string | null = null;
@@ -193,10 +232,41 @@ async function applyMutation(
     docId = storeProposalPdf(dataDir, tenantId, latest, rendered, actor, latest.docId);
     slug = generateShareSlug();
     registerSlug(dataDir, slug, tenantId);
-    record = applyProposalMutation(dataDir, tenantId, latest.id, mutation, "pending", actor, { shareSlug: slug, docId })!;
-    appendAudit(dataDir, { tenantId, actor, action: "native.proposal.open", proposalId: record.id, detail: `Opened for client review — ${formatCurrencyTotal(record)}` });
-    publishEvent(dataDir, tenantId, "native.proposal.updated", { proposalId: record.id, title: record.title, status: "pending", changed: ["status", "shareSlug", "docId"] });
+    // SLICE 192b — the validity window starts the day the quote is ISSUED (this
+    // transition), not the day the row was created, and it is COMPUTED from
+    // validityDays instead of being printed and never enforced.
+    const issuedAt = new Date().toISOString();
+    const expiresAt = computeProposalExpiry(issuedAt, latest.validityDays);
+    record = applyProposalMutation(dataDir, tenantId, latest.id, mutation, "pending", actor, { shareSlug: slug, docId, issuedAt, expiresAt })!;
+    appendAudit(dataDir, { tenantId, actor, action: "native.proposal.open", proposalId: record.id, detail: `Opened for client review — ${formatCurrencyTotal(record)}, valid until ${expiresAt}` });
+    publishEvent(dataDir, tenantId, "native.proposal.updated", { proposalId: record.id, title: record.title, status: "pending", changed: ["status", "shareSlug", "docId", "issuedAt", "expiresAt"] });
     return record;
+  }
+  if (op === "revokeShare") {
+    // SLICE 192b — ORDER IS THE SAFETY PROPERTY, not an implementation detail
+    // (192a's rule): the old slug is unregistered FIRST and the record only
+    // then carries the fresh one. A crash between the two writes leaves a
+    // record pointing at a slug that no longer resolves (the page refuses it);
+    // the reverse order would leave the retired link LIVE on a record that says
+    // otherwise. The status is untouched — revoking a link is not withdrawing a
+    // quote.
+    const current = getProposal(dataDir, tenantId, req.proposalId!);
+    if (!current) throw new Error("proposal not found");
+    const retired = current.shareSlug;
+    if (retired) unregisterSlug(dataDir, retired);
+    const fresh = generateShareSlug();
+    registerSlug(dataDir, fresh, tenantId);
+    const swapped = applyProposalMutation(dataDir, tenantId, current.id, {}, null, actor, { shareSlug: fresh })!;
+    appendAudit(dataDir, {
+      tenantId,
+      actor,
+      action: "native.proposal.shareRevoked",
+      proposalId: current.id,
+      // No slug value in the audit (or anywhere): the link is a bearer credential.
+      detail: `Revoked the client link for "${current.title}" and issued a fresh one — the previous link no longer resolves${retired ? "" : " (there was no live link)"}`,
+    });
+    publishEvent(dataDir, tenantId, "native.proposal.share.revoked", { proposalId: current.id, title: current.title, hadLiveLink: !!retired });
+    return swapped;
   }
   if (op === "send") {
     // SLICE 176 — this branch used to stamp "sent" with ZERO mail calls: the
@@ -248,19 +318,39 @@ async function applyMutation(
     publishEvent(dataDir, tenantId, "native.proposal.updated", { proposalId: sent.id, title: sent.title, status: "sent", changed: ["status", "docId"] });
     return sent;
   }
+  // SLICE 192b — defense in depth at APPLY time: the signature must still bind
+  // the record's content. If the quote changed between the client signing and
+  // the owner approving, the hash no longer matches and NOTHING is recorded —
+  // the alternative is an audit entry that vouches for an amount nobody agreed
+  // to. Checked BEFORE the mutation so a refusal leaves the record untouched.
+  if (op === "approve" && signature) {
+    const before = getProposal(dataDir, tenantId, req.proposalId!);
+    if (!before) throw new Error("proposal not found");
+    if (!signatureMatchesContent(signature, proposalSignedContent(before))) {
+      throw new Error(
+        "invalid signature — it does not bind this proposal's content (the quote changed after it was signed), so nothing was recorded",
+      );
+    }
+  }
   record = applyProposalMutation(dataDir, tenantId, req.proposalId!, mutation, nextStatus, actor, {
   })!;
   if (!record) throw new Error("proposal not found");
   if (op === "approve") {
     appendAudit(dataDir, { tenantId, actor, action: "native.proposal.approve", proposalId: record.id, detail: `Approved via ${req.via ?? "portal"}${req.signerName ? ` — signed by ${req.signerName}` : ""}` });
-    if (req.signature) {
-      const sigCheck = validateSignatureInput(req.signature); // defense in depth (re-validate at apply)
-      if (!sigCheck.ok) throw new Error(sigCheck.error);
-      const signed = appendProposalSignature(dataDir, tenantId, record.id, req.signature, actor);
+    if (signature) {
+      const signed = appendProposalSignature(dataDir, tenantId, record.id, signature, actor);
       if (!signed) throw new Error("proposal not found");
       record = signed;
-      appendAudit(dataDir, { tenantId, actor, action: "native.esign.signed", proposalId: record.id, detail: `Signed by ${req.signature.signerName} (${req.signature.signatureType}) — sha256 ${req.signature.payloadHash}` });
-      publishEvent(dataDir, tenantId, "native.esign.signed", { proposalId: record.id, title: record.title, signerName: req.signature.signerName, signatureType: req.signature.signatureType, payloadHash: req.signature.payloadHash });
+      // The audit entry names BOTH halves of the fingerprint: what was signed
+      // (the content version) and the hash over it.
+      appendAudit(dataDir, {
+        tenantId,
+        actor,
+        action: "native.esign.signed",
+        proposalId: record.id,
+        detail: `Signed by ${signature.signerName} (${signature.signatureType}) — signed version ${signature.signedVersion}, sha256 ${signature.payloadHash}`,
+      });
+      publishEvent(dataDir, tenantId, "native.esign.signed", { proposalId: record.id, title: record.title, signerName: signature.signerName, signatureType: signature.signatureType, payloadHash: signature.payloadHash, signedVersion: signature.signedVersion });
     }
     publishEvent(dataDir, tenantId, "native.proposal.approved", { proposalId: record.id, title: record.title, status: "approved", decidedBy: actor, signerName: req.signerName ?? null, signatures: (record.signatures ?? []).map((sg) => ({ signerName: sg.signerName, type: sg.signatureType, payloadHash: sg.payloadHash })) });
   } else if (op === "reject") {
@@ -291,7 +381,7 @@ export async function submitProposalWrite(
   actor: string,
 ): Promise<ProposalWriteResult> {
   if (!tenantId?.trim() || !actor?.trim()) return { applied: false, pending: false, error: "tenantId and actor are required" };
-  let validated: { proposal: ProposalRecord | null; mutation: ProposalMutation; nextStatus: ProposalStatus };
+  let validated: { proposal: ProposalRecord | null; mutation: ProposalMutation; nextStatus: ProposalStatus; signature?: ProposalSignatureInput };
   try {
     validated = validateWrite(dataDir, tenantId, op, req);
   } catch (e) {
@@ -310,7 +400,7 @@ export async function submitProposalWrite(
   const gate = approvalGate(tenantId, action, "native-proposals", params, { dataDir, workflowId: "native-proposals" });
   if (gate.allowed) {
     try {
-      const record = await applyMutation(dataDir, tenantId, op, req, validated.mutation, validated.nextStatus, actor);
+      const record = await applyMutation(dataDir, tenantId, op, req, validated.mutation, validated.nextStatus, actor, validated.signature);
       if (gate.autonomy && !op.startsWith("delete")) {
         try {
           recordAutonomyOutcome(tenantId, gate.workflowId || "native-proposals", action, "native-proposals", true, { dataDir, allowListId: gate.allowListId });
@@ -330,7 +420,10 @@ export async function submitProposalWrite(
   if (pending.length >= MAX_PENDING_PROPOSAL_WRITES) {
     return { applied: false, pending: false, error: `Pending-write cap reached (${MAX_PENDING_PROPOSAL_WRITES}) — approve or reject before writing more` };
   }
-  if (op === "approve" || op === "reject") {
+  if (op === "approve" || op === "reject" || op === "revokeShare") {
+    // One pending write per (op, proposal): two queued revokes would mint two
+    // fresh slugs and leave the second approval killing a link nobody was given
+    // (192a's rule for deal rooms).
     const existing = pending.find((w) => w.status === "pending" && w.op === op && w.proposalId === (req.proposalId ?? null));
     if (existing) return { applied: false, pending: true, approvalActionId: existing.approvalActionId, op };
   }
@@ -339,7 +432,10 @@ export async function submitProposalWrite(
     tenantId,
     proposalId: req.proposalId ?? null,
     op,
-    payload: { data: validated.mutation, via: req.via ?? "portal", signerName: req.signerName, signature: req.signature },
+    // SLICE 192b — the mirror stores the SERVER-computed signature (hash over
+    // the signed content + the version it was taken from), not the raw client
+    // value, so the approval card and the apply executor agree on one fingerprint.
+    payload: { data: validated.mutation, via: req.via ?? "portal", signerName: req.signerName, signature: validated.signature },
     status: "pending",
     approvalActionId: gate.actionId || "",
     requestedBy: actor,
@@ -371,7 +467,7 @@ export async function executePendingProposalWrite(
     return { ok: false, reason: "already applied but proposal record missing" };
   }
   // Re-validate the snapshot (defense in depth — data may have changed).
-  let validated: { proposal: ProposalRecord | null; mutation: ProposalMutation; nextStatus: ProposalStatus };
+  let validated: { proposal: ProposalRecord | null; mutation: ProposalMutation; nextStatus: ProposalStatus; signature?: ProposalSignatureInput };
   try {
     validated = validateWrite(dataDir, tenantId, ptw.op, { proposalId: ptw.proposalId ?? undefined, data: ptw.payload.data, via: ptw.payload.via, signerName: ptw.payload.signerName, signature: ptw.payload.signature });
   } catch (e) {
@@ -380,7 +476,11 @@ export async function executePendingProposalWrite(
     return { ok: false, reason: msg };
   }
   try {
-    const record = await applyMutation(dataDir, tenantId, ptw.op, { proposalId: ptw.proposalId ?? undefined, data: ptw.payload.data, via: ptw.payload.via, signerName: ptw.payload.signerName, signature: ptw.payload.signature }, validated.mutation, validated.nextStatus, actor);
+    // SLICE 192b — the signature applied is the one the CLIENT's card carries
+    // (`ptw.payload.signature`), not a hash recomputed from today's content:
+    // if the quote changed after signing, applyMutation's binding check refuses
+    // it instead of quietly re-fingerprinting content nobody agreed to.
+    const record = await applyMutation(dataDir, tenantId, ptw.op, { proposalId: ptw.proposalId ?? undefined, data: ptw.payload.data, via: ptw.payload.via, signerName: ptw.payload.signerName, signature: ptw.payload.signature }, validated.mutation, validated.nextStatus, actor, ptw.payload.signature);
     markPendingWrite(dataDir, tenantId, ptw.id, "applied", actor, { status: record.status, proposalId: record.id, docId: record.docId });
     return { ok: true, record, ptwId: ptw.id, op: ptw.op };
   } catch (e) {

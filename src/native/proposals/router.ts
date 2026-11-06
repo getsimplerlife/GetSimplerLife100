@@ -29,8 +29,15 @@ import {
 } from "./store";
 import { submitProposalWrite, executePendingProposalWrite, noteOwnerDecision, formatCurrencyTotal } from "./gate";
 import { readDocumentBytes, getDoc } from "../documents/store";
-import { normalizeLineItems, validateProposalMutation, validateLineItem, validateSignatureInput } from "./validate";
-import { MAX_SIGNER_NAME, type ProposalRecord, type ProposalMutation, type ProposalSignatureInput } from "./types";
+import { normalizeLineItems, validateProposalMutation, validateLineItem, validateSignatureInput, proposalSignedContent } from "./validate";
+import {
+  MAX_SIGNER_NAME,
+  isProposalExpired,
+  isProposalPubliclyShareable,
+  type ProposalRecord,
+  type ProposalMutation,
+  type ProposalSignatureInput,
+} from "./types";
 
 export interface NativeProposalsCtx {
   dataDir: string;
@@ -90,26 +97,48 @@ export function publicSummary(p: ProposalRecord, origin?: string): Record<string
     version: p.version,
     hasPdf: p.docId !== null,
     shareUrl: p.shareSlug ? `${origin ?? ""}/proposals/share/${p.shareSlug}` : null,
+    // SLICE 192b — the tenant surface states the SAME publish answer the public
+    // lane enforces, from the same predicate, so the portal can never print a
+    // customer link the server would refuse to open.
+    publiclyShareable: isProposalPubliclyShareable(p.status),
+    issuedAt: p.issuedAt ?? null,
+    expiresAt: p.expiresAt ?? null,
+    expired: isProposalExpired(p),
     updatedAt: p.updatedAt,
   };
 }
 
-/** Client-facing view of a share — line items + terms + totals (no tenant internals). */
-export function publicShareView(p: ProposalRecord): Record<string, unknown> {
+/**
+ * Client-facing view of a share — line items + terms + totals (no tenant internals).
+ *
+ * SLICE 192b — three fields here used to be guesses:
+ *   - `signable` was `status === "pending"`, so an expired quote stayed signable
+ *     forever. It is now the SAME predicate the decision POST refuses on.
+ *   - `issuedAt` was `createdAt` and the page printed it as "Issued" (191's
+ *     `issuedAtSource` fix, never applied here). It is now the day the quote was
+ *     OPENED, with `issuedAtSource` saying which date the client is looking at.
+ *   - `expiresAt` did not exist: "Valid for N days" was printed and enforced
+ *     nowhere. It is now computed at `open` from `validityDays`.
+ */
+export function publicShareView(p: ProposalRecord, now: number | string | Date = Date.now()): Record<string, unknown> {
+  const expired = isProposalExpired(p, now);
   return {
     proposalId: p.id,
     title: p.title,
     clientName: p.clientName,
     clientCompany: p.clientCompany,
     status: p.status,
-    signable: p.status === "pending",
+    signable: p.status === "pending" && !expired,
     currency: p.currency,
     lineItems: p.lineItems.map((li) => ({ description: li.description, qty: li.qty, unitPrice: li.unitPrice })),
     total: formatCurrencyTotal(p),
     totalCents: p.lineItems.reduce((s, li) => s + Math.round(Math.round(li.unitPrice * 100) * li.qty), 0),
     terms: p.terms,
     validityDays: p.validityDays,
-    issuedAt: p.createdAt,
+    issuedAt: p.issuedAt ?? p.createdAt,
+    issuedAtSource: p.issuedAt ? "opened" : "created",
+    expiresAt: p.expiresAt ?? null,
+    expired,
   };
 }
 
@@ -224,6 +253,24 @@ async function handleAuthedAsync(req: Request, ctx: NativeProposalsCtx): Promise
     });
   }
 
+  // ── POST /api/native/proposals/:id/share/revoke — kill the client link ──
+  // SLICE 192b — before this the only way to retire a link was `delete`, which
+  // destroyed the record. Revoking retires the slug, mints a fresh one and
+  // leaves the status alone; the client's URL stops resolving while the quote
+  // (and its audit trail) survives. Same gated-write path as every other
+  // proposal mutation.
+  if (seg[1] === "share" && seg[2] === "revoke" && seg.length === 3) {
+    if (req.method !== "POST") return Response.json({ error: "Method not allowed" }, { status: 405 });
+    const revoke = await submitProposalWrite(dataDir, tenantId, "revokeShare", { proposalId, via: "portal" }, tenantId);
+    if (revoke.applied) {
+      return Response.json({
+        data: { status: "applied", proposalId: revoke.proposal.id, shareSlug: revoke.proposal.shareSlug, autonomy: revoke.autonomy },
+      });
+    }
+    if (revoke.pending) return Response.json({ data: { status: "pending", approvalActionId: revoke.approvalActionId } }, { status: 202 });
+    return gateErrorStatus(revoke.error);
+  }
+
   // ── /api/native/proposals/:id/<verb> — gated lifecycle transitions ──
   const verb = seg[1];
   const res = await submitProposalWrite(dataDir, tenantId, verb as "update" | "open" | "approve" | "reject" | "send", { proposalId, via: "portal" }, tenantId);
@@ -265,6 +312,16 @@ async function handleShareAsync(req: Request, ctx: NativeProposalsPublicCtx): Pr
   if (!tenantId) return json404("Unknown proposal share link");
   const proposal = getProposalBySlug(ctx.dataDir, tenantId, slug);
   if (!proposal) return json404("Unknown proposal share link"); // slug stale → fail-closed
+  // SLICE 192b — the publish rule, enforced on the lane that serves the link,
+  // from the proposals module's OWN predicate (never a copy of the status list).
+  // A draft has no slug, so this is the compile-time-anchored guard rather than
+  // a live path; it is here so the predicate is genuinely consumed.
+  if (!isProposalPubliclyShareable(proposal.status)) {
+    return Response.json(
+      { error: "This proposal has not been published yet.", reason: "not-published" },
+      { status: 410 },
+    );
+  }
   if (req.method === "GET") {
     return Response.json({ data: publicShareView(proposal) });
   }
@@ -275,6 +332,16 @@ async function handleShareAsync(req: Request, ctx: NativeProposalsPublicCtx): Pr
     if (proposal.status !== "pending") {
       return Response.json({ error: `Proposal already decided (status ${proposal.status})` }, { status: 409 });
     }
+    // SLICE 192b — the validity window is real. A quote past `expiresAt` takes
+    // no decision: 409, nothing queued, nothing applied. This is the same
+    // predicate the GET reports as `signable: false`, so page and server can
+    // never disagree about whether the form should be there.
+    if (isProposalExpired(proposal)) {
+      return Response.json(
+        { error: `This proposal expired on ${proposal.expiresAt}.`, reason: "expired" },
+        { status: 409 },
+      );
+    }
     let signerName = "";
     if (typeof b.signerName === "string" && b.signerName.trim().length > 0) {
       if (b.signerName.trim().length > MAX_SIGNER_NAME) return json400(`signerName must be ≤ ${MAX_SIGNER_NAME} chars`);
@@ -282,9 +349,12 @@ async function handleShareAsync(req: Request, ctx: NativeProposalsPublicCtx): Pr
     }
     // Phase 2.2 e-sign: an approve decision may carry a captured signature
     // (typed initials or drawn PNG data URL). Validated here → rides the card.
+    // SLICE 192b — validated AGAINST THE PROPOSAL: the hash covers the content
+    // the client is agreeing to (title, currency, line items, terms, version),
+    // not just the signature fields.
     let signature: ProposalSignatureInput | undefined;
     if (b.signature !== undefined) {
-      const v = validateSignatureInput(b.signature);
+      const v = validateSignatureInput(b.signature, proposalSignedContent(proposal));
       if (!v.ok) return json400(v.error);
       signature = v.signature;
     }
@@ -316,7 +386,7 @@ export function registerBuiltinNativeProposalEventTypes(): void {
       return { ok: true };
     },
   };
-  for (const t of ["native.proposal.created", "native.proposal.updated", "native.proposal.approved", "native.proposal.rejected", "native.esign.signed"]) {
+  for (const t of ["native.proposal.created", "native.proposal.updated", "native.proposal.approved", "native.proposal.rejected", "native.esign.signed", "native.proposal.share.revoked"]) {
     registerNativeEventType(t, base);
   }
   registerNativeEventType("native.esign.signed", {
