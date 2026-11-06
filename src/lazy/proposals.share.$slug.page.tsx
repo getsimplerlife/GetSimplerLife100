@@ -364,7 +364,8 @@ export default function ProposalSharePage() {
     }
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
+    const el = canvas as HTMLCanvasElement; // narrowed once; the closures below lose it
+    const rect = el.getBoundingClientRect();
     const cssW = Math.max(1, Math.round(rect.width || canvas.clientWidth || CANVAS_FALLBACK_W));
     const cssH = Math.max(1, Math.round(rect.height || CANVAS_H));
     const dpr = typeof window === "undefined" ? 1 : window.devicePixelRatio || 1;
@@ -407,7 +408,7 @@ export default function ProposalSharePage() {
     function stop() {
       if (!drawing.current) return;
       drawing.current = false;
-      setDrawn(canvas.toDataURL("image/png"));
+      setDrawn(el.toDataURL("image/png"));
     }
     canvas.addEventListener("mousedown", start);
     canvas.addEventListener("mousemove", move);
