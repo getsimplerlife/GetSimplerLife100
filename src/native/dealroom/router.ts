@@ -31,6 +31,11 @@ import { isDealRoomId } from "./validate";
 import { isDealRoomPubliclyShareable, type DealRoomStatus } from "./types";
 import { getProposal } from "../proposals/store";
 import { formatCurrencyTotal } from "../proposals/gate";
+// SLICE 192b — the proposals module's OWN publish predicate, exactly as the
+// invoice block below uses the invoice module's. Not a copy of the status list:
+// a draft quote has never been issued, and the deal room must refuse to hand one
+// over for the same reason the proposal share lane refuses to serve it.
+import { isProposalPubliclyShareable } from "../proposals/types";
 import { getChecklist } from "../checklists/store";
 import { listInvoices } from "../invoice/store";
 // SLICE 192a — the invoice module's OWN publish predicate. Not a copy of the
@@ -113,15 +118,23 @@ function publicShareView(dataDir: string, tenantId: string, d: {
     customerName: d.customerName,
     status: d.status,
     description: d.description,
-    proposal: proposal
-      ? {
-          title: proposal.title,
-          status: proposal.status,
-          total: formatCurrencyTotal(proposal),
-          hasPdf: proposal.docId !== null,
-          sharePath: proposal.shareSlug ? `/proposals/share/${proposal.shareSlug}` : null,
-        }
-      : null,
+    // SLICE 192b — and ONLY a quote that has been issued. This block used to
+    // serve the linked proposal's title, status and TOTAL with no status filter,
+    // so an active room printed a DRAFT quote's amount to the customer — the
+    // exact state the proposal lane itself refuses to serve (a draft has no
+    // slug). The filter is the proposals module's own predicate, not a second
+    // copy of the list, and a draft degrades to null rather than to a redaction
+    // the page could mistake for "no proposal attached".
+    proposal:
+      proposal && isProposalPubliclyShareable(proposal.status)
+        ? {
+            title: proposal.title,
+            status: proposal.status,
+            total: formatCurrencyTotal(proposal),
+            hasPdf: proposal.docId !== null,
+            sharePath: proposal.shareSlug ? `/proposals/share/${proposal.shareSlug}` : null,
+          }
+        : null,
     checklist: d.linkedChecklistId
       ? (() => {
           const chk = getChecklist(dataDir, tenantId, d.linkedChecklistId!);
