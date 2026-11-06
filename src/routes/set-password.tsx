@@ -65,6 +65,22 @@ function SetPassword() {
         setError(data.error || "We could not send a reset code right now. Try again shortly.");
         return;
       }
+      // SLICE 194a — a 2xx is not a send. The server answers 200 with
+      // `sent:false` in two real cases: no account for the address, and the
+      // mail lane failing. Reading `res.ok` alone promised a one-time code that
+      // did not exist and pushed the visitor to a code step with a 10-minute
+      // clock and no code to type. Gate on the send itself.
+      //
+      // No-enumeration posture is preserved: this sentence is about the SEND,
+      // not about the account — it is equally true whether the address has no
+      // account or the account's mail failed to go out.
+      if (data?.sent !== true) {
+        setError(
+          "We could not send a reset code to that address right now. Nothing has been sent — " +
+            "please try again shortly.",
+        );
+        return;
+      }
       setNotice(
         "If an account exists for this email, a one-time reset code has been sent to it. " +
           "Enter the code below along with your new password. The code expires in 10 minutes."
@@ -141,8 +157,21 @@ function SetPassword() {
         </div>
 
         {step === "done" ? (
-          <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
-            Your password was changed successfully. You can now sign in.
+          <div className="mt-8 space-y-4">
+            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+              Your password was changed successfully. You can now sign in.
+            </div>
+            {/* SLICE 194a — the done state used to be a dead end: the only
+                "Back to Sign In" link lived inside the form, and the form is
+                not rendered once the reset succeeds. The server returns no
+                session either, so the customer was left on a page that told
+                them to sign in with no way to get there. */}
+            <Link
+              to="/login"
+              className="flex w-full justify-center items-center py-3 px-4 rounded-xl bg-emerald-500 text-stone-950 text-sm font-bold hover:bg-emerald-400 active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-emerald-500/40 transition-all duration-200"
+            >
+              Sign in with your new password
+            </Link>
           </div>
         ) : (
           <form className="mt-8 space-y-6" onSubmit={step === "email" ? handleSendCode : handleSubmit}>

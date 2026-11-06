@@ -5,6 +5,9 @@ import { createHash, randomBytes } from "crypto";
 import { resolveDataDir, rawDataDir, migrationSources, isInsidePublishTree, readJSON, readJSONLive, writeJSON, seedDataFiles, bucketConnectionsByCategory, migrateLegacyData, findLegacyDataDir, mergeDurableCredential, storeReadErrorStats } from "./src/lib/data-store";
 import { verifyStripeSignature, detectPlanType, detectPlanTierFromMetadata, buildPlanPurchase } from "./src/lib/stripe-webhook";
 import { buildOwnerSaleEvent, provisionAccountForPurchase, ownerSaleEmailBody, buyerConfirmationEmailBody, buyerConfirmationSubject, setPasswordLink, signInLink, normalizeSiteOrigin, DEFAULT_SITE_ORIGIN } from "./src/lib/purchase-sales-events";
+// SLICE 194a — one definition of "this account has no password yet", shared by
+// /api/login and the no-JS /login form POST so the two doors cannot drift.
+import { accountHasNoPassword } from "./src/lib/account-password-state";
 import {
   applySubscriptionEvent,
   isSubscriptionEventType,
@@ -238,6 +241,24 @@ async function handleLogin(body: any): Promise<Response> {
   const user = users[email];
   if (!user) {
     return Response.json({ error: "Invalid email or password" }, { status: 401 });
+  }
+  // SLICE 194a — an account with NO password is a known state, not a bad
+  // credential. A real purchase provisions the buyer's row before they have
+  // chosen a password, so `user.password` is undefined here; bcrypt rejects a
+  // non-string, the route wrapper turned the throw into 400 "Invalid request",
+  // and /login printed it verbatim to someone who had just paid. Answer the
+  // truth, and point at the lane that fixes it (the set-password link the
+  // confirmation email carries). 409: the account exists and is in a known
+  // pre-password state — retrying the same password cannot help.
+  if (accountHasNoPassword(user)) {
+    return Response.json(
+      {
+        error: "This account has no password set — check your email for a set-password link.",
+        code: "password_not_set",
+        setPasswordPath: "/set-password",
+      },
+      { status: 409 },
+    );
   }
   const valid = await compare(password, user.password);
   if (!valid) {
@@ -1090,7 +1111,23 @@ async function handleFetch(req: Request, server?: ServerPeerSource): Promise<Res
         if (accountBlocked) return accountBlocked;
         const users = readJSON(USERS_FILE);
         const user = users[email];
-        if (!user || !(await compare(password, user.password))) {
+        if (!user) {
+          return new Response(null, { status: 302, headers: { Location: "/login?error=Invalid+credentials" } });
+        }
+        // SLICE 194a — same known-state rule as handleLogin. Without this the
+        // no-JS door threw on the same undefined password and told the buyer
+        // "Something went wrong", which is no more true than "Invalid request".
+        if (accountHasNoPassword(user)) {
+          return new Response(null, {
+            status: 302,
+            headers: {
+              Location: "/login?error=" + encodeURIComponent(
+                "This account has no password set — check your email for a set-password link.",
+              ),
+            },
+          });
+        }
+        if (!(await compare(password, user.password))) {
           return new Response(null, { status: 302, headers: { Location: "/login?error=Invalid+credentials" } });
         }
         clearAccountBudget("login", email);

@@ -25,6 +25,10 @@ function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  // SLICE 194a — the server distinguishes "this account has no password yet"
+  // (code: password_not_set) from "the credential you typed is wrong". Keep the
+  // code so the honest sentence can be followed by the one action that fixes it.
+  const [errorCode, setErrorCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -42,6 +46,7 @@ function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setErrorCode(null);
     setLoading(true);
 
     try {
@@ -52,11 +57,18 @@ function Login() {
       });
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || "Login failed");
+        // Print the server's own sentence — it is the honest one. Before 194a
+        // a passwordless (purchased) account reached this line as
+        // "Invalid request" because a bcrypt throw had been mistaken for a bad
+        // credential.
+        const failure: any = new Error(data.error || "Login failed");
+        failure.code = data.code;
+        throw failure;
       }
       navigate({ to: "/portal" });
     } catch (err: any) {
       setError(err.message || "Login failed");
+      setErrorCode(typeof err?.code === "string" ? err.code : null);
     } finally {
       setLoading(false);
     }
@@ -98,7 +110,17 @@ function Login() {
               className="flex items-start gap-2.5 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3"
             >
               <span aria-hidden className="mt-1.5 h-1.5 w-1.5 rounded-full bg-rose-400 shrink-0" />
-              <p className="text-xs font-medium text-rose-300 leading-relaxed">{error}</p>
+              <div>
+                <p className="text-xs font-medium text-rose-300 leading-relaxed">{error}</p>
+                {errorCode === "password_not_set" && (
+                  <Link
+                    to="/set-password"
+                    className="mt-1.5 inline-block text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors"
+                  >
+                    Set your password →
+                  </Link>
+                )}
+              </div>
             </div>
           )}
           <div className="space-y-4">
