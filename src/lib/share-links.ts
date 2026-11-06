@@ -39,3 +39,35 @@ export function surveyPublicApiPath(slug: string): string {
 export function surveyPublicSubmitPath(slug: string): string {
   return `${surveyPublicApiPath(slug)}/submit`;
 }
+
+// ── SLICE 192b-2 — proposals and bookings, the same one-definition rule ──────
+//
+// Both share pages used to build these URLs as inline template literals, so a
+// change to the lane (or a typo) had nowhere to fail except in a client's
+// browser. The pages and their tests now read the path from here.
+//
+// Server contracts they mirror:
+//   GET  /api/native/proposals/share/<slug>        → 200 view / 404 / 410 / 5xx
+//   POST /api/native/proposals/share/<slug>        → 200 applied / 202 queued / 409 / 4xx
+//   GET  /api/native/booking/share/<slug>          → 200 view / 404 / 5xx
+//   GET  /api/native/booking/share/<slug>/slots?date=YYYY-MM-DD → 200 { slots }
+//   POST /api/native/booking/share/<slug>          → 200 / 202 / 429 / 4xx
+// The server slug patterns are /^sp_[A-Za-z0-9_-]+$/ and /^bk_[A-Za-z0-9_-]+$/
+// (src/native/proposals/router.ts, src/native/booking/router.ts), so encoding is
+// a no-op for any slug the server would accept; it is here so a slug can never
+// break out of its path segment.
+
+/** The public JSON view a proposal client reads (GET) and decides through (POST). */
+export function proposalPublicApiPath(slug: string): string {
+  return `/api/native/proposals/share/${encodeURIComponent(slug)}`;
+}
+
+/** The public JSON view a booking client reads (GET) and requests through (POST). */
+export function bookingPublicApiPath(slug: string): string {
+  return `/api/native/booking/share/${encodeURIComponent(slug)}`;
+}
+
+/** The free-slot list for one calendar date on a booking page. */
+export function bookingSlotsApiPath(slug: string, date: string): string {
+  return `${bookingPublicApiPath(slug)}/slots?date=${encodeURIComponent(date)}`;
+}

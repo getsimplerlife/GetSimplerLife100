@@ -28,6 +28,9 @@ import {
   generateProposalEntityId,
 } from "./store";
 import { submitProposalWrite, executePendingProposalWrite, noteOwnerDecision, formatCurrencyTotal } from "./gate";
+// SLICE 192b-2 — the client-facing issuer name, from the ONE resolver the
+// invoice page, PDF and delivery email already use (native/invoice/issuer.ts).
+import { resolveIssuerDisplayName } from "../invoice/issuer";
 import { readDocumentBytes, getDoc } from "../documents/store";
 import { normalizeLineItems, validateProposalMutation, validateLineItem, validateSignatureInput, proposalSignedContent } from "./validate";
 import {
@@ -120,13 +123,16 @@ export function publicSummary(p: ProposalRecord, origin?: string): Record<string
  *   - `expiresAt` did not exist: "Valid for N days" was printed and enforced
  *     nowhere. It is now computed at `open` from `validityDays`.
  */
-export function publicShareView(p: ProposalRecord, now: number | string | Date = Date.now()): Record<string, unknown> {
+export function publicShareView(p: ProposalRecord, now: number | string | Date = Date.now(), issuerName = ""): Record<string, unknown> {
   const expired = isProposalExpired(p, now);
   return {
     proposalId: p.id,
     title: p.title,
     clientName: p.clientName,
     clientCompany: p.clientCompany,
+    // SLICE 192b-2 — the firm the client is dealing with. Never the tenant id:
+    // `resolveIssuerDisplayName` can only return a vetted name or a neutral one.
+    issuerName,
     status: p.status,
     signable: p.status === "pending" && !expired,
     currency: p.currency,
@@ -303,6 +309,13 @@ export function handleNativeProposalsAuthed(req: Request, ctx: NativeProposalsCt
 }
 
 // ── PUBLIC share (client view + decision) ───────────────────────────────────
+/**
+ * SLICE 192b-2 — a proposal carries prices, a client's name and the firm's
+ * terms. None of that may sit in an intermediary's cache, and none of it may be
+ * indexed: the same two headers the invoice share lane has sent since 191.
+ */
+const NO_STORE = { "cache-control": "no-store", "x-robots-tag": "noindex, nofollow" } as const;
+
 async function handleShareAsync(req: Request, ctx: NativeProposalsPublicCtx): Promise<Response> {
   const url = new URL(req.url);
   const seg = url.pathname.replace(/^\/api\/native\/proposals\/share\/?/, "").split("/").filter(Boolean);
@@ -319,11 +332,17 @@ async function handleShareAsync(req: Request, ctx: NativeProposalsPublicCtx): Pr
   if (!isProposalPubliclyShareable(proposal.status)) {
     return Response.json(
       { error: "This proposal has not been published yet.", reason: "not-published" },
-      { status: 410 },
+      { status: 410, headers: NO_STORE },
     );
   }
   if (req.method === "GET") {
-    return Response.json({ data: publicShareView(proposal) });
+    // SLICE 192b-2 — the client sees WHO issued this quote (finding 14). The
+    // name comes from the same resolver the invoice page, PDF and delivery
+    // email use, so it can never be the tenant id or an entity id.
+    return Response.json(
+      { data: publicShareView(proposal, Date.now(), resolveIssuerDisplayName(tenantId, ctx.dataDir)) },
+      { headers: NO_STORE },
+    );
   }
   if (req.method === "POST") {
     const b = parseJsonObject(await req.text());
@@ -359,19 +378,38 @@ async function handleShareAsync(req: Request, ctx: NativeProposalsPublicCtx): Pr
       signature = v.signature;
     }
     const res = await submitProposalWrite(ctx.dataDir, tenantId, decision, { proposalId: proposal.id, via: "client-decision", signerName: signerName || undefined, signature }, tenantId);
-    if (res.applied) return Response.json({ data: { status: "applied", decision, autonomy: res.autonomy } });
-    if (res.pending) return Response.json({ data: { status: "pending", approvalActionId: res.approvalActionId } }, { status: 202 });
+    if (res.applied) return Response.json({ data: { status: "applied", decision, autonomy: res.autonomy } }, { headers: NO_STORE });
+    if (res.pending) return Response.json({ data: { status: "pending", approvalActionId: res.approvalActionId } }, { status: 202, headers: NO_STORE });
     return gateErrorStatus(res.error);
   }
-  return Response.json({ error: "Method not allowed" }, { status: 405 });
+  return Response.json({ error: "Method not allowed" }, { status: 405, headers: NO_STORE });
+}
+
+/**
+ * SLICE 192b-2 — every answer from the public proposal lane is uncacheable and
+ * unindexable, including the ones built by shared helpers (`gateErrorStatus`,
+ * `json400`) that do not know this lane exists. Response headers are mutable
+ * for a response this process constructed; the guard keeps that honest if one
+ * is ever not.
+ */
+function withNoStore(res: Response): Response {
+  try {
+    res.headers.set("cache-control", "no-store");
+    res.headers.set("x-robots-tag", "noindex, nofollow");
+  } catch {
+    // A guarded Response — leave it exactly as the server produced it.
+  }
+  return res;
 }
 
 export function handleNativeProposalShare(req: Request, ctx: NativeProposalsPublicCtx): Promise<Response> {
-  return handleShareAsync(req, ctx).catch((e) => {
-    const msg = e instanceof Error ? e.message : String(e);
-    if (/Invalid JSON|Body must/.test(msg)) return json400(msg);
-    return Response.json({ error: "Internal error" }, { status: 500 });
-  });
+  return handleShareAsync(req, ctx)
+    .catch((e) => {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (/Invalid JSON|Body must/.test(msg)) return json400(msg);
+      return Response.json({ error: "Internal error" }, { status: 500 });
+    })
+    .then(withNoStore);
 }
 
 // ── Built-in typed events (Phase 1.1 registry pattern, see forms 1.3) ────────
