@@ -29,6 +29,13 @@ export function bookingCalendarEventPayload(page: BookingPageRecord, booking: Bo
   };
 }
 
-/** Truthful sync label surfaced in the UI (mirrors the invoice adapter label). */
-export const CALENDAR_SYNC_LABEL =
-  "Confirmed bookings sync to your calendar through the connected Google Calendar adapter (verified integration), never through a third-party booking tool.";
+/**
+ * SLICE 192b-2 — `CALENDAR_SYNC_LABEL` lived here and was rendered on every
+ * published booking page: "Confirmed bookings sync to your calendar through the
+ * connected Google Calendar adapter (verified integration)". It was not true.
+ * Nothing in the confirm path calls an adapter, the booking record only ever
+ * holds `calendarSync: { status: "not-synced" }`, and no tenant can connect a
+ * calendar — so the label is DELETED rather than softened. It comes back only
+ * when a real connection exists AND the confirm path executes it, and then it
+ * is built from the connection's own state.
+ */

@@ -43,7 +43,10 @@ import {
 } from "./gate";
 import { isBookingPageId, isBookingId, validateBookingRequestInput } from "./validate";
 import { availableSlotsForDate, describeWindow } from "./availability";
-import { CALENDAR_SYNC_LABEL } from "./sync";
+// SLICE 192b-2 — the client-facing host name, from the ONE resolver the invoice
+// page, PDF and delivery email already use. `CALENDAR_SYNC_LABEL` is no longer
+// imported here: it promised a Google Calendar sync nothing executes.
+import { resolveIssuerDisplayName, NEUTRAL_ISSUER_LABEL } from "../invoice/issuer";
 import { createBookingPostLimiter, type BookingPostLimiter } from "./ratelimit";
 
 export interface NativeBookingsCtx {
@@ -115,17 +118,30 @@ function bookingSummary(b: any): Record<string, unknown> {
   };
 }
 
-/** PUBLIC summary — no internal ids (only the slug), no team emails (count only). */
-function publicShareView(page: any): Record<string, unknown> {
+/**
+ * PUBLIC summary — no internal ids (only the slug), no team emails (count only).
+ *
+ * SLICE 192b-2 — two changes, both truthfulness:
+ *   - `calendarSyncLabel` is GONE. It read "Confirmed bookings sync to your
+ *     calendar through the connected Google Calendar adapter (verified
+ *     integration)". No sync is executed (the confirm path never calls an
+ *     adapter), no tenant can connect one, and the only trace is a
+ *     `calendarSync: { status: "not-synced" }` intent on the booking record.
+ *   - `hostName` is the firm the client is booking with, resolved through the
+ *     same customer-safe resolver the invoice page uses. It is `null` — never a
+ *     placeholder — when the workspace has set no company name, so the page
+ *     cannot attribute a booking to a name nobody chose.
+ */
+function publicShareView(page: any, hostName: string | null): Record<string, unknown> {
   return {
     name: page.name,
     description: page.description,
+    hostName,
     timeZone: page.timeZone,
     slotDurationMinutes: page.slotDurationMinutes,
     bufferMinutes: page.bufferMinutes,
     availability: page.availability.map(describeWindow),
     teamSize: page.team ? page.team.length : 0,
-    calendarSyncLabel: CALENDAR_SYNC_LABEL,
   };
 }
 
@@ -263,6 +279,13 @@ export function handleNativeBookingsAuthed(req: Request, ctx: NativeBookingsCtx)
 }
 
 // ── PUBLIC share (client booking page) ──────────────────────────────────────
+/**
+ * SLICE 192b-2 — a booking page carries the host's identity and a client's
+ * name, email and chosen time. No intermediary may cache it and no crawler may
+ * index it: the same two headers the invoice share lane has sent since 191.
+ */
+const NO_STORE = { "cache-control": "no-store", "x-robots-tag": "noindex, nofollow" } as const;
+
 const sharedBookingPostLimiter = createBookingPostLimiter();
 
 /** Best-effort client identity for rate limiting (slug is the primary key). */
@@ -287,11 +310,19 @@ async function handleShareAsync(req: Request, ctx: NativeBookingsPublicCtx): Pro
   if (page.status !== "published") return json404("Unknown booking page link"); // draft/archived → never public
   const bookings = listBookings(ctx.dataDir, tenantId).filter((b) => b.bookingPageId === page.id);
 
-  if (seg.length === 1 && req.method === "GET") return Response.json({ data: publicShareView(page) });
+  if (seg.length === 1 && req.method === "GET") {
+    // The host's own name, or nothing — never the tenant id, never a stand-in.
+    const resolved = resolveIssuerDisplayName(tenantId, ctx.dataDir);
+    const hostName = resolved === NEUTRAL_ISSUER_LABEL ? null : resolved;
+    return Response.json({ data: publicShareView(page, hostName) }, { headers: NO_STORE });
+  }
   if (seg.length === 2 && seg[1] === "slots" && req.method === "GET") {
     const rawDate = url.searchParams.get("date") ?? "";
     if (!/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) return json400("date must be YYYY-MM-DD");
-    return Response.json({ data: { date: rawDate, slots: availableSlotsForDate(page, bookings, rawDate) } });
+    return Response.json(
+      { data: { date: rawDate, slots: availableSlotsForDate(page, bookings, rawDate) } },
+      { headers: NO_STORE },
+    );
   }
   if (seg.length === 1 && req.method === "POST") {
     // Public write lane is rate-limited per slug+client (fixed window).
@@ -313,16 +344,35 @@ async function handleShareAsync(req: Request, ctx: NativeBookingsPublicCtx): Pro
     // a confirmation from "applied". The record's own status is returned; it is
     // null when the write is only pending (no record exists yet, so no slot is
     // held either).
-    if (res.applied) return Response.json({ data: { status: "applied", bookingStatus: res.booking?.status ?? null } }); // autonomy approved instantly
-    if (res.pending) return Response.json({ data: { status: "pending", bookingStatus: null } }); // tenant-side approval card queued
+    if (res.applied) return Response.json({ data: { status: "applied", bookingStatus: res.booking?.status ?? null } }, { headers: NO_STORE }); // autonomy approved instantly
+    if (res.pending) return Response.json({ data: { status: "pending", bookingStatus: null } }, { status: 202, headers: NO_STORE }); // tenant-side approval card queued
     return gateErrorStatus((res as { error?: string }).error ?? "booking write failed");
   }
   if (seg.length === 1 && req.method !== "GET" && req.method !== "POST") return json405();
   if (seg.length === 2 && seg[1] === "slots" && req.method !== "GET") return json405();
   return json404("Unknown booking page link");
 }
+
+/**
+ * SLICE 192b-2 — every answer from the public booking lane is uncacheable and
+ * unindexable, including the ones built by shared helpers that do not know this
+ * lane exists. Response headers are mutable for a response this process
+ * constructed; the guard keeps that honest if one is ever not.
+ */
+function withNoStore(res: Response): Response {
+  try {
+    res.headers.set("cache-control", "no-store");
+    res.headers.set("x-robots-tag", "noindex, nofollow");
+  } catch {
+    // A guarded Response — leave it exactly as the server produced it.
+  }
+  return res;
+}
+
 export function handleNativeBookingShare(req: Request, ctx: NativeBookingsPublicCtx): Promise<Response> {
-  return handleShareAsync(req, ctx).catch(() => Response.json({ error: "Internal error" }, { status: 500 }));
+  return handleShareAsync(req, ctx)
+    .catch(() => Response.json({ error: "Internal error" }, { status: 500 }))
+    .then(withNoStore);
 }
 
 // ── Built-in typed events (Phase 1.1 registry pattern, 2.1–2.5) ─────────────
