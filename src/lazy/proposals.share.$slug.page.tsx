@@ -382,7 +382,9 @@ export default function ProposalSharePage() {
     setDrawn(null);
     const paint: CanvasRenderingContext2D = ctx; // stable alias for closures
     function pos(e: MouseEvent | TouchEvent): [number, number] {
-      const r = canvas.getBoundingClientRect();
+      // `el`, not `canvas`: the non-null narrowing on `canvas` does not survive
+      // into this nested function (TS18047 at 192b-2's fixup commit).
+      const r = el.getBoundingClientRect();
       const point = e instanceof MouseEvent ? e : e.touches[0];
       // Draw in CSS pixels (the context is already scaled by dpr); if the box
       // changed size since init, map proportionally so the stroke still lands
