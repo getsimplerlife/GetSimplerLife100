@@ -84,6 +84,13 @@ export default function DocumentAiPage() {
   const [writes, setWrites] = useState<PendingWrite[]>([]);
   const [full, setFull] = useState<Record<string, ExtractionFull>>({});
   const [rowData, setRowData] = useState<{ resultId: string; tableId: string; tableName: string; rowData: Record<string, unknown> } | null>(null);
+  // SLICE read-failure batch B — every list here stays [] when the read throws,
+  // so the cards printed "No extraction runs yet." over a failed read. `loaded`
+  // is the only thing that may unlock an affirmative empty state.
+  const [loaded, setLoaded] = useState(false);
+  // `loading` gates the failure block: without it a page that has not finished
+  // its first read would flash "could not be read" before the data arrives.
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
@@ -96,10 +103,12 @@ export default function DocumentAiPage() {
       const w = await api<{ data: { writes: PendingWrite[] } }>("GET", "/api/native/extract/writes");
       setWrites(w.data.writes.filter((x) => x.status === "pending"));
       setError("");
+      setLoaded(true);
     } catch (e: any) {
       setError(e.message ?? String(e));
+      setLoaded(false);
     } finally {
-      
+      setLoading(false);
     }
   }, []);
 
@@ -232,7 +241,15 @@ export default function DocumentAiPage() {
           <h2 className="text-sm font-semibold text-stone-100">Documents</h2>
           <Badge variant="stone">{documents.length}</Badge>
         </div>
-        {documents.length === 0 ? (
+        {loading ? (
+          <p className="text-sm text-slate-400">Loading…</p>
+        ) : !loaded ? (
+          /* SLICE batch B — a failed read is not "no documents". */
+          <div role="alert" className="rounded border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200">
+            The document list could not be read, so this is not an empty workspace — it is an unread one.{" "}
+            <button type="button" className="font-bold underline" onClick={() => void load()}>Try again</button>
+          </div>
+        ) : documents.length === 0 ? (
           <p className="text-sm text-slate-400">Upload a document to the vault first, then run extraction on it.</p>
         ) : (
           <ul className="divide-y divide-stone-800">
@@ -259,7 +276,15 @@ export default function DocumentAiPage() {
           <h2 className="text-sm font-semibold text-stone-100">Extraction drafts</h2>
           <Badge variant="stone">{extractions.length}</Badge>
         </div>
-        {extractions.length === 0 ? (
+        {loading ? (
+          <p className="text-sm text-slate-400">Loading…</p>
+        ) : !loaded ? (
+          /* SLICE batch B — a failed read is not "No extraction runs yet." */
+          <div role="alert" className="rounded border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200">
+            The extraction list could not be read, so this is not an empty workspace — it is an unread one.{" "}
+            <button type="button" className="font-bold underline" onClick={() => void load()}>Try again</button>
+          </div>
+        ) : extractions.length === 0 ? (
           <p className="text-sm text-slate-400">No extraction runs yet.</p>
         ) : (
           <ul className="divide-y divide-stone-800">

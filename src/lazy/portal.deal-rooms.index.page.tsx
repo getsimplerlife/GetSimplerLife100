@@ -67,6 +67,10 @@ export default function DealRoomsPage() {
   const [checklists, setChecklists] = useState<ChecklistChoice[]>([]);
   const [invoices, setInvoices] = useState<InvoicePanelItem[]>([]);
   const [loading, setLoading] = useState(true);
+  // SLICE read-failure batch B — `items` stays [] when the read throws, so the
+  // card printed "No deal rooms yet" over a failed read. `loaded` is the only
+  // thing that may unlock the affirmative empty state.
+  const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState("");
   const [creating, setCreating] = useState(false);
@@ -82,7 +86,11 @@ export default function DealRoomsPage() {
 
   const load = useCallback(async () => {
     const res = await fetch("/api/native/dealroom", { credentials: "include" });
-    if (!res.ok) throw new Error("Failed to load deal rooms");
+    // SLICE batch B — the failure is the SERVER's own sentence when it sent one.
+    if (!res.ok) {
+      const e = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new Error(e.error || "Failed to load deal rooms");
+    }
     const json = await res.json();
     setItems(json.data || []);
     const wr = await fetch("/api/native/dealroom/writes", { credentials: "include" });
@@ -112,11 +120,15 @@ export default function DealRoomsPage() {
         })),
       );
     }
+    setLoaded(true);
   }, []);
 
   useEffect(() => {
     load()
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
+      .catch((e: unknown) => {
+        setError(e instanceof Error ? e.message : String(e));
+        setLoaded(false);
+      })
       .finally(() => setLoading(false));
   }, [load]);
 
@@ -285,6 +297,13 @@ export default function DealRoomsPage() {
         <h2 className="mb-3 text-lg font-semibold">Deal rooms ({items.length})</h2>
         {loading ? (
           <p className="text-sm text-stone-500">Loading…</p>
+        ) : !loaded ? (
+          // SLICE batch B — a failed read is not "No deal rooms yet".
+          <div role="alert" className="rounded border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200">
+            The deal-room list could not be read, so this is not an empty workspace — it is an unread one. Nothing was
+            changed.{" "}
+            <button type="button" className="font-bold underline" onClick={() => void load()}>Try again</button>
+          </div>
         ) : items.length === 0 ? (
           <PortalEmptyState
             title="No deal rooms yet"
