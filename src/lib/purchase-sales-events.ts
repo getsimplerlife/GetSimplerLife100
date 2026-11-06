@@ -215,7 +215,16 @@ export function provisionAccountForPurchase(
     return { users: updated, outcome: "upgraded" };
   }
 
-  // Create-if-missing — no password, the customer sets one via set-password.
+  // Create-if-missing — no password yet: the buyer sets one through the
+  // set-password lane, whose link is in the confirmation email the purchase
+  // handler sends through the product's own mail lane.
+  //
+  // SLICE 194a — the missing password is recorded as a KNOWN STATE
+  // (`passwordSet: false`), not as an absent field. An absent field is
+  // indistinguishable from a truncated or corrupt row, and it let the login
+  // lane hand `undefined` to bcrypt: the throw became `400 "Invalid request"`,
+  // so a paying customer was told their credential was wrong when the truth was
+  // that we never created one. The flag lets login answer honestly instead.
   const record: any = {
     email,
     role: users?.[email]?.role || "user",
@@ -223,6 +232,7 @@ export function provisionAccountForPurchase(
     source: "purchase",
     purchased: true,
     provisionedAt: new Date().toISOString(),
+    passwordSet: false,
   };
   if (entitlements && typeof entitlements === "object") {
     record.entitlements = { ...entitlements };
