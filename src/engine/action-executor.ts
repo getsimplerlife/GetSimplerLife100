@@ -11,15 +11,17 @@ import { listConnectionsByProvider, updateConnectionConfig, type ConnectionConfi
 import { isTokenExpired as _isTokenExpired, refreshToken } from "../integrations/framework/oauth";
 import { join } from "path";
 import { resolveDataDir } from "../lib/data-store";
+import { actionRegistry, type ActionDefinition } from "./action-registry";
 
 // ── Types ────────────────────────────────────────────────────────────────
 
-export interface ActionDefinition {
-  name: string;
-  description: string;
-  inputSchema: Record<string, any>;
-  handler: (config: ConnectionConfig, params: Record<string, any>) => Promise<any>;
-}
+// SLICE 198 — the registry (and its `ActionDefinition`) moved to
+// `./action-registry` so the Approval Queue can consult the SAME map at enqueue
+// time without importing this module's provider/OAuth graph. Re-exported here
+// so every existing `from "../engine/action-executor"` import keeps working.
+export { actionRegistry };
+export type { ActionDefinition };
+
 
 export interface ActionResult {
   success: boolean;
@@ -46,87 +48,16 @@ export interface ExecutionOptions {
   dataDir?: string;
   /** When a write is proposed by a multi-employee chain, record the chain id. */
   chainId?: string;
+  /** SLICE 198 — the Approval Queue record this execution fulfils. Native
+   *  executors need it to find the durable pending write the human approved;
+   *  without it a native action refuses rather than guessing. */
+  approvalActionId?: string;
   /** Workflow id for AUTONOMY MODE: the per-workflow autonomy config this
    *  action belongs to (e.g. "quote-to-cash.v1"). Enables allow-list gating,
    *  audit + error-budget fallback. When omitted, the agentId is used as the
    *  workflow key (fail-closed: unknown workflows stay approval-gated). */
   workflowId?: string;
 }
-
-// ── Action Handler Registry ──────────────────────────────────────────────
-
-/**
- * In-memory registry mapping full action names (e.g. "searchSalesforceContacts")
- * to their provider ID and handler function.
- */
-class ActionHandlerRegistry {
-  public handlers = new Map<
-    string,
-    { providerId: string; handler: (config: ConnectionConfig, params: Record<string, any>) => Promise<any>; native?: boolean }
-  >();
-  private providerActions = new Map<string, ActionDefinition[]>();
-
-  /**
-   * Register all actions from a provider module
-   * @param native when true the action executes WITHOUT a provider connection:
-   * the handler receives a context object `{ tenantId, dataDir }` in place of a
-   * ConnectionConfig (used by the NATIVE vault executors — vault has no OAuth
-   * connection; the tenant IS the caller). Authority is still always decided by
-   * the Approval Queue gate inside executeAction before the handler runs.
-   */
-  registerProvider(providerId: string, actions: ActionDefinition[], opts?: { native?: boolean }): void {
-    this.providerActions.set(providerId, actions);
-    for (const action of actions) {
-      this.handlers.set(action.name, {
-        providerId,
-        handler: action.handler,
-        native: opts?.native,
-      });
-    }
-  }
-
-  /**
-   * Get all registered action names
-   */
-  listAllActions(): { name: string; providerId: string; description: string; inputSchema: Record<string, any> }[] {
-    const result: { name: string; providerId: string; description: string; inputSchema: Record<string, any> }[] = [];
-    for (const [providerId, actions] of this.providerActions) {
-      for (const action of actions) {
-        result.push({
-          name: action.name,
-          providerId,
-          description: action.description,
-          inputSchema: action.inputSchema,
-        });
-      }
-    }
-    return result;
-  }
-
-  /**
-   * Get all actions for a specific provider
-   */
-  getProviderActions(providerId: string): ActionDefinition[] {
-    return this.providerActions.get(providerId) || [];
-  }
-
-  /**
-   * Find which provider an action belongs to
-   */
-  findProvider(actionName: string): string | null {
-    const entry = this.handlers.get(actionName);
-    return entry?.providerId || null;
-  }
-
-  /**
-   * Check if an action is registered
-   */
-  hasAction(actionName: string): boolean {
-    return this.handlers.has(actionName);
-  }
-}
-
-export const actionRegistry = new ActionHandlerRegistry();
 
 // ── Token Management ────────────────────────────────────────────────────
 
@@ -272,7 +203,10 @@ export async function executeAction(
           typeof import.meta?.dir !== "undefined" ? join(import.meta.dir, "..", "..") : process.cwd(),
         );
       const result = await Promise.race([
-        handler({ tenantId: userId, dataDir: nativeDataDir } as any, params || {}),
+        handler(
+          { tenantId: userId, dataDir: nativeDataDir, approvalActionId: options?.approvalActionId } as any,
+          params || {},
+        ),
         new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error(`Action "${actionName}" timed out after ${timeout}ms`)), timeout)
         ),

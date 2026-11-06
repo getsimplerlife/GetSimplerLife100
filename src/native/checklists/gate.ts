@@ -51,7 +51,7 @@ export type ChecklistWriteResult =
   | { applied: false; pending: true; approvalActionId: string; op: ChecklistOp }
   | { applied: false; pending: false; error: string };
 
-const ACTION_NAME: Record<ChecklistOp, string> = {
+export const ACTION_NAME: Record<ChecklistOp, string> = {
   create: "createChecklist",
   update: "updateChecklist",
   close: "closeChecklist",
@@ -209,7 +209,7 @@ export function submitChecklistWrite(
     via: req.via ?? "portal",
   };
   if (op === "delete" && !getChecklist(dataDir, tenantId, req.checklistId ?? "")) return { applied: false, pending: false, error: "checklist not found" };
-  const gate = approvalGate(tenantId, action, "native-checklists", params, { dataDir, workflowId: "native-checklists" });
+  const gate = approvalGate(tenantId, action, "native-checklists", params, { dataDir, workflowId: "native-checklists", requestedBy: actor });
   if (gate.allowed) {
     try {
       const record = applyMutation(dataDir, tenantId, op, req, validated.mutation, validated.nextStatus, actor);

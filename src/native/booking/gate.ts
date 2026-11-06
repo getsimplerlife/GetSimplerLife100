@@ -86,7 +86,7 @@ export type BookingWriteResult =
   | { applied: false; pending: false; error: string };
 
 /** ACTION NAMES are verb-first AND each verb is in WRITE_VERB (fail-open guard). */
-const ACTION_NAME: Record<BookingOp, string> = {
+export const ACTION_NAME: Record<BookingOp, string> = {
   create: "createBookingPage",
   update: "updateBookingPage",
   publish: "publishBookingPage",
@@ -318,7 +318,7 @@ export function submitBookingWrite(dataDir: string, tenantId: string, op: Bookin
     op,
     via: req.via ?? "portal",
   };
-  const gate = approvalGate(tenantId, action, "native-bookings", params, { dataDir, workflowId: "native-bookings" });
+  const gate = approvalGate(tenantId, action, "native-bookings", params, { dataDir, workflowId: "native-bookings", requestedBy: actor });
   if (gate.allowed) {
     try {
       const applied = applyMutation(dataDir, tenantId, op, req, req.data ?? {}, actor);

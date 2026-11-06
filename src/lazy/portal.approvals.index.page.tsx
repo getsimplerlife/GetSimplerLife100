@@ -51,6 +51,30 @@ function timeAgo(ts: number): string {
   return `${Math.floor(s / 86400)}d ago`;
 }
 
+/**
+ * SLICE 198 — a card's state comes from WHAT HAPPENED, not from the decision.
+ *
+ * The sweep (P1-2) found five cards wearing a green `APPROVED` badge directly
+ * above a red failure line: the badge read `status`, and `status` records that a
+ * human decided, not that the write ran. A decision that failed to execute is
+ * `failed` — red — and this is the ONE place that mapping lives, so the page and
+ * its test cannot disagree about it.
+ */
+export type DecisionState = "applied" | "failed" | "rejected" | "pending";
+
+export function decisionState(a: {
+  status: ApprovalAction["status"];
+  resultError?: string;
+}): { state: DecisionState; label: string; variant: "emerald" | "danger" | "stone" | "warning" } {
+  if (a.status === "rejected") return { state: "rejected", label: "rejected", variant: "stone" };
+  if (a.status === "approved") {
+    return a.resultError
+      ? { state: "failed", label: "failed", variant: "danger" }
+      : { state: "applied", label: "applied", variant: "emerald" };
+  }
+  return { state: "pending", label: a.status, variant: "warning" };
+}
+
 function ApprovalQueue() {
   const [pending, setPending] = useState<ApprovalAction[]>([]);
   const [decided, setDecided] = useState<ApprovalAction[]>([]);
@@ -147,7 +171,11 @@ function ApprovalQueue() {
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json?.error || "Failed to update mode");
       setMode(next);
-      flash(next === "auto" ? "Auto-approve ON — writes will execute without review" : "Approvals ON — writes wait for your review");
+      flash(
+        next === "auto"
+          ? "Auto-approve requested — only allow-listed automations run without review; everything else still waits"
+          : "Approvals ON — writes wait for your review",
+      );
     } catch (e: any) {
       setError(e?.message || "Failed to update mode");
     }
@@ -177,7 +205,9 @@ function ApprovalQueue() {
               : "bg-stone-800 hover:bg-stone-700 text-stone-200 border-stone-700"
           }`}
         >
-          {mode === "on" ? "🛡️ Approvals ON — writes wait for review" : "⚡ Auto-approve ON — writes execute immediately"}
+          {mode === "on"
+            ? "🛡️ Approvals ON — writes wait for review"
+            : "⚡ Auto-approve requested — only allow-listed automations run without review"}
         </button>
       </div>
 
@@ -284,9 +314,10 @@ function ApprovalQueue() {
                   </div>
                   {a.resultError && <div className="text-rose-500 truncate mt-0.5">{a.resultError}</div>}
                 </div>
-                <Badge variant={a.status === "approved" ? "emerald" : a.status === "rejected" ? "danger" : "stone"}>
-                  {a.status}
-                </Badge>
+                {/* SLICE 198 — the badge reports the OUTCOME. A card whose write
+                    failed says `failed` in red; it never wears the success colour
+                    just because a human said yes. */}
+                <Badge variant={decisionState(a).variant}>{decisionState(a).label}</Badge>
               </div>
             ))}
           </Card>

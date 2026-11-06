@@ -62,7 +62,7 @@ export type DealRoomWriteResult =
   | { applied: false; pending: true; approvalActionId: string; op: DealRoomOp }
   | { applied: false; pending: false; error: string };
 
-const ACTION_NAME: Record<DealRoomOp, string> = {
+export const ACTION_NAME: Record<DealRoomOp, string> = {
   create: "createDealRoom",
   update: "updateDealRoom",
   archive: "archiveDealRoom",
@@ -273,7 +273,7 @@ export function submitDealRoomWrite(
     via: req.via ?? "portal",
   };
   if (op === "delete" && !getDealRoom(dataDir, tenantId, req.dealRoomId ?? "")) return { applied: false, pending: false, error: "deal room not found" };
-  const gate = approvalGate(tenantId, action, "native-dealrooms", params, { dataDir, workflowId: "native-dealrooms" });
+  const gate = approvalGate(tenantId, action, "native-dealrooms", params, { dataDir, workflowId: "native-dealrooms", requestedBy: actor });
   if (gate.allowed) {
     try {
       const record = applyMutation(dataDir, tenantId, op, req, validated.mutation, validated.nextStatus, actor);
