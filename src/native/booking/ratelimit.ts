@@ -18,6 +18,21 @@ export interface BookingPostLimiter {
 export const BOOKING_POST_LIMIT = 10; // requests
 export const BOOKING_POST_WINDOW_MS = 60_000; // rolling fixed window
 
+/**
+ * SLICE 192b-3 (finding #20) — the key a public write is limited on.
+ *
+ * `slug` is what is being protected; the second half MUST be the SOCKET peer
+ * address (`peerAddressFrom`), never a request header. The lane used to key on
+ * the first hop of `x-forwarded-for`, which the caller writes — one extra header
+ * value and the budget was fresh again, so the limiter was decorative. When the
+ * peer is unknown every anonymous caller shares ONE bucket: that is stricter
+ * than a real address, never a bypass, so it fails closed.
+ */
+export function publicWriteRateKey(slug: string, peerAddress?: string | null): string {
+  const peer = typeof peerAddress === "string" ? peerAddress.trim() : "";
+  return `${slug}|${peer || "unknown-peer"}`;
+}
+
 export function createBookingPostLimiter(
   limit = BOOKING_POST_LIMIT,
   windowMs = BOOKING_POST_WINDOW_MS,

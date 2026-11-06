@@ -83,10 +83,32 @@ function overlaps(candidateStart: number, candidateEnd: number, busy: Array<{ st
 }
 
 /**
- * All free slot START instants for a given calendar date (YYYY-MM-DD) in the
- * page's timeZone. Deterministic and pure.
+ * SLICE 192b-3 (finding #16) — true when an instant can no longer be booked
+ * because it is not in the future.
+ *
+ * The page started hiding past slots in 192b-2, but the SERVER still accepted
+ * any aligned instant — including yesterday — so the page was the only guard.
+ * This is the one comparison both the slot list and `isSlotAvailable` use, so
+ * the page and the API cannot disagree about what "available" means. A slot
+ * that starts exactly now is refused: by the time anyone could act on it, it
+ * has passed.
  */
-export function availableSlotsForDate(page: BookingPageRecord, bookings: BookingRecord[], dateStr: string): string[] {
+export function isPastInstant(startAtIso: string, nowMs: number = Date.now()): boolean {
+  const t = Date.parse(startAtIso);
+  if (Number.isNaN(t)) return true; // unparseable is never bookable
+  return t <= nowMs;
+}
+
+/**
+ * All free slot START instants for a given calendar date (YYYY-MM-DD) in the
+ * page's timeZone. Deterministic and pure for a given `nowMs`.
+ *
+ * SLICE 192b-3 — `nowMs` is a parameter, not a hidden `Date.now()` call, so the
+ * function stays pure and testable while the SERVER filters past slots at
+ * source (the slots endpoint, the request validation and the apply-time recheck
+ * all pass the real clock). A slot that has already started is not offered.
+ */
+export function availableSlotsForDate(page: BookingPageRecord, bookings: BookingRecord[], dateStr: string, nowMs: number = Date.now()): string[] {
   // Note: NO status check here — this is PURE math. The gate/router enforce
   // "published only" (validateWrite rejects requests on non-published pages;
   // the public share router 404s draft/archived pages). Keeping status out of
@@ -104,21 +126,24 @@ export function availableSlotsForDate(page: BookingPageRecord, bookings: Booking
     while (startMin <= lastStart) {
       const startIso = localWallToUtcIso(page.timeZone, y, mo - 1, d, Math.floor(startMin / 60), startMin % 60);
       const cs = Date.parse(startIso);
-      if (!overlaps(cs, cs + page.slotDurationMinutes * MS_PER_MIN, busy)) out.push(startIso);
+      // Past instants are never offered (192b-3 #16).
+      if (cs > nowMs && !overlaps(cs, cs + page.slotDurationMinutes * MS_PER_MIN, busy)) out.push(startIso);
       startMin += page.slotDurationMinutes;
     }
   }
   return [...new Set(out)].sort();
 }
 
-/** True iff a given ISO start is a free slot on the page right now (pure). */
-export function isSlotAvailable(page: BookingPageRecord, bookings: BookingRecord[], startAtIso: string): boolean {
+/** True iff a given ISO start is a free, still-future slot on the page (pure). */
+export function isSlotAvailable(page: BookingPageRecord, bookings: BookingRecord[], startAtIso: string, nowMs: number = Date.now()): boolean {
   const dt = new Date(startAtIso);
   if (Number.isNaN(dt.getTime())) return false;
+  // SLICE 192b-3 — a past instant is not available, whatever the grid says.
+  if (isPastInstant(startAtIso, nowMs)) return false;
   // The calendar date is the PAGE wall-clock date of the instant (not UTC date).
   const { y, mo, d } = localParts(page.timeZone, startAtIso);
   const dateStr = `${y}-${String(mo + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-  const slots = availableSlotsForDate(page, bookings, dateStr);
+  const slots = availableSlotsForDate(page, bookings, dateStr, nowMs);
   return slots.some((s) => Date.parse(s) === dt.getTime());
 }
 

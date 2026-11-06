@@ -32,6 +32,12 @@ import { submitProposalWrite, executePendingProposalWrite, noteOwnerDecision, fo
 // invoice page, PDF and delivery email already use (native/invoice/issuer.ts).
 import { resolveIssuerDisplayName } from "../invoice/issuer";
 import { readDocumentBytes, getDoc } from "../documents/store";
+// SLICE 192b-3 — the public decision POST is rate-limited on the TRUSTED peer
+// address (finding #9), and a refusal that came from the approval STORE must
+// not be echoed back as an internal path (finding #10).
+import { createProposalPostLimiter, PROPOSAL_POST_LIMIT, PROPOSAL_POST_WINDOW_MS, type ProposalPostLimiter } from "./ratelimit";
+import { publicWriteRateKey } from "../booking/ratelimit";
+import { isApprovalStoreUnavailable } from "../../lib/approval-queue";
 import { normalizeLineItems, validateProposalMutation, validateLineItem, validateSignatureInput, proposalSignedContent } from "./validate";
 import {
   MAX_SIGNER_NAME,
@@ -48,6 +54,15 @@ export interface NativeProposalsCtx {
 }
 export interface NativeProposalsPublicCtx {
   dataDir: string;
+  /** Rate limiter for the public decision POST (shared process-wide unless injected for tests). */
+  limiter?: ProposalPostLimiter;
+  /**
+   * SLICE 192b-3 (finding #20) — the SOCKET peer address from
+   * `peerAddressFrom(server, req)`, supplied by prod-server. The limiter keys on
+   * this, never on the caller-controlled `x-forwarded-for` header. Absent → all
+   * anonymous callers share one bucket (stricter, never a bypass).
+   */
+  peerAddress?: string | null;
 }
 
 // ── helpers ─────────────────────────────────────────────────────────────────
@@ -316,6 +331,36 @@ export function handleNativeProposalsAuthed(req: Request, ctx: NativeProposalsCt
  */
 const NO_STORE = { "cache-control": "no-store", "x-robots-tag": "noindex, nofollow" } as const;
 
+/** Process-wide limiter for the public decision lane (per slug + trusted peer). */
+const sharedProposalPostLimiter = createProposalPostLimiter(PROPOSAL_POST_LIMIT, PROPOSAL_POST_WINDOW_MS);
+
+/**
+ * SLICE 192b-3 (finding #9) — the decision POST had NO limiter, so an
+ * unauthenticated caller could post decisions as fast as the socket allowed.
+ * Same lane and same budget shape as the booking POST, keyed on the trusted
+ * peer address (never `x-forwarded-for`).
+ */
+function decisionPostLimited(ctx: NativeProposalsPublicCtx, slug: string): boolean {
+  const limiter = ctx.limiter ?? sharedProposalPostLimiter;
+  return !limiter.allow(publicWriteRateKey(slug, ctx.peerAddress));
+}
+
+/**
+ * SLICE 192b-3 (finding #10) — the approval store refused the write (a corrupt
+ * `tenant_approvals.json`, 193's rule). Nothing was recorded and nothing on disk
+ * changed. The client gets a truthful 503 with no internal path and no parse
+ * error; the authenticated lanes keep the detailed message.
+ */
+function approvalStoreUnavailable(): Response {
+  return Response.json(
+    {
+      error: "The approval queue is unavailable right now, so your decision was not recorded. Nothing was changed — please try again later.",
+      reason: "approval-store-unavailable",
+    },
+    { status: 503, headers: NO_STORE },
+  );
+}
+
 async function handleShareAsync(req: Request, ctx: NativeProposalsPublicCtx): Promise<Response> {
   const url = new URL(req.url);
   const seg = url.pathname.replace(/^\/api\/native\/proposals\/share\/?/, "").split("/").filter(Boolean);
@@ -345,6 +390,18 @@ async function handleShareAsync(req: Request, ctx: NativeProposalsPublicCtx): Pr
     );
   }
   if (req.method === "POST") {
+    // SLICE 192b-3 — BEFORE the body is read and before anything is queued: the
+    // public decision lane is rate-limited per slug + trusted peer address.
+    if (decisionPostLimited(ctx, slug)) {
+      const retryAfterSeconds = Math.ceil(PROPOSAL_POST_WINDOW_MS / 1000);
+      return Response.json(
+        {
+          error: `Too many decisions for this proposal — please wait ${retryAfterSeconds} seconds and try again.`,
+          retryAfterSeconds,
+        },
+        { status: 429, headers: { "retry-after": String(retryAfterSeconds), ...NO_STORE } },
+      );
+    }
     const b = parseJsonObject(await req.text());
     const decision = b.decision;
     if (decision !== "approve" && decision !== "reject") return json400("decision must be \"approve\" or \"reject\"");
@@ -380,6 +437,9 @@ async function handleShareAsync(req: Request, ctx: NativeProposalsPublicCtx): Pr
     const res = await submitProposalWrite(ctx.dataDir, tenantId, decision, { proposalId: proposal.id, via: "client-decision", signerName: signerName || undefined, signature }, tenantId);
     if (res.applied) return Response.json({ data: { status: "applied", decision, autonomy: res.autonomy } }, { headers: NO_STORE });
     if (res.pending) return Response.json({ data: { status: "pending", approvalActionId: res.approvalActionId } }, { status: 202, headers: NO_STORE });
+    // SLICE 192b-3 — the store refused: 503, never a 200 that pretends the card
+    // was queued, and never the internal path in the message.
+    if (isApprovalStoreUnavailable(res.error)) return approvalStoreUnavailable();
     return gateErrorStatus(res.error);
   }
   return Response.json({ error: "Method not allowed" }, { status: 405, headers: NO_STORE });

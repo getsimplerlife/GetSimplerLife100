@@ -397,7 +397,20 @@ export async function submitProposalWrite(
   };
   // DELETE with an unknown/exact-id guard: autonomy globs may NEVER delete.
   if (op === "delete" && !validated.proposal) return { applied: false, pending: false, error: "proposal not found" };
-  const gate = approvalGate(tenantId, action, "native-proposals", params, { dataDir, workflowId: "native-proposals" });
+  // SLICE 192b-3 — the CARD dedupe now runs BEFORE the gate, because the gate
+  // is where the card is minted. Finding #9: `approvalGate` enqueued
+  // unconditionally and only the pending-write mirror was deduped afterwards, so
+  // N identical client POSTs left N cards in the tenant's queue and N−1 of them
+  // could only fail on approve. The key is (tenant, subject, decision) — stable
+  // across repeated POSTs of the same intent, different for a different
+  // decision — and it is only supplied for the client-decision ops, which is
+  // exactly the set the pending-write dedupe below already covers, so one card
+  // and one mirror stay in step.
+  const cardDedupeKey =
+    op === "approve" || op === "reject" || op === "revokeShare"
+      ? `${tenantId}|${action}|${req.proposalId ?? "__create__"}`
+      : undefined;
+  const gate = approvalGate(tenantId, action, "native-proposals", params, { dataDir, workflowId: "native-proposals", dedupeKey: cardDedupeKey });
   if (gate.allowed) {
     try {
       const record = await applyMutation(dataDir, tenantId, op, req, validated.mutation, validated.nextStatus, actor, validated.signature);
@@ -417,15 +430,20 @@ export async function submitProposalWrite(
   // Client-decision idempotency: if the SAME intent is already pending, don't
   // create a second card — return the existing one (202 stays the same).
   const pending = listPendingWrites(dataDir, tenantId);
-  if (pending.length >= MAX_PENDING_PROPOSAL_WRITES) {
-    return { applied: false, pending: false, error: `Pending-write cap reached (${MAX_PENDING_PROPOSAL_WRITES}) — approve or reject before writing more` };
-  }
   if (op === "approve" || op === "reject" || op === "revokeShare") {
     // One pending write per (op, proposal): two queued revokes would mint two
     // fresh slugs and leave the second approval killing a link nobody was given
     // (192a's rule for deal rooms).
+    //
+    // SLICE 192b-3 — this runs BEFORE the cap check so a repeated POST of the
+    // decision that is already queued is answered with that queue entry, not
+    // with "cap reached". Idempotent means the same answer, not the same answer
+    // until the queue is full.
     const existing = pending.find((w) => w.status === "pending" && w.op === op && w.proposalId === (req.proposalId ?? null));
     if (existing) return { applied: false, pending: true, approvalActionId: existing.approvalActionId, op };
+  }
+  if (pending.length >= MAX_PENDING_PROPOSAL_WRITES) {
+    return { applied: false, pending: false, error: `Pending-write cap reached (${MAX_PENDING_PROPOSAL_WRITES}) — approve or reject before writing more` };
   }
   const ptw: PendingProposalWrite = {
     id: generateProposalEntityId("ppw"),

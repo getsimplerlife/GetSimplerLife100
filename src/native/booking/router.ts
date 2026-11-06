@@ -47,7 +47,10 @@ import { availableSlotsForDate, describeWindow } from "./availability";
 // page, PDF and delivery email already use. `CALENDAR_SYNC_LABEL` is no longer
 // imported here: it promised a Google Calendar sync nothing executes.
 import { resolveIssuerDisplayName, NEUTRAL_ISSUER_LABEL } from "../invoice/issuer";
-import { createBookingPostLimiter, type BookingPostLimiter } from "./ratelimit";
+// SLICE 192b-3 — recognise a refusal that came from the approval STORE, so the
+// public lane can answer it generically instead of echoing an internal path.
+import { isApprovalStoreUnavailable } from "../../lib/approval-queue";
+import { createBookingPostLimiter, publicWriteRateKey, BOOKING_POST_WINDOW_MS, type BookingPostLimiter } from "./ratelimit";
 
 export interface NativeBookingsCtx {
   dataDir: string;
@@ -57,6 +60,14 @@ export interface NativeBookingsPublicCtx {
   dataDir: string;
   /** Rate limiter for the public booking POST lane (shared process-wide unless injected for tests). */
   limiter?: BookingPostLimiter;
+  /**
+   * SLICE 192b-3 (finding #20) — the SOCKET peer address from
+   * `peerAddressFrom(server, req)`, passed in by prod-server. The limiter keys
+   * on THIS, never on `x-forwarded-for`, which the caller controls. Absent (a
+   * direct call, a test, a transport with no peer) → every anonymous caller
+   * shares one bucket, which is stricter rather than a bypass.
+   */
+  peerAddress?: string | null;
 }
 // ── helpers ─────────────────────────────────────────────────────────────────
 function parseJsonObject(raw: string): Record<string, unknown> {
@@ -288,14 +299,28 @@ const NO_STORE = { "cache-control": "no-store", "x-robots-tag": "noindex, nofoll
 
 const sharedBookingPostLimiter = createBookingPostLimiter();
 
-/** Best-effort client identity for rate limiting (slug is the primary key). */
-function clientIpOf(req: Request): string {
-  const fwd = req.headers.get("x-forwarded-for");
-  if (fwd) {
-    const first = fwd.split(",")[0]?.trim();
-    if (first) return first;
-  }
-  return req.headers.get("x-real-ip")?.trim() || "anon";
+/**
+ * SLICE 192b-3 (finding #20) — the public POST used to be keyed on the first
+ * hop of `x-forwarded-for`, a header the CALLER writes: one extra value and the
+ * budget was fresh again, so the limiter was decorative. It is keyed on the
+ * trusted peer address now (`publicWriteRateKey`), which the transport supplies.
+ */
+function postLimited(ctx: NativeBookingsPublicCtx, slug: string): boolean {
+  const limiter = ctx.limiter ?? sharedBookingPostLimiter;
+  return !limiter.allow(publicWriteRateKey(slug, ctx.peerAddress));
+}
+
+/**
+ * SLICE 192b-3 — a refusal from the approval STORE (a corrupt
+ * `tenant_approvals.json`, 193's guard) is not the client's mistake: answer 503
+ * with a sentence that says nothing was recorded, and never echo the internal
+ * path or the parse error an unauthenticated caller must not see.
+ */
+function approvalStoreUnavailable(): Response {
+  return Response.json(
+    { error: "The approval queue is unavailable right now, so nothing was recorded. Please try again later." },
+    { status: 503 },
+  );
 }
 
 async function handleShareAsync(req: Request, ctx: NativeBookingsPublicCtx): Promise<Response> {
@@ -325,12 +350,14 @@ async function handleShareAsync(req: Request, ctx: NativeBookingsPublicCtx): Pro
     );
   }
   if (seg.length === 1 && req.method === "POST") {
-    // Public write lane is rate-limited per slug+client (fixed window).
-    const limiter = ctx.limiter ?? sharedBookingPostLimiter;
-    if (!limiter.allow(`${slug}|${clientIpOf(req)}`)) {
+    // Public write lane is rate-limited per slug+TRUSTED PEER (fixed window).
+    if (postLimited(ctx, slug)) {
       return Response.json(
-        { error: "Too many booking requests — please try again shortly." },
-        { status: 429 },
+        {
+          error: `Too many booking requests — please wait ${Math.ceil(BOOKING_POST_WINDOW_MS / 1000)} seconds and try again.`,
+          retryAfterSeconds: Math.ceil(BOOKING_POST_WINDOW_MS / 1000),
+        },
+        { status: 429, headers: { "retry-after": String(Math.ceil(BOOKING_POST_WINDOW_MS / 1000)), ...NO_STORE } },
       );
     }
     const b = parseJsonObject(await req.text());
@@ -346,6 +373,10 @@ async function handleShareAsync(req: Request, ctx: NativeBookingsPublicCtx): Pro
     // held either).
     if (res.applied) return Response.json({ data: { status: "applied", bookingStatus: res.booking?.status ?? null } }, { headers: NO_STORE }); // autonomy approved instantly
     if (res.pending) return Response.json({ data: { status: "pending", bookingStatus: null } }, { status: 202, headers: NO_STORE }); // tenant-side approval card queued
+    // SLICE 192b-3 — a refusal from the store itself (193's guard on a corrupt
+    // `tenant_approvals.json`) is a 503 that says nothing was recorded. It must
+    // never read as a booking failure (400) or as success.
+    if (isApprovalStoreUnavailable((res as { error?: string }).error)) return approvalStoreUnavailable();
     return gateErrorStatus((res as { error?: string }).error ?? "booking write failed");
   }
   if (seg.length === 1 && req.method !== "GET" && req.method !== "POST") return json405();

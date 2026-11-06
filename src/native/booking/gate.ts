@@ -69,7 +69,7 @@ import {
   validateBookingPageMutation,
   validateBookingRequestInput,
 } from "./validate";
-import { bookingEndIso, isSlotAvailable } from "./availability";
+import { bookingEndIso, isSlotAvailable, isPastInstant } from "./availability";
 import { bookingCalendarEventPayload } from "./sync";
 
 export type BookingWriteRequest = {
@@ -160,6 +160,13 @@ function validateWrite(dataDir: string, tenantId: string, op: BookingOp, req: Bo
     if (!req.request) throw new Error("booking request is required");
     const v = validateBookingRequestInput(req.request);
     if (!v.ok) throw new Error(v.error);
+    // SLICE 192b-3 (finding #16) — a past instant is refused with its OWN
+    // sentence, before the availability math, so the client is told the truth
+    // ("that time has passed") instead of "that slot is no longer available",
+    // which would suggest someone else took it.
+    if (isPastInstant(v.data!.startAt)) {
+      throw new Error("that time has already passed — please choose a future time");
+    }
     if (!isSlotAvailable(page, listBookingsForPage(dataDir, tenantId, page.id), v.data!.startAt)) {
       throw new Error("that time slot is no longer available");
     }
@@ -226,6 +233,11 @@ function applyMutation(dataDir: string, tenantId: string, op: BookingOp, req: Bo
     const endAt = bookingEndIso(page, request.startAt);
     // RE-CHECK availability at apply (idempotent-safe; a slot taken since the
     // client requested fails the apply — never double-booked).
+    // SLICE 192b-3 — a slot that has PASSED since the request was queued is its
+    // own refusal, not "someone took it".
+    if (isPastInstant(request.startAt)) {
+      throw new Error("that time has already passed — the request was queued before the slot started");
+    }
     if (!isSlotAvailable(page, listBookingsForPage(dataDir, tenantId, page.id), request.startAt)) {
       throw new Error("that time slot is no longer available — it may have just been booked");
     }

@@ -1059,10 +1059,15 @@ async function handleFetch(req: Request, server?: ServerPeerSource): Promise<Res
     // password reset, set-password, purchase status, lead capture and the public
     // invoice/survey/booking share lanes). Unguarded routes pass straight
     // through: ordinary navigations are never rate limited.
+    // SLICE 192b-3 — the SOCKET peer address, resolved ONCE per request. The
+    // public write lanes (booking, proposals) rate-limit on this value; the
+    // `x-forwarded-for` header is caller-controlled and must never be the key
+    // (finding #20).
+    const peerAddress = peerAddressFrom(server, req);
     const blockedByRateLimit = guardRequest({
       method: req.method,
       pathname,
-      peerAddress: peerAddressFrom(server, req),
+      peerAddress,
       header: (name) => req.headers.get(name),
     });
     if (blockedByRateLimit) return blockedByRateLimit;
@@ -1830,7 +1835,8 @@ async function handleFetch(req: Request, server?: ServerPeerSource): Promise<Res
       const proposalShareMatch = pathname.match(/^\/api\/native\/proposals\/share\/([a-zA-Z0-9_-]+)$/);
       if (proposalShareMatch) {
         const { handleNativeProposalShare } = await import("./src/native/proposals");
-        return handleNativeProposalShare(req, { dataDir: DATA_DIR });
+        // SLICE 192b-3 — the decision POST is rate-limited on the trusted peer.
+        return handleNativeProposalShare(req, { dataDir: DATA_DIR, peerAddress });
       }
       // Phase 3.1 — PUBLIC booking share (client booking page: summary, slots,
       // and book-a-slot request). No session. Slug-gated; the request rides the
@@ -1838,7 +1844,8 @@ async function handleFetch(req: Request, server?: ServerPeerSource): Promise<Res
       // internals (reply carries ONLY the status).
       if (pathname.startsWith("/api/native/booking/share/")) {
         const { handleNativeBookingShare } = await import("./src/native/booking");
-        return handleNativeBookingShare(req, { dataDir: DATA_DIR });
+        // SLICE 192b-3 — the request POST is rate-limited on the trusted peer.
+        return handleNativeBookingShare(req, { dataDir: DATA_DIR, peerAddress });
       }
       // Phase 3.4 — PUBLIC survey share: published survey view + response submit
       // (slug-gated, rate-limited, reply carries ONLY {status}). No session —
