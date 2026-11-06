@@ -41,12 +41,21 @@ function validCreate(over: Record<string, unknown> = {}) {
 function pendingFirst(op?: string) {
   return listPendingWrites(dir, T1).find((w) => w.status === "pending" && (op ? w.op === op : true)) ?? null;
 }
-/** Mon 2026-09-28 (EDT, UTC-4): local 09:00 = 13:00Z, 13:00 = 17:00Z. */
-const MON = "2026-09-28";
-const S09 = "2026-09-28T13:00:00.000Z";
-const S10 = "2026-09-28T14:00:00.000Z";
-const S11 = "2026-09-28T15:00:00.000Z";
-const S12 = "2026-09-28T16:00:00.000Z";
+/**
+ * Mon 2027-01-04 (EST, UTC-5): local 09:00 = 14:00Z, 13:00 = 18:00Z.
+ *
+ * SLICE 192b-3 (finding #16) — the SERVER now refuses an instant that has
+ * already passed, so the lane's fixtures must be genuinely in the future. These
+ * were 2026-09-28 (EDT, 13:00Z…) and every request in this file started failing
+ * the moment the clock was enforced at source. The instants stay LITERAL — the
+ * expected values are not derived from the same helper that computes them — and
+ * January is EST, so the UTC offset is still asserted rather than assumed.
+ */
+const MON = "2027-01-04";
+const S09 = "2027-01-04T14:00:00.000Z";
+const S10 = "2027-01-04T15:00:00.000Z";
+const S11 = "2027-01-04T16:00:00.000Z";
+const S12 = "2027-01-04T17:00:00.000Z";
 async function createAndApplyPage(over: Record<string, unknown> = {}): Promise<string> {
   const res = await route("POST", "/api/native/booking", validCreate(over));
   expect(res.status).toBe(202); // gated — pending approval, NOT auto-applied
@@ -146,26 +155,29 @@ describe("native booking — gated lifecycle + availability + round-robin + no-l
     expect(published.status).toBe("published");
     expect(isSlotAvailable(published, [], S09)).toBe(true);
   });
-  it("public POST is rate-limited (10/min per slug+client → 429 generic; GETs unaffected; separate IP has own budget)", async () => {
+  it("public POST is rate-limited (10/min per slug+trusted peer → 429 with a retry; GETs unaffected; separate PEER has own budget)", async () => {
     const id = await createAndApplyPage();
     await route("POST", `/api/native/booking/${id}/publish`);
     await route("POST", `/api/native/booking/writes/${pendingFirst("publish")!.id}/apply`);
     const slug = pageSlug(id);
-    const post = (name: string, email: string, startAt: string, ip = "203.0.113.7") =>
+    // SLICE 192b-3 (finding #20) — the budget is keyed on the PEER the transport
+    // resolved, not on a header. `x-forwarded-for` is still sent here, and is
+    // deliberately different on every call, to prove it changes nothing.
+    const post = (name: string, email: string, startAt: string, peer = "203.0.113.7", spoof?: string) =>
       handleNativeBookingShare(
         new Request(`http://native.test/api/native/booking/share/${slug}`, {
           method: "POST",
           body: JSON.stringify({ clientName: name, clientEmail: email, startAt }),
-          headers: { "content-type": "application/json", "x-forwarded-for": ip },
+          headers: { "content-type": "application/json", ...(spoof ? { "x-forwarded-for": spoof } : {}) },
         }),
-        { dataDir: dir },
+        { dataDir: dir, peerAddress: peer },
       );
     const statuses: number[] = [];
-    for (let i = 0; i < 12; i++) statuses.push((await post(`Client ${i}`, `c${i}@test.test`, S09)).status);
+    for (let i = 0; i < 12; i++) statuses.push((await post(`Client ${i}`, `c${i}@test.test`, S09, "203.0.113.7", `198.51.100.${i}`)).status);
     const passed = statuses.filter((st) => st !== 429).length;
     expect(passed).toBeLessThanOrEqual(10); // fixed window budget
     expect(statuses.filter((st) => st === 429).length).toBeGreaterThanOrEqual(1);
-    // blocked body is generic (no internals)
+    // blocked body names the wait (no internals)
     const blocked = await post("Blocked", "blocked@test.test", S09);
     expect(blocked.status).toBe(429);
     expect((await blocked.json()).error).toContain("Too many booking requests");
@@ -174,7 +186,7 @@ describe("native booking — gated lifecycle + availability + round-robin + no-l
     expect(get.status).toBe(200);
     const slots = await handleNativeBookingShare(new Request(`http://native.test/api/native/booking/share/${slug}/slots?date=${MON}`), { dataDir: dir });
     expect(slots.status).toBe(200);
-    // a different client IP has its own budget (still gated → 202 pending)
+    // a different PEER has its own budget (still gated → 202 pending)
     const other = await post("Other IP", "other@test.test", S12, "198.51.100.9");
     expect([200, 202]).toContain(other.status); // own budget: gated (202) or auto-applied (200)
   });

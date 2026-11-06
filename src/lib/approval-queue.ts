@@ -19,7 +19,11 @@
  * (non-destruction mandate: this feature adds no destructive path).
  */
 import { join } from "path";
-import { readJSON, writeJSON, resolveDataDir } from "./data-store";
+// SLICE 192b-3 — 193's rule, applied to THIS store. `isStoreUnreadable` /
+// `reportUnreadableStore` / `StoreUnreadableError` are the ONE mechanism 193
+// established for "a file that exists and does not parse is never overwritten";
+// this lane consumes them rather than inventing a second convention.
+import { readJSON, writeJSON, resolveDataDir, isStoreUnreadable, reportUnreadableStore, StoreUnreadableError } from "./data-store";
 import { getTenantSettings } from "./tenant-settings";
 import { isAutonomyEnabled, isAutonomyEligible, getAutonomyWorkflow } from "./autonomy";
 
@@ -45,6 +49,16 @@ export interface PendingAction {
   result?: any;
   /** Error from the executed write, if any. */
   resultError?: string;
+  /**
+   * SLICE 192b-3 — idempotency key for the CARD (not the write).
+   *
+   * A public client POST reaches `approvalGate` before any lane-level dedupe
+   * runs, so before this key existed N identical POSTs produced N cards, N−1 of
+   * which could only fail on approve. A caller that supplies a key derived from
+   * (tenant, subject, decision) gets ONE pending card: the second enqueue
+   * returns the card already in the queue instead of minting another.
+   */
+  dedupeKey?: string;
 }
 
 export type ApprovalQueueIndex = Record<string, PendingAction[]>;
@@ -110,8 +124,29 @@ export function approvalQueuePath(dataDir?: string): string {
   return join(dataDir ?? defaultDataDir(), APPROVAL_QUEUE_KEY);
 }
 
-function readIndex(dataDir?: string): ApprovalQueueIndex {
-  const raw = readJSON(approvalQueuePath(dataDir));
+/**
+ * Read the queue index.
+ *
+ * SLICE 192b-3 — A FILE THAT EXISTS AND DOES NOT PARSE IS NEVER OVERWRITTEN
+ * (193's rule, applied to the store a PUBLIC lane can write to).
+ *
+ * This used to fall back to `{}` on a parse failure. `enqueueApproval` then
+ * appended one card to that empty index and wrote the whole file back — so ONE
+ * unauthenticated client POST replaced a tenant's corrupt-but-recoverable
+ * approval history with a small, valid, wrong document. `writeJSON` now also
+ * refuses that write (193), but a refusal that arrives after the read already
+ * pretended the queue was empty is a refusal the caller cannot explain; the
+ * read fails HERE, loudly, naming the file, and every writer inherits it.
+ *
+ * A MISSING file is not an error: creating a store is still allowed.
+ */
+function readIndex(dataDir?: string, where = "approvalQueue"): ApprovalQueueIndex {
+  const path = approvalQueuePath(dataDir);
+  if (isStoreUnreadable(path)) {
+    reportUnreadableStore(path, where);
+    throw new StoreUnreadableError(path);
+  }
+  const raw = readJSON(path);
   if (raw && typeof raw === "object" && !Array.isArray(raw)) return raw as ApprovalQueueIndex;
   return {};
 }
@@ -143,6 +178,15 @@ export function listDecidedActions(tenantId: string, dataDir?: string): PendingA
  * Enqueue a write for approval. THROWS if the store is unavailable —
  * callers (the engine gate) must treat a throw as fail-closed and NOT
  * execute the write. Returns the stored record on success.
+ *
+ * SLICE 192b-3 — IDEMPOTENT WHEN GIVEN A `dedupeKey`. A caller that knows what
+ * the decision IS (tenant + subject + decision) passes a stable key; if a
+ * PENDING card with that key already exists, that card is returned and no
+ * second one is created. This is deliberately in the ONE enqueue path rather
+ * than in each lane: the flood reached the queue through `approvalGate`, so the
+ * fix has to sit where the card is minted. Only PENDING cards dedupe — once a
+ * card is decided, a later identical request is a genuinely new decision and
+ * gets its own card.
  */
 export function enqueueApproval(
   input: Omit<PendingAction, "actionId" | "status" | "createdAt">,
@@ -150,14 +194,18 @@ export function enqueueApproval(
 ): PendingAction {
   if (!input.tenantEmail?.trim()) throw new Error("enqueueApproval requires tenantEmail");
   if (!input.actionType?.trim()) throw new Error("enqueueApproval requires actionType");
+  const index = readIndex(dataDir, "enqueueApproval"); // throws propagate → fail-closed
+  const tenantActions = index[input.tenantEmail] || [];
+  if (input.dedupeKey) {
+    const existing = tenantActions.find((a) => a.status === "pending" && a.dedupeKey === input.dedupeKey);
+    if (existing) return existing;
+  }
   const record: PendingAction = {
     ...input,
     actionId: makeActionId(),
     status: "pending",
     createdAt: Date.now(),
   };
-  const index = readIndex(dataDir); // throws propagate → fail-closed
-  const tenantActions = index[input.tenantEmail] || [];
   tenantActions.push(record);
   index[input.tenantEmail] = tenantActions;
   writeIndex(index, dataDir); // throws propagate → fail-closed
@@ -258,7 +306,7 @@ export function approvalGate(
   actionName: string,
   provider: string,
   params: Record<string, any>,
-  opts?: { agentId?: string; dataDir?: string; chainId?: string; workflowId?: string },
+  opts?: { agentId?: string; dataDir?: string; chainId?: string; workflowId?: string; dedupeKey?: string },
 ): ApprovalGateOutcome {
   if (!isWriteAction(actionName)) return { allowed: true };
   const mode = approvalModeForTenant(tenantId, opts?.dataDir);
@@ -293,14 +341,35 @@ export function approvalGate(
         summary: summarizeAction(actionName, provider, params),
         payload: params || {},
         chainId: opts?.chainId,
+        // SLICE 192b-3 — a lane that knows what the decision IS passes its key
+        // here, so a repeated identical request reuses the queued card instead
+        // of minting a second one (finding #9: the dedupe used to run AFTER
+        // this call, so the queue grew by one card per POST).
+        ...(opts?.dedupeKey ? { dedupeKey: opts.dedupeKey } : {}),
       },
       opts?.dataDir,
     );
     return { allowed: false, actionId: record.actionId, workflowId };
   } catch (e: any) {
-    // Fail-closed: store unavailable → never execute the write.
+    // Fail-closed: store unavailable → never execute the write. A store that
+    // exists and does not parse (192b-3 / 193) lands here too: nothing was
+    // written, the bytes on disk are untouched, and the caller gets a refusal
+    // it must surface as an error rather than as "queued".
     return { allowed: false, error: `Approval store unavailable — write blocked: ${e?.message || String(e)}`, workflowId };
   }
+}
+
+/**
+ * SLICE 192b-3 — true when a refusal came from the STORE (193's guard or an
+ * unreadable file) rather than from the decision itself.
+ *
+ * The public share lanes answer this with a generic 503: the client must know
+ * their decision was NOT recorded, and must not be handed an internal path or a
+ * parse error. The authenticated lanes keep the detailed message.
+ */
+export function isApprovalStoreUnavailable(error?: string | null): boolean {
+  if (!error) return false;
+  return /^Approval store unavailable/.test(error) || /does not parse|refusing to write/i.test(error);
 }
 
 /** Human-readable what/where/why summary for the portal card. */
