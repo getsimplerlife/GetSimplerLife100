@@ -646,7 +646,12 @@ function ConnectedServices() {
                           <span className="text-[10px] font-mono text-stone-600 font-normal">({prov.id})</span>
                         </h3>
                         <p className="text-stone-400 text-[10px] leading-relaxed font-semibold min-h-[44px] line-clamp-2">
-                          {prov.description || `${prov.name} enterprise integration for workflow synchronization.`}
+                          {/* SLICE 203 — the fallback read "{prov.name} enterprise
+                              integration for workflow synchronization", asserting a
+                              two-way sync on a card whose own next line says
+                              "LAST SYNC RUN: Never". Import is one-time and nothing
+                              stays connected. */}
+                          {prov.description || `${prov.name} — data can be brought in through a one-time import. Nothing stays connected.`}
                         </p>
                       </div>
 
@@ -754,7 +759,11 @@ function ConnectedServices() {
                     📤 Payload Ingestion Terminal
                   </h3>
                   <p className="text-stone-400 text-[10px] mt-1 leading-relaxed">
-                    Upload unstructured document matrices (W2, W9, invoices, utility ledgers, custom PDFs) into the AI layout analyzer.
+                    {/* SLICE 203 — this said files were uploaded into an analyzer
+                        that does not exist. The lane is a document store plus an
+                        extractor. Copy now names the inputs and the review step, and
+                        claims no analysis. */}
+                    Upload documents (PDF, CSV, XLS, DOCX, images). The extracted text and key fields are shown for you to review.
                   </p>
                 </div>
 
@@ -812,15 +821,17 @@ function ConnectedServices() {
                   )}
                 </div>
 
-                {/* Upload capabilities bullet list */}
+                {/* SLICE 203 — this block was headed as an OCR pipeline spec and
+                    listed four capabilities nothing implements: projection
+                    profiling, chromatic hue / signature integrity checking,
+                    semantic tabular formatting, and storage described in terms of a
+                    database engine we do not run. Replaced with what the lane
+                    actually does. */}
                 <div className="bg-stone-900/20 border border-stone-900 rounded-xl p-3.5 space-y-2 font-mono text-[10px] text-stone-500">
-                  <span className="font-bold uppercase text-stone-400">Layout OCR Pipeline Specs</span>
-                  <ul className="space-y-1 list-disc list-inside">
-                    <li>Horizontal projection profiling OCR fallback</li>
-                    <li>Automatic chromatic hue & signature integrity check</li>
-                    <li>Semantic matrix tabular structural formatting</li>
-                    <li>Instant storage in Drizzle portal documents index</li>
-                  </ul>
+                  <span className="font-bold uppercase text-stone-400">What happens to a file you upload</span>
+                  <p className="leading-relaxed">
+                    Files are stored in your workspace&apos;s document store, one version at a time, each with a checksum. Text is extracted and shown for review; nothing is acted on automatically.
+                  </p>
                 </div>
 
               </div>

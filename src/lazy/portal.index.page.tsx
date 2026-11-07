@@ -222,7 +222,10 @@ function ActivityHubDashboard() {
           <div className="text-4xl mb-4">🚀</div>
           <h3 className="text-lg font-bold text-white mb-2">Welcome to Simpler Life 100</h3>
           <p className="text-sm text-stone-400 mb-6 max-w-sm mx-auto leading-relaxed">
-            Your workspace is ready — bring your existing data in (connect your tools once to transfer it), then run everything from here. Here's how to get started:
+            {/* SLICE 203 — this said "connect your tools once to transfer it".
+                Import is one-time: nothing stays connected, and no tool is
+                "connected" by importing. Copy now describes the import. */}
+            Your workspace is ready. Bring your existing data in as a one-time import, then run everything from here.
           </p>
           <div className="space-y-3 text-left max-w-xs mx-auto mb-6">
             {onboardingSteps.map((step, i) => (

@@ -42,6 +42,14 @@ export interface PendingAction {
   actionId: string;
   tenantEmail: string;
   agentId: string;
+  /**
+   * SLICE 203 — who asked for this write, when the caller knows: the portal
+   * actor, or "public:<lane>" for a share link. The portal card used to print
+   * `agentId` as the requester, and `agentId` defaults to the literal
+   * "ai-employee" — an actor that does not exist. This is the field the card
+   * can honestly show; absent, it shows the time only.
+   */
+  requestedBy?: string;
   actionType: string;      // e.g. "createXeroInvoice"
   provider: string;        // e.g. "xero"
   summary: { what: string; where: string; why: string };
@@ -370,6 +378,9 @@ export function approvalGate(
       {
         tenantEmail: tenantId,
         agentId: opts?.agentId || "ai-employee",
+        // SLICE 203 — persisted so the portal can name the requester honestly
+        // instead of printing the legacy `agentId` placeholder.
+        ...(opts?.requestedBy ? { requestedBy: opts.requestedBy } : {}),
         actionType: actionName,
         provider,
         summary: summarizeAction(actionName, provider, params, { requestedBy: opts?.requestedBy }),
