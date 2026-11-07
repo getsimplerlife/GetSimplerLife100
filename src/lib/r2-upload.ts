@@ -51,6 +51,21 @@ export const R2_INSTANCE_ENV = "R2_INSTANCE";
 /** SLICE 147 — opt-out hatch for a deliberate non-production upload. */
 export const R2_ALLOW_NONPROD_ENV = "BACKUP_R2_ALLOW_NONPROD";
 /**
+ * SLICE 208 — a refusal decided BEFORE this module runs.
+ *
+ * `resolveDeploymentNamespace` (src/lib/backup-namespace.ts) decides whether a
+ * runtime may claim the deployment's namespace, and it hands the answer to the
+ * uploader and the boot restore through this variable: a non-empty value is the
+ * plain-words reason, and it is a hard refusal.
+ *
+ * WHY IT HAS TO EXIST. Without it a refused runtime did not stop — it fell
+ * through to `ensureInstanceId` and uploaded under a random id it minted for
+ * itself. That is "silently skipped and quietly re-routed", which looks like a
+ * working backup on every page that reads the status file. A refusal must be a
+ * refusal, and it must be the reason the status file records.
+ */
+export const R2_REFUSED_ENV = "BACKUP_R2_REFUSED";
+/**
  * SLICE 147 — the per-deployment identity, persisted in DATA_DIR.
  * Named `_MARKER`, not `_FILE`: it is an identity marker, not a durable store,
  * and the coverage guard derives declared stores from `*_FILE`/`*_STORE` names.
@@ -209,12 +224,39 @@ export function resolveUploadPrefix(opts: {
   const nonProd = isNonProductionRuntime(env);
   const allowed = !!env[R2_ALLOW_NONPROD_ENV] && (env[R2_ALLOW_NONPROD_ENV] || "").trim() !== "0";
 
+  // SLICE 208 — a refusal already decided upstream is FINAL, and it comes first:
+  // a runtime that may not claim a namespace must not be handed a fresh random
+  // one either. The namespace is still reported (so a page can show where it
+  // would have written); nothing is written, and the reason is the one recorded.
+  const refusedReason = (env[R2_REFUSED_ENV] || "").trim();
+
   let instance: ResolvedInstance | null = null;
   if (explicitInstance) instance = { id: explicitInstance, source: "env" };
-  else if (opts.create) instance = ensureInstanceId(opts.dataDir, { now: opts.now });
+  // A refused run must not even mint an instance id: a refusal leaves the data
+  // directory byte-identical (the same rule the publish-tree refusals follow).
+  else if (opts.create && !refusedReason) instance = ensureInstanceId(opts.dataDir, { now: opts.now });
   else {
     const existing = readInstanceId(opts.dataDir);
     instance = existing ? { id: existing, source: "file" } : null;
+  }
+
+  if (refusedReason) {
+    const base = explicitPrefix
+      ? explicitPrefix.endsWith("/")
+        ? explicitPrefix
+        : explicitPrefix + "/"
+      : instance
+        ? `${DEFAULT_R2_PREFIX}${instance.id}/`
+        : DEFAULT_R2_PREFIX;
+    return {
+      basePrefix: base,
+      prefix: base,
+      instance: instance?.id ?? null,
+      instanceSource: instance?.source ?? null,
+      explicitOverride,
+      uploadAllowed: false,
+      skipReason: refusedReason,
+    };
   }
 
   if (explicitPrefix) {

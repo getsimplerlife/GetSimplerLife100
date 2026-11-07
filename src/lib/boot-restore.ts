@@ -51,7 +51,7 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { atomicWriteJSONSync } from "./atomic-write";
-import { describeR2Config, isNonProductionRuntime, peekUploadPrefix, r2ConfigFromEnv } from "./r2-upload";
+import { describeR2Config, isNonProductionRuntime, peekUploadPrefix, r2ConfigFromEnv, R2_REFUSED_ENV } from "./r2-upload";
 import type { R2Fetch } from "./r2-upload";
 import { createR2Client } from "./r2-upload";
 import { decryptArchiveToDir } from "../../scripts/lib/backup-crypto";
@@ -215,6 +215,14 @@ export interface BootRestoreOptions {
   persist?: boolean;
   /** `BOOT_RESTORE_DISABLED=1` (or a test runtime) opts out entirely. */
   disabled?: boolean;
+  /**
+   * SLICE 208 — the namespace the caller already resolved (`ARCHIVE_BACKUP_NAMESPACE`
+   * in prod-server). Used ONLY for the record when this runtime is REFUSED: the
+   * uploader/restore environment no longer carries the live prefix (it carries the
+   * refusal instead), so without this hint `boot_restore.json` would say "the base
+   * prefix", which is not where this runtime would have gone.
+   */
+  namespaceHint?: { prefix: string; instance: string | null };
 }
 
 const EMPTY_REPORT = (nowIso: string): BootRestoreReport => ({
@@ -269,6 +277,23 @@ export async function restoreNewestArchiveAtBoot(opts: BootRestoreOptions): Prom
       const reason = `non-production runtime (NODE_ENV=${env.NODE_ENV ?? "<unset>"}) — refusing to fetch a production archive during a test run`;
       log(`[boot-restore] skipped: ${reason}`);
       return finish({ skippedReason: reason });
+    }
+    // SLICE 208 — NO PROOF, NO RESTORE. `resolveDeploymentNamespace` refused this
+    // runtime the deployment's namespace (a scratch instance on the dev box, or
+    // one that supplied no host facts), and it said so in the environment. A
+    // restore is the same claim as an upload: "this archive is MY data". On
+    // 2026-11-07 a scratch instance resolved `live/`, pulled down another scratch
+    // instance's archive and reported it as its own recovery — the archive held a
+    // plaintext admin password file that had never existed in this box's data.
+    // The refusal is recorded in boot_restore.json and shown on data-health.
+    const namespaceRefusal = (env[R2_REFUSED_ENV] || "").trim();
+    if (namespaceRefusal) {
+      const would = opts.namespaceHint ?? peekUploadPrefix(env, opts.dataDir);
+      report.namespacePrefix = would.prefix;
+      report.instance = would.instance;
+      const reason = `this runtime may not use the deployment's namespace, so it will not restore from it either — ${namespaceRefusal}`;
+      log(`[boot-restore] skipped: ${reason}`);
+      return finish({ attempted: false, skippedReason: reason });
     }
 
     const cfg = r2ConfigFromEnv(env, { dataDir: opts.dataDir });

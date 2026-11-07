@@ -35,6 +35,12 @@ import type { R2Fetch } from "~/lib/r2-upload";
 const PASS = "test-passphrase-165";
 const RUN_ID = "2026-11-01T08-55-12Z";
 const HOST_PREFIX = "simplerlife100/backups/host-primary/";
+/**
+ * SLICE 208 — the facts that make a runtime THE DEPLOYMENT: its own filesystem,
+ * which does not carry the team's shared root. These tests model the published
+ * deployment, so they must supply them; a runtime without them is refused.
+ */
+const DEPLOY_HOST = { repoRoot: "/home/engine", teamRootPresent: false };
 const LIVE_PREFIX = "simplerlife100/backups/live/";
 
 const tmpDirs: string[] = [];
@@ -181,7 +187,7 @@ describe("slice 165 — a restore may not pull another deployment's archive", ()
 
   it("THE QA REPRODUCTION: a fresh DATA_DIR under /tmp is not host-primary", async () => {
     // the namespace this deployment actually derives — never the dev box's
-    const ns = resolveDeploymentNamespace({ env: { NODE_ENV: "production" }, dataDir: "/tmp/sl165-fresh/.data" });
+    const ns = resolveDeploymentNamespace({ env: { NODE_ENV: "production" }, dataDir: "/tmp/sl165-fresh/.data", host: DEPLOY_HOST });
     expect(ns.instance).toBe("live");
     expect(ns.prefix).toBe(LIVE_PREFIX);
     expect(ns.prefix).not.toContain("host-primary");
@@ -219,7 +225,7 @@ describe("slice 165 — a restore may not pull another deployment's archive", ()
       { key: `${LIVE_PREFIX}${RUN_ID}.tar.gz.enc`, bytes: mine.bytes },
     ]);
     const dataDir = tmp("sl165-target-");
-    const ns = resolveDeploymentNamespace({ env: { NODE_ENV: "production" }, dataDir });
+    const ns = resolveDeploymentNamespace({ env: { NODE_ENV: "production" }, dataDir, host: DEPLOY_HOST });
     const report = await restoreNewestArchiveAtBoot({
       dataDir,
       processStartedAt: new Date("2026-11-01T08:55:12.000Z"),
