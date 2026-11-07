@@ -7,6 +7,12 @@ interface ApprovalAction {
   actionId: string;
   tenantEmail: string;
   agentId: string;
+  /**
+   * SLICE 203 — mirrors `PendingAction.requestedBy` in src/lib/approval-queue.ts.
+   * This page keeps its own copy of the record shape, so the field has to be
+   * declared in both places or the card cannot read it (tsc caught exactly that).
+   */
+  requestedBy?: string;
   actionType: string;
   provider: string;
   summary: { what: string; where: string; why: string };
