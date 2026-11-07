@@ -56,10 +56,34 @@ export function AuditNotFound() {
 }
 
 function AuditDetail() {
-  const { audit } = Route.useLoaderData();
+  const { audit, readFailed } = Route.useLoaderData();
   const [feedbackText, setFeedbackText] = useState("");
   const [feedbackSent, setFeedbackSent] = useState(false);
   const [sending, setSending] = useState(false);
+
+  // 203 — a read that FAILED is not a record that does not exist. Before this,
+  // the loader swallowed the throw and this page told the customer "There is no
+  // audit record at this address" for a server error, which is the same defect
+  // class 188/190/batch B closed everywhere else.
+  if (readFailed) {
+    return (
+      <div className="min-h-screen bg-black">
+        <main className="max-w-4xl mx-auto px-6 py-24 text-center" role="alert">
+          <h1 className="text-2xl font-bold text-stone-100 mb-3">We couldn't load this record</h1>
+          <p className="text-stone-400 max-w-md mx-auto mb-8">
+            The audit record did not come back. This is a read failure, not a missing record —
+            nothing was deleted.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="inline-block bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-emerald-700 transition-colors"
+          >
+            Try again
+          </button>
+        </main>
+      </div>
+    );
+  }
 
   // D-9: no record → the not-found page. Never the in-progress copy.
   if (!audit || !audit.id) {
