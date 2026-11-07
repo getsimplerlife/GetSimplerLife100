@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Card, Badge, Button, Input } from "~/components/ui";
+import { Card, Badge, Button, Input, PageHeader } from "~/components/ui";
 import { PortalEmptyState, scrollToId } from "~/components/PortalEmptyState";
 import { CLIENT_STATUSES, CLIENT_STATUS_LABEL, type Client } from "~/lib/clients";
 
@@ -87,12 +87,10 @@ export default function ClientsPage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
-      <header>
-        <h1 className="text-2xl font-black text-white">Clients</h1>
-        <p className="text-sm text-stone-400 mt-1">
-          The customers this workspace serves. Every project belongs to one of them.
-        </p>
-      </header>
+      <PageHeader
+        title={<>Clients</>}
+        subtitle={<>The customers this workspace serves. Every project belongs to one of them.</>}
+      />
 
       {readError && (
         <Card className="p-4 border-rose-900/60 bg-rose-950/40">

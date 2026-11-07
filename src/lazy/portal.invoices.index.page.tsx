@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Card, Badge, Button } from "~/components/ui";
+import { Card, Badge, Button, PageHeader } from "~/components/ui";
 import { PortalEmptyState, scrollToId } from "~/components/PortalEmptyState";
 import { FieldErrorLine } from "~/components/FieldError";
 import { fieldErrorFrom, fieldErrorProps, type FieldError } from "~/lib/form-field-error";
@@ -177,6 +177,10 @@ export default function InvoicesPage() {
   }
 
   async function verb(id: string, action: "generate" | "send" | "delete") {
+    // SLICE 199b — Delete is destructive and irreversible, and it rendered in the
+    // same emerald as "Send invoice" with no confirmation at all. The guard lives
+    // here rather than in the click handler so every caller of `verb` inherits it.
+    if (action === "delete" && !window.confirm("Delete this invoice? This cannot be undone.")) return;
     setFeedback("");
     setError("");
     const recipient = (rowEmail[id] || "").trim();
@@ -305,15 +309,14 @@ export default function InvoicesPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Invoices</h1>
-          <p className="text-sm text-stone-500">
-            Native invoices built from approved deal rooms. Sending emails the invoice and its PDF link to the customer;
-            posting to the customer's books stays with the connected accounting adapter (Xero/QuickBooks).
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title={<>Invoices</>}
+        subtitle={
+          <>
+            Native invoices built from approved deal rooms. Sending emails the invoice and its PDF link to the customer.
+          </>
+        }
+      />
       {error && <div className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
       {feedback && <div className="rounded border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-300">{feedback}</div>}
 
@@ -511,7 +514,11 @@ export default function InvoicesPage() {
                     {sendable(i.status) && (
                       <Button onClick={() => verb(i.id, "send")}>{i.status === "failed" ? "Retry send" : "Send invoice"}</Button>
                     )}
-                    {sendable(i.status) && <Button onClick={() => verb(i.id, "delete")}>Delete</Button>}
+                    {sendable(i.status) && (
+                      <Button variant="danger" onClick={() => verb(i.id, "delete")}>
+                        Delete
+                      </Button>
+                    )}
                   </div>
                 </div>
               </div>

@@ -1,6 +1,7 @@
 // a2: SSR-render-safe — plain <a> nav (no TanStack Link), so SSR guards can
 // render this page without a RouterProvider.
 import { useState, useEffect } from "react";
+import { PageHeader, SearchInput } from "~/components/ui";
 import { PROVIDERS } from "~/data/providers";
 import { isPlaceholderProvider, getRealProviders, PLACEHOLDER_CONTACT_COPY, PLACEHOLDER_CONTACT_EMAIL, PLACEHOLDER_STATUS_COPY } from "~/lib/provider-placeholders";
 
@@ -406,41 +407,40 @@ function ConnectedServices() {
     <div className="space-y-6 max-w-7xl mx-auto text-stone-100 select-none pb-12">
       
       {/* ─── Header Section ─── */}
-      <div className="border-b border-stone-900 pb-5 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
-        <div>
-          <h1 className="text-3xl font-black text-white tracking-tight flex items-center gap-2">
-            🔌 Integrations catalog
-          </h1>
-          <p className="text-stone-400 text-xs mt-1">
-            The tools your business runs on, ready to import from. External tools are import/migration
-            lanes only — bring data in as a one-time, client-initiated import, and nothing stays connected.
-          </p>
-        </div>
-
-        {/* Tab Selection */}
-        <div className="bg-stone-900/60 p-1 rounded-xl border border-stone-850 flex gap-1 font-mono text-[10px] font-black uppercase tracking-wider">
-          <button
-            onClick={() => setActiveTab("connections")}
-            className={`px-4 py-2 rounded-lg transition-all ${
-              activeTab === "connections"
-                ? "bg-emerald-600 text-white font-black"
-                : "text-stone-400 hover:text-white"
-            }`}
-          >
-            🔌 Integrations ({connectableNowCount})
-          </button>
-          <button
-            onClick={() => setActiveTab("intake")}
-            className={`px-4 py-2 rounded-lg transition-all ${
-              activeTab === "intake"
-                ? "bg-emerald-600 text-white font-black"
-                : "text-stone-400 hover:text-white"
-            }`}
-          >
-            📁 Document Intake ({documentsHistory.length})
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title={<>🔌 Integrations catalog</>}
+        subtitle={
+          <>
+            The tools your business runs on, ready to import from. External tools are import/migration lanes only —
+            bring data in as a one-time, client-initiated import, and nothing stays connected.
+          </>
+        }
+        actions={
+          /* Tab Selection */
+          <div className="bg-stone-900/60 p-1 rounded-xl border border-stone-850 flex gap-1 font-mono text-[10px] font-black uppercase tracking-wider">
+            <button
+              onClick={() => setActiveTab("connections")}
+              className={`px-4 py-2 rounded-lg transition-all ${
+                activeTab === "connections"
+                  ? "bg-emerald-600 text-white font-black"
+                  : "text-stone-400 hover:text-white"
+              }`}
+            >
+              🔌 Integrations ({connectableNowCount})
+            </button>
+            <button
+              onClick={() => setActiveTab("intake")}
+              className={`px-4 py-2 rounded-lg transition-all ${
+                activeTab === "intake"
+                  ? "bg-emerald-600 text-white font-black"
+                  : "text-stone-400 hover:text-white"
+              }`}
+            >
+              📁 Document Intake ({documentsHistory.length})
+            </button>
+          </div>
+        }
+      />
 
       {/* ─── CONNECTIONS TAB ─── */}
       {activeTab === "connections" && (
@@ -450,24 +450,13 @@ function ConnectedServices() {
           <div className="bg-stone-950 p-5 rounded-2xl border border-stone-900 flex flex-col lg:flex-row gap-4 justify-between items-stretch lg:items-center">
             
             {/* Search Input */}
-            <div className="relative flex-1">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-500 font-mono text-[10px]">SEARCH</span>
-              <input
-                type="text"
-                placeholder="Search platforms, APIs, custom ERP configurations..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-stone-900/40 border border-stone-850 focus:border-stone-800 rounded-xl pl-16 pr-4 py-3 text-xs text-stone-100 outline-none transition-all placeholder-stone-600 font-semibold"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-500 hover:text-white text-xs"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
+            <SearchInput
+              label="Search integrations"
+              placeholder="Search platforms, APIs, custom ERP configurations..."
+              value={searchQuery}
+              onChange={setSearchQuery}
+              wrapperClassName="flex-1"
+            />
 
             {/* Category Pill Filters */}
             <div className="flex flex-wrap gap-2 max-w-full overflow-x-auto scrollbar-none">

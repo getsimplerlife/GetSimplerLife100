@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { PageHeader, SearchInput } from "~/components/ui";
 import { PortalEmptyState } from "~/components/PortalEmptyState";
 
 /**
@@ -173,20 +174,18 @@ function WorkflowManager() {
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto text-stone-100 select-none">
-      <div className="border-b border-stone-900 pb-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-black text-white tracking-tight">Workflows</h1>
-          <p className="text-stone-400 text-xs mt-1">
-            Workflows this workspace has saved. Pause, edit, and delete are applied to the real store.
-          </p>
-        </div>
-        <Link
-          to="/portal/workflows/builder"
-          className="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs font-mono px-5 py-3 rounded-xl transition-all shadow-lg active:scale-95"
-        >
-          Create Custom Workflow
-        </Link>
-      </div>
+      <PageHeader
+        title={<>Workflows</>}
+        subtitle={<>Workflows this workspace has saved. Pause, edit, and delete are applied to the real store.</>}
+        actions={
+          <Link
+            to="/portal/workflows/builder"
+            className="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs font-mono px-5 py-3 rounded-xl transition-all shadow-lg active:scale-95"
+          >
+            Create Custom Workflow
+          </Link>
+        }
+      />
 
       {error && (
         <div className="bg-rose-950/20 border border-rose-500/30 rounded-xl px-5 py-3 text-xs font-mono text-rose-300">
@@ -195,15 +194,13 @@ function WorkflowManager() {
       )}
 
       <div className="flex flex-col sm:flex-row gap-4 bg-stone-950 p-3.5 border border-stone-900 rounded-xl">
-        <div className="flex-1 flex items-center bg-stone-900/60 border border-stone-900 rounded-xl px-3 py-2">
-          <input
-            type="text"
-            placeholder="Search workflows by name or ID..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="flex-1 bg-transparent border-0 text-xs outline-none font-medium placeholder-stone-500 text-stone-200"
-          />
-        </div>
+        <SearchInput
+          label="Search workflows"
+          placeholder="Search workflows by name or ID..."
+          value={searchTerm}
+          onChange={setSearchTerm}
+          wrapperClassName="flex-1"
+        />
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}

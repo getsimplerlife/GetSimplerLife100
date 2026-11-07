@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Card, Badge, Button, Modal } from "~/components/ui";
+import { Card, Badge, Button, Modal, PageHeader } from "~/components/ui";
 
 
 /** Mirrors src/lib/approval-queue.ts PendingAction (portal-safe shape). */
@@ -190,26 +190,24 @@ function ApprovalQueue() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="border-b border-stone-800 pb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-black text-stone-100 tracking-tight">✅ Approval Queue</h1>
-          <p className="text-stone-500 mt-1">
-            Every AI write action waits here for your approval. Nothing executes until you say so.
-          </p>
-        </div>
-        <button
-          onClick={toggleMode}
-          className={`px-4 py-2 rounded-xl text-xs font-bold border transition-colors ${
-            mode === "on"
-              ? "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600"
-              : "bg-stone-800 hover:bg-stone-700 text-stone-200 border-stone-700"
-          }`}
-        >
-          {mode === "on"
-            ? "🛡️ Approvals ON — writes wait for review"
-            : "⚡ Auto-approve requested — only allow-listed automations run without review"}
-        </button>
-      </div>
+      <PageHeader
+        title={<>✅ Approval Queue</>}
+        subtitle={<>Every AI write action waits here for your approval. Nothing executes until you say so.</>}
+        actions={
+          <button
+            onClick={toggleMode}
+            className={`px-4 py-2 rounded-xl text-xs font-bold border transition-colors ${
+              mode === "on"
+                ? "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600"
+                : "bg-stone-800 hover:bg-stone-700 text-stone-200 border-stone-700"
+            }`}
+          >
+            {mode === "on"
+              ? "🛡️ Approvals ON — writes wait for review"
+              : "⚡ Auto-approve requested — only allow-listed automations run without review"}
+          </button>
+        }
+      />
 
       {error && (
         <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold px-4 py-3 rounded-xl">
