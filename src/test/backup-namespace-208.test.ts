@@ -102,7 +102,7 @@ function fakeR2(captured: Array<{ method: string; url: string }> = []): R2Fetch 
       return response({ body: `<?xml version="1.0"?><ListBucketResult><IsTruncated>false</IsTruncated></ListBucketResult>` });
     }
     return response({ ok: true });
-  }) as R2Fetch & { captured: typeof captured };
+  }) as unknown as R2Fetch & { captured: typeof captured };
   impl.captured = captured;
   return impl;
 }
