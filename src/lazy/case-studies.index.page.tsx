@@ -84,8 +84,10 @@ function CaseStudiesIndexPage() {
               <span className="font-bold text-stone-300">Illustrative estimates.</span> Any
               timing or efficiency figure on these pages is an illustrative estimate of a
               typical workflow, not a delivered result for any client. We make no claim about
-              outcomes at a specific company. Integrations shown are live-verified by our team;
-              a few (e.g. QuickBooks) are code-ready and pending live credentials.
+              outcomes at a specific company. Integrations shown are adapter lanes in our own
+              codebase — code that calls each system's own API once you authorize it — not
+              connections we have already run for a client. The QuickBooks lane is inbound only:
+              our import lane reads from QuickBooks, and no live path posts into it.
             </p>
           </div>
 

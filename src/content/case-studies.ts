@@ -5,12 +5,14 @@
  * names + precise stats + named executive quotes) presented as "Real Results.
  * Real Impact." with no disclaimer. That is gone.
  *
- * This file now describes REAL, VERIFIED INTEGRATION CAPABILITY PATTERNS:
- * automated workflow patterns that run on integrations we have live-verified
- * (Xero, HubSpot, DocuSign, Slack, Google Calendar, Microsoft 365, Google
- * productivity). These are demonstrations of what the platform CAN do with a
- * client's own authorized systems — proof of capability, NOT delivered client
- * results. No invented companies, no fabricated outcomes.
+ * This file describes INTEGRATION CAPABILITY PATTERNS: automated workflow
+ * patterns built on the adapter lanes this repo ships (Xero, HubSpot, DocuSign,
+ * Slack, Google Calendar, Microsoft 365, Google productivity). A lane is code
+ * that calls a provider's own API once a tenant authorizes it — it is not
+ * evidence that the call has ever run, and no client record has passed through
+ * one. These are demonstrations of what the platform CAN do with a client's own
+ * authorized systems — proof of capability, NOT delivered client results. No
+ * invented companies, no fabricated outcomes.
  *
  * Where any metric or savings figure appears it is an ILLUSTRATIVE ESTIMATE,
  * clearly labeled as such, never attributed to a real or invented client.
@@ -20,7 +22,7 @@ export interface CaseStudy {
   title: string;
   /** The verified workflow pattern this demonstration walks through. */
   pattern: string;
-  /** Live-verified integrations involved in this pattern. */
+  /** Integrations this pattern runs across — adapter lanes this repo ships. */
   integrations: string[];
   /** What the automated pattern actually does end-to-end. */
   walkthrough: string[];
@@ -49,7 +51,7 @@ export const caseStudies: CaseStudy[] = [
       { metric: "Illustrative: manual steps removed (est.)", value: "every step above" },
     ],
     verificationNote:
-      "Builds on integrations the team has live-verified: Xero, DocuSign, HubSpot, Slack, Google productivity and Microsoft 365. QuickBooks invoice-draft code is shipped, pending live Intuit credentials.",
+      "Adapter lanes for Xero, DocuSign, HubSpot, Slack, Google productivity and Microsoft 365 call each system's own API once a tenant authorizes it; none of them has carried a client's live record yet. QuickBooks is inbound only — our import lane reads from it, and no live path posts into it.",
   },
   {
     id: "slack-orchestration",
@@ -68,24 +70,24 @@ export const caseStudies: CaseStudy[] = [
       { metric: "Governance", value: "every write gated behind human approval" },
     ],
     verificationNote:
-      "Relies on the Slack provider webhook (verified) and the approval-queue gate (26-test suite).",
+      "Relies on the Slack provider webhook lane and the approval-queue gate: every write waits for a human before it runs.",
   },
   {
     id: "calendar-to-workflow",
     title: "Calendar-driven operations",
     pattern:
-      "Automation triggered off a team's calendar events (available integrations live-verified), feeding downstream tracking and comms.",
+      "Automation triggered off a team's calendar events (our calendar lanes read through each provider's own API), feeding downstream tracking and comms.",
     integrations: ["google-calendar", "microsoft", "slack"],
     walkthrough: [
       "A scheduled business event is created/updated on a shared calendar.",
-      "The platform detects the change through a live calendar integration.",
+      "The platform reads the change through the calendar lane once the tenant authorizes it.",
       "Downstream records or notifications are produced in connected systems as configured.",
     ],
     illustrativeEstimate: [
       { metric: "Illustrative: event-to-action latency (est.)", value: "near real-time" },
     ],
     verificationNote:
-      "Google Calendar and Microsoft 365 (incl. OneDrive) providers are live-verified.",
+      "Google Calendar and Microsoft 365 (including OneDrive) each have an adapter lane that calls that provider's own API once a tenant authorizes it; neither has run against a client's live account.",
   },
   {
     id: "document-filing",
@@ -100,6 +102,6 @@ export const caseStudies: CaseStudy[] = [
     ],
     illustrativeEstimate: [],
     verificationNote:
-      "Uses live-verified Microsoft (OneDrive) and Google productivity providers.",
+      "Uses our Microsoft (OneDrive) and Google productivity adapter lanes, which call those providers' own APIs once a tenant authorizes them.",
   },
 ];
