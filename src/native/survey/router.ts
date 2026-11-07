@@ -228,8 +228,35 @@ export function handleNativeSurveysAuthed(req: Request, ctx: NativeSurveyCtx): P
   return handleAuthedAsync(req, ctx).catch(() => Response.json({ error: "Internal error" }, { status: 500 }));
 }
 
+/**
+ * SLICE 205 — every answer from the public survey lane is uncacheable and
+ * unindexable, including the ones built by shared helpers (`json404`,
+ * `gateErrorStatus`) that do not know this lane exists. This is the exact
+ * pattern 192b-2 shipped on the booking lane (src/native/booking/router.ts:298,
+ * 393-407): the audit found the survey share route was the only one of the five
+ * with no robots directive in the served HTML, no `X-Robots-Tag` header and no
+ * meta tag in the live DOM. A survey link is a private client link.
+ */
+const NO_STORE = { "cache-control": "no-store", "x-robots-tag": "noindex, nofollow" } as const;
+
+function withNoStore(res: Response): Response {
+  try {
+    res.headers.set("cache-control", "no-store");
+    res.headers.set("x-robots-tag", "noindex, nofollow");
+  } catch {
+    // A guarded Response — leave it exactly as the server produced it.
+  }
+  return res;
+}
+
 /** PUBLIC share handler — wired BEFORE the session check (like 3.1 booking). */
-export function handleNativeSurveyShare(req: Request, ctx: { dataDir: string }, _slug: string): Promise<Response> {
+export function handleNativeSurveyShare(req: Request, ctx: { dataDir: string }, slug: string): Promise<Response> {
+  return handleSurveyShareAsync(req, ctx, slug)
+    .catch(() => Response.json({ error: "Internal error" }, { status: 500, headers: NO_STORE }))
+    .then(withNoStore);
+}
+
+async function handleSurveyShareAsync(req: Request, ctx: { dataDir: string }, _slug: string): Promise<Response> {
   const url = new URL(req.url);
   // EXPLICIT-SEGMENT parsing (no two-capture regex — the 1.4 shadowing class):
   //   /api/native/survey/share/<slug>            → GET view

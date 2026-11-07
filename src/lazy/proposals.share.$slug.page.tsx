@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useParams } from "@tanstack/react-router";
-import { Card, Badge, Button } from "~/components/ui";
+import { Card, Badge, Button, type BadgeVariant } from "~/components/ui";
 import { proposalPublicApiPath } from "~/lib/share-links";
 
 /**
@@ -122,9 +122,16 @@ const DECISION_WORD: Record<Decision, { noun: string; done: string }> = {
 };
 
 interface Recorded {
+  /**
+   * `expired` marks the server's 409-with-`reason: "expired"` answer. The state
+   * stays `refused` so the panel prints the server's OWN sentence (the 192b-2
+   * contract), but the badge must not go back to asking for a decision on an
+   * offer the server has just said has lapsed (SLICE 205).
+   */
   state: "applied" | "queued" | "refused";
   decision: Decision;
   message: string;
+  expired?: boolean;
 }
 
 /** Is this a status this page knows how to label? (remote input — check it) */
@@ -205,6 +212,49 @@ interface PanelCtx {
   /** Re-read the proposal (the `refused` state's only action). */
   retry: () => void;
 }
+
+/** One badge: the label the client reads and the tone it wears. */
+interface BadgeSpec {
+  label: string;
+  variant: BadgeVariant;
+}
+
+/** The record's own word for a status — never a raw enum in front of a client. */
+function recordBadge(status: ProposalStatus): BadgeSpec {
+  return { label: STATUS_LABEL[status], variant: STATUS_BADGE[status] };
+}
+
+/**
+ * SLICE 205 — THE BADGE IS THE DECISION STATE, not the record's `status`.
+ *
+ * The defect (audit 204 D-2, seen in a real browser): an expired proposal was
+ * badged "AWAITING YOUR DECISION" at the top while the panel below said the
+ * offer had lapsed and nothing could be accepted. The panel was expiry-aware
+ * (`decisionState`, above); the badge read `STATUS_LABEL[view.status]`, which
+ * is `pending` — and `pending` is TRUE of the record. What was false was the
+ * instruction it carried.
+ *
+ * So the badge now comes out of the SAME typed map the panel does:
+ * `Record<DecisionState, …>`, so a new decision state is a compile error here
+ * and there is exactly one place that decides what a client is told.
+ */
+const DECISION_BADGE: Record<DecisionState, (ctx: PanelCtx) => BadgeSpec> = {
+  // The server says `signable`: this is the only state that asks for anything.
+  pending: () => recordBadge("pending"),
+  // Expiry outranks the record: `status: pending` with a lapsed window is an
+  // offer nobody can accept, and the badge must say so.
+  expired: () => ({ label: "Expired", variant: "danger" }),
+  // This client's own decision landed on the record (200).
+  applied: ({ recorded }) => recordBadge(recorded?.decision === "reject" ? "rejected" : "approved"),
+  // 202: received, and the record has NOT changed yet. Never "accepted".
+  queued: () => ({ label: "Decision received", variant: "blue" }),
+  // Nobody can act: the record itself is the answer.
+  "already-decided": ({ view }) => recordBadge(view.status),
+  // The server refused the write; the record is whatever it already was — unless
+  // the refusal itself was expiry, in which case the badge must not ask again.
+  refused: ({ view, recorded }) =>
+    view.expired || recorded?.expired ? { label: "Expired", variant: "danger" } : recordBadge(view.status),
+};
 
 const DECISION_PANEL: Record<DecisionState, (ctx: PanelCtx) => ReactNode> = {
   // The only state that may render a form, and only because the server says so.
@@ -477,7 +527,7 @@ export default function ProposalSharePage() {
         body: JSON.stringify(payload),
       });
       const body = (await res.json().catch(() => null)) as
-        | { data?: { status?: string }; error?: string }
+        | { data?: { status?: string }; error?: string; reason?: string }
         | null;
       const status = body?.data?.status;
       // 200 / applied — the decision is on the record.
@@ -501,6 +551,19 @@ export default function ProposalSharePage() {
       }
       // The server is the authority on why it refused (400, 409 expired/decided,
       // 429): print its own words.
+      // SLICE 205 — a 409 whose `reason` is `expired` is the SAME fact as the
+      // GET's `expired: true` (proposals/router.ts:415-419, the same predicate),
+      // so it must render as the expired state and not as a refusal badge over
+      // an expired panel. The window can lapse between the read and the click.
+      if (body?.reason === "expired") {
+        setRecorded({
+          state: "refused",
+          decision,
+          message: body?.error || "",
+          expired: true,
+        });
+        return;
+      }
       setRecorded({
         state: "refused",
         decision,
@@ -636,6 +699,9 @@ export default function ProposalSharePage() {
     ),
   };
 
+  // ONE decision state drives the badge and the panel below it.
+  const badge = DECISION_BADGE[state](panelCtx);
+
   return (
     <div className="mx-auto max-w-2xl p-6">
       <div className="mb-6 flex items-start justify-between gap-3">
@@ -647,18 +713,29 @@ export default function ProposalSharePage() {
           </p>
           {view.issuerName ? <p className="text-sm text-gray-500">Prepared by {view.issuerName}</p> : null}
         </div>
-        <Badge variant={STATUS_BADGE[view.status]}>{STATUS_LABEL[view.status]}</Badge>
+        {/* SLICE 205 — the badge and the panel come from ONE decision state.
+            Before this it read `STATUS_LABEL[view.status]`, so an expired
+            proposal told the client to decide. */}
+        <Badge variant={badge.variant}>{badge.label}</Badge>
       </div>
 
       <Card>
         <div className="p-4">
+          {/* SLICE 205 — the line-item columns collided at 390 px (audit 204
+              D-5): "Unit price" and "Amount" both render `$2,500.00`, and with
+              no gutter between them the row read `$2,500.00$2,500.00`. Two
+              changes, both measured in a real browser at 390×844: every numeric
+              column carries a left gutter (`pl-4`), and every money cell is
+              `whitespace-nowrap` so a value can never break in half and the
+              header can never wrap onto two lines. The table keeps `w-full`, so
+              the description column absorbs the slack instead of the numbers. */}
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b text-left text-gray-500">
-                <th className="py-2">Description</th>
-                <th className="py-2 text-right">Qty</th>
-                <th className="py-2 text-right">Unit price</th>
-                <th className="py-2 text-right">Amount</th>
+                <th className="py-2 pr-2">Description</th>
+                <th className="whitespace-nowrap py-2 pl-4 text-right">Qty</th>
+                <th className="whitespace-nowrap py-2 pl-4 text-right">Unit price</th>
+                <th className="whitespace-nowrap py-2 pl-4 text-right">Amount</th>
               </tr>
             </thead>
             <tbody>
@@ -666,10 +743,10 @@ export default function ProposalSharePage() {
                 // Keyed by position: two identical descriptions are legitimate
                 // lines, and `key={li.description}` collapsed them into one row.
                 <tr key={`${li.description}-${idx}`} className="border-b">
-                  <td className="py-2">{li.description}</td>
-                  <td className="py-2 text-right">{li.qty}</td>
-                  <td className="py-2 text-right">{amount(li.unitPrice, view.currency)}</td>
-                  <td className="py-2 text-right">{amount(li.qty * li.unitPrice, view.currency)}</td>
+                  <td className="py-2 pr-2">{li.description}</td>
+                  <td className="whitespace-nowrap py-2 pl-4 text-right">{li.qty}</td>
+                  <td className="whitespace-nowrap py-2 pl-4 text-right">{amount(li.unitPrice, view.currency)}</td>
+                  <td className="whitespace-nowrap py-2 pl-4 text-right">{amount(li.qty * li.unitPrice, view.currency)}</td>
                 </tr>
               ))}
             </tbody>
