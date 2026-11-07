@@ -296,8 +296,13 @@ describe("Source-level: prod-server wires the shared handler in the checkout blo
     // branch and the generic branch. (The Connection Pack branch was deleted
     // with the retired SKU in slice 136, so the old ">= 3" pin was stale.)
     expect((src.match(/await handlePurchaseCompleted\(/g) || []).length).toBeGreaterThanOrEqual(2);
-    // The handler reuses the existing SendGrid/lead mail path, not a new one.
-    expect(src).toContain("async function sendEmailSMTP");
+    // Slice 201: the handler reuses the ONE shared sender (src/integrations/
+    // email.ts — Brevo SMTP first), not a private SendGrid-only path. The old
+    // `async function sendEmailSMTP` is gone; see email-lane-201.test.ts for the
+    // full source guard and the tier-link HTTP proof.
+    expect(src).toContain("await deliverEmail(");
+    expect(src).toContain('from "./src/integrations/email"');
+    expect(src).not.toMatch(/function sendEmailSMTP\s*\(/);
     expect(src).toContain("LEAD_NOTIFICATION_EMAIL");
   });
 });

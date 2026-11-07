@@ -317,7 +317,7 @@ describe("151b: prod-server.ts wires the account dimension at every secret-verif
     const branch = src.indexOf('if (pathname === "/api/request-password-reset" && req.method === "POST")');
     const gate = src.indexOf('guardAccount({ lane: "reset"', branch);
     const mint = src.indexOf("newPasswordResetRecord", branch);
-    const mail = src.indexOf("sendEmailSMTP", branch);
+    const mail = src.indexOf("await deliverEmail(", branch);
     expect(branch).toBeGreaterThan(-1);
     expect(gate).toBeGreaterThan(branch);
     expect(mint).toBeGreaterThan(gate);
