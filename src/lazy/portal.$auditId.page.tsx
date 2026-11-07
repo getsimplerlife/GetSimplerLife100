@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { submitFeedback } from "~/db/queries";
 import { Route } from '~/routes/portal.$auditId';
+import { Button } from "~/components/ui";
 
 /**
  * SLICE 168 — D-9. `/portal/$auditId` is a dynamic child of `/portal`, so any
@@ -74,12 +75,7 @@ function AuditDetail() {
             The audit record did not come back. This is a read failure, not a missing record —
             nothing was deleted.
           </p>
-          <button
-            onClick={() => window.location.reload()}
-            className="inline-block bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-emerald-700 transition-colors"
-          >
-            Try again
-          </button>
+          <Button onClick={() => window.location.reload()}>Try again</Button>
         </main>
       </div>
     );
