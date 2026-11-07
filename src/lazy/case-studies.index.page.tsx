@@ -16,11 +16,21 @@ function CaseStudiesIndexPage() {
             <h1 className="text-5xl lg:text-7xl font-black text-white tracking-tight">
               Verified Automation. <span className="text-emerald-500">Real Capability.</span>
             </h1>
+            {/* SLICE 205 — this sentence named six "live-verified integrations"
+                (Xero, HubSpot, DocuSign, Slack, Google, Microsoft 365). The
+                capability grid directly below it renders eight distinct
+                integration slugs across the four demonstrations, and the
+                capability catalog records only xero / stripe / quickbooks as
+                wired — so the number was wrong whichever way you read the page.
+                A hand-written list in the hero is a claim that drifts from the
+                page's own data the moment either changes, and there is no
+                honest count to put in its place: it is REMOVED, not re-counted.
+                Each card below names the integrations its own demonstration
+                involves, and that is the only place the page states them. */}
             <p className="text-xl text-stone-400 max-w-2xl mx-auto">
-              We run these workflows on our own live-verified integrations — Xero, HubSpot,
-              DocuSign, Slack, Google, and Microsoft 365. Each is a demonstration of what the
-              platform can do with your own authorized systems. We don't publish client results
-              we can't prove.
+              Each demonstration below names the systems it runs across. Every one is a
+              demonstration of what the platform does with your own authorized systems — we
+              don't publish client results we can't prove.
             </p>
           </div>
 

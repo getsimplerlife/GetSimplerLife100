@@ -233,7 +233,11 @@ describe("slice 192b-2 — the proposal decision panel", () => {
         body: { data: proposalView({ signable: false, expired: true, expiresAt }) },
       },
     ]);
-    expect(await screen.findByText(/expired/i)).toBeTruthy();
+    // SLICE 205 — this query was `/expired/i` and the page now legitimately says
+    // "expired" TWICE: the status badge and the panel heading. Both are correct
+    // (before 205 the badge said "Awaiting your decision"), so the assertion is
+    // scoped to the panel heading it was always about.
+    expect(await screen.findByRole("heading", { name: /has expired/i })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /accept/i })).toBeNull();
     expect(screen.queryByRole("button", { name: /decline/i })).toBeNull();
     // The date the server holds, formatted — not "Valid for 30 days".
