@@ -210,7 +210,13 @@ export default function DealRoomSharePage() {
                 </span>
               </div>
             ))}
-            <p className="text-xs text-gray-400">Posting to your accounting books is handled by the connected accounting adapter (Xero/QuickBooks).</p>
+            {/* SLICE 203 — a footer here claimed the connected accounting adapter
+                posted this invoice to the client's books. There is no outbound
+                posting lane at all: books-posting is out of scope
+                (src/native/invoice/types.ts:21-22) and src/native/import/ ships a
+                Xero SOURCE with no QuickBooks source, so both halves of the claim
+                were false. Deleted rather than softened. */}
+            <p className="text-xs text-gray-400">These are the invoices issued for this engagement.</p>
           </div>
         ) : (
           <p className="text-sm text-gray-500">No invoice has been issued for this deal room yet.</p>

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { submitFeedback } from "~/db/queries";
 import { Route } from '~/routes/portal.$auditId';
+import { Button } from "~/components/ui";
 
 /**
  * SLICE 168 — D-9. `/portal/$auditId` is a dynamic child of `/portal`, so any
@@ -56,10 +57,29 @@ export function AuditNotFound() {
 }
 
 function AuditDetail() {
-  const { audit } = Route.useLoaderData();
+  const { audit, readFailed } = Route.useLoaderData();
   const [feedbackText, setFeedbackText] = useState("");
   const [feedbackSent, setFeedbackSent] = useState(false);
   const [sending, setSending] = useState(false);
+
+  // 203 — a read that FAILED is not a record that does not exist. Before this,
+  // the loader swallowed the throw and this page told the customer "There is no
+  // audit record at this address" for a server error, which is the same defect
+  // class 188/190/batch B closed everywhere else.
+  if (readFailed) {
+    return (
+      <div className="min-h-screen bg-black">
+        <main className="max-w-4xl mx-auto px-6 py-24 text-center" role="alert">
+          <h1 className="text-2xl font-bold text-stone-100 mb-3">We couldn't load this record</h1>
+          <p className="text-stone-400 max-w-md mx-auto mb-8">
+            The audit record did not come back. This is a read failure, not a missing record —
+            nothing was deleted.
+          </p>
+          <Button onClick={() => window.location.reload()}>Try again</Button>
+        </main>
+      </div>
+    );
+  }
 
   // D-9: no record → the not-found page. Never the in-progress copy.
   if (!audit || !audit.id) {
@@ -151,16 +171,23 @@ function AuditDetail() {
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
-                    <span>Download PDF Report</span>
+                    {/* SLICE 203 — this button promised a PDF download. The
+                        handler is window.print(); no PDF is produced. The label now
+                        names what the button does. */}
+                    <span>Print this report</span>
                   </button>
                 </div>
               </div>
             ) : (
               <div className="text-center py-12 bg-stone-900 rounded-xl border border-dashed border-stone-700">
                 <div className="text-3xl mb-4">⏳</div>
-                <h3 className="text-lg font-bold mb-2">Audit in Progress</h3>
+                <h3 className="text-lg font-bold mb-2">No results yet</h3>
                 <p className="text-stone-400 max-w-sm mx-auto">
-                  Our team is currently analyzing your workflows. You'll receive an email once your results are ready.
+                  {/* SLICE 203 — this said "Our team is currently analyzing your
+                      workflows. You'll receive an email once your results are
+                      ready." Nothing transitions this record's status and nothing
+                      sends that email. The copy now states what the page shows. */}
+                  This audit has no results recorded yet. When results are added to the record, they appear on this page.
                 </p>
               </div>
             )}
@@ -169,11 +196,17 @@ function AuditDetail() {
             <div className="mt-12 pt-12 border-t no-print">
               <h2 className="text-xl font-bold mb-4">Request Adjustments</h2>
               <p className="text-stone-400 mb-4 text-sm">
-                Need to add more detail or adjust your audit focus? Let us know and we'll update your report.
+                {/* SLICE 203 — this said "Let us know and we'll update your
+                    report." Nothing here reaches anyone: `submitFeedback` is a
+                    createServerFn whose handler never runs in the browser (the
+                    polyfill returns `{}`), and prod-server has no feedback
+                    endpoint at all, so the text is discarded. Saying so is the
+                    honest minimum until the lane is built. */}
+                Need to add more detail or adjust your audit focus? Describe it below. Nothing you type here is stored or sent yet.
               </p>
               {feedbackSent ? (
-                <div className="bg-green-950/30 border border-green-500/30 text-green-300 p-4 rounded-xl">
-                  Your adjustment request has been received. Our team will review it within 24 hours.
+                <div className="bg-stone-800/60 border border-stone-600 text-stone-200 p-4 rounded-xl">
+                  Nothing was recorded — the text was not stored or sent, and this audit record is unchanged.
                 </div>
               ) : (
                 <div className="space-y-4">

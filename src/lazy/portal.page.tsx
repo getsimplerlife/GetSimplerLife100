@@ -156,9 +156,14 @@ type NavLink = {
     { name: "Documents & Vault", subtitle: "Upload · File · Filing · Rules", path: "/portal/vault", icon: "vault", section: "Operations" },
     { name: "Approvals", subtitle: "Review · Authorize", path: "/portal/approvals", icon: "approvals", section: "Operations" },
     { name: "Webhooks", subtitle: "Subscriptions · Deliveries", path: "/portal/webhooks", icon: "webhooks", section: "Operations" },
-    { name: "Assistant", subtitle: "Ask · Draft answers · Audit", path: "/portal/assistant", icon: "assistant", section: "Communications" },
+    // SLICE 203 — the Integrations subtitle advertised a catalog count the
+    // catalog does not have (179 rows, and the page it opens says most are still
+    // in development). The Assistant subtitle advertised drafts, which the
+    // assistant page itself says are disabled. Both now describe what the page
+    // holds.
+    { name: "Assistant", subtitle: "Ask · Recorded · Approval-gated", path: "/portal/assistant", icon: "assistant", section: "Communications" },
     { name: "Communications", subtitle: "Messages · Log", path: "/portal/communications", icon: "communications", section: "Communications" },
-    { name: "Integrations", subtitle: "Full 180+ Catalog", path: "/portal/integrations", icon: "integrations", section: "Data & Connect" },
+    { name: "Integrations", subtitle: "Import lanes · Catalog status", path: "/portal/integrations", icon: "integrations", section: "Data & Connect" },
     { name: "Secure Transport", subtitle: "SFTP · PGP keys · Transfer rules", path: "/portal/secure-transport", icon: "secure", section: "Data & Connect" },
     { name: "Dedupe & MDM", subtitle: "Match rules · Merge · Data quality", path: "/portal/dedupe", icon: "dedupe", section: "Data & Connect" },
     { name: "Access Reviews", subtitle: "Certification campaigns · Attestations", path: "/portal/accessreview", icon: "access", section: "Data & Connect" },

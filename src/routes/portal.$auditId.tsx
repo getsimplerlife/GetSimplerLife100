@@ -25,13 +25,14 @@ export const Route = createFileRoute("/portal/$auditId")({
       // (null, `{}` from the client-side server-fn polyfill, a malformed row)
       // is "no record", which the page renders as not-found.
       if (audit && typeof audit === "object" && (audit as { id?: unknown }).id) {
-        return { audit };
+        return { audit, readFailed: false };
       }
-      return { audit: null };
+      return { audit: null, readFailed: false };
     } catch {
       // getAudit throws "Audit not found" / "Unauthorized". Neither may become
-      // an invented audit in the UI.
-      return { audit: null };
+      // an invented audit in the UI — and a read that FAILED must not be
+      // dressed up as "no such record", so the page gets the difference.
+      return { audit: null, readFailed: true };
     }
   },
   component: lazyRouteComponent(() => import('~/lazy/portal.$auditId.page')),

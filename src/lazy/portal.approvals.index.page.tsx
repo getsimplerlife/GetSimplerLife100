@@ -7,6 +7,12 @@ interface ApprovalAction {
   actionId: string;
   tenantEmail: string;
   agentId: string;
+  /**
+   * SLICE 203 — mirrors `PendingAction.requestedBy` in src/lib/approval-queue.ts.
+   * This page keeps its own copy of the record shape, so the field has to be
+   * declared in both places or the card cannot read it (tsc caught exactly that).
+   */
+  requestedBy?: string;
   actionType: string;
   provider: string;
   summary: { what: string; where: string; why: string };
@@ -248,7 +254,10 @@ function ApprovalQueue() {
           <Card className="p-12 text-center">
             <span className="text-4xl">🎉</span>
             <h3 className="text-md font-bold mt-4 text-stone-100">All Clear!</h3>
-            <p className="text-xs text-stone-400 mt-1">No agent writes are waiting for approval.</p>
+            {/* SLICE 203 — this said that automated writes were waiting for
+                approval. Nothing in the product enqueues them; the runtime in
+                src/agents/* is retired. */}
+            <p className="text-xs text-stone-400 mt-1">No writes are waiting for approval.</p>
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -265,7 +274,15 @@ function ApprovalQueue() {
                     <div><strong className="text-stone-700">What:</strong> <span className="text-stone-600 break-all">{a.summary.what}</span></div>
                     <div><strong className="text-stone-700">Why:</strong> <span className="text-stone-600">{a.summary.why}</span></div>
                     <div className="pt-1 text-stone-400 text-[10px]">
-                      Agent <span className="font-mono">{a.agentId}</span> · {timeAgo(a.createdAt)}
+                      {/* SLICE 203 — this card used to name a worker taken from
+                          a placeholder id, so it named a writer that does not
+                          exist. It now shows the requester the record actually
+                          carries, and the time alone when it has none. */}
+                      {a.requestedBy ? (
+                        <>Requested by <span className="font-mono">{a.requestedBy}</span> · {timeAgo(a.createdAt)}</>
+                      ) : (
+                        <>Requested {timeAgo(a.createdAt)}</>
+                      )}
                     </div>
                   </div>
                 </div>
