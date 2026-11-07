@@ -256,7 +256,12 @@ export default function BookingsPage() {
             <div key={b.id} className="flex flex-wrap items-center justify-between gap-2 px-5 py-3">
               <div>
                 <p className="text-sm font-medium text-stone-100">{b.clientName} <span className="text-slate-400">·</span> <span className="text-slate-500">{b.clientEmail}</span></p>
-                <p className="text-xs text-slate-500">{pageName(b.bookingPageId)} · {fmtSlot(b.startAt, pages.find((p) => p.id === b.bookingPageId)?.timeZone ?? "UTC")}{b.roundRobinAssignee ? ` · → ${b.roundRobinAssignee}` : ""} · calendar: {b.calendarSync?.status ?? "not-synced"} (Google Calendar adapter)</p>
+                {/* SLICE 203 — this printed a calendar-adapter parenthetical beside
+                    the status. 192b-2 deleted the same claim from the share page at
+                    its source (native/booking/sync.ts) but this portal line kept it:
+                    no calendar is connected, so nothing syncs. The parenthetical is
+                    gone and the no-record case now says what is true. */}
+                <p className="text-xs text-slate-500">{pageName(b.bookingPageId)} · {fmtSlot(b.startAt, pages.find((p) => p.id === b.bookingPageId)?.timeZone ?? "UTC")}{b.roundRobinAssignee ? ` · → ${b.roundRobinAssignee}` : ""} · calendar: {b.calendarSync?.status ?? "not synced"}{b.calendarSync?.status ? "" : " — this workspace has no calendar connected"}</p>
               </div>
               <div className="flex items-center gap-2">
                 <Badge>{BOOKING_STATUS_LABEL[b.status] ?? b.status}</Badge>

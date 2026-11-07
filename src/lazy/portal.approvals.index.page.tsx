@@ -248,7 +248,9 @@ function ApprovalQueue() {
           <Card className="p-12 text-center">
             <span className="text-4xl">🎉</span>
             <h3 className="text-md font-bold mt-4 text-stone-100">All Clear!</h3>
-            <p className="text-xs text-stone-400 mt-1">No agent writes are waiting for approval.</p>
+            {/* SLICE 203 — this said "No agent writes are waiting for
+                approval." There are no AI employees; src/agents/* is retired. */}
+            <p className="text-xs text-stone-400 mt-1">No writes are waiting for approval.</p>
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -265,7 +267,16 @@ function ApprovalQueue() {
                     <div><strong className="text-stone-700">What:</strong> <span className="text-stone-600 break-all">{a.summary.what}</span></div>
                     <div><strong className="text-stone-700">Why:</strong> <span className="text-stone-600">{a.summary.why}</span></div>
                     <div className="pt-1 text-stone-400 text-[10px]">
-                      Agent <span className="font-mono">{a.agentId}</span> · {timeAgo(a.createdAt)}
+                      {/* SLICE 203 — this read "Agent {agentId}". `agentId`
+                          defaults to the literal "ai-employee", naming an actor
+                          that does not exist. The card now shows the requester the
+                          record actually carries, and the time alone when it has
+                          none. */}
+                      {a.requestedBy ? (
+                        <>Requested by <span className="font-mono">{a.requestedBy}</span> · {timeAgo(a.createdAt)}</>
+                      ) : (
+                        <>Requested {timeAgo(a.createdAt)}</>
+                      )}
                     </div>
                   </div>
                 </div>

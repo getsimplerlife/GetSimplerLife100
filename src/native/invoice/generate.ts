@@ -68,7 +68,7 @@ export function invoiceHtml(inv: InvoiceRecord, billTo: { name: string }, issuer
 </table>
 <p><strong>Total due:</strong> ${e(formatCurrency(totalCents, inv.currency))}</p>
 <hr />
-<p><em>Posting to the customer's accounting books is handled by the connected accounting adapter (Xero/QuickBooks) and is labeled as such. This invoice is the native deliverable generated from the deal room.</em></p>
+<p><em>This invoice was generated from the deal room in your workspace. Line items are snapshotted from the approved proposal; amounts change only through a new proposal revision.</em></p>
 `.trim();
 }
 
