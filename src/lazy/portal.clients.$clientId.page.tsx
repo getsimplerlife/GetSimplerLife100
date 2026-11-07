@@ -140,7 +140,7 @@ export default function ClientDetailPage() {
         </Link>
         <div className="flex items-center gap-3 mt-2">
           <h1 className="text-2xl font-black text-white break-words">{client.name}</h1>
-          <Badge variant={client.status === "active" ? "emerald" : client.status === "paused" ? "warning" : "stone"}>
+          <Badge variant={client.status === "active" ? "success" : client.status === "paused" ? "warning" : "stone"}>
             {CLIENT_STATUS_LABEL[client.status] ?? client.status}
           </Badge>
         </div>
@@ -218,7 +218,7 @@ export default function ClientDetailPage() {
                   <div className="text-xs text-stone-400">Created {project.createdAt || "—"}</div>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
-                  <Badge variant={project.status === "complete" ? "emerald" : project.status === "on_hold" ? "warning" : "stone"}>
+                  <Badge variant={project.status === "complete" ? "success" : project.status === "on_hold" ? "warning" : "stone"}>
                     {PROJECT_STATUS_LABEL[project.status] ?? project.status}
                   </Badge>
                   <Link

@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { PortalEmptyState } from "~/components/PortalEmptyState";
 import { PortalIcon } from "~/components/PortalIcons";
+import { PageHeader, SearchInput } from "~/components/ui";
 import { noticeTime } from "~/lib/portal-notifications";
 import {
   usePortalGlobalSearch,
@@ -61,35 +62,23 @@ function SearchPage() {
 
   return (
     <div className="space-y-8 text-stone-100 max-w-6xl mx-auto">
-      <div className="border-b border-stone-900 pb-6">
-        <h1 className="text-3xl font-black text-white tracking-tight">Search</h1>
-        <p className="text-stone-400 text-sm mt-1">
-          Find records across your workspace. Search draws only from the real data this portal
-          already shows you — tasks, workflows, reports, proposals, invoices, deal rooms,
-          approvals, integrations, and imports. Nothing is fetched beyond that and nothing is generated.
-        </p>
-      </div>
+      <PageHeader
+        icon="search"
+        title="Search"
+        subtitle="Find records across your workspace. Search draws only from the real data this portal already shows you — tasks, workflows, reports, proposals, invoices, deal rooms, approvals, integrations, and imports. Nothing is fetched beyond that and nothing is generated."
+      />
 
-      {/* Search input */}
-      <div className="relative">
-        <PortalIcon
-          name="search"
-          className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-stone-500 pointer-events-none"
-        />
-        <input
-          ref={inputRef}
-          type="text"
-          autoFocus
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") setQuery("");
-          }}
-          placeholder="Search tasks, workflows, proposals, clients, records…"
-          aria-label="Search workspace"
-          className="w-full bg-stone-950 border border-stone-900 rounded-2xl pl-11 pr-4 py-3.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500 font-semibold placeholder-stone-500 text-stone-200"
-        />
-      </div>
+      {/* SLICE 199 — the ONE search bar. This page used to hand-roll its own
+          input (a better-looking one than the shared component, which is
+          exactly how a product ends up with two search bars). */}
+      <SearchInput
+        inputRef={inputRef}
+        value={query}
+        onChange={setQuery}
+        label="Search workspace"
+        autoFocus
+        placeholder="Search tasks, workflows, proposals, clients, records…"
+      />
 
       {/* SLICE 183 — a failed READ is never "nothing to search yet". */}
       {readError && (

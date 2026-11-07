@@ -298,7 +298,7 @@ function AdminWorkflowBuilder() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-stone-100 text-sm">{node.name}</span>
-                          <Badge variant={node.type === "trigger" ? "warning" : node.type === "output" ? "success" : "emerald"}>
+                          <Badge variant={node.type === "trigger" ? "warning" : node.type === "output" ? "success" : "success"}>
                             {node.type}
                           </Badge>
                         </div>
@@ -352,7 +352,7 @@ function AdminWorkflowBuilder() {
                   <div className="space-y-6">
                     <div className="flex justify-between items-start">
                       <div>
-                        <Badge variant={selectedNode.type === "trigger" ? "warning" : selectedNode.type === "output" ? "success" : "emerald"}>
+                        <Badge variant={selectedNode.type === "trigger" ? "warning" : selectedNode.type === "output" ? "success" : "success"}>
                           {selectedNode.type} Node
                         </Badge>
                         <h3 className="text-base font-black text-white mt-1">{selectedNode.name}</h3>

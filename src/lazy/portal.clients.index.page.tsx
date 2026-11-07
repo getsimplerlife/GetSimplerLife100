@@ -139,7 +139,7 @@ export default function ClientsPage() {
                 </div>
               </div>
               <div className="flex items-center gap-3 shrink-0">
-                <Badge variant={client.status === "active" ? "emerald" : client.status === "paused" ? "warning" : "stone"}>
+                <Badge variant={client.status === "active" ? "success" : client.status === "paused" ? "warning" : "stone"}>
                   {CLIENT_STATUS_LABEL[client.status] ?? client.status}
                 </Badge>
                 <Link

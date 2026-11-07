@@ -7,6 +7,7 @@ export type { PortalContextType } from "~/routes/portal.context";
 import { isOwnerUser } from "../lib/user-roles";
 import { usePortalNotifications } from "../lib/portal-notifications";
 import { PortalIcon, type PortalIconName } from "../components/PortalIcons";
+import { SearchInput } from "~/components/ui";
 
 
 
@@ -330,18 +331,14 @@ type NavLink = {
 
           <div className="flex items-center gap-6">
             {/* P2-7: Global search entry — navigates to /portal/search with the term. */}
-            <form onSubmit={handleHeaderSearch} className="relative" aria-label="Search your workspace">
-              <PortalIcon
-                name="search"
-                className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-stone-500 pointer-events-none"
-              />
-              <input
-                type="text"
+            <form onSubmit={handleHeaderSearch} aria-label="Search your workspace">
+              <SearchInput
                 value={headerQuery}
-                onChange={(e) => setHeaderQuery(e.target.value)}
+                onChange={setHeaderQuery}
+                label="Search your workspace"
                 placeholder="Search your workspace…"
-                aria-label="Search your workspace"
-                className="w-64 bg-stone-900 border border-stone-800 rounded-xl pl-9 pr-3 py-1.5 text-xs font-semibold text-stone-200 outline-none focus:ring-2 focus:ring-emerald-500 placeholder-stone-600"
+                size="sm"
+                wrapperClassName="w-40 sm:w-56 lg:w-64"
               />
             </form>
             {/* PWA Install Button */}

@@ -18,6 +18,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { decisionState } from "../lazy/portal.approvals.index.page";
+import { BADGE_VARIANTS } from "../components/ui";
 
 const PAGE = join(dirname(fileURLToPath(import.meta.url)), "..", "lazy", "portal.approvals.index.page.tsx");
 
@@ -28,20 +29,31 @@ describe("approval card state comes from what happened (198)", () => {
     expect(s.label).toBe("failed");
     expect(s.variant).toBe("danger");
     // the sweep's actual defect: a failure wearing the success colour
-    expect(s.variant).not.toBe("emerald");
+    expect(s.variant).not.toBe("success");
+    expect(BADGE_VARIANTS).toContain(s.variant);
   });
 
-  it("an approved decision whose write applied is `applied`, in the success colour", () => {
+  it("an approved decision whose write applied is `applied`, in the one positive badge", () => {
     const s = decisionState({ status: "approved", resultError: undefined });
     expect(s.state).toBe("applied");
-    expect(s.variant).toBe("emerald");
+    // SLICE 199 renamed the badge token `emerald` -> `success`: emerald meant
+    // four different things at once (a CTA, a success status, an "active" row
+    // and "all clear"), and `success` is now the single explicit positive. The
+    // property this test protects is that an APPLIED write wears that one
+    // positive variant — and that the variant is a real one, so a rename that
+    // forgets this page fails here instead of rendering an unclassified grey.
+    expect(s.variant).toBe("success");
+    expect(BADGE_VARIANTS).toContain(s.variant);
   });
 
   it("a rejected card is rejected, a pending one is pending — neither is a success", () => {
     expect(decisionState({ status: "rejected" }).state).toBe("rejected");
-    expect(decisionState({ status: "rejected" }).variant).not.toBe("emerald");
+    expect(decisionState({ status: "rejected" }).variant).not.toBe("success");
     expect(decisionState({ status: "pending" }).state).toBe("pending");
-    expect(decisionState({ status: "pending" }).variant).not.toBe("emerald");
+    expect(decisionState({ status: "pending" }).variant).not.toBe("success");
+    for (const status of ["rejected", "pending"] as const) {
+      expect(BADGE_VARIANTS).toContain(decisionState({ status }).variant);
+    }
   });
 
   it("the page renders that mapping (it does not read the decision alone)", () => {

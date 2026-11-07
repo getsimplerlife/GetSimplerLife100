@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { PortalEmptyState } from "~/components/PortalEmptyState";
+import { SearchInput } from "~/components/ui";
 
 /**
  * SLICE 180 — THE ROW SHAPES THIS PAGE READS.
@@ -274,12 +275,11 @@ function AdminIndex() {
 
       {/* Search */}
       <div className="bg-stone-900 rounded-2xl border border-stone-800 p-4">
-        <input
-          type="text"
+        <SearchInput
           placeholder="Search clients by email..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-sm outline-none focus:ring-1 focus:ring-emerald-500 font-bold text-stone-300 placeholder-stone-600"
+          onChange={setSearch}
+          label="Search clients by email"
         />
       </div>
 

@@ -1,14 +1,23 @@
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
+import { Button, EmptyState, buttonClass } from "~/components/ui";
 
 /**
- * PortalEmptyState — the P1-3 designed empty-state block for portal surfaces.
+ * PortalEmptyState — the P1-3 empty-state block for portal surfaces.
  *
- * Matches the P1-1 billing empty state (dashed stone border, centered, bold
- * title, muted body, ONE emerald CTA) and the P1-4 communications empty state
- * (dark theme, honest copy). Honesty bar: title/body state what the user sees
- * and why it's empty; the single CTA is the one real next action. Never
- * fabricate data or imply capability that doesn't exist.
+ * SLICE 199: this is now a thin adapter over `EmptyState` in `~/components/ui`,
+ * so the product has ONE empty state and not two. Two things changed, both
+ * deliberate:
+ *
+ *  1. The optional emoji `icon` prop is GONE. No page ever passed it, so it was
+ *     a feature that existed only in the type — and an empty state that shows an
+ *     emoji on one page and not another is exactly the inconsistency the owner
+ *     asked us to remove.
+ *  2. The CTA is a real `Button` (or a `<Link>` wearing `buttonClass`) instead
+ *     of a bare styled `<button>`, so it gets the same focus ring and hit area
+ *     as every other control.
+ *
+ * The props stay source-compatible with the 46 existing call sites.
  */
 export type PortalEmptyStateAction =
   | { label: string; to: string } // internal router link
@@ -19,7 +28,6 @@ interface PortalEmptyStateProps {
   title: string;
   body?: ReactNode;
   action?: PortalEmptyStateAction;
-  icon?: string;
   compact?: boolean;
 }
 
@@ -28,43 +36,43 @@ export function scrollToId(id: string) {
   document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
+const CTA_CLASS = "text-emerald-400 hover:text-emerald-300";
+
 function EmptyStateCTA({ action }: { action: PortalEmptyStateAction }) {
-  const cls =
-    "tap-target mt-3 text-emerald-400 font-bold text-sm hover:text-emerald-300 cursor-pointer";
+  const label = <>{action.label} →</>;
   if ("to" in action) {
     return (
-      <Link to={action.to} className={cls}>
-        {action.label} →
+      <Link to={action.to as any} className={buttonClass({ variant: "ghost", size: "md", className: CTA_CLASS })}>
+        {label}
       </Link>
     );
   }
   if ("href" in action) {
     return (
-      <a href={action.href} target="_blank" rel="noopener noreferrer" className={cls}>
-        {action.label} →
+      <a
+        href={action.href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={buttonClass({ variant: "ghost", size: "md", className: CTA_CLASS })}
+      >
+        {label}
       </a>
     );
   }
   return (
-    <button type="button" onClick={action.onClick} className={cls}>
-      {action.label} →
-    </button>
+    <Button variant="ghost" size="md" className={CTA_CLASS} onClick={action.onClick}>
+      {label}
+    </Button>
   );
 }
 
-export function PortalEmptyState({ title, body, action, icon, compact }: PortalEmptyStateProps) {
+export function PortalEmptyState({ title, body, action, compact }: PortalEmptyStateProps) {
   return (
-    <div
-      className={`text-center border border-dashed border-stone-800 rounded-xl ${
-        compact ? "px-4 py-8" : "px-6 py-12"
-      }`}
-    >
-      {icon && <div className={`${compact ? "text-2xl mb-2" : "text-3xl mb-3"} block`}>{icon}</div>}
-      <p className="text-stone-400 font-bold text-sm">{title}</p>
-      {body && (
-        <p className="text-stone-500 text-xs mt-1 max-w-md mx-auto leading-relaxed">{body}</p>
-      )}
-      {action && <EmptyStateCTA action={action} />}
-    </div>
+    <EmptyState
+      title={title}
+      body={body}
+      compact={compact}
+      action={action ? <EmptyStateCTA action={action} /> : undefined}
+    />
   );
 }

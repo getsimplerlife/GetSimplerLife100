@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Card, Badge, Button } from "~/components/ui";
+import { Badge, Button, Card, PageHeader } from "~/components/ui";
 import { PortalEmptyState, scrollToId } from "~/components/PortalEmptyState";
 import { FieldErrorLine } from "~/components/FieldError";
 import { fieldErrorFrom, fieldErrorProps, type FieldError } from "~/lib/form-field-error";
@@ -207,12 +207,7 @@ export default function ChecklistsPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Checklists</h1>
-          <p className="text-sm text-stone-500">Delivery checklists with approval-gated item tracking.</p>
-        </div>
-      </div>
+      <PageHeader title="Checklists" subtitle="Delivery checklists with approval-gated item tracking." />
       {error && <div className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
       {feedback && (
         <div

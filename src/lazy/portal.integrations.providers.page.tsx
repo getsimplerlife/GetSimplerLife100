@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { IntegrationsProviderCard, type Provider } from "~/components/IntegrationsProviderCard";
-import { Card } from "~/components/ui";
+import { Card, PageHeader, SearchInput } from "~/components/ui";
 import { authedJson } from "~/lib/portal-primitives";
 
 
@@ -67,24 +67,16 @@ function ProviderDirectoryPage() {
     <div className="space-y-6 max-w-6xl mx-auto text-stone-100 select-none pb-12">
       
       {/* Header */}
-      <div className="border-b border-stone-900 pb-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-black text-white tracking-tight">🏢 Platform Directory</h1>
-          <p className="text-stone-400 text-xs mt-1">
-            Browse our directory of 133+ third-party integrations and connect them directly into your platform.
-          </p>
-        </div>
-      </div>
+      <PageHeader title={<>🏢 Platform Directory</>} subtitle={<>Browse our directory of 133+ third-party integrations and connect them directly into your platform.</>} />
 
       {/* Filters & Search */}
       <Card className="p-4 border border-stone-900 bg-stone-950 flex flex-col sm:flex-row gap-4 items-center">
         <div className="flex-1 w-full">
-          <input
-            type="text"
-            placeholder="Search providers by name, capabilities, or description..."
+          <SearchInput
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full px-4 py-3 text-xs rounded-xl border border-stone-900 bg-stone-950 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all shadow-sm"
+            onChange={setSearch}
+            label="Search providers"
+            placeholder="Search providers by name, capabilities, or description..."
           />
         </div>
         <div className="w-full sm:w-64">

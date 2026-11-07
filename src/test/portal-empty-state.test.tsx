@@ -67,9 +67,14 @@ describe("PortalEmptyState (P1-3 designed empty state)", () => {
     expect(container.querySelector("a, button")).toBeNull();
   });
 
-  it("renders the icon when provided", () => {
-    render(<PortalEmptyState icon="📭" title="No inbox items matched" />);
-    expect(screen.getByText("📭")).toBeInTheDocument();
+  it("renders NO emoji or icon — the prop was removed in slice 199", () => {
+    // Slice 199 dropped the optional emoji `icon` prop: no page ever passed it,
+    // so it was a feature that existed only in the type, and an empty state with
+    // an emoji on one page and none on another is the inconsistency the owner
+    // asked us to remove. This asserts the absence, which is the new contract.
+    const { container } = render(<PortalEmptyState title="No inbox items matched" />);
+    expect(container.textContent).toBe("No inbox items matched");
+    expect(container.querySelector("svg, img")).toBeNull();
   });
 
   it("renders in the designed (non-compact) and compact variants", () => {

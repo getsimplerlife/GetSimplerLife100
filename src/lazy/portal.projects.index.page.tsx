@@ -166,7 +166,7 @@ export default function ProjectsPage() {
               <div className="flex items-center gap-3 shrink-0">
                 <Badge
                   variant={
-                    project.status === "complete" ? "emerald" : project.status === "on_hold" ? "warning" : "stone"
+                    project.status === "complete" ? "success" : project.status === "on_hold" ? "warning" : "stone"
                   }
                 >
                   {PROJECT_STATUS_LABEL[project.status] ?? project.status}

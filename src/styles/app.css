@@ -14,6 +14,28 @@
   --color-brand-700: #047857;
   --color-brand-800: #065f46;
   --color-brand-900: #064e3b;
+
+  /* ── SLICE 199 — the semantic token set the whole portal is built from ──────
+     The product is dark-only (`<html class="dark">` is hardcoded in index.html),
+     so these are dark values, not light ones with a `dark:` override. The rule
+     the owner set: **emerald is the call to action, and emerald is not also the
+     word for "success".** `--color-cta` is a FILL. `--color-success` is a STATUS
+     (text, border, tint) and never fills a button — the `success` button variant
+     was deleted in this slice, because a component that renders a failed
+     approval in the same green as "Submit" is how the collision reached a user.
+     A guard (`portal-ui-system-199.test.ts`) pins that these two never collapse
+     back into one value. */
+  --color-cta: #059669;        /* emerald-600 — the action fill */
+  --color-cta-hover: #047857;  /* emerald-700 */
+  --color-cta-soft: #10b981;   /* emerald-500 — the focus ring on dark */
+  --color-success: #34d399;    /* emerald-400 — a STATUS, text/tint only */
+  --color-success-soft: #064e3b;
+  --color-danger: #e11d48;     /* rose-600 — destructive fill */
+  --color-danger-hover: #be123c; /* rose-700 */
+  --color-danger-status: #fda4af; /* rose-300 — destructive TEXT on dark */
+  --color-warning: #f59e0b;    /* amber-500 */
+  --color-warning-status: #fcd34d; /* amber-300 */
+
   /* Refined system font stack — no external font payload */
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
     Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -86,6 +108,33 @@
     outline: 2px solid #10b981;
     outline-offset: 2px;
     border-radius: 4px;
+  }
+
+  /* ── SLICE 199 — dark-only form controls, fixed at the base layer ──────────
+     A placeholder is not typed text. Without this rule the browser paints its
+     default mid-grey, which on `bg-stone-950` reads like a value the user
+     already entered (sweep P4-1). Set once here so every `<input>` — including
+     the ones still hand-rolled in pages outside `ui.tsx` — is fixed at the
+     source, not per call site. */
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-stone-500, #78716c);
+    opacity: 1;
+  }
+  /* `type="search"` gets the platform's own clear affordance in WebKit, which
+     would sit next to the `SearchInput` clear button and look like two controls.
+     One clear button, ours, with an accessible name. */
+  input[type="search"]::-webkit-search-cancel-button,
+  input[type="search"]::-webkit-search-decoration,
+  input[type="search"]::-webkit-search-results-button {
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  /* A focused control on a near-black page must never draw a light offset
+     halo. Tailwind's ring-offset default is white; this makes the offset the
+     page colour everywhere, so a component that forgets it is still correct. */
+  :root {
+    --tw-ring-offset-color: #0c0a09;
   }
 }
 /* ── Homepage scroll-reveal + quote-to-cash flow motion ── */

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Card, Badge, Button, Input } from "~/components/ui";
+import { Badge, Button, Card, Input, SearchInput } from "~/components/ui";
 import { authedJson } from "~/lib/portal-primitives";
 
 
@@ -298,12 +298,11 @@ function AdminCredentialsPage() {
         <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">
           {/* Search bar */}
           <div className="w-full lg:w-96">
-            <Input
-              type="text"
+            <SearchInput
               placeholder="Search providers, e.g. Salesforce, HubSpot..."
               value={searchTerm}
-              onChange={(e) => setSearchBar(e.target.value)}
-              className="bg-stone-950 border-stone-800 text-white rounded-xl placeholder-stone-600 focus:border-emerald-600 text-sm py-2 px-4 w-full"
+              onChange={setSearchBar}
+              label="Search providers"
             />
           </div>
 
