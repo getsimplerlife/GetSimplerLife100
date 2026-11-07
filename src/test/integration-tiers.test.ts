@@ -1,73 +1,116 @@
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { integrations, integrationWiring, hasAdapterLane } from "../content/integrations";
 /**
- * Integration explorer tier segmentation (canonical source).
+ * Integration explorer tier segmentation — SLICE 207.
  *
- * The public integrations pages MUST segment into "Live now" vs "In development /
- * Roadmap" driven by ONE canonical source — the `status` field in
- * src/content/integrations.ts (resolved via isLiveIntegration). Roadmap-only
- * integrations must never be presented as a working/live connection, and the
- * explorer must offer a "Notify me when live" capture for them that reuses the
- * wired capture-lead (SendGrid) pattern.
+ * WHAT THIS FILE USED TO BE. Until slice 207 it asserted, in a test, that
+ * `src/lazy/integrations.index.page.tsx` contained the sentence
+ *
+ *   "Live today you can connect Xero, Slack, Google, Microsoft 365, HubSpot, and DocuSign"
+ *
+ * and that ten catalog entries carried `status: "live"`. Both were false: no
+ * integration in this product has ever carried a real tenant record, no tenant
+ * has ever connected a provider, and the sentence named six providers as live
+ * on the public site. A test written from the bug can only confirm the bug, so
+ * this file no longer asserts the page's own prose. It asserts the CATALOGUE
+ * against the FILESYSTEM: a tier is only allowed to claim a lane if the lane's
+ * code is on disk, and a tier may never claim liveness at all.
+ *
+ * It also cannot pass by finding nothing: the counts are asserted.
  */
-function readRepoFile(rel: string): string {
-  return readFileSync(join(process.cwd(), rel), "utf-8");
-}
+const ROOT = process.cwd();
+const read = (rel: string) => readFileSync(join(ROOT, rel), "utf-8");
 
-describe("Integration tiers — canonical source (integrations.ts status)", () => {
-  const src = readRepoFile("src/content/integrations.ts");
-  it("declares the canonical live/roadmap status field", () => {
-    expect(src).toContain("status?: \"live\" | \"roadmap\"");
-    expect(src).toContain("isLiveIntegration");
+const VALID = new Set(["import-lane", "adapter-lane", "roadmap"]);
+
+describe("the catalogue's wiring model", () => {
+  it("has three tiers and no 'live' value at all", () => {
+    for (const i of integrations) {
+      const raw = i.status ?? "roadmap";
+      expect(VALID.has(raw), `${i.id} carries an unknown status ${JSON.stringify(raw)}`).toBe(true);
+    }
+    // Nothing anywhere in the catalogue may be labelled live/verified/connected.
+    expect(read("src/content/integrations.ts")).not.toContain('status: "live"');
   });
-  it("marks the verified live providers as live in the catalog", () => {
-    // Google productivity, Microsoft Office, accounting/CRM anchors.
-    for (const id of [
-      "google-docs", "google-sheets", "google-drive", "google-slides", "google-calendar",
-      "microsoft-word", "microsoft-excel", "microsoft-powerpoint",
-      "xero", "hubspot",
-    ]) {
-      // assert that entry carries status: "live" (id line followed by status line)
-      const re = new RegExp(`id: "${id}",\\n\\s*status: "live",`);
-      expect(re.test(src), `expected ${id} to be marked status: "live"`).toBe(true);
+
+  it("fails closed to roadmap when the field is absent or unrecognised", () => {
+    const base = integrations[0];
+    expect(integrationWiring({ ...base, status: undefined })).toBe("roadmap");
+    expect(integrationWiring({ ...base, status: "nonsense" as never })).toBe("roadmap");
+    expect(hasAdapterLane({ ...base, status: undefined })).toBe(false);
+  });
+
+  it("every 'import-lane' entry has a real import source file on disk", () => {
+    const lanes = integrations.filter((i) => integrationWiring(i) === "import-lane");
+    expect(lanes.length).toBeGreaterThanOrEqual(4);
+    for (const i of lanes) {
+      expect(
+        existsSync(join(ROOT, "src/native/import", `${i.id}-source.ts`)),
+        `${i.id} is marked import-lane but src/native/import/${i.id}-source.ts does not exist`,
+      ).toBe(true);
     }
   });
-  it("does NOT mark placeholder/roadmap ERPs or CRMs as live (fail-closed)", () => {
-    for (const id of ["sap", "oracle-netsuite", "salesforce", "zoho-crm", "pipedrive", "workday", "quickbooks-enterprise"]) {
-      const re = new RegExp(`id: "${id}",\\n\\s*status: "live",`);
-      expect(re.test(src), `${id} must not be marked live`).toBe(false);
+
+  it("every 'adapter-lane' entry has a provider client directory on disk", () => {
+    const adapters = integrations.filter((i) => integrationWiring(i) === "adapter-lane");
+    expect(adapters.length).toBeGreaterThanOrEqual(7);
+    for (const i of adapters) {
+      expect(
+        existsSync(join(ROOT, "src/integrations/providers", i.id)),
+        `${i.id} is marked adapter-lane but src/integrations/providers/${i.id}/ does not exist`,
+      ).toBe(true);
+    }
+  });
+
+  it("the three tiers partition the catalogue exactly once each", () => {
+    for (const i of integrations) {
+      const hits = [
+        integrationWiring(i) === "import-lane",
+        integrationWiring(i) === "adapter-lane",
+        !hasAdapterLane(i),
+      ].filter(Boolean).length;
+      expect(hits, `${i.id} fell into ${hits} tiers`).toBe(1);
     }
   });
 });
 
-describe("Integration explorer page reads the canonical source", () => {
-  const src = readRepoFile("src/lazy/integrations.index.page.tsx");
-  it("derives tiers via isLiveIntegration (no hardcoded per-page divergence)", () => {
-    expect(src).toContain("isLiveIntegration");
-    expect(src).toContain("const liveIntegrations = filteredIntegrations.filter(isLiveIntegration)");
-    expect(src).toContain("const roadmapIntegrations = filteredIntegrations.filter((i) => !isLiveIntegration(i))");
+describe("the explorer page reads the canonical source, not its own list", () => {
+  const src = read("src/lazy/integrations.index.page.tsx");
+
+  it("derives every tier through integrationWiring / hasAdapterLane", () => {
+    expect(src).toContain("integrationWiring");
+    expect(src).toContain("hasAdapterLane");
+    expect(src).toContain("const importLaneIntegrations = filteredIntegrations.filter((i) => integrationWiring(i) === \"import-lane\")");
+    expect(src).toContain("const adapterOnlyIntegrations = filteredIntegrations.filter((i) => integrationWiring(i) === \"adapter-lane\")");
+    expect(src).toContain("const roadmapIntegrations = filteredIntegrations.filter((i) => !hasAdapterLane(i))");
   });
-  it("renders two clearly labelled tiers", () => {
-    expect(src).toContain("Live now");
+
+  it("labels the tiers as what they are", () => {
+    expect(src).toContain("Import lanes");
+    expect(src).toContain("Adapter code only");
     expect(src).toContain("In development / Roadmap");
   });
-  it("keeps the existing honest disclosure intact", () => {
-    expect(src).toContain("Live today you can connect Xero, Slack, Google, Microsoft 365, HubSpot, and DocuSign");
-    expect(src).toContain("QuickBooks is in development");
-  });
-  it("provides a Notify-me-when-live capture that reuses capture-lead (SendGrid)", () => {
+
+  it("keeps the notify-me capture for the tiers with no lane", () => {
     expect(src).toContain("Notify me when live");
     expect(src).toContain("/api/tools/capture-lead");
     expect(src).toContain("notify-when-live");
   });
 });
 
-describe("Integration detail page shows the status badge canonically", () => {
-  const src = readRepoFile("src/components/IntegrationPage.tsx");
-  it("uses isLiveIntegration to render Live-now vs In-development badge", () => {
-    expect(src).toContain("isLiveIntegration");
-    expect(src).toContain("Live now");
+describe("the integration detail page badges the lane, not a liveness", () => {
+  const src = read("src/components/IntegrationPage.tsx");
+
+  it("uses integrationWiring for all three badge states", () => {
+    expect(src).toContain("integrationWiring");
+    expect(src).toContain("Import lane");
+    expect(src).toContain("Adapter code only");
     expect(src).toContain("In development / Roadmap");
+  });
+
+  it("no longer claims the platform talks to every provider bi-directionally", () => {
+    expect(src).not.toContain("communicates bi-directionally");
   });
 });

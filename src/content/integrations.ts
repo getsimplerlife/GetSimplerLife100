@@ -8,17 +8,33 @@ export interface Integration {
   industries: string[];
   relatedWorkflows: string[];
   /**
-   * LIVE vs ROADMAP classification - the ONE canonical field the UI reads to
-   * segment the integration explorer. "live" means we have a real, live-verified
-   * connected integration (see src/lib/provider-placeholders.ts
-   * REAL_INTEGRATION_PROVIDERS). Absent (default) = "roadmap": in development or
-   * planned, never presented as a working connection. FAIL-CLOSED to roadmap.
+   * WIRING classification - the ONE canonical field the UI reads to segment the
+   * integration explorer. It states what exists IN THIS CODEBASE for a provider.
+   * It never states that anything is live, verified or connected, because no
+   * integration in this product has ever carried a real tenant record and no
+   * tenant has connected a provider.
+   *
+   *   "import-lane"  an inbound import lane is mounted in the live server
+   *                  (src/native/import/<id>-source.ts, reachable at
+   *                  /api/native/import*): it calls the provider's own API once
+   *                  the tenant authorizes it, brings data in one time, and
+   *                  nothing stays connected afterwards.
+   *   "adapter-lane" a provider client exists under src/integrations/providers/<id>/
+   *                  but no live route imports it, so nothing can reach it.
+   *   "roadmap"      nothing behind it yet.
+   *
+   * Absent (default) FAILS CLOSED to "roadmap".
    */
-  status?: "live" | "roadmap";
+  status?: IntegrationWiring;
 }
+export type IntegrationWiring = "import-lane" | "adapter-lane" | "roadmap";
 /** Resolve an integration's canonical tier; unknown/absent fails closed to roadmap. */
-export function isLiveIntegration(i: Integration): boolean {
-  return i.status === "live";
+export function integrationWiring(i: Integration): IntegrationWiring {
+  return i.status === "import-lane" || i.status === "adapter-lane" ? i.status : "roadmap";
+}
+/** True when a provider has any lane in this codebase - an import lane or an adapter client. */
+export function hasAdapterLane(i: Integration): boolean {
+  return integrationWiring(i) !== "roadmap";
 }
 
 export const integrations: Integration[] = [
@@ -1139,7 +1155,7 @@ export const integrations: Integration[] = [
   },
   {
     id: "google-calendar",
-    status: "live",
+    status: "import-lane",
     name: "Google Calendar",
     icon: "google-calendar",
     category: "Scheduling",
@@ -1761,7 +1777,7 @@ export const integrations: Integration[] = [
   },
   {
     id: "microsoft-excel",
-    status: "live",
+    status: "adapter-lane",
     name: "Microsoft Excel",
     icon: "excel",
     category: "Microsoft Ecosystem",
@@ -1777,7 +1793,7 @@ export const integrations: Integration[] = [
   },
   {
     id: "microsoft-word",
-    status: "live",
+    status: "adapter-lane",
     name: "Microsoft Word",
     icon: "word",
     category: "Microsoft Ecosystem",
@@ -1793,7 +1809,7 @@ export const integrations: Integration[] = [
   },
   {
     id: "microsoft-powerpoint",
-    status: "live",
+    status: "adapter-lane",
     name: "Microsoft PowerPoint",
     icon: "powerpoint",
     category: "Microsoft Ecosystem",
@@ -1822,10 +1838,11 @@ export const integrations: Integration[] = [
       "Vault integration for eDiscovery and compliance data retention"],
     industries: ["technology", "financial-services", "healthcare", "real-estate", "legal"],
     relatedWorkflows: ["email-management", "document-processing", "onboarding", "compliance-reporting", "report-generation"],
+    status: "adapter-lane",
   },
   {
     id: "google-docs",
-    status: "live",
+    status: "adapter-lane",
     name: "Google Docs",
     icon: "google-docs",
     category: "Google Ecosystem",
@@ -1841,7 +1858,7 @@ export const integrations: Integration[] = [
   },
   {
     id: "google-sheets",
-    status: "live",
+    status: "adapter-lane",
     name: "Google Sheets",
     icon: "google-sheets",
     category: "Google Ecosystem",
@@ -1857,7 +1874,7 @@ export const integrations: Integration[] = [
   },
   {
     id: "google-slides",
-    status: "live",
+    status: "adapter-lane",
     name: "Google Slides",
     icon: "google-slides",
     category: "Google Ecosystem",
@@ -1871,7 +1888,7 @@ export const integrations: Integration[] = [
   },
   {
     id: "google-drive",
-    status: "live",
+    status: "import-lane",
     name: "Google Drive",
     icon: "google-drive",
     category: "Google Ecosystem",
@@ -1920,7 +1937,7 @@ export const integrations: Integration[] = [
   },
   {
     id: "hubspot",
-    status: "live",
+    status: "import-lane",
     name: "HubSpot",
     icon: "hubspot",
     category: "CRM",
@@ -2045,7 +2062,7 @@ export const integrations: Integration[] = [
   // ======================================================================
   {
     id: "xero",
-    status: "live",
+    status: "import-lane",
     name: "Xero",
     icon: "xero",
     category: "Accounting",
