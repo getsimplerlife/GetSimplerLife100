@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { PortalEmptyState } from "~/components/PortalEmptyState";
+import { PageHeader } from "~/components/ui";
 
 /**
  * SLICE 167 — /portal/users, made honest (audit D-13 + D-14).
@@ -78,15 +79,7 @@ function UserManagement() {
   }
   return (
     <div className="space-y-8 font-sans">
-      <div className="border-b border-stone-800 pb-6">
-        <div>
-          <h1 className="text-3xl font-black text-stone-100 tracking-tight">👥 Team Members</h1>
-          <p className="text-stone-400 mt-1">
-            Every account in this workspace, with its role and when it was created. This page reads the list — it does not add
-            members or change roles.
-          </p>
-        </div>
-      </div>
+      <PageHeader title={<>👥 Team Members</>} subtitle={<>Every account in this workspace, with its role and when it was created. This page reads the list — it does not add members or change roles.</>} />
       {error && (
         <div className="rounded-2xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm font-bold text-rose-300" role="alert">
           {error}

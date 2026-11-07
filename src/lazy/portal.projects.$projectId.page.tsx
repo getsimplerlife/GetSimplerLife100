@@ -126,7 +126,7 @@ export default function ProjectDetailPage() {
         </Link>
         <div className="flex items-center gap-3 mt-2">
           <h1 className="text-2xl font-black text-white break-words">{project.name}</h1>
-          <Badge variant={project.status === "complete" ? "emerald" : project.status === "on_hold" ? "warning" : "stone"}>
+          <Badge variant={project.status === "complete" ? "success" : project.status === "on_hold" ? "warning" : "stone"}>
             {PROJECT_STATUS_LABEL[project.status] ?? project.status}
           </Badge>
         </div>

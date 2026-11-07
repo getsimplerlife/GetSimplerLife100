@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Badge, Button, Card, CardBody, CardHeader, Input } from "~/components/ui";
+import { Badge, Button, Card, CardBody, CardHeader, Input, SearchInput } from "~/components/ui";
 
 /**
  * Portal Document Vault — NATIVE Document & File Intelligence (Phase 1.5a).
@@ -41,9 +41,9 @@ interface FolderRule {
   match?: { docType?: string[] };
 }
 
-const STATUS_BADGE: Record<VaultDoc["status"], { label: string; variant: "success" | "warning" | "blue" | "violet" | "danger" | "emerald" | "stone" }> = {
+const STATUS_BADGE: Record<VaultDoc["status"], { label: string; variant: "success" | "warning" | "blue" | "violet" | "danger" | "success" | "stone" }> = {
   pending_filing: { label: "Inbox · pending", variant: "warning" },
-  active: { label: "Filed", variant: "emerald" },
+  active: { label: "Filed", variant: "success" },
   archived: { label: "Archived", variant: "stone" },
 };
 
@@ -258,7 +258,7 @@ function Vault() {
         </div>
         <div className="flex items-center gap-2 text-sm">
           <Badge variant="warning">Inbox {pendingCount}</Badge>
-          <Badge variant="emerald">Filed {activeCount}</Badge>
+          <Badge variant="success">Filed {activeCount}</Badge>
         </div>
       </div>
 
@@ -305,12 +305,12 @@ function Vault() {
 
       {/* Search + filters */}
       <div className="mb-6 flex flex-wrap items-center gap-2">
-        <Input
-          type="search"
+        <SearchInput
           placeholder="Search name, route, tags, type…"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="max-w-xs"
+          onChange={setQuery}
+          label="Search the vault"
+          wrapperClassName="max-w-xs"
         />
         <Button
           variant="outline"

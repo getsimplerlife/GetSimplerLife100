@@ -34,7 +34,7 @@ export const IntegrationsConnectionCard: React.FC<IntegrationsConnectionCardProp
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "active":
-        return <Badge variant="emerald">Active</Badge>;
+        return <Badge variant="success">Active</Badge>;
       case "expired":
         return <Badge variant="warning">Expired</Badge>;
       case "error":

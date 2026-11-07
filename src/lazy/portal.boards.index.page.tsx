@@ -234,7 +234,7 @@ export default function BoardsPage() {
             <Card key={b.id} className="cursor-pointer p-4" onClick={() => void openBoard(b.id)}>
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-stone-100">{b.name}</h3>
-                <Badge variant={b.status === "archived" ? "stone" : "emerald"}>{STATUS_LABEL[b.status] ?? b.status}</Badge>
+                <Badge variant={b.status === "archived" ? "stone" : "success"}>{STATUS_LABEL[b.status] ?? b.status}</Badge>
               </div>
               <p className="mt-1 line-clamp-2 text-xs text-slate-500">{b.description}</p>
               <p className="mt-2 text-xs text-slate-400">{b.columns.length} columns · selected: {selected?.id === b.id ? "yes" : "click to open"}</p>

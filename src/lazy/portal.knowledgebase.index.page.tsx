@@ -8,7 +8,7 @@
  * disabled note and never fabricate an answer.
  */
 import { useCallback, useEffect, useState } from "react";
-import { Card, CardBody, Badge, Button } from "~/components/ui";
+import { Badge, Button, Card, CardBody, SearchInput } from "~/components/ui";
 import { authedJson } from "~/lib/portal-primitives";
 
 interface CategoryView {
@@ -189,7 +189,16 @@ export default function PortalKnowledgeBaseIndexPage() {
         <CardBody>
           <h2 className="text-lg font-semibold text-white mb-3">Search your knowledge base</h2>
           <div className="flex gap-3">
-            <input className="flex-1 rounded-lg bg-stone-900 border border-stone-700 px-3 py-2 text-sm text-white placeholder-stone-500" placeholder="Search titles, bodies and tags…" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void runSearch(); }} />
+            <SearchInput
+              value={searchTerm}
+              onChange={setSearchTerm}
+              label="Search your knowledge base"
+              placeholder="Search titles, bodies and tags…"
+              wrapperClassName="flex-1"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void runSearch();
+              }}
+            />
             <Button onClick={runSearch}>Search</Button>
           </div>
           {searchError && (

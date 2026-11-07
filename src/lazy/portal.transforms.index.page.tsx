@@ -222,7 +222,7 @@ export default function TransformsPage() {
                     <Badge variant="warning">{w.op}</Badge> <span className="font-mono">{w.transformId ?? "—"}</span>
                   </span>
                   <span className="flex gap-2">
-                    <Button variant="success" size="sm" onClick={() => decide(w.id, true)} disabled={busy}>
+                    <Button variant="primary" size="sm" onClick={() => decide(w.id, true)} disabled={busy}>
                       Approve
                     </Button>
                     <Button variant="danger" size="sm" onClick={() => decide(w.id, false)} disabled={busy}>
@@ -333,7 +333,7 @@ export default function TransformsPage() {
                   </div>
                   <div className="flex gap-2">
                     {t.status === "draft" ? (
-                      <Button variant="success" size="sm" onClick={() => act(`/api/native/transform/${t.id}/activate`)} disabled={busy}>
+                      <Button variant="primary" size="sm" onClick={() => act(`/api/native/transform/${t.id}/activate`)} disabled={busy}>
                         Activate
                       </Button>
                     ) : null}

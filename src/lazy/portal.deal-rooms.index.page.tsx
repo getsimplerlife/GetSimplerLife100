@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Card, Badge, Button } from "~/components/ui";
+import { Badge, Button, Card, PageHeader } from "~/components/ui";
 import { PortalEmptyState, scrollToId } from "~/components/PortalEmptyState";
 import { FieldErrorLine } from "~/components/FieldError";
 import { fieldErrorFrom, fieldErrorProps, type FieldError } from "~/lib/form-field-error";
@@ -246,12 +246,7 @@ export default function DealRoomsPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Deal rooms</h1>
-          <p className="text-sm text-stone-500">Per-customer document rooms tying the approved proposal to delivery.</p>
-        </div>
-      </div>
+      <PageHeader title="Deal rooms" subtitle="Per-customer document rooms tying the approved proposal to delivery." />
       {error && <div className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
       {feedback && <div className="rounded border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-300">{feedback}</div>}
 

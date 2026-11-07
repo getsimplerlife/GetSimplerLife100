@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { PortalEmptyState } from "~/components/PortalEmptyState";
+import { PageHeader, SearchInput } from "~/components/ui";
 import {
   recordAt,
   recordStatus,
@@ -72,14 +73,7 @@ function TasksQueue() {
 
   return (
     <div className="space-y-8 text-stone-100 max-w-6xl mx-auto">
-      <div className="border-b border-stone-900 pb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-black text-white tracking-tight">Tasks</h1>
-          <p className="text-stone-400 text-sm mt-1">
-            Task and workflow-run records from your workspace — read-only, nothing here writes to the queue.
-          </p>
-        </div>
-      </div>
+      <PageHeader title={<>Tasks</>} subtitle={<>Task and workflow-run records from your workspace — read-only, nothing here writes to the queue.</>} />
 
       {/* SLICE 183 — a failed READ is never an empty workspace. */}
       {readError && (
@@ -111,12 +105,11 @@ function TasksQueue() {
       </div>
 
       <div className="bg-stone-950 p-4 rounded-2xl border border-stone-900">
-        <input
-          type="text"
-          placeholder="Search by record ID, automation, or customer..."
+        <SearchInput
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full bg-stone-900/60 border border-stone-900 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500 font-semibold placeholder-stone-500 text-stone-200"
+          onChange={setSearchTerm}
+          label="Search tasks"
+          placeholder="Search by record ID, automation, or customer..."
         />
       </div>
 

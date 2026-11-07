@@ -65,7 +65,7 @@ export const IntegrationsProviderCard: React.FC<IntegrationsProviderCardProps> =
               {provider.authType === "oauth2" ? "OAuth" : "API Key"}
             </Badge>
             {provider.isConnected && (
-              <Badge variant="emerald" className="text-[8px]">Connected</Badge>
+              <Badge variant="success" className="text-[8px]">Connected</Badge>
             )}
           </div>
         </div>

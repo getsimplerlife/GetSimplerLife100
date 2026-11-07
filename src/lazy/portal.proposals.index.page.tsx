@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Card, Badge, Button } from "~/components/ui";
+import { Badge, Button, Card, PageHeader } from "~/components/ui";
 import { PortalEmptyState, scrollToId } from "~/components/PortalEmptyState";
 import { FieldErrorLine } from "~/components/FieldError";
 import { fieldErrorFrom, fieldErrorProps, type FieldError } from "~/lib/form-field-error";
@@ -260,12 +260,7 @@ export default function ProposalsPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Proposals</h1>
-          <p className="text-sm text-stone-500">Draft, share, and track proposals. Every write is approval-gated.</p>
-        </div>
-      </div>
+      <PageHeader title="Proposals" subtitle="Draft, share, and track proposals. Every write is approval-gated." />
       {error && <div className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
       {feedback && (
         <div

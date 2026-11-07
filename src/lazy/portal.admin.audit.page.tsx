@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { SearchInput, Button } from "~/components/ui";
 function AuditDashboard() {
   const [stats, setStats] = useState<any>(null);
   const [logs, setLogs] = useState<any[]>([]);
@@ -89,12 +90,18 @@ function AuditDashboard() {
       <div className="bg-stone-900 rounded-lg shadow-lg shadow-black/20 p-4 mb-6">
         <div className="flex flex-wrap gap-3 items-end">
           <div className="flex-1 min-w-[200px]">
-            <label className="block text-xs text-stone-500 mb-1">Search</label>
-            <input className="w-full border rounded px-3 py-2 text-sm" placeholder="Search email, resource, details..."
-              value={search} onChange={e => setSearch(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && handleSearch()} />
+            <label className="block text-xs text-stone-400 mb-1">Search</label>
+            <SearchInput
+              placeholder="Search email, resource, details..."
+              value={search}
+              onChange={setSearch}
+              label="Search the admin audit log"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSearch();
+              }}
+            />
           </div>
-          <button className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700" onClick={handleSearch}>Search</button>
+          <Button size="sm" onClick={handleSearch}>Search</Button>
         </div>
       </div>
       {/* Error */}

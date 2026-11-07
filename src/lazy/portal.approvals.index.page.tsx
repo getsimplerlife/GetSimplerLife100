@@ -65,12 +65,12 @@ export type DecisionState = "applied" | "failed" | "rejected" | "pending";
 export function decisionState(a: {
   status: ApprovalAction["status"];
   resultError?: string;
-}): { state: DecisionState; label: string; variant: "emerald" | "danger" | "stone" | "warning" } {
+}): { state: DecisionState; label: string; variant: "success" | "danger" | "stone" | "warning" } {
   if (a.status === "rejected") return { state: "rejected", label: "rejected", variant: "stone" };
   if (a.status === "approved") {
     return a.resultError
       ? { state: "failed", label: "failed", variant: "danger" }
-      : { state: "applied", label: "applied", variant: "emerald" };
+      : { state: "applied", label: "applied", variant: "success" };
   }
   return { state: "pending", label: a.status, variant: "warning" };
 }
@@ -223,7 +223,7 @@ function ApprovalQueue() {
           <h2 className="text-sm font-black text-stone-100 uppercase tracking-wide">
             Pending ({loaded ? pending.length : "—"})
           </h2>
-          <Badge variant={!loaded ? "danger" : pending.length > 0 ? "warning" : "emerald"}>
+          <Badge variant={!loaded ? "danger" : pending.length > 0 ? "warning" : "success"}>
             {!loaded ? "Not read" : pending.length === 0 ? "All clear" : `${pending.length} awaiting review`}
           </Badge>
         </div>
