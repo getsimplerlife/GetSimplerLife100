@@ -15,7 +15,8 @@ export const Route = createFileRoute("/pricing")({
  * No per-capability selling, no per-feature upsell. Tiers differ by
  * scale limits, governance (multi-step approvals + autonomy allow-lists)
  * and support; Enterprise adds custom on-demand vendor-API builds.
- * Live native layer (all live-verified, Phases 1-3.7). The three locked
+ * Native layer built in this repo (Phases 1-3.7); no third-party connection
+ * has carried a tenant's record, so nothing here is described as verified. The three locked
  * tiers are the ONLY SKUs; the free assessment is the sole low-risk entry
  * (owner 10-21: the one-time project SKU is retired).
  */
@@ -189,8 +190,10 @@ function PricingPage() {
       <section className="max-w-6xl mx-auto px-6 pb-16">
         <h2 className="text-2xl font-black text-center mb-2">What's live in every tier</h2>
         <p className="text-stone-500 text-center text-sm mb-8 max-w-2xl mx-auto">
-          Everything below is shipped and live-verified — nothing is claimed until it runs. Full
-          capability map: <Link to="/integrations" className="text-emerald-400 hover:text-emerald-300 font-bold">integrating with what you already use</Link>.
+          Every card below is a native lane built into this product — no third-party tool
+          required. The limits marked enforced on the tiers above are the ones the platform
+          applies; seats, data retention and export are stated in the plan and are not enforced
+          yet. Full capability map: <Link to="/integrations" className="text-emerald-400 hover:text-emerald-300 font-bold">integrating with what you already use</Link>.
         </p>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[
