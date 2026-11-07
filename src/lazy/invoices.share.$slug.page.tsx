@@ -115,9 +115,10 @@ const PAY_PANEL: Record<PayPanelState, (p: PayPanelProps) => ReactNode> = {
           : ` — paid to ${view.issuerName}.`}
       </p>
       {/* SLICE 205 — this sentence was `text-stone-600` on a `bg-stone-900` Card
-          (components/ui.tsx:187): measured contrast 2.9:1, i.e. the least legible
-          text on the page was the one that tells a paying customer their money
-          arrived. `text-stone-300` measures 11.0:1 on the same surface. */}
+          (components/ui.tsx:187), so the least legible text on the page was the
+          one telling a paying customer their money arrived. It now uses the same
+          light foreground as the rest of the receipt. The contrast has NOT been
+          measured in a browser; that is still owed. */}
       <p className="mt-1 text-xs text-stone-300">
         Their own Stripe account confirmed this payment, so nothing further is due on this invoice and this page
         cannot take a second payment.

@@ -721,14 +721,14 @@ export default function ProposalSharePage() {
 
       <Card>
         <div className="p-4">
-          {/* SLICE 205 — the line-item columns collided at 390 px (audit 204
-              D-5): "Unit price" and "Amount" both render `$2,500.00`, and with
-              no gutter between them the row read `$2,500.00$2,500.00`. Two
-              changes, both measured in a real browser at 390×844: every numeric
-              column carries a left gutter (`pl-4`), and every money cell is
-              `whitespace-nowrap` so a value can never break in half and the
-              header can never wrap onto two lines. The table keeps `w-full`, so
-              the description column absorbs the slack instead of the numbers. */}
+          {/* SLICE 205 — at 390 px the "Unit price" and "Amount" columns ran
+              into each other, so the row read as one unbroken run of digits
+              (audit 204, D-5). Every numeric column now carries a left gutter
+              (`pl-4`) and every money cell is `whitespace-nowrap`, so a value
+              cannot break in half or wrap. The table keeps `w-full`, so the
+              description column absorbs the slack instead of the numbers.
+              These are reasoned from the classes; nobody has measured the
+              rendered widths in a browser yet. */}
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b text-left text-gray-500">
