@@ -1,9 +1,11 @@
 /**
  * Provider placeholder catalog.
  *
- * Providers with REAL, live-verified connected credentials get normal
- * "Available / Connect" treatment in the portal integrations UI. Every other
- * provider in the registry renders an honest placeholder card:
+ * Providers we have code for — an inbound import lane or an adapter client in
+ * src/integrations/providers/<id>/ — get a normal card in the portal
+ * integrations UI, badged for the lane rather than for availability: no tenant
+ * has ever connected a provider, so nothing here is connected or verified.
+ * Every other provider in the registry renders an honest placeholder card:
  *   "In development — we're working on it." + contact line.
  *
  * Truthfulness rules (owner-specified):
@@ -20,8 +22,11 @@ export const PLACEHOLDER_STATUS_COPY = "In development — we're working on it."
 export const PLACEHOLDER_CONTACT_COPY = `Want it sooner? Contact us at ${PLACEHOLDER_CONTACT_EMAIL}`;
 
 /**
- * Providers with real connected credentials (live-verified; see the
- * provider-verification status doc). Canonical ids.
+ * Providers this codebase has code for. Canonical ids. Membership means a lane
+ * exists to write against — an inbound import lane under src/native/import/ or a
+ * client under src/integrations/providers/<id>/ — NOT that it is connected,
+ * verified or live. No integration in this product has ever carried a real
+ * tenant record.
  */
 export const REAL_INTEGRATION_PROVIDERS: ReadonlySet<string> = new Set([
   // Slack

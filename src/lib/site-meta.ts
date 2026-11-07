@@ -91,7 +91,7 @@ export const PAGE_TITLES: Record<string, PageMeta> = {
   "/integrations": {
     title: "Integrations | Simpler Life 100",
     description:
-      "Explore the apps the Simpler Life 100 platform works with. Live today: Xero, Slack, Google, Microsoft 365, HubSpot, and DocuSign — with more in development.",
+      "Explore the third-party adapter lanes the Simpler Life 100 platform ships: each one calls that provider's own API once you authorize it, brings data in as a one-time import, and leaves nothing connected. The platform's own proposals, signatures, checklists, deal rooms and invoices need no third-party tool at all.",
   },
   "/login": {
     title: "Login | Simpler Life 100",

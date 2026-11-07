@@ -51,10 +51,11 @@ describe("portal integrations page — placeholder rendering", () => {
   it("badge counts partition the rendered catalog: placeholders never claim Connected", () => {
     const html = renderToString(createElement(ConnectedServices));
     const placeholderBadges = html.split(">In Development<").length - 1;
-    const availableBadges = html.split(">Available<").length - 1;
+    const availableBadges = html.split(">Lane in code<").length - 1;
     expect(expectedConnected.length).toBeGreaterThan(0);
-    // Every connected provider renders the "Available" badge exactly once —
-    // the placeholder copy never appears in their cards.
+    // Every provider we have code for renders the "Lane in code" badge exactly
+    // once — the placeholder copy never appears in their cards. (SLICE 207: the
+    // badge said "Available", which read as "connected"; nothing is connected.)
     expect(availableBadges).toBe(expectedConnected.length);
     // Every placeholder renders the "In Development" badge exactly once.
     expect(placeholderBadges).toBe(expectedPlaceholders.length);

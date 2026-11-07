@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import type { Integration as IntegrationType } from "~/content/integrations";
-import { isLiveIntegration } from "~/content/integrations";
+import { integrationWiring } from "~/content/integrations";
 
 export default function IntegrationPage({ data }: { data: IntegrationType }) {
   const i = data;
@@ -33,9 +33,16 @@ export default function IntegrationPage({ data }: { data: IntegrationType }) {
               {i.category} CONNECTOR
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-2">
-              {isLiveIntegration(i) ? (
+              {/* Three states, because "we have code for it" and "the live server can reach it"
+                  are different facts. No provider is called live, verified or connected: none of
+                  them has ever carried a real tenant record. */}
+              {integrationWiring(i) === "import-lane" ? (
                 <span className="inline-flex items-center gap-1.5 text-[11px] font-mono font-black tracking-wider uppercase rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" /> Live now
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> Import lane
+                </span>
+              ) : integrationWiring(i) === "adapter-lane" ? (
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-mono font-black tracking-wider uppercase rounded-full bg-stone-500/10 text-stone-300 border border-stone-500/30 px-3 py-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-stone-400" /> Adapter code only
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1.5 text-[11px] font-mono font-black tracking-wider uppercase rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 px-3 py-1">
@@ -61,7 +68,11 @@ export default function IntegrationPage({ data }: { data: IntegrationType }) {
               <span className="text-xs font-mono font-bold text-emerald-400 uppercase tracking-widest">[ Core Competencies ]</span>
               <h2 className="text-3xl font-black text-white">Out-of-the-Box Capabilities</h2>
               <p className="text-sm text-stone-400 leading-relaxed">
-                The platform communicates bi-directionally with {i.name} via official APIs, files, or custom databases to fetch context and update system records.
+                {integrationWiring(i) === "import-lane"
+                  ? `This lane calls ${i.name}'s own API once you authorize it. It brings your data in as a one-time import — nothing stays connected afterwards.`
+                  : integrationWiring(i) === "adapter-lane"
+                    ? `A client for ${i.name} exists in our codebase, but no live route reaches it yet. Nothing is connected, and these capabilities are what that lane is built to do — not a record of it having run.`
+                    : `${i.name} is on the roadmap: there is no lane behind it yet, and nothing is connected. These capabilities describe what a lane would do once it is built.`}
               </p>
             </div>
             <ul className="space-y-4">

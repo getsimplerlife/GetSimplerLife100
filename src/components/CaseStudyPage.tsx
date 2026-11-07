@@ -27,7 +27,7 @@ export default function CaseStudyPage({ data }: { data: CaseStudyType }) {
           <div className="max-w-4xl mx-auto relative z-10 space-y-5">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-md border border-emerald-500/20">
-                VERIFIED WORKFLOW
+                WORKFLOW DEMONSTRATION
               </span>
             </div>
             <h1 className="text-3xl lg:text-5xl font-black tracking-tight text-white leading-tight">
@@ -118,7 +118,7 @@ export default function CaseStudyPage({ data }: { data: CaseStudyType }) {
           <div className="max-w-2xl mx-auto relative z-10 space-y-6">
             <h2 className="text-3xl lg:text-5xl font-black text-white">Run this in your stack.</h2>
             <p className="text-sm text-stone-400">
-              We map your operational bottlenecks to verified automation patterns and build the
+              We map your operational bottlenecks to the workflow patterns in these demonstrations and build the
               automations that run them safely against your own systems.
             </p>
             <div className="pt-4">

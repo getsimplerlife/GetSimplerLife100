@@ -1,7 +1,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { Link } from "@tanstack/react-router";
-import { integrations, isLiveIntegration } from "~/content/integrations";
+import { integrations, integrationWiring, hasAdapterLane } from "~/content/integrations";
 // Define common cross-app automation suggestions based on selected tool types
 interface CrossAppAutomation {
   name: string;
@@ -331,11 +331,16 @@ function IntegrationExplorerPage() {
     });
   }, [explorerSearch, activeCategory]);
   // Derived tier groups from the single canonical source (integrations.ts status field).
-  const liveIntegrations = filteredIntegrations.filter(isLiveIntegration);
-  const roadmapIntegrations = filteredIntegrations.filter((i) => !isLiveIntegration(i));
-  const [tierFilter, setTierFilter] = useState<"all" | "live" | "roadmap">("all");
-  const showLive = tierFilter !== "roadmap";
-  const showRoadmap = tierFilter !== "live";
+  // Three tiers, because "we have code for it" and "the live server can reach it" are
+  // different facts: an import lane is mounted at /api/native/import*, adapter code is
+  // not reachable from the live server at all, and the rest has nothing behind it.
+  const importLaneIntegrations = filteredIntegrations.filter((i) => integrationWiring(i) === "import-lane");
+  const adapterOnlyIntegrations = filteredIntegrations.filter((i) => integrationWiring(i) === "adapter-lane");
+  const roadmapIntegrations = filteredIntegrations.filter((i) => !hasAdapterLane(i));
+  const [tierFilter, setTierFilter] = useState<"all" | "import-lane" | "adapter-lane" | "roadmap">("all");
+  const showImportLanes = tierFilter === "all" || tierFilter === "import-lane";
+  const showAdapterOnly = tierFilter === "all" || tierFilter === "adapter-lane";
+  const showRoadmap = tierFilter === "all" || tierFilter === "roadmap";
   // "Notify me when live" capture (reuses the capture-lead pattern wired via SendGrid).
   const [notifyOpenId, setNotifyOpenId] = useState<string | null>(null);
   const [notifyEmail, setNotifyEmail] = useState("");
@@ -457,23 +462,31 @@ function IntegrationExplorerPage() {
               <h3 className="font-extrabold text-sm text-white">1. Select Your Software Stack</h3>
               <p className="text-xs text-stone-500">Pick any combination of tools below to query connections.</p>
             </div>
-            {/* Tier Segmentation Pills (canonical status: live vs in development) */}
-            <div className="flex gap-1.5 pt-1">
-              {(["all", "live", "roadmap"] as const).map((t) => (
+            {/* Tier Segmentation Pills (canonical status: import lane / adapter only / roadmap) */}
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {(["all", "import-lane", "adapter-lane", "roadmap"] as const).map((t) => (
                 <button
                   key={t}
                   onClick={() => setTierFilter(t)}
                   className={`text-[9px] font-mono font-bold px-2.5 py-1 rounded border transition-colors ${
                     tierFilter === t
-                      ? t === "live"
+                      ? t === "import-lane"
                         ? "bg-emerald-600 border-emerald-500 text-white"
-                        : t === "roadmap"
-                          ? "bg-amber-600 border-amber-500 text-white"
-                          : "bg-stone-700 border-stone-600 text-white"
+                        : t === "adapter-lane"
+                          ? "bg-stone-600 border-stone-500 text-white"
+                          : t === "roadmap"
+                            ? "bg-amber-600 border-amber-500 text-white"
+                            : "bg-stone-700 border-stone-600 text-white"
                       : "bg-stone-900 border-stone-800 text-stone-400 hover:text-stone-300"
                   }`}
                 >
-                  {t === "all" ? "All" : t === "live" ? "● Live now" : "◌ In development"}
+                  {t === "all"
+                    ? "All"
+                    : t === "import-lane"
+                      ? "● Import lanes"
+                      : t === "adapter-lane"
+                        ? "◐ Adapter code only"
+                        : "◌ In development"}
                 </button>
               ))}
             </div>
@@ -502,17 +515,18 @@ function IntegrationExplorerPage() {
               ))}
             </div>
 
-            {/* App List — segmented into Live now vs In development / Roadmap (canonical status) */}
+            {/* App List — segmented into import lanes / adapter code / roadmap (canonical status) */}
             <div className="max-h-80 overflow-y-auto space-y-2 pr-1.5 scrollbar-thin scrollbar-thumb-stone-850">
-              {showLive && (
+              {showImportLanes && (
                 <div>
                   <div className="flex items-center gap-1.5 px-1 pt-0.5 pb-1">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <span className="text-[9px] font-mono font-black text-emerald-400 uppercase tracking-wider">Live now</span>
-                    <span className="text-[8px] font-mono text-stone-600">({liveIntegrations.length})</span>
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                    <span className="text-[9px] font-mono font-black text-emerald-400 uppercase tracking-wider">Import lanes</span>
+                    <span className="text-[8px] font-mono text-stone-600">({importLaneIntegrations.length})</span>
                   </div>
+                  <p className="px-1 pb-1 text-[9px] text-stone-600 leading-snug">An inbound lane calls the provider's own API once you authorize it. Data comes in one time; nothing stays connected.</p>
                   <div className="space-y-1.5">
-                    {liveIntegrations.map((app) => {
+                    {importLaneIntegrations.map((app) => {
                       const isSelected = selectedApps.includes(app.id);
                       return (
                         <div
@@ -526,6 +540,44 @@ function IntegrationExplorerPage() {
                         >
                           <div className="flex items-center gap-2.5">
                             <span className="text-xs uppercase font-mono px-1.5 py-0.5 rounded bg-stone-900 border border-stone-850/60 font-black text-emerald-400">
+                              {app.id.slice(0, 3)}
+                            </span>
+                            <span className="text-xs font-bold leading-none">{app.name}</span>
+                          </div>
+                          <div className={`h-4 w-4 rounded-full border flex items-center justify-center text-[8px] ${
+                            isSelected ? "bg-indigo-600 border-indigo-500 text-white" : "border-stone-800"
+                          }`}>
+                            {isSelected && "✓"}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              {showAdapterOnly && adapterOnlyIntegrations.length > 0 && (
+                <div className="pt-1">
+                  <div className="flex items-center gap-1.5 px-1 pt-0.5 pb-1">
+                    <span className="h-1.5 w-1.5 rounded-full bg-stone-400" />
+                    <span className="text-[9px] font-mono font-black text-stone-300 uppercase tracking-wider">Adapter code only</span>
+                    <span className="text-[8px] font-mono text-stone-600">({adapterOnlyIntegrations.length})</span>
+                  </div>
+                  <p className="px-1 pb-1 text-[9px] text-stone-600 leading-snug">A client for these exists in our codebase, but no live route reaches it yet. Nothing is connected.</p>
+                  <div className="space-y-1.5">
+                    {adapterOnlyIntegrations.map((app) => {
+                      const isSelected = selectedApps.includes(app.id);
+                      return (
+                        <div
+                          key={app.id}
+                          onClick={() => toggleAppSelection(app.id)}
+                          className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all ${
+                            isSelected
+                              ? "bg-indigo-950/20 border-indigo-500/40 text-white"
+                              : "bg-stone-950/40 border-stone-850 hover:border-stone-800 text-stone-400 hover:text-stone-200"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <span className="text-xs uppercase font-mono px-1.5 py-0.5 rounded bg-stone-900 border border-stone-850/60 font-black text-stone-400">
                               {app.id.slice(0, 3)}
                             </span>
                             <span className="text-xs font-bold leading-none">{app.name}</span>
@@ -606,7 +658,7 @@ function IntegrationExplorerPage() {
                   </div>
                 </div>
               )}
-              {liveIntegrations.length === 0 && roadmapIntegrations.length === 0 && (
+              {importLaneIntegrations.length === 0 && adapterOnlyIntegrations.length === 0 && roadmapIntegrations.length === 0 && (
                 <div className="text-[10px] text-stone-500 text-center py-8 px-2">No integrations match your filters.</div>
               )}
             </div>
@@ -699,7 +751,7 @@ function IntegrationExplorerPage() {
                   <h4 className="font-extrabold text-sm text-white">Custom Connector Multi-App Pipeline</h4>
                 </div>
                 <p className="text-xs text-stone-300 leading-relaxed">
-                  We can build a custom pipeline for your selected combination. Live today you can connect Xero, Slack, Google, Microsoft 365, HubSpot, and DocuSign; QuickBooks is in development, and the many other tools in our catalog are each marked in development until they are verified live. Nothing on this page should be read as working until it is.
+                  We can build a custom pipeline for your selected combination. Nothing on this page is connected today. Every tool below is an adapter lane in our own codebase — code that calls that provider's own API once you authorize it, brings your data in as a one-time import, and leaves nothing connected afterwards. The record-keeping that runs the job — proposals, signatures, checklists, deal rooms, invoices, and payment through your own Stripe account — is built into the platform and needs no third-party tool at all.
                 </p>
                 <div className="bg-stone-950/40 p-4 rounded-xl space-y-2">
                   <h5 className="text-[10px] font-mono font-bold text-stone-400 uppercase">Selected Services:</h5>
