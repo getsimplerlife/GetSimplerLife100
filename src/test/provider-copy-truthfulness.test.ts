@@ -91,9 +91,12 @@ describe("Portal integrations page — honest provider counts", () => {
     expect(src).not.toMatch(/179 platforms/);
   });
 
-  it("discloses connectable-now and in-development counts", () => {
-    expect(src).toContain("connectable now");
-    expect(src).toContain("more in development");
+  it("discloses lane counts without calling anything connectable", () => {
+    // SLICE 207 — "connectable now" read as "15 import sources you can turn on".
+    // Having a lane in the codebase is not being connectable; nothing is connected.
+    expect(src).toContain("with code today");
+    expect(src).toContain("with no lane yet");
+    expect(src).not.toContain("connectable now");
   });
 
   it("drives the connections denominator from the real (non-placeholder) provider set", () => {
@@ -111,9 +114,12 @@ describe("Public integrations explorer — no inflated capability claims", () =>
     expect(src).not.toContain("CONNECTOR ACTIVE");
   });
 
-  it("discloses live providers and in-development status honestly", () => {
-    expect(src).toContain("Live today you can connect Xero, Slack, Google, Microsoft 365, HubSpot, and DocuSign");
-    expect(src).toContain("QuickBooks is in development");
+  it("names no provider as live and describes the lane instead", () => {
+    // SLICE 207 — the old assertion pinned the false sentence, so the test could
+    // only ever confirm it. This one pins the replacement.
+    expect(src).toContain("Nothing on this page is connected today.");
+    expect(src).toContain("is built into the platform and needs no third-party tool at all.");
+    expect(src).not.toContain("Live today");
   });
 });
 

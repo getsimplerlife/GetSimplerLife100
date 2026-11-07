@@ -397,8 +397,9 @@ function ConnectedServices() {
   const uniqueCategories = Array.from(new Set((providers||[]).filter(Boolean).map((p) => (p||{}).category)))
     .filter(cat => !CRM_ERP_EXCLUDE.some(c => (cat || "").toLowerCase().includes(c.toLowerCase())));
 
-  // Honest connectable counts: only real, live-verified providers count as "available";
-  // the rest of the catalog is in development (rendered as placeholder cards above).
+  // Honest counts: only providers we have code for count as "with a lane"; the rest of
+  // the catalog is in development (rendered as placeholder cards above). Having a lane is
+  // not the same as being connected — no tenant has ever connected a provider.
   const catalogProviders = (providers || []).filter(Boolean);
   const connectableNowCount = getRealProviders(catalogProviders).length;
   const inDevelopmentCount = catalogProviders.length - connectableNowCount;
@@ -426,7 +427,7 @@ function ConnectedServices() {
                   : "text-stone-400 hover:text-white"
               }`}
             >
-              🔌 Integrations ({connectableNowCount})
+              🔌 Integrations ({connectableNowCount} with a lane)
             </button>
             <button
               onClick={() => setActiveTab("intake")}
@@ -496,11 +497,11 @@ function ConnectedServices() {
               </span>
             </div>
             <div className="bg-stone-950 border border-stone-900 p-4 rounded-2xl flex flex-col justify-between">
-              <span className="text-[10px] font-mono font-bold tracking-wider text-stone-500 uppercase">IMPORT SOURCES</span>
+              <span className="text-[10px] font-mono font-bold tracking-wider text-stone-500 uppercase">ADAPTER LANES</span>
               <span className="text-2xl font-black text-white mt-1">
-                {connectableNowCount} <span className="text-stone-600 text-sm font-semibold">connectable now</span>
+                {connectableNowCount} <span className="text-stone-600 text-sm font-semibold">with code today</span>
               </span>
-              <span className="text-[10px] text-stone-500 font-semibold mt-1">{inDevelopmentCount} more in development</span>
+              <span className="text-[10px] text-stone-500 font-semibold mt-1">{inDevelopmentCount} with no lane yet</span>
             </div>
             <div className="bg-stone-950 border border-stone-900 p-4 rounded-2xl flex flex-col justify-between">
               <span className="text-[10px] font-mono font-bold tracking-wider text-stone-500 uppercase">ATTENTION NEEDED</span>
@@ -635,7 +636,7 @@ function ConnectedServices() {
                         </div>
 
                         <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded border bg-stone-900 text-stone-500 border-stone-850">
-                          Available
+                          Lane in code
                         </span>
                       </div>
 

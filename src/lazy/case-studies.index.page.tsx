@@ -14,7 +14,7 @@ function CaseStudiesIndexPage() {
               INTERACTIVE DEMONSTRATIONS
             </span>
             <h1 className="text-5xl lg:text-7xl font-black text-white tracking-tight">
-              Verified Automation. <span className="text-emerald-500">Real Capability.</span>
+              Demonstrated Automation. <span className="text-emerald-500">Real Capability.</span>
             </h1>
             {/* SLICE 205 — this sentence named six "live-verified integrations"
                 (Xero, HubSpot, DocuSign, Slack, Google, Microsoft 365). The
@@ -38,7 +38,7 @@ function CaseStudiesIndexPage() {
             <p className="premium-card-soft text-sm text-stone-500 rounded-2xl px-5 py-4 leading-relaxed">
               📋 <strong className="text-stone-300">When you become a customer, this page will host your real case study</strong> —
               actual numbers, actual timeline, actual outcome, published only with your sign-off. Until then, everything here is
-              verified capability and clearly-labeled illustrative estimates. We do not invent logos, testimonials, or metrics.
+              a demonstration of what the platform does and clearly-labeled illustrative estimates. We do not invent logos, testimonials, or metrics.
             </p>
           </div>
           {/* Verified capability grid */}
@@ -52,7 +52,7 @@ function CaseStudiesIndexPage() {
               >
                 <div className="flex items-center gap-3 mb-3">
                   <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-stone-800 text-emerald-400 uppercase tracking-wider">
-                    Verified Workflow
+                    Workflow Demonstration
                   </span>
                   {cs.illustrativeEstimate?.[0] && (
                     <span className="text-xs font-bold text-stone-400">
@@ -97,7 +97,7 @@ function CaseStudiesIndexPage() {
               See these run in your stack.
             </h3>
             <p className="text-stone-400 max-w-xl mx-auto text-sm leading-relaxed">
-              We'll map your operational bottlenecks to verified automation patterns and give
+              We'll map your operational bottlenecks to the workflow patterns shown in these demonstrations and give
               you a technical roadmap — no fabricated promises.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
