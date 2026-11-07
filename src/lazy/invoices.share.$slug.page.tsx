@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useParams, useSearch } from "@tanstack/react-router";
 import { Card, Badge } from "~/components/ui";
-import { invoiceStatusLabel, invoiceStatusTone } from "~/lib/invoice-status";
+import { invoiceStatusLabel, invoiceStatusTone, type InvoiceStatusTone } from "~/lib/invoice-status";
 
 /**
  * Public invoice page — what the CUSTOMER sees from the emailed link.
@@ -101,18 +101,25 @@ const PAY_PANEL: Record<PayPanelState, (p: PayPanelProps) => ReactNode> = {
   paid: ({ view }) => (
     <div>
       <div className="flex items-center gap-2">
-        <Badge variant="success">Paid</Badge>
+        {/* SLICE 205 — the "Paid" badge moved to the header (one current state,
+            never "ISSUED" beside "PAID"). The date stays here, next to what it
+            dates: the confirmation, not the invoice. */}
         {view.paidAt && (
-          <span className="text-sm text-stone-600">{new Date(view.paidAt).toLocaleDateString()}</span>
+          <span className="text-sm text-stone-300">Confirmed {new Date(view.paidAt).toLocaleDateString()}</span>
         )}
       </div>
-      <p className="mt-2 text-sm text-stone-700">
+      <p className="mt-2 text-sm text-stone-100">
         Invoice {view.invoiceNumber}
         {view.amountPaidCents != null
           ? ` — ${money(view.amountPaidCents, view.currency)} paid to ${view.issuerName}.`
           : ` — paid to ${view.issuerName}.`}
       </p>
-      <p className="mt-1 text-xs text-stone-600">
+      {/* SLICE 205 — this sentence was `text-stone-600` on a `bg-stone-900` Card
+          (components/ui.tsx:187), so the least legible text on the page was the
+          one telling a paying customer their money arrived. It now uses the same
+          light foreground as the rest of the receipt. The contrast has NOT been
+          measured in a browser; that is still owed. */}
+      <p className="mt-1 text-xs text-stone-300">
         Their own Stripe account confirmed this payment, so nothing further is due on this invoice and this page
         cannot take a second payment.
       </p>
@@ -236,6 +243,14 @@ export default function InvoiceSharePage() {
     );
   }
 
+  // The CURRENT lifecycle state, derived once (see the header comment below).
+  const headerBadge: { label: string; variant: InvoiceStatusTone } = view.paid
+    ? { label: "Paid", variant: "success" }
+    : {
+        label: view.status === "sent" ? "Issued" : invoiceStatusLabel(view.status),
+        variant: invoiceStatusTone(view.status),
+      };
+
   return (
     <div className="mx-auto max-w-2xl p-6">
       <div className="mb-6 flex items-start justify-between gap-4">
@@ -248,10 +263,15 @@ export default function InvoiceSharePage() {
         {/* SLICE 182 — the badge is derived from the server's status enum via
             src/lib/invoice-status.ts, so a failed delivery reads "Not delivered"
             (never the raw enum, never "Draft"). "Issued" is kept for `sent`:
-            that is what the customer is holding. */}
-        <Badge variant={invoiceStatusTone(view.status)}>
-          {view.status === "sent" ? "Issued" : invoiceStatusLabel(view.status)}
-        </Badge>
+            that is what the customer is holding.
+
+            SLICE 205 — and PAYMENT OUTRANKS ISSUANCE. A paid invoice used to
+            wear a green "ISSUED" badge in this corner while the body read
+            "PAID 11/3/2026": two lifecycle states side by side on the page a
+            customer reads, which the browser audit recorded as a contradiction.
+            `isInvoicePayable` (the server's own predicate) sets `paid`, and the
+            badge now shows the CURRENT state — one of them, never both. */}
+        <Badge variant={headerBadge.variant}>{headerBadge.label}</Badge>
       </div>
 
       {/* A customer can reach this page for an invoice whose EMAIL was refused
