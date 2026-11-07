@@ -26,29 +26,55 @@
  *      the server already uploads under (`scripts/lib/backup-daemon.ts`), so the
  *      in-process scheduler and the loop can no longer disagree about where this
  *      box's archives live.
- *   4. anything else              → `live`.
- *      A runtime on its own filesystem, outside the shared tree, with no
- *      override, is a DEPLOYMENT. Today there is exactly one of those: the
- *      published site. Its archives land in `simplerlife100/backups/live/`.
+ *   4. anything else              → `live`, but ONLY IF the runtime PROVES it is
+ *      the deployment (see SLICE 208 below). Otherwise the namespace is still
+ *      reported and the runtime is REFUSED, loudly, with a reason that is
+ *      written to `backup_status.json`.
  *
  * WHAT THIS IS NOT. It does not decide whether an upload is ALLOWED — that gate
- * is slice 147's, in `resolveUploadPrefix` (a test/development runtime still
- * refuses to write anywhere without an explicit override). This file only names
- * the namespace, and it never creates a file, a directory or a network call.
+ * is slice 147's, in `resolveUploadPrefix`. This file only names the namespace,
+ * and it never creates a file, a directory or a network call. But since slice
+ * 208 it also does not hand a refused runtime an environment that would let it
+ * upload anyway: the refusal travels to the uploader and the boot restore as
+ * `BACKUP_R2_REFUSED`, and `resolveUploadPrefix` honours it first.
  *
- * RESIDUAL RISK, stated plainly: rule 4 is a default, so a production-looking
- * runtime started by hand from somewhere outside the shared tree would upload
- * under `live/`. The mitigations are real (the test-runtime gate, the required
- * passphrase, and the namespace now being visible on the owner's data-health
- * page), and the escape hatch is explicit: set `R2_INSTANCE` and this file
- * obeys. That is a smaller risk than "the live site has no recognisable
- * namespace at all", which is what we had.
+ * SLICE 208 — WHY RULE 4 IS NO LONGER A DEFAULT. Measured on 2026-11-07:
+ * `PORT=4199 DATA_DIR=/tmp/h1data bun run prod-server.ts` — a throwaway
+ * instance, started from the team's shared tree to measure a rendering defect —
+ * resolved rule 4, was told it was the deployment, and did two things to
+ * production:
+ *
+ *   1. it UPLOADED `simplerlife100/backups/live/2026-11-07T15-00-59Z.tar.gz.enc`
+ *      (39 files, `source.dataDir = /tmp/h1data`), whose retention then pruned
+ *      the other 2026-11-07 object in that prefix;
+ *   2. it RESTORED a `live/` archive at boot and reported it as this
+ *      deployment's recovery — the archive was another scratch instance's, and
+ *      it carried `admin-initial-password.txt`, a plaintext admin credential
+ *      that has never existed in this box's real data directory.
+ *
+ * The old comment here called that residual risk "smaller" than having no
+ * recognisable namespace. It was not: any `prod-server` started by hand on this
+ * box became the live site for backup purposes. So the live namespace is now
+ * OPT-IN, and a runtime must satisfy ONE of these to write it:
+ *
+ *   a. `R2_PREFIX` / `R2_INSTANCE` set (rules 1-2) — an operator said so;
+ *   b. it proves it is the deployment: the team's shared root does NOT exist on
+ *      this machine's filesystem AND its own checkout is not inside that root.
+ *      The published site runs on its own filesystem; every scratch instance on
+ *      the dev box fails both halves.
+ *
+ * A runtime that satisfies neither keeps the REPORTED namespace (`live`) and is
+ * refused: `uploadAllowed: false`, a plain-words `skipReason`, and
+ * `BACKUP_R2_REFUSED` in the environment it hands to the uploader and the boot
+ * restore, so the refusal is recorded rather than silently re-routed into some
+ * other namespace.
  */
 import { resolve, sep } from "node:path";
 import {
   DEFAULT_R2_PREFIX,
   R2_INSTANCE_ENV,
   R2_PREFIX_ENV,
+  R2_REFUSED_ENV,
   isNonProductionRuntime,
   sanitizeInstanceId,
 } from "./r2-upload";
@@ -62,6 +88,25 @@ export const SHARED_TEAM_ROOT = "/home/team/shared";
 
 export type NamespaceRole = "live" | "host" | "explicit";
 export type NamespaceSource = "env-prefix" | "env-instance" | "shared-root" | "deployment";
+
+/**
+ * SLICE 208 — the facts a runtime has to supply to CLAIM the live namespace.
+ *
+ * They are supplied by the caller, not read here, because this resolver is pure
+ * (no I/O, no clock) and because "does the team's shared root exist on this
+ * machine?" is a question about the machine, not about the namespace. Both are
+ * facts only the caller can establish:
+ *
+ *   - `repoRoot`         the checkout this process runs from;
+ *   - `teamRootPresent`  `existsSync(SHARED_TEAM_ROOT)` on this filesystem.
+ *
+ * Omitted host facts are treated as NOT proven: a caller that forgets to pass
+ * them gets a refusal, never a silent promotion to `live`.
+ */
+export interface HostFacts {
+  repoRoot: string;
+  teamRootPresent: boolean;
+}
 
 export interface DeploymentNamespace {
   role: NamespaceRole;
@@ -109,6 +154,8 @@ export function resolveDeploymentNamespace(opts: {
   env: Record<string, string | undefined>;
   dataDir: string;
   sharedRoot?: string;
+  /** SLICE 208 — the facts needed to CLAIM the live namespace. Omitted ⇒ not proven. */
+  host?: HostFacts;
 }): DeploymentNamespace {
   const env = opts.env;
   const nonProd = isNonProductionRuntime(env);
@@ -160,19 +207,71 @@ export function resolveDeploymentNamespace(opts: {
   // instance id, so slice 147's non-production gate still refuses to upload. A
   // suite that spawns real servers must never place an object where it could be
   // mistaken for the live site's copy — that is the whole reason that gate exists.
+  //
+  // SLICE 208: and a runtime that is NOT a test but also cannot prove it is the
+  // deployment is refused the same way, for the same reason. Reporting keeps the
+  // namespace; the environment loses it and gains the refusal, which the uploader
+  // and the boot restore both honour — so a refused instance records WHY instead
+  // of quietly uploading under some other namespace it minted for itself.
+  const livePrefix = `${DEFAULT_R2_PREFIX}${LIVE_INSTANCE}/`;
+  const proof = deploymentProof(opts.host, sharedRoot);
+  const skipReason = nonProd
+    ? `non-production runtime (NODE_ENV=${env.NODE_ENV ?? "<unset>"}) — the deployment namespace is reported but not written to`
+    : proof.proven
+      ? null
+      : `refusing to write the production namespace ${livePrefix}: this runtime cannot prove it is the published deployment (${proof.why}). ` +
+        `The live namespace is opt-in — set ${R2_INSTANCE_ENV}=${LIVE_INSTANCE} (or ${R2_PREFIX_ENV}=${livePrefix}) on the real deployment.`;
   return {
     role: "live",
     instance: LIVE_INSTANCE,
     source: "deployment",
-    prefix: `${DEFAULT_R2_PREFIX}${LIVE_INSTANCE}/`,
+    prefix: livePrefix,
     reason: nonProd
-      ? `DATA_DIR (${resolve(opts.dataDir)}) is outside the team's shared root, so this would be the deployment namespace (${DEFAULT_R2_PREFIX}${LIVE_INSTANCE}/) — but this runtime identifies as ${env.NODE_ENV || "test"}, so uploads are refused.`
-      : `DATA_DIR (${resolve(opts.dataDir)}) is outside the team's shared root and no ${R2_PREFIX_ENV}/${R2_INSTANCE_ENV} override is set, so this is a deployment on its own filesystem and it uploads under ${LIVE_INSTANCE}.`,
-    uploadAllowed: !nonProd,
-    skipReason: nonProd
-      ? `non-production runtime (NODE_ENV=${env.NODE_ENV ?? "<unset>"}) — the deployment namespace is reported but not written to`
-      : null,
-    env: nonProd ? env : { ...env, [R2_INSTANCE_ENV]: LIVE_INSTANCE },
+      ? `DATA_DIR (${resolve(opts.dataDir)}) is outside the team's shared root, so this would be the deployment namespace (${livePrefix}) — but this runtime identifies as ${env.NODE_ENV || "test"}, so uploads are refused.`
+      : proof.proven
+        ? `DATA_DIR (${resolve(opts.dataDir)}) is outside the team's shared root, no ${R2_PREFIX_ENV}/${R2_INSTANCE_ENV} override is set, and this runtime proves it is the deployment (${proof.why}) — so it uploads under ${LIVE_INSTANCE}.`
+        : `DATA_DIR (${resolve(opts.dataDir)}) is outside the team's shared root and no ${R2_PREFIX_ENV}/${R2_INSTANCE_ENV} override is set, but this runtime cannot prove it is the deployment (${proof.why}). The namespace it WOULD use (${livePrefix}) is reported, and NOTHING is written there.`,
+    uploadAllowed: !skipReason,
+    skipReason,
+    env: skipReason ? { ...env, [R2_REFUSED_ENV]: skipReason } : { ...env, [R2_INSTANCE_ENV]: LIVE_INSTANCE },
+  };
+}
+
+/**
+ * SLICE 208 — can this runtime prove it is the published deployment?
+ *
+ * The proof is a fact about the machine, not about the data directory: the
+ * published site runs on its own filesystem, which does not carry the team's
+ * shared root. Every scratch instance on the dev box — however its DATA_DIR is
+ * spelled, and whichever checkout it was started from — fails.
+ *
+ * Pure: the caller supplies both facts (see `HostFacts`).
+ */
+export function deploymentProof(
+  host: HostFacts | undefined,
+  sharedRoot: string = SHARED_TEAM_ROOT,
+): { proven: boolean; why: string } {
+  if (!host) {
+    return {
+      proven: false,
+      why: "no host facts were supplied, so nothing distinguishes this runtime from a scratch instance on the dev box",
+    };
+  }
+  if (host.teamRootPresent) {
+    return {
+      proven: false,
+      why: `the team's shared root (${resolve(sharedRoot)}) exists on this filesystem, so this machine is the shared dev box and not the deployment`,
+    };
+  }
+  if (isUnderSharedTeamRoot(host.repoRoot, sharedRoot)) {
+    return {
+      proven: false,
+      why: `it runs from ${resolve(host.repoRoot)}, which is inside the team's shared root`,
+    };
+  }
+  return {
+    proven: true,
+    why: `the team's shared root does not exist on this machine and this checkout (${resolve(host.repoRoot)}) is outside it`,
   };
 }
 
@@ -186,6 +285,7 @@ export function peekDeploymentNamespace(opts: {
   env: Record<string, string | undefined>;
   dataDir: string;
   sharedRoot?: string;
+  host?: HostFacts;
 }): DeploymentNamespace {
   return resolveDeploymentNamespace(opts);
 }

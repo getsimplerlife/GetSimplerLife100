@@ -47,7 +47,7 @@ import { acquireLock, daemonStatus, ensureArchiveRoot, runLockPath } from "./scr
 import { peekUploadPrefix } from "./src/lib/r2-upload";
 // SLICE 163 - which off-box namespace this deployment owns, and whether the copy
 // in it is real. Both read facts this process already has; neither writes.
-import { resolveDeploymentNamespace } from "./src/lib/backup-namespace";
+import { resolveDeploymentNamespace, SHARED_TEAM_ROOT } from "./src/lib/backup-namespace";
 import { resolveArchiveBackupDir } from "./src/lib/backup-dir";
 import { buildBackupHealthReport } from "./src/lib/backup-health";
 // SLICE 156 — the page-side 404 is decided from the router's own route table.
@@ -427,7 +427,27 @@ const PRE_BOOT_MARKER = readGenerationMarker(DATA_DIR);
 // back to the flat base prefix and restored the newest object belonging to ANY
 // deployment — this dev box's `host-primary` archive, reported as this
 // deployment's recovery. One derivation, used by both legs.
-const ARCHIVE_BACKUP_NAMESPACE = resolveDeploymentNamespace({ env: process.env, dataDir: DATA_DIR });
+const ARCHIVE_BACKUP_NAMESPACE = resolveDeploymentNamespace({
+  env: process.env,
+  dataDir: DATA_DIR,
+  // SLICE 208 - THE PROOF. Until this slice rule 4 of the resolver was a
+  // default: "DATA_DIR is outside the shared root, so this is a deployment".
+  // A throwaway `PORT=4199 DATA_DIR=/tmp/h1data bun run prod-server.ts` started
+  // from this tree therefore became the live site for backup purposes - it
+  // uploaded into simplerlife100/backups/live/, pruned a real object there and
+  // restored another instance's archive at boot. The live namespace is now
+  // opt-in: this runtime may claim it only when the team's shared root is not on
+  // this filesystem at all (the deployment's own FS) or an operator names the
+  // namespace explicitly. Both facts are supplied here; the resolver stays pure.
+  host: { repoRoot: SERVER_BASE, teamRootPresent: existsSync(SHARED_TEAM_ROOT) },
+});
+if (!ARCHIVE_BACKUP_NAMESPACE.uploadAllowed) {
+  // LOUD, at boot, once: a deployment whose off-box copy is refused must say so
+  // where an operator reading the logs will see it. The same reason is written
+  // into backup_status.json by the uploader and into boot_restore.json by the
+  // restore, so it is on the data-health page too.
+  console.log(`[backup] OFF-BOX COPY REFUSED for this runtime: ${ARCHIVE_BACKUP_NAMESPACE.skipReason}`);
+}
 // The environment handed to the uploader AND the restore: an explicit override
 // passes through untouched, otherwise it carries the derived instance id. This
 // is also what stops the upload path from writing a random-id marker into DATA_DIR.
@@ -444,6 +464,10 @@ const ARCHIVE_BACKUP_UPLOAD_ENV: Record<string, string | undefined> = ARCHIVE_BA
     // SLICE 165 — the SAME environment the uploader uses, so the restore lists
     // this deployment's own namespace instead of the shared base prefix.
     env: ARCHIVE_BACKUP_UPLOAD_ENV,
+    // SLICE 208 — and the namespace the resolver decided, so a REFUSED runtime
+    // still records where it would have restored from (the refusal travels in
+    // the environment above, and the restore obeys it).
+    namespaceHint: { prefix: ARCHIVE_BACKUP_NAMESPACE.prefix, instance: ARCHIVE_BACKUP_NAMESPACE.instance },
     log: (m) => console.log(m),
   });
   const timedOut = new Promise<{ ok: false; attempted: true; error: string }>((resolve) =>

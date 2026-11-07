@@ -8,7 +8,10 @@
  *   2. the shared dev box writes under `host-primary` — the SAME id its
  *      supervised loop uses, so the two can never disagree;
  *   3. a deployment on its own filesystem writes under `live`, and that prefix
- *      is not the bare base prefix and never equals the host's;
+ *      is not the bare base prefix and never equals the host's — SLICE 208: it
+ *      must also PROVE it is the deployment (the team's shared root absent from
+ *      its filesystem and its own checkout outside it), because a scratch
+ *      instance on this box used to resolve `live` by default and wrote there;
  *   4. a test/development runtime is REPORTED as `live` but given no instance
  *      id, so slice 147's gate still refuses to upload — a suite must never
  *      place an object where it could be mistaken for the live site's copy;
@@ -40,6 +43,10 @@ const R2_ENV = {
   R2_BUCKET: "bucket",
 };
 
+/** SLICE 208 - the facts that make a runtime THE DEPLOYMENT (its own filesystem). */
+const DEPLOY_HOST = { repoRoot: "/home/engine", teamRootPresent: false };
+/** SLICE 208 - the facts that make a runtime a scratch instance on this box. */
+const DEV_BOX_HOST = { repoRoot: SHARED_TEAM_ROOT + "/site", teamRootPresent: true };
 /** A data dir on this box, inside the shared team root. */
 const HOST_DATA = join(SHARED_TEAM_ROOT, ".data");
 /** A data dir on a deployment's own filesystem. */
@@ -79,7 +86,7 @@ describe("resolveDeploymentNamespace — which namespace this deployment owns", 
   });
 
   it("gives a deployment on its own filesystem the live namespace", () => {
-    const ns = resolveDeploymentNamespace({ env: R2_ENV, dataDir: DEPLOY_DATA });
+    const ns = resolveDeploymentNamespace({ env: R2_ENV, dataDir: DEPLOY_DATA, host: DEPLOY_HOST });
     expect(ns.role).toBe("live");
     expect(ns.instance).toBe(LIVE_INSTANCE);
     expect(ns.prefix).toBe(`${DEFAULT_R2_PREFIX}${LIVE_INSTANCE}/`);
@@ -88,8 +95,8 @@ describe("resolveDeploymentNamespace — which namespace this deployment owns", 
   });
 
   it("never confuses live with host-primary, and never falls back to the bare base prefix", () => {
-    const live = resolveDeploymentNamespace({ env: R2_ENV, dataDir: DEPLOY_DATA });
-    const host = resolveDeploymentNamespace({ env: R2_ENV, dataDir: HOST_DATA });
+    const live = resolveDeploymentNamespace({ env: R2_ENV, dataDir: DEPLOY_DATA, host: DEPLOY_HOST });
+    const host = resolveDeploymentNamespace({ env: R2_ENV, dataDir: HOST_DATA, host: DEV_BOX_HOST });
     expect(live.prefix).not.toBe(host.prefix);
     expect(live.prefix).not.toBe(DEFAULT_R2_PREFIX);
     expect(host.prefix).not.toBe(DEFAULT_R2_PREFIX);
@@ -103,7 +110,7 @@ describe("resolveDeploymentNamespace — which namespace this deployment owns", 
       { ...R2_ENV, NODE_ENV: "development" },
       { ...R2_ENV, VITEST: "true" },
     ]) {
-      const ns = resolveDeploymentNamespace({ env, dataDir: DEPLOY_DATA });
+      const ns = resolveDeploymentNamespace({ env, dataDir: DEPLOY_DATA, host: DEPLOY_HOST });
       // Reported, so the owner can see where a deployment WOULD write...
       expect(ns.role).toBe("live");
       expect(ns.prefix).toBe(`${DEFAULT_R2_PREFIX}${LIVE_INSTANCE}/`);
@@ -118,20 +125,30 @@ describe("resolveDeploymentNamespace — which namespace this deployment owns", 
   });
 
   it("actually changes where the uploader resolves to (the wiring, not just the label)", () => {
-    const ns = resolveDeploymentNamespace({ env: R2_ENV, dataDir: DEPLOY_DATA });
+    const ns = resolveDeploymentNamespace({ env: R2_ENV, dataDir: DEPLOY_DATA, host: DEPLOY_HOST });
     const resolved = resolveUploadPrefix({ env: ns.env, dataDir: DEPLOY_DATA, create: false });
     expect(resolved.uploadAllowed).toBe(true);
     expect(resolved.prefix).toBe(`${DEFAULT_R2_PREFIX}${LIVE_INSTANCE}/`);
     expect(resolved.instance).toBe(LIVE_INSTANCE);
 
-    const host = resolveDeploymentNamespace({ env: R2_ENV, dataDir: HOST_DATA });
+    const host = resolveDeploymentNamespace({ env: R2_ENV, dataDir: HOST_DATA, host: DEV_BOX_HOST });
     const hostResolved = resolveUploadPrefix({ env: host.env, dataDir: HOST_DATA, create: false });
     expect(hostResolved.prefix).toBe(`${DEFAULT_R2_PREFIX}${HOST_INSTANCE}/`);
   });
 
-  it("resolves nothing outside a real data dir: a tmp dir is a deployment, not the host", () => {
-    const ns = resolveDeploymentNamespace({ env: R2_ENV, dataDir: join(tmpdir(), "wt163-ns") });
-    expect(ns.role).toBe("live");
+  it("does NOT treat a tmp data dir on this box as the deployment (slice 208)", () => {
+    // Until slice 208 this asserted the opposite - "a tmp dir is a deployment" -
+    // which is the exact rule that let `DATA_DIR=/tmp/h1data bun run prod-server.ts`
+    // upload into simplerlife100/backups/live/ and restore another instance's
+    // archive. A tmp data dir on the shared box is a SCRATCH INSTANCE.
+    const ns = resolveDeploymentNamespace({
+      env: R2_ENV,
+      dataDir: join(tmpdir(), "wt163-ns"),
+      host: DEV_BOX_HOST,
+    });
+    expect(ns.role).toBe("live"); // still reported as the namespace it would use
+    expect(ns.uploadAllowed).toBe(false);
+    expect(ns.skipReason).toContain("opt-in");
   });
 });
 

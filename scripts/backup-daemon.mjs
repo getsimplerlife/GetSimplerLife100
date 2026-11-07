@@ -46,7 +46,8 @@ import { isInsidePublishTree } from "./lib/backup-core.ts";
 import { resolveDataDir } from "../src/lib/data-dir-policy.ts";
 import { backupEventLine } from "../src/lib/backup-status.ts";
 import { resolveBackupInterval } from "../src/lib/backup-scheduler.ts";
-import { describeR2Config, resolveUploadPrefix } from "../src/lib/r2-upload.ts";
+import { R2_REFUSED_ENV, describeR2Config, resolveUploadPrefix } from "../src/lib/r2-upload.ts";
+import { isUnderSharedTeamRoot } from "../src/lib/backup-namespace.ts";
 
 const REPO_ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
 // SLICE 150: the SAME resolution rule the server uses. A loop that archived a
@@ -71,9 +72,30 @@ const FIRST_DELAY_MS = (() => {
  * `explicitOverride` path the one that applies. `NODE_ENV` is dropped from the
  * child for the same reason: this loop is not a dev or test runtime.
  */
-const INSTANCE = (process.env.R2_INSTANCE || "").trim() || DEFAULT_DAEMON_INSTANCE;
+const INSTANCE = (process.env.R2_INSTANCE || "").trim();
 
-const CHILD_ENV = { ...process.env, R2_INSTANCE: INSTANCE };
+// SLICE 208 - A LOOP MAY ONLY ADOPT host-primary WHEN IT IS SUPERVISING THIS
+// BOX'S OWN DATA. Before this slice the default was unconditional: a loop told
+// `DATA_DIR=/tmp/anything` still stamped itself `host-primary` and uploaded a
+// scratch directory's files into this box's real namespace, where its retention
+// could then prune a real archive. The instance is now adopted only when the
+// data dir is inside the team's shared root (the same rule the server's
+// resolver uses); otherwise the loop still archives locally and REFUSES the
+// upload, saying why in the heartbeat and in backup_status.json.
+const DATA_DIR_IS_HOST = isUnderSharedTeamRoot(DATA_DIR);
+const INSTANCE_REFUSAL =
+  !INSTANCE && !DATA_DIR_IS_HOST
+    ? `refusing to upload DATA_DIR ${DATA_DIR} to ${DEFAULT_DAEMON_INSTANCE}: it is outside the team's shared root, so this loop is not supervising this box's data. ` +
+      `Set R2_INSTANCE (or R2_PREFIX) explicitly if you really mean to upload it.`
+    : null;
+
+const CHILD_ENV = { ...process.env };
+if (INSTANCE) CHILD_ENV.R2_INSTANCE = INSTANCE;
+else if (DATA_DIR_IS_HOST) CHILD_ENV.R2_INSTANCE = DEFAULT_DAEMON_INSTANCE;
+else {
+  delete CHILD_ENV.R2_INSTANCE;
+  CHILD_ENV[R2_REFUSED_ENV] = INSTANCE_REFUSAL;
+}
 delete CHILD_ENV.NODE_ENV;
 delete CHILD_ENV.VITEST;
 
@@ -152,6 +174,7 @@ let stopping = false;
 
 const ENV = envReport();
 log(`supervising ${DATA_DIR} → ${OUT_DIR} every ${INTERVAL_MS}ms (first run in ${FIRST_DELAY_MS}ms), pid ${process.pid}`);
+if (INSTANCE_REFUSAL) log(`OFF-BOX UPLOAD REFUSED: ${INSTANCE_REFUSAL}`);
 log(`off-box identity: instance=${ENV?.instance ?? "<none>"} (${ENV?.instanceSource ?? "?"}) prefix=${ENV?.prefix ?? "<none>"} allowed=${ENV?.uploadAllowed} configured=${ENV?.r2Configured} passphrase=${ENV?.passphraseSet}`);
 if (ENV && !ENV.uploadAllowed) {
   event("upload-would-be-skipped", { instance: ENV.instance, reason: ENV.uploadSkipReason });
