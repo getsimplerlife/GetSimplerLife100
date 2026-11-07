@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useMemo } from "react";
+import { Button, PageHeader } from "~/components/ui";
 import { PortalEmptyState } from "~/components/PortalEmptyState";
 import {
   WINDOW_ALL_MS,
@@ -78,20 +79,20 @@ function WorkspaceAnalytics() {
     <div className="space-y-8 max-w-6xl mx-auto text-stone-100">
 
       {/* ─── Header ─── */}
-      <div className="border-b border-stone-900 pb-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-black text-white tracking-tight">Workspace Analytics</h1>
-          <p className="text-stone-400 text-xs mt-1">
-            Real counts from your workspace's records — approvals, tasks and workflow runs, integrations, and quote-to-cash. No estimates or projections.
-          </p>
-        </div>
-        <button
-          onClick={() => void handleRefresh()}
-          className="bg-stone-900 hover:bg-stone-800 text-stone-300 hover:text-white border border-stone-800 text-xs font-mono font-bold px-4 py-2.5 rounded-xl transition-all self-start md:self-auto"
-        >
-          Refresh
-        </button>
-      </div>
+      <PageHeader
+        title={<>Workspace Analytics</>}
+        subtitle={
+          <>
+            Real counts from your workspace's records — approvals, tasks and workflow runs, integrations, and
+            quote-to-cash. No estimates or projections.
+          </>
+        }
+        actions={
+          <Button variant="secondary" onClick={() => void handleRefresh()}>
+            Refresh
+          </Button>
+        }
+      />
 
       {readError && (
         <div

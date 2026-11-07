@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Button, PageHeader, SearchInput } from "~/components/ui";
 
 /**
  * SLICE 175 — /portal/audit-logs, made true.
@@ -175,22 +176,24 @@ function SystemAuditLogs() {
   return (
     <div className="space-y-8 text-stone-100 max-w-6xl mx-auto">
       {/* Header */}
-      <div className="border-b border-stone-900 pb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-black text-white tracking-tight">📜 System Audit Logs</h1>
-          <p className="text-stone-400 mt-1 text-sm">
+      <PageHeader
+        title={<>📜 System Audit Logs</>}
+        subtitle={
+          <>
             Every action recorded for this workspace — who did it, to which record, and when. Entries are appended by the
             server and are never edited.
-          </p>
-        </div>
-        <button
-          onClick={handleExport}
-          disabled={exporting}
-          className="bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-stone-300 font-bold text-xs px-5 py-2.5 rounded-xl border border-stone-800 transition-all self-start md:self-auto"
-        >
-          {exporting ? "Building CSV…" : "🔒 Export Audit CSV"}
-        </button>
-      </div>
+          </>
+        }
+        actions={
+          <button
+            onClick={handleExport}
+            disabled={exporting}
+            className="bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-stone-300 font-bold text-xs px-5 py-2.5 rounded-xl border border-stone-800 transition-all self-start md:self-auto"
+          >
+            {exporting ? "Building CSV…" : "🔒 Export Audit CSV"}
+          </button>
+        }
+      />
 
       {exportError && (
         <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm font-bold text-rose-300" role="alert">
@@ -229,31 +232,25 @@ function SystemAuditLogs() {
       {/* Search + sort — the only two filters this log can answer */}
       <form onSubmit={handleSearch} className="bg-stone-950 border border-stone-900 rounded-xl p-4">
         <div className="flex flex-col sm:flex-row gap-3">
-          <input
-            type="text"
-            aria-label="Search the audit log"
+          <SearchInput
+            label="Search the audit log"
             placeholder="Search by actor, action, resource, or detail…"
             value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            className="flex-1 bg-stone-900 border border-stone-800 rounded-lg px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 text-stone-200 placeholder-stone-500"
+            onChange={setSearchInput}
+            wrapperClassName="flex-1"
           />
           <div className="flex gap-2">
-            <button
-              type="submit"
-              className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-5 py-2 rounded-lg transition-all"
-            >
-              Search
-            </button>
-            <button
+            <Button type="submit">Search</Button>
+            <Button
               type="button"
+              variant="secondary"
               onClick={() => {
                 setPage(0);
                 setSortDir(sortDir === "desc" ? "asc" : "desc");
               }}
-              className="bg-stone-900 hover:bg-stone-800 border border-stone-800 text-stone-300 font-bold text-xs px-4 py-2 rounded-lg transition-all"
             >
               {sortDir === "desc" ? "Newest first ↓" : "Oldest first ↑"}
-            </button>
+            </Button>
           </div>
         </div>
         <p className="text-[10px] text-stone-600 mt-2">

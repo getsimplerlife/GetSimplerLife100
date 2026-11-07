@@ -111,9 +111,8 @@ const ALLOWED: Record<string, Budget> = {
   "src/lazy/portal.admin.page-views.page.tsx": { buttons: 1, inputs: 0, reason: "not converted in 199 (row/icon buttons and page-local toggles); budget may only shrink" },
   "src/lazy/portal.admin.page.tsx": { buttons: 2, inputs: 0, reason: "not converted in 199 (row/icon buttons and page-local toggles); budget may only shrink" },
   "src/lazy/portal.admin.workflow-builder.page.tsx": { buttons: 3, inputs: 0, reason: "not converted in 199 (row/icon buttons and page-local toggles); budget may only shrink" },
-  "src/lazy/portal.analytics.index.page.tsx": { buttons: 1, inputs: 0, reason: "not converted in 199 (row/icon buttons and page-local toggles); budget may only shrink" },
   "src/lazy/portal.approvals.index.page.tsx": { buttons: 5, inputs: 0, reason: "not converted in 199 (row/icon buttons and page-local toggles); budget may only shrink" },
-  "src/lazy/portal.audit-logs.index.page.tsx": { buttons: 5, inputs: 1, reason: "not converted in 199 (row/icon buttons and page-local toggles + form fields); budget may only shrink" },
+  "src/lazy/portal.audit-logs.index.page.tsx": { buttons: 3, inputs: 0, reason: "199b converted the search bar to SearchInput and the two blue filter buttons to Button; 3 icon/row buttons remain" },
   "src/lazy/portal.automations.index.page.tsx": { buttons: 1, inputs: 7, reason: "not converted in 199 (row/icon buttons and page-local toggles + form fields); budget may only shrink" },
   "src/lazy/portal.boards.index.page.tsx": { buttons: 0, inputs: 5, reason: "not converted in 199 (form fields); budget may only shrink" },
   "src/lazy/portal.bookings.index.page.tsx": { buttons: 1, inputs: 6, reason: "not converted in 199 (row/icon buttons and page-local toggles + form fields); budget may only shrink" },
@@ -127,7 +126,7 @@ const ALLOWED: Record<string, Budget> = {
   "src/lazy/portal.import.index.page.tsx": { buttons: 0, inputs: 1, reason: "not converted in 199 (form fields); budget may only shrink" },
   "src/lazy/portal.index.page.tsx": { buttons: 5, inputs: 0, reason: "not converted in 199 (row/icon buttons and page-local toggles); budget may only shrink" },
   "src/lazy/portal.industries.index.page.tsx": { buttons: 1, inputs: 0, reason: "not converted in 199 (row/icon buttons and page-local toggles); budget may only shrink" },
-  "src/lazy/portal.integrations.index.page.tsx": { buttons: 11, inputs: 2, reason: "not converted in 199 (row/icon buttons and page-local toggles + form fields); budget may only shrink" },
+  "src/lazy/portal.integrations.index.page.tsx": { buttons: 10, inputs: 1, reason: "199b converted the header to PageHeader and the search bar to SearchInput; 10 catalog/pill buttons and 1 field remain" },
   "src/lazy/portal.integrations.providers.page.tsx": { buttons: 1, inputs: 0, reason: "not converted in 199 (row/icon buttons and page-local toggles); budget may only shrink" },
   "src/lazy/portal.invoices.index.page.tsx": { buttons: 5, inputs: 2, reason: "not converted in 199 (row/icon buttons and page-local toggles + form fields); budget may only shrink" },
   "src/lazy/portal.knowledgebase.index.page.tsx": { buttons: 0, inputs: 7, reason: "not converted in 199 (form fields); budget may only shrink" },
@@ -143,7 +142,7 @@ const ALLOWED: Record<string, Budget> = {
   "src/lazy/portal.vault.index.page.tsx": { buttons: 2, inputs: 1, reason: "not converted in 199 (row/icon buttons and page-local toggles + form fields); budget may only shrink" },
   "src/lazy/portal.webhooks.index.page.tsx": { buttons: 0, inputs: 5, reason: "not converted in 199 (form fields); budget may only shrink" },
   "src/lazy/portal.workflows.builder.page.tsx": { buttons: 5, inputs: 1, reason: "not converted in 199 (row/icon buttons and page-local toggles + form fields); budget may only shrink" },
-  "src/lazy/portal.workflows.index.page.tsx": { buttons: 6, inputs: 2, reason: "not converted in 199 (row/icon buttons and page-local toggles + form fields); budget may only shrink" },
+  "src/lazy/portal.workflows.index.page.tsx": { buttons: 6, inputs: 1, reason: "199b converted the header to PageHeader and the search bar to SearchInput; 6 row/action buttons and 1 field remain" },
 };
 
 describe("slice 199 — the portal is built from one component set", () => {
@@ -224,6 +223,139 @@ describe("slice 199 — the portal is built from one component set", () => {
     // The exact string that was the second search-bar look in the product.
     expect(src).not.toContain("pl-11 pr-4 py-3.5");
   });
+});
+
+describe("slice 199b — one page header, and the list of pages still without one can only shrink", () => {
+  /**
+   * Every portal page must carry exactly one `h1`, and it must come from
+   * `PageHeader`. The 199 sweep claimed this was done; at `0c7e6e9` only 7 of 56
+   * page files used it, so the claim was false and the remainder is written down
+   * here instead of in a report nobody re-reads.
+   *
+   * Same mechanism as the control allow-list: a file on this list may still
+   * hand-roll its header, a file NOT on it may not contain a raw `<h1` at all,
+   * and converting a page means deleting its line in the same commit.
+   */
+  const HEADER_PENDING = new Set<string>([
+    "src/lazy/portal.$auditId.page.tsx",
+    "src/lazy/portal.accessreview.index.page.tsx",
+    "src/lazy/portal.admin.analytics.page.tsx",
+    "src/lazy/portal.admin.audit.page.tsx",
+    "src/lazy/portal.admin.credentials.page.tsx",
+    "src/lazy/portal.admin.data-health.page.tsx",
+    "src/lazy/portal.admin.health.page.tsx",
+    "src/lazy/portal.admin.index.page.tsx",
+    "src/lazy/portal.admin.page-views.page.tsx",
+    "src/lazy/portal.admin.page.tsx",
+    "src/lazy/portal.admin.users.page.tsx",
+    "src/lazy/portal.admin.workflow-builder.page.tsx",
+    "src/lazy/portal.assistant.index.page.tsx",
+    "src/lazy/portal.automations.index.page.tsx",
+    "src/lazy/portal.billing.index.page.tsx",
+    "src/lazy/portal.boards.index.page.tsx",
+    "src/lazy/portal.bookings.index.page.tsx",
+    "src/lazy/portal.clients.$clientId.page.tsx",
+    "src/lazy/portal.communications.index.page.tsx",
+    "src/lazy/portal.dashboards.index.page.tsx",
+    "src/lazy/portal.dedupe.index.page.tsx",
+    "src/lazy/portal.document-ai.index.page.tsx",
+    "src/lazy/portal.forms.index.page.tsx",
+    "src/lazy/portal.import.index.page.tsx",
+    "src/lazy/portal.index.page.tsx",
+    "src/lazy/portal.industries.index.page.tsx",
+    "src/lazy/portal.integrations.$id.page.tsx",
+    "src/lazy/portal.knowledgebase.index.page.tsx",
+    "src/lazy/portal.notifications.index.page.tsx",
+    "src/lazy/portal.page.tsx",
+    "src/lazy/portal.projects.$projectId.page.tsx",
+    "src/lazy/portal.proposals.$proposalId.page.tsx",
+    "src/lazy/portal.reports.index.page.tsx",
+    "src/lazy/portal.secure-transport.index.page.tsx",
+    "src/lazy/portal.settings.index.page.tsx",
+    "src/lazy/portal.surveys.index.page.tsx",
+    "src/lazy/portal.tables.index.page.tsx",
+    "src/lazy/portal.transforms.index.page.tsx",
+    "src/lazy/portal.vault.index.page.tsx",
+    "src/lazy/portal.webhooks.index.page.tsx",
+    "src/lazy/portal.workflows.builder.page.tsx",
+  ]);
+
+  it("no converted portal page hand-rolls an <h1>", () => {
+    const offenders: string[] = [];
+    for (const file of portalFiles()) {
+      // Route wrappers are one-liners that render no chrome of their own.
+      if (!file.startsWith("src/lazy/")) continue;
+      const src = read(file);
+      if (HEADER_PENDING.has(file)) continue;
+      // The signed-out notice is a gate, not a page header, and keeps its own
+      // heading: "Sign in to see …" is that block's fixed sentence.
+      const h1 = count(/<h1[\s>]/g, src.replace(/<h1[^>]*>Sign in to see[\s\S]*?<\/h1>/g, ""));
+      if (h1 > 0) {
+        offenders.push(`${file}: ${h1} raw <h1> — use PageHeader from ~/components/ui`);
+        continue;
+      }
+      if (!/\bPageHeader\b/.test(src)) {
+        offenders.push(`${file}: no PageHeader and no <h1> — every page needs one header`);
+      }
+    }
+    expect(offenders, offenders.join("\n")).toEqual([]);
+  });
+
+  it("the header list only shrinks — a converted page deletes its line", () => {
+    const stale: string[] = [];
+    for (const file of HEADER_PENDING) {
+      const src = read(file);
+      if (/\bPageHeader\b/.test(src)) stale.push(`${file}: now uses PageHeader — delete its line from HEADER_PENDING`);
+    }
+    expect(stale, stale.join("\n")).toEqual([]);
+    // The converted set is real, not aspirational.
+    const converted = portalFiles()
+      .filter((f) => f.startsWith("src/lazy/"))
+      .filter((f) => /\bPageHeader\b/.test(read(f)) && count(/<h1[\s>]/g, read(f).replace(/<h1[^>]*>Sign in to see[\s\S]*?<\/h1>/g, "")) === 0);
+    expect(converted.length).toBeGreaterThanOrEqual(15);
+  });
+});
+
+describe("slice 199b — the invoice Delete control asks before it destroys", () => {
+  const src = () => read("src/lazy/portal.invoices.index.page.tsx");
+
+  it("renders Delete as a danger button, not the same green as Send", () => {
+    const code = codeOnly(src());
+    expect(code).toMatch(/<Button variant="danger" onClick=\{\(\) => verb\(i\.id, "delete"\)\}>/);
+  });
+
+  it("guards the delete with a window.confirm before any request is sent", () => {
+    const code = codeOnly(src());
+    const guard = code.indexOf('action === "delete" && !window.confirm(');
+    const request = code.indexOf("await fetch(`/api/native/invoice/");
+    expect(guard, "the confirm guard must exist").toBeGreaterThan(-1);
+    // Order matters: the confirm is inside `verb`, ahead of the fetch.
+    expect(request).toBeGreaterThan(-1);
+    expect(guard).toBeLessThan(request);
+  });
+});
+
+describe("slice 199b — the three hand-rolled search bars are gone", () => {
+  /**
+   * Each page had its own search field with its own inline class recipe — the
+   * third and fourth search-bar looks in the product. The assertion is on the
+   * recipe that is gone, not on the placeholder text (which survives, correctly,
+   * as a prop on the shared component).
+   */
+  const OLD_RECIPES: Record<string, string> = {
+    "src/lazy/portal.integrations.index.page.tsx": 'font-mono text-[10px]">SEARCH',
+    "src/lazy/portal.audit-logs.index.page.tsx": "focus:ring-blue-500/50",
+    "src/lazy/portal.workflows.index.page.tsx": "bg-transparent border-0 text-xs outline-none font-medium",
+  };
+
+  for (const [file, recipe] of Object.entries(OLD_RECIPES)) {
+    it(`${file} searches through SearchInput`, () => {
+      const src = read(file);
+      expect(src).toMatch(/\bSearchInput\b/);
+      expect(src).toMatch(/from "~\/components\/ui"/);
+      expect(src, "the old hand-rolled search field must be gone").not.toContain(recipe);
+    });
+  }
 });
 
 describe("slice 199 — ui.tsx is the one place a control is defined", () => {

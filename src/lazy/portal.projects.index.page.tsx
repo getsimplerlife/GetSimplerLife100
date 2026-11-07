@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Card, Badge, Button, Input } from "~/components/ui";
+import { Card, Badge, Button, Input, PageHeader } from "~/components/ui";
 import { PortalEmptyState, scrollToId } from "~/components/PortalEmptyState";
 import {
   PROJECT_STATUSES,
@@ -103,10 +103,10 @@ export default function ProjectsPage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
-      <header>
-        <h1 className="text-2xl font-black text-white">Projects</h1>
-        <p className="text-sm text-stone-400 mt-1">Work in flight, each project owned by one client.</p>
-      </header>
+      <PageHeader
+        title={<>Projects</>}
+        subtitle={<>Work in flight, each project owned by one client.</>}
+      />
 
       {readError && (
         <Card className="p-4 border-rose-900/60 bg-rose-950/40">
