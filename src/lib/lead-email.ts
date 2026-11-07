@@ -108,7 +108,7 @@ export function buildLeadEmail(email: string, toolName: string, result: any): Le
   body += "RECOMMENDED PLAN: " + bestPlan.toUpperCase() + " — " + planPrice + L;
   body += "═══════════════════════════════════" + L + L;
   body += planIncludes + L;
-  body += L + "VIEW PRICING: https://simplerlife100.ctonew.app" + planLink + L;
+  body += L + "VIEW PRICING: https://www.simplerlife100.com" + planLink + L;
 
   const subject = "New Lead: " + email + " - " + toolName;
   return { subject, body, matchedAgents: matched, bestPlan, planLink };

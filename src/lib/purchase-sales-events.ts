@@ -93,8 +93,12 @@ export function ownerSaleEmailBody(event: OwnerSaleEvent): string {
 /**
  * Canonical public origin used for links we email when neither a deployment
  * override (PUBLIC_SITE_URL) nor the request origin is available.
+ *
+ * SLICE 202 — this is the origin that goes into a BUYER's set-password /
+ * sign-in link, so it must be the owner's own domain, never a platform
+ * hostname the owner does not control. It used to be `simplerlife100.cto.site`.
  */
-export const DEFAULT_SITE_ORIGIN = "https://simplerlife100.cto.site";
+export const DEFAULT_SITE_ORIGIN = "https://www.simplerlife100.com";
 
 /**
  * Normalize a base URL to a bare origin. Returns null (fail-closed) for

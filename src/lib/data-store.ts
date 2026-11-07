@@ -1,5 +1,6 @@
 import { join } from "path";
-import { readFileSync, existsSync, mkdirSync, readdirSync, statSync, copyFileSync, cpSync } from "fs";
+import { readFileSync, existsSync, mkdirSync, readdirSync, statSync, copyFileSync, cpSync, appendFileSync, chmodSync } from "fs";
+import { randomBytes } from "crypto";
 import { atomicWriteSync } from "./atomic-write";
 import { durableEnabled, durableGet, durableHas, durableKeyFor, durableSet, durableGetLive, durableFlush, isPlainObject } from "./durable-store";
 import { isOwnerRole, LEGACY_OWNER_EMAIL } from "./user-roles";
@@ -452,6 +453,82 @@ function ensurePlainObjectFile(file: string): boolean {
 }
 
 /**
+ * SLICE 202 — NO PUBLISHED DEFAULT ADMIN PASSWORD.
+ *
+ * The seed below used to be `process.env.ADMIN_PASSWORD || "<literal>"`, so a
+ * deployment that booted without ADMIN_PASSWORD created the owner account with
+ * a password written in this repository — readable by anyone who can read the
+ * repo or the built bundle. A boot must never install a known password.
+ *
+ * What happens now when the owner row has to be created and ADMIN_PASSWORD is
+ * absent: a cryptographically random password is generated, appended to
+ * `<DATA_DIR>/admin-initial-password.txt` (mode 0600, outside the publish tree,
+ * never mirrored into the durable store — it is a local operator file, not a
+ * JSON store), and a loud structured line names the file — never the value.
+ * Appending rather than overwriting means a later re-seed can never destroy the
+ * only copy of the password that is currently live.
+ *
+ * If that file cannot be written we REFUSE to seed at all (fail closed): an
+ * admin row whose password nobody can read is a locked-out owner behind a
+ * setup-complete face, which is worse than an obviously unseeded deployment.
+ */
+export const ADMIN_INITIAL_PASSWORD_FILE = "admin-initial-password.txt";
+
+/** 24 random bytes → 32 base64url chars (~192 bits). Never a literal. */
+export function generateAdminPassword(): string {
+  return randomBytes(24).toString("base64url");
+}
+
+export type SeedPassword = { ok: true; password: string } | { ok: false; reason: string };
+
+/**
+ * Append one dated block to the 0600 operator file. Throws when it cannot
+ * write, so the caller can fail closed instead of seeding an unknown password.
+ */
+function recordInitialAdminPassword(dataDir: string, email: string, password: string): string {
+  const file = join(dataDir, ADMIN_INITIAL_PASSWORD_FILE);
+  const block =
+    `# ${new Date().toISOString()} — initial password for ${email}, generated because ADMIN_PASSWORD was unset.\n` +
+    `# Log in, change this password, then delete this file.\n` +
+    `${password}\n`;
+  // `mode` only applies when the file is created and umask can strip bits, so
+  // set it explicitly every time: the operator's file is never group/world read.
+  appendFileSync(file, block, { mode: 0o600 });
+  chmodSync(file, 0o600);
+  return file;
+}
+
+/**
+ * The password to hash for a freshly-seeded owner row. ADMIN_PASSWORD wins;
+ * otherwise a random one is generated and recorded for the operator.
+ */
+export function resolveInitialAdminPassword(dataDir: string, email: string): SeedPassword {
+  const fromEnv = (process.env.ADMIN_PASSWORD || "").trim();
+  if (fromEnv) return { ok: true, password: fromEnv };
+  const generated = generateAdminPassword();
+  try {
+    const file = recordInitialAdminPassword(dataDir, email, generated);
+    console.warn(
+      JSON.stringify({
+        event: "admin_password_generated",
+        severity: "warn",
+        email,
+        file,
+        detail:
+          "ADMIN_PASSWORD was unset, so the seeded owner password was generated, not defaulted. " +
+          "Read it from the file (mode 0600), log in, change it, then delete the file.",
+      }),
+    );
+    return { ok: true, password: generated };
+  } catch (err: any) {
+    return {
+      ok: false,
+      reason: `could not write the generated password to ${join(dataDir, ADMIN_INITIAL_PASSWORD_FILE)} (${err?.message || err})`,
+    };
+  }
+}
+
+/**
  * Boot-time seed: guarantees critical files exist with correct types.
  * CREATE-IF-MISSING ONLY — existing files (connections, OAuth tokens,
  * sessions, purchases) are never deleted, truncated, or overwritten.
@@ -498,21 +575,45 @@ export function seedDataFiles(dataDir: string): void {
   const hasAdmin = Object.values(users).some((u: any) => u && isOwnerRole(u.role));
   if (usersUsable && !hasAdmin) {
     const { hashSync } = require("bcryptjs") as typeof import("bcryptjs");
-    const adminPass = process.env.ADMIN_PASSWORD || "Mdsl1234";
     // P1-5 role-based gating: if the owner account ALREADY exists (e.g. it was
     // registered before roles existed) promote it to admin in place so role
     // gates never silently lock the owner out — and NEVER overwrite a live
     // password. Only a missing/broken row gets a fresh hash.
     const existing = users[adminEmail];
-    if (existing && typeof existing === "object") {
-      existing.role = "admin";
-      if (!existing.password) existing.password = hashSync(adminPass, 10);
-      existing.createdAt = existing.createdAt || Date.now();
+    const existingRow = existing && typeof existing === "object" ? (existing as any) : null;
+    // SLICE 202 — a password is resolved ONLY when one actually has to be
+    // hashed. A promotion of a row that already carries a hash needs none.
+    const needsPassword = !existingRow || !existingRow.password;
+    const resolved: SeedPassword = needsPassword
+      ? resolveInitialAdminPassword(dataDir, adminEmail)
+      : { ok: false, reason: "not needed" };
+
+    if (!needsPassword && existingRow) {
+      // Promote-only: the live hash is untouched (P1-5).
+      existingRow.role = "admin";
+      existingRow.createdAt = existingRow.createdAt || Date.now();
+      writeJSON(usersFile, users);
+    } else if (!resolved.ok) {
+      // FAIL CLOSED: no admin is seeded at all. resolveInitialAdminPassword has
+      // already logged why; the deployment is obviously unset-up rather than
+      // silently carrying a password no one can read.
+      console.error(
+        JSON.stringify({
+          event: "admin_seed_refused",
+          severity: "error",
+          email: adminEmail,
+          detail: `${resolved.reason} — refusing to seed an admin account. Set ADMIN_PASSWORD (or make the data directory writable) and restart.`,
+        }),
+      );
+    } else if (existingRow) {
+      existingRow.role = "admin";
+      existingRow.password = hashSync(resolved.password, 10);
+      existingRow.createdAt = existingRow.createdAt || Date.now();
       writeJSON(usersFile, users);
     } else {
       users[adminEmail] = {
         email: adminEmail,
-        password: hashSync(adminPass, 10),
+        password: hashSync(resolved.password, 10),
         role: "admin",
         createdAt: Date.now(),
       };

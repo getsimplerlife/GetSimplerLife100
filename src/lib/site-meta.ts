@@ -15,7 +15,7 @@ export interface PageMeta {
   description: string;
 }
 
-export const SITE_URL = "https://simplerlife100.ctonew.app";
+export const SITE_URL = "https://www.simplerlife100.com";
 
 export const DEFAULT_PAGE_META: PageMeta = {
   title: "Simpler Life 100 | One Platform for AI-Automated Client Ops",

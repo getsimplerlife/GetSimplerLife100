@@ -6,7 +6,7 @@ import nodemailer from "nodemailer"; // standard, works in Bun; wrapped here for
  * the lane untestable (a test could not change it) and made "which lane did we
  * use" depend on when the module happened to be imported.
  */
-const DEFAULT_SMTP_FROM = "Simpler Life 100 <notifications@simplerlife100.ctonew.app>";
+const DEFAULT_SMTP_FROM = "Simpler Life 100 <notifications@simplerlife100.com>";
 
 /**
  * SLICE 185 — every outbound message must name a mailbox a human actually
