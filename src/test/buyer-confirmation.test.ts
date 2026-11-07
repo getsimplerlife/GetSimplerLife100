@@ -97,6 +97,53 @@ describe("buyer confirmation email — the tier they bought and a way in", () =>
   });
 });
 
+describe("slice 201 — the buyer is told the charge is MONTHLY", () => {
+  const monthly = buyerConfirmationEmailBody({
+    productName: "Growth Plan",
+    amountCents: 59900,
+    customerEmail: BUYER,
+    setPasswordUrl: setPasswordLink(BUYER, "https://simplerlife100.cto.site"),
+    billing: { interval: "month", nextPaymentDate: null },
+  });
+
+  it("says the payment is the first month of a monthly subscription, at the amount paid", () => {
+    expect(monthly).toBeTruthy();
+    expect(monthly).toContain("$599.00 per month");
+    expect(monthly).toContain("first month of a monthly subscription");
+    expect(monthly).toContain("renews every month at $599.00 until you cancel");
+    // The amount paid is still stated — both are true.
+    expect(monthly).toContain("Amount paid: $599.00");
+  });
+
+  it("says nothing about a next payment date Stripe did not supply", () => {
+    expect(monthly).not.toContain("Next payment:");
+  });
+
+  it("names the next payment date when Stripe gave one", () => {
+    const withDate = buyerConfirmationEmailBody({
+      productName: "Growth Plan",
+      amountCents: 59900,
+      customerEmail: BUYER,
+      setPasswordUrl: setPasswordLink(BUYER),
+      billing: { interval: "month", nextPaymentDate: "2026-12-07" },
+    });
+    expect(withDate).toContain("Next payment: 2026-12-07");
+  });
+
+  it("does not claim recurrence for a one-time purchase", () => {
+    const oneTime = buyerConfirmationEmailBody({
+      productName: "AI Automation Package",
+      amountCents: 5000,
+      customerEmail: BUYER,
+      setPasswordUrl: setPasswordLink(BUYER),
+      billing: { interval: null },
+    });
+    expect(oneTime).toBeTruthy();
+    expect(oneTime).not.toContain("per month");
+    expect(oneTime).not.toContain("renews");
+  });
+});
+
 describe("buyer confirmation — fail-closed inputs", () => {
   it("returns null without a recipient", () => {
     expect(

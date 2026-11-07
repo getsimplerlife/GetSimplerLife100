@@ -137,11 +137,31 @@ export function buyerConfirmationSubject(productName: string): string {
 }
 
 /**
+ * SLICE 201 — what the charge actually IS.
+ *
+ * The confirmation used to say only "Amount paid: $199.00", which reads as a
+ * one-off purchase. Every tier is a MONTHLY subscription in Stripe, so a buyer
+ * was told the amount and never told it recurs — the one thing about a
+ * subscription a buyer most needs to know.
+ *
+ * `interval: "month"` is set from Stripe's own `mode === "subscription"` on the
+ * checkout session (never guessed from a price), and `nextPaymentDate` is
+ * included ONLY when Stripe handed us one. When it is absent the email says
+ * nothing about a date rather than inventing one.
+ */
+export interface BuyerBilling {
+  /** "month" when the purchase is a recurring monthly subscription; null when one-time. */
+  interval: "month" | null;
+  /** ISO date (YYYY-MM-DD) of the next payment, only when Stripe supplied it. */
+  nextPaymentDate?: string | null;
+}
+
+/**
  * Compose the buyer-facing confirmation email body.
  *
- * Truthful copy only: what they bought, what was paid, and how to get in.
- * Nothing here promises onboarding calls, timelines, or capabilities — those
- * are not ours to claim in an automated email.
+ * Truthful copy only: what they bought, what was paid, whether it recurs, and
+ * how to get in. Nothing here promises onboarding calls, timelines, or
+ * capabilities — those are not ours to claim in an automated email.
  *
  * Returns null (fail-closed) when the purchase cannot be described honestly:
  * no product name, no usable set-password link, or no recipient.
@@ -152,17 +172,32 @@ export function buyerConfirmationEmailBody(input: {
   customerEmail: string;
   setPasswordUrl: string;
   signInUrl?: string;
+  /** Absent or `interval: null` → the purchase is treated as one-time. */
+  billing?: BuyerBilling | null;
 }): string | null {
   const email = String(input.customerEmail || "").trim().toLowerCase();
   const productName = String(input.productName || "").trim();
   const setPasswordUrl = String(input.setPasswordUrl || "").trim();
   if (!email || !productName || !setPasswordUrl) return null;
   const signIn = String(input.signInUrl || "").trim();
+  const amount = "$" + formatAmountCents(input.amountCents);
+  const monthly = input.billing?.interval === "month";
+  const nextPaymentDate = String(input.billing?.nextPaymentDate || "").trim();
+  // Monthly billing is stated as billing, never as a claim about a renewal we
+  // have not observed: the tier links are monthly subscriptions, so "renews
+  // every month ... until you cancel" is a statement about what the buyer
+  // signed up for.
+  const billingLines = monthly
+    ? `Billing: ${amount} per month — this payment is the first month of a monthly subscription.\n` +
+      `Your subscription renews every month at ${amount} until you cancel.\n` +
+      (nextPaymentDate ? `Next payment: ${nextPaymentDate}\n` : ``)
+    : ``;
   return (
     `Hi,\n\n` +
     `We received your payment — thank you. Here is what you bought.\n\n` +
     `Plan: ${productName}\n` +
-    `Amount paid: ${"$" + formatAmountCents(input.amountCents)}\n` +
+    `Amount paid: ${amount}\n` +
+    billingLines +
     `Billing email: ${email}\n\n` +
     `Getting in: your account is tied to the email address above. Set your password here:\n` +
     `${setPasswordUrl}\n\n` +

@@ -30,8 +30,13 @@ import { startHealthHeartbeat, probeProvider } from "./src/lib/connection-health
 import { sweepExpiredOAuthStates, OAUTH_STATE_TTL_MS } from "./src/lib/oauth-state-sweeper";
 import { acquireSingleInstanceOwnership, portAlreadyBound } from "./src/lib/single-instance";
 import { isOwnerUser, LEGACY_OWNER_EMAIL } from "./src/lib/user-roles";
-import { replyToAddress } from "./src/integrations/email";
+// SLICE 201 — ONE sender for the whole server: `sendEmail` tries the SMTP lane
+// first (the live lane is Brevo SMTP), falls back to SendGrid, and never reports
+// success without a provider messageId. There is no second sender in this file.
+import { sendEmail, emailLaneStatus } from "./src/integrations/email";
 import { buildLeadEmail } from "./src/lib/lead-email";
+// Slice 201: the read half of pending_emails.json (pure, sender injected).
+import { drainPendingEmails } from "./src/lib/pending-email-drain";
 import { guardRequest, guardAccount, clearAccountBudget, peerAddressFrom, describeTrustedProxies } from "./src/lib/rate-limit";
 import { MAX_REQUEST_BODY_BYTES, requestTooLarge } from "./src/lib/request-body";
 import { readBackupStatus, countStoreEntries, readBackupFreshness, resolveStaleFactor } from "./src/lib/backup-status";
@@ -488,6 +493,141 @@ const CONNECTION_HEALTH_INTERVAL_MS = (() => {
   return Number.isFinite(n) && n > 0 ? n : 15 * 60 * 1000; // 15m default
 })();
 const connectionLifecycle: Array<{ stop(): void }> = [];
+// ── Email — ONE sender (slice 201) ───────────────────────────────────────────
+/**
+ * Until slice 201 this file had its own `sendEmailSMTP`: named SMTP, but
+ * SendGrid-HTTP-only, returning `{ sent: false, error: "SENDGRID_API_KEY not
+ * configured" }` whenever that key was missing. On this deployment
+ * SENDGRID_API_KEY is empty and the lane is Brevo SMTP, so all four of its
+ * callers sent NOTHING — the buyer's confirmation, the owner's new-purchase
+ * notice, the password-reset code and the lead notification.
+ *
+ * There is now ONE sender in the codebase: `sendEmail()` in
+ * src/integrations/email.ts — SMTP (Brevo) first, SendGrid as the fall-through,
+ * never reporting success without a provider messageId.
+ *
+ * `sent` is TRUE only when a provider acknowledged the message with its OWN
+ * messageId. The no-lane mock path returns success:true with a `mock-…` id and
+ * `isMock: true`; that is not delivery and is never recorded as one.
+ */
+interface MailOutcome {
+  sent: boolean;
+  channel: "smtp" | "sendgrid" | "none";
+  messageId?: string;
+  isMock: boolean;
+  error?: string;
+}
+
+async function deliverEmail(opts: { to: string; subject: string; text: string }): Promise<MailOutcome> {
+  try {
+    const result = await sendEmail({ to: opts.to, subject: opts.subject, text: opts.text });
+    const sent = result.success === true && !!result.messageId && result.isMock !== true;
+    return {
+      sent,
+      channel: (result.channel as MailOutcome["channel"]) || "none",
+      messageId: result.messageId || undefined,
+      isMock: result.isMock === true,
+      error: sent
+        ? undefined
+        : result.error ||
+          (result.isMock
+            ? "no email lane configured — the message was simulated, not delivered"
+            : "the provider did not acknowledge the message"),
+    };
+  } catch (e: any) {
+    // A thrown send is never a delivery.
+    return { sent: false, channel: "none", isMock: false, error: e?.message || String(e) };
+  }
+}
+
+/**
+ * Put ONE undelivered message into the retry lane (pending_emails.json).
+ * The row is written with `sent: false` and `attempts: 0`; only
+ * `drainPendingEmailQueue` ever marks one delivered, and only on a real
+ * provider messageId.
+ */
+function queuePendingEmail(item: {
+  id: string;
+  to: string;
+  subject: string;
+  body: string;
+  kind: string;
+  sessionId?: string;
+  notificationId?: string;
+}): void {
+  try {
+    const pending = readJSON(PENDING_EMAILS_FILE);
+    const arr = Array.isArray(pending) ? pending : [];
+    arr.push({ ...item, timestamp: new Date().toISOString(), sent: false, attempts: 0 });
+    writeJSON(PENDING_EMAILS_FILE, arr);
+  } catch (e: any) {
+    console.log("[email] could not queue undelivered message (" + (e?.message || String(e)) + ")");
+  }
+}
+
+/** A day-old reset code or purchase confirmation is not worth delivering late. */
+const PENDING_EMAIL_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const PENDING_EMAIL_MAX_ATTEMPTS = 3;
+
+/**
+ * SLICE 201 — READ the retry lane. Until this slice pending_emails.json was
+ * write-only: three call sites pushed messages in and nothing ever read them
+ * back, which is a lie about durability. This drains it (bounded: a message
+ * count, a 24h age and 3 attempts) and it refuses to run when no real lane is
+ * configured — with no lane nothing can be delivered, so attempting would only
+ * burn attempts and write mock sends into the debug log.
+ */
+async function drainPendingEmailQueue(opts: { limit?: number } = {}): Promise<{
+  attempted: number;
+  delivered: number;
+  abandoned: number;
+  skipped: boolean;
+}> {
+  if (!emailLaneStatus().configured) return { attempted: 0, delivered: 0, abandoned: 0, skipped: true };
+  const raw = readJSON(PENDING_EMAILS_FILE);
+  const items = Array.isArray(raw) ? raw : [];
+  if (items.length === 0) return { attempted: 0, delivered: 0, abandoned: 0, skipped: false };
+  const outcome = await drainPendingEmails(
+    items,
+    async (row) => {
+      const mail = await deliverEmail({
+        to: String((row as any).to || ""),
+        subject: String((row as any).subject || ""),
+        text: String((row as any).body ?? (row as any).text ?? ""),
+      });
+      return { delivered: mail.sent, channel: mail.channel, messageId: mail.messageId, error: mail.error };
+    },
+    { limit: opts.limit, maxAgeMs: PENDING_EMAIL_MAX_AGE_MS, maxAttempts: PENDING_EMAIL_MAX_ATTEMPTS },
+  );
+  if (outcome.attempted > 0 || outcome.abandoned > 0) {
+    writeJSON(PENDING_EMAILS_FILE, outcome.items);
+  }
+  return { attempted: outcome.attempted, delivered: outcome.delivered, abandoned: outcome.abandoned, skipped: false };
+}
+
+/**
+ * The next payment date, ONLY when Stripe hands us one. A checkout session
+ * normally carries the subscription ID rather than its period end, so this is
+ * usually null — and the buyer's email then says nothing about a date instead of
+ * inventing one.
+ */
+function nextPaymentDateFromSession(session: any): string | null {
+  const candidates = [
+    session?.subscription?.current_period_end,
+    session?.subscription_details?.current_period_end,
+    session?.current_period_end,
+  ];
+  for (const raw of candidates) {
+    const seconds = Number(raw);
+    if (Number.isFinite(seconds) && seconds > 0) {
+      const date = new Date(seconds * 1000);
+      if (!Number.isNaN(date.getTime())) return date.toISOString().slice(0, 10);
+    }
+  }
+  return null;
+}
+
+
 function startConnectionLifecycle(): void {
   // #231: validate a refreshed token against the audited probe BEFORE it can
   // replace the stored one — a token-endpoint 200 is not proof the token works
@@ -1274,14 +1414,16 @@ async function handleFetch(req: Request, server?: ServerPeerSource): Promise<Res
           const code = generateResetCode();
           resets[email] = newPasswordResetRecord(code, now, resets[email]);
           writeJSON(PASSWORD_RESETS_FILE, resets);
-          const smtp = await sendEmailSMTP({
+          // Slice 201: the code goes out through the ONE shared sender (Brevo
+          // SMTP first). `sent` is true only on a real provider messageId.
+          const mail = await deliverEmail({
             to: email,
             subject: "Your Simpler Life 100 password reset code",
-            body: "We received a request to reset the password for " + email + ".\n\nYour one-time reset code is: " + code + "\n\nThis code expires in 10 minutes and can only be used once. If you did not request a password reset, you can safely ignore this email.",
+            text: "We received a request to reset the password for " + email + ".\n\nYour one-time reset code is: " + code + "\n\nThis code expires in 10 minutes and can only be used once. If you did not request a password reset, you can safely ignore this email.",
           });
           // NEVER log the plaintext code or any new password.
-          console.log("[auth] password-reset code issued for " + email + " (delivered=" + (smtp.sent ? "yes" : "no") + ")");
-          return Response.json({ success: true, sent: smtp.sent });
+          console.log("[auth] password-reset code issued for " + email + " (lane=" + mail.channel + " delivered=" + (mail.sent ? "yes" : "no") + ")");
+          return Response.json({ success: true, sent: mail.sent });
         }
         return Response.json({ success: true, sent: false });
       } catch (e: any) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e))); return Response.json({ error: "Invalid request" }, { status: 400 }); }
@@ -3007,59 +3149,23 @@ async function handleFetch(req: Request, server?: ServerPeerSource): Promise<Res
         },
       });
     }
-// ── Email Sender (SendGrid) ───────────────────────────────────────────────────
-async function sendEmailSMTP(opts: { to: string; subject: string; body: string }): Promise<{ sent: boolean; error?: string }> {
-  const apiKey = process.env.SENDGRID_API_KEY;
-  const emailFrom = process.env.SMTP_FROM || "leads@simplerlife100.com";
-
-  if (!apiKey) {
-    return { sent: false, error: "SENDGRID_API_KEY not configured" };
-  }
-
-  try {
-    const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer " + apiKey,
-      },
-      body: JSON.stringify({
-        personalizations: [{ to: [{ email: opts.to }] }],
-        from: { email: emailFrom },
-        // Slice 185: replies must reach a human. `simplerlife100.com` has no MX,
-        // so without this header a reply to a lead email bounces. The address
-        // comes from the ONE definition in src/integrations/email.ts.
-        reply_to: { email: replyToAddress() },
-        subject: opts.subject,
-        content: [{ type: "text/plain", value: opts.body }],
-      }),
-    });
-    if (response.status === 202) {
-      return { sent: true };
-    } else {
-      const errText = await response.text();
-      return { sent: false, error: `SendGrid HTTP ${response.status}: ${errText}` };
-    }
-  } catch (e: any) {
-    return { sent: false, error: e?.message || String(e) };
-  }
-}
-
-
 /**
  * Shared on-purchase-completed handler — called exactly once per real,
- * verified Stripe purchase (pack / plan / agent / generic). It:
+ * verified Stripe purchase (plan or generic). It:
  *  1. Provisions/upgrades the purchaser's portal account in the REAL users
  *     store (users.json keyed by email), non-destructively (never overwrites
  *     password/role/login/createdAt, never deletes, only touches the
  *     purchaser's own row).
- *  2. Builds a durable structured owner sale event and sends the owner sale
- *     email via the SAME SendGrid/SMTP path the lead notifications use
- *     (sendEmailSMTP + pending_emails.json fallback — no invented mail path).
- *  3. Persists the sale event durably in sales_events.json keyed by
- *     session.id with attempt tracking, and is idempotent on session.id so
- *     Stripe at-least-once redelivery can never double-notify or
- *     double-provision.
+ *  2. Builds a durable structured owner sale event and emails the owner through
+ *     the ONE shared sender (src/integrations/email.ts — Brevo SMTP first,
+ *     SendGrid as the fall-through).
+ *  3. Emails the BUYER their own confirmation, truthful about monthly billing.
+ *  4. Persists the sale event durably in sales_events.json keyed by session.id,
+ *     recording the LANE, the provider's messageId and whether the send was a
+ *     simulation, and is idempotent on session.id so Stripe at-least-once
+ *     redelivery can never double-notify or double-provision.
+ *  5. Queues anything undelivered into pending_emails.json — the retry lane that
+ *     `drainPendingEmailQueue` actually reads (slice 201).
  * Fails closed: without a verified purchaser email / session id it does
  * nothing.
  */
@@ -3071,6 +3177,10 @@ async function handlePurchaseCompleted(args: {
   sessionId: string;
   /** Public origin the buyer's set-password / sign-in links are built from. */
   baseUrl?: string;
+  /** Stripe's own `session.mode` — "subscription" for every live tier link. */
+  checkoutMode?: string;
+  /** Next payment date, ONLY when Stripe supplied one on the session/subscription. */
+  nextPaymentDate?: string | null;
 }): Promise<void> {
   try {
     const { customerEmail, productName, opportunityType, amountTotal, sessionId } = args;
@@ -3108,27 +3218,27 @@ async function handlePurchaseCompleted(args: {
       return;
     }
 
-    // 3. Send the owner sale email via the SAME SendGrid/SMTP path as leads.
+    // 3. The owner's notice — through the one shared sender.
     const recipient = process.env.LEAD_NOTIFICATION_EMAIL || "electric.vortexz@gmail.com";
     const ownerSubject = "New Purchase — " + productName;
     const ownerBody = ownerSaleEmailBody(event);
-    const smtpResult = await sendEmailSMTP({
-      to: recipient,
-      subject: ownerSubject,
-      body: ownerBody,
-    });
+    const ownerMail = await deliverEmail({ to: recipient, subject: ownerSubject, text: ownerBody });
 
-    // 4. Send the BUYER their own confirmation (slice 138). Until this slice a
-    //    buyer paid and heard nothing but Stripe's receipt. It rides the SAME
-    //    awaited SMTP path as the owner email on purpose: a slow or failing send
-    //    must be visible here and land in pending_emails.json, never vanish into
-    //    a fire-and-forget void. EXACTLY ONE buyer email per Stripe session id —
-    //    the `if (salesEvents[sessionId]) return;` dedupe above is the guard, so
-    //    a re-delivered checkout.session.completed sends nothing.
+    // 4. The BUYER's confirmation (slice 138). It rides the SAME awaited path as
+    //    the owner email on purpose: a slow or failing send is visible here and
+    //    lands in the retry lane, never in a fire-and-forget void. EXACTLY ONE
+    //    buyer email per Stripe session id — the dedupe above is the guard.
+    //
+    //    Slice 201: the copy must say the charge is MONTHLY. `mode` is Stripe's
+    //    own field, so the monthly wording is driven by what the buyer actually
+    //    bought, not by a guess from the price.
     const origin =
       normalizeSiteOrigin(args.baseUrl) ||
       normalizeSiteOrigin(process.env.PUBLIC_SITE_URL) ||
       DEFAULT_SITE_ORIGIN;
+    const isMonthlySubscription = args.checkoutMode
+      ? args.checkoutMode === "subscription"
+      : opportunityType === "plan";
     const buyerSetPasswordUrl = setPasswordLink(email, origin);
     const buyerSubject = buyerConfirmationSubject(productName);
     const buyerBody = buyerConfirmationEmailBody({
@@ -3137,77 +3247,78 @@ async function handlePurchaseCompleted(args: {
       customerEmail: email,
       setPasswordUrl: buyerSetPasswordUrl,
       signInUrl: signInLink(origin),
+      billing: {
+        interval: isMonthlySubscription ? "month" : null,
+        nextPaymentDate: args.nextPaymentDate ?? null,
+      },
     });
-    let buyerSent = false;
+    let buyerMail: MailOutcome | null = null;
     let buyerError = "no_buyer_email_body";
     if (buyerBody) {
-      buyerError = "not_attempted";
-      try {
-        const buyerResult = await sendEmailSMTP({ to: email, subject: buyerSubject, body: buyerBody });
-        buyerSent = !!buyerResult.sent;
-        if (!buyerSent) buyerError = buyerResult.error || "unknown";
-      } catch (e: any) {
-        // A thrown send must never abort the durable record — it is queued below.
-        buyerSent = false;
-        buyerError = e?.message || String(e);
-      }
+      buyerMail = await deliverEmail({ to: email, subject: buyerSubject, text: buyerBody });
+      buyerError = buyerMail.sent ? "" : (buyerMail.error || "unknown");
     }
+    const buyerSent = buyerMail?.sent === true;
 
-    // 5. Persist the sale event durably with attempt tracking (idempotent on session.id).
+    // 5. Persist the sale event durably with the lane that answered (idempotent
+    //    on session.id). `sent` is true only on a provider messageId.
     salesEvents[sessionId] = {
       event,
       at: new Date().toISOString(),
-      notified: smtpResult.sent,
-      sentAt: smtpResult.sent ? new Date().toISOString() : undefined,
-      error: smtpResult.sent ? undefined : (smtpResult.error || "unknown"),
+      notified: ownerMail.sent,
+      sentAt: ownerMail.sent ? new Date().toISOString() : undefined,
+      channel: ownerMail.channel,
+      messageId: ownerMail.messageId,
+      isMock: ownerMail.isMock,
+      error: ownerMail.sent ? undefined : (ownerMail.error || "unknown"),
       buyer: {
         to: email,
         sent: buyerSent,
         at: new Date().toISOString(),
+        channel: buyerMail?.channel,
+        messageId: buyerMail?.messageId,
+        isMock: buyerMail?.isMock,
         error: buyerSent ? undefined : buyerError,
       },
     };
     writeJSON(SALES_EVENTS_FILE, salesEvents);
 
-    // 6. Anything that did not send goes into the existing pending_emails.json
-    //    retry lane — owner email (as before) and now the buyer email too.
-    const pendingAdds: any[] = [];
-    if (smtpResult.sent) {
-      console.log("[webhook] Owner sale email sent for " + productName + " (" + email + ")");
+    // 6. Anything undelivered goes into the retry lane — which is READ (see
+    //    drainPendingEmailQueue), so a row here is a promise we keep.
+    if (ownerMail.sent) {
+      console.log("[webhook] Owner sale email sent for " + productName + " (" + email + ") via " + ownerMail.channel);
     } else {
-      // SMTP failed/unavailable — queue for retry (never silently drop).
-      console.log("[webhook] Owner sale email FAILED (" + (smtpResult.error || "unknown") + ") — queued to pending_emails.json");
-      pendingAdds.push({
+      console.log("[webhook] Owner sale email FAILED (" + (ownerMail.error || "unknown") + ") — queued to pending_emails.json");
+      queuePendingEmail({
         id: "sale-" + Math.random().toString(36).substr(2, 9),
         sessionId,
         to: recipient,
         subject: ownerSubject,
         body: ownerBody,
-        timestamp: new Date().toISOString(),
-        sent: false,
         kind: "purchase",
       });
     }
     if (buyerBody && buyerSent) {
-      console.log("[webhook] Buyer confirmation email sent for " + productName + " (" + email + ")");
+      console.log("[webhook] Buyer confirmation email sent for " + productName + " (" + email + ") via " + (buyerMail?.channel || "unknown"));
     } else if (buyerBody) {
       console.log("[webhook] Buyer confirmation email FAILED (" + buyerError + ") — queued to pending_emails.json");
-      pendingAdds.push({
+      queuePendingEmail({
         id: "buyer-" + Math.random().toString(36).substr(2, 9),
         sessionId,
         to: email,
         subject: buyerSubject,
         body: buyerBody,
-        timestamp: new Date().toISOString(),
-        sent: false,
         kind: "purchase-buyer",
       });
     }
-    if (pendingAdds.length) {
-      const pending = readJSON(PENDING_EMAILS_FILE);
-      const pendingArr = Array.isArray(pending) ? pending : [];
-      pendingArr.push(...pendingAdds);
-      writeJSON(PENDING_EMAILS_FILE, pendingArr);
+
+    // 7. The lane just proved itself, so retry a few older queued messages with
+    //    it (bounded; a no-lane box drains nothing at all).
+    if (ownerMail.sent || buyerSent) {
+      const drained = await drainPendingEmailQueue({ limit: 3 }).catch(() => null);
+      if (drained && drained.attempted > 0) {
+        console.log("[webhook] pending-email drain: attempted=" + drained.attempted + " delivered=" + drained.delivered + " abandoned=" + drained.abandoned);
+      }
     }
   } catch (e: any) {
     console.log("[webhook] handlePurchaseCompleted failed (non-fatal): " + (e?.message || String(e)));
@@ -3365,32 +3476,36 @@ function applyStripeLifecycleEvent(input: {
         const idx = notifs.findIndex((n: any) => n.id === notifId);
         if (idx < 0) return Response.json({ success: false, reason: "Notification not found" }, { status: 404 });
         const notif = notifs[idx];
-        // Actually deliver email via SMTP
+        // Slice 201: the lead notification goes through the ONE shared sender
+        // (Brevo SMTP first). `sent` is true only on a provider messageId.
         const recipient = process.env.LEAD_NOTIFICATION_EMAIL || "electric.vortexz@gmail.com";
-        const smtpResult = await sendEmailSMTP({ to: recipient, subject: notif.subject || "New Lead", body: notif.body || "" });
-        if (smtpResult.sent) {
+        const mail = await deliverEmail({ to: recipient, subject: notif.subject || "New Lead", text: notif.body || "" });
+        if (mail.sent) {
           notifs[idx].notified = true;
           notifs[idx].sentAt = new Date().toISOString();
+          notifs[idx].channel = mail.channel;
+          notifs[idx].messageId = mail.messageId;
           writeJSON(LEAD_NOTIFICATIONS_FILE, notifs);
-          console.log("[SSR] Email sent successfully to " + recipient + " via SMTP");
+          console.log("[SSR] Lead email sent to " + recipient + " via " + mail.channel);
           return Response.json({ success: true, sent: true });
         }
-        // SMTP failed/unavailable — fallback: queue to pending_emails.json
-        const pending = readJSON(PENDING_EMAILS_FILE);
-        const pendingArr = Array.isArray(pending) ? pending : [];
-        pendingArr.push({
+        // Not delivered — put it in the retry lane and say so. `notified` stays
+        // FALSE on purpose: it means delivered, and a queued message has not
+        // been. (Marking it true is what made an undelivered lead vanish from
+        // /api/notifications/pending.)
+        queuePendingEmail({
           id: "email-" + Math.random().toString(36).substr(2, 9),
           notificationId: notifId,
           to: recipient,
           subject: notif.subject || "New Lead",
           body: notif.body || "",
-          timestamp: new Date().toISOString(),
-          sent: false,
+          kind: "lead",
         });
-        writeJSON(PENDING_EMAILS_FILE, pendingArr);
-        notifs[idx].notified = true;
+        notifs[idx].notified = false;
+        notifs[idx].queuedAt = new Date().toISOString();
+        notifs[idx].lastError = mail.error || "unknown";
         writeJSON(LEAD_NOTIFICATIONS_FILE, notifs);
-        console.log("[SSR] SMTP unavailable (" + smtpResult.error + ") — email queued to pending_emails.json");
+        console.log("[SSR] Lead email not delivered (" + (mail.error || "unknown") + ") — queued to pending_emails.json");
         return Response.json({ success: true, sent: false, queued: true });
       } catch (e: any) { console.log("[SSR] FAILED url=" + url + " err=" + (e?.message || String(e))); return Response.json({ success: false }, { status: 400 }); }
     }
@@ -4513,6 +4628,11 @@ function applyStripeLifecycleEvent(input: {
               amountTotal,
               sessionId: session.id,
               baseUrl: url.origin,
+              // Slice 201: Stripe's own fields drive the buyer's copy — the
+              // monthly wording comes from `mode`, and the next payment date is
+              // included only when Stripe actually supplies one.
+              checkoutMode: session.mode,
+              nextPaymentDate: nextPaymentDateFromSession(session),
             });
             return Response.json({ received: true });
           }
@@ -4552,6 +4672,8 @@ function applyStripeLifecycleEvent(input: {
               amountTotal,
               sessionId: session.id,
               baseUrl: url.origin,
+              checkoutMode: session.mode,
+              nextPaymentDate: nextPaymentDateFromSession(session),
             });
           }
         }
@@ -5016,3 +5138,14 @@ console.log(describeTrustedProxies());
 // Signal readiness — write a file the publish tool can detect
 try { require("fs").writeFileSync("/tmp/slr100-ready", String(Date.now())); } catch (_) {}
 process.on("exit", () => { if (backupTimer) clearInterval(backupTimer); });
+
+// SLICE 201 — READ the pending-email retry lane once at boot. Bounded (10
+// messages, 24h max age, 3 attempts) and non-blocking: a slow provider must not
+// delay the port coming up, and a corrupt store is left alone (readJSON's
+// guard refuses to overwrite it). With no lane configured this drains nothing.
+void drainPendingEmailQueue({ limit: 10 })
+  .then((r) => {
+    if (r.skipped) console.log("[email] no email lane configured — pending-email drain skipped");
+    else if (r.attempted || r.abandoned) console.log("[email] pending-email drain at boot: attempted=" + r.attempted + " delivered=" + r.delivered + " abandoned=" + r.abandoned);
+  })
+  .catch((e: any) => console.log("[email] pending-email drain failed (non-fatal): " + (e?.message || String(e))));

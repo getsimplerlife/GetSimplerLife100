@@ -202,13 +202,16 @@ describe("slice 185 — every outbound message carries a Reply-To a human reads"
     expect(DEFAULT_REPLY_TO).toMatch(/^[^@\s]+@[^@\s.]+\.[a-z]{2,}$/i);
   });
 
-  it("the THIRD lane (prod-server sendEmailSMTP) sends the same Reply-To", () => {
+  it("the server's mail path IS this module — there is no second lane to wire", () => {
+    // Slice 201 deleted prod-server's private SendGrid-only sender. Every send
+    // the server makes now goes through `sendEmail` below, so the Reply-To is
+    // the ONE definition by construction rather than by a third hand-written
+    // body. This test pins that arrangement, so re-introducing a private sender
+    // fails here as well as in email-lane-201.test.ts.
     const server = codeOnly("prod-server.ts");
-    const fnStart = server.indexOf("async function sendEmailSMTP(");
-    expect(fnStart, "sendEmailSMTP not found").toBeGreaterThan(-1);
-    const fnBody = server.slice(fnStart, server.indexOf("\n}", server.indexOf('"https://api.sendgrid.com/v3/mail/send"', fnStart)));
-    expect(fnBody).toContain("reply_to: { email: replyToAddress() }");
-    expect(server).toContain('import { replyToAddress } from "./src/integrations/email"');
+    expect(server).toContain('import { sendEmail, emailLaneStatus } from "./src/integrations/email"');
+    expect(server).not.toMatch(/function sendEmailSMTP\s*\(/);
+    expect(server).not.toContain("api.sendgrid.com");
   });
 
   it("the address has ONE definition — no send call pastes the literal", () => {
