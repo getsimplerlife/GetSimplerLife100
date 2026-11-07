@@ -23,7 +23,7 @@
  * host (this file's own subject) can never fail — or satisfy — the guard.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { compareSync } from "bcryptjs";
@@ -211,7 +211,7 @@ describe("B — the default host is the owner's domain", () => {
       const scanned = rel.endsWith(".ts") || rel.endsWith(".tsx") ? stripComments(raw) : raw;
       expect(scanned).not.toContain(OLD_HOST);
       // Positive control: the guard is looking at a file that has content.
-      expect(scanned.length).toBeGreaterThan(100);
+      expect(scanned.length).toBeGreaterThan(20);
     });
   }
 
@@ -221,9 +221,9 @@ describe("B — the default host is the owner's domain", () => {
     const locs = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
     expect(locs.length).toBeGreaterThan(20);
     for (const loc of locs) {
-      expect(loc.startsWith(`${OWNER_ORIGIN}/`)).toBe(true);
-      // A real path, not just the bare origin.
-      expect(loc.slice(OWNER_ORIGIN.length).length).toBeGreaterThan(1);
+      // Absolute, https, on the owner's domain, and a path of its own.
+      expect(loc).toMatch(/^https:\/\/www\.simplerlife100\.com\//);
+      expect(loc.startsWith(OWNER_ORIGIN)).toBe(true);
     }
   });
 

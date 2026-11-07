@@ -365,7 +365,7 @@ export function renderEmailTemplate(variables: EmailTemplateVariables): {
     status,
     message,
     details = {},
-    actionUrl = "https://simplerlife100.ctonew.app/portal",
+    actionUrl = "https://www.simplerlife100.com/portal",
     actionText = "View Execution in Portal",
   } = variables;
 
@@ -423,7 +423,7 @@ ${actionUrl}
 
 --
 Simpler Life 100 Operations Team
-https://simplerlife100.ctonew.app
+https://www.simplerlife100.com
   `.trim();
 
   const html = `
@@ -548,7 +548,7 @@ https://simplerlife100.ctonew.app
     <div class="footer">
       <p>This is an automated system email sent by Simpler Life 100.</p>
       <p>&copy; 2026 Simpler Life 100. All rights reserved.</p>
-      <p><a href="https://simplerlife100.ctonew.app">Visit Website</a> | <a href="https://simplerlife100.ctonew.app/support">Support</a></p>
+      <p><a href="https://www.simplerlife100.com">Visit Website</a> | <a href="https://www.simplerlife100.com/support">Support</a></p>
     </div>
   </div>
 </body>
