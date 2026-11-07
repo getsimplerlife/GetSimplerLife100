@@ -131,7 +131,6 @@ type NavLink = {
     icon: PortalIconName;
     section?: string;
     adminOnly?: boolean;
-    badge?: number;
   };
   const navLinks: NavLink[] = [
     { name: "Dashboard", subtitle: "Activity · Overview", path: "/portal", icon: "dashboard", section: "Overview" },
@@ -193,12 +192,19 @@ type NavLink = {
     <PortalContext.Provider value={{ userEmail: user?.email || "", feed, unreadCount, loaded, readError, updatedAt, refreshNotifications }}>
       <div className="min-h-screen bg-black text-stone-100 font-sans antialiased selection:bg-stone-800 selection:text-white pb-16 lg:pb-0">
       
-      {/* Mobile Top Header */}
-      <header className="lg:hidden w-full bg-stone-950 border-b border-stone-900 h-14 fixed top-0 left-0 z-50 flex items-center justify-between px-6">
-        <Link to="/" className="text-md font-black tracking-widest text-white uppercase">
+      {/* Mobile Top Header — SLICE 200. The wordmark used `text-md`, which is
+          NOT a Tailwind size class (a silent no-op, so the brand inherited
+          16 px), and had no `whitespace-nowrap`, so inside this fixed `h-14`
+          bar it wrapped to two lines and pushed into the content starting at
+          `pt-14`. Real size class + nowrap + truncate as the last resort. */}
+      <header className="lg:hidden w-full bg-stone-950 border-b border-stone-900 h-14 fixed top-0 left-0 z-50 flex items-center justify-between gap-2 px-4 sm:px-6">
+        <Link
+          to="/"
+          className="min-w-0 truncate text-xs sm:text-sm font-black tracking-widest text-white uppercase whitespace-nowrap"
+        >
           Simpler Life 100
         </Link>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-1 shrink-0 sm:gap-4">
           {/* Mobile Search Button (P2-7) */}
           <Link to="/portal/search" className="tap-target text-stone-400 hover:text-white transition-colors" aria-label="Search workspace">
             <PortalIcon name="search" className="w-5 h-5" />
@@ -238,6 +244,18 @@ type NavLink = {
         </div>
       </header>
 
+      {/* SLICE 200 — ONE chrome on a phone. Below `lg` the sidebar is an
+          off-canvas drawer and this scrim is what makes "close" reachable
+          without hunting for the Menu button. It is also why the tab bar stays
+          below the drawer's z-index: the drawer is a layer, not a second shell. */}
+      {sidebarOpen && (
+        <div
+          className="lg:hidden fixed inset-0 z-30 bg-black/60 backdrop-blur-sm"
+          onClick={() => setSidebarOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
       {/* Sidebar Navigation */}
       <aside
         className={`w-60 bg-stone-950 border-r border-stone-900 flex flex-col h-screen fixed top-0 left-0 z-40 transition-transform duration-300 lg:translate-x-0 ${
@@ -252,8 +270,12 @@ type NavLink = {
           {/* P1-5: stale "v3.5" dev badge removed — version is not derived from a real const. */}
         </div>
 
-        {/* Navigation list */}
-        <nav className="flex-1 px-3 py-4 overflow-y-auto mt-14 lg:mt-0 select-none scrollbar-none">
+        {/* Navigation list — SLICE 200: `min-h-0`. A flex child cannot shrink
+            below its content without it, so `overflow-y-auto` never engaged and
+            the last of these 27 links sat under the `shrink-0` footer with no
+            way to reach them. `scrollbar-none` went with it: it removed the only
+            hint that the list continued. */}
+        <nav className="flex-1 min-h-0 px-3 py-4 overflow-y-auto mt-14 lg:mt-0 select-none">
           {(() => {
             const sections = [...new Set(navLinks.map(l => l.section))];
             return sections.map(section => (
@@ -381,37 +403,42 @@ type NavLink = {
           </div>
         </header>
 
-        {/* Content Viewport */}
-        <div className="flex-1 p-6 lg:p-10 overflow-y-auto max-w-6xl w-full mx-auto animate-fadeIn select-text">
+        {/* Content Viewport — 16 px of gutter at 390 px, not 24. */}
+        <div className="flex-1 p-4 sm:p-6 lg:p-10 overflow-y-auto max-w-6xl w-full mx-auto animate-fadeIn select-text">
           <TypedOutlet context={{ userEmail: user?.email || "", feed, unreadCount, loaded, readError, updatedAt, refreshNotifications } as PortalContextType} />
         </div>
       </main>
 
-      {/* Mobile Bottom Navigation Bar */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-stone-950/95 backdrop-blur-md border-t border-stone-900 z-50 flex items-center justify-around px-2 pb-safe select-none">
+      {/* Mobile Bottom Navigation Bar — SLICE 200. Eight `flex-1` tabs at
+          390 px are ~48 px each and their labels had no truncate, no max width
+          and no nowrap, so all eight collided into unreadable overlap; none of
+          them carried an `aria-label`, so a screen reader got eight identical
+          unnamed links. Now each tab keeps a readable minimum width (the row
+          scrolls rather than shrinking below it), the label truncates inside a
+          max width, and every tab is named. `link.badge` was dead code — no
+          `mobileLinks` entry ever set it — and is gone. */}
+      <nav
+        aria-label="Primary"
+        className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-stone-950/95 backdrop-blur-md border-t border-stone-900 z-50 flex items-stretch overflow-x-auto overscroll-x-contain px-1 pb-safe select-none"
+      >
         {mobileLinks.map((link) => {
           const isActive = currentPath === link.path || (link.path === "/portal" && currentPath === "/portal/");
           return (
             <Link
               key={link.path}
               to={link.path as any}
-              className={`flex flex-col items-center justify-center flex-1 py-1 text-center transition-all ${
+              aria-label={link.name}
+              aria-current={isActive ? "page" : undefined}
+              className={`flex flex-col items-center justify-center shrink-0 grow basis-[72px] px-1 py-1 text-center transition-all ${
                 isActive ? "text-emerald-400 font-black" : "text-stone-500 font-medium hover:text-stone-300"
               }`}
             >
-              <div className="relative">
-                <PortalIcon name={link.icon} className="w-6 h-6" />
-                {link.badge !== undefined && link.badge > 0 && (
-                  <span className="absolute -top-1 -right-2 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white ring-2 ring-stone-950">
-                    {link.badge}
-                  </span>
-                )}
-              </div>
-              <span className="text-[10px] mt-0.5 tracking-tight font-bold">{link.name}</span>
+              <PortalIcon name={link.icon} className="w-6 h-6" />
+              <span className="w-full max-w-[64px] truncate text-[10px] mt-0.5 tracking-tight font-bold">{link.name}</span>
             </Link>
           );
         })}
-      </div>
+      </nav>
 
     </div>
     </PortalContext.Provider>
