@@ -9,7 +9,7 @@ import { useEffect } from "react";
 import type { ReactNode } from "react";
 
 import "~/styles/app.css";
-import { resolvePageMeta } from "~/lib/site-meta";
+import { resolvePageMeta, SITE_URL } from "~/lib/site-meta";
 import { NotFoundPage } from "~/components/NotFoundPage";
 import { RouteError } from "~/components/RouteError";
 
@@ -49,7 +49,7 @@ function RootComponent() {
     // Update meta description
     upsertMeta("name", "description", description);
     // Open Graph + Twitter cards (client fallback; SSR heads set these per-route)
-    const canonicalUrl = `https://simplerlife100.ctonew.app${window.location.pathname || "/"}`;
+    const canonicalUrl = `${SITE_URL}${window.location.pathname || "/"}`;
     upsertMeta("property", "og:title", title);
     upsertMeta("property", "og:description", description);
     upsertMeta("property", "og:type", "website");

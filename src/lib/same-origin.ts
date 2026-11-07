@@ -63,6 +63,11 @@
  * `EXTRA_ALLOWED_ORIGINS` still extends the list.
  */
 export const DEFAULT_ALLOWED_HOSTS: readonly string[] = [
+  // SLICE 202 — the owner's own domain is the site people actually use. It was
+  // missing from this list while platform hostnames were in it, so a browser
+  // sitting on www.simplerlife100.com was refused by our own same-origin check.
+  "simplerlife100.com",
+  "www.simplerlife100.com",
   // the published site
   "simplerlife100.cto.site",
   // the host the live page's Origin header actually carried on 2026-11-01

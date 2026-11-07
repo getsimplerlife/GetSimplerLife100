@@ -26,7 +26,7 @@ import type { ProposalRecord } from "./types";
 
 /** Public origin used in customer-facing links (house pattern: SITE_ORIGIN). */
 export function proposalPublicOrigin(): string {
-  return (process.env.SITE_ORIGIN || "https://simplerlife100.ctonew.app").replace(/\/+$/, "");
+  return (process.env.SITE_ORIGIN || "https://www.simplerlife100.com").replace(/\/+$/, "");
 }
 /** Path of the public, read-only proposal page (signed slug). */
 export function proposalSharePath(slug: string): string {
