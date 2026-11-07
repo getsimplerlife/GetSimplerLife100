@@ -42,7 +42,7 @@ function EmptyStateCTA({ action }: { action: PortalEmptyStateAction }) {
   const label = <>{action.label} →</>;
   if ("to" in action) {
     return (
-      <Link to={action.to as any} className={buttonClass({ variant: "ghost", size: "sm", className: CTA_CLASS })}>
+      <Link to={action.to as any} className={buttonClass({ variant: "ghost", size: "md", className: CTA_CLASS })}>
         {label}
       </Link>
     );
@@ -53,14 +53,14 @@ function EmptyStateCTA({ action }: { action: PortalEmptyStateAction }) {
         href={action.href}
         target="_blank"
         rel="noopener noreferrer"
-        className={buttonClass({ variant: "ghost", size: "sm", className: CTA_CLASS })}
+        className={buttonClass({ variant: "ghost", size: "md", className: CTA_CLASS })}
       >
         {label}
       </a>
     );
   }
   return (
-    <Button variant="ghost" size="sm" className={CTA_CLASS} onClick={action.onClick}>
+    <Button variant="ghost" size="md" className={CTA_CLASS} onClick={action.onClick}>
       {label}
     </Button>
   );

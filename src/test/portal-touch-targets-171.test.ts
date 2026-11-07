@@ -17,6 +17,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { buttonClass } from "../components/ui";
 
 const REPO = process.cwd();
 const read = (rel: string) => readFileSync(join(REPO, rel), "utf8");
@@ -54,7 +55,15 @@ describe("slice 171 — tap-target primitive", () => {
 
   it("covers the empty-state CTA used by every portal page", () => {
     const src = read("src/components/PortalEmptyState.tsx");
-    expect(src).toContain("tap-target");
+    // SLICE 199 replaced the hand-rolled CTA with the shared `Button` /
+    // `buttonClass`, so the 44 px hit area now comes from the BUTTON SIZE
+    // rather than a local `tap-target` class. The property this test exists to
+    // protect is the hit area, not the class name that used to provide it:
+    // `md` is `h-11` (44 px) and `sm` is `h-9` (36 px, below WCAG 2.5.5).
+    expect(src).toContain('from "~/components/ui"');
+    expect(src, "the CTA must be the shared button").toMatch(/buttonClass\(|<Button/);
+    expect(src, "the CTA dropped below 44 px — `sm` is h-9, use `md` (h-11)").not.toContain('size: "sm"');
+    expect(src).not.toContain('size="sm"');
     expect(src).not.toContain('"inline-block mt-3');
   });
 
@@ -74,9 +83,14 @@ describe("slice 171 — tap-target primitive", () => {
   });
 
   it("grows the hit area, not the glyph — no font-size was bumped", () => {
-    // The visible type sizes at these controls are unchanged; only the box grew.
-    const src = read("src/components/PortalEmptyState.tsx");
-    expect(src).toContain("text-sm"); // CTA label size preserved
-    expect(src).toContain("tap-target");
+    // The visible type size at this control is unchanged; only the box grew.
+    // Since 199 the box is the shared button's `md` height, so the assertion is
+    // made against the component that now provides it rather than a string in
+    // the page file.
+    const md = buttonClass({ size: "md" });
+    expect(md, "`md` must be 44 px tall (h-11)").toContain("h-11");
+    expect(md, "the CTA label stays 14 px").toContain("text-sm");
+    expect(md, "the hit area must not be grown by bumping the type").not.toContain("text-lg");
+    expect(read("src/components/PortalEmptyState.tsx")).toContain('size: "md"');
   });
 });
